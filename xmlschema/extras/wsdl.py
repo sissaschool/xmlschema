@@ -1,5 +1,5 @@
 #
-# Copyright (c), 2016-2020, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2021, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -9,14 +9,14 @@
 #
 import os
 
-from .exceptions import XMLSchemaException, XMLSchemaValueError
-from .names import XSD_NAMESPACE, WSDL_NAMESPACE, SOAP_NAMESPACE, \
+from ..exceptions import XMLSchemaException, XMLSchemaValueError
+from ..names import XSD_NAMESPACE, WSDL_NAMESPACE, SOAP_NAMESPACE, \
     SCHEMAS_DIR, XSD_ANY_TYPE, XSD_SCHEMA
-from .helpers import get_qname, local_name, get_extended_qname, get_prefixed_qname
-from .namespaces import NamespaceResourcesMap
-from .resources import fetch_resource
-from .documents import XmlDocument
-from .validators import XMLSchema10
+from ..helpers import get_qname, local_name, get_extended_qname, get_prefixed_qname
+from ..namespaces import NamespaceResourcesMap
+from ..resources import fetch_resource
+from ..documents import XmlDocument
+from ..validators import XMLSchema10
 
 
 # WSDL 1.1 global declarations

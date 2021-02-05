@@ -9,7 +9,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import re
-from ..helpers import get_namespace, get_qname
+from xmlschema.helpers import get_namespace, get_qname
 
 _REGEX_SPACES = re.compile(r'\s+')
 

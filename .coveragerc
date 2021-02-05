@@ -1,7 +1,7 @@
 [run]
 branch = True
 source = xmlschema/
-omit = xmlschema/testing/*
+omit = xmlschema/extras/testing/*
 
 [report]
 exclude_lines =

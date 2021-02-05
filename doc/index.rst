@@ -10,6 +10,7 @@ xmlschema Documentation
     converters
     components
     testing
+    extras
 
 .. only:: html
 

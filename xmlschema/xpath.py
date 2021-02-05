@@ -262,7 +262,7 @@ class ElementPathMixin(Sequence):
 
         :param path: an XPath expression that considers the XSD component as the root element.
         :param namespaces: an optional mapping from namespace prefix to namespace URI.
-        :return: The first matching XSD subelement or ``None`` if there is not match.
+        :return: the first matching XSD subelement or ``None`` if there is no match.
         """
         context = XMLSchemaContext(self)
         return next(self._xpath_parse(path, namespaces).select_results(context), None)

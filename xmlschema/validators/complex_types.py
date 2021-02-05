@@ -7,12 +7,15 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+from collections.abc import MutableSequence
+
 from ..exceptions import XMLSchemaValueError
 from ..names import XSD_GROUP, XSD_ATTRIBUTE_GROUP, XSD_SEQUENCE, XSD_OVERRIDE, \
     XSD_ALL, XSD_CHOICE, XSD_ANY_ATTRIBUTE, XSD_ATTRIBUTE, XSD_COMPLEX_CONTENT, \
     XSD_RESTRICTION, XSD_COMPLEX_TYPE, XSD_EXTENSION, XSD_ANY_TYPE, XSD_ASSERT, \
     XSD_UNTYPED_ATOMIC, XSD_SIMPLE_CONTENT, XSD_OPEN_CONTENT, XSD_ANNOTATION
 from ..helpers import get_prefixed_qname, get_qname, local_name
+from ..dataobjects import DataElement
 
 from .exceptions import XMLSchemaDecodeError
 from .helpers import get_xsd_derivation_attribute
@@ -652,7 +655,7 @@ class XsdComplexType(XsdType, ValidationMixin):
         :return: yields a decoded object, eventually preceded by a sequence of \
         validation or decoding errors.
         """
-        xsd_element = self.schema.create_element(name=elem.tag)
+        xsd_element = self.schema.create_element(elem.tag, parent=self, form='unqualified')
         xsd_element.type = self
         yield from xsd_element.iter_decode(elem, validation, **kwargs)
 
@@ -668,11 +671,16 @@ class XsdComplexType(XsdType, ValidationMixin):
         :return: yields an Element, eventually preceded by a sequence of \
         validation or encoding errors.
         """
-        name, value = obj
-        xsd_element = self.schema.create_element(name=name)
+        try:
+            name, value = obj
+        except ValueError:
+            name = obj.name
+            value = obj
+
+        xsd_element = self.schema.create_element(name, parent=self, form='unqualified')
         xsd_element.type = self
 
-        if isinstance(value, list):
+        if isinstance(value, MutableSequence) and not isinstance(value, DataElement):
             try:
                 results = [x for item in value for x in xsd_element.iter_encode(
                     item, validation, **kwargs

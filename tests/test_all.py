@@ -34,6 +34,8 @@ if __name__ == '__main__':
         tests.addTests(loader.discover(start_dir=tests_dir, pattern="test_cli.py"))
         tests.addTests(loader.discover(start_dir=tests_dir, pattern="test_converters.py"))
         tests.addTests(loader.discover(start_dir=tests_dir, pattern="test_documents.py"))
+        tests.addTests(loader.discover(start_dir=tests_dir, pattern="test_dataobjects.py"))
+        tests.addTests(loader.discover(start_dir=tests_dir, pattern="test_codegen.py"))
         tests.addTests(loader.discover(start_dir=tests_dir, pattern="test_wsdl.py"))
 
         validation_dir = os.path.join(os.path.dirname(__file__), 'validation')

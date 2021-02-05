@@ -9,7 +9,7 @@
 #
 from decimal import Decimal
 from math import isinf, isnan
-from typing import Optional, Union, Tuple
+from typing import Optional, Union
 from xml.etree.ElementTree import Element
 from elementpath import datatypes
 
@@ -42,50 +42,6 @@ def get_xsd_derivation_attribute(elem: Element, attribute: str,
     elif not all(s in values for s in items):
         raise ValueError("wrong value %r for attribute %r" % (value, attribute))
     return value
-
-
-def not_whitespace(s: Optional[str]) -> bool:
-    return s and s.strip()
-
-
-def count_digits(number: Union[str, bytes, int, float, Decimal]) -> Tuple[int, int]:
-    """
-    Counts the digits of a number.
-
-    :param number: an int or a float or a Decimal or a string representing a number.
-    :return: a couple with the number of digits of the integer part and \
-    the number of digits of the decimal part.
-    """
-    if isinstance(number, str):
-        number = str(Decimal(number)).lstrip('-+')
-    elif isinstance(number, bytes):
-        number = str(Decimal(number.decode())).lstrip('-+')
-    else:
-        number = str(number).lstrip('-+')
-
-    if 'E' in number:
-        significand, _, exponent = number.partition('E')
-    elif 'e' in number:
-        significand, _, exponent = number.partition('e')
-    elif '.' not in number:
-        return len(number.lstrip('0')), 0
-    else:
-        integer_part, _, decimal_part = number.partition('.')
-        return len(integer_part.lstrip('0')), len(decimal_part.rstrip('0'))
-
-    significand = significand.strip('0')
-    exponent = int(exponent)
-
-    num_digits = len(significand) - 1 if '.' in significand else len(significand)
-    if exponent > 0:
-        return num_digits + exponent, 0
-    else:
-        return 0, num_digits - exponent - 1
-
-
-def strictly_equal(obj1: object, obj2: object) -> bool:
-    """Checks if the objects are equal and are of the same type."""
-    return obj1 == obj2 and type(obj1) is type(obj2)
 
 
 #
@@ -219,13 +175,3 @@ def boolean_to_python(value: str) -> bool:
 
 def python_to_boolean(value: object) -> str:
     return str(value).lower()
-
-
-def raw_xml_encode(value: Union[str, bytes, bool, int, float, Decimal, list, tuple]) -> str:
-    """Encodes a simple value to XML."""
-    if isinstance(value, bool):
-        return 'true' if value else 'false'
-    elif isinstance(value, (list, tuple)):
-        return ' '.join(str(e) for e in value)
-    else:
-        return str(value)

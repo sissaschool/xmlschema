@@ -49,6 +49,9 @@ Moreover there are also other two converters useful for specific cases:
   * :class:`UnorderedConverter`: like default converter but with unordered decoding and encoding.
   * :class:`ColumnarConverter`: a converter that remaps attributes as child elements in a
     columnar shape (available since release v1.2.0).
+  * :class:`DataElementConverter`: a converter that converts XML to a tree of
+    :class:`DataElement` intances, Element-like objects with decoded values and
+    schema bindings (available since release v1.5.0).
 
 
 Create a custom converter

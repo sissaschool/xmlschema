@@ -9,7 +9,8 @@
 #
 import re
 from collections import Counter
-from typing import Callable, Dict, Iterator, Optional, Tuple
+from decimal import Decimal
+from typing import Callable, Dict, Iterator, Optional, Tuple, Union
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from .names import XSI_SCHEMA_LOCATION, XSI_NONS_SCHEMA_LOCATION
 
@@ -257,3 +258,58 @@ def prune_etree(root: Element, selector: Callable[[Element], bool]) -> Optional[
         del root[:]
         return True
     _prune_subtree(root)
+
+
+def not_whitespace(s: Optional[str]) -> bool:
+    return s and s.strip()
+
+
+def count_digits(number: Union[str, bytes, int, float, Decimal]) -> Tuple[int, int]:
+    """
+    Counts the digits of a number.
+
+    :param number: an int or a float or a Decimal or a string representing a number.
+    :return: a couple with the number of digits of the integer part and \
+    the number of digits of the decimal part.
+    """
+    if isinstance(number, str):
+        number = str(Decimal(number)).lstrip('-+')
+    elif isinstance(number, bytes):
+        number = str(Decimal(number.decode())).lstrip('-+')
+    else:
+        number = str(number).lstrip('-+')
+
+    if 'E' in number:
+        significand, _, exponent = number.partition('E')
+    elif 'e' in number:
+        significand, _, exponent = number.partition('e')
+    elif '.' not in number:
+        return len(number.lstrip('0')), 0
+    else:
+        integer_part, _, decimal_part = number.partition('.')
+        return len(integer_part.lstrip('0')), len(decimal_part.rstrip('0'))
+
+    significand = significand.strip('0')
+    exponent = int(exponent)
+
+    num_digits = len(significand) - 1 if '.' in significand else len(significand)
+    if exponent > 0:
+        return num_digits + exponent, 0
+    else:
+        return 0, num_digits - exponent - 1
+
+
+def strictly_equal(obj1: object, obj2: object) -> bool:
+    """Checks if the objects are equal and are of the same type."""
+    return obj1 == obj2 and type(obj1) is type(obj2)
+
+
+def raw_xml_encode(value: Optional[Union[str, bytes, bool, int, float, Decimal, list, tuple]]) \
+        -> Optional[str]:
+    """Encodes a simple value to XML."""
+    if isinstance(value, bool):
+        return 'true' if value else 'false'
+    elif isinstance(value, (list, tuple)):
+        return ' '.join(str(e) for e in value)
+    elif value is not None:
+        return str(value)

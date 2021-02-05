@@ -2,11 +2,18 @@
 CHANGELOG
 *********
 
+`v1.5.0`_ (2021-02-05)
+======================
+* Add DataElement class for creating objects with schema bindings
+* Add DataElementConverter for decode to structured objects
+* Add an experimental abstract base class for building jinja2 based
+  code generators (jinja2 as an optional dependency)
+
 `v1.4.2`_ (2021-01-24)
 ======================
 * Add decoding of binary datatypes (xs:hexBinary and xs:base64Binary)
 * Fix encoding from string values for some builtin datatypes
-  (decimal, binary, duration and datetime).
+  (decimal, binary, duration and datetime)
 
 `v1.4.1`_ (2020-12-24)
 ======================
@@ -394,3 +401,4 @@ v0.9.6 (2017-05-05)
 .. _v1.4.0: https://github.com/brunato/xmlschema/compare/v1.3.1...v1.4.0
 .. _v1.4.1: https://github.com/brunato/xmlschema/compare/v1.4.0...v1.4.1
 .. _v1.4.2: https://github.com/brunato/xmlschema/compare/v1.4.1...v1.4.2
+.. _v1.5.0: https://github.com/brunato/xmlschema/compare/v1.4.2...v1.5.0

@@ -19,12 +19,13 @@ from xmlschema.etree import ElementTree, etree_element
 from xmlschema.names import XSD_NAMESPACE, XSI_NAMESPACE, XSD_SCHEMA, \
     XSD_ELEMENT, XSD_SIMPLE_TYPE, XSD_ANNOTATION, XSI_TYPE
 from xmlschema.helpers import prune_etree, get_namespace, get_qname, \
-    local_name, get_prefixed_qname, get_extended_qname
-from xmlschema.testing.helpers import iter_nested_items
+    local_name, get_prefixed_qname, get_extended_qname, raw_xml_encode, \
+    count_digits, strictly_equal
+from xmlschema.testing import iter_nested_items
 from xmlschema.validators.exceptions import XMLSchemaValidationError
 from xmlschema.validators.helpers import get_xsd_derivation_attribute, \
-    raw_xml_encode, count_digits, strictly_equal, decimal_validator, \
-    qname_validator, base64_binary_validator, hex_binary_validator, \
+    decimal_validator, qname_validator, \
+    base64_binary_validator, hex_binary_validator, \
     int_validator, long_validator, unsigned_byte_validator, \
     unsigned_short_validator, negative_int_validator, error_type_validator
 from xmlschema.validators.models import OccursCounter
@@ -83,6 +84,7 @@ class TestHelpers(unittest.TestCase):
         self.assertEqual(component._parse_child_component(elem), elem[2])
 
     def test_raw_xml_encode_function(self):
+        self.assertIsNone(raw_xml_encode(None))
         self.assertEqual(raw_xml_encode(True), 'true')
         self.assertEqual(raw_xml_encode(False), 'false')
         self.assertEqual(raw_xml_encode(10), '10')

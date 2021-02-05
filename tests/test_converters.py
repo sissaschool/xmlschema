@@ -10,22 +10,35 @@
 #
 import unittest
 import os
+import xml.etree.ElementTree as ElementTree
 
 try:
-    from lxml.etree import Element as lxml_etree_element
+    import lxml.etree as lxml_etree
 except ImportError:
-    lxml_etree_element = None
+    lxml_etree = None
 
-from xmlschema import XMLSchema, XMLSchemaConverter
+from xmlschema import XMLSchema, XMLSchemaValidationError, fetch_namespaces
 from xmlschema.etree import etree_element
-from xmlschema.testing.helpers import etree_elements_assert_equal
+from xmlschema.dataobjects import DataElement
+from xmlschema.testing import etree_elements_assert_equal
 
-from xmlschema.converters import ColumnarConverter
+from xmlschema.converters import XMLSchemaConverter, UnorderedConverter, \
+    ParkerConverter, BadgerFishConverter, AbderaConverter, JsonMLConverter, \
+    ColumnarConverter, DataElementConverter
 
 
 class TestConverters(unittest.TestCase):
 
     TEST_CASES_DIR = os.path.join(os.path.dirname(__file__), 'test_cases')
+
+    @classmethod
+    def setUpClass(cls):
+        cls.col_xsd_filename = cls.casepath('examples/collection/collection.xsd')
+        cls.col_xml_filename = cls.casepath('examples/collection/collection.xml')
+        cls.col_xml_root = ElementTree.parse(cls.col_xml_filename).getroot()
+        cls.col_lxml_root = lxml_etree.parse(cls.col_xml_filename).getroot()
+        cls.col_nsmap = fetch_namespaces(cls.col_xml_filename)
+        cls.col_namespace = cls.col_nsmap['col']
 
     @classmethod
     def casepath(cls, relative_path):
@@ -38,9 +51,9 @@ class TestConverters(unittest.TestCase):
         converter = XMLSchemaConverter(etree_element_class=etree_element)
         self.assertIs(converter.etree_element_class, etree_element)
 
-        if lxml_etree_element is not None:
-            converter = XMLSchemaConverter(etree_element_class=lxml_etree_element)
-            self.assertIs(converter.etree_element_class, lxml_etree_element)
+        if lxml_etree is not None:
+            converter = XMLSchemaConverter(etree_element_class=lxml_etree.Element)
+            self.assertIs(converter.etree_element_class, lxml_etree.Element)
 
     def test_prefix_arguments(self):
         converter = XMLSchemaConverter(cdata_prefix='#')
@@ -136,33 +149,346 @@ class TestConverters(unittest.TestCase):
         elem = converter.etree_element('A', attrib={})
         self.assertIsNone(etree_elements_assert_equal(elem, etree_element('A')))
 
-    def test_parquet_converter(self):
-        col_xsd_filename = self.casepath('examples/collection/collection.xsd')
-        col_xml_filename = self.casepath('examples/collection/collection.xml')
+    def test_columnar_converter(self):
+        col_schema = XMLSchema(self.col_xsd_filename, converter=ColumnarConverter)
 
-        col_schema = XMLSchema(col_xsd_filename, converter=ColumnarConverter)
-
-        obj = col_schema.decode(col_xml_filename)
+        obj = col_schema.decode(self.col_xml_filename)
         self.assertIn("'authorid'", str(obj))
         self.assertNotIn("'author_id'", str(obj))
         self.assertNotIn("'author__id'", str(obj))
 
-        obj = col_schema.decode(col_xml_filename, attr_prefix='_')
+        obj = col_schema.decode(self.col_xml_filename, attr_prefix='_')
         self.assertNotIn("'authorid'", str(obj))
         self.assertIn("'author_id'", str(obj))
         self.assertNotIn("'author__id'", str(obj))
 
-        obj = col_schema.decode(col_xml_filename, attr_prefix='__')
+        obj = col_schema.decode(self.col_xml_filename, attr_prefix='__')
         self.assertNotIn("'authorid'", str(obj))
         self.assertNotIn("'author_id'", str(obj))
         self.assertIn("'author__id'", str(obj))
 
-        col_schema = XMLSchema(col_xsd_filename)
+        col_schema = XMLSchema(self.col_xsd_filename)
 
-        obj = col_schema.decode(col_xml_filename, converter=ColumnarConverter, attr_prefix='__')
+        obj = col_schema.decode(self.col_xml_filename, converter=ColumnarConverter,
+                                attr_prefix='__')
         self.assertNotIn("'authorid'", str(obj))
         self.assertNotIn("'author_id'", str(obj))
         self.assertIn("'author__id'", str(obj))
+
+    def test_data_element_converter(self):
+        col_schema = XMLSchema(self.col_xsd_filename, converter=DataElementConverter)
+        obj = col_schema.decode(self.col_xml_filename)
+
+        self.assertIsInstance(obj, DataElement)
+        self.assertEqual(obj.tag, self.col_xml_root.tag)
+        self.assertEqual(obj.nsmap, self.col_nsmap)
+
+    def test_decode_encode_default_converter(self):
+        col_schema = XMLSchema(self.col_xsd_filename)
+
+        # Decode from XML file
+        obj1 = col_schema.decode(self.col_xml_filename)
+        self.assertIn("'@xmlns:col'", repr(obj1))
+
+        root = col_schema.encode(obj1, path='./col:collection', namespaces=self.col_nsmap)
+        self.assertIsNone(etree_elements_assert_equal(self.col_xml_root, root, strict=False))
+
+        root = col_schema.encode(obj1)
+        self.assertIsNone(etree_elements_assert_equal(self.col_xml_root, root, strict=False))
+
+        # Decode from lxml.etree.Element tree
+        obj2 = col_schema.decode(self.col_lxml_root)
+        self.assertIn("'@xmlns:col'", repr(obj2))
+        self.assertEqual(obj1, obj2)
+
+        # Decode from ElementTree.Element tree providing namespaces
+        obj2 = col_schema.decode(self.col_xml_root, namespaces=self.col_nsmap)
+        self.assertIn("'@xmlns:col'", repr(obj2))
+        self.assertEqual(obj1, obj2)
+
+        # Decode from ElementTree.Element tree without namespaces
+        obj2 = col_schema.decode(self.col_xml_root)
+        self.assertNotIn("'@xmlns:col'", repr(obj2))
+        self.assertNotEqual(obj1, obj2)
+
+        root = col_schema.encode(obj2, path='./col:collection', namespaces=self.col_nsmap)
+        self.assertIsNone(etree_elements_assert_equal(self.col_xml_root, root, strict=False))
+
+        root = col_schema.encode(obj2)  # No namespace unmap is required
+        self.assertIsNone(etree_elements_assert_equal(self.col_xml_root, root, strict=False))
+
+    def test_decode_encode_default_converter_with_preserve_root(self):
+        col_schema = XMLSchema(self.col_xsd_filename)
+
+        # Decode from XML file
+        obj1 = col_schema.decode(self.col_xml_filename, preserve_root=True)
+        self.assertIn("'col:collection'", repr(obj1))
+        self.assertIn("'@xmlns:col'", repr(obj1))
+
+        root = col_schema.encode(obj1, path='./col:collection', namespaces=self.col_nsmap,
+                                 preserve_root=True)
+        self.assertIsNone(etree_elements_assert_equal(self.col_xml_root, root, strict=False))
+
+        root = col_schema.encode(obj1, preserve_root=True)
+        self.assertIsNone(etree_elements_assert_equal(self.col_xml_root, root, strict=False))
+
+        # Decode from lxml.etree.Element tree
+        obj2 = col_schema.decode(self.col_lxml_root, preserve_root=True)
+        self.assertIn("'col:collection'", repr(obj2))
+        self.assertIn("'@xmlns:col'", repr(obj2))
+        self.assertEqual(obj1, obj2)
+
+        # Decode from ElementTree.Element tree providing namespaces
+        obj2 = col_schema.decode(self.col_xml_root, namespaces=self.col_nsmap, preserve_root=True)
+        self.assertIn("'col:collection'", repr(obj2))
+        self.assertIn("'@xmlns:col'", repr(obj2))
+        self.assertEqual(obj1, obj2)
+
+        # Decode from ElementTree.Element tree without namespaces
+        obj2 = col_schema.decode(self.col_xml_root, preserve_root=True)
+        self.assertNotIn("'col:collection'", repr(obj2))
+        self.assertNotIn("'@xmlns:col'", repr(obj2))
+        self.assertNotEqual(obj1, obj2)
+
+        root = col_schema.encode(obj2, path='./col:collection',
+                                 namespaces=self.col_nsmap, preserve_root=True)
+        self.assertIsNone(etree_elements_assert_equal(self.col_xml_root, root, strict=False))
+
+        root = col_schema.encode(obj2, preserve_root=True)  # No namespace unmap is required
+        self.assertIsNone(etree_elements_assert_equal(self.col_xml_root, root, strict=False))
+
+    def test_decode_encode_unordered_converter(self):
+        col_schema = XMLSchema(self.col_xsd_filename, converter=UnorderedConverter)
+
+        # Decode from XML file
+        obj1 = col_schema.decode(self.col_xml_filename)
+        self.assertIn("'@xmlns:col'", repr(obj1))
+
+        root = col_schema.encode(obj1, path='./col:collection', namespaces=self.col_nsmap)
+        self.assertIsNone(etree_elements_assert_equal(self.col_xml_root, root, strict=False))
+
+        root = col_schema.encode(obj1)
+        self.assertIsNone(etree_elements_assert_equal(self.col_xml_root, root, strict=False))
+
+        # Decode from lxml.etree.Element tree
+        obj2 = col_schema.decode(self.col_lxml_root)
+        self.assertIn("'@xmlns:col'", repr(obj2))
+        self.assertEqual(obj1, obj2)
+
+        # Decode from ElementTree.Element tree providing namespaces
+        obj2 = col_schema.decode(self.col_xml_root, namespaces=self.col_nsmap)
+        self.assertIn("'@xmlns:col'", repr(obj2))
+        self.assertEqual(obj1, obj2)
+
+        # Decode from ElementTree.Element tree without namespaces
+        obj2 = col_schema.decode(self.col_xml_root)
+        self.assertNotIn("'@xmlns:col'", repr(obj2))
+        self.assertNotEqual(obj1, obj2)
+
+        root = col_schema.encode(obj2, path='./col:collection', namespaces=self.col_nsmap)
+        self.assertIsNone(etree_elements_assert_equal(self.col_xml_root, root, strict=False))
+
+        root = col_schema.encode(obj2)  # No namespace unmap is required
+        self.assertIsNone(etree_elements_assert_equal(self.col_xml_root, root, strict=False))
+
+    def test_decode_encode_unordered_converter_with_preserve_root(self):
+        col_schema = XMLSchema(self.col_xsd_filename, converter=UnorderedConverter)
+
+        # Decode from XML file
+        obj1 = col_schema.decode(self.col_xml_filename, preserve_root=True)
+        self.assertIn("'col:collection'", repr(obj1))
+        self.assertIn("'@xmlns:col'", repr(obj1))
+
+        root = col_schema.encode(obj1, path='./col:collection', namespaces=self.col_nsmap,
+                                 preserve_root=True)
+        self.assertIsNone(etree_elements_assert_equal(self.col_xml_root, root, strict=False))
+
+        root = col_schema.encode(obj1, preserve_root=True)
+        self.assertIsNone(etree_elements_assert_equal(self.col_xml_root, root, strict=False))
+
+        # Decode from lxml.etree.Element tree
+        obj2 = col_schema.decode(self.col_lxml_root, preserve_root=True)
+        self.assertIn("'col:collection'", repr(obj2))
+        self.assertIn("'@xmlns:col'", repr(obj2))
+        self.assertEqual(obj1, obj2)
+
+        # Decode from ElementTree.Element tree providing namespaces
+        obj2 = col_schema.decode(self.col_xml_root, namespaces=self.col_nsmap, preserve_root=True)
+        self.assertIn("'col:collection'", repr(obj2))
+        self.assertIn("'@xmlns:col'", repr(obj2))
+        self.assertEqual(obj1, obj2)
+
+        # Decode from ElementTree.Element tree without namespaces
+        obj2 = col_schema.decode(self.col_xml_root, preserve_root=True)
+        self.assertNotIn("'col:collection'", repr(obj2))
+        self.assertNotIn("'@xmlns:col'", repr(obj2))
+        self.assertNotEqual(obj1, obj2)
+
+        root = col_schema.encode(obj2, path='./col:collection',
+                                 namespaces=self.col_nsmap, preserve_root=True)
+        self.assertIsNone(etree_elements_assert_equal(self.col_xml_root, root, strict=False))
+
+        root = col_schema.encode(obj2, preserve_root=True)  # No namespace unmap is required
+        self.assertIsNone(etree_elements_assert_equal(self.col_xml_root, root, strict=False))
+
+    def test_decode_encode_parker_converter(self):
+        col_schema = XMLSchema(self.col_xsd_filename, converter=ParkerConverter)
+
+        obj1 = col_schema.decode(self.col_xml_filename)
+
+        with self.assertRaises(XMLSchemaValidationError) as ec:
+            col_schema.encode(obj1, path='./col:collection', namespaces=self.col_nsmap)
+        self.assertIn("missing required attribute 'id'", str(ec.exception))
+
+    def test_decode_encode_badger_fish_converter(self):
+        col_schema = XMLSchema(self.col_xsd_filename, converter=BadgerFishConverter)
+
+        obj1 = col_schema.decode(self.col_xml_filename)
+        self.assertIn("'@xmlns'", repr(obj1))
+
+        root = col_schema.encode(obj1, path='./col:collection', namespaces=self.col_nsmap)
+        self.assertIsNone(etree_elements_assert_equal(self.col_xml_root, root, strict=False))
+
+        root = col_schema.encode(obj1)
+        self.assertIsNone(etree_elements_assert_equal(self.col_xml_root, root, strict=False))
+
+        # With ElementTree namespaces are not mapped
+        obj2 = col_schema.decode(self.col_xml_root)
+        self.assertNotIn("'@xmlns'", repr(obj2))
+        self.assertNotEqual(obj1, obj2)
+        self.assertEqual(obj1, col_schema.decode(self.col_xml_root, namespaces=self.col_nsmap))
+
+        # With lxml.etree namespaces are mapped
+        self.assertEqual(obj1, col_schema.decode(self.col_lxml_root))
+
+        root = col_schema.encode(obj2, path='./col:collection', namespaces=self.col_nsmap)
+        self.assertIsNone(etree_elements_assert_equal(self.col_xml_root, root, strict=False))
+
+        root = col_schema.encode(obj2)  # No namespace unmap is required
+        self.assertIsNone(etree_elements_assert_equal(self.col_xml_root, root, strict=False))
+
+    def test_decode_encode_abdera_converter(self):
+        col_schema = XMLSchema(self.col_xsd_filename, converter=AbderaConverter)
+
+        obj1 = col_schema.decode(self.col_xml_filename)
+
+        root = col_schema.encode(obj1, path='./col:collection', namespaces=self.col_nsmap)
+        self.assertIsNone(etree_elements_assert_equal(self.col_xml_root, root, strict=False))
+
+        # Namespace mapping is required
+        with self.assertRaises(XMLSchemaValidationError) as ec:
+            col_schema.encode(obj1, path='./{%s}collection' % self.col_namespace)
+        self.assertIn("'xsi:schemaLocation' attribute not allowed", str(ec.exception))
+
+        # With ElementTree namespaces are not mapped
+        obj2 = col_schema.decode(self.col_xml_root)
+        self.assertNotEqual(obj1, obj2)
+        self.assertEqual(obj1, col_schema.decode(self.col_xml_root, namespaces=self.col_nsmap))
+
+        # With lxml.etree namespaces are mapped
+        self.assertEqual(obj1, col_schema.decode(self.col_lxml_root))
+
+        root = col_schema.encode(obj2, path='./col:collection', namespaces=self.col_nsmap)
+        self.assertIsNone(etree_elements_assert_equal(self.col_xml_root, root, strict=False))
+
+        root = col_schema.encode(obj2)  # No namespace unmap is required
+        self.assertIsNone(etree_elements_assert_equal(self.col_xml_root, root, strict=False))
+
+    def test_decode_encode_jsonml_converter(self):
+        col_schema = XMLSchema(self.col_xsd_filename, converter=JsonMLConverter)
+
+        obj1 = col_schema.decode(self.col_xml_filename)
+        self.assertIn('col:collection', repr(obj1))
+        self.assertIn('xmlns:col', repr(obj1))
+
+        root = col_schema.encode(obj1, path='./col:collection', namespaces=self.col_nsmap)
+        self.assertIsNone(etree_elements_assert_equal(self.col_xml_root, root, strict=False))
+
+        root = col_schema.encode(obj1, path='./{%s}collection' % self.col_namespace)
+        self.assertIsNone(etree_elements_assert_equal(self.col_xml_root, root, strict=False))
+
+        root = col_schema.encode(obj1)
+        self.assertIsNone(etree_elements_assert_equal(self.col_xml_root, root, strict=False))
+
+        # With ElementTree namespaces are not mapped
+        obj2 = col_schema.decode(self.col_xml_root)
+        self.assertNotIn('col:collection', repr(obj2))
+        self.assertNotEqual(obj1, obj2)
+        self.assertEqual(obj1, col_schema.decode(self.col_xml_root, namespaces=self.col_nsmap))
+
+        # With lxml.etree namespaces are mapped
+        self.assertEqual(obj1, col_schema.decode(self.col_lxml_root))
+
+        root = col_schema.encode(obj2, path='./col:collection', namespaces=self.col_nsmap)
+        self.assertIsNone(etree_elements_assert_equal(self.col_xml_root, root, strict=False))
+
+        root = col_schema.encode(obj2)  # No namespace unmap is required
+        self.assertIsNone(etree_elements_assert_equal(self.col_xml_root, root, strict=False))
+
+    def test_decode_encode_columnar_converter(self):
+        col_schema = XMLSchema(self.col_xsd_filename, converter=ColumnarConverter)
+
+        obj1 = col_schema.decode(self.col_xml_filename)
+
+        root = col_schema.encode(obj1, path='./col:collection', namespaces=self.col_nsmap)
+        self.assertIsNone(etree_elements_assert_equal(self.col_xml_root, root, strict=False))
+
+        # Namespace mapping is required
+        with self.assertRaises(XMLSchemaValidationError) as ec:
+            col_schema.encode(obj1, path='./{%s}collection' % self.col_namespace)
+        self.assertIn("'xsi:schemaLocation' attribute not allowed", str(ec.exception))
+
+        # With ElementTree namespaces are not mapped
+        obj2 = col_schema.decode(self.col_xml_root)
+        self.assertNotEqual(obj1, obj2)
+        self.assertEqual(obj1, col_schema.decode(self.col_xml_root, namespaces=self.col_nsmap))
+
+        # With lxml.etree namespaces are mapped
+        self.assertEqual(obj1, col_schema.decode(self.col_lxml_root))
+
+        root = col_schema.encode(obj2, path='./col:collection', namespaces=self.col_nsmap)
+        self.assertIsNone(etree_elements_assert_equal(self.col_xml_root, root, strict=False))
+
+        root = col_schema.encode(obj2)  # No namespace unmap is required
+        self.assertIsNone(etree_elements_assert_equal(self.col_xml_root, root, strict=False))
+
+    def test_decode_encode_data_element_converter(self):
+        col_schema = XMLSchema(self.col_xsd_filename, converter=DataElementConverter)
+
+        obj1 = col_schema.decode(self.col_xml_filename)
+        # self.assertIn('col:collection', repr(obj1))
+        self.assertIn('col', obj1.nsmap)
+
+        root = col_schema.encode(obj1, path='./col:collection', namespaces=self.col_nsmap)
+
+        self.assertIsNone(etree_elements_assert_equal(self.col_xml_root, root, strict=False))
+
+        root = col_schema.encode(obj1, path='./{%s}collection' % self.col_namespace)
+        self.assertIsNone(etree_elements_assert_equal(self.col_xml_root, root, strict=False))
+
+        root = col_schema.encode(obj1)
+        self.assertIsNone(etree_elements_assert_equal(self.col_xml_root, root, strict=False))
+
+        # With ElementTree namespaces are not mapped
+        obj2 = col_schema.decode(self.col_xml_root)
+
+        # Equivalent if compared as Element trees (tag, text, attrib, tail)
+        self.assertIsNone(etree_elements_assert_equal(obj1, obj2))
+
+        self.assertIsNone(etree_elements_assert_equal(
+            obj1, col_schema.decode(self.col_xml_root, namespaces=self.col_nsmap)
+        ))
+
+        # With lxml.etree namespaces are mapped
+        self.assertIsNone(etree_elements_assert_equal(
+            obj1, col_schema.decode(self.col_lxml_root)
+        ))
+
+        root = col_schema.encode(obj2, path='./col:collection', namespaces=self.col_nsmap)
+        self.assertIsNone(etree_elements_assert_equal(self.col_xml_root, root, strict=False))
+
+        root = col_schema.encode(obj2)  # No namespace unmap is required
+        self.assertIsNone(etree_elements_assert_equal(self.col_xml_root, root, strict=False))
 
 
 if __name__ == '__main__':

@@ -465,19 +465,5 @@ available for representing XML resources with a related schema:
     >>> xml_document.schema
     XMLSchema10(name='vehicles.xsd', namespace='http://example.com/vehicles')
 
-This class can be used to derive specialized schema-related classes. An example of
-specialization is the class :class:`Wsdl11Document`, usable for validating and
-parsing WSDL 1.1 documents, that can be imported from *wsdl* module:
-
-.. doctest::
-
-    >>> from xmlschema.wsdl import Wsdl11Document
-    >>> wsdl_document = Wsdl11Document('tests/test_cases/examples/stockquote/stockquoteservice.wsdl')
-    >>> wsdl_document.schema
-    XMLSchema10(name='wsdl.xsd', namespace='http://schemas.xmlsoap.org/wsdl/')
-
-A parsed WSDL 1.1 document can aggregate a set of WSDL/XSD files for building
-interrelated set of definitions in multiple namespaces. The XMLResource base
-class and schema validation assure a fully checked WSDL document with
-protections against XML attacks.
-See :class:`xmlschema.wsdl.Wsdl11Document` API for details.
+This class can be used to derive specialized schema-related classes.
+See :ref:`wsdl11-documents` section for an application example.

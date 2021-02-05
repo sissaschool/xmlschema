@@ -13,7 +13,7 @@ This module contains classes for XML Schema wildcards.
 from ..exceptions import XMLSchemaValueError
 from ..names import XSI_NAMESPACE, XSD_ANY, XSD_ANY_ATTRIBUTE, \
     XSD_OPEN_CONTENT, XSD_DEFAULT_OPEN_CONTENT, XSI_TYPE
-from ..helpers import get_namespace
+from ..helpers import get_namespace, raw_xml_encode
 from ..xpath import XMLSchemaProxy, ElementPathMixin
 from .xsdbase import ValidationMixin, XsdComponent
 from .particles import ParticleMixin
@@ -445,9 +445,13 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
             except LookupError:
                 if XSI_TYPE in elem.attrib:
                     if self.process_contents == 'lax':
-                        xsd_element = self.maps.validator.create_element(elem.tag, nillable='true')
+                        xsd_element = self.maps.validator.create_element(
+                            elem.tag, parent=self, nillable='true', form='unqualified'
+                        )
                     else:
-                        xsd_element = self.maps.validator.create_element(elem.tag)
+                        xsd_element = self.maps.validator.create_element(
+                            elem.tag, parent=self, form='unqualified'
+                        )
                     yield from xsd_element.iter_decode(elem, validation, **kwargs)
                 elif validation == 'skip' or self.process_contents == 'lax':
                     yield from self.any_type.iter_decode(elem, validation, **kwargs)
@@ -458,7 +462,10 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
                 yield from xsd_element.iter_decode(elem, validation, **kwargs)
 
         elif validation == 'skip':
-            yield self.any_type.decode(elem) if len(elem) > 0 else elem.text
+            if len(elem) > 0:
+                yield self.any_type.decode(elem, validation, **kwargs)
+            else:
+                yield elem.text
 
         elif self.process_contents == 'strict':
             reason = "unavailable namespace {!r}".format(get_namespace(elem.tag))
@@ -488,7 +495,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
                 yield from xsd_element.iter_encode(value, validation, **kwargs)
 
         elif validation == 'skip':
-            yield self.any_type.encode(value)
+            yield self.any_type.encode(value, validation, **kwargs)
 
         elif self.process_contents == 'strict':
             reason = "unavailable namespace {!r}".format(namespace)
@@ -612,7 +619,7 @@ class XsdAnyAttribute(XsdWildcard):
                 xsd_attribute = self.maps.lookup_attribute(name)
             except LookupError:
                 if validation == 'skip':
-                    yield str(value)
+                    yield raw_xml_encode(value)
                 elif self.process_contents == 'strict':
                     reason = "attribute %r not found." % name
                     yield self.validation_error(validation, reason, attribute, **kwargs)
@@ -620,7 +627,7 @@ class XsdAnyAttribute(XsdWildcard):
                 yield from xsd_attribute.iter_encode(value, validation, **kwargs)
 
         elif validation == 'skip':
-            yield str(value)
+            yield raw_xml_encode(value)
 
         elif self.process_contents == 'strict':
             reason = "unavailable namespace {!r}".format(get_namespace(name))

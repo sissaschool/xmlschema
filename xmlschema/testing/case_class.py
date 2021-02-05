@@ -15,12 +15,12 @@ import re
 import os
 from textwrap import dedent
 
-from ..exceptions import XMLSchemaValueError
-from ..names import XSD_NAMESPACE, XSI_NAMESPACE, XSD_SCHEMA
-from ..helpers import get_namespace
-from ..etree import is_etree_element, etree_element
-from ..resources import fetch_namespaces
-from ..validators import XMLSchema10
+from xmlschema.exceptions import XMLSchemaValueError
+from xmlschema.names import XSD_NAMESPACE, XSI_NAMESPACE, XSD_SCHEMA
+from xmlschema.helpers import get_namespace
+from xmlschema.etree import is_etree_element, etree_element
+from xmlschema.resources import fetch_namespaces
+from xmlschema.validators import XMLSchema10
 from .helpers import etree_elements_assert_equal
 
 
