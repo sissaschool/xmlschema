@@ -19,7 +19,7 @@ except ImportError:
 
 from xmlschema import XMLSchema, fetch_namespaces, etree_tostring
 from xmlschema.helpers import is_etree_element
-from xmlschema.dataobjects import DataElement
+from xmlschema.dataobjects import DataElement, DataBindingMeta
 from xmlschema.testing import etree_elements_assert_equal
 
 from xmlschema.converters import DataElementConverter
@@ -214,6 +214,35 @@ class TestDataElement(unittest.TestCase):
         xml_source = col_data.tostring()
         self.assertTrue(xml_source.startswith('<col:collection '))
         self.assertTrue(xml_source.endswith('</col:collection>'))
+
+
+class TestDataElementMeta(TestDataElement):
+
+    def test_data_element_metaclass(self):
+        xsd_element = self.col_schema.elements['collection']
+        collection_class = DataBindingMeta(xsd_element, (DataElement,), {})
+        self.assertEqual(collection_class.__name__, 'CollectionElement')
+        self.assertEqual(collection_class.__qualname__, 'CollectionElement')
+        self.assertIsNone(collection_class.__module__)
+        self.assertEqual(collection_class.namespace, 'http://example.com/ns/collection')
+        self.assertEqual(collection_class.xsd_version, '1.0')
+
+    def test_element_binding(self):
+        xsd_element = self.col_schema.elements['collection']
+        xsd_element.binding = None
+
+        try:
+            cls = xsd_element.create_binding()
+            self.assertIsNot(xsd_element.binding, DataElement)
+            self.assertTrue(issubclass(xsd_element.binding, DataElement))
+            self.assertIsInstance(xsd_element.binding, DataBindingMeta)
+            self.assertIs(cls, xsd_element.binding)
+        finally:
+            xsd_element.binding = None
+
+    def test_schema_bindings(self):
+        schema = XMLSchema(self.col_xsd_filename)
+        schema.maps.create_bindings()
 
 
 if __name__ == '__main__':

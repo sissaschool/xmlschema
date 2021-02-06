@@ -8,7 +8,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from ..exceptions import XMLSchemaValueError
-from ..dataobjects import ElementData, DataElement
+from ..dataobjects import ElementData, DataElement, DataBindingMeta
 from .default import XMLSchemaConverter
 
 
@@ -77,3 +77,28 @@ class DataElementConverter(XMLSchemaConverter):
                 else (next(cdata_num), e) for e in data_element
             ]
             return ElementData(data_element.tag, None, content, attributes)
+
+
+class DataBindingConverter(DataElementConverter):
+    """
+    XML Schema based converter class for DataElementMeta metaclass objects.
+
+    """
+    def element_decode(self, data, xsd_element, xsd_type=None, level=0):
+        cls = xsd_element.binding or xsd_element.create_binding(self.data_element_class)
+        data_element = cls(
+            tag=data.tag,
+            value=data.text,
+            nsmap=self.namespaces,
+            xsd_element=xsd_element,
+            xsd_type=xsd_type
+        )
+        data_element.attrib.update((k, v) for k, v in self.map_attributes(data.attributes))
+
+        if (xsd_type or xsd_element.type).model_group is not None:
+            data_element.extend([
+                value if value is not None else self.list([name])
+                for name, value, _ in self.map_content(data.content)
+            ])
+
+        return data_element

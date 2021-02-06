@@ -2,9 +2,8 @@
 Extra features
 **************
 
-The subpackage *xmlschema.extras* contThe subpackage *xmlschema.extras*
-acts as a container of a set of extra modules or subpackages that can be
-useful for specific needs.
+The subpackage *xmlschema.extras* acts as a container of a set of extra
+modules or subpackages that can be useful for specific needs.
 
 These codes are not imported during normal library usage and may require
 additional dependencies to be installed. This choice should be facilitate
