@@ -211,6 +211,10 @@ class TestNamespaceView(unittest.TestCase):
         self.assertEqual(ns_view.as_dict(), {'name1': 1, 'name2': 2})
         self.assertEqual(ns_view.as_dict(True), {'{tns1}name1': 1, '{tns1}name2': 2})
 
+        ns_view = NamespaceView(qnames, '')
+        self.assertEqual(ns_view.as_dict(), {'name3': 3})
+        self.assertEqual(ns_view.as_dict(True), {'name3': 3})
+
 
 if __name__ == '__main__':
     import platform
