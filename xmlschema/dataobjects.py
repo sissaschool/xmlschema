@@ -8,25 +8,14 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from abc import ABCMeta
-from collections import namedtuple
 from collections.abc import MutableSequence
 from elementpath import XPathContext, XPath2Parser
 
-from .exceptions import XMLSchemaValueError
+from .exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, XMLSchemaValueError
 from .etree import etree_tostring
 from .helpers import get_namespace, get_prefixed_qname, local_name, raw_xml_encode
-
-
-ElementData = namedtuple('ElementData', ['tag', 'text', 'content', 'attributes'])
-"""
-Namedtuple for Element data interchange between decoders and converters.
-The field *tag* is a string containing the Element's tag, *text* can be `None`
-or a string representing the Element's text, *content* can be `None`, a list
-containing the Element's children or a dictionary containing element name to
-list of element contents for the Element's children (used for unordered input
-data), *attributes* can be `None` or a dictionary containing the Element's
-attributes.
-"""
+from .converters import ElementData, XMLSchemaConverter
+from . import validators
 
 
 class DataElement(MutableSequence):
@@ -35,6 +24,8 @@ class DataElement(MutableSequence):
     """
     value = None
     tail = None
+    xsd_element = None
+    _xsd_type = None
 
     def __init__(self, tag, value=None, attrib=None, nsmap=None, xsd_element=None, xsd_type=None):
         super(DataElement, self).__init__()
@@ -50,8 +41,23 @@ class DataElement(MutableSequence):
         if nsmap:
             self.nsmap.update(nsmap)
 
-        self.xsd_element = xsd_element
-        self._xsd_type = xsd_type
+        if xsd_element is None:
+            pass
+        elif not isinstance(xsd_element, validators.XsdElement):
+            msg = "argument 'xsd_element' must be an {!r} instance"
+            raise XMLSchemaTypeError(msg.format(validators.XsdElement))
+        elif self.xsd_element is None:
+            self.xsd_element = xsd_element
+        elif xsd_element is not self.xsd_element:
+            raise XMLSchemaValueError("the class has a binding with a different XSD element")
+
+        if xsd_type is None:
+            pass
+        elif not isinstance(xsd_type, validators.XsdType):
+            msg = "argument 'xsd_type' must be an {!r} instance"
+            raise XMLSchemaTypeError(msg.format(validators.XsdType))
+        else:
+            self._xsd_type = xsd_type
 
     def __getitem__(self, i):
         return self._children[i]
@@ -84,6 +90,10 @@ class DataElement(MutableSequence):
     def get(self, key, default=None):
         """Gets a data element attribute."""
         return self.attrib.get(key, default)
+
+    @property
+    def xsd_version(self):
+        return '1.0' if self.xsd_element is None else self.xsd_element.xsd_version
 
     @property
     def namespace(self):
@@ -119,6 +129,9 @@ class DataElement(MutableSequence):
         self._xsd_type = xsd_type
 
     def encode(self, **kwargs):
+        if 'converter' not in kwargs:
+            kwargs['converter'] = DataElementConverter
+
         if self._xsd_type is None:
             if self.xsd_element is not None:
                 return self.xsd_element.encode(self, **kwargs)
@@ -210,13 +223,119 @@ class DataElement(MutableSequence):
 
 class DataBindingMeta(ABCMeta):
     """Metaclass for creating classes with bindings to XSD elements."""
-    def __new__(mcs, xsd_element, bases, attrs):
-        name = xsd_element.local_name
-        class_name = '{}Element'.format(name.replace('_', '').title())
+
+    def __new__(mcs, name, bases, attrs):
+        try:
+            xsd_element = attrs['xsd_element']
+        except KeyError:
+            msg = "attribute 'xsd_element' is required for an XSD data binding class"
+            raise XMLSchemaAttributeError(msg) from None
+
+        if not isinstance(xsd_element, validators.XsdElement):
+            raise XMLSchemaTypeError("{!r} is not an XSD element".format(xsd_element))
 
         attrs['__module__'] = None
-        attrs['namespace'] = xsd_element.target_namespace
-        attrs['xsd_version'] = xsd_element.xsd_version
-        cls = super(DataBindingMeta, mcs).__new__(mcs, class_name, bases, attrs)
-        return cls
+        return super(DataBindingMeta, mcs).__new__(mcs, name, bases, attrs)
 
+    def __init__(cls, name, bases, attrs):
+        super(DataBindingMeta, cls).__init__(name, bases, attrs)
+        cls.xsd_version = cls.xsd_element.xsd_version
+        cls.namespace = cls.xsd_element.target_namespace
+
+    def fromsource(cls, source, **kwargs):
+        if 'converter' not in kwargs:
+            kwargs['converter'] = DataBindingConverter
+        return cls.xsd_element.schema.decode(source, **kwargs)
+
+
+class DataElementConverter(XMLSchemaConverter):
+    """
+    XML Schema based converter class for DataElement objects.
+
+    :param namespaces: a dictionary map from namespace prefixes to URI.
+    :param data_element_class: MutableSequence subclass to use for decoded data. \
+    Default is `DataElement`.
+    """
+    data_element_class = DataElement
+
+    def __init__(self, namespaces=None, data_element_class=None, **kwargs):
+        if data_element_class is not None:
+            self.data_element_class = data_element_class
+        kwargs.update(attr_prefix='', text_key='', cdata_prefix='')
+        super(DataElementConverter, self).__init__(namespaces, **kwargs)
+
+    @property
+    def lossy(self):
+        return False
+
+    @property
+    def losslessly(self):
+        return True
+
+    def element_decode(self, data, xsd_element, xsd_type=None, level=0):
+        data_element = self.data_element_class(
+            tag=data.tag,
+            value=data.text,
+            nsmap=self.namespaces,
+            xsd_element=xsd_element,
+            xsd_type=xsd_type
+        )
+        data_element.attrib.update((k, v) for k, v in self.map_attributes(data.attributes))
+
+        if (xsd_type or xsd_element.type).model_group is not None:
+            data_element.extend([
+                value if value is not None else self.list([name])
+                for name, value, _ in self.map_content(data.content)
+            ])
+
+        return data_element
+
+    def element_encode(self, data_element, xsd_element, level=0):
+        self.namespaces.update(data_element.nsmap)
+        if not xsd_element.is_matching(data_element.tag, self._namespaces.get('')):
+            raise XMLSchemaValueError("Unmatched tag")
+
+        attributes = {self.unmap_qname(k, xsd_element.attributes): v
+                      for k, v in data_element.attrib.items()}
+
+        data_len = len(data_element)
+        if not data_len:
+            return ElementData(data_element.tag, data_element.value, None, attributes)
+
+        elif data_len == 1 and \
+                (xsd_element.type.simple_type is not None or not
+                 xsd_element.type.content and xsd_element.type.mixed):
+            return ElementData(data_element.tag, data_element.value, [], attributes)
+        else:
+            cdata_num = iter(range(1, data_len))
+            content = [
+                (self.unmap_qname(e.tag), e) if isinstance(e, self.data_element_class)
+                else (next(cdata_num), e) for e in data_element
+            ]
+            return ElementData(data_element.tag, None, content, attributes)
+
+
+class DataBindingConverter(DataElementConverter):
+    """
+    A :class:`DataElementConverter` that uses XML data binding classes for
+    decoding. Takes the same arguments of its parent class but the argument
+    *data_element_class* is used for define the base for creating the missing
+    XML binding classes.
+    """
+    def element_decode(self, data, xsd_element, xsd_type=None, level=0):
+        cls = xsd_element.binding or xsd_element.create_binding(self.data_element_class)
+        data_element = cls(
+            tag=data.tag,
+            value=data.text,
+            nsmap=self.namespaces,
+            xsd_type=xsd_type
+        )
+        data_element.attrib.update((k, v) for k, v in self.map_attributes(data.attributes))
+
+        if (xsd_type or xsd_element.type).model_group is not None:
+            data_element.extend([
+                value if value is not None else self.list([name])
+                for name, value, _ in self.map_content(data.content)
+            ])
+
+        return data_element

@@ -10,8 +10,7 @@
 from collections.abc import MutableSequence
 
 from ..exceptions import XMLSchemaValueError
-from ..dataobjects import ElementData
-from .default import XMLSchemaConverter
+from .default import ElementData, XMLSchemaConverter
 
 
 class JsonMLConverter(XMLSchemaConverter):

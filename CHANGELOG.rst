@@ -6,7 +6,7 @@ CHANGELOG
 ======================
 * TODO: Add DataElementMeta metaclass for customizing DataElement subclasses
 * TODO: Implement PythonGenerator with three set of templates (xmlschema API
-  based, simple class hierarchy, dataclass hierarchy).
+  based, simple class hierarchy, dataclass hierarchy)
 
 `v1.5.0`_ (2021-02-05)
 ======================

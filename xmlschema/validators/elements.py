@@ -23,8 +23,8 @@ from ..names import XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE, XSD_ALTERNATIVE, \
 from ..etree import etree_element
 from ..helpers import get_qname, get_namespace, etree_iter_location_hints, \
     raw_xml_encode, strictly_equal
-from ..dataobjects import ElementData, DataElement, DataBindingMeta
-from ..converters import XMLSchemaConverter
+from .. import dataobjects
+from ..converters import ElementData, XMLSchemaConverter
 from ..xpath import XMLSchemaProxy, ElementPathMixin
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaTypeTableWarning
@@ -382,8 +382,11 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
     def create_binding(self, *bases, **attrs):
         """Create data object binding for XSD element."""
         if not bases:
-            bases = (DataElement,)
-        self.binding = DataBindingMeta(self, bases, attrs)
+            bases = (dataobjects.DataElement,)
+        attrs['xsd_element'] = self
+        class_name = '{}Binding'.format(self.local_name.title().replace('_', ''))
+
+        self.binding = dataobjects.DataBindingMeta(class_name, bases, attrs)
         return self.binding
 
     def get_attribute(self, name):

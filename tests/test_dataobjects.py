@@ -19,13 +19,11 @@ except ImportError:
 
 from xmlschema import XMLSchema, fetch_namespaces, etree_tostring
 from xmlschema.helpers import is_etree_element
-from xmlschema.dataobjects import DataElement, DataBindingMeta
+from xmlschema.dataobjects import DataElement, DataBindingMeta, DataElementConverter
 from xmlschema.testing import etree_elements_assert_equal
 
-from xmlschema.converters import DataElementConverter
 
-
-class TestDataElement(unittest.TestCase):
+class TestDataObjects(unittest.TestCase):
 
     TEST_CASES_DIR = os.path.join(os.path.dirname(__file__), 'test_cases')
 
@@ -42,6 +40,9 @@ class TestDataElement(unittest.TestCase):
     @classmethod
     def casepath(cls, relative_path):
         return os.path.join(cls.TEST_CASES_DIR, relative_path)
+
+
+class TestDataElement(TestDataObjects):
 
     def test_repr(self):
         self.assertEqual(repr(DataElement('foo')), "DataElement(tag='foo')")
@@ -216,13 +217,14 @@ class TestDataElement(unittest.TestCase):
         self.assertTrue(xml_source.endswith('</col:collection>'))
 
 
-class TestDataElementMeta(TestDataElement):
+class TestDataBindingsMeta(TestDataObjects):
 
     def test_data_element_metaclass(self):
         xsd_element = self.col_schema.elements['collection']
-        collection_class = DataBindingMeta(xsd_element, (DataElement,), {})
-        self.assertEqual(collection_class.__name__, 'CollectionElement')
-        self.assertEqual(collection_class.__qualname__, 'CollectionElement')
+        collection_class = DataBindingMeta(xsd_element.local_name.title(), (DataElement,),
+                                           {'xsd_element': xsd_element})
+        self.assertEqual(collection_class.__name__, 'Collection')
+        self.assertEqual(collection_class.__qualname__, 'Collection')
         self.assertIsNone(collection_class.__module__)
         self.assertEqual(collection_class.namespace, 'http://example.com/ns/collection')
         self.assertEqual(collection_class.xsd_version, '1.0')
@@ -232,17 +234,33 @@ class TestDataElementMeta(TestDataElement):
         xsd_element.binding = None
 
         try:
-            cls = xsd_element.create_binding()
+            binding_class = xsd_element.create_binding()
+            self.assertEqual(binding_class.__name__, 'CollectionBinding')
+            self.assertEqual(binding_class.__qualname__, 'CollectionBinding')
+            self.assertIsNone(binding_class.__module__)
             self.assertIsNot(xsd_element.binding, DataElement)
             self.assertTrue(issubclass(xsd_element.binding, DataElement))
             self.assertIsInstance(xsd_element.binding, DataBindingMeta)
-            self.assertIs(cls, xsd_element.binding)
+            self.assertIs(binding_class, xsd_element.binding)
         finally:
             xsd_element.binding = None
 
     def test_schema_bindings(self):
         schema = XMLSchema(self.col_xsd_filename)
         schema.maps.create_bindings()
+
+        col_element_class = schema.elements['collection'].binding
+
+        col_data = col_element_class.fromsource(self.col_xml_filename)
+
+        self.assertEqual(len(list(col_data.iter())), len(list(self.col_xml_root.iter())))
+        for elem, data_element in zip(self.col_xml_root.iter(), col_data.iter()):
+            self.assertEqual(elem.tag, data_element.tag)
+            self.assertIsInstance(data_element, DataElement)
+
+        self.assertIsNone(
+            etree_elements_assert_equal(col_data.encode(), self.col_xml_root, strict=False)
+        )
 
 
 if __name__ == '__main__':

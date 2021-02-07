@@ -381,6 +381,10 @@ class XsdGlobals(XsdValidator):
             if xsd_element.target_namespace != XSD_NAMESPACE:
                 xsd_element.create_binding(*bases, **attrs)
 
+    def clear_bindings(self):
+        for xsd_element in self.iter_components(xsd_classes=XsdElement):
+            xsd_element.binding = None
+
     def iter_components(self, xsd_classes=None):
         """Creates an iterator for the XSD components of built schemas."""
         if xsd_classes is None or isinstance(self, xsd_classes):

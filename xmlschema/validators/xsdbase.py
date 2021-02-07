@@ -19,8 +19,7 @@ from ..names import XSD_ANNOTATION, XSD_APPINFO, XSD_DOCUMENTATION, XML_LANG, \
     XSD_OVERRIDE, XSD_NOTATION_TYPE, XSD_DECIMAL
 from ..etree import is_etree_element, etree_tostring
 from ..helpers import get_qname, local_name, get_prefixed_qname
-from ..dataobjects import DataElement
-from ..converters import DataElementConverter
+from .. import dataobjects
 from .exceptions import XMLSchemaParseError, XMLSchemaValidationError
 
 XSD_TYPE_DERIVATIONS = {'extension', 'restriction'}
@@ -838,6 +837,24 @@ class ValidationMixin:
 
         return (result, errors) if validation == 'lax' else result
 
+    def to_objects(self, source, with_bindings=False, **kwargs):
+        """
+        Decodes XML data to Python data objects.
+
+        :param source: the XML data. Can be a string for an attribute or for a simple \
+        type components or a dictionary for an attribute group or an ElementTree's \
+        Element for other components.
+        :param with_bindings: if `True` is provided the decoding is done using \
+        :class:`DataBindingConverter` that used XML data binding classes. For \
+        default the objects are intances of :class:`DataElement` and uses the \
+        :class:`DataElementConverter`.
+        :param kwargs: other optional keyword arguments for the method \
+        :func:`iter_decode`, except the argument *converter*.
+        """
+        if with_bindings:
+            return self.decode(source, converter=dataobjects.DataBindingConverter, **kwargs)
+        return self.decode(source, converter=dataobjects.DataElementConverter, **kwargs)
+
     def encode(self, obj, validation='strict', **kwargs):
         """
         Encodes data to XML.
@@ -853,9 +870,6 @@ class ValidationMixin:
         component, or also if it's invalid when ``validation='strict'`` is provided.
         """
         check_validation_mode(validation)
-        if 'converter' not in kwargs and isinstance(obj, DataElement):
-            kwargs['converter'] = DataElementConverter
-
         result, errors = None, []
         for result in self.iter_encode(obj, validation=validation, **kwargs):  # pragma: no cover
             if not isinstance(result, XMLSchemaValidationError):

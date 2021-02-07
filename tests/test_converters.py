@@ -24,7 +24,8 @@ from xmlschema.testing import etree_elements_assert_equal
 
 from xmlschema.converters import XMLSchemaConverter, UnorderedConverter, \
     ParkerConverter, BadgerFishConverter, AbderaConverter, JsonMLConverter, \
-    ColumnarConverter, DataElementConverter
+    ColumnarConverter
+from xmlschema.dataobjects import DataElementConverter
 
 
 class TestConverters(unittest.TestCase):
