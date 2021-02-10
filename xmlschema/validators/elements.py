@@ -781,6 +781,8 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         :return: yields an Element, eventually preceded by a sequence of \
         validation or encoding errors.
         """
+        errors = []
+
         try:
             converter = kwargs['converter']
         except KeyError:
@@ -793,10 +795,17 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             level = kwargs['level']
         except KeyError:
             level = 0
+            element_data = converter.element_encode(obj, self, level)
+            if not self.is_matching(element_data.tag, self.default_namespace):
+                errors.append("data tag does not match XSD element name")
 
-        element_data = converter.element_encode(obj, self, level)
-        errors = []
-        tag = element_data.tag
+            if 'max_depth' in kwargs and kwargs['max_depth'] == 0:
+                for e in errors:
+                    yield self.validation_error(validation, e, **kwargs)
+                return
+        else:
+            element_data = converter.element_encode(obj, self, level)
+
         text = None
         children = element_data.content
         attributes = ()
@@ -888,7 +897,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 elif result:
                     text, children = result
 
-        elem = converter.etree_element(tag, text, children, attributes, level)
+        elem = converter.etree_element(element_data.tag, text, children, attributes, level)
 
         if errors:
             for e in errors:

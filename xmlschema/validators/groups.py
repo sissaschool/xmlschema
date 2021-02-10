@@ -812,6 +812,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
         model = ModelVisitor(self)
         index = cdata_index = 0
         wrong_content_type = False
+        over_max_depth = 'max_depth' in kwargs and kwargs['max_depth'] <= level
 
         if element_data.content is None:
             content = []
@@ -873,6 +874,9 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                                 )
                             yield self.validation_error(validation, reason, value, **kwargs)
                             continue
+
+            if over_max_depth:
+                continue
 
             for result in xsd_element.iter_encode(value, validation, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):

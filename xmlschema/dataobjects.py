@@ -55,6 +55,8 @@ class DataElement(MutableSequence):
             self.xsd_type = xsd_type or xsd_element.type
         elif xsd_type is not None:
             self.xsd_type = xsd_type
+        elif self.xsd_element is not None:
+            self._encoder = self.xsd_element
 
     def __getitem__(self, i):
         return self._children[i]
@@ -144,19 +146,20 @@ class DataElement(MutableSequence):
         """The local part of the tag."""
         return local_name(self.tag)
 
-    def validate(self, use_defaults=True, namespaces=None):
+    def validate(self, use_defaults=True, namespaces=None, max_depth=None):
         """
         Validates the XML data object.
 
         :param use_defaults: whether to use default values for filling missing data.
         :param namespaces: is an optional mapping from namespace prefix to URI.
+        :param max_depth: maximum depth for validation, for default there is no limit.
         :raises: :exc:`XMLSchemaValidationError` if XML data object is not valid.
         :raises: :exc:`XMLSchemaValueError` if the instance has no schema bindings.
         """
-        for error in self.iter_errors(use_defaults, namespaces):
+        for error in self.iter_errors(use_defaults, namespaces, max_depth):
             raise error
 
-    def is_valid(self, use_defaults=True, namespaces=None):
+    def is_valid(self, use_defaults=True, namespaces=None, max_depth=None):
         """
         Like :meth:`validate` except it does not raise an exception on validation
         error but returns ``True`` if the XML data object is valid, ``False`` if
@@ -164,14 +167,15 @@ class DataElement(MutableSequence):
 
         :raises: :exc:`XMLSchemaValueError` if the instance has no schema bindings.
         """
-        return next(self.iter_errors(use_defaults, namespaces), None) is None
+        return next(self.iter_errors(use_defaults, namespaces, max_depth), None) is None
 
-    def iter_errors(self, use_defaults=True, namespaces=None):
+    def iter_errors(self, use_defaults=True, namespaces=None, max_depth=None):
         """
         Generates a sequence of validation errors if the XML data object is invalid.
 
         :param use_defaults: whether to use default values for filling missing data.
         :param namespaces: is an optional mapping from namespace prefix to URI.
+        :param max_depth: maximum depth for validation, for default there is no limit.
         :raises: :exc:`XMLSchemaValueError` if the instance has no schema bindings.
         """
         if self._encoder is None:
@@ -182,6 +186,8 @@ class DataElement(MutableSequence):
             kwargs['use_defaults'] = False
         if namespaces:
             kwargs['namespaces'] = namespaces
+        if isinstance(max_depth, int) and max_depth >= 0:
+            kwargs['max_depth'] = max_depth
 
         for result in self._encoder.iter_encode(self, **kwargs):
             if isinstance(result, validators.XMLSchemaValidationError):

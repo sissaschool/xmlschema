@@ -249,6 +249,23 @@ class TestDataObjects(unittest.TestCase):
         col_data[0].insert(1, title)
         self.assertTrue(col_data.is_valid())
 
+    def test_max_depth_validation(self):
+        col_data = self.col_schema.decode(self.col_xml_filename)
+        self.assertTrue(col_data.is_valid())
+
+        for child in col_data:
+            child.clear()
+
+        self.assertFalse(col_data.is_valid())
+        self.assertTrue(col_data.is_valid(max_depth=0))
+        self.assertTrue(col_data.is_valid(max_depth=1))
+        self.assertFalse(col_data.is_valid(max_depth=2))
+
+        col_data.clear()
+        self.assertTrue(col_data.is_valid(max_depth=0))
+        self.assertFalse(col_data.is_valid(max_depth=1))
+        self.assertFalse(col_data.is_valid(max_depth=2))
+
 
 class TestDataBindings(TestDataObjects):
 
