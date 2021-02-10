@@ -768,14 +768,14 @@ class ValidationMixin:
         for an attribute or a simple type validators, or an ElementTree's Element otherwise.
         :param use_defaults: indicates whether to use default values for filling missing data.
         :param namespaces: is an optional mapping from namespace prefix to URI.
-        :raises: :exc:`XMLSchemaValidationError` if XML *data* instance is not a valid.
+        :raises: :exc:`XMLSchemaValidationError` if XML *data* instance is not valid.
         """
         for error in self.iter_errors(source, use_defaults=use_defaults, namespaces=namespaces):
             raise error
 
     def is_valid(self, source, use_defaults=True, namespaces=None):
         """
-        Like :meth:`validate` except that do not raises an exception but returns ``True`` if
+        Like :meth:`validate` except that does not raise an exception but returns ``True`` if
         the XML document is valid, ``False`` if it's invalid.
 
         :param source: the source of XML data. For a schema can be a path \
@@ -895,7 +895,7 @@ class ValidationMixin:
 
     def iter_encode(self, obj, validation='lax', **kwargs):
         """
-        Creates an iterator for Encode data to an Element.
+        Creates an iterator for encoding data to an Element tree.
 
         :param obj: The data that has to be encoded.
         :param validation: The validation mode. Can be 'lax', 'strict' or 'skip'.

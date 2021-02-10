@@ -663,19 +663,19 @@ class XsdAtomicBuiltin(XsdAtomic):
                     if not id_map[obj]:
                         id_map[obj] = 1
                     else:
-                        reason = "Duplicated xs:ID value {!r}".format(obj)
+                        reason = "duplicated xs:ID value {!r}".format(obj)
                         yield self.validation_error(validation, error=reason, obj=obj)
                 else:
                     if not id_map[obj]:
                         id_map[obj] = 1
                         id_list.append(obj)
                         if len(id_list) > 1 and self.xsd_version == '1.0':
-                            reason = "No more than one attribute of type ID should " \
+                            reason = "no more than one attribute of type ID should " \
                                      "be present in an element"
                             yield self.validation_error(validation, reason, obj, **kwargs)
 
                     elif obj not in id_list or self.xsd_version == '1.0':
-                        reason = "Duplicated xs:ID value {!r}".format(obj)
+                        reason = "duplicated xs:ID value {!r}".format(obj)
                         yield self.validation_error(validation, error=reason, obj=obj)
 
         yield result
@@ -694,28 +694,32 @@ class XsdAtomicBuiltin(XsdAtomic):
         elif isinstance(obj, bool):
             types_ = self.instance_types
             if types_ is not bool or (isinstance(types_, tuple) and bool in types_):
-                reason = "boolean value {!r} requires a {!r} decoder.".format(obj, bool)
+                reason = "boolean value {!r} requires a {!r} decoder".format(obj, bool)
                 yield XMLSchemaEncodeError(self, obj, self.from_python, reason)
                 obj = self.python_type(obj)
 
         elif not isinstance(obj, self.instance_types):
-            reason = "{!r} is not an instance of {!r}.".format(obj, self.instance_types)
+            reason = "{!r} is not an instance of {!r}".format(obj, self.instance_types)
             yield XMLSchemaEncodeError(self, obj, self.from_python, reason)
+
             try:
                 value = self.python_type(obj)
-                if value != obj:
+                if value != obj and not isinstance(value, str) \
+                        and not isinstance(obj, (str, bytes)):
                     raise ValueError()
-                else:
+                obj = value
+            except (ValueError, TypeError) as err:
+                yield XMLSchemaEncodeError(self, obj, self.from_python, reason=str(err))
+                yield None
+                return
+            else:
+                if value == obj or str(value) == str(obj):
                     obj = value
-            except ValueError:
-                yield XMLSchemaEncodeError(self, obj, self.from_python)
-                yield None
-                return
-            except TypeError:
-                reason = "Invalid value {!r}".format(obj)
-                yield self.validation_error(validation, error=reason, obj=obj)
-                yield None
-                return
+                else:
+                    reason = "Invalid value {!r}".format(obj)
+                    yield XMLSchemaEncodeError(self, obj, self.from_python, reason)
+                    yield None
+                    return
 
         for validator in self.validators:
             try:
