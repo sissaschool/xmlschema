@@ -6,7 +6,7 @@ CHANGELOG
 ======================
 * Optimize NamespaceView read-only mapping
 * Add experimental XML data bindings with a DataBindingConverter
-* Add exprimental PythonGenerator for static codegen with Jinja2
+* Add experimental PythonGenerator for static codegen with Jinja2
 
 `v1.5.0`_ (2021-02-05)
 ======================
