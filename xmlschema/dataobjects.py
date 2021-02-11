@@ -8,33 +8,33 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from abc import ABCMeta
-from collections import namedtuple
 from collections.abc import MutableSequence
 from elementpath import XPathContext, XPath2Parser
 
-from .exceptions import XMLSchemaValueError
+from .exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, XMLSchemaValueError
 from .etree import etree_tostring
 from .helpers import get_namespace, get_prefixed_qname, local_name, raw_xml_encode
-
-
-ElementData = namedtuple('ElementData', ['tag', 'text', 'content', 'attributes'])
-"""
-Namedtuple for Element data interchange between decoders and converters.
-The field *tag* is a string containing the Element's tag, *text* can be `None`
-or a string representing the Element's text, *content* can be `None`, a list
-containing the Element's children or a dictionary containing element name to
-list of element contents for the Element's children (used for unordered input
-data), *attributes* can be `None` or a dictionary containing the Element's
-attributes.
-"""
+from .converters import ElementData, XMLSchemaConverter
+from . import validators
 
 
 class DataElement(MutableSequence):
     """
     Data Element, an Element like object with decoded data and schema bindings.
+
+    :param tag: a string containing a QName in extended format.
+    :param value: the simple typed value of the element.
+    :param attrib: the typed attributes of the element.
+    :param nsmap: an optional map from prefixes to namespaces.
+    :param xsd_element: an optional XSD element association.
+    :param xsd_type: an optional XSD type association. Can be provided \
+    also if the instance is not bound with an XSD element.
     """
     value = None
     tail = None
+    xsd_element = None
+    xsd_type = None
+    _encoder = None
 
     def __init__(self, tag, value=None, attrib=None, nsmap=None, xsd_element=None, xsd_type=None):
         super(DataElement, self).__init__()
@@ -50,8 +50,13 @@ class DataElement(MutableSequence):
         if nsmap:
             self.nsmap.update(nsmap)
 
-        self.xsd_element = xsd_element
-        self._xsd_type = xsd_type
+        if xsd_element is not None:
+            self.xsd_element = xsd_element
+            self.xsd_type = xsd_type or xsd_element.type
+        elif xsd_type is not None:
+            self.xsd_type = xsd_type
+        elif self.xsd_element is not None:
+            self._encoder = self.xsd_element
 
     def __getitem__(self, i):
         return self._children[i]
@@ -76,6 +81,32 @@ class DataElement(MutableSequence):
     def __iter__(self):
         yield from self._children
 
+    def __setattr__(self, key, value):
+        if key == 'xsd_element':
+            if not isinstance(value, validators.XsdElement):
+                msg = "attribute 'xsd_element' must be an {!r} instance"
+                raise XMLSchemaTypeError(msg.format(validators.XsdElement))
+            elif self.xsd_element is not None and self.xsd_element is not value:
+                raise XMLSchemaValueError("the instance is already bound to another XSD element")
+            elif self.xsd_type is not None and self.xsd_type is not value.type:
+                raise XMLSchemaValueError("the instance is already bound to another XSD type")
+
+        elif key == 'xsd_type':
+            if not isinstance(value, validators.XsdType):
+                msg = "attribute 'xsd_type' must be an {!r} instance"
+                raise XMLSchemaTypeError(msg.format(validators.XsdType))
+            elif self.xsd_type is not None and self.xsd_type is not value:
+                raise XMLSchemaValueError("the instance is already bound to another XSD type")
+            elif self.xsd_element is None or value is not self.xsd_element.type:
+                self._encoder = value.schema.create_element(
+                    self.tag, parent=value, form='unqualified'
+                )
+                self._encoder.type = value
+            else:
+                self._encoder = self.xsd_element
+
+        super(DataElement, self).__setattr__(key, value)
+
     @property
     def text(self):
         """The string value of the data element."""
@@ -84,6 +115,14 @@ class DataElement(MutableSequence):
     def get(self, key, default=None):
         """Gets a data element attribute."""
         return self.attrib.get(key, default)
+
+    def set(self, key, value):
+        """Sets a data element attribute."""
+        self.attrib[key] = value
+
+    @property
+    def xsd_version(self):
+        return '1.0' if self.xsd_element is None else self.xsd_element.xsd_version
 
     @property
     def namespace(self):
@@ -107,37 +146,79 @@ class DataElement(MutableSequence):
         """The local part of the tag."""
         return local_name(self.tag)
 
-    @property
-    def xsd_type(self):
-        if self._xsd_type is not None:
-            return self._xsd_type
-        elif self.xsd_element is not None:
-            return self.xsd_element.type
+    def validate(self, use_defaults=True, namespaces=None, max_depth=None):
+        """
+        Validates the XML data object.
 
-    @xsd_type.setter
-    def xsd_type(self, xsd_type):
-        self._xsd_type = xsd_type
+        :param use_defaults: whether to use default values for filling missing data.
+        :param namespaces: is an optional mapping from namespace prefix to URI.
+        :param max_depth: maximum depth for validation, for default there is no limit.
+        :raises: :exc:`XMLSchemaValidationError` if XML data object is not valid.
+        :raises: :exc:`XMLSchemaValueError` if the instance has no schema bindings.
+        """
+        for error in self.iter_errors(use_defaults, namespaces, max_depth):
+            raise error
 
-    def encode(self, **kwargs):
-        if self._xsd_type is None:
-            if self.xsd_element is not None:
-                return self.xsd_element.encode(self, **kwargs)
-        elif self.xsd_element is not None and self.xsd_element.type is self._xsd_type:
-            return self.xsd_element.encode(self, **kwargs)
+    def is_valid(self, use_defaults=True, namespaces=None, max_depth=None):
+        """
+        Like :meth:`validate` except it does not raise an exception on validation
+        error but returns ``True`` if the XML data object is valid, ``False`` if
+        it's invalid.
+
+        :raises: :exc:`XMLSchemaValueError` if the instance has no schema bindings.
+        """
+        return next(self.iter_errors(use_defaults, namespaces, max_depth), None) is None
+
+    def iter_errors(self, use_defaults=True, namespaces=None, max_depth=None):
+        """
+        Generates a sequence of validation errors if the XML data object is invalid.
+
+        :param use_defaults: whether to use default values for filling missing data.
+        :param namespaces: is an optional mapping from namespace prefix to URI.
+        :param max_depth: maximum depth for validation, for default there is no limit.
+        :raises: :exc:`XMLSchemaValueError` if the instance has no schema bindings.
+        """
+        if self._encoder is None:
+            raise XMLSchemaValueError("{!r} has no schema bindings".format(self))
+
+        kwargs = {'converter': DataElementConverter}
+        if not use_defaults:
+            kwargs['use_defaults'] = False
+        if namespaces:
+            kwargs['namespaces'] = namespaces
+        if isinstance(max_depth, int) and max_depth >= 0:
+            kwargs['max_depth'] = max_depth
+
+        for result in self._encoder.iter_encode(self, **kwargs):
+            if isinstance(result, validators.XMLSchemaValidationError):
+                yield result
+            else:
+                del result
+
+    def encode(self, validation='strict', **kwargs):
+        """
+        Encodes the data object to XML.
+
+        :param validation: the validation mode. Can be 'lax', 'strict' or 'skip.
+        :param kwargs: optional keyword arguments for the method :func:`iter_encode` \
+        of :class:`XsdElement`.
+        :return: An ElementTree's Element. If *validation* argument is 'lax' a \
+        2-items tuple is returned, where the first item is the encoded object and \
+        the second item is a list with validation errors.
+        :raises: :exc:`XMLSchemaValidationError` if the object is invalid \
+        and ``validation='strict'``.
+        """
+        if 'converter' not in kwargs:
+            kwargs['converter'] = DataElementConverter
+
+        if self._encoder is not None:
+            encoder = self._encoder
+        elif validation == 'skip':
+            encoder = validators.XMLSchema.builtin_types()['anyType']
         else:
-            xsd_element = self._xsd_type.schema.create_element(
-                self.tag, parent=self._xsd_type, form='unqualified'
-            )
-            xsd_element.type = self._xsd_type
-            return xsd_element.encode(self, **kwargs)
+            raise XMLSchemaValueError("{!r} has no schema bindings".format(self))
 
-        if kwargs.get('validation') != 'skip':
-            msg = "{!r} has no schema bindings and valition mode is not 'skip'"
-            raise XMLSchemaValueError(msg.format(self))
-
-        from . import XMLSchema
-        any_type = XMLSchema.builtin_types()['anyType']
-        return any_type.encode(self, **kwargs)
+        return encoder.encode(self, validation=validation, **kwargs)
 
     to_etree = encode
 
@@ -208,10 +289,121 @@ class DataElement(MutableSequence):
                 yield child
 
 
-class DataElementMeta(ABCMeta):
+class DataBindingMeta(ABCMeta):
+    """Metaclass for creating classes with bindings to XSD elements."""
+
+    def __new__(mcs, name, bases, attrs):
+        try:
+            xsd_element = attrs['xsd_element']
+        except KeyError:
+            msg = "attribute 'xsd_element' is required for an XSD data binding class"
+            raise XMLSchemaAttributeError(msg) from None
+
+        if not isinstance(xsd_element, validators.XsdElement):
+            raise XMLSchemaTypeError("{!r} is not an XSD element".format(xsd_element))
+
+        attrs['__module__'] = None
+        return super(DataBindingMeta, mcs).__new__(mcs, name, bases, attrs)
+
+    def __init__(cls, name, bases, attrs):
+        super(DataBindingMeta, cls).__init__(name, bases, attrs)
+        cls.xsd_version = cls.xsd_element.xsd_version
+        cls.namespace = cls.xsd_element.target_namespace
+
+    def fromsource(cls, source, **kwargs):
+        if 'converter' not in kwargs:
+            kwargs['converter'] = DataBindingConverter
+        return cls.xsd_element.schema.decode(source, **kwargs)
+
+
+class DataElementConverter(XMLSchemaConverter):
     """
-    TODO: A metaclass for defining derived data element classes.
-     The underlining idea is to develop schema API for XSD elements
-     that can be generated by option and stored in a registry if
-     necessary.
+    XML Schema based converter class for DataElement objects.
+
+    :param namespaces: a dictionary map from namespace prefixes to URI.
+    :param data_element_class: MutableSequence subclass to use for decoded data. \
+    Default is `DataElement`.
     """
+    data_element_class = DataElement
+
+    def __init__(self, namespaces=None, data_element_class=None, **kwargs):
+        if data_element_class is not None:
+            self.data_element_class = data_element_class
+        kwargs.update(attr_prefix='', text_key='', cdata_prefix='')
+        super(DataElementConverter, self).__init__(namespaces, **kwargs)
+
+    @property
+    def lossy(self):
+        return False
+
+    @property
+    def losslessly(self):
+        return True
+
+    def element_decode(self, data, xsd_element, xsd_type=None, level=0):
+        data_element = self.data_element_class(
+            tag=data.tag,
+            value=data.text,
+            nsmap=self.namespaces,
+            xsd_element=xsd_element,
+            xsd_type=xsd_type
+        )
+        data_element.attrib.update((k, v) for k, v in self.map_attributes(data.attributes))
+
+        if (xsd_type or xsd_element.type).model_group is not None:
+            data_element.extend([
+                value if value is not None else self.list([name])
+                for name, value, _ in self.map_content(data.content)
+            ])
+
+        return data_element
+
+    def element_encode(self, data_element, xsd_element, level=0):
+        self.namespaces.update(data_element.nsmap)
+        if not xsd_element.is_matching(data_element.tag, self._namespaces.get('')):
+            raise XMLSchemaValueError("Unmatched tag")
+
+        attributes = {self.unmap_qname(k, xsd_element.attributes): v
+                      for k, v in data_element.attrib.items()}
+
+        data_len = len(data_element)
+        if not data_len:
+            return ElementData(data_element.tag, data_element.value, None, attributes)
+
+        elif data_len == 1 and \
+                (xsd_element.type.simple_type is not None or not
+                 xsd_element.type.content and xsd_element.type.mixed):
+            return ElementData(data_element.tag, data_element.value, [], attributes)
+        else:
+            cdata_num = iter(range(1, data_len))
+            content = [
+                (self.unmap_qname(e.tag), e) if isinstance(e, self.data_element_class)
+                else (next(cdata_num), e) for e in data_element
+            ]
+            return ElementData(data_element.tag, None, content, attributes)
+
+
+class DataBindingConverter(DataElementConverter):
+    """
+    A :class:`DataElementConverter` that uses XML data binding classes for
+    decoding. Takes the same arguments of its parent class but the argument
+    *data_element_class* is used for define the base for creating the missing
+    XML binding classes.
+    """
+    def element_decode(self, data, xsd_element, xsd_type=None, level=0):
+        cls = xsd_element.get_binding(self.data_element_class)
+        data_element = cls(
+            tag=data.tag,
+            value=data.text,
+            nsmap=self.namespaces,
+            xsd_type=xsd_type
+        )
+        data_element.attrib.update((k, v) for k, v in self.map_attributes(data.attributes))
+
+        if (xsd_type or xsd_element.type).model_group is not None:
+            data_element.extend([
+                value if value is not None else self.list([name])
+                for name, value, _ in self.map_content(data.content)
+            ])
+
+        return data_element

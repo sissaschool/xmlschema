@@ -177,26 +177,26 @@ class TestEncoding(XsdValidatorTestCase):
 
     def test_list_types(self):
         list_of_strings = self.st_schema.types['list_of_strings']
-        self.check_encode(list_of_strings, (10, 25, 40), u'', validation='lax')
-        self.check_encode(list_of_strings, (10, 25, 40), u'10 25 40', validation='skip')
-        self.check_encode(list_of_strings, ['a', 'b', 'c'], u'a b c', validation='skip')
+        self.check_encode(list_of_strings, (10, 25, 40), '10 25 40', validation='lax')
+        self.check_encode(list_of_strings, (10, 25, 40), '10 25 40', validation='skip')
+        self.check_encode(list_of_strings, ['a', 'b', 'c'], 'a b c', validation='skip')
 
         list_of_integers = self.st_schema.types['list_of_integers']
-        self.check_encode(list_of_integers, (10, 25, 40), u'10 25 40')
+        self.check_encode(list_of_integers, (10, 25, 40), '10 25 40')
         self.check_encode(list_of_integers, (10, 25.0, 40), XMLSchemaValidationError)
-        self.check_encode(list_of_integers, (10, 25.0, 40), u'10 25 40', validation='lax')
+        self.check_encode(list_of_integers, (10, 25.0, 40), '10 25 40', validation='lax')
 
         list_of_floats = self.st_schema.types['list_of_floats']
-        self.check_encode(list_of_floats, [10.1, 25.0, 40.0], u'10.1 25.0 40.0')
-        self.check_encode(list_of_floats, [10.1, 25, 40.0], u'10.1 25.0 40.0', validation='lax')
-        self.check_encode(list_of_floats, [10.1, False, 40.0], u'10.1 0.0 40.0', validation='lax')
+        self.check_encode(list_of_floats, [10.1, 25.0, 40.0], '10.1 25.0 40.0')
+        self.check_encode(list_of_floats, [10.1, 25, 40.0], '10.1 25.0 40.0', validation='lax')
+        self.check_encode(list_of_floats, [10.1, False, 40.0], '10.1 0.0 40.0', validation='lax')
 
         list_of_booleans = self.st_schema.types['list_of_booleans']
-        self.check_encode(list_of_booleans, [True, False, True], u'true false true')
+        self.check_encode(list_of_booleans, [True, False, True], 'true false true')
         self.check_encode(list_of_booleans, [10, False, True], XMLSchemaEncodeError)
-        self.check_encode(list_of_booleans, [True, False, 40.0], u'true false', validation='lax')
+        self.check_encode(list_of_booleans, [True, False, 40.0], 'true false', validation='lax')
         self.check_encode(list_of_booleans, [True, False, 40.0],
-                          u'true false 40.0', validation='skip')
+                          'true false 40.0', validation='skip')
 
     def test_union_types(self):
         integer_or_float = self.st_schema.types['integer_or_float']

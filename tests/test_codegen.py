@@ -11,11 +11,15 @@
 """Tests concerning XSD based code generators. Requires jinja2 optional dependency."""
 
 import unittest
+import os
 import datetime
 import ast
 import platform
+import importlib.util
 from pathlib import Path
 from textwrap import dedent
+from xml.etree import ElementTree
+
 from xmlschema import XMLSchema10, XMLSchema11
 from xmlschema.names import XSD_ANY_TYPE, XSD_STRING, XSD_FLOAT
 
@@ -28,7 +32,7 @@ except ImportError:
     PythonGenerator = None
     DemoGenerator = None
 else:
-    from xmlschema.extras.codegen import filter_method, AbstractGenerator
+    from xmlschema.extras.codegen import filter_method, AbstractGenerator, PythonGenerator
 
     class DemoGenerator(AbstractGenerator):
         formal_language = 'Demo'
@@ -66,26 +70,6 @@ else:
 
         def not_an_instance_filter(self):
             return
-
-
-    class PythonGenerator(AbstractGenerator):
-        """
-        Python code sample generator for XSD schemas.
-        """
-        formal_language = 'Python'
-
-        searchpaths = ['templates/python/']
-
-        builtin_types = {
-            'string': 'str',
-            'boolean': 'bool',
-            'float': 'float',
-            'double': 'float',
-            'integer': 'int',
-            'unsignedByte': 'int',
-            'nonNegativeInteger': 'int',
-            'positiveInteger': 'int',
-        }
 
 
 def casepath(relative_path):
@@ -347,12 +331,47 @@ class TestPythonGenerator(TestAbstractGenerator):
             self.generator.render('python_type_filter_test.jinja'), ['str']
         )
 
+    def test_list_templates(self):
+        template_dir = Path(__file__).parent.joinpath('templates')
+        language = self.generator_class.formal_language.lower()
+
+        templates = {'sample.py.jinja', 'bindings.py.jinja'}
+        templates.update(x.name for x in template_dir.glob('filters/*'.format(language)))
+        self.assertSetEqual(set(self.generator.list_templates()), templates)
+
     def test_sample_module(self):
         generator = PythonGenerator(self.col_xsd_file)
 
         python_module = generator.render('sample.py.jinja')[0]
         ast_module = ast.parse(python_module)
         self.assertIsInstance(ast_module, ast.Module)
+
+    def test_bindings_module(self):
+        generator = PythonGenerator(self.col_xsd_file)
+
+        python_module = generator.render('bindings.py.jinja')[0]
+
+        ast_module = ast.parse(python_module)
+        self.assertIsInstance(ast_module, ast.Module)
+
+        collection_dir = Path(__file__).parent.joinpath('test_cases/examples/collection')
+        cwd = os.getcwd()
+        try:
+            os.chdir(str(collection_dir))
+            with open('collection.py', 'w') as fp:
+                fp.write(python_module)
+
+            spec = importlib.util.spec_from_file_location('collection', 'collection.py')
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+        except Exception:
+            pass
+        else:
+            col_data = module.CollectionBinding.fromsource('collection.xml')
+            col_root = ElementTree.XML(col_data.tostring())
+            self.assertEqual(col_root.tag, '{http://example.com/ns/collection}collection')
+        finally:
+            os.chdir(cwd)
 
 
 if __name__ == '__main__':

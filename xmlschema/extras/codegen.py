@@ -548,3 +548,63 @@ class AbstractGenerator(ABC, metaclass=GeneratorMeta):
         if xsd_type.has_simple_content():
             return False
         return any(e.is_multiple() for e in xsd_type.content_type.iter_elements())
+
+
+class PythonGenerator(AbstractGenerator):
+    """A Python code generator for XSD schemas."""
+
+    formal_language = 'Python'
+
+    searchpaths = ['templates/python/']
+
+    builtin_types = {
+        'string': 'str',
+        'decimal': 'decimal.Decimal',
+        'float': 'float',
+        'double': 'float',
+
+        'date': 'datatypes.Date10',
+        'dateTime': 'datatypes.DateTime10',
+        'gDay': 'datatypes.GregorianDay',
+        'gMonth': 'datatypes.GregorianMonth',
+        'gMonthDay': 'datatypes.GregorianMonthDay',
+        'gYear': 'datatypes.GregorianYear10',
+        'gYearMonth': 'datatypes.GregorianYearMonth10',
+        'time': 'datatypes.Time',
+        'duration': 'datatypes.Duration',
+
+        'QName': 'datatypes.QName',
+        'NOTATION': 'datatypes.DateTime10',
+        'anyURI': 'datatypes.AnyURI',
+        'boolean': 'bool',
+        'base64Binary': 'datatypes.Base64Binary',
+        'hexBinary': 'datatypes.HexBinary',
+        'normalizedString': 'str',
+        'token': 'str',
+        'language': 'str',
+        'Name': 'str',
+        'NCName': 'str',
+        'ID': 'str',
+        'IDREF': 'str',
+        'ENTITY': 'str',
+        'NMTOKEN': 'str',
+
+        'integer': 'int',
+        'long': 'int',
+        'int': 'int',
+        'short': 'int',
+        'byte': 'int',
+        'nonNegativeInteger': 'int',
+        'positiveInteger': 'int',
+        'unsignedLong': 'int',
+        'unsignedInt': 'int',
+        'unsignedShort': 'int',
+        'unsignedByte': 'int',
+        'nonPositiveInteger': 'int',
+        'negativeInteger': 'int',
+
+        # XSD 1.1 built-in types
+        'dateTimeStamp': 'datatypes.DateTimeStamp10',
+        'dayTimeDuration': 'datatypes.DayTimeDuration',
+        'yearMonthDuration': 'datatypes.YearMonthDuration',
+    }

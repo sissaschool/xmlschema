@@ -14,7 +14,7 @@ import re
 from collections.abc import MutableMapping, Mapping
 
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
-from .helpers import get_namespace, local_name
+from .helpers import local_name
 
 
 ###
@@ -227,7 +227,8 @@ class NamespaceMapper(MutableMapping):
 
 class NamespaceView(Mapping):
     """
-    A read-only map for filtered access to a dictionary that stores objects mapped from QNames.
+    A read-only map for filtered access to a dictionary that stores
+    objects mapped from QNames in extended format.
     """
     def __init__(self, qname_dict, namespace_uri):
         self.target_dict = qname_dict
@@ -241,10 +242,20 @@ class NamespaceView(Mapping):
         return self.target_dict[self._key_fmt % key]
 
     def __len__(self):
-        return len(self.as_dict())
+        if not self.namespace:
+            return len([k for k in self.target_dict if not k or k[0] != '{'])
+        return len([k for k in self.target_dict
+                    if k and k[0] == '{' and self.namespace == k[1:k.rindex('}')]])
 
     def __iter__(self):
-        return iter(self.as_dict())
+        if not self.namespace:
+            for k in self.target_dict:
+                if not k or k[0] != '{':
+                    yield k
+        else:
+            for k in self.target_dict:
+                if k and k[0] == '{' and self.namespace == k[1:k.rindex('}')]:
+                    yield k[k.rindex('}') + 1:]
 
     def __repr__(self):
         return '%s(%s)' % (self.__class__.__name__, str(self.as_dict()))
@@ -253,17 +264,20 @@ class NamespaceView(Mapping):
         return self._key_fmt % key in self.target_dict
 
     def __eq__(self, other):
-        return self.as_dict() == dict(other.items())
+        return self.as_dict() == other
 
     def as_dict(self, fqn_keys=False):
-        if fqn_keys:
+        if not self.namespace:
+            return {
+                k: v for k, v in self.target_dict.items() if not k or k[0] != '{'
+            }
+        elif fqn_keys:
             return {
                 k: v for k, v in self.target_dict.items()
-                if self.namespace == get_namespace(k)
+                if k and k[0] == '{' and self.namespace == k[1:k.rindex('}')]
             }
         else:
             return {
-                k if k[0] != '{' else k[k.rindex('}') + 1:]: v
-                for k, v in self.target_dict.items()
-                if self.namespace == get_namespace(k)
+                k[k.rindex('}') + 1:]: v for k, v in self.target_dict.items()
+                if k and k[0] == '{' and self.namespace == k[1:k.rindex('}')]
             }

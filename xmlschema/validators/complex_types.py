@@ -15,7 +15,7 @@ from ..names import XSD_GROUP, XSD_ATTRIBUTE_GROUP, XSD_SEQUENCE, XSD_OVERRIDE, 
     XSD_RESTRICTION, XSD_COMPLEX_TYPE, XSD_EXTENSION, XSD_ANY_TYPE, XSD_ASSERT, \
     XSD_UNTYPED_ATOMIC, XSD_SIMPLE_CONTENT, XSD_OPEN_CONTENT, XSD_ANNOTATION
 from ..helpers import get_prefixed_qname, get_qname, local_name
-from ..dataobjects import DataElement
+from .. import dataobjects
 
 from .exceptions import XMLSchemaDecodeError
 from .helpers import get_xsd_derivation_attribute
@@ -680,7 +680,7 @@ class XsdComplexType(XsdType, ValidationMixin):
         xsd_element = self.schema.create_element(name, parent=self, form='unqualified')
         xsd_element.type = self
 
-        if isinstance(value, MutableSequence) and not isinstance(value, DataElement):
+        if isinstance(value, MutableSequence) and not isinstance(value, dataobjects.DataElement):
             try:
                 results = [x for item in value for x in xsd_element.iter_encode(
                     item, validation, **kwargs

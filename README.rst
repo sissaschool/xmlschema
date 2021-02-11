@@ -51,6 +51,8 @@ This library includes the following features:
 * An XPath based API for finding schema's elements and attributes
 * Support of XSD validation modes *strict*/*lax*/*skip*
 * Remote attacks protection by default using an XMLParser that forbids entities
+* XML data bindings based on DataElement class (experimental)
+* Static code generation with Jinja2 templates (experimental)
 
 
 Installation

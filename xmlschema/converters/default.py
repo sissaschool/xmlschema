@@ -7,13 +7,25 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+from collections import namedtuple
 from collections.abc import MutableMapping, MutableSequence
 
 from ..exceptions import XMLSchemaTypeError
 from ..names import XSI_NAMESPACE
 from ..etree import etree_element
 from ..namespaces import NamespaceMapper
-from ..dataobjects import ElementData
+
+
+ElementData = namedtuple('ElementData', ['tag', 'text', 'content', 'attributes'])
+"""
+Namedtuple for Element data interchange between decoders and converters.
+The field *tag* is a string containing the Element's tag, *text* can be `None`
+or a string representing the Element's text, *content* can be `None`, a list
+containing the Element's children or a dictionary containing element name to
+list of element contents for the Element's children (used for unordered input
+data), *attributes* can be `None` or a dictionary containing the Element's
+attributes.
+"""
 
 
 class XMLSchemaConverter(NamespaceMapper):

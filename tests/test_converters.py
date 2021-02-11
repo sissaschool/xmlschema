@@ -9,8 +9,8 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import unittest
-import os
 import xml.etree.ElementTree as ElementTree
+from pathlib import Path
 
 try:
     import lxml.etree as lxml_etree
@@ -24,12 +24,11 @@ from xmlschema.testing import etree_elements_assert_equal
 
 from xmlschema.converters import XMLSchemaConverter, UnorderedConverter, \
     ParkerConverter, BadgerFishConverter, AbderaConverter, JsonMLConverter, \
-    ColumnarConverter, DataElementConverter
+    ColumnarConverter
+from xmlschema.dataobjects import DataElementConverter
 
 
 class TestConverters(unittest.TestCase):
-
-    TEST_CASES_DIR = os.path.join(os.path.dirname(__file__), 'test_cases')
 
     @classmethod
     def setUpClass(cls):
@@ -42,7 +41,7 @@ class TestConverters(unittest.TestCase):
 
     @classmethod
     def casepath(cls, relative_path):
-        return os.path.join(cls.TEST_CASES_DIR, relative_path)
+        return str(Path(__file__).parent.joinpath('test_cases', relative_path))
 
     def test_element_class_argument(self):
         converter = XMLSchemaConverter()

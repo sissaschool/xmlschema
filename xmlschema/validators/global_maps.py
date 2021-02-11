@@ -375,28 +375,35 @@ class XsdGlobals(XsdValidator):
             errors.extend(schema.all_errors)
         return errors
 
+    def create_bindings(self, *bases, **attrs):
+        """Creates data object bindings for the XSD elements of built schemas."""
+        for xsd_element in self.iter_components(xsd_classes=XsdElement):
+            if xsd_element.target_namespace != XSD_NAMESPACE:
+                xsd_element.get_binding(*bases, replace_existing=True, **attrs)
+
+    def clear_bindings(self):
+        for xsd_element in self.iter_components(xsd_classes=XsdElement):
+            xsd_element.binding = None
+
     def iter_components(self, xsd_classes=None):
+        """Creates an iterator for the XSD components of built schemas."""
         if xsd_classes is None or isinstance(self, xsd_classes):
             yield self
         for xsd_global in self.iter_globals():
             yield from xsd_global.iter_components(xsd_classes)
 
-    def iter_schemas(self):
-        """Creates an iterator for the schemas registered in the instance."""
-        for schemas in self.namespaces.values():
-            yield from schemas
-
     def iter_globals(self):
-        """
-        Creates an iterator for XSD global definitions/declarations.
-        """
+        """Creates an iterator for the XSD global components of built schemas."""
         for global_map in self.global_maps:
             yield from global_map.values()
 
+    def iter_schemas(self):
+        """Creates an iterator for the registered schemas."""
+        for schemas in self.namespaces.values():
+            yield from schemas
+
     def register(self, schema):
-        """
-        Registers an XMLSchema instance.
-        """
+        """Registers an XMLSchema instance."""
         try:
             ns_schemas = self.namespaces[schema.target_namespace]
         except KeyError:

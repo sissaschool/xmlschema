@@ -9,8 +9,7 @@
 #
 from collections.abc import MutableMapping, MutableSequence
 
-from ..dataobjects import ElementData
-from .default import XMLSchemaConverter
+from .default import ElementData, XMLSchemaConverter
 
 
 class BadgerFishConverter(XMLSchemaConverter):

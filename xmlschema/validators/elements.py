@@ -23,8 +23,8 @@ from ..names import XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE, XSD_ALTERNATIVE, \
 from ..etree import etree_element
 from ..helpers import get_qname, get_namespace, etree_iter_location_hints, \
     raw_xml_encode, strictly_equal
-from ..dataobjects import ElementData
-from ..converters import XMLSchemaConverter
+from .. import dataobjects
+from ..converters import ElementData, XMLSchemaConverter
 from ..xpath import XMLSchemaProxy, ElementPathMixin
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaTypeTableWarning
@@ -78,6 +78,8 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
     _block = None
     _final = None
     _head_type = None
+
+    binding = None
 
     def __init__(self, elem, schema, parent):
         super(XsdElement, self).__init__(elem, schema, parent)
@@ -376,6 +378,23 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         elif self._block is not None:
             return self._block
         return self.schema.block_default
+
+    def get_binding(self, *bases, replace_existing=False, **attrs):
+        """
+        Gets data object binding for XSD element, creating a new one if it doesn't exist.
+
+        :param bases: base classes to use for creating the binding class.
+        :param replace_existing: provide `True` to replace an existing binding class.
+        :param attrs: attribute and method definitions for the binding class body.
+        """
+        if self.binding is None or replace_existing:
+            if not bases:
+                bases = (dataobjects.DataElement,)
+            attrs['xsd_element'] = self
+            class_name = '{}Binding'.format(self.local_name.title().replace('_', ''))
+            self.binding = dataobjects.DataBindingMeta(class_name, bases, attrs)
+
+        return self.binding
 
     def get_attribute(self, name):
         if name[0] != '{':
@@ -769,6 +788,8 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         :return: yields an Element, eventually preceded by a sequence of \
         validation or encoding errors.
         """
+        errors = []
+
         try:
             converter = kwargs['converter']
         except KeyError:
@@ -781,10 +802,17 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             level = kwargs['level']
         except KeyError:
             level = 0
+            element_data = converter.element_encode(obj, self, level)
+            if not self.is_matching(element_data.tag, self.default_namespace):
+                errors.append("data tag does not match XSD element name")
 
-        element_data = converter.element_encode(obj, self, level)
-        errors = []
-        tag = element_data.tag
+            if 'max_depth' in kwargs and kwargs['max_depth'] == 0:
+                for e in errors:
+                    yield self.validation_error(validation, e, **kwargs)
+                return
+        else:
+            element_data = converter.element_encode(obj, self, level)
+
         text = None
         children = element_data.content
         attributes = ()
@@ -876,7 +904,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 elif result:
                     text, children = result
 
-        elem = converter.etree_element(tag, text, children, attributes, level)
+        elem = converter.etree_element(element_data.tag, text, children, attributes, level)
 
         if errors:
             for e in errors:
