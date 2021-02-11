@@ -286,7 +286,7 @@ class TestDataBindings(TestDataObjects):
         xsd_element.binding = None
 
         try:
-            binding_class = xsd_element.create_binding()
+            binding_class = xsd_element.get_binding()
             self.assertEqual(binding_class.__name__, 'CollectionBinding')
             self.assertEqual(binding_class.__qualname__, 'CollectionBinding')
             self.assertIsNone(binding_class.__module__)

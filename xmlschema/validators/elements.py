@@ -379,14 +379,21 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             return self._block
         return self.schema.block_default
 
-    def create_binding(self, *bases, **attrs):
-        """Create data object binding for XSD element."""
-        if not bases:
-            bases = (dataobjects.DataElement,)
-        attrs['xsd_element'] = self
-        class_name = '{}Binding'.format(self.local_name.title().replace('_', ''))
+    def get_binding(self, *bases, replace_existing=False, **attrs):
+        """
+        Gets data object binding for XSD element, creating a new one if it doesn't exist.
 
-        self.binding = dataobjects.DataBindingMeta(class_name, bases, attrs)
+        :param bases: base classes to use for creating the binding class.
+        :param replace_existing: provide `True` to replace an existing binding class.
+        :param attrs: attribute and method definitions for the binding class body.
+        """
+        if self.binding is None or replace_existing:
+            if not bases:
+                bases = (dataobjects.DataElement,)
+            attrs['xsd_element'] = self
+            class_name = '{}Binding'.format(self.local_name.title().replace('_', ''))
+            self.binding = dataobjects.DataBindingMeta(class_name, bases, attrs)
+
         return self.binding
 
     def get_attribute(self, name):

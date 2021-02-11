@@ -391,7 +391,7 @@ class DataBindingConverter(DataElementConverter):
     XML binding classes.
     """
     def element_decode(self, data, xsd_element, xsd_type=None, level=0):
-        cls = xsd_element.binding or xsd_element.create_binding(self.data_element_class)
+        cls = xsd_element.get_binding(self.data_element_class)
         data_element = cls(
             tag=data.tag,
             value=data.text,

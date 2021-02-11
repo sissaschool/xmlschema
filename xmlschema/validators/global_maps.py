@@ -379,7 +379,7 @@ class XsdGlobals(XsdValidator):
         """Creates data object bindings for the XSD elements of built schemas."""
         for xsd_element in self.iter_components(xsd_classes=XsdElement):
             if xsd_element.target_namespace != XSD_NAMESPACE:
-                xsd_element.create_binding(*bases, **attrs)
+                xsd_element.get_binding(*bases, replace_existing=True, **attrs)
 
     def clear_bindings(self):
         for xsd_element in self.iter_components(xsd_classes=XsdElement):

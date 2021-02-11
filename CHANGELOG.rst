@@ -2,11 +2,11 @@
 CHANGELOG
 *********
 
-`v1.6.0`_ (2021-02-05)
+`v1.5.1`_ (2021-02-11)
 ======================
-* TODO: Add DataElementMeta metaclass for customizing DataElement subclasses
-* TODO: Implement PythonGenerator with three set of templates (xmlschema API
-  based, simple class hierarchy, dataclass hierarchy)
+* Optimize NamespaceView read-only mapping
+* Add experimental XML data bindings with a DataBindingConverter
+* Add exprimental PythonGenerator for static codegen with Jinja2
 
 `v1.5.0`_ (2021-02-05)
 ======================
@@ -408,4 +408,4 @@ v0.9.6 (2017-05-05)
 .. _v1.4.1: https://github.com/brunato/xmlschema/compare/v1.4.0...v1.4.1
 .. _v1.4.2: https://github.com/brunato/xmlschema/compare/v1.4.1...v1.4.2
 .. _v1.5.0: https://github.com/brunato/xmlschema/compare/v1.4.2...v1.5.0
-.. _v1.6.0: https://github.com/brunato/xmlschema/compare/v1.5.0...v1.6.0
+.. _v1.6.0: https://github.com/brunato/xmlschema/compare/v1.5.0...v1.5.1

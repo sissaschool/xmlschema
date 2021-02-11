@@ -17,7 +17,7 @@ from .xpath import ElementPathMixin
 from .converters import ElementData, XMLSchemaConverter, \
     UnorderedConverter, ParkerConverter, BadgerFishConverter, \
     AbderaConverter, JsonMLConverter, ColumnarConverter
-from .dataobjects import DataElement, DataElementConverter
+from .dataobjects import DataElement, DataElementConverter, DataBindingConverter
 from .documents import validate, is_valid, iter_errors, to_dict, to_json, \
     from_json, XmlDocument
 
@@ -30,7 +30,7 @@ from .validators import (
     XsdComponent, XsdType, XsdElement, XsdAttribute
 )
 
-__version__ = '1.6.0'
+__version__ = '1.5.1'
 __author__ = "Davide Brunato"
 __contact__ = "brunato@sissa.it"
 __copyright__ = "Copyright 2016-2021, SISSA"
@@ -42,10 +42,10 @@ __all__ = [
     'limits', 'XMLSchemaException', 'XMLResourceError', 'XMLSchemaNamespaceError',
     'etree_tostring', 'normalize_url', 'normalize_locations', 'fetch_resource',
     'fetch_namespaces', 'fetch_schema_locations', 'fetch_schema', 'XMLResource',
-    'ElementPathMixin', 'ElementData', 'DataElement', 'XMLSchemaConverter',
-    'UnorderedConverter', 'ParkerConverter', 'BadgerFishConverter', 'AbderaConverter',
-    'JsonMLConverter', 'ColumnarConverter', 'DataElementConverter', 'validate',
-    'is_valid', 'iter_errors', 'to_dict', 'to_json', 'from_json', 'XmlDocument',
+    'ElementPathMixin', 'ElementData', 'XMLSchemaConverter', 'UnorderedConverter',
+    'ParkerConverter', 'BadgerFishConverter', 'AbderaConverter', 'JsonMLConverter',
+    'ColumnarConverter', 'DataElement', 'DataElementConverter', 'DataBindingConverter',
+    'validate', 'is_valid', 'iter_errors', 'to_dict', 'to_json', 'from_json', 'XmlDocument',
     'XMLSchemaValidatorError', 'XMLSchemaParseError', 'XMLSchemaNotBuiltError',
     'XMLSchemaModelError', 'XMLSchemaModelDepthError', 'XMLSchemaValidationError',
     'XMLSchemaDecodeError', 'XMLSchemaEncodeError', 'XMLSchemaChildrenValidationError',

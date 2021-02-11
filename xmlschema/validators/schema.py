@@ -962,9 +962,14 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             return self.find(path, namespaces)
 
     def create_bindings(self, *bases, **attrs):
-        """Creates data object bindings for XSD elements of the schema."""
+        """
+        Creates data object bindings for XSD elements of the schema.
+
+        :param bases: base classes to use for creating the binding classes.
+        :param attrs: attribute and method definitions for the binding classes body.
+        """
         for xsd_element in self.iter_components(xsd_classes=XsdElement):
-            xsd_element.create_binding(*bases, **attrs)
+            xsd_element.get_binding(*bases, replace_existing=True, **attrs)
 
     def _parse_inclusions(self):
         """Processes schema document inclusions and redefinitions."""
