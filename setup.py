@@ -27,7 +27,6 @@ setup(
         ]
     },
     python_requires='>=3.6',
-    setup_requires=['elementpath>=2.1.2, <3.0.0'],
     install_requires=['elementpath>=2.1.2, <3.0.0'],
     extras_require={
         'codegen': ['elementpath>=2.1.2, <3.0.0', 'jinja2'],
