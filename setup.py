@@ -16,7 +16,7 @@ with open("README.rst") as readme:
 
 setup(
     name='xmlschema',
-    version='1.5.1',
+    version='1.5.2',
     packages=find_packages(include=['xmlschema', 'xmlschema.*']),
     include_package_data=True,
     entry_points={
