@@ -64,6 +64,23 @@ class TestXsdAttributes(XsdValidatorTestCase):
         self.assertEqual(ctx.exception.message,
                          "attribute use='': value doesn't match any pattern of ['\\\\c+']")
 
+    def test_is_empty_attribute(self):
+        schema = self.check_schema("""
+            <xs:attribute name="a1" type="xs:string"/>
+            <xs:attribute name="a2" type="xs:string" fixed=""/>
+            <xs:attribute name="a3" type="emptyString"/>
+            
+            <xs:simpleType name="emptyString">
+              <xs:restriction base="xs:string">
+                <xs:maxLength value="0"/>
+              </xs:restriction>
+            </xs:simpleType>
+        """)
+
+        self.assertFalse(schema.attributes['a1'].is_empty())
+        self.assertTrue(schema.attributes['a2'].is_empty())
+        self.assertTrue(schema.attributes['a3'].is_empty())
+
     def test_wrong_attribute_type(self):
         self.check_schema("""
         <xs:attributeGroup name="alpha">

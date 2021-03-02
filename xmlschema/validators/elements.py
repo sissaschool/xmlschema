@@ -1047,6 +1047,9 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         except AttributeError:
             return True
 
+    def is_empty(self):
+        return self.fixed == '' or self.type.is_empty()
+
 
 class Xsd11Element(XsdElement):
     """

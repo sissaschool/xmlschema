@@ -195,6 +195,9 @@ class XsdAttribute(XsdComponent, ValidationMixin):
     def is_prohibited(self):
         return self.use == 'prohibited'
 
+    def is_empty(self):
+        return self.fixed == '' or self.type.is_empty()
+
     def iter_components(self, xsd_classes=None):
         if xsd_classes is None or isinstance(self, xsd_classes):
             yield self

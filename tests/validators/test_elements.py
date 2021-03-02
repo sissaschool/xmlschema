@@ -106,6 +106,23 @@ class TestXsdElements(XsdValidatorTestCase):
         self.assertEqual(model_group[1].value_constraint, 'alpha')
         self.assertEqual(model_group[2].value_constraint, 'beta')
 
+    def test_is_empty_attribute(self):
+        schema = self.check_schema("""
+            <xs:element name="e1" type="xs:string"/>
+            <xs:element name="e2" type="xs:string" fixed=""/>
+            <xs:element name="e3" type="emptyString"/>
+
+            <xs:simpleType name="emptyString">
+              <xs:restriction base="xs:string">
+                <xs:maxLength value="0"/>
+              </xs:restriction>
+            </xs:simpleType>
+        """)
+
+        self.assertFalse(schema.elements['e1'].is_empty())
+        self.assertTrue(schema.elements['e2'].is_empty())
+        self.assertTrue(schema.elements['e3'].is_empty())
+
 
 class TestXsd11Elements(TestXsdElements):
 
