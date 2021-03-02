@@ -294,16 +294,23 @@ class XsdComplexType(XsdType, ValidationMixin):
             self.content = self.schema.create_any_content_group(self)
             self._parse_content_tail(elem)
         else:
-            if base_type.has_simple_content():
+            if base_type.is_empty():
+                self.content = self.schema.BUILDERS.restriction_class(elem, self.schema, self)
+                if not self.is_empty():
+                    self.parse_error("a not empty simpleContent cannot restrict "
+                                     "an empty content type", elem)
+                    self.content = self.schema.create_any_content_group(self)
+
+            elif base_type.has_simple_content():
                 self.content = self.schema.BUILDERS.restriction_class(elem, self.schema, self)
                 if not self.content.is_derived(base_type.content, 'restriction'):
-                    self.parse_error("Content type is not a restriction of base content", elem)
+                    self.parse_error("content type is not a restriction of base content", elem)
 
             elif base_type.mixed and base_type.is_emptiable():
                 self.content = self.schema.BUILDERS.restriction_class(elem, self.schema, self)
             else:
-                self.parse_error("with simpleContent cannot restrict an empty or "
-                                 "an element-only content type", base_type.elem)
+                self.parse_error("with simpleContent cannot restrict an "
+                                 "element-only content type", elem)
                 self.content = self.schema.create_any_content_group(self)
 
             self._parse_content_tail(elem, derivation='restriction',
@@ -613,9 +620,9 @@ class XsdComplexType(XsdType, ValidationMixin):
             if xsd_classes is None or isinstance(obj, xsd_classes):
                 yield obj
 
-    @staticmethod
-    def get_facet(*_args, **_kwargs):
-        return None
+    def get_facet(self, tag):
+        if isinstance(self.content, XsdSimpleType):
+            return self.content.get_facet(tag)
 
     def admit_simple_restriction(self):
         if 'restriction' in self.final:

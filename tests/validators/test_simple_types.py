@@ -143,6 +143,37 @@ class TestXsdSimpleTypes(XsdValidatorTestCase):
                 </xs:restriction>
             </xs:simpleType>""")
 
+    def test_is_empty(self):
+        schema = self.check_schema("""
+            <xs:simpleType name="emptyType1">
+                <xs:restriction base="xs:string">
+                    <xs:maxLength value="0"/>
+                </xs:restriction>
+            </xs:simpleType>
+
+            <xs:simpleType name="emptyType2">
+                <xs:restriction base="xs:string">
+                    <xs:length value="0"/>
+                </xs:restriction>
+            </xs:simpleType>
+            
+            <xs:simpleType name="emptyType3">
+                <xs:restriction base="xs:string">
+                    <xs:enumeration value=""/>
+                </xs:restriction>
+            </xs:simpleType>
+
+            <xs:simpleType name="notEmptyType1">
+                <xs:restriction base="xs:string">
+                    <xs:enumeration value=" "/>
+                </xs:restriction>
+            </xs:simpleType>""")
+
+        self.assertTrue(schema.types['emptyType1'].is_empty())
+        self.assertTrue(schema.types['emptyType2'].is_empty())
+        self.assertTrue(schema.types['emptyType3'].is_empty())
+        self.assertFalse(schema.types['notEmptyType1'].is_empty())
+
 
 class TestXsd11SimpleTypes(TestXsdSimpleTypes):
 

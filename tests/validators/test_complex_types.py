@@ -420,6 +420,39 @@ class TestXsdComplexType(XsdValidatorTestCase):
         xsd_type = schema.types['type1']
         self.assertIs(xsd_type.content_type, xsd_type.content)
 
+    def test_is_empty(self):
+        schema = self.check_schema("""
+            <xs:complexType name="emptyType1"/>
+            
+            <xs:complexType name="emptyType2">
+                <xs:sequence/>
+            </xs:complexType>
+            
+            <xs:complexType name="emptyType3">
+                <xs:complexContent>
+                    <xs:restriction base="xs:anyType"/>
+                </xs:complexContent>
+            </xs:complexType>
+
+            <xs:complexType name="notEmptyType1">
+                <xs:sequence>
+                    <xs:element name="elem1"/>
+                </xs:sequence>
+            </xs:complexType>
+            
+            <xs:complexType name="notEmptyType2">
+                <xs:complexContent>
+                    <xs:extension base="xs:anyType"/>
+                </xs:complexContent>
+            </xs:complexType>
+            """)
+
+        self.assertTrue(schema.types['emptyType1'].is_empty())
+        self.assertTrue(schema.types['emptyType2'].is_empty())
+        self.assertTrue(schema.types['emptyType3'].is_empty())
+        self.assertFalse(schema.types['notEmptyType1'].is_empty())
+        self.assertFalse(schema.types['notEmptyType2'].is_empty())
+
 
 class TestXsd11ComplexType(TestXsdComplexType):
 

@@ -349,7 +349,8 @@ class XsdSimpleType(XsdType, ValidationMixin):
             return '{}+'.format(sequence_type)
 
     def is_empty(self):
-        return self.max_length == 0
+        return self.max_length == 0 or \
+            self.enumeration is not None and all(v == '' for v in self.enumeration)
 
     def is_emptiable(self):
         return self.allow_empty
