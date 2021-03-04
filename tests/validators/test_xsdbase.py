@@ -19,6 +19,7 @@ from xmlschema.validators import XsdValidator, XsdComponent, XMLSchema10, \
     XMLSchema11, XMLSchemaParseError, XMLSchemaValidationError, XsdGroup, XsdSimpleType
 from xmlschema.names import XSD_NAMESPACE, XSD_ELEMENT, XSD_ANNOTATION, XSD_ANY_TYPE
 from xmlschema.etree import ElementTree
+from xmlschema.dataobjects import DataElement
 
 CASES_DIR = os.path.join(os.path.dirname(__file__), '../test_cases')
 
@@ -648,6 +649,22 @@ class TestValidationMixin(unittest.TestCase):
         self.assertIn(self.schema.elements['cars'].name, obj)
         self.assertIn(self.schema.elements['bikes'].name, obj)
         self.assertEqual(len(errors), 2)
+
+    def test_decode_to_objects(self):
+        xml_file = os.path.join(CASES_DIR, 'examples/vehicles/vehicles.xml')
+        root = ElementTree.parse(xml_file).getroot()
+
+        obj = self.schema.elements['vehicles'].to_objects(root)
+        self.assertIsInstance(obj, DataElement)
+        self.assertEqual(self.schema.elements['vehicles'].name, obj.tag)
+        self.assertIs(obj.__class__, DataElement)
+
+        obj = self.schema.elements['vehicles'].to_objects(root, with_bindings=True)
+        self.assertIsInstance(obj, DataElement)
+        self.assertEqual(self.schema.elements['vehicles'].name, obj.tag)
+        self.assertIsNot(obj.__class__, DataElement)
+        self.assertTrue(issubclass(obj.__class__, DataElement))
+        self.assertEqual(obj.__class__.__name__, 'VehiclesBinding')
 
     def test_encode(self):
         xml_file = os.path.join(CASES_DIR, 'examples/vehicles/vehicles.xml')

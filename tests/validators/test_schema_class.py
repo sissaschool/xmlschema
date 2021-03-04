@@ -217,6 +217,14 @@ class TestXMLSchema10(XsdValidatorTestCase):
         self.assertEqual(set(schema.root_elements),
                          {schema.elements['root1'], schema.elements['root2']})
 
+    def test_simple_types(self):
+        self.assertListEqual(self.vh_schema.simple_types, [])
+        self.assertGreater(len(self.st_schema.simple_types), 20)
+
+    def test_complex_types(self):
+        self.assertListEqual(self.vh_schema.complex_types,
+                             [self.vh_schema.types['vehicleType']])
+
     def test_is_restriction_method(self):
         # Test issue #111 fix
         schema = self.schema_class(source=self.casepath('issues/issue_111/issue_111.xsd'))

@@ -44,6 +44,8 @@ class TestParticleMixin(unittest.TestCase):
 
     def test_is_empty(self):
         self.assertFalse(self.schema.elements['cars'].is_empty())
+        self.assertFalse(ParticleMixin().is_empty())
+        self.assertTrue(ParticleMixin(min_occurs=0, max_occurs=0).is_empty())
 
     def test_is_single(self):
         self.assertTrue(self.schema.elements['cars'].is_single())
