@@ -396,9 +396,6 @@ Code generators
 
 .. autoclass:: xmlschema.extras.codegen.AbstractGenerator
 
-    .. autoattribute:: xsd_file
-    .. automethod:: register_filter
-    .. automethod:: register_test
     .. automethod:: map_type
     .. automethod:: list_templates
     .. automethod:: matching_templates

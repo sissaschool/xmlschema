@@ -2,6 +2,12 @@
 CHANGELOG
 *********
 
+`v1.5.2`_ (2021-03-04)
+======================
+* Improve empty content checking
+* Fix simple content restriction of xs:complexType
+* Fix facets retrieving for xs:complexType with simple content
+
 `v1.5.1`_ (2021-02-11)
 ======================
 * Optimize NamespaceView read-only mapping
@@ -408,4 +414,5 @@ v0.9.6 (2017-05-05)
 .. _v1.4.1: https://github.com/brunato/xmlschema/compare/v1.4.0...v1.4.1
 .. _v1.4.2: https://github.com/brunato/xmlschema/compare/v1.4.1...v1.4.2
 .. _v1.5.0: https://github.com/brunato/xmlschema/compare/v1.4.2...v1.5.0
-.. _v1.6.0: https://github.com/brunato/xmlschema/compare/v1.5.0...v1.5.1
+.. _v1.5.1: https://github.com/brunato/xmlschema/compare/v1.5.0...v1.5.1
+.. _v1.5.2: https://github.com/brunato/xmlschema/compare/v1.5.1...v1.5.2
