@@ -211,7 +211,7 @@ class TestValidatorExceptions(unittest.TestCase):
             schema.validate('<a><b1/></a>')
 
         lines = str(ctx.exception).split('\n')
-        self.assertTrue(lines[2].endswith("Tag b2 expected."))
+        self.assertTrue(lines[2].endswith("Tag 'b2' expected."))
 
 
 if __name__ == '__main__':

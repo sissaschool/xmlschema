@@ -326,10 +326,12 @@ class XMLSchemaChildrenValidationError(XMLSchemaValidationError):
 
             if not expected_tags:
                 pass
-            elif len(expected_tags) == 1:
+            elif len(expected_tags) > 1:
+                reason += " Tag (%s) expected." % ' | '.join(repr(tag) for tag in expected_tags)
+            elif expected_tags[0].startswith('from '):
                 reason += " Tag %s expected." % expected_tags[0]
             else:
-                reason += " Tag (%s) expected." % ' | '.join(expected_tags)
+                reason += " Tag %r expected." % expected_tags[0]
 
         super(XMLSchemaChildrenValidationError, self).\
             __init__(validator, elem, reason, source, namespaces)
