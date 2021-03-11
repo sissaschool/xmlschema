@@ -19,7 +19,6 @@ import logging
 import threading
 import warnings
 import re
-import sys
 from copy import copy
 from abc import ABCMeta
 from collections import namedtuple, Counter
@@ -60,10 +59,6 @@ from .wildcards import XsdAnyElement, XsdAnyAttribute, Xsd11AnyElement, \
 from .global_maps import XsdGlobals
 
 logger = logging.getLogger('xmlschema')
-logging_formatter = logging.Formatter('[%(levelname)s] %(message)s')
-logging_handler = logging.StreamHandler(sys.stderr)
-logging_handler.setFormatter(logging_formatter)
-logger.addHandler(logging_handler)
 
 XSD_VERSION_PATTERN = re.compile(r'^\d+\.\d+$')
 DRIVE_PATTERN = re.compile(r'^[a-zA-Z]:$')
