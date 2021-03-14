@@ -13,7 +13,6 @@ This module defines a proxy class and a mixin class for enabling XPath on schema
 from abc import abstractmethod
 from collections.abc import Sequence
 import re
-import threading
 
 from elementpath import AttributeNode, TypedElement, XPath2Parser, \
     XPathSchemaContext, AbstractSchemaProxy
@@ -93,17 +92,17 @@ class XMLSchemaProxy(AbstractSchemaProxy):
         return self._schema.XSD_VERSION
 
     def bind_parser(self, parser):
-        if parser.schema is not self:
-            parser.schema = self
+        parser.schema = self
+        parser.symbol_table = parser.__class__.symbol_table.copy()
 
-        if self._schema.xpath_tokens is None:
-            parser.symbol_table = parser.__class__.symbol_table.copy()
-            for xsd_type in self.iter_atomic_types():
-                parser.schema_constructor(xsd_type.name)
-            self._schema.xpath_tokens = parser.symbol_table
-        else:
-            parser.symbol_table = self._schema.xpath_tokens
-        parser.tokenizer = parser.create_tokenizer(parser.symbol_table)
+        with self._schema.lock:
+            if self._schema.xpath_tokens is None:
+                self._schema.xpath_tokens = {
+                    xsd_type.name: parser.schema_constructor(xsd_type.name)
+                    for xsd_type in self.iter_atomic_types()
+                }
+
+        parser.symbol_table.update(self._schema.xpath_tokens)
 
     def get_context(self):
         return XMLSchemaContext(
@@ -164,7 +163,7 @@ class XMLSchemaProxy(AbstractSchemaProxy):
 
 class ElementPathMixin(Sequence):
     """
-    Mixin abstract class for enabling ElementTree and XPath API on XSD components.
+    Mixin abstract class for enabling ElementTree and XPath 2.0 API on XSD components.
 
     :cvar text: the Element text, for compatibility with the ElementTree API.
     :cvar tail: the Element tail, for compatibility with the ElementTree API.
@@ -174,22 +173,6 @@ class ElementPathMixin(Sequence):
     attributes = {}
     namespaces = {}
     xpath_default_namespace = ''
-
-    _xpath_parser = None  # Internal XPath 2.0 parser, instantiated at first use.
-
-    def __init__(self):
-        self._xpath_lock = threading.Lock()  # Lock for XPath operations
-
-    def __getstate__(self):
-        state = self.__dict__.copy()
-        state.pop('_xpath_lock', None)
-        state.pop('_xpath_parser', None)
-        state.pop('xpath_tokens', None)  # For schema objects
-        return state
-
-    def __setstate__(self, state):
-        self.__dict__.update(state)
-        self._xpath_lock = threading.Lock()
 
     @abstractmethod
     def __iter__(self):
@@ -243,19 +226,6 @@ class ElementPathMixin(Sequence):
         xpath_namespaces.update(namespaces)
         return xpath_namespaces
 
-    def _xpath_parse(self, path, namespaces=None):
-        path = _REGEX_TAG_POSITION.sub('', path.strip())  # Strips tags positions from path
-
-        namespaces = self._get_xpath_namespaces(namespaces)
-        with self._xpath_lock:
-            parser = self._xpath_parser
-            if parser is None:
-                parser = XPath2Parser(namespaces, strict=False, schema=self.xpath_proxy)
-                self._xpath_parser = parser
-            else:
-                parser.namespaces = namespaces
-            return parser.parse(path)
-
     def find(self, path, namespaces=None):
         """
         Finds the first XSD subelement matching the path.
@@ -264,8 +234,12 @@ class ElementPathMixin(Sequence):
         :param namespaces: an optional mapping from namespace prefix to namespace URI.
         :return: the first matching XSD subelement or ``None`` if there is no match.
         """
+        path = _REGEX_TAG_POSITION.sub('', path.strip())  # Strips tags positions from path
+        namespaces = self._get_xpath_namespaces(namespaces)
+        parser = XPath2Parser(namespaces, strict=False)
         context = XMLSchemaContext(self)
-        return next(self._xpath_parse(path, namespaces).select_results(context), None)
+
+        return next(parser.parse(path).select_results(context), None)
 
     def findall(self, path, namespaces=None):
         """
@@ -276,8 +250,12 @@ class ElementPathMixin(Sequence):
         :return: a list containing all matching XSD subelements in document order, an empty \
         list is returned if there is no match.
         """
+        path = _REGEX_TAG_POSITION.sub('', path.strip())  # Strips tags positions from path
+        namespaces = self._get_xpath_namespaces(namespaces)
+        parser = XPath2Parser(namespaces, strict=False)
         context = XMLSchemaContext(self)
-        return self._xpath_parse(path, namespaces).get_results(context)
+
+        return parser.parse(path).get_results(context)
 
     def iterfind(self, path, namespaces=None):
         """
@@ -287,8 +265,12 @@ class ElementPathMixin(Sequence):
         :param namespaces: is an optional mapping from namespace prefix to full name.
         :return: an iterable yielding all matching XSD subelements in document order.
         """
+        path = _REGEX_TAG_POSITION.sub('', path.strip())  # Strips tags positions from path
+        namespaces = self._get_xpath_namespaces(namespaces)
+        parser = XPath2Parser(namespaces, strict=False)
         context = XMLSchemaContext(self)
-        return self._xpath_parse(path, namespaces).select_results(context)
+
+        return parser.parse(path).select_results(context)
 
     def iter(self, tag=None):
         """

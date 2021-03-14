@@ -371,9 +371,8 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
     _ADMITTED_TAGS = {XSD_ANY}
     precedences = ()
 
-    def __init__(self, elem, schema, parent, maps=None):
-        super(XsdAnyElement, self).__init__(elem, schema, parent, maps)
-        ElementPathMixin.__init__(self)
+    def __init__(self, elem, schema, parent):
+        super(XsdAnyElement, self).__init__(elem, schema, parent)
 
     def __repr__(self):
         if self.namespace:

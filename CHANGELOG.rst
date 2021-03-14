@@ -2,6 +2,12 @@
 CHANGELOG
 *********
 
+`v1.5.3`_ (2021-03-14)
+======================
+* Remove unnecessary bindings with schema proxy from ElementPathMixin
+  to avoid conflicts when schema is used by an XPath 3 parser
+* Fix schema logger (issue #228)
+
 `v1.5.2`_ (2021-03-04)
 ======================
 * Improve empty content checking
@@ -416,3 +422,4 @@ v0.9.6 (2017-05-05)
 .. _v1.5.0: https://github.com/brunato/xmlschema/compare/v1.4.2...v1.5.0
 .. _v1.5.1: https://github.com/brunato/xmlschema/compare/v1.5.0...v1.5.1
 .. _v1.5.2: https://github.com/brunato/xmlschema/compare/v1.5.1...v1.5.2
+.. _v1.5.3: https://github.com/brunato/xmlschema/compare/v1.5.2...v1.5.3

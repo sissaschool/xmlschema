@@ -81,10 +81,6 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
 
     binding = None
 
-    def __init__(self, elem, schema, parent):
-        super(XsdElement, self).__init__(elem, schema, parent)
-        ElementPathMixin.__init__(self)
-
     def __repr__(self):
         return '%s(%s=%r, occurs=%r)' % (
             self.__class__.__name__,

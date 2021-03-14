@@ -35,10 +35,9 @@ class XsdAssert(XsdComponent, ElementPathMixin):
     path = 'true()'
 
     def __init__(self, elem, schema, parent, base_type):
+        self._xpath_lock = threading.Lock()
         self.base_type = base_type
-        self._assert_xpath_lock = threading.Lock()  # Lock for assertion XPath operations
         super(XsdAssert, self).__init__(elem, schema, parent)
-        ElementPathMixin.__init__(self)
 
     def __repr__(self):
         if len(self.path) < 40:
@@ -48,16 +47,12 @@ class XsdAssert(XsdComponent, ElementPathMixin):
 
     def __getstate__(self):
         state = self.__dict__.copy()
-        state.pop('_assert_xpath_lock', None)
         state.pop('_xpath_lock', None)
-        state.pop('_xpath_parser', None)
-        state.pop('xpath_tokens', None)  # For schema objects
         return state
 
     def __setstate__(self, state):
         self.__dict__.update(state)
         self._xpath_lock = threading.Lock()
-        self._assert_xpath_lock = threading.Lock()
 
     def _parse(self):
         super(XsdAssert, self)._parse()
@@ -79,6 +74,8 @@ class XsdAssert(XsdComponent, ElementPathMixin):
         return self.token is not None and (self.base_type.parent is None or self.base_type.built)
 
     def build(self):
+        # Assert requires a schema bound parser because select
+        # is on XML elements and with XSD type decoded values
         self.parser = XPath2Parser(
             namespaces=self.namespaces,
             variable_types={'value': self.base_type.sequence_type},
