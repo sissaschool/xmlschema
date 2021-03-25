@@ -16,7 +16,7 @@ with open("README.rst") as readme:
 
 setup(
     name='xmlschema',
-    version='1.5.3',
+    version='1.6.0',
     packages=find_packages(include=['xmlschema', 'xmlschema.*']),
     include_package_data=True,
     entry_points={
@@ -27,10 +27,10 @@ setup(
         ]
     },
     python_requires='>=3.6',
-    install_requires=['elementpath>=2.1.2, <3.0.0'],
+    install_requires=['elementpath>=2.2.1, <3.0.0'],
     extras_require={
-        'codegen': ['elementpath>=2.1.2, <3.0.0', 'jinja2'],
-        'dev': ['tox', 'coverage', 'lxml', 'elementpath>=2.1.2, <3.0.0',
+        'codegen': ['elementpath>=2.2.1, <3.0.0', 'jinja2'],
+        'dev': ['tox', 'coverage', 'lxml', 'elementpath>=2.2.1, <3.0.0',
                 'memory_profiler', 'Sphinx', 'sphinx_rtd_theme', 'jinja2'],
         'docs': ['elementpath>=2.1.2, <3.0.0', 'Sphinx', 'sphinx_rtd_theme', 'jinja2']
     },

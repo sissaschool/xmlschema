@@ -87,10 +87,6 @@ class XMLSchemaProxy(AbstractSchemaProxy):
             except AttributeError:
                 raise XMLSchemaTypeError("%r is not an XsdElement" % base_element)
 
-    @property
-    def xsd_version(self):
-        return self._schema.XSD_VERSION
-
     def bind_parser(self, parser):
         parser.schema = self
         parser.symbol_table = parser.__class__.symbol_table.copy()
@@ -110,33 +106,6 @@ class XMLSchemaProxy(AbstractSchemaProxy):
             namespaces=self._schema.namespaces,
             item=self._base_element
         )
-
-    def get_type(self, qname):
-        try:
-            return self._schema.maps.types[qname]
-        except KeyError:
-            return None
-
-    def get_attribute(self, qname):
-        try:
-            return self._schema.maps.attributes[qname]
-        except KeyError:
-            return None
-
-    def get_element(self, qname):
-        try:
-            return self._schema.maps.elements[qname]
-        except KeyError:
-            return None
-
-    def get_substitution_group(self, qname):
-        try:
-            return self._schema.maps.substitution_groups[qname]
-        except KeyError:
-            return None
-
-    def find(self, path, namespaces=None):
-        return self._schema.find(path, namespaces)
 
     def is_instance(self, obj, type_qname):
         # FIXME: use elementpath.datatypes for checking atomic datatypes
