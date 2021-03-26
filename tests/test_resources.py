@@ -194,6 +194,7 @@ class TestResources(unittest.TestCase):
 
     def test_url_path_is_file_function(self):
         self.assertTrue(url_path_is_file(self.col_xml_file))
+        self.assertTrue(url_path_is_file(normalize_url(self.col_xml_file)))
         self.assertFalse(url_path_is_file(self.col_dir))
         self.assertFalse(url_path_is_file('http://example.com/'))
 
@@ -1106,7 +1107,7 @@ class TestResources(unittest.TestCase):
         self.assertTrue(isinstance(vh_schema, XMLSchema))
 
         xsd_source = """
-        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
                 xmlns:vh="http://example.com/vehicles">
             <xs:import namespace="http://example.com/vehicles" schemaLocation="{}"/>
         </xs:schema>""".format(self.vh_xsd_file)
