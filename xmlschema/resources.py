@@ -8,12 +8,13 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import os.path
+import platform
 import re
 from string import ascii_letters
 from elementpath import iter_select, XPath1Parser, XPathContext, XPath2Parser
 from io import StringIO, BytesIO
 from urllib.request import urlopen, pathname2url
-from urllib.parse import uses_relative, urlsplit, urljoin, urlunsplit
+from urllib.parse import uses_relative, urlsplit, urljoin, urlunsplit, unquote
 from urllib.error import URLError
 
 from .exceptions import XMLSchemaTypeError, XMLSchemaValueError, XMLResourceError
@@ -199,7 +200,12 @@ def is_local_url(url):
 def url_path_is_file(url):
     if not is_local_url(url):
         return False
-    return os.path.isfile(url) or os.path.isfile(urlsplit(normalize_url(url)).path)
+    if os.path.isfile(url):
+        return True
+    path = unquote(urlsplit(normalize_url(url)).path)
+    if path.startswith('/') and platform.system() == 'Windows':
+        path = path[1:]
+    return os.path.isfile(path)
 
 
 ###
