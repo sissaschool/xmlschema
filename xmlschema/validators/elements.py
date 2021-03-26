@@ -12,6 +12,7 @@ This module contains classes for XML Schema elements, complex types and model gr
 """
 import warnings
 from decimal import Decimal
+from types import GeneratorType
 from typing import Optional
 from elementpath import XPath2Parser, ElementPathError, XPathContext
 from elementpath.datatypes import AbstractDateTime, Duration, AbstractBinary
@@ -557,7 +558,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         except KeyError:
             converter = kwargs['converter'] = self.schema.get_converter(**kwargs)
         else:
-            if not isinstance(converter, XMLSchemaConverter) and converter is not None:
+            if converter is not None and not isinstance(converter, XMLSchemaConverter):
                 converter = kwargs['converter'] = self.schema.get_converter(**kwargs)
 
         try:
@@ -761,6 +762,17 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                     try:
                         counter.increase(fields)
                     except ValueError as err:
+                        yield self.validation_error(validation, err, elem, **kwargs)
+
+        # Apply non XSD optional validations
+        if 'extra_validator' in kwargs:
+            try:
+                result = kwargs['extra_validator'](elem, self)
+            except XMLSchemaValidationError as err:
+                yield self.validation_error(validation, err, elem, **kwargs)
+            else:
+                if isinstance(result, GeneratorType):
+                    for err in result:
                         yield self.validation_error(validation, err, elem, **kwargs)
 
         # Disable collect for out of scope identities and check key references

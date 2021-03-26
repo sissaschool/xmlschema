@@ -464,78 +464,79 @@ class TestXsdType(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.schema = XMLSchema10("""<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+        cls.schema = XMLSchema10(dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+            
+                 <xs:simpleType name="emptyType">
+                     <xs:restriction base="xs:string">
+                         <xs:length value="0"/>
+                     </xs:restriction>
+                 </xs:simpleType>
 
-                     <xs:simpleType name="emptyType">
-                         <xs:restriction base="xs:string">
-                             <xs:length value="0"/>
+                 <xs:complexType name="emptyType2">
+                     <xs:attribute name="foo" type="xs:string"/>
+                 </xs:complexType>        
+
+                 <xs:simpleType name="idType">
+                     <xs:restriction base="xs:ID"/>
+                 </xs:simpleType>
+
+                 <xs:simpleType name="decimalType">
+                     <xs:restriction base="xs:decimal"/>
+                 </xs:simpleType>
+
+                 <xs:simpleType name="dateTimeType">
+                     <xs:restriction base="xs:dateTime"/>
+                 </xs:simpleType>
+                 
+                 <xs:simpleType name="fooType">
+                     <xs:restriction base="xs:string"/>
+                 </xs:simpleType>
+
+                 <xs:simpleType name="fooListType">
+                     <xs:list itemType="xs:string"/>
+                 </xs:simpleType>
+
+                 <xs:simpleType name="fooUnionType">
+                     <xs:union memberTypes="xs:string xs:anyURI"/>
+                 </xs:simpleType>
+                 
+                 <xs:complexType name="barType">
+                     <xs:sequence>
+                         <xs:element name="node"/>
+                     </xs:sequence>
+                 </xs:complexType>        
+
+                 <xs:complexType name="barExtType">
+                     <xs:complexContent>
+                         <xs:extension base="barType">
+                             <xs:sequence>
+                                 <xs:element name="node"/>
+                             </xs:sequence>
+                         </xs:extension>
+                     </xs:complexContent>
+                 </xs:complexType>        
+
+                 <xs:complexType name="barResType">
+                     <xs:complexContent>
+                         <xs:restriction base="barType">
+                             <xs:sequence>
+                                 <xs:element name="node"/>
+                             </xs:sequence>
                          </xs:restriction>
-                     </xs:simpleType>
+                     </xs:complexContent>
+                 </xs:complexType>        
 
-                     <xs:complexType name="emptyType2">
-                         <xs:attribute name="foo" type="xs:string"/>
-                     </xs:complexType>        
+                 <xs:complexType name="mixedType" mixed="true">
+                     <xs:sequence>
+                         <xs:element name="node" type="xs:string"/>
+                     </xs:sequence>
+                 </xs:complexType>        
 
-                     <xs:simpleType name="idType">
-                         <xs:restriction base="xs:ID"/>
-                     </xs:simpleType>
-
-                     <xs:simpleType name="decimalType">
-                         <xs:restriction base="xs:decimal"/>
-                     </xs:simpleType>
-
-                     <xs:simpleType name="dateTimeType">
-                         <xs:restriction base="xs:dateTime"/>
-                     </xs:simpleType>
+                 <xs:element name="fooElem" type="fooType"/>
+                 <xs:element name="barElem" type="barType" block="extension"/>
                      
-                     <xs:simpleType name="fooType">
-                         <xs:restriction base="xs:string"/>
-                     </xs:simpleType>
-
-                     <xs:simpleType name="fooListType">
-                         <xs:list itemType="xs:string"/>
-                     </xs:simpleType>
-
-                     <xs:simpleType name="fooUnionType">
-                         <xs:union memberTypes="xs:string xs:anyURI"/>
-                     </xs:simpleType>
-                     
-                     <xs:complexType name="barType">
-                         <xs:sequence>
-                             <xs:element name="node"/>
-                         </xs:sequence>
-                     </xs:complexType>        
-
-                     <xs:complexType name="barExtType">
-                         <xs:complexContent>
-                             <xs:extension base="barType">
-                                 <xs:sequence>
-                                     <xs:element name="node"/>
-                                 </xs:sequence>
-                             </xs:extension>
-                         </xs:complexContent>
-                     </xs:complexType>        
-
-                     <xs:complexType name="barResType">
-                         <xs:complexContent>
-                             <xs:restriction base="barType">
-                                 <xs:sequence>
-                                     <xs:element name="node"/>
-                                 </xs:sequence>
-                             </xs:restriction>
-                         </xs:complexContent>
-                     </xs:complexType>        
-
-                     <xs:complexType name="mixedType" mixed="true">
-                         <xs:sequence>
-                             <xs:element name="node" type="xs:string"/>
-                         </xs:sequence>
-                     </xs:complexType>        
-
-                     <xs:element name="fooElem" type="fooType"/>
-                     <xs:element name="barElem" type="barType" block="extension"/>
-                     
-                 </xs:schema>""")
+            </xs:schema>"""))
 
     def test_content_type_label(self):
         self.assertEqual(self.schema.types['emptyType'].content_type_label, 'empty')
@@ -560,6 +561,11 @@ class TestXsdType(unittest.TestCase):
         self.assertIs(self.schema.types['mixedType'].root_type,
                       self.schema.maps.types[XSD_ANY_TYPE])
         self.assertIs(self.schema.types['barExtType'].root_type,
+                      self.schema.maps.types[XSD_ANY_TYPE])
+
+        # xs:anyType used by the schema is equivalent but is not the same object of
+        # the meta schema because it can be used as base for schema's complex types
+        self.assertIs(self.schema.types['emptyType2'].root_type,
                       self.schema.maps.types[XSD_ANY_TYPE])
 
     def test_is_atomic(self):

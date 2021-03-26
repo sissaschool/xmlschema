@@ -113,24 +113,60 @@ class TestValidation(XsdValidatorTestCase):
 
     def test_max_depth_argument(self):
         schema = self.schema_class(self.col_xsd_file)
-        self.assertEqual(
-            schema.decode(self.col_xml_file, max_depth=1),
-            {'@xmlns:col': 'http://example.com/ns/collection',
-             '@xmlns:xsi': 'http://www.w3.org/2001/XMLSchema-instance',
-             '@xsi:schemaLocation': 'http://example.com/ns/collection collection.xsd'})
+        invalid_col_xml_file = self.casepath('examples/collection/collection-1_error.xml')
+        self.assertFalse(schema.is_valid(invalid_col_xml_file))
+        self.assertTrue(schema.is_valid(invalid_col_xml_file, max_depth=1))
+        self.assertTrue(schema.is_valid(invalid_col_xml_file, max_depth=2))
+        self.assertFalse(schema.is_valid(invalid_col_xml_file, max_depth=3))
 
-        xmlschema.limits.MAX_XML_DEPTH = 1
-        with self.assertRaises(XMLSchemaValidationError):
-            schema.decode(self.col_xml_file)
-        xmlschema.limits.MAX_XML_DEPTH = 9999
+        root = ElementTree.parse(invalid_col_xml_file).getroot()
+        xsd_element = schema.elements['collection']
+        self.assertFalse(xsd_element.is_valid(root))
+        self.assertTrue(xsd_element.is_valid(root, max_depth=1))
+        self.assertTrue(xsd_element.is_valid(root, max_depth=2))
+        self.assertFalse(xsd_element.is_valid(root, max_depth=3))
 
-        self.assertEqual(
-            schema.decode(self.col_xml_file, max_depth=2),
-            {'@xmlns:col': 'http://example.com/ns/collection',
-             '@xmlns:xsi': 'http://www.w3.org/2001/XMLSchema-instance',
-             '@xsi:schemaLocation': 'http://example.com/ns/collection collection.xsd',
-             'object': [{'@id': 'b0836217462', '@available': True},
-                        {'@id': 'b0836217463', '@available': True}]})
+        # Need to provide namespace explicitly because the default namespace
+        # is set with xpathDefaultNamespace, that is '' in this case.
+        xsd_element = schema.find('collection/object', namespaces={'': schema.target_namespace})
+
+        self.assertTrue(xsd_element.is_valid(root[0]))
+        self.assertFalse(xsd_element.is_valid(root[1]))
+        self.assertTrue(xsd_element.is_valid(root[1], max_depth=1))
+        self.assertFalse(xsd_element.is_valid(root[1], max_depth=2))
+
+    def test_extra_validator(self):
+        # Related to issue 227
+
+        def bikes_validator(elem, xsd_element):
+            if elem.tag == '{http://example.com/vehicles}bike' and \
+                    xsd_element.name == elem.tag and \
+                    elem.attrib['make'] != 'Harley-Davidson':
+                raise XMLSchemaValidationError(xsd_element, elem, 'not an Harley-Davidson')
+
+        with self.assertRaises(XMLSchemaValidationError) as ec:
+            self.vh_schema.validate(self.vh_xml_file, extra_validator=bikes_validator)
+        self.assertIn('Reason: not an Harley-Davidson', str(ec.exception))
+
+        root = ElementTree.parse(self.vh_xml_file).getroot()
+        xsd_element = self.vh_schema.elements['vehicles']
+        with self.assertRaises(XMLSchemaValidationError) as ec:
+            xsd_element.validate(root, extra_validator=bikes_validator)
+        self.assertIn('Reason: not an Harley-Davidson', str(ec.exception))
+
+        with self.assertRaises(XMLSchemaValidationError) as ec:
+            self.vh_schema.decode(self.vh_xml_file, extra_validator=bikes_validator)
+        self.assertIn('Reason: not an Harley-Davidson', str(ec.exception))
+
+        def bikes_validator(elem, xsd_element):
+            if elem.tag == '{http://example.com/vehicles}bike' and \
+                    xsd_element.name == elem.tag and \
+                    elem.attrib['make'] != 'Harley-Davidson':
+                yield XMLSchemaValidationError(xsd_element, elem, 'not an Harley-Davidson')
+
+        with self.assertRaises(XMLSchemaValidationError) as ec:
+            self.vh_schema.validate(self.vh_xml_file, extra_validator=bikes_validator)
+        self.assertIn('Reason: not an Harley-Davidson', str(ec.exception))
 
     def test_issue_064(self):
         self.check_validity(self.st_schema, '<name xmlns="ns"></name>', False)

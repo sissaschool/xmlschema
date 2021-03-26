@@ -569,6 +569,27 @@ class TestDecoding(XsdValidatorTestCase):
         xd = self.vh_schema.to_dict(xt, '/vh:vehicles/vh:bikes', namespaces=self.vh_namespaces)
         self.assertEqual(xd['vh:bike'], VEHICLES_DICT['vh:bikes']['vh:bike'])
 
+    def test_max_depth_argument(self):
+        schema = self.schema_class(self.col_xsd_file)
+        self.assertEqual(
+            schema.decode(self.col_xml_file, max_depth=1),
+            {'@xmlns:col': 'http://example.com/ns/collection',
+             '@xmlns:xsi': 'http://www.w3.org/2001/XMLSchema-instance',
+             '@xsi:schemaLocation': 'http://example.com/ns/collection collection.xsd'})
+
+        xmlschema.limits.MAX_XML_DEPTH = 1
+        with self.assertRaises(XMLSchemaValidationError):
+            schema.decode(self.col_xml_file)
+        xmlschema.limits.MAX_XML_DEPTH = 9999
+
+        self.assertEqual(
+            schema.decode(self.col_xml_file, max_depth=2),
+            {'@xmlns:col': 'http://example.com/ns/collection',
+             '@xmlns:xsi': 'http://www.w3.org/2001/XMLSchema-instance',
+             '@xsi:schemaLocation': 'http://example.com/ns/collection collection.xsd',
+             'object': [{'@id': 'b0836217462', '@available': True},
+                        {'@id': 'b0836217463', '@available': True}]})
+
     def test_non_global_schema_path(self):
         # Issue #157
         xs = xmlschema.XMLSchema("""<?xml version="1.0" encoding="UTF-8"?>
