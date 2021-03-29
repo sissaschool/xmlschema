@@ -508,7 +508,7 @@ class XsdEnumerationFacets(MutableSequence, XsdFacet):
         except KeyError:
             pass  # pragma: no cover (already detected by meta-schema validation)
         except XMLSchemaValidationError as err:
-            self.base_type.parse_error(err, elem)
+            self.parse_error(err, elem)
         else:
             if self.base_type.name == XSD_NOTATION_TYPE:
                 try:

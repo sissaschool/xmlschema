@@ -1046,8 +1046,9 @@ class TestXsdFacets(unittest.TestCase):
                     </xs:simpleType>                    
                 </xs:schema>"""), validation='lax')
 
-        self.assertEqual(len(schema.all_errors), 1)  # FIXME: fix iter_components to catch facets
+        self.assertEqual(len(schema.all_errors), 2)
         self.assertIn("missing required attribute 'value'", str(schema.all_errors[0]))
+        self.assertIn("unexpected meta character ']' at position 0", str(schema.all_errors[1]))
 
     def test_fixed_value(self):
         with self.assertRaises(XMLSchemaParseError) as ec:

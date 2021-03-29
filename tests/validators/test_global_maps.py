@@ -72,7 +72,7 @@ class TestMetaSchemaMaps(unittest.TestCase):
                 if c.is_global():
                     global_counter += 1
         self.assertEqual(global_counter, 158)
-        self.assertEqual(total_counter, 782)
+        self.assertEqual(total_counter, 808)
 
     def test_xsd_11_components(self):
         total_counter = 0
@@ -83,7 +83,7 @@ class TestMetaSchemaMaps(unittest.TestCase):
                 if c.is_global():
                     global_counter += 1
         self.assertEqual(global_counter, 183)
-        self.assertEqual(total_counter, 932)
+        self.assertEqual(total_counter, 972)
 
     def test_xsd_11_restrictions(self):
         all_model_type = XMLSchema11.meta_schema.types['all']

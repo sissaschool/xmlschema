@@ -34,7 +34,7 @@ from .xsdbase import XSD_TYPE_DERIVATIONS, XSD_ELEMENT_DERIVATIONS, \
     XsdComponent, XsdType, ValidationMixin
 from .particles import ParticleMixin
 from .models import OccursCounter
-from .identities import XsdKeyref
+from .identities import XsdIdentity, XsdKeyref
 from .wildcards import XsdAnyElement
 
 
@@ -439,9 +439,8 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         else:
             if isinstance(self, xsd_classes):
                 yield self
-            for obj in self.identities.values():
-                if isinstance(obj, xsd_classes):
-                    yield obj
+            if issubclass(XsdIdentity, xsd_classes):
+                yield from self.identities.values()
 
         if self.ref is None and self.type.parent is not None:
             yield from self.type.iter_components(xsd_classes)
@@ -1140,6 +1139,7 @@ class Xsd11Element(XsdElement):
         else:
             if isinstance(self, xsd_classes):
                 yield self
+
             for obj in self.identities.values():
                 if isinstance(obj, xsd_classes):
                     yield obj
