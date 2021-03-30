@@ -1596,7 +1596,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
                     process_namespaces=True, namespaces=None, use_defaults=True,
                     decimal_type=None, datetime_types=False, binary_types=False,
                     converter=None, filler=None, fill_missing=False, keep_unknown=False,
-                    max_depth=None, depth_filler=None, **kwargs):
+                    max_depth=None, depth_filler=None, value_hook=None, **kwargs):
         """
         Creates an iterator for decoding an XML source to a data structure.
 
@@ -1619,9 +1619,9 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         `xs:decimal` built-in and derived types), useful if you want to generate a \
         JSON-compatible data structure.
         :param datetime_types: if set to `True` the datetime and duration XSD types \
-        are decoded, otherwise their origin XML string is returned.
+        are kept decoded, otherwise their origin XML string is returned.
         :param binary_types: if set to `True` xs:hexBinary and xs:base64Binary types \
-        are decoded, otherwise their origin XML string is returned.
+        are kept decoded, otherwise their origin XML string is returned.
         :param converter: an :class:`XMLSchemaConverter` subclass or instance to use \
         for decoding.
         :param filler: an optional callback function to fill undecodable data with a \
@@ -1637,6 +1637,9 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         :param depth_filler: an optional callback function to replace data over the \
         *max_depth* level. The callback function must accept one positional argument, that \
         can be an XSD Element. If not provided deeper data are replaced with `None` values.
+        :param value_hook: an optional function that will be called with any decoded \
+        atomic value and the XSD type used for decoding. The return value will be used \
+        instead of the original value.
         :param kwargs: keyword arguments with other options for converter and decoder.
         :return: yields a decoded data object, eventually preceded by a sequence of \
         validation or decoding errors.
@@ -1681,6 +1684,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             kwargs['max_depth'] = max_depth
         if depth_filler is not None:
             kwargs['depth_filler'] = depth_filler
+        if value_hook is not None:
+            kwargs['value_hook'] = value_hook
 
         if path:
             selector = source.iterfind(path, namespaces, nsmap=namespaces)

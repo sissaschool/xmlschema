@@ -703,7 +703,9 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                     else:
                         value = result
 
-            if isinstance(value, (int, float, list)) or value is None:
+            if 'value_hook' in kwargs:
+                value = kwargs['value_hook'](value, xsd_type)
+            elif isinstance(value, (int, float, list)) or value is None:
                 pass
             elif isinstance(value, str):
                 if value.startswith('{') and xsd_type.is_qname():

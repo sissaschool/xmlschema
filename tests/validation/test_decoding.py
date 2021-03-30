@@ -23,10 +23,11 @@ import xmlschema
 from xmlschema import XMLSchemaValidationError, ParkerConverter, BadgerFishConverter, \
     AbderaConverter, JsonMLConverter, ColumnarConverter
 
+from xmlschema.names import XSD_STRING
 from xmlschema.etree import ElementTree
 from xmlschema.converters import UnorderedConverter
 from xmlschema.validators import XMLSchema11
-from xmlschema.testing import XsdValidatorTestCase
+from xmlschema.testing import XsdValidatorTestCase, etree_elements_assert_equal
 
 VEHICLES_DICT = {
     '@xmlns:vh': 'http://example.com/vehicles',
@@ -589,6 +590,27 @@ class TestDecoding(XsdValidatorTestCase):
              '@xsi:schemaLocation': 'http://example.com/ns/collection collection.xsd',
              'object': [{'@id': 'b0836217462', '@available': True},
                         {'@id': 'b0836217463', '@available': True}]})
+
+    def test_value_hook_argument(self):
+        schema = self.schema_class(self.col_xsd_file)
+
+        def ascii_strings(value, xsd_type):
+            try:
+                if not isinstance(value, str) or \
+                        xsd_type.primitive_type.name != XSD_STRING:
+                    return value
+            except AttributeError:
+                return value
+            else:
+                return value.encode('utf-8')
+
+        obj = schema.decode(self.col_xml_file, value_hook=ascii_strings)
+        self.assertNotEqual(obj, schema.decode(self.col_xml_file))
+        root = schema.encode(obj)
+        self.assertIsNone(etree_elements_assert_equal(
+            root, ElementTree.parse(self.col_xml_file).getroot(), strict=False
+        ))
+        self.assertEqual(obj['object'][0]['title'], b'The Umbrellas')
 
     def test_non_global_schema_path(self):
         # Issue #157

@@ -236,6 +236,8 @@ class XsdAttribute(XsdComponent, ValidationMixin):
                 )
                 yield value
                 continue
+            elif 'value_hook' in kwargs:
+                yield kwargs['value_hook'](value, self.type)
             elif isinstance(value, (int, float, list)) or value is None:
                 yield value
             elif isinstance(value, str):
