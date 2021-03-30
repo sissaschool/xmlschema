@@ -18,7 +18,8 @@ from xmlschema import XMLSchema10, XMLSchema11, XMLSchemaValidationError, \
     XMLSchemaParseError
 from xmlschema.names import XSD_NAMESPACE, XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, \
     XSD_WHITE_SPACE, XSD_MIN_INCLUSIVE, XSD_MIN_EXCLUSIVE, XSD_MAX_INCLUSIVE, \
-    XSD_MAX_EXCLUSIVE, XSD_TOTAL_DIGITS, XSD_FRACTION_DIGITS, XSD_ENUMERATION, XSD_PATTERN
+    XSD_MAX_EXCLUSIVE, XSD_TOTAL_DIGITS, XSD_FRACTION_DIGITS, XSD_ENUMERATION, \
+    XSD_PATTERN, XSD_ASSERTION
 
 
 class TestXsdFacets(unittest.TestCase):
@@ -1032,6 +1033,22 @@ class TestXsdFacets(unittest.TestCase):
         self.assertRaises(XMLSchemaValidationError, facet, '')
         self.assertRaises(XMLSchemaValidationError, facet, 'a;')
 
+        self.assertRaises(XMLSchemaValidationError, facet, 10)
+        self.assertRaises(XMLSchemaValidationError, facet, None)
+
+        self.assertIs(schema.types['pattern1'].patterns, facet)
+        self.assertIs(facet[0], schema.root[0][0][0])
+        self.assertEqual(facet.patterns[0].pattern, r'^(?:\w+)$(?!\n\Z)')  # translated pattern
+
+        # Test MutableSequence API
+        facet.append(ElementTree.Element(XSD_PATTERN, value=r'\s+'))
+        self.assertEqual(len(facet), 2)
+        self.assertEqual(facet.patterns[1].pattern, r'^(?:\s+)$(?!\n\Z)')
+        facet[1] = (ElementTree.Element(XSD_PATTERN, value=r'\S+'))
+        self.assertEqual(facet.patterns[1].pattern, r'^(?:\S+)$(?!\n\Z)')
+        del facet[1]
+        self.assertEqual(len(facet), 1)
+
         schema = self.schema_class(dedent("""\
                 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
                     <xs:simpleType name="pattern1">
@@ -1165,10 +1182,76 @@ class TestXsd11Identities(TestXsdFacets):
                         </xs:simpleType>
                     </xs:schema>"""))
 
+    def test_assertion_facet(self):
+        schema = self.schema_class(dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:simpleType name="string1">
+                    <xs:restriction base="xs:string">
+                        <xs:assertion test="true()"/>
+                    </xs:restriction>
+                </xs:simpleType>
+                <xs:simpleType name="string2">
+                    <xs:restriction base="xs:string">
+                        <xs:assertion test="last()" 
+                                      xpathDefaultNamespace="http://xpath.test/ns"/>
+                    </xs:restriction>
+                </xs:simpleType>
+                <xs:simpleType name="string3">
+                    <xs:restriction base="xs:string">
+                        <xs:assertion test="position()"/>
+                    </xs:restriction>
+                </xs:simpleType>
+                
+                <xs:simpleType name="integer_list">
+                    <xs:list itemType="xs:integer"/>
+                </xs:simpleType>
+                <xs:simpleType name="integer_vector">
+                   <xs:restriction base="integer_list">
+                       <xs:assertion test="count($value) eq 3" />
+                   </xs:restriction>
+                </xs:simpleType>
+            </xs:schema>"""))
+
+        facet = schema.types['string1'].get_facet(XSD_ASSERTION)
+        self.assertIsNone(facet(''))
+        self.assertEqual(facet.xpath_default_namespace, '')
+
+        facet = schema.types['string2'].get_facet(XSD_ASSERTION)
+        self.assertEqual(facet.xpath_default_namespace, 'http://xpath.test/ns')
+        with self.assertRaises(XMLSchemaValidationError) as ec:
+            facet('')
+        self.assertIn("[err:XPDY0002] context item size is undefined", str(ec.exception))
+
+        with self.assertRaises(XMLSchemaValidationError) as ec:
+            schema.types['string3'].get_facet(XSD_ASSERTION)('')
+        self.assertIn("[err:XPDY0002] context item position is undefined", str(ec.exception))
+
+        facet = schema.types['integer_vector'].get_facet(XSD_ASSERTION)
+        self.assertIsNone(facet([1, 2, 3]))
+        self.assertEqual(facet.parser.variable_types, {'value': 'xs:anySimpleType'})
+
+        schema = self.schema_class(dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:simpleType name="string1">
+                    <xs:restriction base="xs:string">
+                        <xs:assertion />
+                    </xs:restriction>
+                </xs:simpleType>
+                <xs:simpleType name="string2">
+                    <xs:restriction base="xs:string">
+                        <xs:assertion test="???"/>
+                    </xs:restriction>
+                </xs:simpleType>
+            </xs:schema>"""), validation='lax')
+
+        self.assertEqual(len(schema.all_errors), 2)
+        self.assertIn("missing attribute 'test'", str(schema.all_errors[0]))
+        self.assertIn("[err:XPST0003] unexpected '?' symbol", str(schema.all_errors[1]))
+
 
 if __name__ == '__main__':
     import platform
-    header_template = "Test xmlschema's XSD identities with Python {} on {}"
+    header_template = "Test xmlschema's XSD facets with Python {} on {}"
     header = header_template.format(platform.python_version(), platform.platform())
     print('{0}\n{1}\n{0}'.format("*" * len(header), header))
 

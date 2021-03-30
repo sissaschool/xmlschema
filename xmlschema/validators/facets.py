@@ -652,13 +652,13 @@ XsdAssertionXPathParser.unregister('position')
 # noinspection PyUnusedLocal
 @XsdAssertionXPathParser.method(XsdAssertionXPathParser.function('last', nargs=0))
 def evaluate(self, context=None):
-    self.missing_context("Context item size is undefined")
+    raise self.missing_context("context item size is undefined")
 
 
 # noinspection PyUnusedLocal
 @XsdAssertionXPathParser.method(XsdAssertionXPathParser.function('position', nargs=0))
 def evaluate(self, context=None):
-    self.missing_context("Context item position is undefined")
+    raise self.missing_context("context item position is undefined")
 
 
 class XsdAssertionFacet(XsdFacet):
@@ -683,8 +683,8 @@ class XsdAssertionFacet(XsdFacet):
         super(XsdFacet, self)._parse()
         try:
             self.path = self.elem.attrib['test']
-        except KeyError as err:
-            self.parse_error(err)
+        except KeyError:
+            self.parse_error("missing attribute 'test'")
             self.path = 'true()'
 
         try:
