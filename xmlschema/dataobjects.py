@@ -9,6 +9,7 @@
 #
 from abc import ABCMeta
 from collections.abc import MutableSequence
+from itertools import count
 from elementpath import XPathContext, XPath2Parser
 
 from .exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, XMLSchemaValueError
@@ -351,10 +352,14 @@ class DataElementConverter(XMLSchemaConverter):
         data_element.attrib.update((k, v) for k, v in self.map_attributes(data.attributes))
 
         if (xsd_type or xsd_element.type).model_group is not None:
-            data_element.extend([
-                value if value is not None else self.list([name])
-                for name, value, _ in self.map_content(data.content)
-            ])
+            for name, value, _ in self.map_content(data.content):
+                if not name.isdigit():
+                    data_element.append(value)
+                else:
+                    try:
+                        data_element[-1].tail = value
+                    except IndexError:
+                        data_element.value = value
 
         return data_element
 
@@ -375,11 +380,16 @@ class DataElementConverter(XMLSchemaConverter):
                  xsd_element.type.content and xsd_element.type.mixed):
             return ElementData(data_element.tag, data_element.value, [], attributes)
         else:
-            cdata_num = iter(range(1, data_len))
-            content = [
-                (self.unmap_qname(e.tag), e) if isinstance(e, self.data_element_class)
-                else (next(cdata_num), e) for e in data_element
-            ]
+            content = []
+            cdata_num = count(1)
+            if data_element.value is not None:
+                content.append((next(cdata_num), data_element.value))
+
+            for e in data_element:
+                content.append((self.unmap_qname(e.tag), e))
+                if e.tail is not None:
+                    content.append((next(cdata_num), e.tail))
+
             return ElementData(data_element.tag, None, content, attributes)
 
 
@@ -401,9 +411,13 @@ class DataBindingConverter(DataElementConverter):
         data_element.attrib.update((k, v) for k, v in self.map_attributes(data.attributes))
 
         if (xsd_type or xsd_element.type).model_group is not None:
-            data_element.extend([
-                value if value is not None else self.list([name])
-                for name, value, _ in self.map_content(data.content)
-            ])
+            for name, value, _ in self.map_content(data.content):
+                if not name.isdigit():
+                    data_element.append(value)
+                else:
+                    try:
+                        data_element[-1].tail = value
+                    except IndexError:
+                        data_element.value = value
 
         return data_element

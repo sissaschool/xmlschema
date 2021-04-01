@@ -797,7 +797,7 @@ class TestDecoding(XsdValidatorTestCase):
         xs = self.get_schema('<xs:element name="hex" type="xs:hexBinary"/>')
 
         obj = xs.decode('<hex> 9AFD </hex>')
-        self.assertEqual(obj, ' 9AFD ')
+        self.assertEqual(obj, '9AFD')  # Value string is collapsed anyway
         self.assertIsInstance(obj, str)
 
         obj = xs.decode('<hex> 9AFD </hex>', binary_types=True)

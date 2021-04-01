@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ns:data xmlns:ns="ns" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="ns ./mixed-content.xsd">
+    A decimal value:
+    <decimal_value>10.0</decimal_value>
+    A datetime value:
+    <date_and_time> 2017-10-21T13:00:00 </date_and_time>  <!-- spaces are collapsed -->
+    A boolean value:
+    <boolean_value>true</boolean_value>
+    A string:
+    <string_value>abc</string_value>
+    End of data
+</ns:data>

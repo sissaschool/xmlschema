@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns="ns" xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="ns" >
+    <xs:element name="data">
+        <xs:complexType mixed="true">
+            <xs:choice maxOccurs="unbounded">
+                <xs:element name="decimal_value" type="xs:decimal"/>
+                <xs:element name="string_value" type="xs:string"/>
+                <xs:element name="boolean_value" type="xs:boolean"/>
+                <xs:element name="date_and_time" type="xs:dateTime"/>
+                <xs:element name="interval" type="xs:duration"/>
+                <xs:element name="hexbin" type="xs:hexBinary"/>
+            </xs:choice>
+        </xs:complexType>
+    </xs:element>
+</xs:schema>

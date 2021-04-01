@@ -31,6 +31,7 @@ from xmlschema.etree import etree_tostring, ElementTree, \
 from xmlschema.resources import fetch_namespaces
 from xmlschema.xpath import XMLSchemaContext
 from xmlschema.validators import XsdValidator, XsdType, Xsd11ComplexType
+from xmlschema.dataobjects import DataElementConverter, DataBindingConverter, DataElement
 
 from .helpers import iter_nested_items, etree_elements_assert_equal
 from .case_class import XsdValidatorTestCase
@@ -271,9 +272,13 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
                 # or if the XML case has defaults taken from the schema or some part of data
                 # decoding is skipped by schema wildcards (set the specific argument in testfiles).
                 if lax_encode:
-                    pass  # can't ensure encode equivalence if the test case use defaults
-                elif lossy:
-                    pass  # can't check encode equivalence if the converter is lossy
+                    # can't ensure encode equivalence on this case,
+                    # for example if the test case use defaults.
+                    pass
+                elif lossy or unordered:
+                    # can't check encode equivalence if the converter
+                    # is lossy or if it is not fully ordered.
+                    pass
                 elif losslessly:
                     if debug_mode:
                         pdb.set_trace()
@@ -422,6 +427,10 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
             self.check_decode_encode(root, JsonMLConverter, **options)
             self.check_decode_encode(root, ColumnarConverter, validation='lax', **options)
 
+            self.check_decode_encode(root, DataElementConverter, **options)
+            self.check_decode_encode(root, DataBindingConverter, **options)
+            self.schema.maps.clear_bindings()
+
             self.check_json_serialization(root, cdata_prefix='#', **options)
             self.check_json_serialization(root, UnorderedConverter, **options)
             self.check_json_serialization(root, ParkerConverter, validation='lax', **options)
@@ -430,6 +439,21 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
             self.check_json_serialization(root, AbderaConverter, **options)
             self.check_json_serialization(root, JsonMLConverter, **options)
             self.check_json_serialization(root, ColumnarConverter, validation='lax', **options)
+
+            self.check_decode_to_objects(root)
+            self.check_decode_to_objects(root, with_bindings=True)
+            self.schema.maps.clear_bindings()
+
+        def check_decode_to_objects(self, root, with_bindings=False):
+            data_element = self.schema.to_objects(xml_file, with_bindings)
+            self.assertIsInstance(data_element, DataElement)
+            self.assertEqual(data_element.tag, root.tag)
+
+            if not with_bindings:
+                self.assertIs(data_element.__class__, DataElement)
+            else:
+                self.assertEqual(data_element.tag, root.tag)
+                self.assertTrue(data_element.__class__.__name__.endswith('Binding'))
 
         def check_data_conversion_with_lxml(self):
             xml_tree = lxml_etree.parse(xml_file)

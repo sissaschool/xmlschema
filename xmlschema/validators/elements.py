@@ -717,10 +717,10 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                     pass
             elif isinstance(value, (AbstractDateTime, Duration)):
                 if not kwargs.get('datetime_types'):
-                    value = elem.text
+                    value = str(value) if text is None else text.strip()
             elif isinstance(value, AbstractBinary):
                 if not kwargs.get('binary_types'):
-                    value = elem.text
+                    value = str(value)
 
         if converter is not None:
             element_data = ElementData(elem.tag, value, content, attributes)
