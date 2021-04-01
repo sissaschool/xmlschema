@@ -11,7 +11,7 @@
 """Tests concerning WSDL documents. Examples from WSDL 1.1 definition document."""
 
 import unittest
-import os
+import pathlib
 
 from xmlschema import XMLSchemaValidationError, XMLSchema10, XMLSchema11
 from xmlschema.etree import ElementTree, ParseError
@@ -20,11 +20,11 @@ from xmlschema.extras.wsdl import WsdlParseError, WsdlComponent, WsdlMessage, \
     WsdlInput, SoapHeader
 
 
-TEST_CASES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_cases/')
+TEST_CASES_DIR = str(pathlib.Path(__file__).absolute().parent.joinpath('test_cases'))
 
 
 def casepath(relative_path):
-    return os.path.join(TEST_CASES_DIR, relative_path)
+    return str(pathlib.Path(TEST_CASES_DIR).joinpath(relative_path))
 
 
 WSDL_DOCUMENT_EXAMPLE = """<?xml version="1.0"?>
@@ -894,6 +894,22 @@ class TestWsdlDocuments(unittest.TestCase):
         with self.assertRaises(WsdlParseError) as ctx:
             WsdlBinding(elem, wsdl_document)
         self.assertIn("missing fault 'exception'", str(ctx.exception))
+
+    def test_loading_from_unrelated_dirs__issue_237(self):
+        relpath = str(pathlib.Path(__file__).parent.joinpath(
+            'test_cases/issues/issue_237/dir1/stockquoteservice.wsdl'
+        ))
+        wsdl_document = Wsdl11Document(relpath)
+        self.assertIn('http://example.com/stockquote/schemas', wsdl_document.imports)
+        self.assertEqual(
+            wsdl_document.imports['http://example.com/stockquote/schemas'].name,
+            'stockquote.xsd'
+        )
+        self.assertIn('http://example.com/stockquote/definitions', wsdl_document.imports)
+        self.assertEqual(
+            wsdl_document.imports['http://example.com/stockquote/definitions'].name,
+            'stockquote.wsdl'
+        )
 
 
 if __name__ == '__main__':

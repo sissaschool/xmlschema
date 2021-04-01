@@ -12,6 +12,7 @@
 
 import unittest
 import os
+import pathlib
 import platform
 import warnings
 from io import StringIO, BytesIO
@@ -34,11 +35,11 @@ from xmlschema.resources import is_url, is_local_url, is_remote_url, \
 from xmlschema.testing import SKIP_REMOTE_TESTS
 
 
-TEST_CASES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_cases/')
+TEST_CASES_DIR = str(pathlib.Path(__file__).absolute().parent.joinpath('test_cases'))
 
 
 def casepath(relative_path):
-    return os.path.join(TEST_CASES_DIR, relative_path)
+    return str(pathlib.Path(TEST_CASES_DIR).joinpath(relative_path))
 
 
 def is_windows_path(path):
@@ -1231,6 +1232,14 @@ class TestResources(unittest.TestCase):
         root = resource.root
         subresource = resource.subresource(root[0])
         self.assertIs(subresource.root, resource.root[0])
+
+    def test_loading_from_unrelated_dirs__issue_237(self):
+        relpath = str(pathlib.Path(__file__).parent.joinpath(
+            'test_cases/issues/issue_237/dir1/issue_237.xsd'
+        ))
+        schema = XMLSchema(relpath)
+        self.assertEqual(schema.maps.namespaces[''][1].name, 'issue_237a.xsd')
+        self.assertEqual(schema.maps.namespaces[''][2].name, 'issue_237b.xsd')
 
 
 if __name__ == '__main__':

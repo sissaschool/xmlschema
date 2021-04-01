@@ -415,6 +415,10 @@ class XMLResource:
         return os.path.dirname(self._url) if self._url else self._base_url
 
     @property
+    def name(self):
+        return os.path.basename(self._url) if self.url else None
+
+    @property
     def allow(self):
         """The security mode for accessing resource locations."""
         return self._allow
