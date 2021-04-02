@@ -922,7 +922,9 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         del element_data
 
     def is_matching(self, name, default_namespace=None, group=None):
-        if default_namespace and name[0] != '{':
+        if not name:
+            return False
+        elif default_namespace and name[0] != '{':
             qname = '{%s}%s' % (default_namespace, name)
             if name == self.name or qname == self.name:
                 return True
@@ -933,7 +935,9 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             return any(name == e.name for e in self.iter_substitutes())
 
     def match(self, name, default_namespace=None, **kwargs):
-        if default_namespace and name[0] != '{':
+        if not name:
+            return
+        elif default_namespace and name[0] != '{':
             qname = '{%s}%s' % (default_namespace, name)
             if name == self.name or qname == self.name:
                 return self

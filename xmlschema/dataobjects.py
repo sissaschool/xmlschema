@@ -85,17 +85,17 @@ class DataElement(MutableSequence):
     def __setattr__(self, key, value):
         if key == 'xsd_element':
             if not isinstance(value, validators.XsdElement):
-                msg = "attribute 'xsd_element' must be an {!r} instance"
-                raise XMLSchemaTypeError(msg.format(validators.XsdElement))
-            elif self.xsd_element is not None and self.xsd_element is not value:
+                raise XMLSchemaTypeError("invalid type for attribute 'xsd_element'")
+            elif self.xsd_element is value:
+                pass
+            elif self.xsd_element is not None:
                 raise XMLSchemaValueError("the instance is already bound to another XSD element")
             elif self.xsd_type is not None and self.xsd_type is not value.type:
                 raise XMLSchemaValueError("the instance is already bound to another XSD type")
 
         elif key == 'xsd_type':
             if not isinstance(value, validators.XsdType):
-                msg = "attribute 'xsd_type' must be an {!r} instance"
-                raise XMLSchemaTypeError(msg.format(validators.XsdType))
+                raise XMLSchemaTypeError("invalid type for attribute 'xsd_type'")
             elif self.xsd_type is not None and self.xsd_type is not value:
                 raise XMLSchemaValueError("the instance is already bound to another XSD type")
             elif self.xsd_element is None or value is not self.xsd_element.type:
@@ -152,7 +152,8 @@ class DataElement(MutableSequence):
         Validates the XML data object.
 
         :param use_defaults: whether to use default values for filling missing data.
-        :param namespaces: is an optional mapping from namespace prefix to URI.
+        :param namespaces: is an optional mapping from namespace prefix to URI. \
+        For default uses the namespace map of the XML data object.
         :param max_depth: maximum depth for validation, for default there is no limit.
         :raises: :exc:`XMLSchemaValidationError` if XML data object is not valid.
         :raises: :exc:`XMLSchemaValueError` if the instance has no schema bindings.
@@ -168,23 +169,21 @@ class DataElement(MutableSequence):
 
         :raises: :exc:`XMLSchemaValueError` if the instance has no schema bindings.
         """
-        return next(self.iter_errors(use_defaults, namespaces, max_depth), None) is None
+        error = next(self.iter_errors(use_defaults, namespaces, max_depth), None)
+        return error is None
 
     def iter_errors(self, use_defaults=True, namespaces=None, max_depth=None):
         """
         Generates a sequence of validation errors if the XML data object is invalid.
-
-        :param use_defaults: whether to use default values for filling missing data.
-        :param namespaces: is an optional mapping from namespace prefix to URI.
-        :param max_depth: maximum depth for validation, for default there is no limit.
-        :raises: :exc:`XMLSchemaValueError` if the instance has no schema bindings.
+        Accepts the same arguments of :meth:`validate`.
         """
         if self._encoder is None:
             raise XMLSchemaValueError("{!r} has no schema bindings".format(self))
 
-        kwargs = {'converter': DataElementConverter}
-        if not use_defaults:
-            kwargs['use_defaults'] = False
+        kwargs = {
+            'converter': DataElementConverter,
+            'use_defaults': use_defaults,
+        }
         if namespaces:
             kwargs['namespaces'] = namespaces
         if isinstance(max_depth, int) and max_depth >= 0:
@@ -341,6 +340,11 @@ class DataElementConverter(XMLSchemaConverter):
     def losslessly(self):
         return True
 
+    def copy(self, **kwargs):
+        obj = super().copy(**kwargs)
+        obj.data_element_class = kwargs.get('data_element_class', self.data_element_class)
+        return obj
+
     def element_decode(self, data, xsd_element, xsd_type=None, level=0):
         data_element = self.data_element_class(
             tag=data.tag,
@@ -375,22 +379,17 @@ class DataElementConverter(XMLSchemaConverter):
         if not data_len:
             return ElementData(data_element.tag, data_element.value, None, attributes)
 
-        elif data_len == 1 and \
-                (xsd_element.type.simple_type is not None or not
-                 xsd_element.type.content and xsd_element.type.mixed):
-            return ElementData(data_element.tag, data_element.value, [], attributes)
-        else:
-            content = []
-            cdata_num = count(1)
-            if data_element.value is not None:
-                content.append((next(cdata_num), data_element.value))
+        content = []
+        cdata_num = count(1)
+        if data_element.value is not None:
+            content.append((next(cdata_num), data_element.value))
 
-            for e in data_element:
-                content.append((self.unmap_qname(e.tag), e))
-                if e.tail is not None:
-                    content.append((next(cdata_num), e.tail))
+        for e in data_element:
+            content.append((e.tag, e))
+            if e.tail is not None:
+                content.append((next(cdata_num), e.tail))
 
-            return ElementData(data_element.tag, None, content, attributes)
+        return ElementData(data_element.tag, None, content, attributes)
 
 
 class DataBindingConverter(DataElementConverter):

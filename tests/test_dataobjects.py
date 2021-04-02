@@ -17,7 +17,7 @@ try:
 except ImportError:
     lxml_etree = None
 
-from xmlschema import XMLSchema, fetch_namespaces, etree_tostring, \
+from xmlschema import XMLSchema10, XMLSchema11, fetch_namespaces, etree_tostring, \
     XMLSchemaValidationError, DataElement, DataElementConverter
 
 from xmlschema.helpers import is_etree_element
@@ -43,6 +43,11 @@ class TestDataElementInterface(unittest.TestCase):
         self.assertEqual(DataElement('foo', attrib=attrib).get('a'), 10)
         self.assertIsNone(DataElement('foo', attrib=attrib).get('c'))
 
+        data_element = DataElement('foo')
+        data_element.set('b', 9)
+        self.assertIsNone(data_element.get('a'))
+        self.assertEqual(data_element.get('b'), 9)
+
     def test_namespaces(self):
         self.assertEqual(DataElement('foo').nsmap, {})
         nsmap = {'tns': 'http://xmlschema.test/ns'}
@@ -57,6 +62,7 @@ class TestDataElementInterface(unittest.TestCase):
 
 class TestDataObjects(unittest.TestCase):
 
+    schema_class = XMLSchema10
     converter = DataElementConverter
 
     @classmethod
@@ -67,7 +73,7 @@ class TestDataObjects(unittest.TestCase):
         cls.col_lxml_root = lxml_etree.parse(cls.col_xml_filename).getroot()
         cls.col_nsmap = fetch_namespaces(cls.col_xml_filename)
         cls.col_namespace = cls.col_nsmap['col']
-        cls.col_schema = XMLSchema(cls.col_xsd_filename, converter=cls.converter)
+        cls.col_schema = cls.schema_class(cls.col_xsd_filename, converter=cls.converter)
 
     @classmethod
     def casepath(cls, relative_path):
@@ -96,6 +102,42 @@ class TestDataObjects(unittest.TestCase):
         self.assertEqual(col_data[1].tag, 'object')
         self.assertEqual(col_data[1].prefixed_name, 'object')
         self.assertEqual(col_data[1].local_name, 'object')
+
+    def test_xsd_version(self):
+        self.assertEqual(DataElement(tag=self.col_xml_root.tag).xsd_version, '1.0')
+
+        xsd_element = self.col_schema.elements['person']
+        data_element = DataElement(tag=self.col_xml_root.tag, xsd_element=xsd_element)
+        self.assertEqual(data_element.xsd_version, self.col_schema.XSD_VERSION)
+
+    def test_xsd_element_binding(self):
+        xsd_element = self.col_schema.elements['person']
+        data_element = DataElement(tag=self.col_xml_root.tag, xsd_element=xsd_element)
+        data_element.xsd_element = xsd_element
+
+        with self.assertRaises(TypeError) as ec:
+            DataElement(tag=xsd_element.name, xsd_element=self.col_schema)
+        self.assertIn("invalid type for attribute 'xsd_element'", str(ec.exception))
+
+        with self.assertRaises(ValueError) as ec:
+            data_element.xsd_element = self.col_schema.elements['collection']
+        self.assertIn('the instance is already bound to another XSD element', str(ec.exception))
+
+    def test_xsd_type_binding(self):
+        xsd_type = self.col_schema.elements['person'].type
+        data_element = DataElement(tag=self.col_xml_root.tag, xsd_type=xsd_type)
+
+        with self.assertRaises(TypeError) as ec:
+            DataElement(tag=self.col_xml_root.tag, xsd_type=self.col_schema)
+        self.assertIn("invalid type for attribute 'xsd_type'", str(ec.exception))
+
+        with self.assertRaises(ValueError) as ec:
+            data_element.xsd_element = self.col_schema.elements['collection']
+        self.assertIn('the instance is already bound to another XSD type', str(ec.exception))
+
+        with self.assertRaises(ValueError) as ec:
+            data_element.xsd_type = self.col_schema.elements['collection'].type
+        self.assertIn('the instance is already bound to another XSD type', str(ec.exception))
 
     def test_mutable_mapping_api(self):
         data_element = DataElement('root')
@@ -167,6 +209,9 @@ class TestDataObjects(unittest.TestCase):
         self.assertTrue(is_etree_element(obj))
         self.assertIsInstance(etree_tostring(obj), str)
         self.assertIsNone(etree_elements_assert_equal(obj, self.col_xml_root, strict=False))
+        self.assertIsNone(
+            etree_elements_assert_equal(obj, col_data.encode(converter=self.converter))
+        )
 
         with self.assertRaises(ValueError) as ec:
             col_data.xsd_type = col_data[0].xsd_type
@@ -210,11 +255,33 @@ class TestDataObjects(unittest.TestCase):
         self.assertTrue(xml_source.endswith('</col:collection>'))
 
     def test_validation(self):
+        with self.assertRaises(ValueError) as ec:
+            DataElement(self.col_xml_root).validate()
+        self.assertIn("has no schema bindings", str(ec.exception))
+
         col_data = self.col_schema.decode(self.col_xml_filename)
 
         self.assertIsNone(col_data.validate())
         self.assertTrue(col_data.is_valid())
         self.assertListEqual(list(col_data.iter_errors()), [])
+
+        col_data = self.col_schema.decode(self.col_xml_root)
+        self.assertEqual(col_data.nsmap, {})
+        self.assertTrue(col_data.is_valid())
+
+        # FIXME: are namespaces really needed for validation of data elements???
+        #  (that use iter_encode() instead of iter_decode() ...)
+        self.assertTrue(col_data.is_valid(namespaces={
+            'col': 'http://example.com/ns/collection',
+            'xsi': 'http://www.w3.org/2001/XMLSchema-instance'
+        }))
+
+        # Encoding back using the default namespace is simple with
+        # data elements because you still have the original tags.
+        self.assertTrue(col_data.is_valid(namespaces={
+            '': 'http://example.com/ns/collection',
+            'xsi': 'http://www.w3.org/2001/XMLSchema-instance'
+        }))
 
     def test_invalid_value_type(self):
         col_data = self.col_schema.decode(self.col_xml_filename)
@@ -266,12 +333,36 @@ class TestDataObjects(unittest.TestCase):
         self.assertFalse(col_data.is_valid(max_depth=1))
         self.assertFalse(col_data.is_valid(max_depth=2))
 
+    def test_converter_class(self):
+        converter = self.converter()
+        self.assertFalse(converter.lossy)
+        self.assertTrue(converter.losslessly)
+
+        class MyDataElement(DataElement):
+            pass
+
+        col_data = self.col_schema.decode(self.col_xml_filename, converter=converter)
+        self.assertIsInstance(col_data, DataElement)
+        self.assertNotIsInstance(col_data, MyDataElement)
+
+        converter = self.converter(data_element_class=MyDataElement)
+        self.assertIs(converter.data_element_class, MyDataElement)
+        self.assertIs(converter.copy().data_element_class, MyDataElement)
+
+        self.col_schema.maps.clear_bindings()  # needed for DataBindingConverter ...
+        col_data = self.col_schema.decode(self.col_xml_filename, converter=converter)
+        self.assertIsInstance(col_data, MyDataElement)
+
+        with self.assertRaises(ValueError) as ec:
+            converter.element_encode(col_data, col_data[0].xsd_element)
+        self.assertEqual("Unmatched tag", str(ec.exception))
+
 
 class TestDataBindings(TestDataObjects):
 
     converter = DataBindingConverter
 
-    def test_data_element_metaclass(self):
+    def test_data_binding_metaclass(self):
         xsd_element = self.col_schema.elements['collection']
         collection_class = DataBindingMeta(xsd_element.local_name.title(), (DataElement,),
                                            {'xsd_element': xsd_element})
@@ -279,7 +370,15 @@ class TestDataBindings(TestDataObjects):
         self.assertEqual(collection_class.__qualname__, 'Collection')
         self.assertIsNone(collection_class.__module__)
         self.assertEqual(collection_class.namespace, 'http://example.com/ns/collection')
-        self.assertEqual(collection_class.xsd_version, '1.0')
+        self.assertEqual(collection_class.xsd_version, self.col_schema.XSD_VERSION)
+
+        with self.assertRaises(AttributeError) as ec:
+            DataBindingMeta(xsd_element.local_name.title(), (DataElement,), {})
+        self.assertIn("attribute 'xsd_element' is required", str(ec.exception))
+
+        with self.assertRaises(TypeError) as ec:
+            DataBindingMeta(xsd_element.local_name.title(), (DataElement,), {'xsd_element': None})
+        self.assertIn("None is not an XSD element", str(ec.exception))
 
     def test_element_binding(self):
         xsd_element = self.col_schema.elements['collection']
@@ -298,7 +397,7 @@ class TestDataBindings(TestDataObjects):
             xsd_element.binding = None
 
     def test_schema_bindings(self):
-        schema = XMLSchema(self.col_xsd_filename)
+        schema = self.schema_class(self.col_xsd_filename)
         schema.maps.create_bindings()
 
         col_element_class = schema.elements['collection'].binding
@@ -313,6 +412,37 @@ class TestDataBindings(TestDataObjects):
         self.assertIsNone(
             etree_elements_assert_equal(col_data.encode(), self.col_xml_root, strict=False)
         )
+
+        col_data2 = col_element_class.fromsource(self.col_xml_filename, converter=self.converter)
+
+        self.assertEqual(len(list(col_data.iter())), len(list(col_data2.iter())))
+        for data_element, data_element2 in zip(col_data.iter(), col_data2.iter()):
+            self.assertEqual(data_element.tag, data_element2.tag)
+
+    def test_binding_instance(self):
+        xsd_element = self.col_schema.elements['collection']
+        xsd_element.binding = None
+
+        try:
+            binding_class = xsd_element.get_binding()
+            collection_element = binding_class(tag=xsd_element.name)
+            collection_element._encoder = xsd_element
+
+            with self.assertRaises(ValueError) as ec:
+                binding_class(tag=xsd_element.name,
+                              xsd_element=self.col_schema.elements['person'])
+            self.assertIn('already bound to another XSD element', str(ec.exception))
+
+        finally:
+            xsd_element.binding = None
+
+
+class TestDataObjects11(TestDataObjects):
+    schema_class = XMLSchema11
+
+
+class TestDataBindings11(TestDataBindings):
+    schema_class = XMLSchema11
 
 
 if __name__ == '__main__':
