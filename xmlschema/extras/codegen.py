@@ -19,8 +19,10 @@ import logging
 from abc import ABC, ABCMeta
 from fnmatch import fnmatch
 from pathlib import Path
+
 from jinja2 import Environment, ChoiceLoader, FileSystemLoader, \
     TemplateNotFound, TemplateAssertionError
+from elementpath import datatypes
 
 import xmlschema
 from xmlschema.validators import XsdType, XsdElement, XsdAttribute
@@ -55,10 +57,6 @@ def test_method(func):
 
 
 logger = logging.getLogger('xmlschema-codegen')
-logging_formatter = logging.Formatter('[%(levelname)s] %(message)s')
-logging_handler = logging.StreamHandler(sys.stderr)
-logging_handler.setFormatter(logging_formatter)
-logger.addHandler(logging_handler)
 
 
 class GeneratorMeta(ABCMeta):
@@ -262,7 +260,7 @@ class AbstractGenerator(ABC, metaclass=GeneratorMeta):
                 logger.info("write file %r", str(output_file))
                 with open(output_file, 'w') as fp:
                     fp.write(result)
-                rendered.append(template.filename)
+                rendered.append(str(output_file))
 
         return rendered
 
@@ -359,43 +357,48 @@ class AbstractGenerator(ABC, metaclass=GeneratorMeta):
 
             try:
                 if obj[0] == '{':
-                    namespace, local_name = obj.split('}')
+                    namespace, local_name = obj[1:].split('}')
                     for prefix, uri in self.schema.namespaces.items():
                         if uri == namespace:
-                            qname = '%s:%s' % (uri, local_name)
+                            qname = '%s:%s' % (prefix, local_name)
                             break
                     else:
                         qname = local_name
                 else:
                     qname = obj
-            except (IndexError, ValueError):
+            except IndexError:
+                return ''
+            except ValueError:
                 return unnamed
 
         if not qname or QNAME_PATTERN.match(qname) is None:
             return unnamed
         return qname.replace('.', '_').replace('-', '_').replace(':', sep)
 
-    @staticmethod
     @filter_method
-    def namespace(obj):
+    def namespace(self, obj):
+        """Get the namespace URI of the provided object."""
         try:
             namespace = obj.target_namespace
         except AttributeError:
-            try:
-                obj = obj.name
-            except AttributeError:
-                pass
+            if isinstance(obj, datatypes.QName):
+                return obj.namespace
+            elif not isinstance(obj, str):
+                return ''
 
             try:
-                if not isinstance(obj, str) or obj[0] != '{':
+                if obj[0] == '{':
+                    namespace, _ = obj[1:].split('}')
+                    return namespace
+                elif ':' in obj:
+                    prefix, _ = obj.split(':')
+                    return self.schema.namespaces.get(prefix, '')
+                else:
                     return ''
-                namespace, _ = obj.split('}')
             except (IndexError, ValueError):
                 return ''
         else:
-            if not isinstance(namespace, str):
-                return ''
-        return namespace
+            return namespace if isinstance(namespace, str) else ''
 
     @staticmethod
     @filter_method
@@ -414,9 +417,6 @@ class AbstractGenerator(ABC, metaclass=GeneratorMeta):
         elif isinstance(obj, (XsdElement, XsdAttribute)):
             name = obj.type.local_name or unnamed
         else:
-            name = unnamed
-
-        if not name or NCNAME_PATTERN.match(name) is None:
             name = unnamed
 
         if name.endswith('Type'):
@@ -449,9 +449,6 @@ class AbstractGenerator(ABC, metaclass=GeneratorMeta):
         else:
             qname = unnamed
 
-        if not qname or QNAME_PATTERN.match(qname) is None:
-            qname = unnamed
-
         if qname.endswith('Type'):
             qname = qname[:-4]
         elif qname.endswith('_type'):
@@ -466,10 +463,11 @@ class AbstractGenerator(ABC, metaclass=GeneratorMeta):
     @filter_method
     def sort_types(xsd_types, accept_circularity=False):
         """
-        Returns a sorted sequence of XSD types. Sorted types can be used to build code declarations.
+        Returns a sorted sequence of XSD types usable for building type declarations.
 
         :param xsd_types: a sequence with XSD types.
-        :param accept_circularity: if set to `True` circularities are accepted. Defaults to `False`.
+        :param accept_circularity: if set to `True` circularities \
+        are accepted. Defaults to `False`.
         :return: a list with ordered types.
         """
         if not isinstance(xsd_types, (list, tuple)):
@@ -502,7 +500,7 @@ class AbstractGenerator(ABC, metaclass=GeneratorMeta):
 
             if not deleted:
                 if not accept_circularity:
-                    raise ValueError("Circularity found between {!r}".format(list(unordered)))
+                    raise ValueError("circularity found between {!r}".format(list(unordered)))
                 ordered_types.extend(list(unordered))
                 break
 
@@ -510,23 +508,32 @@ class AbstractGenerator(ABC, metaclass=GeneratorMeta):
         return ordered_types
 
     def is_derived(self, xsd_type, *names, derivation=None):
+        """
+        Returns `True` if the argument XSD type is derived from any
+        of other types expressed by name, otherwise returns `False`.
+
+        :param xsd_type: an XsdComplexType/XsdSimpleType instance.
+        :param names: positional argument with the names of other \
+        XSD types.
+        :param derivation: the type of derivation, that can be \
+        *extension* or *restriction*, or both with a space separator. \
+        If no value is provided it only checks if it is derived from \
+        or if it is the XSD type itself.
+        """
         for type_name in names:
             if not isinstance(type_name, str) or not type_name:
-                continue
-            elif type_name[0] == '{':
-                if xsd_type.is_derived(self.schema.maps.types[type_name], derivation):
-                    return True
-            elif ':' in type_name:
+                continue  # pragma: no cover
+            elif type_name[0] != '{' and ':' in type_name:
                 try:
-                    other = self.schema.resolve_qname(type_name)
+                    type_name = self.schema.resolve_qname(type_name)
                 except xmlschema.XMLSchemaException:
                     continue
-                else:
-                    if xsd_type.is_derived(other, derivation):
-                        return True
-            else:
-                if xsd_type.is_derived(self.schema.types[type_name], derivation):
+
+            try:
+                if xsd_type.is_derived(self.schema.maps.types[type_name], derivation):
                     return True
+            except KeyError:
+                pass
 
         return False
 
@@ -545,9 +552,10 @@ class AbstractGenerator(ABC, metaclass=GeneratorMeta):
     @staticmethod
     @test_method
     def multi_sequence(xsd_type):
-        if xsd_type.has_simple_content():
+        try:
+            return any(e.is_multiple() for e in xsd_type.content.iter_elements())
+        except AttributeError:
             return False
-        return any(e.is_multiple() for e in xsd_type.content_type.iter_elements())
 
 
 class PythonGenerator(AbstractGenerator):

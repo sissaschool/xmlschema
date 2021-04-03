@@ -14,11 +14,16 @@ import unittest
 import os
 import datetime
 import ast
+import logging
 import platform
 import importlib.util
+import tempfile
+from collections import namedtuple
 from pathlib import Path
 from textwrap import dedent
 from xml.etree import ElementTree
+
+from elementpath import datatypes
 
 from xmlschema import XMLSchema10, XMLSchema11
 from xmlschema.names import XSD_ANY_TYPE, XSD_STRING, XSD_FLOAT
@@ -45,6 +50,7 @@ else:
             'float': 'float',
             'double': 'double',
             'integer': 'int',
+            'decimal': 'float',
             'unsignedByte': 'unsigned short',
             'nonNegativeInteger': 'unsigned int',
             'positiveInteger': 'unsigned int',
@@ -80,23 +86,37 @@ XSD_TEST = """\
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
     xmlns:tns="http://xmlschema.test/ns" 
     targetNamespace="http://xmlschema.test/ns">
+
   <xs:element name="root" type="xs:string" />
+
   <xs:complexType name="type3">
     <xs:sequence>
       <xs:element name="elem1" type="tns:type1" />
       <xs:element name="elem2" type="tns:type2" />
     </xs:sequence>
   </xs:complexType>
+
   <xs:complexType name="type2">
     <xs:sequence>
       <xs:element name="elem1" type="tns:type1" />
-      <xs:element name="elem4" type="tns:type4" />
+      <xs:element name="elem4" type="tns:type4" maxOccurs="10" />
     </xs:sequence>
   </xs:complexType>
+
   <xs:simpleType name="type4">
     <xs:restriction base="xs:string" />
   </xs:simpleType>
+
   <xs:complexType name="type1" />
+
+  <xs:simpleType name="type5">
+    <xs:restriction base="xs:decimal" />
+  </xs:simpleType>
+  
+  <xs:simpleType name="type6">
+    <xs:restriction base="xs:float" />
+  </xs:simpleType>
+
 </xs:schema>
 """
 
@@ -104,18 +124,19 @@ XSD_TEST = """\
 @unittest.skipIf(jinja2 is None, "jinja2 library is not installed!")
 class TestAbstractGenerator(unittest.TestCase):
 
+    schema_class = XMLSchema10
     generator_class = DemoGenerator
 
     @classmethod
     def setUpClass(cls):
-        cls.schema = XMLSchema10(XSD_TEST)
+        cls.schema = cls.schema_class(XSD_TEST)
         cls.searchpath = Path(__file__).absolute().parent.joinpath('templates/filters/')
         cls.generator = cls.generator_class(cls.schema, str(cls.searchpath))
 
         cls.col_dir = casepath('examples/collection')
         cls.col_xsd_file = casepath('examples/collection/collection.xsd')
         cls.col_xml_file = casepath('examples/collection/collection.xml')
-        cls.col_schema = XMLSchema10(cls.col_xsd_file)
+        cls.col_schema = cls.schema_class(cls.col_xsd_file)
 
     def test_formal_language(self):
         self.assertEqual(self.generator_class.formal_language, 'Demo')
@@ -245,6 +266,54 @@ class TestAbstractGenerator(unittest.TestCase):
         with self.assertRaises(jinja2.TemplateSyntaxError):
             self.generator.render(['wrong-template.jinja'])
 
+        logger = logging.getLogger('xmlschema-codegen')
+
+        with self.assertLogs(logger, level=logging.DEBUG):
+            self.generator.render('unknown')
+
+    def test_render_to_files(self):
+        with tempfile.TemporaryDirectory() as outdir:
+            files = self.generator.render_to_files('name_filter_test.jinja', output_dir=outdir)
+            self.assertListEqual(files, [os.path.join(outdir, 'name_filter_test')])
+
+            files = self.generator.render_to_files(
+                ['name_filter_test.jinja', 'namespace_filter_test.jinja'], output_dir=outdir)
+            self.assertListEqual(files, [os.path.join(outdir, 'namespace_filter_test')])
+
+        with tempfile.TemporaryDirectory() as outdir:
+            files = self.generator.render_to_files(
+                ['name_filter_test.jinja', 'namespace_filter_test.jinja'], output_dir=outdir
+            )
+            self.assertSetEqual(set(files), {
+                os.path.join(outdir, 'name_filter_test'),
+                os.path.join(outdir, 'namespace_filter_test'),
+            })
+
+        with tempfile.TemporaryDirectory() as outdir:
+            files = self.generator.render_to_files('name*', output_dir=outdir)
+
+            self.assertSetEqual(set(files), {
+                os.path.join(outdir, 'name_filter_test'),
+                os.path.join(outdir, 'namespace_filter_test'),
+            })
+
+        with tempfile.TemporaryDirectory() as outdir:
+            with self.assertRaises(TypeError):
+                self.generator.render_to_files(
+                    ['name_filter_test.jinja', False], output_dir=outdir)
+
+            with self.assertRaises(jinja2.TemplateSyntaxError):
+                self.generator.render_to_files(['wrong-template.jinja'], output_dir=outdir)
+
+            logger = logging.getLogger('xmlschema-codegen')
+
+            with self.assertLogs(logger, level=logging.DEBUG):
+                with self.assertRaises(jinja2.TemplateSyntaxError):
+                    self.generator.render_to_files('*', output_dir=outdir)
+
+            with self.assertLogs(logger, level=logging.DEBUG):
+                self.generator.render_to_files('unknown', output_dir=outdir)
+
     def test_language_type_filter(self):
         self.assertListEqual(self.generator.render('demo_type_filter_test.jinja'), ['str'])
 
@@ -277,15 +346,49 @@ class TestAbstractGenerator(unittest.TestCase):
             with self.assertRaises(KeyError):
                 self.generator.filters['instance_filter'](dt)
 
+    def test_map_type(self):
+        self.assertEqual(self.generator.map_type(None), '')
+        self.assertEqual(self.generator.map_type(self.schema.elements['root']), 'str')
+        self.assertEqual(self.generator.map_type(self.schema.types['type1']), '')
+        self.assertEqual(self.generator.map_type(self.schema.types['type2']), '')
+        self.assertEqual(self.generator.map_type(self.schema.types['type4']), 'str')
+        self.assertEqual(self.generator.map_type(self.schema.types['type5']), 'float')
+        self.assertEqual(self.generator.map_type(self.schema.types['type6']), 'float')
+
+        date_type = self.schema.meta_schema.types['date']
+        self.assertEqual(self.generator.map_type(date_type), '')
+
     def test_name_filter(self):
         xsd_element = self.schema.elements['root']
         self.assertEqual(self.generator.filters['name'](xsd_element), 'root')
         self.assertListEqual(self.generator.render('name_filter_test.jinja'), ['root'])
 
+        self.assertEqual(self.generator.name(None), 'none')
+        self.assertEqual(self.generator.name(''), '')
+        self.assertEqual(self.generator.name('foo'), 'foo')
+        self.assertEqual(self.generator.name('{http://xmlschema.test/ns}foo'), 'foo')
+        self.assertEqual(self.generator.name('ns:foo'), 'foo')
+        self.assertEqual(self.generator.name('0:foo'), '')
+        self.assertEqual(self.generator.name('1'), 'none')
+
+        FakeElement = namedtuple('XsdElement', 'local_name name')
+        fake_element = FakeElement(1, 2)
+        self.assertEqual(self.generator.name(fake_element), '')
+
     def test_qname_filter(self):
         xsd_element = self.schema.elements['root']
         self.assertEqual(self.generator.filters['qname'](xsd_element), 'tns__root')
         self.assertListEqual(self.generator.render('qname_filter_test.jinja'), ['tns__root'])
+
+        self.assertEqual(self.generator.qname(None), 'none')
+        self.assertEqual(self.generator.qname(''), '')
+        self.assertEqual(self.generator.qname('{wrong'), 'none')
+        self.assertEqual(self.generator.qname('foo'), 'foo')
+        self.assertEqual(self.generator.qname('{http://xmlschema.test/ns}foo'), 'tns__foo')
+        self.assertEqual(self.generator.qname('{http://unknown.test/ns}foo'), 'foo')
+        self.assertEqual(self.generator.qname('ns:foo'), 'ns__foo')
+        self.assertEqual(self.generator.qname('0:foo'), 'none')
+        self.assertEqual(self.generator.qname('1'), 'none')
 
     def test_namespace_filter(self):
         xsd_element = self.schema.elements['root']
@@ -293,10 +396,47 @@ class TestAbstractGenerator(unittest.TestCase):
         self.assertEqual(self.generator.filters['namespace'](xsd_element), tns)
         self.assertListEqual(self.generator.render('namespace_filter_test.jinja'), [tns])
 
+        self.assertEqual(self.generator.namespace(None), '')
+        self.assertEqual(self.generator.namespace(''), '')
+        self.assertEqual(self.generator.namespace('{wrong'), '')
+        self.assertEqual(self.generator.namespace('foo'), '')
+        self.assertEqual(self.generator.namespace('{bar}foo'), 'bar')
+        self.assertEqual(self.generator.namespace('tns:foo'), 'http://xmlschema.test/ns')
+        self.assertEqual(self.generator.namespace('0:foo'), '')
+        self.assertEqual(self.generator.namespace('1'), '')
+
+        qname = datatypes.QName('http://xmlschema.test/ns', 'tns:foo')
+        self.assertEqual(self.generator.namespace(qname), 'http://xmlschema.test/ns')
+
     def test_type_name_filter(self):
         xsd_element = self.schema.elements['root']
         self.assertEqual(self.generator.filters['type_name'](xsd_element), 'string')
         self.assertListEqual(self.generator.render('type_name_filter_test.jinja'), ['string'])
+
+        self.assertEqual(self.generator.type_name(None), 'none')
+
+        unnamed_type = self.col_schema.types['objType'].content[5].type
+        self.assertEqual(self.generator.type_name(unnamed_type), 'none')
+
+        schema = self.schema_class(dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:complexType name="a_type"/>
+                <xs:complexType name="bType"/>
+                <xs:complexType name="c"/>
+                <xs:complexType name="c-1"/>
+                <xs:complexType name="c.2"/>
+            </xs:schema>"""))
+
+        self.assertEqual(self.generator.type_name(schema.types['a_type']), 'a')
+        self.assertEqual(self.generator.type_name(schema.types['bType']), 'b')
+        self.assertEqual(self.generator.type_name(schema.types['c']), 'c')
+
+        self.assertEqual(self.generator.type_name(schema.types['a_type'], suffix='Type'), 'aType')
+        self.assertEqual(self.generator.type_name(schema.types['bType'], suffix='Type'), 'bType')
+        self.assertEqual(self.generator.type_name(schema.types['c'], suffix='Type'), 'cType')
+
+        self.assertEqual(self.generator.type_name(schema.types['c-1']), 'c_1')
+        self.assertEqual(self.generator.type_name(schema.types['c.2']), 'c_2')
 
     def test_type_qname_filter(self):
         xsd_element = self.schema.elements['root']
@@ -304,18 +444,108 @@ class TestAbstractGenerator(unittest.TestCase):
         self.assertListEqual(
             self.generator.render('type_qname_filter_test.jinja'), ['xs__string'])
 
+        self.assertEqual(self.generator.type_qname(None), 'none')
+
+        schema = self.schema_class(dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                    xmlns:tns="http://xmlschema.test/ns"
+                    targetNamespace="http://xmlschema.test/ns">
+               <xs:complexType name="a_type"/>
+               <xs:complexType name="bType"/>
+               <xs:complexType name="c"/>
+               <xs:complexType name="c-1"/>
+               <xs:complexType name="c.2"/>
+            </xs:schema>"""))
+
+        self.assertEqual(self.generator.type_qname(schema.types['a_type']), 'tns__a')
+        self.assertEqual(self.generator.type_qname(schema.types['bType']), 'tns__b')
+        self.assertEqual(self.generator.type_qname(schema.types['c']), 'tns__c')
+
+        self.assertEqual(self.generator.type_qname(schema.types['a_type'], suffix='Type'),
+                         'tns__aType')
+        self.assertEqual(self.generator.type_qname(schema.types['bType'], suffix='Type'),
+                         'tns__bType')
+        self.assertEqual(self.generator.type_qname(schema.types['c'], suffix='Type'),
+                         'tns__cType')
+
+        self.assertEqual(self.generator.type_qname(schema.types['c-1']), 'tns__c_1')
+        self.assertEqual(self.generator.type_qname(schema.types['c.2']), 'tns__c_2')
+
     def test_sort_types_filter(self):
         xsd_types = self.schema.types
+        sorted_types = [xsd_types['type4'], xsd_types['type5'], xsd_types['type6'],
+                        xsd_types['type1'], xsd_types['type2'], xsd_types['type3']]
+
         self.assertListEqual(
-            self.generator.filters['sort_types'](xsd_types),
-            [xsd_types['type4'], xsd_types['type1'], xsd_types['type2'], xsd_types['type3']]
+            self.generator.filters['sort_types'](xsd_types), sorted_types
         )
         self.assertListEqual(
-            self.generator.render('sort_types_filter_test.jinja'), ['type4type1type2type3']
+            self.generator.filters['sort_types'](xsd_types.values()), sorted_types
+        )
+        self.assertListEqual(
+            self.generator.filters['sort_types'](list(xsd_types.values())), sorted_types
         )
 
-    def test_extension_test(self):
-        return
+        self.assertListEqual(
+            self.generator.render('sort_types_filter_test.jinja'),
+            ['type4type5type6type1type2type3']
+        )
+
+        schema = self.schema_class(dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+                <xs:complexType name="type1">
+                    <xs:sequence>
+                        <xs:element name="elem1" type="xs:string" />
+                        <xs:element name="elem2" type="type2" />
+                    </xs:sequence>
+                </xs:complexType>
+                
+                <xs:complexType name="type2">
+                    <xs:sequence>
+                        <xs:element name="elem1" type="type1" />
+                        <xs:element name="elem2" type="xs:string" />
+                    </xs:sequence>
+                </xs:complexType>
+
+            </xs:schema>"""))
+
+        with self.assertRaises(ValueError) as ec:
+            self.generator.sort_types(schema.types)
+        self.assertIn("circularity found", str(ec.exception))
+
+        self.assertListEqual(
+            self.generator.sort_types(schema.types, accept_circularity=True),
+            list(schema.types.values())
+        )
+
+    def test_unknown_filter(self):
+        logger = logging.getLogger('xmlschema-codegen')
+
+        with self.assertLogs(logger, level=logging.DEBUG):
+            self.assertListEqual(self.generator.render('unknown_filter_test.jinja'), [])
+
+    def test_is_derivation(self):
+        self.assertFalse(self.generator.extension(self.schema.types['type1']))
+        self.assertFalse(self.generator.extension(self.schema.types['type1'], 'tns:type1'))
+        self.assertFalse(self.generator.restriction(self.schema.types['type1'], 'tns:type1'))
+        self.assertFalse(self.generator.derivation(self.schema.types['type1'], 'type1'))
+        self.assertFalse(self.generator.restriction(self.schema.types['type6'], 'xs:decimal'))
+        self.assertFalse(self.generator.restriction(self.schema.types['type6'], None))
+        self.assertFalse(self.generator.derivation(self.schema.types['type1'], 'tns0:type1'))
+
+        self.assertTrue(self.generator.derivation(self.schema.types['type1'], 'tns:type1'))
+        self.assertTrue(self.generator.restriction(self.schema.types['type6'], 'xs:float'))
+
+    def test_multi_sequence(self):
+        self.assertFalse(self.generator.multi_sequence(self.schema.types['type3']))
+        self.assertTrue(self.generator.multi_sequence(self.schema.types['type2']))
+        self.assertFalse(self.generator.multi_sequence(self.schema.types['type5']))
+
+
+@unittest.skipIf(jinja2 is None, "jinja2 library is not installed!")
+class TestAbstractGenerator11(TestAbstractGenerator):
+    schema_class = XMLSchema11
 
 
 @unittest.skipIf(jinja2 is None, "jinja2 library is not installed!")
@@ -325,6 +555,15 @@ class TestPythonGenerator(TestAbstractGenerator):
 
     def test_formal_language(self):
         self.assertEqual(PythonGenerator.formal_language, 'Python')
+
+    def test_map_type(self):
+        self.assertEqual(self.generator.map_type(None), '')
+        self.assertEqual(self.generator.map_type(self.schema.elements['root']), 'str')
+        self.assertEqual(self.generator.map_type(self.schema.types['type1']), '')
+        self.assertEqual(self.generator.map_type(self.schema.types['type2']), '')
+        self.assertEqual(self.generator.map_type(self.schema.types['type4']), 'str')
+        self.assertEqual(self.generator.map_type(self.schema.types['type5']), 'decimal.Decimal')
+        self.assertEqual(self.generator.map_type(self.schema.types['type6']), 'float')
 
     def test_language_type_filter(self):
         self.assertListEqual(
@@ -364,7 +603,7 @@ class TestPythonGenerator(TestAbstractGenerator):
             spec = importlib.util.spec_from_file_location('collection', 'collection.py')
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
-        except Exception:
+        except SyntaxError:
             pass
         else:
             col_data = module.CollectionBinding.fromsource('collection.xml')
@@ -372,6 +611,11 @@ class TestPythonGenerator(TestAbstractGenerator):
             self.assertEqual(col_root.tag, '{http://example.com/ns/collection}collection')
         finally:
             os.chdir(cwd)
+
+
+@unittest.skipIf(jinja2 is None, "jinja2 library is not installed!")
+class TestPythonGenerator11(TestPythonGenerator):
+    schema_class = XMLSchema11
 
 
 if __name__ == '__main__':
