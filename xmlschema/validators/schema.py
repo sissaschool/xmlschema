@@ -540,6 +540,11 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         return self.source.base_url
 
     @property
+    def filepath(self):
+        """The filepath if the schema is loaded from a local XSD file, `None` otherwise."""
+        return self.source.filepath
+
+    @property
     def allow(self):
         """Defines the resource access security mode, can be 'all', 'local' or 'sandbox'."""
         return self.source.allow
@@ -1202,14 +1207,13 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         self.imports[namespace] = schema
         return schema
 
-    def export(self, target, only_relative=True):
+    def export(self, target, save_remote=False):
         """
         Exports a schema instance. The schema instance is exported to a
         directory with also the hierarchy of imported/included schemas.
 
         :param target: a path to a local empty directory.
-        :param only_relative: for default only loaded schemas referred by a relative \
-        location are saved. If `False` is provided all the loaded schemas are saved.
+        :param save_remote: if `True` is provided saves also remote schemas.
         """
         import pathlib
         from urllib.parse import urlsplit
@@ -1230,56 +1234,74 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
 
         url = self.url or 'schema.xsd'
         basename = pathlib.Path(urlsplit(url).path).name
-        exported_schemas = {self: [target_path.joinpath(basename), self.get_text()]}
+        exports = {self: [target_path.joinpath(basename), self.get_text()]}
 
         while True:
-            current_length = len(exported_schemas)
-            for schema in list(exported_schemas):
-                for location, ref_schema in \
-                        chain(schema.includes.items(), schema.imports.items()):
+            current_length = len(exports)
 
-                    if ref_schema in exported_schemas:
+            for schema in list(exports):
+                dir_path = exports[schema][0].parent
+                imports_items = [(x.url, x) for x in schema.imports.values() if x is not None]
+
+                for location, ref_schema in chain(schema.includes.items(), imports_items):
+                    if ref_schema in exports:
                         continue
 
-                    schema_path = exported_schemas[schema][0].parent
-
                     if is_remote_url(location):
-                        if only_relative:
+                        if not save_remote:
                             continue
                         url_parts = urlsplit(location)
                         netloc, path = url_parts.netloc, url_parts.path
                         path = pathlib.Path().joinpath(netloc).joinpath(path.lstrip('/'))
                     else:
+                        if location.startswith('file:/'):
+                            location = urlsplit(location).path
+
                         path = pathlib.Path(location)
                         if path.is_absolute():
-                            if only_relative:
-                                continue
+                            location = '/'.join(path.parts[-2:])
+                            try:
+                                schema_path = pathlib.Path(schema.filepath)
+                            except TypeError:
+                                pass
+                            else:
+                                try:
+                                    path = path.relative_to(schema_path.parent)
+                                except ValueError:
+                                    parts = path.parts
+                                    if parts[:-2] == schema_path.parts[:-2]:
+                                        path = pathlib.Path(location)
+                                else:
+                                    path = dir_path.joinpath(path)
+                                    exports[ref_schema] = [path, ref_schema.get_text()]
+                                    continue
+
                         elif not str(path).startswith('..'):
-                            path = schema_path.joinpath(path)
-                            exported_schemas[ref_schema] = [path, ref_schema.get_text()]
+                            path = dir_path.joinpath(path)
+                            exports[ref_schema] = [path, ref_schema.get_text()]
                             continue
 
-                    if DRIVE_PATTERN.match(path.parts[0]):
-                        path = pathlib.Path().joinpath(path.parts[1:])
+                        if DRIVE_PATTERN.match(path.parts[0]):
+                            path = pathlib.Path().joinpath(path.parts[1:])
 
-                    for strip_path in ('/', '\\', '..'):
-                        while True:
-                            try:
-                                path = path.relative_to(strip_path)
-                            except ValueError:
-                                break
+                        for strip_path in ('/', '\\', '..'):
+                            while True:
+                                try:
+                                    path = path.relative_to(strip_path)
+                                except ValueError:
+                                    break
 
                     path = target_path.joinpath(path)
                     repl = 'schemaLocation="{}"'.format(path.as_posix())
-                    text = exported_schemas[schema][1]
+                    schema_text = exports[schema][1]
                     pattern = r'\bschemaLocation\s*=\s*[\'\"].*%s.*[\'"]' % re.escape(location)
-                    exported_schemas[schema][1] = re.sub(pattern, repl, text)
-                    exported_schemas[ref_schema] = [path, ref_schema.get_text()]
+                    exports[schema][1] = re.sub(pattern, repl, schema_text)
+                    exports[ref_schema] = [path, ref_schema.get_text()]
 
-            if current_length == len(exported_schemas):
+            if current_length == len(exports):
                 break
 
-        for schema, (path, text) in exported_schemas.items():
+        for schema, (path, text) in exports.items():
             if not path.parent.exists():
                 path.parent.mkdir(parents=True)
 

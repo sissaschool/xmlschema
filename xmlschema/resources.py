@@ -415,6 +415,16 @@ class XMLResource:
         return os.path.dirname(self._url) if self._url else self._base_url
 
     @property
+    def filepath(self):
+        """
+        The source filepath if the intance is created from a local file, `None` otherwise.
+        """
+        if self._url:
+            url_parts = urlsplit(self._url)
+            if url_parts.scheme in ('', 'file'):
+                return url_parts.path
+
+    @property
     def name(self):
         return os.path.basename(self._url) if self.url else None
 

@@ -591,7 +591,7 @@ class TestXMLSchema10(XsdValidatorTestCase):
         self.assertFalse(os.path.isdir(dirname))
 
         with tempfile.TemporaryDirectory() as dirname:
-            vh_schema.export(target=dirname, only_relative=False)
+            vh_schema.export(target=dirname, save_remote=True)
             path = pathlib.Path(dirname).joinpath('brunato/xmlschema/master/tests/test_cases/'
                                                   'examples/vehicles/*.xsd')
 
