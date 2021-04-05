@@ -16,6 +16,7 @@ from .exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, XMLSchemaVa
 from .etree import etree_tostring
 from .helpers import get_namespace, get_prefixed_qname, local_name, raw_xml_encode
 from .converters import ElementData, XMLSchemaConverter
+from .resources import XMLResource
 from . import validators
 
 
@@ -292,6 +293,8 @@ class DataElement(MutableSequence):
 class DataBindingMeta(ABCMeta):
     """Metaclass for creating classes with bindings to XSD elements."""
 
+    xsd_element = None
+
     def __new__(mcs, name, bases, attrs):
         try:
             xsd_element = attrs['xsd_element']
@@ -310,7 +313,9 @@ class DataBindingMeta(ABCMeta):
         cls.xsd_version = cls.xsd_element.xsd_version
         cls.namespace = cls.xsd_element.target_namespace
 
-    def fromsource(cls, source, **kwargs):
+    def fromsource(cls, source, allow='all', defuse='remote', timeout=300, **kwargs):
+        if not isinstance(source, XMLResource):
+            source = XMLResource(source, allow=allow, defuse=defuse, timeout=timeout)
         if 'converter' not in kwargs:
             kwargs['converter'] = DataBindingConverter
         return cls.xsd_element.schema.decode(source, **kwargs)

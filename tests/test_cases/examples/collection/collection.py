@@ -10,12 +10,12 @@
 """
 Sample of XML data bindings for schema collection.xsd
 """
-from xmlschema import XMLSchema, DataElement
-from xmlschema.dataobjects import DataBindingMeta
+import xmlschema
+from xmlschema.dataobjects import DataElement, DataBindingMeta
 
 __NAMESPACE__ = "http://example.com/ns/collection"
 
-schema = XMLSchema("collection.xsd")
+schema = xmlschema.XMLSchema11("collection.xsd")
 
 
 class CollectionBinding(DataElement, metaclass=DataBindingMeta):
