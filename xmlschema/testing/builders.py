@@ -68,6 +68,7 @@ def make_schema_test_class(test_file, test_args, test_num, schema_class, check_w
     locations = test_args.locations
     defuse = test_args.defuse
     debug_mode = test_args.debug
+    codegen = test_args.codegen
     loglevel = logging.DEBUG if debug_mode else None
 
     class TestSchema(XsdValidatorTestCase):
@@ -153,8 +154,7 @@ def make_schema_test_class(test_file, test_args, test_num, schema_class, check_w
                             raise error
 
             # Check XML bindings module only for schemas that do not have errors
-            if PythonGenerator is not None and \
-                    not self.errors and \
+            if codegen and PythonGenerator is not None and not self.errors and \
                     all('schemaLocation' in e.attrib for e in schema.root if e.tag == XSD_IMPORT):
 
                 generator = PythonGenerator(schema)
@@ -240,6 +240,7 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
     defuse = test_args.defuse
     lax_encode = test_args.lax_encode
     debug_mode = test_args.debug
+    codegen = test_args.codegen
 
     class TestValidator(XsdValidatorTestCase):
 
@@ -569,7 +570,7 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
                 else:
                     self.assertTrue(schema.validate(xml_tree), msg=xml_file)
 
-        def check_validation_with_bindings_module(self):
+        def check_validation_with_generated_code(self):
             generator = PythonGenerator(self.schema)
 
             python_module = generator.render('bindings.py.jinja')[0]
@@ -622,14 +623,13 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
 
             # Test validation with XML data bindings only for instances and
             # schemas that do not have errors and imports without locations
-            if PythonGenerator is not None and \
-                    not self.errors and \
-                    not self.schema.all_errors and \
+            if codegen and PythonGenerator is not None and \
+                    not self.errors and not self.schema.all_errors and \
                     all('schemaLocation' in e.attrib
                         for e in self.schema.root
                         if e.tag == XSD_IMPORT):
 
-                self.check_validation_with_bindings_module()
+                self.check_validation_with_generated_code()
 
     TestValidator.__name__ = TestValidator.__qualname__ = 'TestValidator{0:03}'.format(test_num)
     return TestValidator

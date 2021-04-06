@@ -8,19 +8,19 @@
 #
 
 # Cases with schema examples
-examples/collection/collection.xsd --inspect
-examples/collection/collection.xsd --inspect --version=1.1
-examples/collection/collection.xml
+examples/collection/collection.xsd --inspect --codegen
+examples/collection/collection.xsd --inspect --version=1.1 --codegen
+examples/collection/collection.xml --codegen
 examples/collection/collection2.xsd --inspect   # key constraint
 examples/collection/collection2.xml --errors 1
 examples/collection/collection3.xsd      # key and keyref constraints
 examples/collection/collection3.xml --errors 1
 examples/collection/collection3bis.xsd
 examples/collection/collection3bis.xml --errors 1
-examples/collection/collection4.xml      # Many XML comments inserted
-examples/vehicles/vehicles.xsd --inspect
-examples/vehicles/vehicles.xsd --inspect --version=1.1
-examples/vehicles/vehicles.xml
+examples/collection/collection4.xml --codegen # Many XML comments inserted
+examples/vehicles/vehicles.xsd --inspect --codegen
+examples/vehicles/vehicles.xsd --inspect --version=1.1 --codegen
+examples/vehicles/vehicles.xml --codegen
 examples/vehicles/vehicles-1_error.xml --errors=1
 examples/vehicles/vehicles-2_errors.xml --errors=2
 examples/vehicles/vehicles-3_errors.xml --errors=3

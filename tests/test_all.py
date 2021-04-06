@@ -52,6 +52,7 @@ if __name__ == '__main__':
         testfiles=args.testfiles,
         suffix='xsd',
         check_with_lxml=args.lxml,
+        codegen=args.codegen,
     )
     globals().update(schema_tests)
 
@@ -60,6 +61,7 @@ if __name__ == '__main__':
         testfiles=args.testfiles,
         suffix='xml',
         check_with_lxml=args.lxml,
+        codegen=args.codegen,
     )
     globals().update(validation_tests)
 

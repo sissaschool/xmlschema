@@ -64,6 +64,8 @@ def get_test_program_args_parser(default_testfiles):
     # xmlschema's arguments
     parser.add_argument('--lxml', dest='lxml', action='store_true', default=False,
                         help='Check also with lxml.etree.XMLSchema (for XSD 1.0)')
+    parser.add_argument('--codegen', action="store_true", default=False,
+                        help="Test code generation with XML data bindings module.")
     parser.add_argument('testfiles', type=str, nargs='*', default=default_testfiles,
                         help="Test cases directory.")
     return parser
@@ -114,18 +116,26 @@ def get_test_line_args_parser():
         '--debug', action="store_true", default=False,
         help="Activate the debug mode (only the cases with --debug are executed).",
     )
+    parser.add_argument(
+        '--codegen', action="store_true", default=False,
+        help="Test code generation with XML data bindings module. For default "
+             "test code generation if the same command option is provided.",
+    )
     return parser
 
 
-def factory_tests(test_class_builder, testfiles, suffix, check_with_lxml=False):
+def factory_tests(test_class_builder, testfiles, suffix, check_with_lxml=False, codegen=False):
     """
     Factory function for file based schema/validation cases.
 
     :param test_class_builder: the test class builder function.
     :param testfiles: a single or a list of testfiles indexes.
     :param suffix: the suffix ('xml' or 'xsd') to consider for cases.
-    :param check_with_lxml: if `True` compare with lxml XMLSchema class, reporting \
-    anomalies. Works only for XSD 1.0 tests.
+    :param check_with_lxml: if `True` compare with lxml XMLSchema class, \
+    reporting anomalies. Works only for XSD 1.0 tests.
+    :param codegen: if `True` is provided checks code generation with XML data \
+    bindings module for all tests. For default is `False` and code generation \
+    is tested only for the cases where the same option is provided.
     :return: a list of test classes.
     """
     test_classes = {}
@@ -156,6 +166,8 @@ def factory_tests(test_class_builder, testfiles, suffix, check_with_lxml=False):
         test_args = test_line_parser.parse_args(get_test_args(line))
         if test_args.locations is not None:
             test_args.locations = {k.strip('\'"'): v for k, v in test_args.locations}
+        if codegen:
+            test_args.codegen = True
 
         test_file = os.path.join(os.path.dirname(fileinput.filename()), test_args.filename)
         if os.path.isdir(test_file):
