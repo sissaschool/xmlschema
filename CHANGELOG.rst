@@ -2,6 +2,12 @@
 CHANGELOG
 *********
 
+`v1.6.0`_ (2021-04-06)
+======================
+* XML data bindings and code generators are now considered stable
+* Add arguments 'max_depth' and 'extra_validator' to validation methods
+* Enhance decoding with 'value_hook' argument
+
 `v1.5.3`_ (2021-03-14)
 ======================
 * Remove unnecessary bindings with schema proxy from ElementPathMixin
@@ -423,3 +429,4 @@ v0.9.6 (2017-05-05)
 .. _v1.5.1: https://github.com/brunato/xmlschema/compare/v1.5.0...v1.5.1
 .. _v1.5.2: https://github.com/brunato/xmlschema/compare/v1.5.1...v1.5.2
 .. _v1.5.3: https://github.com/brunato/xmlschema/compare/v1.5.2...v1.5.3
+.. _v1.6.0: https://github.com/brunato/xmlschema/compare/v1.5.3...v1.6.0

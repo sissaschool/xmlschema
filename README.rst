@@ -52,7 +52,7 @@ This library includes the following features:
 * Support of XSD validation modes *strict*/*lax*/*skip*
 * Remote attacks protection by default using an XMLParser that forbids entities
 * XML data bindings based on DataElement class
-* Static code generation with Jinja2 templates (experimental)
+* Static code generation with Jinja2 templates
 
 
 Installation

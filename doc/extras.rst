@@ -23,17 +23,14 @@ impact on the base configuration.
 
 .. _code-generators:
 
-Code generation with Jinja2 templates (experimental)
-====================================================
+Code generation with Jinja2 templates
+=====================================
 
 The module *xmlschema.extras.codegen* provides an abstract base class
 :class:`AbstractGenerator` for generate source code from parsed XSD
 schemas. The Jinja2 engine is embedded in that class and empowered
 with a set of custom filters and tests for accessing to defined XSD
 schema components.
-
-.. note::
-    This extra feature is still in experimental stage.
 
 
 Schema based filters

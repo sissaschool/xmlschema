@@ -507,10 +507,6 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         return len(self.elements)
 
     @property
-    def name(self):
-        return os.path.basename(self.url) if self.url else None
-
-    @property
     def xpath_proxy(self):
         return XMLSchemaProxy(self)
 
@@ -530,8 +526,13 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         return self.source.get_text()
 
     @property
+    def name(self):
+        """Schema resource name, is `None` if the schema is built from an Element or a string."""
+        return self.source.name
+
+    @property
     def url(self):
-        """Schema resource URL, is `None` if the schema is built from a string."""
+        """Schema resource URL, is `None` if the schema is built from an Element or a string."""
         return self.source.url
 
     @property

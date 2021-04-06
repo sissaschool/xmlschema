@@ -409,9 +409,16 @@ class XMLResource:
         return self._text
 
     @property
+    def name(self):
+        """
+        The source name, is `None` if the instance is created from an Element or a string.
+        """
+        return os.path.basename(self._url) if self.url else None
+
+    @property
     def url(self):
         """
-        The source URL, `None` if the instance is created from an Element tree or from a string.
+        The source URL, `None` if the instance is created from an Element or a string.
         """
         return self._url
 
@@ -423,16 +430,12 @@ class XMLResource:
     @property
     def filepath(self):
         """
-        The source filepath if the intance is created from a local file, `None` otherwise.
+        The resource filepath if the intance is created from a local file, `None` otherwise.
         """
         if self._url:
             url_parts = urlsplit(self._url)
             if url_parts.scheme in ('', 'file'):
                 return url_parts.path
-
-    @property
-    def name(self):
-        return os.path.basename(self._url) if self.url else None
 
     @property
     def allow(self):

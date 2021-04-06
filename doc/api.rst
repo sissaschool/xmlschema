@@ -69,6 +69,8 @@ Schema level API
     .. autoattribute:: no_namespace_schema_location
     .. autoattribute:: target_prefix
     .. autoattribute:: default_namespace
+    .. autoattribute:: name
+    .. autoattribute:: url
     .. autoattribute:: base_url
     .. autoattribute:: root_elements
     .. autoattribute:: simple_types
@@ -186,8 +188,10 @@ XML resources API
 
     .. autoattribute:: root
     .. autoattribute:: text
+    .. autoattribute:: name
     .. autoattribute:: url
     .. autoattribute:: base_url
+    .. autoattribute:: filepath
     .. autoattribute:: namespace
 
     .. automethod:: parse
