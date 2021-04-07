@@ -20,6 +20,7 @@ from urllib.error import URLError
 from urllib.request import urlopen
 from urllib.parse import urlsplit, uses_relative
 from pathlib import Path, PureWindowsPath, PurePath
+from unittest.mock import patch, MagicMock
 
 try:
     import lxml.etree as lxml_etree
@@ -199,6 +200,9 @@ class TestResources(unittest.TestCase):
         self.assertFalse(url_path_is_file(self.col_dir))
         self.assertFalse(url_path_is_file('http://example.com/'))
 
+        with patch('platform.system', MagicMock(return_value="Windows")):
+            self.assertFalse(url_path_is_file('file:///c:/Windows/unknown'))
+
     def test_normalize_locations_function(self):
         locations = normalize_locations(
             [('tns0', 'alpha'), ('tns1', 'http://example.com/beta')], base_url='/home/user'
@@ -277,6 +281,7 @@ class TestResources(unittest.TestCase):
         self.assertEqual(resource.source, self.vh_xml_file)
         self.assertEqual(resource.root.tag, '{http://example.com/vehicles}vehicles')
         self.check_url(resource.url, self.vh_xml_file)
+        self.assertTrue(resource.filepath.endswith(self.vh_xml_file))
         self.assertIsNone(resource.text)
         with self.assertRaises(XMLResourceError) as ctx:
             resource.load()
@@ -304,6 +309,7 @@ class TestResources(unittest.TestCase):
         self.assertEqual(resource.source, vh_etree)
         self.assertEqual(resource.root.tag, '{http://example.com/vehicles}vehicles')
         self.assertIsNone(resource.url)
+        self.assertIsNone(resource.filepath)
         self.assertIsNone(resource.text)
         resource.load()
         self.assertIsNone(resource.text)
@@ -312,6 +318,7 @@ class TestResources(unittest.TestCase):
         self.assertEqual(resource.source, vh_root)
         self.assertEqual(resource.root.tag, '{http://example.com/vehicles}vehicles')
         self.assertIsNone(resource.url)
+        self.assertIsNone(resource.filepath)
         self.assertIsNone(resource.text)
         resource.load()
         self.assertIsNone(resource.text)
@@ -325,6 +332,7 @@ class TestResources(unittest.TestCase):
         self.assertEqual(resource.source, vh_etree)
         self.assertEqual(resource.root.tag, '{http://example.com/vehicles}vehicles')
         self.assertIsNone(resource.url)
+        self.assertIsNone(resource.filepath)
         self.assertIsNone(resource.text)
         resource.load()
         self.assertIsNone(resource.text)
@@ -333,6 +341,7 @@ class TestResources(unittest.TestCase):
         self.assertEqual(resource.source, vh_root)
         self.assertEqual(resource.root.tag, '{http://example.com/vehicles}vehicles')
         self.assertIsNone(resource.url)
+        self.assertIsNone(resource.filepath)
         self.assertIsNone(resource.text)
         resource.load()
         self.assertIsNone(resource.text)
@@ -1081,9 +1090,14 @@ class TestResources(unittest.TestCase):
                      "Remote networks are not accessible or avoid SSL "
                      "verification error on Windows.")
     def test_remote_resource_loading(self):
-        with urlopen("https://raw.githubusercontent.com/brunato/xmlschema/master/"
-                     "tests/test_cases/examples/collection/collection.xsd") as rh:
+        url = "https://raw.githubusercontent.com/brunato/xmlschema/master/" \
+              "tests/test_cases/examples/collection/collection.xsd"
+
+        with urlopen(url) as rh:
             col_xsd_resource = XMLResource(rh)
+
+        self.assertEqual(col_xsd_resource.url, url)
+        self.assertIsNone(col_xsd_resource.filepath)
 
         self.assertEqual(col_xsd_resource.namespace, XSD_NAMESPACE)
         self.assertIsNone(col_xsd_resource.seek(0))

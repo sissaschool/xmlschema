@@ -256,13 +256,10 @@ class XsdAttribute(XsdComponent, ValidationMixin):
                 yield str(value)
             else:
                 yield value
-            break
+            break  # pragma: no cover
 
     def iter_encode(self, obj, validation='lax', **kwargs):
-        for result in self.type.iter_encode(obj, validation):
-            yield result
-            if not isinstance(result, XMLSchemaValidationError):
-                return
+        yield from self.type.iter_encode(obj, validation, **kwargs)
 
 
 class Xsd11Attribute(XsdAttribute):

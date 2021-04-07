@@ -9,6 +9,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import unittest
+from textwrap import dedent
 
 from xmlschema import XMLSchemaParseError, XMLSchemaValidationError
 from xmlschema.validators import XMLSchema11, XsdAttribute
@@ -401,6 +402,51 @@ class TestXsdAttributes(XsdValidatorTestCase):
 class TestXsd11Attributes(TestXsdAttributes):
 
     schema_class = XMLSchema11
+
+    def test_target_namespace(self):
+        xs = self.get_schema('<xs:attribute name="a" type="xs:string"/>')
+        self.assertEqual(xs.attributes['a'].target_namespace, '')
+
+        with self.assertRaises(XMLSchemaParseError) as ec:
+            self.get_schema('<xs:attribute name="foo" targetNamespace="bar" type="xs:string"/>')
+        self.assertIn("'targetNamespace' is prohibited", str(ec.exception))
+
+        xs = self.get_schema(dedent("""\
+            <xs:attributeGroup name="attrs">
+                <xs:attribute name="a" type="xs:string" 
+                    targetNamespace="http://xmlschema.test/ns"/>
+                <xs:attribute ref="b"/>
+            </xs:attributeGroup>
+            <xs:attribute name="b" type="xs:string"/>"""))
+
+        self.assertNotIn('a', xs.attribute_groups['attrs'])
+        self.assertIn('{http://xmlschema.test/ns}a', xs.attribute_groups['attrs'])
+
+        xsd_attribute = xs.attribute_groups['attrs']['{http://xmlschema.test/ns}a']
+        self.assertEqual(xsd_attribute.target_namespace, 'http://xmlschema.test/ns')
+        self.assertEqual(xs.attribute_groups['attrs']['b'].target_namespace, '')
+
+    def test_prohibited_and_fixed_incompatibility(self):
+        with self.assertRaises(XMLSchemaParseError) as ec:
+            self.get_schema(dedent("""\
+                <xs:attributeGroup name="attrs">
+                    <xs:attribute name="a" type="xs:string" 
+                        use="prohibited" fixed="foo"/>
+                </xs:attributeGroup>"""))
+
+        self.assertIn("'fixed' with use=prohibited is not allowed in XSD 1.1", str(ec.exception))
+
+    def test_inheritable_attribute(self):
+        xs = self.get_schema(dedent("""\
+            <xs:attributeGroup name="attrs">
+                <xs:attribute name="a" type="xs:string" />
+                <xs:attribute name="b" type="xs:string" inheritable="true"/>
+                <xs:attribute name="c" type="xs:string" inheritable="false"/>
+            </xs:attributeGroup>"""))
+
+        self.assertFalse(xs.attribute_groups['attrs']['a'].inheritable)
+        self.assertTrue(xs.attribute_groups['attrs']['b'].inheritable)
+        self.assertFalse(xs.attribute_groups['attrs']['c'].inheritable)
 
 
 if __name__ == '__main__':

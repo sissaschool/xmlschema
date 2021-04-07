@@ -108,6 +108,9 @@ From version 1.0.0 each test-case line is parsed for those additional arguments:
 **--debug**
     Activate the debug mode (only the cases with `--debug` are executed).
 
+**--codegen**
+    Test code generation with XML data bindings module.
+
 If you put a ``--help`` on the first case line the argument parser show you all the options available.
 
 To run tests with also your personal set of files you have provide the path to your custom *testfile*,

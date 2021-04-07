@@ -678,6 +678,11 @@ class TestDecoding(XsdValidatorTestCase):
         self.assertEqual(xs.decode('<dt>2001-04-15</dt>', datetime_types=True),
                          datatypes.Date10.fromstring('2001-04-15'))
 
+        xs = self.get_schema('<xs:attribute name="dt" type="xs:date"/>')
+        self.assertEqual(xs.attributes['dt'].decode('2001-04-15'), '2001-04-15')
+        self.assertEqual(xs.attributes['dt'].decode('2001-04-15', datetime_types=True),
+                         datatypes.Date10.fromstring('2001-04-15'))
+
     def test_duration_type(self):
         xs = self.get_schema('<xs:element name="td" type="xs:duration"/>')
         self.assertEqual(xs.decode('<td>P5Y3MT60H30.001S</td>'), 'P5Y3MT60H30.001S')
@@ -804,6 +809,16 @@ class TestDecoding(XsdValidatorTestCase):
         self.assertEqual(obj, '9AFD')
         self.assertIsInstance(obj, datatypes.HexBinary)
 
+        xs = self.get_schema('<xs:attribute name="hex" type="xs:hexBinary"/>')
+
+        obj = xs.attributes['hex'].decode(' 9AFD ')
+        self.assertEqual(obj, '9AFD')
+        self.assertIsInstance(obj, str)
+
+        obj = xs.attributes['hex'].decode(' 9AFD ', binary_types=True)
+        self.assertEqual(obj, '9AFD')
+        self.assertIsInstance(obj, datatypes.HexBinary)
+
     def test_base64_binary_type(self):
         base64_code_type = self.st_schema.types['base64Code']
         self.check_decode(base64_code_type, base64.b64encode(b'ok'), XMLSchemaValidationError)
@@ -812,6 +827,18 @@ class TestDecoding(XsdValidatorTestCase):
         expected_value = datatypes.Base64Binary(base64_value)
         self.check_decode(base64_code_type, base64_value, expected_value)
 
+        # Attribute
+        xs = self.get_schema('<xs:attribute name="b64" type="xs:base64Binary"/>')
+
+        obj = xs.attributes['b64'].decode(base64_value.decode())
+        self.assertEqual(obj, expected_value)
+        self.assertIsInstance(obj, str)
+
+        obj = xs.attributes['b64'].decode(base64_value.decode(), binary_types=True)
+        self.assertEqual(obj, expected_value)
+        self.assertIsInstance(obj, datatypes.Base64Binary)
+
+        # Element
         xs = self.get_schema('<xs:element name="b64" type="xs:base64Binary"/>')
 
         obj = xs.decode('<b64>{}</b64>'.format(base64_value.decode()))
@@ -1100,6 +1127,11 @@ class TestDecoding11(TestDecoding):
         xs = self.get_schema('<xs:element name="dt" type="xs:date"/>')
         self.assertEqual(xs.decode('<dt>2001-04-15</dt>'), '2001-04-15')
         self.assertEqual(xs.decode('<dt>2001-04-15</dt>', datetime_types=True),
+                         datatypes.Date.fromstring('2001-04-15'))
+
+        xs = self.get_schema('<xs:attribute name="dt" type="xs:date"/>')
+        self.assertEqual(xs.attributes['dt'].decode('2001-04-15'), '2001-04-15')
+        self.assertEqual(xs.attributes['dt'].decode('2001-04-15', datetime_types=True),
                          datatypes.Date.fromstring('2001-04-15'))
 
     def test_derived_duration_types(self):
