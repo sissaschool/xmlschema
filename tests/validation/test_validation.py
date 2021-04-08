@@ -138,11 +138,11 @@ class TestValidation(XsdValidatorTestCase):
     def test_extra_validator(self):
         # Related to issue 227
 
-        def bikes_validator(elem, xsd_element):
+        def bikes_validator(elem, xsd_element_):
             if elem.tag == '{http://example.com/vehicles}bike' and \
-                    xsd_element.name == elem.tag and \
+                    xsd_element_.name == elem.tag and \
                     elem.attrib['make'] != 'Harley-Davidson':
-                raise XMLSchemaValidationError(xsd_element, elem, 'not an Harley-Davidson')
+                raise XMLSchemaValidationError(xsd_element_, elem, 'not an Harley-Davidson')
 
         with self.assertRaises(XMLSchemaValidationError) as ec:
             self.vh_schema.validate(self.vh_xml_file, extra_validator=bikes_validator)
@@ -158,11 +158,11 @@ class TestValidation(XsdValidatorTestCase):
             self.vh_schema.decode(self.vh_xml_file, extra_validator=bikes_validator)
         self.assertIn('Reason: not an Harley-Davidson', str(ec.exception))
 
-        def bikes_validator(elem, xsd_element):
+        def bikes_validator(elem, xsd_element_):
             if elem.tag == '{http://example.com/vehicles}bike' and \
-                    xsd_element.name == elem.tag and \
+                    xsd_element_.name == elem.tag and \
                     elem.attrib['make'] != 'Harley-Davidson':
-                yield XMLSchemaValidationError(xsd_element, elem, 'not an Harley-Davidson')
+                yield XMLSchemaValidationError(xsd_element_, elem, 'not an Harley-Davidson')
 
         with self.assertRaises(XMLSchemaValidationError) as ec:
             self.vh_schema.validate(self.vh_xml_file, extra_validator=bikes_validator)
@@ -275,6 +275,21 @@ class TestValidation(XsdValidatorTestCase):
 
         with self.assertRaises(ElementTree.ParseError):
             schema.is_valid(malformed_xml_file)
+
+    def test_issue_238__validate_bytes_strings(self):
+        schema = xmlschema.XMLSchema(dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+              <xs:element name="value" type="xs:int"/>
+            </xs:schema>"""))
+
+        self.assertTrue(schema.is_valid('<value>11</value>'))
+        self.assertTrue(schema.is_valid(b'<value>\n11\n</value>'))
+
+        with open(self.col_xml_file, 'rb') as fp:
+            col_xml_data = fp.read()
+
+        self.assertIsInstance(col_xml_data, bytes)
+        self.assertTrue(self.col_schema.is_valid(col_xml_data))
 
 
 class TestValidation11(TestValidation):

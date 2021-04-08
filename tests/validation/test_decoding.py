@@ -11,6 +11,7 @@
 import unittest
 import os
 from decimal import Decimal
+from collections.abc import MutableMapping, MutableSequence, Set
 import base64
 
 try:
@@ -325,6 +326,17 @@ DATA_DICT = {
     'simple_boolean': [True, False],
     'date_and_time': '2020-03-05T23:04:10.047',  # xs:dateTime is not decoded for default
 }
+
+
+def iter_nested_iterables(obj):
+    if not isinstance(obj, (MutableMapping, MutableSequence, Set, tuple)):
+        yield obj
+    else:
+        for item in obj.values() if isinstance(obj, MutableMapping) else obj:
+            if not isinstance(item, (MutableMapping, MutableSequence, Set, tuple)):
+                yield item
+            else:
+                yield from iter_nested_iterables(item)
 
 
 class TestDecoding(XsdValidatorTestCase):
@@ -1113,6 +1125,18 @@ class TestDecoding(XsdValidatorTestCase):
             schema.to_dict(self.casepath('issues/issue_200/issue_200.xml'),
                            path='/na:main/na:item[@doc_id=2]'),
         self.assertIn('is not an element of the schema', str(ctx.exception))
+
+    def test_issue_238__decode_bytes_strings(self):
+        with open(self.vh_xml_file, 'rb') as fp:
+            vh_xml_data = fp.read()
+
+        self.assertIsInstance(vh_xml_data, bytes)
+
+        obj = self.vh_schema.decode(vh_xml_data)
+
+        # ElementTree accepts also bytes but emits Unicode strings only
+        for value in iter_nested_iterables(obj):
+            self.assertNotIsInstance(value, bytes)
 
 
 class TestDecoding11(TestDecoding):

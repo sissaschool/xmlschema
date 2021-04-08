@@ -174,7 +174,9 @@ class TestResources(unittest.TestCase):
     def test_is_url_function(self):
         self.assertTrue(is_url(self.col_xsd_file))
         self.assertFalse(is_url('http://example.com['))
+        self.assertTrue(is_url(b'http://example.com'))
         self.assertFalse(is_url(' \t<root/>'))
+        self.assertFalse(is_url(b'  <root/>'))
         self.assertFalse(is_url('line1\nline2'))
         self.assertFalse(is_url(None))
 

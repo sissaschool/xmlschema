@@ -172,7 +172,10 @@ def is_url(obj):
     """
     if not isinstance(obj, (str, bytes)):
         return False
-    elif '\n' in obj or obj.lstrip().startswith('<'):
+    elif isinstance(obj, str):
+        if '\n' in obj or obj.lstrip().startswith('<'):
+            return False
+    elif b'\n' in obj or obj.lstrip().startswith(b'<'):
         return False
 
     try:
@@ -607,10 +610,10 @@ class XMLResource:
                 self._text = None
                 self._lazy = lazy
 
-        elif isinstance(source, str):
+        elif isinstance(source, (str, bytes)):
             # source is a string containing an XML document
             _url, self._url = self._url, None
-            resource = StringIO(source)
+            resource = StringIO(source) if isinstance(source, str) else BytesIO(source)
             try:
                 if not lazy:
                     self._parse(resource)
