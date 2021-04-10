@@ -18,7 +18,7 @@ except ImportError:
     lxml_etree = None
 
 from xmlschema import XMLSchema10, XMLSchema11, fetch_namespaces, etree_tostring, \
-    XMLSchemaValidationError, DataElement, DataElementConverter
+    XMLSchemaValidationError, DataElement, DataElementConverter, XMLResource
 
 from xmlschema.helpers import is_etree_element
 from xmlschema.dataobjects import DataBindingMeta, DataBindingConverter
@@ -413,7 +413,8 @@ class TestDataBindings(TestDataObjects):
             etree_elements_assert_equal(col_data.encode(), self.col_xml_root, strict=False)
         )
 
-        col_data2 = col_element_class.fromsource(self.col_xml_filename, converter=self.converter)
+        source = XMLResource(self.col_xml_filename, allow='local')
+        col_data2 = col_element_class.fromsource(source, converter=self.converter)
 
         self.assertEqual(len(list(col_data.iter())), len(list(col_data2.iter())))
         for data_element, data_element2 in zip(col_data.iter(), col_data2.iter()):

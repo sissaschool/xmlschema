@@ -12,7 +12,7 @@ import unittest
 from textwrap import dedent
 
 from xmlschema import XMLSchemaParseError, XMLSchemaValidationError
-from xmlschema.validators import XMLSchema11, XsdAttribute
+from xmlschema.validators import XMLSchema11, XsdAttribute, XsdAttributeGroup
 from xmlschema.testing import XsdValidatorTestCase
 from xmlschema.names import XSI_NAMESPACE, XSD_ANY_SIMPLE_TYPE, XSD_STRING
 
@@ -105,8 +105,10 @@ class TestXsdAttributes(XsdValidatorTestCase):
             </xs:attributeGroup>
             <xs:attribute name="phone" type="xs:string" default="555-0100"/>
         </xs:schema>""")
-        self.assertTrue(schema.attribute_groups['contact']['phone'].qualified)
-        self.assertEqual(schema.attribute_groups['contact']['phone'].default, '555-0100')
+
+        xsd_attribute = schema.attribute_groups['contact']['phone']
+        self.assertTrue(xsd_attribute.qualified)
+        self.assertEqual(xsd_attribute.default, '555-0100')
 
         schema = self.check_schema("""
         <xs:attributeGroup name="extra">
@@ -114,8 +116,10 @@ class TestXsdAttributes(XsdValidatorTestCase):
         </xs:attributeGroup>
         <xs:attribute name="phone" type="xs:string" fixed="555-0100"/>
         """)
-        self.assertEqual(schema.attribute_groups['extra']['phone'].fixed, '555-0100')
-        self.assertIsNone(schema.attribute_groups['extra']['phone'].annotation)
+
+        xsd_attribute = schema.attribute_groups['extra']['phone']
+        self.assertEqual(xsd_attribute.fixed, '555-0100')
+        self.assertIsNone(xsd_attribute.annotation)
 
         schema = self.check_schema("""
         <xs:attributeGroup name="extra">
@@ -125,8 +129,10 @@ class TestXsdAttributes(XsdValidatorTestCase):
         </xs:attributeGroup>
         <xs:attribute name="phone" type="xs:string" fixed="555-0100"/>
         """)
-        self.assertEqual(schema.attribute_groups['extra']['phone'].fixed, '555-0100')
-        self.assertIsNotNone(schema.attribute_groups['extra']['phone'].annotation)
+
+        xsd_attribute = schema.attribute_groups['extra']['phone']
+        self.assertEqual(xsd_attribute.fixed, '555-0100')
+        self.assertIsNotNone(xsd_attribute.annotation)
 
         self.check_schema("""
         <xs:attributeGroup name="extra">
@@ -296,6 +302,63 @@ class TestXsdAttributes(XsdValidatorTestCase):
             self.assertEqual(ctx.exception.message,
                              "xs:ID key attributes cannot have a fixed value")
 
+    def test_attribute_group_mapping(self):
+        schema = self.get_schema("""
+            <xs:attributeGroup name="attrs">
+                <xs:attribute name="a1" type="xs:string"/>
+                <xs:attribute name="a2" type="xs:string"/>
+            </xs:attributeGroup>""")
+
+        attribute_group = schema.attribute_groups['attrs']
+        self.assertEqual(repr(attribute_group), "XsdAttributeGroup(name='attrs')")
+
+        with self.assertRaises(ValueError) as ec:
+            attribute_group['a3'] = attribute_group['a2']
+        self.assertEqual("'a2' name and key 'a3' mismatch", str(ec.exception))
+
+        xsd_attribute = attribute_group['a2']
+        del attribute_group['a2']
+        self.assertNotIn('a2', attribute_group)
+        attribute_group['a2'] = xsd_attribute
+
+    def test_attribute_group_reference(self):
+        schema = self.get_schema("""
+            <xs:attributeGroup name="alpha">
+                <xs:attribute name="name" type="xs:string"/>
+                <xs:attributeGroup ref="beta"/>
+            </xs:attributeGroup>
+            <xs:attributeGroup name="beta">
+                <xs:attribute name="foo" type="xs:string"/>
+                <xs:attribute name="bar" type="xs:string"/>
+            </xs:attributeGroup>""")
+
+        # ref="beta" does not imply a reference but only a copy
+        # of the attributes of referred attribute group.
+        attribute_group = schema.attribute_groups['alpha']
+        self.assertNotIn('beta', attribute_group)
+        self.assertEqual(len(attribute_group), 3)
+        self.assertIn('name', attribute_group)
+        self.assertIn('foo', attribute_group)
+        self.assertIn('bar', attribute_group)
+
+    def test_missing_attribute_group_name(self):
+        schema = self.get_schema("""
+            <xs:attributeGroup>
+                <xs:annotation/>
+                <xs:attribute name="a1" type="xs:string"/>
+                <xs:attribute name="a2" type="xs:string"/>
+            </xs:attributeGroup>""", validation='lax')
+
+        self.assertEqual(len(schema.all_errors), 2)
+        self.assertTrue(isinstance(schema.all_errors[0], XMLSchemaParseError))
+        self.assertIn("missing required attribute 'name'", str(schema.all_errors[0]))
+        self.assertTrue(isinstance(schema.all_errors[1], XMLSchemaParseError))
+        self.assertIn("missing key field '@name'", str(schema.all_errors[1]))
+
+        self.assertEqual(len(schema.attribute_groups), 0)
+        attribute_group = XsdAttributeGroup(schema.root[0], schema, parent=None)
+        self.assertIsNone(attribute_group.name)
+
     def test_missing_attribute_group_reference(self):
         self.check_schema("""
         <xs:attributeGroup name="alpha">
@@ -304,13 +367,79 @@ class TestXsdAttributes(XsdValidatorTestCase):
         </xs:attributeGroup>
         """, XMLSchemaParseError)
 
-        schema = self.check_schema("""
+        self.check_schema("""
+        <xs:attributeGroup name="alpha">
+            <xs:attribute name="name" type="xs:string"/>
+            <xs:attributeGroup ref="x:beta"/>  <!-- Unresolved name -->
+        </xs:attributeGroup>
+        <xs:attributeGroup name="beta">
+            <xs:attribute name="foo" type="xs:string"/>
+            <xs:attribute name="bar" type="xs:string"/>
+        </xs:attributeGroup>
+        """, XMLSchemaParseError)
+
+        schema = self.get_schema("""
             <xs:attributeGroup name="alpha">
                 <xs:attribute name="name" type="xs:string"/>
                 <xs:attributeGroup name="beta"/>  <!-- attribute "name" instead of "ref" -->
             </xs:attributeGroup>
             """, validation='lax')
         self.assertTrue(isinstance(schema.all_errors[1], XMLSchemaParseError))
+
+    def test_attribute_wildcards(self):
+        schema = self.get_schema("""
+            <xs:attributeGroup name="attrs">
+                <xs:attribute name="a1" type="xs:string"/>
+                <xs:attribute name="a2" type="xs:string"/>
+                <xs:anyAttribute namespace="other"/>
+            </xs:attributeGroup>""")
+
+        attribute_group = schema.attribute_groups['attrs']
+        self.assertEqual(len(attribute_group), 3)
+        self.assertIn(None, attribute_group)
+
+        schema = self.get_schema("""
+            <xs:attributeGroup name="attrs">
+                <xs:attribute name="a1" type="xs:string"/>
+                <xs:attribute name="a2" type="xs:string"/>
+                <xs:anyAttribute namespace="other"/>
+                <xs:anyAttribute namespace="#all"/>
+                <xs:attribute name="a3" type="xs:string"/>
+            </xs:attributeGroup>""", validation='lax')
+
+        self.assertEqual(len(schema.all_errors), 3)
+        self.assertTrue(isinstance(schema.all_errors[0], XMLSchemaParseError))
+        self.assertIn("Unexpected child with tag 'xs:anyAttribute'", str(schema.all_errors[0]))
+        self.assertTrue(isinstance(schema.all_errors[1], XMLSchemaParseError))
+        self.assertIn("more anyAttribute declarations", str(schema.all_errors[1]))
+        self.assertTrue(isinstance(schema.all_errors[2], XMLSchemaParseError))
+        self.assertIn("another declaration after anyAttribute", str(schema.all_errors[2]))
+
+    def test_duplicated_attribute(self):
+        with self.assertRaises(XMLSchemaParseError) as ec:
+            self.get_schema("""
+                <xs:attributeGroup name="attrs">
+                    <xs:attribute name="a1" type="xs:string"/>
+                    <xs:attribute name="a2" type="xs:string"/>
+                    <xs:attribute name="a2" type="xs:string"/>
+                </xs:attributeGroup>""")
+
+        self.assertIn("multiple declaration for attribute 'a2'", str(ec.exception))
+
+    def test_duplicated_attribute_group_ref(self):
+        with self.assertRaises(XMLSchemaParseError) as ec:
+            self.get_schema("""
+                <xs:attributeGroup name="attrs">
+                    <xs:attribute name="a1" type="xs:string"/>
+                    <xs:attributeGroup ref="other"/>
+                    <xs:attributeGroup ref="other"/>
+                </xs:attributeGroup>
+                <xs:attributeGroup name="other">
+                    <xs:attribute name="a2" type="xs:string"/>
+                    <xs:attribute name="a3" type="xs:string"/>
+                </xs:attributeGroup>""")
+
+        self.assertIn("duplicated attributeGroup 'other'", str(ec.exception))
 
     def test_scope_property(self):
         schema = self.check_schema("""

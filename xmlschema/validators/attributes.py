@@ -58,7 +58,7 @@ class XsdAttribute(XsdComponent, ValidationMixin):
     inheritable = False  # For XSD 1.1 attributes, always False for XSD 1.0 attributes.
 
     def _parse(self):
-        super(XsdAttribute, self)._parse()
+        super()._parse()
         attrib = self.elem.attrib
 
         if 'use' in attrib and self.parent is not None and \
@@ -293,7 +293,7 @@ class Xsd11Attribute(XsdAttribute):
             return self.schema.target_namespace
 
     def _parse(self):
-        super(Xsd11Attribute, self)._parse()
+        super()._parse()
         if self.use == 'prohibited' and 'fixed' in self.elem.attrib:
             self.parse_error("attribute 'fixed' with use=prohibited is not allowed in XSD 1.1")
         if 'inheritable' in self.elem.attrib:
@@ -326,9 +326,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
         XsdComponent.__init__(self, elem, schema, parent)
 
     def __repr__(self):
-        if self.ref is not None:
-            return '%s(ref=%r)' % (self.__class__.__name__, self.name)
-        elif self.name is not None:
+        if self.name is not None:
             return '%s(name=%r)' % (self.__class__.__name__, self.name)
         elif self:
             names = [a if a.name is None else a.name for a in self.values()]
@@ -341,19 +339,9 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
         return self._attribute_group[key]
 
     def __setitem__(self, key, value: Union[XsdAttribute, XsdAnyAttribute]):
-        if key is None:
-            self._attribute_group[key] = value
-        else:
-            if key[0] != '{':
-                if value.local_name != key:
-                    raise XMLSchemaValueError("%r name and key %r mismatch." % (value.name, key))
-                if value.target_namespace != self.target_namespace:
-                    # Qualify attributes of other namespaces
-                    key = value.qualified_name
-            elif value.qualified_name != key:
-                raise XMLSchemaValueError("%r name and key %r mismatch." % (value.name, key))
-
-            self._attribute_group[key] = value
+        if value.name != key:
+            raise XMLSchemaValueError("%r name and key %r mismatch" % (value.name, key))
+        self._attribute_group[key] = value
 
     def __delitem__(self, key):
         del self._attribute_group[key]
@@ -369,27 +357,26 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
         return len(self._attribute_group)
 
     def _parse(self):
-        super(XsdAttributeGroup, self)._parse()
-        any_attribute = None
-        attribute_group_refs = []
+        super()._parse()
 
         if self.elem.tag == XSD_ATTRIBUTE_GROUP:
             if self.parent is not None:
-                return  # Skip dummy definitions
+                return  # Skip parsing dummy instances
             try:
                 self.name = get_qname(self.target_namespace, self.elem.attrib['name'])
             except KeyError:
-                self.parse_error("an attribute group declaration requires a 'name' attribute.")
                 return
             else:
                 if self.schema.default_attributes == self.name and self.xsd_version > '1.0':
                     self.schema.default_attributes = self
 
+        any_attribute = None
+        attribute_group_refs = []
         attributes: Dict[Optional[str], Union[XsdAttribute, XsdAnyAttribute]] = {}
 
         for child in self.elem:
             if child.tag == XSD_ANNOTATION or callable(child.tag):
-                continue
+                continue  # pragma: no cover
             elif any_attribute is not None:
                 if child.tag == XSD_ANY_ATTRIBUTE:
                     self.parse_error("more anyAttribute declarations in the same attribute group")
@@ -405,16 +392,12 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                     attributes[None] = any_attribute
 
             elif child.tag == XSD_ATTRIBUTE:
-                try:
-                    attribute = self.schema.BUILDERS.attribute_class(child, self.schema, self)
-                except TypeError as err:
-                    self.parse_error(err, elem=child)
-                else:
-                    if attribute.name in attributes:
-                        self.parse_error("multiple declaration for attribute "
-                                         "{!r}".format(attribute.name))
-                    elif attribute.use != 'prohibited' or self.elem.tag != XSD_ATTRIBUTE_GROUP:
-                        attributes[attribute.name] = attribute
+                attribute = self.schema.BUILDERS.attribute_class(child, self.schema, self)
+                if attribute.name in attributes:
+                    self.parse_error("multiple declaration for attribute "
+                                     "{!r}".format(attribute.name))
+                elif attribute.use != 'prohibited' or self.elem.tag != XSD_ATTRIBUTE_GROUP:
+                    attributes[attribute.name] = attribute
 
             elif child.tag == XSD_ATTRIBUTE_GROUP:
                 try:
@@ -572,7 +555,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
 
     def parse_error(self, error, elem=None, validation=None):
         if self.parent is None:
-            super(XsdAttributeGroup, self).parse_error(error, elem, validation)
+            super().parse_error(error, elem, validation)
         else:
             self.parent.parse_error(error, elem, validation)
 
@@ -598,10 +581,10 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
     def iter_components(self, xsd_classes=None):
         if xsd_classes is None or isinstance(self, xsd_classes):
             yield self
-        if self.ref is None:
-            for attr in self.values():
-                if attr.parent is not None:
-                    yield from attr.iter_components(xsd_classes)
+
+        for attr in self.values():
+            if attr.parent is not None:
+                yield from attr.iter_components(xsd_classes)
 
     def iter_decode(self, attrs, validation='lax', **kwargs):
         if not attrs and not self:
@@ -631,14 +614,14 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
         result_list = []
         for name, value in attrs.items():
             try:
-                xsd_attribute = self[name]
+                xsd_attribute = self._attribute_group[name]
             except KeyError:
                 if get_namespace(name) == XSI_NAMESPACE:
                     try:
                         xsd_attribute = self.maps.lookup_attribute(name)
                     except LookupError:
                         try:
-                            xsd_attribute = self[None]  # None key ==> anyAttribute
+                            xsd_attribute = self._attribute_group[None]  # None == anyAttribute
                             value = (name, value)
                         except KeyError:
                             reason = "%r is not an attribute of the XSI namespace." % name
@@ -646,7 +629,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                             continue
                 else:
                     try:
-                        xsd_attribute = self[None]  # None key ==> anyAttribute
+                        xsd_attribute = self._attribute_group[None]  # None == anyAttribute
                         value = (name, value)
                     except KeyError:
                         reason = "%r attribute not allowed for element." % name
@@ -654,7 +637,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                         continue
             else:
                 if xsd_attribute.use == 'prohibited' and \
-                        (None not in self or not self[None].is_matching(name)):
+                        (None not in self or not self._attribute_group[None].is_matching(name)):
                     reason = "use of attribute %r is prohibited" % name
                     yield self.validation_error(validation, reason, attrs, **kwargs)
 
@@ -694,7 +677,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
         result_list = []
         for name, value in attrs.items():
             try:
-                xsd_attribute = self[name]
+                xsd_attribute = self._attribute_group[name]
             except KeyError:
                 namespace = get_namespace(name) or self.target_namespace
                 if namespace == XSI_NAMESPACE:
@@ -702,7 +685,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                         xsd_attribute = self.maps.lookup_attribute(name)
                     except LookupError:
                         try:
-                            xsd_attribute = self[None]  # None key ==> anyAttribute
+                            xsd_attribute = self._attribute_group[None]  # None == anyAttribute
                             value = (name, value)
                         except KeyError:
                             reason = "%r is not an attribute of the XSI namespace." % name
@@ -710,7 +693,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                             continue
                 else:
                     try:
-                        xsd_attribute = self[None]  # None key ==> anyAttribute
+                        xsd_attribute = self._attribute_group[None]  # None == anyAttribute
                         value = (name, value)
                     except KeyError:
                         reason = "%r attribute not allowed for element." % name

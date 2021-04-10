@@ -10,6 +10,7 @@
 #
 import unittest
 import os
+import json
 from decimal import Decimal
 from collections.abc import MutableMapping, MutableSequence, Set
 import base64
@@ -1137,6 +1138,19 @@ class TestDecoding(XsdValidatorTestCase):
         # ElementTree accepts also bytes but emits Unicode strings only
         for value in iter_nested_iterables(obj):
             self.assertNotIsInstance(value, bytes)
+
+    def test_issue_240__decode_unicode_to_json(self):
+        schema = self.get_schema('<xs:element name="chars" type="xs:string"/>')
+
+        xml_data = '<chars>øæå</chars>'
+        obj = xmlschema.to_dict(xml_data, schema=schema, decimal_type=str)
+        self.assertEqual(obj, 'øæå')
+        self.assertEqual(obj, schema.decode(xml_data, decimal_type=str))
+
+        json_data = json.dumps(obj, indent=4)
+        self.assertEqual(obj, 'øæå')
+        self.assertIsInstance(obj, str)
+        self.assertEqual(json_data.encode("utf-8"), b'"\\u00f8\\u00e6\\u00e5"')
 
 
 class TestDecoding11(TestDecoding):
