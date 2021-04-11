@@ -2,6 +2,11 @@
 CHANGELOG
 *********
 
+`v1.6.1`_ (2021-04-11)
+======================
+* Add multi-source initialization and add_schema() to schema class
+* Add bytes strings to accepted XML sources (issue #238)
+
 `v1.6.0`_ (2021-04-06)
 ======================
 * XML data bindings and code generators are now considered stable
@@ -430,3 +435,4 @@ v0.9.6 (2017-05-05)
 .. _v1.5.2: https://github.com/brunato/xmlschema/compare/v1.5.1...v1.5.2
 .. _v1.5.3: https://github.com/brunato/xmlschema/compare/v1.5.2...v1.5.3
 .. _v1.6.0: https://github.com/brunato/xmlschema/compare/v1.5.3...v1.6.0
+.. _v1.6.1: https://github.com/brunato/xmlschema/compare/v1.6.0...v1.6.1
