@@ -283,7 +283,7 @@ class TestResources(unittest.TestCase):
         self.assertEqual(resource.source, self.vh_xml_file)
         self.assertEqual(resource.root.tag, '{http://example.com/vehicles}vehicles')
         self.check_url(resource.url, self.vh_xml_file)
-        self.assertTrue(resource.filepath.endswith(self.vh_xml_file))
+        self.assertTrue(resource.filepath.endswith('vehicles.xml'))
         self.assertIsNone(resource.text)
         with self.assertRaises(XMLResourceError) as ctx:
             resource.load()
