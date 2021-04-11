@@ -411,7 +411,10 @@ class XsdGlobals(XsdValidator):
         else:
             if schema in ns_schemas:
                 return
-            elif not any(schema.url == obj.url and schema.__class__ == obj.__class__
+            elif schema.url is None:
+                # only by multi-source init or add_schema() by user initiative
+                ns_schemas.append(schema)
+            elif not any(schema.url == obj.url and schema.__class__ is obj.__class__
                          for obj in ns_schemas):
                 ns_schemas.append(schema)
 
@@ -537,7 +540,7 @@ class XsdGlobals(XsdValidator):
                     schema.meta_schema = meta_schema
         else:
             if not self.types and meta_schema.maps is not self:
-                for source_map, target_map in zip(meta_schema.global_maps, self.global_maps):
+                for source_map, target_map in zip(meta_schema.maps.global_maps, self.global_maps):
                     target_map.update(source_map)
 
         not_built_schemas = [schema for schema in self.iter_schemas() if not schema.built]

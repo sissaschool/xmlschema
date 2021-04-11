@@ -138,10 +138,13 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
     Base class for an XML Schema instance.
 
     :param source: an URI that reference to a resource or a file path or a file-like \
-    object or a string containing the schema or an Element or an ElementTree document.
+    object or a string containing the schema or an Element or an ElementTree document \
+    or an :class:`XMLRecource` instance. A multi source initialization is supported \
+    providing a not empty list of XSD sources.
     :type source: Element or ElementTree or str or file-like object
-    :param namespace: is an optional argument that contains the URI of the namespace. \
-    When specified it must be equal to the *targetNamespace* declared in the schema.
+    :param namespace: is an optional argument that contains the URI of the namespace \
+    that has to used in case the schema has no namespace (chameleon schema). For other \
+    cases, when specified, it must be equal to the *targetNamespace* of the schema.
     :type namespace: str or None
     :param validation: the XSD validation mode to use for build the schema, \
     that can be 'strict' (default), 'lax' or 'skip'.
@@ -308,6 +311,13 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             # Allow sandbox mode without a base_url using the initial schema URL as base
             base_url = os.path.dirname(normalize_url(source))
 
+        if not isinstance(source, list):
+            other_sources = None
+        elif not source:
+            raise XMLSchemaValueError("no XSD source provided!")
+        else:
+            source, other_sources = source[0], source[1:]
+
         if isinstance(source, XMLResource):
             self.source = source
         else:
@@ -448,6 +458,17 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
                 if child.tag == XSD_DEFAULT_OPEN_CONTENT:
                     self.default_open_content = XsdDefaultOpenContent(child, self)
                     break
+
+        if other_sources:
+            for _source in other_sources:
+                if not isinstance(_source, XMLResource):
+                    _source = XMLResource(_source, base_url, allow, defuse, timeout)
+
+                if not _source.root.get('targetNamespace') and self.target_namespace:
+                    # Adding a chameleon schema: set the namespace with targetNamespace
+                    self.add_schema(_source, namespace=self.target_namespace)
+                else:
+                    self.add_schema(_source)
 
         try:
             if build:
@@ -1035,12 +1056,13 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
                 else:
                     schema.redefine = self
 
-    def include_schema(self, location, base_url=None):
+    def include_schema(self, location, base_url=None, build=False):
         """
         Includes a schema for the same namespace, from a specific URL.
 
         :param location: is the URL of the schema.
         :param base_url: is an optional base URL for fetching the schema resource.
+        :param build: defines when to build the imported schema, the default is to not build.
         :return: the included :class:`XMLSchema` instance.
         """
         schema_url = fetch_resource(location, base_url)
@@ -1060,7 +1082,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
                 allow=self.allow,
                 defuse=self.defuse,
                 timeout=self.timeout,
-                build=False,
+                build=build,
             )
 
         if schema is self:
@@ -1207,6 +1229,32 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             )
         self.imports[namespace] = schema
         return schema
+
+    def add_schema(self, source, namespace=None, build=False):
+        """
+        Add another schema source to the maps of the instance.
+
+        :param source: an URI that reference to a resource or a file path or a file-like \
+        object or a string containing the schema or an Element or an ElementTree document.
+        :param namespace: is an optional argument that contains the URI of the namespace \
+        that has to used in case the schema has no namespace (chameleon schema). For other \
+        cases, when specified, it must be equal to the *targetNamespace* of the schema.
+        :param build: defines when to build the imported schema, the default is to not build.
+        :return: the added :class:`XMLSchema` instance.
+        """
+        return type(self)(
+            source=source,
+            namespace=namespace,
+            validation=self.validation,
+            global_maps=self.maps,
+            converter=self.converter,
+            locations=self._locations,
+            base_url=self.base_url,
+            allow=self.allow,
+            defuse=self.defuse,
+            timeout=self.timeout,
+            build=build,
+        )
 
     def export(self, target, save_remote=False):
         """

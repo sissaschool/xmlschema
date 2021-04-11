@@ -486,6 +486,101 @@ class TestXMLSchema10(XsdValidatorTestCase):
         elements.reverse()
         self.assertListEqual(elements, list(reversed(schema)))
 
+    def test_multi_schema_initilization(self):
+        source1 = dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:element name="elem1"/>
+            </xs:schema>""")
+
+        source2 = dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:element name="elem2"/>
+            </xs:schema>""")
+
+        source3 = dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:element name="elem3"/>
+            </xs:schema>""")
+
+        schema = self.schema_class([source1, source2, source3])
+        self.assertEqual(len(schema.elements), 3)
+        self.assertEqual(len(schema.maps.namespaces['']), 3)
+        self.assertIs(schema.elements['elem1'].schema, schema)
+        self.assertIs(schema.elements['elem2'].schema, schema.maps.namespaces[''][1])
+        self.assertIs(schema.elements['elem3'].schema, schema.maps.namespaces[''][2])
+
+        with self.assertRaises(XMLSchemaParseError) as ec:
+            self.schema_class([source1, source2, source2])
+        self.assertIn("global element with name='elem2' is already defined", str(ec.exception))
+
+        source1 = dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+                    targetNamespace="http://xmlschema.test/ns">
+                <xs:element name="elem1"/>
+            </xs:schema>""")
+
+        schema = self.schema_class([source1, source2])
+        self.assertEqual(len(schema.elements), 2)
+        self.assertEqual(len(schema.maps.namespaces['http://xmlschema.test/ns']), 2)
+        self.assertIs(schema.elements['elem1'].schema, schema)
+        self.assertIs(schema.elements['elem2'].schema,
+                      schema.maps.namespaces['http://xmlschema.test/ns'][1])
+
+    def test_add_schema(self):
+        source1 = dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+                    targetNamespace="http://xmlschema.test/ns">
+                <xs:element name="elem1"/>
+            </xs:schema>""")
+
+        source2 = dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:element name="elem2"/>
+            </xs:schema>""")
+
+        source3 = dedent("""\
+             <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+                     targetNamespace="http://xmlschema.test/ns1">
+                 <xs:element name="elem3"/>
+             </xs:schema>""")
+
+        schema = self.schema_class(source1)
+        schema.add_schema(source2, build=True)
+        self.assertEqual(len(schema.elements), 1)
+        self.assertEqual(len(schema.maps.namespaces['http://xmlschema.test/ns']), 1)
+        self.assertEqual(len(schema.maps.namespaces['']), 1)
+
+        # Less checks on duplicate objects for schemas added after the build
+        schema.add_schema(source2, build=True)
+        self.assertEqual(len(schema.maps.namespaces['']), 2)
+        self.assertTrue(schema.maps.built)
+
+        with self.assertRaises(XMLSchemaParseError) as ec:
+            schema.maps.clear()
+            schema.build()
+        self.assertIn("global element with name='elem2' is already defined", str(ec.exception))
+
+        schema = self.schema_class(source1)
+        schema.add_schema(source2, namespace='http://xmlschema.test/ns', build=True)
+        self.assertEqual(len(schema.maps.namespaces['http://xmlschema.test/ns']), 2)
+
+        # Need a rebuild to add elem2 from added schema ...
+        self.assertEqual(len(schema.elements), 1)
+        schema.maps.clear()
+        schema.build()
+        self.assertEqual(len(schema.elements), 2)
+
+        # ... so is better to build after sources additions
+        schema = self.schema_class(source1, build=False)
+        schema.add_schema(source2, namespace='http://xmlschema.test/ns')
+        schema.build()
+        self.assertEqual(len(schema.elements), 2)
+
+        # Adding other namespaces do not require rebuild
+        schema3 = schema.add_schema(source3, build=True)
+        self.assertEqual(len(schema.maps.namespaces['http://xmlschema.test/ns1']), 1)
+        self.assertEqual(len(schema3.elements), 1)
+
     def test_export_errors__issue_187(self):
         with self.assertRaises(ValueError) as ctx:
             self.vh_schema.export(target=self.vh_dir)
