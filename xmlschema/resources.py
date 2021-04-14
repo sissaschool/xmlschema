@@ -759,7 +759,7 @@ class XMLResource:
             msg = "{!r} is not an element or the XML resource tree"
             raise XMLResourceError(msg.format(elem))
 
-        resource = XMLResource(elem, self._base_url, self._allow, self._defuse, self._timeout)
+        resource = XMLResource(elem, self.base_url, self._allow, self._defuse, self._timeout)
         if not hasattr(elem, 'nsmap'):
             namespaces = {}
             _nsmap = self._nsmap[elem]
