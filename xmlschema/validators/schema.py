@@ -1826,7 +1826,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         :param unordered: a flag for explicitly activating unordered encoding mode for \
         content model data. This mode uses content models for a reordered-by-model \
         iteration of the child elements.
-        :param kwargs: Keyword arguments containing options for converter and encoding.
+        :param kwargs: keyword arguments containing options for converter.
         :return: yields an Element instance/s or validation/encoding errors.
         """
         self.check_validator(validation)

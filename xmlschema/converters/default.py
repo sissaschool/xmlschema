@@ -55,12 +55,13 @@ class XMLSchemaConverter(NamespaceMapper):
     :param strip_namespaces: if set to `True` removes namespace declarations from data and \
     namespace information from names, during decoding or encoding. Defaults to `False`.
     :param preserve_root: if set to `True` the root element is preserved, wrapped into a \
-    single-item dictionary. Applicable only to default converter and to :class:`ParkerConverter`.
+    single-item dictionary. Applicable only to default converter, to \
+    :class:`UnorderedConverter` and to :class:`ParkerConverter`.
     :param force_dict: if set to `True` complex elements with simple content are decoded \
-    with a dictionary also if there are no decoded attributes. Applicable to default converter \
-    only. Defaults to `False`.
+    with a dictionary also if there are no decoded attributes. Applicable only to default \
+    converter and to :class:`UnorderedConverter`. Defaults to `False`.
     :param force_list: if set to `True` child elements are decoded within a list in any case. \
-    Applicable to default converter only. Defaults to `False`.
+    Applicable only to default converter and to :class:`UnorderedConverter`. Defaults to `False`.
 
     :ivar dict: dictionary class to use for decoded data.
     :ivar list: list class to use for decoded data.
@@ -294,7 +295,12 @@ class XMLSchemaConverter(NamespaceMapper):
                 return self.dict(
                     [(self.map_qname(data.tag), result_dict if result_dict else None)]
                 )
-            return result_dict if result_dict else None
+
+            if not result_dict:
+                return None
+            elif len(result_dict) == 1 and self.text_key in result_dict:
+                return result_dict[self.text_key]
+            return result_dict
 
     def element_encode(self, obj, xsd_element, level=0):
         """
@@ -318,8 +324,8 @@ class XMLSchemaConverter(NamespaceMapper):
         if not isinstance(obj, MutableMapping):
             if xsd_element.type.simple_type is not None:
                 return ElementData(tag, obj, None, {})
-            elif xsd_element.type.mixed and not isinstance(obj, MutableSequence):
-                return ElementData(tag, obj, None, {})
+            elif xsd_element.type.mixed and isinstance(obj, (str, bytes)):
+                return ElementData(tag, None, [(1, obj)], {})
             else:
                 return ElementData(tag, None, obj, {})
 

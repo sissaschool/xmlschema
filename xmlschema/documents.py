@@ -289,7 +289,8 @@ def from_json(source, schema, path=None, converter=None, json_options=None, **kw
     :param converter: an :class:`XMLSchemaConverter` subclass or instance to use \
     for the encoding.
     :param json_options: a dictionary with options for the JSON deserializer.
-    :param kwargs: Keyword arguments containing options for converter and encoding.
+    :param kwargs: other optional arguments of :meth:`XMLSchema.iter_encode` and \
+    options for converter.
     :return: An element tree's Element instance. If ``validation='lax'`` keyword argument is \
     provided the validation errors are collected and returned coupled in a tuple with the \
     Element instance.

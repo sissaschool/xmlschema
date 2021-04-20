@@ -44,6 +44,8 @@ class UnorderedConverter(XMLSchemaConverter):
         if not isinstance(obj, MutableMapping):
             if xsd_element.type.simple_type is not None:
                 return ElementData(tag, obj, None, {})
+            elif xsd_element.type.mixed and isinstance(obj, (str, bytes)):
+                return ElementData(tag, None, [(1, obj)], {})
             else:
                 return ElementData(tag, None, obj, {})
 

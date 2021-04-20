@@ -1034,7 +1034,7 @@ class TestDecoding(XsdValidatorTestCase):
         data = schema.decode(self.casepath('issues/issue_204/issue_204_3.xml'),
                              validation='lax', keep_unknown=True)
         self.assertEqual(set(x for x in data[0] if x[0] != '@'), {'child2', 'unknown', 'child5'})
-        self.assertEqual(data[0]['unknown'], {'a': [{'$': '1'}], 'b': [None]})
+        self.assertEqual(data[0]['unknown'], {'a': ['1'], 'b': [None]})
 
         data = schema.decode(self.casepath('issues/issue_204/issue_204_2.xml'), validation='skip')
         self.assertEqual(set(x for x in data if x[0] != '@'), {'child2', 'child5'})
@@ -1042,7 +1042,7 @@ class TestDecoding(XsdValidatorTestCase):
         data = schema.decode(self.casepath('issues/issue_204/issue_204_3.xml'),
                              validation='skip', keep_unknown=True)
         self.assertEqual(set(x for x in data if x[0] != '@'), {'child2', 'unknown', 'child5'})
-        self.assertEqual(data['unknown'], {'a': [{'$': '1'}], 'b': [None]})
+        self.assertEqual(data['unknown'], {'a': ['1'], 'b': [None]})
 
     def test_error_message__issue_115(self):
         schema = self.schema_class(self.casepath('issues/issue_115/Rotation.xsd'))
@@ -1111,7 +1111,7 @@ class TestDecoding(XsdValidatorTestCase):
         schema = self.schema_class(self.casepath('issues/issue_190/issue_190.xsd'))
         self.assertEqual(
             schema.to_dict(self.casepath('issues/issue_190/issue_190.xml')),
-            {'a': {'c': [{'$': '1'}]}, 'b': {'c': [{'$': '1'}], 'e': [{'$': '1'}]}}
+            {'a': {'c': ['1']}, 'b': {'c': ['1'], 'e': ['1']}}
         )
 
     def test_issue_200(self):
