@@ -26,7 +26,7 @@ from ..helpers import get_qname, get_namespace, etree_iter_location_hints, \
     raw_xml_encode, strictly_equal
 from .. import dataobjects
 from ..converters import ElementData, XMLSchemaConverter
-from ..xpath import XMLSchemaProxy, ElementPathMixin
+from ..xpath import XMLSchemaProxy, ElementPathMixin, XPathElement
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaTypeTableWarning
 from .helpers import get_xsd_derivation_attribute
@@ -34,7 +34,7 @@ from .xsdbase import XSD_TYPE_DERIVATIONS, XSD_ELEMENT_DERIVATIONS, \
     XsdComponent, XsdType, ValidationMixin
 from .particles import ParticleMixin
 from .models import OccursCounter
-from .identities import XsdIdentity, XsdKeyref
+from .identities import IdentityXPathContext, XsdIdentity, XsdKeyref
 from .wildcards import XsdAnyElement
 
 
@@ -577,6 +577,14 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 xsd_type = self.maps.get_instance_type(type_name, xsd_type, namespaces)
             except (KeyError, TypeError) as err:
                 yield self.validation_error(validation, err, elem, **kwargs)
+            else:
+                if self.identities:
+                    xpath_element = XPathElement(self.name, xsd_type)
+                    for identity in self.identities.values():
+                        context = IdentityXPathContext(self.schema, item=xpath_element)
+                        for e in identity.selector.token.select_results(context):
+                            if e not in identity.elements:
+                                identity.elements[e] = None
 
             if xsd_type.is_blocked(self):
                 reason = "usage of %r is blocked" % xsd_type

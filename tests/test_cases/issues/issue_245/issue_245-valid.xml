@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessment xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+ xmlns:vc="http://www.w3.org/2007/XMLSchema-versioning"
+ xmlns="http://www.test.com/XMLSchema/data/2021"
+ xsi:schemaLocation="http://www.test.com/XMLSchema/data/2021 issue_245.xsd">
+    <part xsi:type="ContrastVisionTest">
+        <screen_elements>
+            <contrast_circles>
+                <circle circle_id="1"/>
+                <circle circle_id="0"/>
+                <circle circle_id="2"/>
+            </contrast_circles>
+        </screen_elements>
+        <events>
+            <circle_pressed circle_id="0"/>
+            <circle_pressed circle_id="1"/>
+            <circle_pressed circle_id="2"/>
+        </events>
+    </part>
+</assessment>

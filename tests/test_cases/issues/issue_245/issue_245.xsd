@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:vc="http://www.w3.org/2007/XMLSchema-versioning" elementFormDefault="qualified"
+    attributeFormDefault="unqualified" vc:minVersion="1.1"
+    targetNamespace="http://www.test.com/XMLSchema/data/2021"
+    xmlns="http://www.test.com/XMLSchema/data/2021"
+    xmlns:ad="http://www.test.com/XMLSchema/data/2021">
+    <xs:element name="assessment">
+        <xs:annotation>
+            <xs:documentation>Data about the performed tests.</xs:documentation>
+        </xs:annotation>
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element maxOccurs="unbounded" minOccurs="0" name="part" type="AssessmentPart">
+                    <xs:key name="circle_id_key">
+                        <xs:annotation>
+                            <xs:documentation>For ContrastVisionTest. 
+
+Since all parts are types we can not add keys and keyrefs to them. As such, we add the constraints here.</xs:documentation>
+                        </xs:annotation>
+                        <xs:selector xpath="ad:screen_elements/ad:contrast_circles/ad:circle"/>
+                        <xs:field xpath="@circle_id"/>
+                    </xs:key>
+                    <xs:keyref name="circle_id_keyref" refer="circle_id_key">
+                        <xs:selector xpath="ad:events/ad:circle_pressed"/>
+                        <xs:field xpath="@circle_id"/>
+                    </xs:keyref>
+                </xs:element>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+    <xs:complexType abstract="true" name="AssessmentPart">
+        <xs:annotation>
+            <xs:documentation>Base type for the assessment element.</xs:documentation>
+        </xs:annotation>
+    </xs:complexType>
+    <xs:complexType abstract="true" name="AssessmentTest">
+        <xs:annotation>
+            <xs:documentation>Base type for a test.</xs:documentation>
+        </xs:annotation>
+        <xs:complexContent>
+            <xs:extension base="AssessmentPart"/>
+        </xs:complexContent>
+    </xs:complexType>
+    <xs:complexType name="ContrastVisionTest">
+        <xs:complexContent>
+            <xs:extension base="AssessmentTest">
+                <xs:sequence>
+                    <xs:element name="screen_elements">
+                        <xs:complexType>
+                            <xs:sequence>
+                                <xs:element name="contrast_circles">
+                                    <xs:complexType>
+                                        <xs:sequence>
+                                            <xs:element maxOccurs="3" name="circle" minOccurs="3">
+                                                <xs:complexType>
+                                                  <xs:attribute name="circle_id" use="required">
+                                                  <xs:annotation>
+                                                  <xs:documentation>The id of this circle, used to reference the circle presses.</xs:documentation>
+                                                  </xs:annotation>
+                                                  <xs:simpleType>
+                                                  <xs:restriction base="xs:integer">
+                                                  <xs:minInclusive value="0"/>
+                                                  <xs:maxInclusive value="9"/>
+                                                  </xs:restriction>
+                                                  </xs:simpleType>
+                                                  </xs:attribute>
+                                                </xs:complexType>
+                                            </xs:element>
+                                        </xs:sequence>
+                                    </xs:complexType>
+                                </xs:element>
+                            </xs:sequence>
+                        </xs:complexType>
+                    </xs:element>
+                    <xs:element name="events">
+                        <xs:complexType>
+                            <xs:sequence>
+                                <xs:element maxOccurs="unbounded" minOccurs="0"
+                                    name="circle_pressed">
+                                    <xs:complexType>
+                                        <xs:attribute name="circle_id" type="xs:integer"
+                                            use="required"/>
+                                    </xs:complexType>
+                                </xs:element>
+                            </xs:sequence>
+                        </xs:complexType>
+                    </xs:element>
+                </xs:sequence>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+</xs:schema>

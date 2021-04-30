@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:vc="http://www.w3.org/2007/XMLSchema-versioning" elementFormDefault="qualified"
+    attributeFormDefault="unqualified" vc:minVersion="1.1"
+    xmlns:am="http://www.test.com/XMLSchema/manifest/2021"
+    targetNamespace="http://www.test.com/XMLSchema/manifest/2021"
+    xmlns="http://www.test.com/XMLSchema/manifest/2021">
+    <xs:element name="manifest">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="session">
+                    <xs:complexType>
+                        <xs:sequence>
+                            <xs:element name="userId" nillable="true">
+                                <xs:simpleType>
+                                    <xs:restriction base="xs:string">
+                                        <xs:minLength value="1"/>
+                                    </xs:restriction>
+                                </xs:simpleType>
+                            </xs:element>
+                            <xs:element name="sessionId" nillable="true">
+                                <xs:simpleType>
+                                    <xs:restriction base="xs:integer">
+                                        <xs:minInclusive value="0"/>
+                                    </xs:restriction>
+                                </xs:simpleType>
+                            </xs:element>
+                        </xs:sequence>
+                        <xs:attribute name="anonymous" type="xs:boolean" use="required">
+                        </xs:attribute>
+                        <xs:assert
+                            test="((@anonymous eq true()) and am:userId[@xsi:nil] and am:sessionId[@xsi:nil]) or ((@anonymous eq false()) and am:userId[node()] and am:sessionId[node()])"
+                        />
+                    </xs:complexType>
+                </xs:element>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+</xs:schema>
+

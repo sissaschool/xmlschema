@@ -122,3 +122,6 @@ issues/issue_222/issue_222.xsd
 issues/issue_222/issue_222.xml -L '' issue_222.xsd
 issues/issue_223/issue_223.xsd
 issues/issue_223/issue_223.xml -L '' issue_223.xsd --errors=1  # pattern matching with \n ending
+issues/issue_243/issue_243.xml --version=1.1 -L '' issue_243.xsd
+issues/issue_245/issue_245.xml --version=1.1 --errors=2  # duplicated key value with xsi:type
+issues/issue_245/issue_245-valid.xml --version=1.1

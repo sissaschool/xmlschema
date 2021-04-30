@@ -18,6 +18,7 @@ from elementpath import AttributeNode, TypedElement, XPath2Parser, \
     XPathSchemaContext, AbstractSchemaProxy
 
 from .names import XSD_NAMESPACE
+from .helpers import get_qname, local_name, get_prefixed_qname
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
 
 _REGEX_TAG_POSITION = re.compile(r'\b\[\d+]')
@@ -276,3 +277,49 @@ class ElementPathMixin(Sequence):
         for child in self:
             if tag is None or child.is_matching(tag):
                 yield child
+
+
+class XPathElement(ElementPathMixin):
+    """An element node for making XPath operations on schema types."""
+
+    parent = None
+
+    def __init__(self, name, xsd_type):
+        self.name = name
+        self.type = xsd_type
+        try:
+            self.attributes = xsd_type.attributes
+        except AttributeError:
+            pass
+
+    def __iter__(self):
+        if not self.type.has_simple_content():
+            yield from self.type.content.iter_elements()
+
+    @property
+    def xpath_proxy(self):
+        return XMLSchemaProxy(self.schema, self)
+
+    @property
+    def schema(self):
+        return self.type.schema
+
+    @property
+    def target_namespace(self):
+        return self.type.schema.target_namespace
+
+    @property
+    def namespaces(self):
+        return self.type.schema.namespaces
+
+    @property
+    def local_name(self):
+        return local_name(self.name)
+
+    @property
+    def qualified_name(self):
+        return get_qname(self.target_namespace, self.name)
+
+    @property
+    def prefixed_name(self):
+        return get_prefixed_qname(self.name, self.namespaces)

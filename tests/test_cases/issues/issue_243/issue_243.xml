@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.test.com/XMLSchema/manifest/2021">
+    <session anonymous="true">
+        <userId xsi:nil="true"/>
+        <sessionId xsi:nil="true"/>
+    </session>
+</manifest>
