@@ -27,12 +27,12 @@ setup(
         ]
     },
     python_requires='>=3.6',
-    install_requires=['elementpath>=2.2.1, <3.0.0'],
+    install_requires=['elementpath>=2.2.2, <3.0.0'],
     extras_require={
-        'codegen': ['elementpath>=2.2.1, <3.0.0', 'jinja2'],
-        'dev': ['tox', 'coverage', 'lxml', 'elementpath>=2.2.1, <3.0.0',
+        'codegen': ['elementpath>=2.2.2, <3.0.0', 'jinja2'],
+        'dev': ['tox', 'coverage', 'lxml', 'elementpath>=2.2.2, <3.0.0',
                 'memory_profiler', 'Sphinx', 'sphinx_rtd_theme', 'jinja2'],
-        'docs': ['elementpath>=2.1.2, <3.0.0', 'Sphinx', 'sphinx_rtd_theme', 'jinja2']
+        'docs': ['elementpath>=2.2.2, <3.0.0', 'Sphinx', 'sphinx_rtd_theme', 'jinja2']
     },
     author='Davide Brunato',
     author_email='brunato@sissa.it',
