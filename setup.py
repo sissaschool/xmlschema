@@ -9,14 +9,16 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from setuptools import setup, find_packages
+from pathlib import Path
 
-with open("README.rst") as readme:
+
+with Path(__file__).parent.joinpath('README.rst').open() as readme:
     long_description = readme.read()
 
 
 setup(
     name='xmlschema',
-    version='1.6.2',
+    version='1.6.3',
     packages=find_packages(include=['xmlschema', 'xmlschema.*']),
     include_package_data=True,
     entry_points={

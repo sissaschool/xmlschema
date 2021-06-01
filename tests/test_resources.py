@@ -144,16 +144,16 @@ class TestResources(unittest.TestCase):
         self.check_url(normalize_url('file:///\\k:\\Dir A\\schema.xsd'),
                        'file:///k:\\Dir A\\schema.xsd')
 
+    def test_normalize_url_unc_paths__issue_246(self):
+        url = PureWindowsPath(r'\\host\share\file.xsd').as_uri()
+        self.assertEqual(normalize_url(r'\\host\share\file.xsd'), url)  # file://host/share/file.xsd
+
     def test_normalize_url_slashes(self):
         # Issue #116
-        self.assertEqual(
-            normalize_url('//anaconda/envs/testenv/lib/python3.6/'
-                          'site-packages/xmlschema/validators/schemas/'),
-            'file:///anaconda/envs/testenv/lib/python3.6/'
-            'site-packages/xmlschema/validators/schemas/'
-        )
+        url = '//anaconda/envs/testenv/lib/python3.6/site-packages/xmlschema/validators/schemas/'
+        self.assertEqual(normalize_url(url), pathlib.PurePath(url).as_uri())
         self.assertEqual(normalize_url('/root/dir1/schema.xsd'), 'file:///root/dir1/schema.xsd')
-        self.assertEqual(normalize_url('//root/dir1/schema.xsd'), 'file:///root/dir1/schema.xsd')
+        self.assertEqual(normalize_url('//root/dir1/schema.xsd'), 'file:////root/dir1/schema.xsd')
         self.assertEqual(normalize_url('////root/dir1/schema.xsd'), 'file:///root/dir1/schema.xsd')
 
         self.assertEqual(normalize_url('dir2/schema.xsd', '//root/dir1/'),
@@ -243,7 +243,7 @@ class TestResources(unittest.TestCase):
         self.assertRaises(XMLResourceError, fetch_resource, wrong_path)
 
         right_path = casepath('resources/dummy file.txt')
-        self.assertTrue(fetch_resource(right_path).endswith('dummy file.txt'))
+        self.assertTrue(fetch_resource(right_path).endswith('dummy%20file.txt'))
 
         right_path = Path(casepath('resources/dummy file.txt')).relative_to(os.getcwd())
         self.assertTrue(fetch_resource(str(right_path), '/home').endswith('dummy file.txt'))
@@ -252,7 +252,7 @@ class TestResources(unittest.TestCase):
             fetch_resource(str(right_path.parent.joinpath('dummy_file.txt')), '/home')
 
         ambiguous_path = casepath('resources/dummy file #2.txt')
-        self.assertTrue(fetch_resource(ambiguous_path).endswith('dummy file %232.txt'))
+        self.assertTrue(fetch_resource(ambiguous_path).endswith('dummy%20file%20%232.txt'))
 
         with urlopen(fetch_resource(ambiguous_path)) as res:
             self.assertEqual(res.read(), b'DUMMY CONTENT')

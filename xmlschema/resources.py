@@ -8,6 +8,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import os.path
+import pathlib
 import platform
 import re
 from string import ascii_letters
@@ -94,7 +95,7 @@ def normalize_url(url, base_url=None, keep_relative=False):
         )
 
     def filter_url(x):
-        x = x.strip().replace('\\', '/')
+        x = x.replace('\\', '/')
         while x.startswith('//'):
             x = x.replace('//', '/', 1)
         while x.startswith('file:////'):
@@ -103,10 +104,16 @@ def normalize_url(url, base_url=None, keep_relative=False):
             x = x.replace('#', '%23')
         return x
 
+    url = url.strip()
+    if url.startswith('\\'):
+        return pathlib.PureWindowsPath(url).as_uri()  # UNC path
+    elif url.startswith('/'):
+        return pathlib.PurePath(url).as_uri()
+
     url = filter_url(url)
 
     if base_url is not None:
-        base_url = filter_url(base_url)
+        base_url = filter_url(base_url.strip())
         base_url_parts = urlsplit(base_url)
         base_url = add_trailing_slash(base_url_parts)
         if base_url_parts.scheme not in uses_relative:
