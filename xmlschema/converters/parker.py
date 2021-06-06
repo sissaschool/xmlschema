@@ -25,6 +25,8 @@ class ParkerConverter(XMLSchemaConverter):
     :param preserve_root: If `True` the root element will be preserved. For default \
     the Parker convention remove the document root element, returning only the value.
     """
+    __slots__ = ()
+
     def __init__(self, namespaces=None, dict_class=None, list_class=None,
                  preserve_root=False, **kwargs):
         kwargs.update(attr_prefix=None, text_key='', cdata_prefix=None)

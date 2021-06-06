@@ -78,7 +78,9 @@ class XMLSchemaConverter(NamespaceMapper):
     dict = dict
     list = list
     etree_element_class = etree_element
-    ns_prefix = None
+
+    __slots__ = ('text_key', 'ns_prefix', 'attr_prefix', 'cdata_prefix',
+                 'indent', 'preserve_root', 'force_dict', 'force_list')
 
     def __init__(self, namespaces=None, dict_class=None, list_class=None,
                  etree_element_class=None, text_key='$', attr_prefix='@',
@@ -94,6 +96,7 @@ class XMLSchemaConverter(NamespaceMapper):
         if etree_element_class is not None:
             self.etree_element_class = etree_element_class
 
+        self.ns_prefix = None
         self.text_key = text_key
         self.attr_prefix = attr_prefix
         self.cdata_prefix = cdata_prefix

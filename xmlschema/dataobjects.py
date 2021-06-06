@@ -329,11 +329,10 @@ class DataElementConverter(XMLSchemaConverter):
     :param data_element_class: MutableSequence subclass to use for decoded data. \
     Default is `DataElement`.
     """
-    data_element_class = DataElement
+    __slots__ = 'data_element_class',
 
     def __init__(self, namespaces=None, data_element_class=None, **kwargs):
-        if data_element_class is not None:
-            self.data_element_class = data_element_class
+        self.data_element_class = data_element_class or DataElement
         kwargs.update(attr_prefix='', text_key='', cdata_prefix='')
         super(DataElementConverter, self).__init__(namespaces, **kwargs)
 
@@ -404,6 +403,8 @@ class DataBindingConverter(DataElementConverter):
     *data_element_class* is used for define the base for creating the missing
     XML binding classes.
     """
+    __slots__ = ()
+
     def element_decode(self, data, xsd_element, xsd_type=None, level=0):
         cls = xsd_element.get_binding(self.data_element_class)
         data_element = cls(

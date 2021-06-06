@@ -23,6 +23,8 @@ class ColumnarConverter(XMLSchemaConverter):
     :param attr_prefix: used as separator string for renaming the decoded attributes. \
     Can be the empty string (the default) or a single/double underscore.
     """
+    __slots__ = ()
+
     def __init__(self, namespaces=None, dict_class=None, list_class=None,
                  attr_prefix='', **kwargs):
         kwargs.update(text_key=None, cdata_prefix=None)

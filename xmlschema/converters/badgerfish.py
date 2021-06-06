@@ -23,6 +23,8 @@ class BadgerFishConverter(XMLSchemaConverter):
     :param dict_class: Dictionary class to use for decoded data. Default is `dict`.
     :param list_class: List class to use for decoded data. Default is `list`.
     """
+    __slots__ = ()
+
     def __init__(self, namespaces=None, dict_class=None, list_class=None, **kwargs):
         kwargs.update(attr_prefix='@', text_key='$', cdata_prefix='$')
         super(BadgerFishConverter, self).__init__(

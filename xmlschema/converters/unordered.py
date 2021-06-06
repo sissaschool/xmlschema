@@ -22,6 +22,8 @@ class UnorderedConverter(XMLSchemaConverter):
     As the order of the input dictionary is not preserved, character data
     between sibling elements are interleaved between tags.
     """
+    __slots__ = ()
+
     def element_encode(self, obj, xsd_element, level=0):
         """
         Extracts XML decoded data from a data structure for encoding into an ElementTree.
@@ -31,7 +33,7 @@ class UnorderedConverter(XMLSchemaConverter):
         :param level: the level related to the encoding process (0 means the root).
         :return: an ElementData instance.
         """
-        if level != 0:
+        if level:
             tag = xsd_element.name
         else:
             tag = xsd_element.qualified_name

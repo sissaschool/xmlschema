@@ -26,6 +26,8 @@ class NamespaceResourcesMap(MutableMapping):
     lists of strings. Setting an existing value appends the string to the value.
     Setting a value with a list sets/replaces the value.
     """
+    __slots__ = ('_store',)
+
     def __init__(self, *args, **kwargs):
         self._store = dict()
         self.update(*args, **kwargs)
@@ -70,6 +72,8 @@ class NamespaceMapper(MutableMapping):
     :param strip_namespaces: if set to `True` uses name mapping methods that strip \
     namespace information.
     """
+    __slots__ = '_namespaces', 'strip_namespaces', '__dict__'
+
     def __init__(self, namespaces=None, strip_namespaces=False):
         if namespaces is None:
             self._namespaces = {}
@@ -230,6 +234,8 @@ class NamespaceView(Mapping):
     A read-only map for filtered access to a dictionary that stores
     objects mapped from QNames in extended format.
     """
+    __slots__ = 'target_dict', 'namespace', '_key_fmt'
+
     def __init__(self, qname_dict, namespace_uri):
         self.target_dict = qname_dict
         self.namespace = namespace_uri
