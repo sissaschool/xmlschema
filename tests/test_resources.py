@@ -114,19 +114,20 @@ class TestResources(unittest.TestCase):
         cwd = os.getcwd()
         cwd_url = 'file://{}/'.format(cwd) if cwd.startswith('/') else 'file:///{}/'.format(cwd)
 
+        self.check_url(normalize_url('other.xsd', keep_relative=True), 'file:other.xsd')
         self.check_url(normalize_url('file:other.xsd', keep_relative=True), 'file:other.xsd')
         self.check_url(normalize_url('file:other.xsd'), cwd_url + 'other.xsd')
         self.check_url(normalize_url('file:other.xsd', 'http://site/base', True), 'file:other.xsd')
         self.check_url(normalize_url('file:other.xsd', 'http://site/base'), cwd_url + 'other.xsd')
 
-        self.check_url(normalize_url('dummy path.xsd'), cwd_url + 'dummy path.xsd')
+        self.check_url(normalize_url('dummy path.xsd'), cwd_url + 'dummy%20path.xsd')
         self.check_url(normalize_url('dummy path.xsd', 'http://site/base'),
                        'http://site/base/dummy%20path.xsd')
         self.check_url(normalize_url('dummy path.xsd', 'file://host/home/'),
-                       'file://host/home/dummy path.xsd')
+                       PurePath('//host/home/dummy path.xsd').as_uri())
 
-        url = "file://c:/Downloads/file.xsd"
-        self.check_url(normalize_url(url, base_url="file://d:/Temp/"), url)
+        url = "file:///c:/Downloads/file.xsd"
+        self.check_url(normalize_url(url, base_url="file:///d:/Temp/"), url)
 
     def test_normalize_url_windows(self):
         win_abs_path1 = 'z:\\Dir_1_0\\Dir2-0\\schemas/XSD_1.0/XMLSchema.xsd'
@@ -134,15 +135,18 @@ class TestResources(unittest.TestCase):
         self.check_url(normalize_url(win_abs_path1), win_abs_path1)
 
         self.check_url(normalize_url('k:\\Dir3\\schema.xsd', win_abs_path1),
-                       'file:///k:\\Dir3\\schema.xsd')
+                       'file:///k:/Dir3/schema.xsd')
         self.check_url(normalize_url('k:\\Dir3\\schema.xsd', win_abs_path2),
-                       'file:///k:\\Dir3\\schema.xsd')
+                       'file:///k:/Dir3/schema.xsd')
+
         self.check_url(normalize_url('schema.xsd', win_abs_path2),
-                       'file:///z:\\Dir-1.0\\Dir-2_0/schema.xsd')
+                       'file:///z:/Dir-1.0/Dir-2_0/schema.xsd')
         self.check_url(normalize_url('xsd1.0/schema.xsd', win_abs_path2),
-                       'file:///z:\\Dir-1.0\\Dir-2_0/xsd1.0/schema.xsd')
-        self.check_url(normalize_url('file:///\\k:\\Dir A\\schema.xsd'),
-                       'file:///k:\\Dir A\\schema.xsd')
+                       'file:///z:/Dir-1.0/Dir-2_0/xsd1.0/schema.xsd')
+
+        with self.assertRaises(ValueError) as ec:
+            normalize_url('file:///\\k:\\Dir A\\schema.xsd')
+        self.assertIn("Invalid URI", str(ec.exception))
 
     def test_normalize_url_unc_paths__issue_246(self):
         url = PureWindowsPath(r'\\host\share\file.xsd').as_uri()
@@ -157,19 +161,19 @@ class TestResources(unittest.TestCase):
         self.assertEqual(normalize_url('////root/dir1/schema.xsd'), 'file:///root/dir1/schema.xsd')
 
         self.assertEqual(normalize_url('dir2/schema.xsd', '//root/dir1/'),
-                         'file:///root/dir1/dir2/schema.xsd')
+                         'file:////root/dir1/dir2/schema.xsd')
         self.assertEqual(normalize_url('dir2/schema.xsd', '//root/dir1'),
-                         'file:///root/dir1/dir2/schema.xsd')
+                         'file:////root/dir1/dir2/schema.xsd')
         self.assertEqual(normalize_url('dir2/schema.xsd', '////root/dir1'),
                          'file:///root/dir1/dir2/schema.xsd')
 
     def test_normalize_url_hash_character(self):
         self.check_url(normalize_url('issue #000.xml', 'file:///dir1/dir2/'),
-                       'file:///dir1/dir2/issue %23000.xml')
-        self.check_url(normalize_url('data.xml', 'file:///dir1/dir2/issue 000'),
-                       'file:///dir1/dir2/issue 000/data.xml')
-        self.check_url(normalize_url('data.xml', '/dir1/dir2/issue #000'),
-                       '/dir1/dir2/issue %23000/data.xml')
+                       'file:///dir1/dir2/issue%20%23000.xml')
+        self.check_url(normalize_url('data.xml', 'file:///dir1/dir2/issue%20001'),
+                       'file:///dir1/dir2/issue%20001/data.xml')
+        self.check_url(normalize_url('data.xml', '/dir1/dir2/issue #002'),
+                       '/dir1/dir2/issue%20%23002/data.xml')
 
     def test_is_url_function(self):
         self.assertTrue(is_url(self.col_xsd_file))
@@ -246,7 +250,7 @@ class TestResources(unittest.TestCase):
         self.assertTrue(fetch_resource(right_path).endswith('dummy%20file.txt'))
 
         right_path = Path(casepath('resources/dummy file.txt')).relative_to(os.getcwd())
-        self.assertTrue(fetch_resource(str(right_path), '/home').endswith('dummy file.txt'))
+        self.assertTrue(fetch_resource(str(right_path), '/home').endswith('dummy%20file.txt'))
 
         with self.assertRaises(XMLResourceError):
             fetch_resource(str(right_path.parent.joinpath('dummy_file.txt')), '/home')

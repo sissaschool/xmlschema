@@ -11,11 +11,11 @@ import os.path
 import pathlib
 import platform
 import re
-from string import ascii_letters
+import string
 from elementpath import iter_select, XPath1Parser, XPathContext, XPath2Parser
 from io import StringIO, BytesIO
-from urllib.request import urlopen, pathname2url
-from urllib.parse import uses_relative, urlsplit, urljoin, urlunsplit, unquote
+from urllib.request import urlopen
+from urllib.parse import urlsplit, urlunsplit, unquote, quote_from_bytes
 from urllib.error import URLError
 
 from .exceptions import XMLSchemaTypeError, XMLSchemaValueError, XMLResourceError
@@ -35,6 +35,8 @@ LAZY_XML_XPATH_SYMBOLS = {
     '[', ']', '.', ',', '/', '|', '*', '=', '<', '>', ':', '(end)', '(name)',
     '(string)', '(float)', '(decimal)', '(integer)', '@'
 }
+
+DRIVE_LETTERS = frozenset(string.ascii_letters)
 
 
 class LazyXPath2Parser(XPath2Parser):
@@ -74,100 +76,117 @@ class LazySelector:
 
 ###
 # URL normalization (that fixes many headaches :)
+class _PurePath(pathlib.PurePath):
+    """
+    A version of pathlib.PurePath adapted for managing the creation
+    from URIs and the simple normalization of paths.
+    """
+    def __new__(cls, *args):
+        if cls is _PurePath:
+            cls = _WindowsPurePath if os.name == 'nt' else _PosixPurePath
+        return cls._from_parts(args)
+
+    @classmethod
+    def from_uri(cls, uri):
+        uri = uri.strip()
+        if not uri:
+            XMLSchemaValueError("Empty url provided!")
+
+        if uri.startswith(r'\\'):
+            return _WindowsPurePath(uri)  # UNC path
+        elif uri.startswith('/'):
+            return _PurePath(uri)
+
+        parts = urlsplit(uri)
+        if not parts.scheme:
+            return _PurePath(uri)
+        elif parts.scheme in DRIVE_LETTERS and len(parts.scheme) == 1:
+            return _WindowsPurePath(uri)  # Eg. k:/Python/lib/....
+        elif parts.scheme != 'file':
+            return _PosixPurePath(unquote(parts.path))
+
+        # Get file URI path because urlsplit does not parse it well
+        start = 7 if uri.startswith('file:///') else 5
+        if parts.query:
+            path = uri[start:uri.index('?')]
+        elif parts.fragment:
+            path = uri[start:uri.index('#')]
+        else:
+            path = uri[start:]
+
+        if ':' in path:
+            # Windows path with a drive
+            pos = path.index(':')
+            if pos == 2 and path[0] == '/' and path[1] in DRIVE_LETTERS:
+                return _WindowsPurePath(unquote(path[1:]))
+
+            obj = _WindowsPurePath(unquote(path))
+            if len(obj.drive) != 2 or obj.drive[1] != ':':
+                raise XMLSchemaValueError("Invalid URI {!r}".format(uri))
+            return obj
+
+        if '\\' in path:
+            return _WindowsPurePath(unquote(path))
+        return _PurePath(unquote(path))
+
+    def as_uri(self):
+        if not self.is_absolute():
+            return 'file:{}'.format(self._flavour.make_uri(self)[7:])
+        return self._flavour.make_uri(self)
+
+    def normalize(self):
+        normalized_path = self._flavour.pathmod.normpath(str(self))
+        return self._from_parts((normalized_path,), init=False)
+
+
+class _PosixPurePath(_PurePath, pathlib.PurePosixPath):
+    __slots__ = ()
+
+
+class _WindowsPurePath(_PurePath, pathlib.PureWindowsPath):
+    __slots__ = ()
+
 
 def normalize_url(url, base_url=None, keep_relative=False):
     """
-    Returns a normalized URL doing a join with a base URL. URL scheme defaults to 'file' and
-    backslashes are replaced with slashes. For file paths the os.path.join is used instead of
-    urljoin.
+    Returns a normalized URL eventually joining it to a base URL if it's a relative path.
+    Path names are converted to 'file' scheme URLs.
 
     :param url: a relative or absolute URL.
-    :param base_url: the reference base URL for construct the normalized URL from \
-    the argument. For compatibility between "os.path.join" and "urljoin" a trailing \
-    '/' is added to not empty paths.
+    :param base_url: a reference base URL.
     :param keep_relative: if set to `True` keeps relative file paths, which would \
-    not strictly conformant to URL format specification.
-    :return: A normalized URL.
+    not strictly conformant to specification (RFC 8089), because *urlopen()* doesn't \
+    accept a simple pathname.
+    :return: a normalized URL string.
     """
-    def add_trailing_slash(x):
-        return urlunsplit(
-            (x[0], x[1], x[2] + '/' if x[2] and x[2][-1] != '/' else x[2], x[3], x[4])
-        )
+    url_parts = urlsplit(url)
+    if not is_local_scheme(url_parts.scheme):
+        return url_parts.geturl()
 
-    def filter_url(x):
-        x = x.replace('\\', '/')
-        while x.startswith('//'):
-            x = x.replace('//', '/', 1)
-        while x.startswith('file:////'):
-            x = x.replace('file:////', 'file:///', 1)
-        if urlsplit(x).scheme in {'', 'file'}:
-            x = x.replace('#', '%23')
-        return x
-
-    url = url.strip()
-    if url.startswith('\\'):
-        return pathlib.PureWindowsPath(url).as_uri()  # UNC path
-    elif url.startswith('/'):
-        return pathlib.PurePath(url).as_uri()
-
-    url = filter_url(url)
+    path = _PurePath.from_uri(url)
+    if path.is_absolute():
+        return path.normalize().as_uri()
 
     if base_url is not None:
-        base_url = filter_url(base_url.strip())
         base_url_parts = urlsplit(base_url)
-        base_url = add_trailing_slash(base_url_parts)
-        if base_url_parts.scheme not in uses_relative:
-            base_url_parts = urlsplit('file:///{}'.format(base_url))
-        else:
-            base_url_parts = urlsplit(base_url)
+        base_path = _PurePath.from_uri(base_url)
+        if is_local_scheme(base_url_parts.scheme):
+            path = base_path.joinpath(path)
+        elif not url_parts.scheme:
+            path = base_path.joinpath(path).normalize()
+            return urlunsplit((
+                base_url_parts.scheme,
+                base_url_parts.netloc,
+                quote_from_bytes(bytes(path)),
+                url_parts.query,
+                url_parts.fragment
+            ))
 
-        if base_url_parts.scheme not in ('', 'file'):
-            url = urljoin(base_url, url)
-        else:
-            url_parts = urlsplit(url)
-            if url_parts.scheme not in ('', 'file'):
-                url = urljoin(base_url, url)
-            elif not url_parts.netloc or base_url_parts.netloc == url_parts.netloc:
-                # Join paths only if host parts (netloc) are equal, using the os.path.join
-                # instead of urljoin for path normalization.
-                url = urlunsplit((
-                    '',
-                    base_url_parts.netloc,
-                    os.path.normpath(os.path.join(base_url_parts.path, url_parts.path)),
-                    url_parts.query,
-                    url_parts.fragment,
-                ))
+    if path.is_absolute() or keep_relative:
+        return path.normalize().as_uri()
 
-                # Add 'file' scheme if '//' prefix is added
-                if base_url_parts.netloc and not url.startswith(base_url_parts.netloc) \
-                        and url.startswith('//'):
-                    url = 'file:' + url
-
-    url_parts = urlsplit(url, scheme='file')
-    if url_parts.scheme not in uses_relative:
-        normalized_url = 'file:///{}'.format(url_parts.geturl())  # Eg. k:/Python/lib/....
-    elif url_parts.scheme != 'file':
-        normalized_url = urlunsplit((
-            url_parts.scheme,
-            url_parts.netloc,
-            pathname2url(url_parts.path),
-            url_parts.query,
-            url_parts.fragment,
-        ))
-    elif os.path.isabs(url_parts.path):
-        normalized_url = url_parts.geturl()
-    elif keep_relative:
-        # Can't use urlunsplit with a scheme because it converts relative paths to absolute ones.
-        normalized_url = 'file:{}'.format(urlunsplit(('',) + url_parts[1:]))
-    else:
-        normalized_url = urlunsplit((
-            url_parts.scheme,
-            url_parts.netloc,
-            os.path.abspath(url_parts.path),
-            url_parts.query,
-            url_parts.fragment,
-        ))
-    return filter_url(normalized_url)
+    base_path = _PurePath(os.getcwd())
+    return base_path.joinpath(path).normalize().as_uri()
 
 
 ###
@@ -193,18 +212,16 @@ def is_url(obj):
         return True
 
 
+def is_local_scheme(scheme):
+    return not scheme or scheme == 'file' or scheme in DRIVE_LETTERS
+
+
 def is_remote_url(url):
-    if not is_url(url):
-        return False
-    scheme = urlsplit(normalize_url(url)).scheme
-    return scheme not in ('', 'file') and (len(scheme) > 1 or scheme not in ascii_letters)
+    return is_url(url) and not is_local_scheme(urlsplit(url.strip()).scheme)
 
 
 def is_local_url(url):
-    if not is_url(url):
-        return False
-    scheme = urlsplit(normalize_url(url)).scheme
-    return scheme in ('', 'file') or len(scheme) == 1 and scheme in ascii_letters
+    return is_url(url) and is_local_scheme(urlsplit(url.strip()).scheme)
 
 
 def url_path_is_file(url):
