@@ -59,7 +59,9 @@ Schema level API
 
     .. autoattribute:: root
     .. automethod:: get_text
+    .. autoattribute:: name
     .. autoattribute:: url
+    .. autoattribute:: base_url
 
     .. autoattribute:: tag
     .. autoattribute:: id
@@ -69,9 +71,6 @@ Schema level API
     .. autoattribute:: no_namespace_schema_location
     .. autoattribute:: target_prefix
     .. autoattribute:: default_namespace
-    .. autoattribute:: name
-    .. autoattribute:: url
-    .. autoattribute:: base_url
     .. autoattribute:: root_elements
     .. autoattribute:: simple_types
     .. autoattribute:: complex_types
