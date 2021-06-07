@@ -38,6 +38,8 @@ from xmlschema.testing import SKIP_REMOTE_TESTS
 
 TEST_CASES_DIR = str(pathlib.Path(__file__).absolute().parent.joinpath('test_cases'))
 
+DRIVE_PATH = '/C:' if platform.system() == 'Windows' else ''
+
 
 def casepath(relative_path):
     return str(pathlib.Path(TEST_CASES_DIR).joinpath(relative_path))
@@ -97,6 +99,7 @@ class TestResources(unittest.TestCase):
             expected_path = PurePath(expected_parts.path)
         self.assertEqual(path, expected_path, "%r: Paths differ." % url)
 
+    @unittest.skipIf(platform.system() == 'Windows', "Run only on posix systems")
     def test_normalize_url_posix(self):
         url1 = "https://example.com/xsd/other_schema.xsd"
         self.check_url(normalize_url(url1, base_url="/path_my_schema/schema.xsd"), url1)
@@ -156,24 +159,37 @@ class TestResources(unittest.TestCase):
         # Issue #116
         url = '//anaconda/envs/testenv/lib/python3.6/site-packages/xmlschema/validators/schemas/'
         self.assertEqual(normalize_url(url), pathlib.PurePath(url).as_uri())
-        self.assertEqual(normalize_url('/root/dir1/schema.xsd'), 'file:///root/dir1/schema.xsd')
-        self.assertEqual(normalize_url('//root/dir1/schema.xsd'), 'file:////root/dir1/schema.xsd')
-        self.assertEqual(normalize_url('////root/dir1/schema.xsd'), 'file:///root/dir1/schema.xsd')
+        self.assertEqual(normalize_url('/root/dir1/schema.xsd'),
+                         f'file://{DRIVE_PATH}/root/dir1/schema.xsd')
 
-        self.assertEqual(normalize_url('dir2/schema.xsd', '//root/dir1/'),
-                         'file:////root/dir1/dir2/schema.xsd')
-        self.assertEqual(normalize_url('dir2/schema.xsd', '//root/dir1'),
-                         'file:////root/dir1/dir2/schema.xsd')
+        self.assertEqual(normalize_url('////root/dir1/schema.xsd'),
+                         f'file://{DRIVE_PATH}/root/dir1/schema.xsd')
         self.assertEqual(normalize_url('dir2/schema.xsd', '////root/dir1'),
-                         'file:///root/dir1/dir2/schema.xsd')
+                         f'file://{DRIVE_PATH}/root/dir1/dir2/schema.xsd')
+
+        if platform.system() == 'Windows':
+            # On Windows // is interpreted as a network share UNC path
+            self.assertEqual(normalize_url('//root/dir1/schema.xsd'),
+                             'file://root/dir1/schema.xsd')
+            self.assertEqual(normalize_url('dir2/schema.xsd', '//root/dir1/'),
+                             f'file://root/dir1/dir2/schema.xsd')
+            self.assertEqual(normalize_url('dir2/schema.xsd', '//root/dir1'),
+                             f'file://root/dir1/dir2/schema.xsd')
+        else:
+            self.assertEqual(normalize_url('//root/dir1/schema.xsd'),
+                             'file:////root/dir1/schema.xsd')
+            self.assertEqual(normalize_url('dir2/schema.xsd', '//root/dir1/'),
+                             f'file:////root/dir1/dir2/schema.xsd')
+            self.assertEqual(normalize_url('dir2/schema.xsd', '//root/dir1'),
+                             f'file:////root/dir1/dir2/schema.xsd')
 
     def test_normalize_url_hash_character(self):
         self.check_url(normalize_url('issue #000.xml', 'file:///dir1/dir2/'),
-                       'file:///dir1/dir2/issue%20%23000.xml')
+                       f'file://{DRIVE_PATH}/dir1/dir2/issue%20%23000.xml')
         self.check_url(normalize_url('data.xml', 'file:///dir1/dir2/issue%20001'),
-                       'file:///dir1/dir2/issue%20001/data.xml')
+                       f'file://{DRIVE_PATH}/dir1/dir2/issue%20001/data.xml')
         self.check_url(normalize_url('data.xml', '/dir1/dir2/issue #002'),
-                       '/dir1/dir2/issue%20%23002/data.xml')
+                       f'{DRIVE_PATH}/dir1/dir2/issue%20%23002/data.xml')
 
     def test_is_url_function(self):
         self.assertTrue(is_url(self.col_xsd_file))
@@ -213,20 +229,20 @@ class TestResources(unittest.TestCase):
         locations = normalize_locations(
             [('tns0', 'alpha'), ('tns1', 'http://example.com/beta')], base_url='/home/user'
         )
-        self.assertListEqual(locations, [('tns0', 'file:///home/user/alpha'),
+        self.assertListEqual(locations, [('tns0', f'file://{DRIVE_PATH}/home/user/alpha'),
                                          ('tns1', 'http://example.com/beta')])
 
         locations = normalize_locations(
             {'tns0': 'alpha', 'tns1': 'http://example.com/beta'}, base_url='/home/user'
         )
-        self.assertListEqual(locations, [('tns0', 'file:///home/user/alpha'),
+        self.assertListEqual(locations, [('tns0', f'file://{DRIVE_PATH}/home/user/alpha'),
                                          ('tns1', 'http://example.com/beta')])
 
         locations = normalize_locations(
             {'tns0': ['alpha', 'beta'], 'tns1': 'http://example.com/beta'}, base_url='/home/user'
         )
-        self.assertListEqual(locations, [('tns0', 'file:///home/user/alpha'),
-                                         ('tns0', 'file:///home/user/beta'),
+        self.assertListEqual(locations, [('tns0', f'file://{DRIVE_PATH}/home/user/alpha'),
+                                         ('tns0', f'file://{DRIVE_PATH}/home/user/beta'),
                                          ('tns1', 'http://example.com/beta')])
 
         locations = normalize_locations(
@@ -740,7 +756,10 @@ class TestResources(unittest.TestCase):
         resource = XMLResource(self.vh_xml_file)
         resource.close()
         xml_file = resource.open()
-        self.assertTrue(callable(xml_file.read))
+        try:
+            self.assertTrue(callable(xml_file.read))
+        finally:
+            resource.close()
 
         with open(self.vh_xml_file) as xml_file:
             resource = XMLResource(source=xml_file)
@@ -1086,11 +1105,11 @@ class TestResources(unittest.TestCase):
 
         resource = XMLResource(source)
         locations = resource.get_locations()
-        self.assertListEqual(locations, [('http://example.com/ns1', 'file:///loc1'),
-                                         ('http://example.com/ns2', 'file:///loc2')])
+        self.assertListEqual(locations, [('http://example.com/ns1', f'file://{DRIVE_PATH}/loc1'),
+                                         ('http://example.com/ns2', f'file://{DRIVE_PATH}/loc2')])
 
         locations = resource.get_locations(root_only=True)
-        self.assertListEqual(locations, [('http://example.com/ns1', 'file:///loc1')])
+        self.assertListEqual(locations, [('http://example.com/ns1', f'file://{DRIVE_PATH}/loc1')])
 
     @unittest.skipIf(SKIP_REMOTE_TESTS or platform.system() == 'Windows',
                      "Remote networks are not accessible or avoid SSL "

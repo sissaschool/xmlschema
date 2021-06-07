@@ -131,7 +131,10 @@ class _PurePath(pathlib.PurePath):
 
     def as_uri(self):
         if not self.is_absolute():
-            return 'file:{}'.format(self._flavour.make_uri(self)[7:])
+            uri = self._flavour.make_uri(self)
+            while uri.startswith('file:/'):
+                uri = uri.replace('file:/', 'file:', 1)
+            return uri
         return self._flavour.make_uri(self)
 
     def normalize(self):
