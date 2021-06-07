@@ -317,7 +317,10 @@ class XMLSchemaConverter(NamespaceMapper):
         if level != 0:
             tag = xsd_element.name
         else:
-            tag = xsd_element.qualified_name
+            if xsd_element.is_global():
+                tag = xsd_element.qualified_name
+            else:
+                tag = xsd_element.name
             if self.preserve_root and isinstance(obj, MutableMapping):
                 match_local_name = self.strip_namespaces or self.default_namespace
                 match = xsd_element.get_matching_item(obj, self.ns_prefix, match_local_name)
