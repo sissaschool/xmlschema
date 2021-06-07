@@ -2,6 +2,12 @@
 CHANGELOG
 *********
 
+`v1.6.3`_ (2021-06-07)
+======================
+* Refactor normalize_url() using pathlib.PurePath
+* Support UNC paths (issue #246)
+* Fix API docs (issue #248)
+
 `v1.6.2`_ (2021-05-03)
 ======================
 * Fix for issue #245 (key/keyref with dynamic types)
@@ -443,3 +449,4 @@ v0.9.6 (2017-05-05)
 .. _v1.6.0: https://github.com/brunato/xmlschema/compare/v1.5.3...v1.6.0
 .. _v1.6.1: https://github.com/brunato/xmlschema/compare/v1.6.0...v1.6.1
 .. _v1.6.2: https://github.com/brunato/xmlschema/compare/v1.6.1...v1.6.2
+.. _v1.6.3: https://github.com/brunato/xmlschema/compare/v1.6.2...v1.6.3
