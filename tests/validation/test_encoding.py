@@ -568,6 +568,33 @@ class TestEncoding(XsdValidatorTestCase):
         self.assertIsNone(elem.text)
         self.assertEqual(elem.attrib, {'b1': 'false', 'b2': 'false', 'b3': 'false'})
 
+    def test_encode_sub_tree(self):
+        """Test encoding data of a non-root element"""
+        data = {
+            "@id": "PAR",
+            "name": "Pierre-Auguste Renoir",
+            "born": "1841-02-25",
+            "dead": "1919-12-03",
+            "qualification": "painter",
+        }
+        elem = self.col_schema.encode(
+            data,
+            path=".//author",
+            namespaces=self.col_namespaces,
+        )
+        self.assertEqual(
+            etree_tostring(elem),
+            dedent(
+                """\
+                <author id="PAR">
+                    <name>Pierre-Auguste Renoir</name>
+                    <born>1841-02-25</born>
+                    <dead>1919-12-03</dead>
+                    <qualification>painter</qualification>
+                </author>"""
+            )
+        )
+
 
 class TestEncoding11(TestEncoding):
     schema_class = XMLSchema11
