@@ -139,7 +139,7 @@ class _PurePath(pathlib.PurePath):
 
     def normalize(self):
         normalized_path = self._flavour.pathmod.normpath(str(self))
-        return self._from_parts((normalized_path,), init=False)
+        return self._from_parts((normalized_path,))
 
 
 class _PosixPurePath(_PurePath, pathlib.PurePosixPath):
