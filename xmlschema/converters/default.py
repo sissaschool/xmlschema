@@ -225,7 +225,8 @@ class XMLSchemaConverter(NamespaceMapper):
             else:
                 elem = self.etree_element_class(tag, self.dict(attrib))
         else:
-            nsmap = {prefix if prefix else None: uri for prefix, uri in self._namespaces.items()}
+            nsmap = {prefix if prefix else None: uri
+                     for prefix, uri in self._namespaces.items() if uri}
             elem = self.etree_element_class(tag, nsmap=nsmap)
             elem.attrib.update(attrib)
 
