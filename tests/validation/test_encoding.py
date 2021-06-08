@@ -13,6 +13,7 @@ import os
 import unittest
 from textwrap import dedent
 
+import lxml.etree
 from elementpath import datatypes
 
 from xmlschema import XMLSchemaEncodeError, XMLSchemaValidationError
@@ -592,6 +593,57 @@ class TestEncoding(XsdValidatorTestCase):
                     <dead>1919-12-03</dead>
                     <qualification>painter</qualification>
                 </author>"""
+            )
+        )
+
+    def test_lxml_encode(self):
+        """Test encode with etree_element_class=lxml.etree.Element"""
+        xd = {
+            "@xmlns:col": "http://example.com/ns/collection",
+            "@xmlns:xsi": "http://www.w3.org/2001/XMLSchema-instance",
+            "@xsi:schemaLocation": "http://example.com/ns/collection collection.xsd",
+            "object": [
+                {
+                    "@id": "b0836217463",
+                    "@available": True,
+                    "position": 2,
+                    "title": None,
+                    "year": "1925",
+                    "author": {
+                        "@id": "JM",
+                        "name": "Joan Miró",
+                        "born": "1893-04-20",
+                        "dead": "1983-12-25",
+                        "qualification": "painter, sculptor and ceramicist",
+                    },
+                },
+            ],
+        }
+
+        elem = self.col_schema.encode(
+            xd,
+            path="./col:collection",
+            namespaces=self.col_namespaces,
+            etree_element_class=lxml.etree.Element,
+        )
+
+        self.assertEqual(
+            etree_tostring(elem, namespaces=self.col_namespaces),
+            dedent(
+                """\
+                <col:collection xmlns:col="http://example.com/ns/collection" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://example.com/ns/collection collection.xsd">
+                    <object id="b0836217463" available="true">
+                        <position>2</position>
+                        <title/>
+                        <year>1925</year>
+                        <author id="JM">
+                            <name>Joan Miró</name>
+                            <born>1893-04-20</born>
+                            <dead>1983-12-25</dead>
+                            <qualification>painter, sculptor and ceramicist</qualification>
+                        </author>
+                    </object>
+                </col:collection>"""
             )
         )
 
