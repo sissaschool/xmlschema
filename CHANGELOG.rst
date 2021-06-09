@@ -2,6 +2,12 @@
 CHANGELOG
 *********
 
+`v1.6.4`_ (2021-06-09)
+======================
+* Add testing config for Python 3.10 (Tox and CI)
+* Fix internal _PurePath class with Python 3.10 (issue #251)
+* Remove redundant xmlns="" declaration when encoding with lxml (issue #252)
+
 `v1.6.3`_ (2021-06-07)
 ======================
 * Refactor normalize_url() using pathlib.PurePath
@@ -450,3 +456,4 @@ v0.9.6 (2017-05-05)
 .. _v1.6.1: https://github.com/brunato/xmlschema/compare/v1.6.0...v1.6.1
 .. _v1.6.2: https://github.com/brunato/xmlschema/compare/v1.6.1...v1.6.2
 .. _v1.6.3: https://github.com/brunato/xmlschema/compare/v1.6.2...v1.6.3
+.. _v1.6.4: https://github.com/brunato/xmlschema/compare/v1.6.3...v1.6.4
