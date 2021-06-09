@@ -31,6 +31,7 @@ from xmlschema import fetch_namespaces, fetch_resource, normalize_url, \
     fetch_schema, fetch_schema_locations, XMLResource, XMLResourceError, XMLSchema
 from xmlschema.etree import ElementTree, etree_element, py_etree_element, is_etree_element
 from xmlschema.names import XSD_NAMESPACE
+import xmlschema.resources
 from xmlschema.resources import is_url, is_local_url, is_remote_url, \
     url_path_is_file, normalize_locations, LazySelector
 from xmlschema.testing import SKIP_REMOTE_TESTS
@@ -99,6 +100,45 @@ class TestResources(unittest.TestCase):
             expected_path = PurePath(expected_parts.path)
         self.assertEqual(path, expected_path, "%r: Paths differ." % url)
 
+    def test_path_from_uri(self):
+        _PurePath = xmlschema.resources._PurePath
+        _PosixPurePath = xmlschema.resources._PosixPurePath
+        _WindowsPurePath = xmlschema.resources._WindowsPurePath
+
+        with self.assertRaises(ValueError) as ec:
+            _PurePath.from_uri('')
+        self.assertEqual(str(ec.exception), 'Empty URI provided!')
+
+        path = _PurePath.from_uri('https://example.com/names/?name=foo')
+        self.assertIsInstance(path, _PosixPurePath)
+        self.assertEqual(str(path), '/names')
+
+        path = _PosixPurePath.from_uri('file:///home/foo/names/?name=foo')
+        self.assertIsInstance(path, _PosixPurePath)
+        self.assertEqual(str(path), '/home/foo/names')
+
+        path = _PosixPurePath.from_uri('file:///home/foo/names#foo')
+        self.assertIsInstance(path, _PosixPurePath)
+        self.assertEqual(str(path), '/home/foo/names')
+
+        path = _PosixPurePath.from_uri('file:///home\\foo\\names#foo')
+        self.assertIsInstance(path, _WindowsPurePath)
+        self.assertTrue(path.as_posix().endswith('/home/foo/names'))
+
+        path = _PosixPurePath.from_uri('file:///c:/home/foo/names/')
+        self.assertIsInstance(path, _WindowsPurePath)
+        self.assertEqual(str(path), r'c:\home\foo\names')
+        self.assertEqual(path.as_uri(), 'file:///c:/home/foo/names')
+
+        path = _PosixPurePath.from_uri('file:c:/home/foo/names/')
+        self.assertIsInstance(path, _WindowsPurePath)
+        self.assertEqual(str(path), r'c:\home\foo\names')
+        self.assertEqual(path.as_uri(), 'file:///c:/home/foo/names')
+
+        with self.assertRaises(ValueError) as ec:
+            _PurePath.from_uri('file://c:/home/foo/names/')
+        self.assertEqual(str(ec.exception), "Invalid URI 'file://c:/home/foo/names/'")
+
     @unittest.skipIf(platform.system() == 'Windows', "Run only on posix systems")
     def test_normalize_url_posix(self):
         url1 = "https://example.com/xsd/other_schema.xsd"
@@ -120,7 +160,7 @@ class TestResources(unittest.TestCase):
         self.check_url(normalize_url('other.xsd', keep_relative=True), 'file:other.xsd')
         self.check_url(normalize_url('file:other.xsd', keep_relative=True), 'file:other.xsd')
         self.check_url(normalize_url('file:other.xsd'), cwd_url + 'other.xsd')
-        self.check_url(normalize_url('file:other.xsd', 'http://site/base', True), 'file:other.xsd')
+        self.check_url(normalize_url('file:other.xsd', 'https://site/base', True), 'file:other.xsd')
         self.check_url(normalize_url('file:other.xsd', 'http://site/base'), cwd_url + 'other.xsd')
 
         self.check_url(normalize_url('dummy path.xsd'), cwd_url + 'dummy%20path.xsd')
@@ -1274,10 +1314,10 @@ class TestResources(unittest.TestCase):
         self.assertIs(subresource.root, resource.root[0])
 
     def test_loading_from_unrelated_dirs__issue_237(self):
-        relpath = str(pathlib.Path(__file__).parent.joinpath(
+        relative_path = str(pathlib.Path(__file__).parent.joinpath(
             'test_cases/issues/issue_237/dir1/issue_237.xsd'
         ))
-        schema = XMLSchema(relpath)
+        schema = XMLSchema(relative_path)
         self.assertEqual(schema.maps.namespaces[''][1].name, 'issue_237a.xsd')
         self.assertEqual(schema.maps.namespaces[''][2].name, 'issue_237b.xsd')
 

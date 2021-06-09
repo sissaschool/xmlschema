@@ -90,16 +90,16 @@ class _PurePath(pathlib.PurePath):
     def from_uri(cls, uri):
         uri = uri.strip()
         if not uri:
-            XMLSchemaValueError("Empty url provided!")
+            raise XMLSchemaValueError("Empty URI provided!")
 
         if uri.startswith(r'\\'):
             return _WindowsPurePath(uri)  # UNC path
         elif uri.startswith('/'):
-            return _PurePath(uri)
+            return cls(uri)
 
         parts = urlsplit(uri)
         if not parts.scheme:
-            return _PurePath(uri)
+            return cls(uri)
         elif parts.scheme in DRIVE_LETTERS and len(parts.scheme) == 1:
             return _WindowsPurePath(uri)  # Eg. k:/Python/lib/....
         elif parts.scheme != 'file':
@@ -127,7 +127,7 @@ class _PurePath(pathlib.PurePath):
 
         if '\\' in path:
             return _WindowsPurePath(unquote(path))
-        return _PurePath(unquote(path))
+        return cls(unquote(path))
 
     def as_uri(self):
         if not self.is_absolute():
@@ -460,7 +460,7 @@ class XMLResource:
     @property
     def filepath(self):
         """
-        The resource filepath if the intance is created from a local file, `None` otherwise.
+        The resource filepath if the instance is created from a local file, `None` otherwise.
         """
         if self._url:
             url_parts = urlsplit(self._url)
