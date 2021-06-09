@@ -120,7 +120,7 @@ class XsdValidator:
     def copy(self):
         validator = object.__new__(self.__class__)
         validator.__dict__.update(self.__dict__)
-        validator.errors = self.errors[:]
+        validator.errors = self.errors[:]  # shallow copy duplicates errors list
         return validator
 
     __copy__ = copy
@@ -610,7 +610,7 @@ class XsdType(XsdComponent):
         is the primitive type. For a list is the primitive type of the item.
         For a union is the base union type. For a complex type is xs:anyType.
         """
-        if self.is_complex() and self.attributes:
+        if getattr(self, 'attributes', None):
             return self.maps.types[XSD_ANY_TYPE]
         elif self.base_type is None:
             return self if self.is_simple() else self.maps.types[XSD_ANY_TYPE]
@@ -853,7 +853,7 @@ class ValidationMixin:
         Element for other components.
         :param with_bindings: if `True` is provided the decoding is done using \
         :class:`DataBindingConverter` that used XML data binding classes. For \
-        default the objects are intances of :class:`DataElement` and uses the \
+        default the objects are instances of :class:`DataElement` and uses the \
         :class:`DataElementConverter`.
         :param kwargs: other optional keyword arguments for the method \
         :func:`iter_decode`, except the argument *converter*.
