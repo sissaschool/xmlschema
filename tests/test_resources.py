@@ -39,7 +39,7 @@ from xmlschema.testing import SKIP_REMOTE_TESTS
 
 TEST_CASES_DIR = str(pathlib.Path(__file__).absolute().parent.joinpath('test_cases'))
 
-DRIVE_PATH = '/C:' if platform.system() == 'Windows' else ''
+DRIVE_REGEX = '/[a-zA-Z]:' if platform.system() == 'Windows' else ''
 
 
 def casepath(relative_path):
@@ -199,13 +199,13 @@ class TestResources(unittest.TestCase):
         # Issue #116
         url = '//anaconda/envs/testenv/lib/python3.6/site-packages/xmlschema/validators/schemas/'
         self.assertEqual(normalize_url(url), pathlib.PurePath(url).as_uri())
-        self.assertEqual(normalize_url('/root/dir1/schema.xsd'),
-                         f'file://{DRIVE_PATH}/root/dir1/schema.xsd')
+        self.assertRegex(normalize_url('/root/dir1/schema.xsd'),
+                         f'file://{DRIVE_REGEX}/root/dir1/schema.xsd')
 
-        self.assertEqual(normalize_url('////root/dir1/schema.xsd'),
-                         f'file://{DRIVE_PATH}/root/dir1/schema.xsd')
-        self.assertEqual(normalize_url('dir2/schema.xsd', '////root/dir1'),
-                         f'file://{DRIVE_PATH}/root/dir1/dir2/schema.xsd')
+        self.assertRegex(normalize_url('////root/dir1/schema.xsd'),
+                         f'file://{DRIVE_REGEX}/root/dir1/schema.xsd')
+        self.assertRegex(normalize_url('dir2/schema.xsd', '////root/dir1'),
+                         f'file://{DRIVE_REGEX}/root/dir1/dir2/schema.xsd')
 
         if platform.system() == 'Windows':
             # On Windows // is interpreted as a network share UNC path
@@ -224,12 +224,14 @@ class TestResources(unittest.TestCase):
                              f'file:////root/dir1/dir2/schema.xsd')
 
     def test_normalize_url_hash_character(self):
-        self.check_url(normalize_url('issue #000.xml', 'file:///dir1/dir2/'),
-                       f'file://{DRIVE_PATH}/dir1/dir2/issue%20%23000.xml')
-        self.check_url(normalize_url('data.xml', 'file:///dir1/dir2/issue%20001'),
-                       f'file://{DRIVE_PATH}/dir1/dir2/issue%20001/data.xml')
-        self.check_url(normalize_url('data.xml', '/dir1/dir2/issue #002'),
-                       f'{DRIVE_PATH}/dir1/dir2/issue%20%23002/data.xml')
+        url = normalize_url('issue #000.xml', 'file:///dir1/dir2/')
+        self.assertRegex(url, f'file://{DRIVE_REGEX}/dir1/dir2/issue%20%23000.xml')
+
+        url = normalize_url('data.xml', 'file:///dir1/dir2/issue%20001')
+        self.assertRegex(url, f'file://{DRIVE_REGEX}/dir1/dir2/issue%20001/data.xml')
+
+        url = normalize_url('data.xml', '/dir1/dir2/issue #002')
+        self.assertRegex(url, f'{DRIVE_REGEX}/dir1/dir2/issue%20%23002/data.xml')
 
     def test_is_url_function(self):
         self.assertTrue(is_url(self.col_xsd_file))
@@ -269,21 +271,28 @@ class TestResources(unittest.TestCase):
         locations = normalize_locations(
             [('tns0', 'alpha'), ('tns1', 'http://example.com/beta')], base_url='/home/user'
         )
-        self.assertListEqual(locations, [('tns0', f'file://{DRIVE_PATH}/home/user/alpha'),
-                                         ('tns1', 'http://example.com/beta')])
+        self.assertEqual(locations[0][0], 'tns0')
+        self.assertRegex(locations[0][1], f'file://{DRIVE_REGEX}/home/user/alpha')
+        self.assertEqual(locations[1][0], 'tns1')
+        self.assertEqual(locations[1][1], 'http://example.com/beta')
 
         locations = normalize_locations(
             {'tns0': 'alpha', 'tns1': 'http://example.com/beta'}, base_url='/home/user'
         )
-        self.assertListEqual(locations, [('tns0', f'file://{DRIVE_PATH}/home/user/alpha'),
-                                         ('tns1', 'http://example.com/beta')])
+        self.assertEqual(locations[0][0], 'tns0')
+        self.assertRegex(locations[0][1], f'file://{DRIVE_REGEX}/home/user/alpha')
+        self.assertEqual(locations[1][0], 'tns1')
+        self.assertEqual(locations[1][1], 'http://example.com/beta')
 
         locations = normalize_locations(
             {'tns0': ['alpha', 'beta'], 'tns1': 'http://example.com/beta'}, base_url='/home/user'
         )
-        self.assertListEqual(locations, [('tns0', f'file://{DRIVE_PATH}/home/user/alpha'),
-                                         ('tns0', f'file://{DRIVE_PATH}/home/user/beta'),
-                                         ('tns1', 'http://example.com/beta')])
+        self.assertEqual(locations[0][0], 'tns0')
+        self.assertRegex(locations[0][1], f'file://{DRIVE_REGEX}/home/user/alpha')
+        self.assertEqual(locations[1][0], 'tns0')
+        self.assertRegex(locations[1][1], f'file://{DRIVE_REGEX}/home/user/beta')
+        self.assertEqual(locations[2][0], 'tns1')
+        self.assertEqual(locations[2][1], 'http://example.com/beta')
 
         locations = normalize_locations(
             {'tns0': 'alpha', 'tns1': 'http://example.com/beta'}, keep_relative=True
@@ -1145,11 +1154,16 @@ class TestResources(unittest.TestCase):
 
         resource = XMLResource(source)
         locations = resource.get_locations()
-        self.assertListEqual(locations, [('http://example.com/ns1', f'file://{DRIVE_PATH}/loc1'),
-                                         ('http://example.com/ns2', f'file://{DRIVE_PATH}/loc2')])
+        self.assertEqual(len(locations), 2)
+        self.assertEqual(locations[0][0], 'http://example.com/ns1')
+        self.assertRegex(locations[0][1], f'file://{DRIVE_REGEX}/loc1')
+        self.assertEqual(locations[1][0], 'http://example.com/ns2')
+        self.assertRegex(locations[1][1], f'file://{DRIVE_REGEX}/loc2')
 
         locations = resource.get_locations(root_only=True)
-        self.assertListEqual(locations, [('http://example.com/ns1', f'file://{DRIVE_PATH}/loc1')])
+        self.assertEqual(len(locations), 1)
+        self.assertEqual(locations[0][0], 'http://example.com/ns1')
+        self.assertRegex(locations[0][1], f'file://{DRIVE_REGEX}/loc1')
 
     @unittest.skipIf(SKIP_REMOTE_TESTS or platform.system() == 'Windows',
                      "Remote networks are not accessible or avoid SSL "
