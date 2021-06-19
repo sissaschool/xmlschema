@@ -12,11 +12,6 @@ import unittest
 import xml.etree.ElementTree as ElementTree
 from pathlib import Path
 
-try:
-    import lxml.etree as lxml_etree
-except ImportError:
-    lxml_etree = None
-
 from xmlschema import XMLSchema10, XMLSchema11, fetch_namespaces, etree_tostring, \
     XMLSchemaValidationError, DataElement, DataElementConverter, XMLResource
 
@@ -70,7 +65,6 @@ class TestDataObjects(unittest.TestCase):
         cls.col_xsd_filename = cls.casepath('examples/collection/collection.xsd')
         cls.col_xml_filename = cls.casepath('examples/collection/collection.xml')
         cls.col_xml_root = ElementTree.parse(cls.col_xml_filename).getroot()
-        cls.col_lxml_root = lxml_etree.parse(cls.col_xml_filename).getroot()
         cls.col_nsmap = fetch_namespaces(cls.col_xml_filename)
         cls.col_namespace = cls.col_nsmap['col']
         cls.col_schema = cls.schema_class(cls.col_xsd_filename, converter=cls.converter)

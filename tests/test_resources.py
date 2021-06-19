@@ -1316,10 +1316,11 @@ class TestResources(unittest.TestCase):
             resource.subresource(None)
         self.assertEqual("None is not an element or the XML resource tree", str(ctx.exception))
 
-        resource = XMLResource(lxml_etree.parse(self.vh_xml_file).getroot())
-        root = resource.root
-        subresource = resource.subresource(root[0])
-        self.assertIs(subresource.root, resource.root[0])
+        if lxml_etree is not None:
+            resource = XMLResource(lxml_etree.parse(self.vh_xml_file).getroot())
+            root = resource.root
+            subresource = resource.subresource(root[0])
+            self.assertIs(subresource.root, resource.root[0])
 
         xml_text = '<a><b1 xmlns:x="tns0"><c1 xmlns:y="tns1"/><c2/></b1><b2/></a>'
         resource = XMLResource(xml_text)

@@ -11,7 +11,11 @@
 import unittest
 import os
 import platform
-import lxml.etree
+
+try:
+    import lxml.etree as lxml_etree
+except ImportError:
+    lxml_etree = None
 
 from xmlschema.etree import ElementTree, PyElementTree, ParseError, \
     SafeXMLParser, etree_tostring
@@ -94,8 +98,9 @@ class TestElementTree(unittest.TestCase):
                                  '</root>')
         self.assertEqual(etree_tostring(root, method='text'), '\n  text1\n  text2')
 
+    @unittest.skipIf(lxml_etree is None, 'lxml is not installed ...')
     def test_lxml_element_string_serialization(self):
-        elem = lxml.etree.Element('element')
+        elem = lxml_etree.Element('element')
         self.assertEqual(etree_tostring(elem), '<element/>')
         self.assertEqual(etree_tostring(elem, xml_declaration=True), '<element/>')
 
@@ -119,7 +124,7 @@ class TestElementTree(unittest.TestCase):
         self.assertEqual(etree_tostring(elem, method='html'), '<element></element>')
         self.assertEqual(etree_tostring(elem, method='text'), '')
 
-        root = lxml.etree.XML('<root>\n'
+        root = lxml_etree.XML('<root>\n'
                               '  text1\n'
                               '  <elem>text2</elem>\n'
                               '</root>')
@@ -220,8 +225,9 @@ class TestElementTree(unittest.TestCase):
         self.assertIsNone(etree_elements_assert_equal(e1, e1))
         self.assertIsNone(etree_elements_assert_equal(e1, e2))
 
-        e2 = lxml.etree.XML('<a><b1>text<c1 a="1"/></b1>\n<b2/><b3/></a>\n')
-        self.assertIsNone(etree_elements_assert_equal(e1, e2))
+        if lxml_etree is not None:
+            e2 = lxml_etree.XML('<a><b1>text<c1 a="1"/></b1>\n<b2/><b3/></a>\n')
+            self.assertIsNone(etree_elements_assert_equal(e1, e2))
 
         e2 = ElementTree.XML('<a><b1>text<c1 a="1"/></b1>\n<b2/><b3/><b4/></a>\n')
         with self.assertRaises(AssertionError) as ctx:
@@ -263,8 +269,9 @@ class TestElementTree(unittest.TestCase):
         self.assertIsNone(etree_elements_assert_equal(e1, e2))
         self.assertIsNone(etree_elements_assert_equal(e1, e2, skip_comments=False))
 
-        e2 = lxml.etree.XML('<a><!--comment--><b1>text<c1 a="1"/></b1>\n<b2/><b3/></a>\n')
-        self.assertIsNone(etree_elements_assert_equal(e1, e2))
+        if lxml_etree is not None:
+            e2 = lxml_etree.XML('<a><!--comment--><b1>text<c1 a="1"/></b1>\n<b2/><b3/></a>\n')
+            self.assertIsNone(etree_elements_assert_equal(e1, e2))
 
         e1 = ElementTree.XML('<a><b1>+1</b1></a>')
         e2 = ElementTree.XML('<a><b1>+ 1 </b1></a>')

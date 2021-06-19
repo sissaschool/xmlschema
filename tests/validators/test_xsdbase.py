@@ -12,8 +12,12 @@ import unittest
 import os
 import platform
 import re
-import lxml.etree
 from textwrap import dedent
+
+try:
+    import lxml.etree as lxml_etree
+except ImportError:
+    lxml_etree = None
 
 from xmlschema.validators import XsdValidator, XsdComponent, XMLSchema10, \
     XMLSchema11, XMLSchemaParseError, XMLSchemaValidationError, XsdGroup, XsdSimpleType
@@ -429,14 +433,15 @@ class TestXsdComponent(unittest.TestCase):
                  </xs:schema>""")
         self.assertTrue(schema.elements['root'].annotation.built)
 
-        root = lxml.etree.XML("""<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
-                     <xs:element name="root">
-                        <!-- comment -->
-                        <xs:annotation/>
-                     </xs:element>
-                 </xs:schema>""")
-        schema = XMLSchema10(root)
-        self.assertTrue(schema.elements['root'].annotation.built)
+        if lxml_etree is not None:
+            root = lxml_etree.XML("""<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                         <xs:element name="root">
+                            <!-- comment -->
+                            <xs:annotation/>
+                         </xs:element>
+                     </xs:schema>""")
+            schema = XMLSchema10(root)
+            self.assertTrue(schema.elements['root'].annotation.built)
 
         schema = XMLSchema10("""<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
                      <xs:element name="root">

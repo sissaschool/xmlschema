@@ -35,9 +35,13 @@ class TestConverters(unittest.TestCase):
         cls.col_xsd_filename = cls.casepath('examples/collection/collection.xsd')
         cls.col_xml_filename = cls.casepath('examples/collection/collection.xml')
         cls.col_xml_root = ElementTree.parse(cls.col_xml_filename).getroot()
-        cls.col_lxml_root = lxml_etree.parse(cls.col_xml_filename).getroot()
         cls.col_nsmap = fetch_namespaces(cls.col_xml_filename)
         cls.col_namespace = cls.col_nsmap['col']
+
+        if lxml_etree is not None:
+            cls.col_lxml_root = lxml_etree.parse(cls.col_xml_filename).getroot()
+        else:
+            cls.col_lxml_root = None
 
     @classmethod
     def casepath(cls, relative_path):
@@ -196,9 +200,10 @@ class TestConverters(unittest.TestCase):
         self.assertIsNone(etree_elements_assert_equal(self.col_xml_root, root, strict=False))
 
         # Decode from lxml.etree.Element tree
-        obj2 = col_schema.decode(self.col_lxml_root)
-        self.assertIn("'@xmlns:col'", repr(obj2))
-        self.assertEqual(obj1, obj2)
+        if self.col_lxml_root is not None:
+            obj2 = col_schema.decode(self.col_lxml_root)
+            self.assertIn("'@xmlns:col'", repr(obj2))
+            self.assertEqual(obj1, obj2)
 
         # Decode from ElementTree.Element tree providing namespaces
         obj2 = col_schema.decode(self.col_xml_root, namespaces=self.col_nsmap)
@@ -232,10 +237,11 @@ class TestConverters(unittest.TestCase):
         self.assertIsNone(etree_elements_assert_equal(self.col_xml_root, root, strict=False))
 
         # Decode from lxml.etree.Element tree
-        obj2 = col_schema.decode(self.col_lxml_root, preserve_root=True)
-        self.assertIn("'col:collection'", repr(obj2))
-        self.assertIn("'@xmlns:col'", repr(obj2))
-        self.assertEqual(obj1, obj2)
+        if self.col_lxml_root is not None:
+            obj2 = col_schema.decode(self.col_lxml_root, preserve_root=True)
+            self.assertIn("'col:collection'", repr(obj2))
+            self.assertIn("'@xmlns:col'", repr(obj2))
+            self.assertEqual(obj1, obj2)
 
         # Decode from ElementTree.Element tree providing namespaces
         obj2 = col_schema.decode(self.col_xml_root, namespaces=self.col_nsmap, preserve_root=True)
@@ -270,9 +276,10 @@ class TestConverters(unittest.TestCase):
         self.assertIsNone(etree_elements_assert_equal(self.col_xml_root, root, strict=False))
 
         # Decode from lxml.etree.Element tree
-        obj2 = col_schema.decode(self.col_lxml_root)
-        self.assertIn("'@xmlns:col'", repr(obj2))
-        self.assertEqual(obj1, obj2)
+        if self.col_lxml_root is not None:
+            obj2 = col_schema.decode(self.col_lxml_root)
+            self.assertIn("'@xmlns:col'", repr(obj2))
+            self.assertEqual(obj1, obj2)
 
         # Decode from ElementTree.Element tree providing namespaces
         obj2 = col_schema.decode(self.col_xml_root, namespaces=self.col_nsmap)
@@ -306,10 +313,11 @@ class TestConverters(unittest.TestCase):
         self.assertIsNone(etree_elements_assert_equal(self.col_xml_root, root, strict=False))
 
         # Decode from lxml.etree.Element tree
-        obj2 = col_schema.decode(self.col_lxml_root, preserve_root=True)
-        self.assertIn("'col:collection'", repr(obj2))
-        self.assertIn("'@xmlns:col'", repr(obj2))
-        self.assertEqual(obj1, obj2)
+        if self.col_lxml_root is not None:
+            obj2 = col_schema.decode(self.col_lxml_root, preserve_root=True)
+            self.assertIn("'col:collection'", repr(obj2))
+            self.assertIn("'@xmlns:col'", repr(obj2))
+            self.assertEqual(obj1, obj2)
 
         # Decode from ElementTree.Element tree providing namespaces
         obj2 = col_schema.decode(self.col_xml_root, namespaces=self.col_nsmap, preserve_root=True)
@@ -358,7 +366,8 @@ class TestConverters(unittest.TestCase):
         self.assertEqual(obj1, col_schema.decode(self.col_xml_root, namespaces=self.col_nsmap))
 
         # With lxml.etree namespaces are mapped
-        self.assertEqual(obj1, col_schema.decode(self.col_lxml_root))
+        if self.col_lxml_root is not None:
+            self.assertEqual(obj1, col_schema.decode(self.col_lxml_root))
 
         root = col_schema.encode(obj2, path='./col:collection', namespaces=self.col_nsmap)
         self.assertIsNone(etree_elements_assert_equal(self.col_xml_root, root, strict=False))
@@ -385,7 +394,8 @@ class TestConverters(unittest.TestCase):
         self.assertEqual(obj1, col_schema.decode(self.col_xml_root, namespaces=self.col_nsmap))
 
         # With lxml.etree namespaces are mapped
-        self.assertEqual(obj1, col_schema.decode(self.col_lxml_root))
+        if self.col_lxml_root is not None:
+            self.assertEqual(obj1, col_schema.decode(self.col_lxml_root))
 
         root = col_schema.encode(obj2, path='./col:collection', namespaces=self.col_nsmap)
         self.assertIsNone(etree_elements_assert_equal(self.col_xml_root, root, strict=False))
@@ -416,7 +426,8 @@ class TestConverters(unittest.TestCase):
         self.assertEqual(obj1, col_schema.decode(self.col_xml_root, namespaces=self.col_nsmap))
 
         # With lxml.etree namespaces are mapped
-        self.assertEqual(obj1, col_schema.decode(self.col_lxml_root))
+        if self.col_lxml_root is not None:
+            self.assertEqual(obj1, col_schema.decode(self.col_lxml_root))
 
         root = col_schema.encode(obj2, path='./col:collection', namespaces=self.col_nsmap)
         self.assertIsNone(etree_elements_assert_equal(self.col_xml_root, root, strict=False))
@@ -443,7 +454,8 @@ class TestConverters(unittest.TestCase):
         self.assertEqual(obj1, col_schema.decode(self.col_xml_root, namespaces=self.col_nsmap))
 
         # With lxml.etree namespaces are mapped
-        self.assertEqual(obj1, col_schema.decode(self.col_lxml_root))
+        if self.col_lxml_root is not None:
+            self.assertEqual(obj1, col_schema.decode(self.col_lxml_root))
 
         root = col_schema.encode(obj2, path='./col:collection', namespaces=self.col_nsmap)
         self.assertIsNone(etree_elements_assert_equal(self.col_xml_root, root, strict=False))
@@ -479,9 +491,10 @@ class TestConverters(unittest.TestCase):
         ))
 
         # With lxml.etree namespaces are mapped
-        self.assertIsNone(etree_elements_assert_equal(
-            obj1, col_schema.decode(self.col_lxml_root)
-        ))
+        if self.col_lxml_root is not None:
+            self.assertIsNone(etree_elements_assert_equal(
+                obj1, col_schema.decode(self.col_lxml_root)
+            ))
 
         root = col_schema.encode(obj2, path='./col:collection', namespaces=self.col_nsmap)
         self.assertIsNone(etree_elements_assert_equal(self.col_xml_root, root, strict=False))
