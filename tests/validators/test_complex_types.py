@@ -9,6 +9,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import unittest
+import warnings
 
 from xmlschema import XMLSchemaParseError, XMLSchemaModelError
 from xmlschema.etree import etree_element
@@ -418,7 +419,13 @@ class TestXsdComplexType(XsdValidatorTestCase):
             </xs:schema>""")
 
         xsd_type = schema.types['type1']
-        self.assertIs(xsd_type.content_type, xsd_type.content)
+
+        with warnings.catch_warnings(record=True) as context:
+            warnings.simplefilter("always")
+            self.assertIs(xsd_type.content_type, xsd_type.content)
+
+        self.assertEqual(len(context), 1)
+        self.assertIs(context[0].category, DeprecationWarning)
 
     def test_is_empty(self):
         schema = self.check_schema("""

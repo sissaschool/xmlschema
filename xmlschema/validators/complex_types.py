@@ -495,6 +495,9 @@ class XsdComplexType(XsdType, ValidationMixin):
     @property
     def content_type(self):
         """Property that returns the attribute *content*, for backward compatibility."""
+        import warnings
+        warnings.warn("'content_type' attribute has been replaced by 'content' "
+                      "and will be removed in version 2.0", DeprecationWarning, stacklevel=2)
         return self.content
 
     @property

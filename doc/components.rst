@@ -304,7 +304,7 @@ cases *content* is a not-empty `XsdGroup`:
 
     The attribute *content_type* has been renamed to *content* in v1.2.1
     in order to avoid confusions between the complex type and its content.
-    A property with the old name will be maintained until v1.3.0
+    A property with the old name will be maintained until v2.0.
 
 
 Model groups can be nested with very complex structures, so there is an generator

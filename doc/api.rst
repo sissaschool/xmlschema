@@ -316,7 +316,7 @@ Types
 .. autoclass:: xmlschema.validators.Xsd11ComplexType
 .. autoclass:: xmlschema.validators.XsdComplexType
 
-    .. autoattribute:: content_type
+    .. autoattribute:: content
 
 .. autoclass:: xmlschema.validators.XsdSimpleType
 
