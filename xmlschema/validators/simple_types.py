@@ -64,7 +64,7 @@ def xsd_simple_type_factory(elem, schema, parent):
         return schema.maps.types[XSD_ANY_SIMPLE_TYPE]
 
     if annotation is not None:
-        xsd_type.annotation = annotation
+        xsd_type._annotation = annotation
 
     try:
         xsd_type.name = get_qname(schema.target_namespace, elem.attrib['name'])
