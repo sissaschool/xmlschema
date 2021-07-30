@@ -1067,6 +1067,56 @@ class TestXsdFacets(unittest.TestCase):
         self.assertIn("missing required attribute 'value'", str(schema.all_errors[0]))
         self.assertIn("unexpected meta character ']' at position 0", str(schema.all_errors[1]))
 
+    def test_get_annotation__issue_255(self):
+        schema = self.schema_class(dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:simpleType name="enum1">
+                    <xs:restriction base="xs:string">
+                        <xs:enumeration value="one">
+                            <xs:annotation>
+                                <xs:documentation>1st facet</xs:documentation>
+                            </xs:annotation>
+                        </xs:enumeration>
+                        <xs:enumeration value="two"/>
+                        <xs:enumeration value="three">
+                            <xs:annotation>
+                                <xs:documentation>3rd facet</xs:documentation>
+                            </xs:annotation>
+                        </xs:enumeration>
+                    </xs:restriction>
+                </xs:simpleType>
+            </xs:schema>"""))
+
+        facet = schema.types['enum1'].get_facet(XSD_ENUMERATION)
+        self.assertEqual(facet.annotation.documentation[0].text, '1st facet')
+        self.assertEqual(facet.get_annotation(0).documentation[0].text, '1st facet')
+        self.assertIsNone(facet.get_annotation(1))
+        self.assertEqual(facet.get_annotation(2).documentation[0].text, '3rd facet')
+
+        with self.assertRaises(IndexError):
+            facet.get_annotation(3)
+
+        schema = self.schema_class(dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:simpleType name="pattern1">
+                    <xs:restriction base="xs:string">
+                        <xs:pattern value="\\w+"/>
+                        <xs:pattern value=".+">
+                            <xs:annotation>
+                                <xs:documentation>2nd facet</xs:documentation>
+                            </xs:annotation>
+                        </xs:pattern>
+                    </xs:restriction>
+                </xs:simpleType>
+            </xs:schema>"""))
+
+        facet = schema.types['pattern1'].get_facet(XSD_PATTERN)
+        self.assertIsNone(facet.get_annotation(0))
+        self.assertEqual(facet.get_annotation(1).documentation[0].text, '2nd facet')
+
+        with self.assertRaises(IndexError):
+            facet.get_annotation(2)
+
     def test_fixed_value(self):
         with self.assertRaises(XMLSchemaParseError) as ec:
             self.schema_class(dedent("""\

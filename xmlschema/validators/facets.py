@@ -21,10 +21,11 @@ from ..etree import etree_element
 from ..names import XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_ENUMERATION, \
     XSD_INTEGER, XSD_WHITE_SPACE, XSD_PATTERN, XSD_MAX_INCLUSIVE, XSD_MAX_EXCLUSIVE, \
     XSD_MIN_INCLUSIVE, XSD_MIN_EXCLUSIVE, XSD_TOTAL_DIGITS, XSD_FRACTION_DIGITS, \
-    XSD_ASSERTION, XSD_DECIMAL, XSD_EXPLICIT_TIMEZONE, XSD_NOTATION_TYPE, XSD_QNAME
+    XSD_ASSERTION, XSD_DECIMAL, XSD_EXPLICIT_TIMEZONE, XSD_NOTATION_TYPE, XSD_QNAME, \
+    XSD_ANNOTATION
 from ..helpers import count_digits, local_name
 from .exceptions import XMLSchemaValidationError, XMLSchemaDecodeError
-from .xsdbase import XsdComponent
+from .xsdbase import XsdComponent, XsdAnnotation
 
 
 class XsdFacet(XsdComponent):
@@ -564,6 +565,17 @@ class XsdEnumerationFacets(MutableSequence, XsdFacet):
         reason = "value must be one of {!r}".format(self.enumeration)
         raise XMLSchemaValidationError(self, value, reason)
 
+    def get_annotation(self, i):
+        """
+        Get the XSD annotation of the i-th enumeration facet.
+
+        :param i: an integer index.
+        :returns: an XsdAnnotation object or `None`.
+        """
+        for child in self._elements[i]:
+            if child.tag == XSD_ANNOTATION:
+                return XsdAnnotation(child, self.schema, self)
+
 
 class XsdPatternFacets(MutableSequence, XsdFacet):
     """
@@ -639,6 +651,17 @@ class XsdPatternFacets(MutableSequence, XsdFacet):
     @property
     def regexps(self):
         return [e.get('value', '') for e in self._elements]
+
+    def get_annotation(self, i):
+        """
+        Get the XSD annotation of the i-th pattern facet.
+
+        :param i: an integer index.
+        :returns: an XsdAnnotation object or `None`.
+        """
+        for child in self._elements[i]:
+            if child.tag == XSD_ANNOTATION:
+                return XsdAnnotation(child, self.schema, self)
 
 
 class XsdAssertionXPathParser(XPath2Parser):
