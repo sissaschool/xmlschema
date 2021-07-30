@@ -103,7 +103,6 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             yield from self.type.content.iter_elements()
 
     def _parse(self):
-        XsdComponent._parse(self)
         self._parse_particle(self.elem)
         self._parse_attributes()
 
@@ -1100,7 +1099,6 @@ class Xsd11Element(XsdElement):
     _target_namespace = None
 
     def _parse(self):
-        XsdComponent._parse(self)
         self._parse_particle(self.elem)
         self._parse_attributes()
 
@@ -1280,7 +1278,6 @@ class XsdAlternative(XsdComponent):
             self.xpath_default_namespace != other.xpath_default_namespace
 
     def _parse(self):
-        XsdComponent._parse(self)
         attrib = self.elem.attrib
 
         if 'xpathDefaultNamespace' in attrib:

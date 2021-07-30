@@ -58,7 +58,6 @@ class XsdAttribute(XsdComponent, ValidationMixin):
     inheritable = False  # For XSD 1.1 attributes, always False for XSD 1.0 attributes.
 
     def _parse(self):
-        super()._parse()
         attrib = self.elem.attrib
 
         if 'use' in attrib and self.parent is not None and \
@@ -357,8 +356,6 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
         return len(self._attribute_group)
 
     def _parse(self):
-        super()._parse()
-
         if self.elem.tag == XSD_ATTRIBUTE_GROUP:
             if self.parent is not None:
                 return  # Skip parsing dummy instances

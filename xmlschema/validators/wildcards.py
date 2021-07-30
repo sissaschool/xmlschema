@@ -37,8 +37,6 @@ class XsdWildcard(XsdComponent, ValidationMixin):
             )
 
     def _parse(self):
-        super(XsdWildcard, self)._parse()
-
         # Parse namespace and processContents
         namespace = self.elem.get('namespace', '##any').strip()
         if namespace == '##any':

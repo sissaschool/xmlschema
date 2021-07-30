@@ -112,7 +112,6 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
     __copy__ = copy
 
     def _parse(self):
-        super(XsdGroup, self)._parse()
         self.clear()
         self._parse_particle(self.elem)
 

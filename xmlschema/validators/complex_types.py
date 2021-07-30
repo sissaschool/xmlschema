@@ -89,7 +89,6 @@ class XsdComplexType(XsdType, ValidationMixin):
             )
 
     def _parse(self):
-        super(XsdComplexType, self)._parse()
         if self.elem.tag == XSD_RESTRICTION:
             return  # a local restriction is already parsed by the caller
 

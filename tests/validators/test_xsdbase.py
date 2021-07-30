@@ -19,8 +19,8 @@ try:
 except ImportError:
     lxml_etree = None
 
-from xmlschema.validators import XsdValidator, XsdComponent, XMLSchema10, \
-    XMLSchema11, XMLSchemaParseError, XMLSchemaValidationError, XsdGroup, XsdSimpleType
+from xmlschema.validators import XsdValidator, XsdComponent, XMLSchema10, XMLSchema11, \
+    XMLSchemaParseError, XMLSchemaValidationError, XsdAnnotation, XsdGroup, XsdSimpleType
 from xmlschema.names import XSD_NAMESPACE, XSD_ELEMENT, XSD_ANNOTATION, XSD_ANY_TYPE
 from xmlschema.etree import ElementTree
 from xmlschema.dataobjects import DataElement
@@ -162,6 +162,25 @@ class TestXsdComponent(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             XsdComponent(elem=ElementTree.Element('A'), schema=self.schema)
+
+    def test_errors(self):
+        schema = XMLSchema10(dedent("""<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+            <xs:element name="root" type="xs:string">
+                <xs:simpleType>
+                    <xs:restriction base="xs:string"/>
+                </xs:simpleType>
+            </xs:element>
+        </xs:schema>"""), validation='lax')
+
+        xsd_element = schema.elements['root']
+        self.assertEqual(len(schema.all_errors), 1)
+        self.assertEqual(len(xsd_element.errors), 1)
+
+        xsd_element.elem.attrib.pop('type')
+        xsd_element.elem = xsd_element.elem
+
+        self.assertEqual(len(schema.all_errors), 0)
+        self.assertEqual(len(xsd_element.errors), 0)
 
     def test_is_override(self):
         self.assertFalse(self.schema.elements['cars'].is_override())
@@ -425,13 +444,22 @@ class TestXsdComponent(unittest.TestCase):
         self.assertIn('name="car" type="vh:vehicleType"', cars_dump)
         self.assertIsInstance(ElementTree.XML(cars_dump), ElementTree.Element)
 
-    def test_annotation(self):
+    def test_annotations(self):
         schema = XMLSchema10("""<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
                      <xs:element name="root">
                          <xs:annotation/>
                      </xs:element>
                  </xs:schema>""")
         self.assertTrue(schema.elements['root'].annotation.built)
+
+        schema = XMLSchema10("""<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                     <xs:element name="root">
+                         <xs:simpleType>
+                             <xs:restriction base="xs:string"/>
+                         </xs:simpleType>
+                     </xs:element>
+                 </xs:schema>""")
+        self.assertIsNone(schema.elements['root'].annotation)
 
         if lxml_etree is not None:
             root = lxml_etree.XML("""<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
@@ -453,6 +481,7 @@ class TestXsdComponent(unittest.TestCase):
                  </xs:schema>""")
         self.assertEqual(len(schema.all_errors), 0)
 
+        # XSD annotation errors found with meta-schema validation
         schema = XMLSchema10("""<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
                      <xs:element name="root">
                          <xs:annotation>
@@ -463,6 +492,16 @@ class TestXsdComponent(unittest.TestCase):
                      </xs:element>
                  </xs:schema>""", validation='lax')
         self.assertEqual(len(schema.all_errors), 3)
+
+        # Lazy XSD annotation build (errors not counted in schema.all_errors)
+        xsd_element = schema.elements['root']
+        self.assertNotIn('_annotation', xsd_element.__dict__)
+        annotation = xsd_element.annotation
+        self.assertIsInstance(annotation, XsdAnnotation)
+        self.assertIn('_annotation', xsd_element.__dict__)
+        self.assertEqual(len(schema.all_errors), 3)
+        self.assertEqual(len(annotation.errors), 2)
+        self.assertIsNone(annotation.annotation)
 
 
 class TestXsdType(unittest.TestCase):

@@ -53,7 +53,6 @@ class XsdFacet(XsdComponent):
         return
 
     def _parse(self):
-        super(XsdFacet, self)._parse()
         if 'fixed' in self.elem.attrib and self.elem.attrib['fixed'] in ('true', '1'):
             self.fixed = True
         base_facet = self.base_facet
@@ -499,7 +498,6 @@ class XsdEnumerationFacets(MutableSequence, XsdFacet):
         XsdFacet.__init__(self, elem, schema, parent, base_type)
 
     def _parse(self):
-        super(XsdFacet, self)._parse()
         self._elements = [self.elem]
         self.enumeration = [self._parse_value(self.elem)]
 
@@ -594,7 +592,6 @@ class XsdPatternFacets(MutableSequence, XsdFacet):
         XsdFacet.__init__(self, elem, schema, parent, base_type)
 
     def _parse(self):
-        super(XsdFacet, self)._parse()
         self._elements = [self.elem]
         self.patterns = [self._parse_value(self.elem)]
 
@@ -703,7 +700,6 @@ class XsdAssertionFacet(XsdFacet):
         return '%s(test=%r)' % (self.__class__.__name__, self.path)
 
     def _parse(self):
-        super(XsdFacet, self)._parse()
         try:
             self.path = self.elem.attrib['test']
         except KeyError:

@@ -55,7 +55,6 @@ class XsdAssert(XsdComponent, ElementPathMixin):
         self._xpath_lock = threading.Lock()
 
     def _parse(self):
-        super(XsdAssert, self)._parse()
         if self.base_type.is_simple():
             self.parse_error("base_type=%r is not a complexType definition" % self.base_type)
         else:

@@ -32,7 +32,6 @@ class XsdNotation(XsdComponent):
         return True
 
     def _parse(self):
-        super(XsdNotation, self)._parse()
         if self.parent is not None:
             self.parse_error("a notation declaration must be global")
         try:

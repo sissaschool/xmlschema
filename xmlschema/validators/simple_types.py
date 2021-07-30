@@ -570,9 +570,6 @@ class XsdAtomicBuiltin(XsdAtomic):
     def __repr__(self):
         return '%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
 
-    def _parse(self):
-        pass
-
     @property
     def admitted_facets(self):
         return self._admitted_facets or self.primitive_type.admitted_facets
@@ -787,8 +784,6 @@ class XsdList(XsdSimpleType):
         super(XsdList, self).__setattr__(name, value)
 
     def _parse(self):
-        super(XsdList, self)._parse()
-
         child = self._parse_child_component(self.elem)
         if child is not None:
             # Case of a local simpleType declaration inside the list tag
@@ -947,7 +942,6 @@ class XsdUnion(XsdSimpleType):
         super(XsdUnion, self).__setattr__(name, value)
 
     def _parse(self):
-        super(XsdUnion, self)._parse()
         member_types = []
 
         for child in self.elem:
@@ -1134,7 +1128,6 @@ class XsdAtomicRestriction(XsdAtomic):
         super(XsdAtomicRestriction, self).__setattr__(name, value)
 
     def _parse(self):
-        super(XsdAtomicRestriction, self)._parse()
         elem = self.elem
         if elem.get('name') == XSD_ANY_ATOMIC_TYPE:
             return  # skip special type xs:anyAtomicType

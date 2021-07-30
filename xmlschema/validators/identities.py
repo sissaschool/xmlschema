@@ -67,7 +67,6 @@ class XsdSelector(XsdComponent):
         super(XsdSelector, self).__init__(elem, schema, parent)
 
     def _parse(self):
-        super(XsdSelector, self)._parse()
         try:
             self.path = self.elem.attrib['xpath']
         except KeyError:
@@ -154,7 +153,6 @@ class XsdIdentity(XsdComponent):
         super(XsdIdentity, self).__init__(elem, schema, parent)
 
     def _parse(self):
-        super(XsdIdentity, self)._parse()
         try:
             self.name = get_qname(self.target_namespace, self.elem.attrib['name'])
         except KeyError:
@@ -372,7 +370,6 @@ class Xsd11Unique(XsdUnique):
 
     def _parse(self):
         if self._parse_reference():
-            super(XsdIdentity, self)._parse()
             self.ref = True
         else:
             super(Xsd11Unique, self)._parse()
@@ -382,7 +379,6 @@ class Xsd11Key(XsdKey):
 
     def _parse(self):
         if self._parse_reference():
-            super(XsdIdentity, self)._parse()
             self.ref = True
         else:
             super(Xsd11Key, self)._parse()
@@ -392,7 +388,6 @@ class Xsd11Keyref(XsdKeyref):
 
     def _parse(self):
         if self._parse_reference():
-            super(XsdIdentity, self)._parse()
             self.ref = True
         else:
             super(Xsd11Keyref, self)._parse()

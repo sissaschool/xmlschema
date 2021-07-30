@@ -232,14 +232,18 @@ class XsdComponent(XsdValidator):
         self.elem = elem
 
     def __setattr__(self, name, value):
-        super(XsdComponent, self).__setattr__(name, value)
         if name == 'elem':
             if value.tag not in self._ADMITTED_TAGS:
                 msg = "wrong XSD element {!r} for {!r}, must be one of {!r}"
                 raise XMLSchemaValueError(
                     msg.format(value.tag, self.__class__, self._ADMITTED_TAGS)
                 )
+            super(XsdComponent, self).__setattr__(name, value)
+            if self.errors:
+                self.errors.clear()
             self._parse()
+        else:
+            super(XsdComponent, self).__setattr__(name, value)
 
     @property
     def xsd_version(self):
@@ -317,7 +321,7 @@ class XsdComponent(XsdValidator):
             return '%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
 
     def _parse(self):
-        del self.errors[:]
+        pass
 
     def _parse_reference(self):
         """
@@ -563,6 +567,8 @@ class XsdAnnotation(XsdComponent):
         </documentation>
     """
     _ADMITTED_TAGS = {XSD_ANNOTATION}
+
+    annotation = None
 
     @property
     def built(self):

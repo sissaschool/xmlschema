@@ -63,7 +63,7 @@ class TestXsdIdentities(XsdValidatorTestCase):
             self.assertEqual(len(errors), 3)
             self.assertEqual(errors[0].message, "missing required attribute 'name'")
         else:
-            self.assertEqual(len(errors), 2)
+            self.assertEqual(len(errors), 3)
             self.assertIn("missing key field '@name'", errors[0].message)
 
     def test_missing_selector(self):
