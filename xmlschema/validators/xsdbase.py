@@ -573,8 +573,10 @@ class XsdAnnotation(XsdComponent):
     annotation = None
 
     def __repr__(self):
-        values = elementpath.select(self.elem, '*/fn:string()')
-        return '%s(%r)' % (self.__class__.__name__, '\n'.join(values)[:40])
+        return '%s(%r)' % (self.__class__.__name__, str(self)[:40])
+
+    def __str__(self):
+        return '\n'.join(elementpath.select(self.elem, '*/fn:string()'))
 
     @property
     def built(self):

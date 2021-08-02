@@ -44,7 +44,8 @@ from ..xpath import XMLSchemaProxy, ElementPathMixin
 from .exceptions import XMLSchemaParseError, XMLSchemaValidationError, XMLSchemaEncodeError, \
     XMLSchemaNotBuiltError, XMLSchemaIncludeWarning, XMLSchemaImportWarning
 from .helpers import get_xsd_derivation_attribute
-from .xsdbase import check_validation_mode, XsdValidator, ValidationMixin, XsdComponent, XsdAnnotation
+from .xsdbase import check_validation_mode, XsdValidator, \
+    ValidationMixin, XsdComponent, XsdAnnotation
 from .notations import XsdNotation
 from .identities import XsdKey, XsdKeyref, XsdUnique, Xsd11Key, Xsd11Unique, Xsd11Keyref
 from .facets import XSD_10_FACETS, XSD_11_FACETS

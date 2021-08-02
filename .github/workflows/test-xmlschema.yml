@@ -1,4 +1,4 @@
-name: elementpath
+name: xmlschema
 
 on: [push, pull_request]
 

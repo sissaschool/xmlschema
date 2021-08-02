@@ -69,8 +69,8 @@ class TestMemoryUsage(unittest.TestCase):
         lazy_iterparse_mem = self.check_memory_profile(output)
 
         self.assertLess(parse_mem, 2)
-        self.assertLessEqual(lazy_iterparse_mem, parse_mem / decimal.Decimal('1.75'))
-        self.assertLessEqual(lazy_iterparse_mem, iterparse_mem)
+        self.assertLess(lazy_iterparse_mem, parse_mem)
+        self.assertLess(lazy_iterparse_mem, iterparse_mem)
 
     def test_decode_memory_usage(self):
         test_dir = os.path.dirname(__file__) or '.'
@@ -88,7 +88,7 @@ class TestMemoryUsage(unittest.TestCase):
         lazy_decode_mem = self.check_memory_profile(output)
 
         self.assertLess(decode_mem, 2.6)
-        self.assertLessEqual(lazy_decode_mem, decode_mem / decimal.Decimal('1.1'))
+        self.assertLess(lazy_decode_mem, decode_mem)
 
     def test_validate_memory_usage(self):
         test_dir = os.path.dirname(__file__) or '.'
@@ -106,7 +106,7 @@ class TestMemoryUsage(unittest.TestCase):
         lazy_validate_mem = self.check_memory_profile(output)
 
         self.assertLess(validate_mem, 2.6)
-        self.assertLessEqual(lazy_validate_mem, validate_mem / decimal.Decimal('1.1'))
+        self.assertLess(lazy_validate_mem, validate_mem)
 
 
 if __name__ == '__main__':
