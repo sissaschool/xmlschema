@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 #
-# Copyright (c) 2016-2020, SISSA (International School for Advanced Studies).
+# Copyright (c) 2016-2021, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -18,7 +18,7 @@ with Path(__file__).parent.joinpath('README.rst').open() as readme:
 
 setup(
     name='xmlschema',
-    version='1.6.4',
+    version='1.7.0',
     packages=find_packages(include=['xmlschema', 'xmlschema.*']),
     include_package_data=True,
     entry_points={

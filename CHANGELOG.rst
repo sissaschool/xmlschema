@@ -2,6 +2,12 @@
 CHANGELOG
 *********
 
+`v1.7.0`_ (2021-08-02)
+======================
+* Make XSD annotation parsing lazy
+* Add lazy annotations to schema instances
+* Add get_annotation() method to multiple-facets classes (issue #255)
+
 `v1.6.4`_ (2021-06-09)
 ======================
 * Add testing config for Python 3.10 (Tox and CI)
@@ -457,3 +463,4 @@ v0.9.6 (2017-05-05)
 .. _v1.6.2: https://github.com/brunato/xmlschema/compare/v1.6.1...v1.6.2
 .. _v1.6.3: https://github.com/brunato/xmlschema/compare/v1.6.2...v1.6.3
 .. _v1.6.4: https://github.com/brunato/xmlschema/compare/v1.6.3...v1.6.4
+.. _v1.7.0: https://github.com/brunato/xmlschema/compare/v1.6.4...v1.7.0
