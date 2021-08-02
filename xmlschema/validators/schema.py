@@ -44,7 +44,7 @@ from ..xpath import XMLSchemaProxy, ElementPathMixin
 from .exceptions import XMLSchemaParseError, XMLSchemaValidationError, XMLSchemaEncodeError, \
     XMLSchemaNotBuiltError, XMLSchemaIncludeWarning, XMLSchemaImportWarning
 from .helpers import get_xsd_derivation_attribute
-from .xsdbase import check_validation_mode, XsdValidator, ValidationMixin, XsdComponent
+from .xsdbase import check_validation_mode, XsdValidator, ValidationMixin, XsdComponent, XsdAnnotation
 from .notations import XsdNotation
 from .identities import XsdKey, XsdKeyref, XsdUnique, Xsd11Key, Xsd11Unique, Xsd11Keyref
 from .facets import XSD_10_FACETS, XSD_11_FACETS
@@ -139,7 +139,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
 
     :param source: an URI that reference to a resource or a file path or a file-like \
     object or a string containing the schema or an Element or an ElementTree document \
-    or an :class:`XMLRecource` instance. A multi source initialization is supported \
+    or an :class:`XMLResource` instance. A multi source initialization is supported \
     providing a not empty list of XSD sources.
     :type source: Element or ElementTree or str or file-like object
     :param namespace: is an optional argument that contains the URI of the namespace \
@@ -273,6 +273,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
     fallback_locations = None
     meta_schema = None
     _locations = None
+    _annotations = None
 
     # Schema defaults
     target_namespace = ''
@@ -590,17 +591,17 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
     @property
     def tag(self):
         """Schema root tag. For compatibility with the ElementTree API."""
-        return self.root.tag
+        return self.source.root.tag
 
     @property
     def id(self):
         """The schema's *id* attribute, defaults to ``None``."""
-        return self.root.get('id')
+        return self.source.root.get('id')
 
     @property
     def version(self):
         """The schema's *version* attribute, defaults to ``None``."""
-        return self.root.get('version')
+        return self.source.root.get('version')
 
     @property
     def schema_location(self):
@@ -644,6 +645,15 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             if not builtin_types:
                 cls.meta_schema.build()
             return builtin_types
+
+    @property
+    def annotations(self):
+        if self._annotations is None:
+            self._annotations = [
+                XsdAnnotation(child, self) for child in self.source.root
+                if child.tag == XSD_ANNOTATION
+            ]
+        return self._annotations
 
     @property
     def root_elements(self):
@@ -825,8 +835,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         schema.warnings = self.warnings[:]
         schema.namespaces = self.namespaces.copy()
         schema.locations = NamespaceResourcesMap(self.locations)
-        schema.imports = dict(self.imports)
-        schema.includes = dict(self.includes)
+        schema.imports = self.imports.copy()
+        schema.includes = self.includes.copy()
         schema.maps = self.maps.copy(validator=schema)
         return schema
 
@@ -1004,7 +1014,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             xsd_element.get_binding(*bases, replace_existing=True, **attrs)
 
     def _parse_inclusions(self):
-        """Processes schema document inclusions and redefinitions."""
+        """Processes schema document inclusions and redefinitions/overrides."""
         for child in self.source.root:
             if child.tag == XSD_INCLUDE:
                 try:
@@ -1055,6 +1065,25 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
                         self.errors.append(type(err)(msg))
                 else:
                     schema.redefine = self
+
+            elif child.tag == XSD_OVERRIDE and self.XSD_VERSION != '1.0':
+                try:
+                    location = child.attrib['schemaLocation'].strip()
+                    logger.info("Override schema %r", location)
+                    schema = self.include_schema(location, self.base_url)
+                except KeyError:
+                    # Attribute missing error already found by validation against meta-schema
+                    pass
+                except (OSError, IOError) as err:
+                    # If the override doesn't contain components (annotation excluded)
+                    # the statement is equivalent to an include, so no error is generated.
+                    # Otherwise fails.
+                    self.warnings.append("Override schema failed: %s." % str(err))
+                    warnings.warn(self.warnings[-1], XMLSchemaIncludeWarning, stacklevel=3)
+                    if any(e.tag != XSD_ANNOTATION and not callable(e.tag) for e in child):
+                        self.parse_error(str(err), child)
+                else:
+                    schema.override = self
 
     def include_schema(self, location, base_url=None, build=False):
         """
@@ -2000,29 +2029,6 @@ class XMLSchema11(XMLSchemaBase):
         VC_NAMESPACE: os.path.join(SCHEMAS_DIR, 'VC/XMLSchema-versioning.xsd'),
     }
     fallback_locations = LOCATION_HINTS.copy()
-
-    def _parse_inclusions(self):
-        super(XMLSchema11, self)._parse_inclusions()
-
-        for child in self.source.root:
-            if child.tag == XSD_OVERRIDE:
-                try:
-                    location = child.attrib['schemaLocation'].strip()
-                    logger.info("Override schema %r", location)
-                    schema = self.include_schema(location, self.base_url)
-                except KeyError:
-                    # Attribute missing error already found by validation against meta-schema
-                    pass
-                except (OSError, IOError) as err:
-                    # If the override doesn't contain components (annotation excluded)
-                    # the statement is equivalent to an include, so no error is generated.
-                    # Otherwise fails.
-                    self.warnings.append("Override schema failed: %s." % str(err))
-                    warnings.warn(self.warnings[-1], XMLSchemaIncludeWarning, stacklevel=3)
-                    if any(e.tag != XSD_ANNOTATION and not callable(e.tag) for e in child):
-                        self.parse_error(str(err), child)
-                else:
-                    schema.override = self
 
 
 XMLSchema = XMLSchema10

@@ -13,6 +13,8 @@ This module contains base functions and classes XML Schema components.
 import re
 from typing import Optional
 
+import elementpath
+
 from ..exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from ..names import XSD_ANNOTATION, XSD_APPINFO, XSD_DOCUMENTATION, XML_LANG, \
     XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_ID, XSD_QNAME, \
@@ -569,6 +571,10 @@ class XsdAnnotation(XsdComponent):
     _ADMITTED_TAGS = {XSD_ANNOTATION}
 
     annotation = None
+
+    def __repr__(self):
+        values = elementpath.select(self.elem, '*/fn:string()')
+        return '%s(%r)' % (self.__class__.__name__, '\n'.join(values)[:40])
 
     @property
     def built(self):

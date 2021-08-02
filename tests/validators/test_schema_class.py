@@ -185,6 +185,39 @@ class TestXMLSchema10(XsdValidatorTestCase):
             </xs:restriction>
         </xs:simpleType>""", XMLSchemaParseError)
 
+    def test_schema_annotations(self):
+        schema = self.schema_class(dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:element name="root"/>
+            </xs:schema>"""))
+
+        self.assertIsNone(schema._annotations)
+        annotations = schema.annotations
+        self.assertListEqual(annotations, [])
+        self.assertIs(annotations, schema.annotations)
+
+        schema = self.schema_class(dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:annotation>
+                    <xs:documentation>First annotation</xs:documentation>
+                </xs:annotation>
+                <xs:annotation>
+                    <xs:documentation>Second annotation</xs:documentation>
+                </xs:annotation>
+                <xs:element name="root"/>
+                <xs:annotation>
+                    <xs:documentation>Third annotation</xs:documentation>
+                </xs:annotation>
+            </xs:schema>"""))
+
+        self.assertIsNone(schema._annotations)
+        annotations = schema.annotations
+        self.assertEqual(len(annotations), 3)
+        self.assertEqual(repr(annotations[0]), "XsdAnnotation('First annotation')")
+        self.assertEqual(repr(annotations[1]), "XsdAnnotation('Second annotation')")
+        self.assertEqual(repr(annotations[2]), "XsdAnnotation('Third annotation')")
+        self.assertIs(annotations, schema.annotations)
+
     def test_base_schemas(self):
         xsd_file = os.path.join(SCHEMAS_DIR, 'XML/xml_minimal.xsd')
         schema = self.schema_class(xsd_file)
