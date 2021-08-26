@@ -326,7 +326,7 @@ class ModelVisitor:
             self.restart()
         return [(name, value) for name, value in self.iter_unordered_content(content)]
 
-    def iter_unordered_content(self, content):
+    def iter_unordered_content(self, content, default_namespace=None):
         """
         Takes an unordered content stored in a dictionary of lists and yields the
         content elements sorted with the ordering defined by the model. Character
@@ -341,6 +341,7 @@ class ModelVisitor:
         or an iterable composed of couples of name and value. In case of a \
         dictionary the values must be lists where each item is the content \
         of a single element.
+        :param default_namespace: the default namespace to apply for matching names.
         :return: yields of a sequence of the Element being encoded's children.
         """
         if isinstance(content, dict):
@@ -359,7 +360,7 @@ class ModelVisitor:
 
         while self.element is not None and consumable_content:  # pragma: no cover
             for name in consumable_content:
-                if self.element.is_matching(name):
+                if self.element.is_matching(name, default_namespace, self.group):
                     yield name, consumable_content[name].popleft()
                     if not consumable_content[name]:
                         del consumable_content[name]
@@ -383,7 +384,7 @@ class ModelVisitor:
         while cdata_content:
             yield cdata_content.pop()
 
-    def iter_collapsed_content(self, content):
+    def iter_collapsed_content(self, content, default_namespace=None):
         """
         Iterates a content stored in a sequence of couples *(name, value)*, yielding
         items in the same order of the sequence, except for repetitions of the same
@@ -396,6 +397,7 @@ class ModelVisitor:
         collapses the children with the same tag into a list (eg. BadgerFish).
 
         :param content: an iterable containing couples of names and values.
+        :param default_namespace: the default namespace to apply for matching names.
         :return: yields of a sequence of the Element being encoded's children.
         """
         prev_name = None
@@ -407,7 +409,7 @@ class ModelVisitor:
                 continue
 
             while self.element is not None:
-                if self.element.is_matching(name):
+                if self.element.is_matching(name, default_namespace, self.group):
                     yield name, value
                     prev_name = name
                     for _ in self.advance(True):
@@ -415,7 +417,7 @@ class ModelVisitor:
                     break
 
                 for key in unordered_content:
-                    if self.element.is_matching(key):
+                    if self.element.is_matching(key, default_namespace, self.group):
                         break
                 else:
                     if prev_name == name:
