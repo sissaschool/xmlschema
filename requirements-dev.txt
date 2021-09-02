@@ -7,4 +7,6 @@ lxml
 memory_profiler
 Sphinx
 sphinx_rtd_theme
+flake8
+mypy
 -e .

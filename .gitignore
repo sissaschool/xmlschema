@@ -6,6 +6,7 @@
 *.json
 *.zip
 .idea/
+.mypy_cache/
 .tox/
 .eggs/
 .coverage*
