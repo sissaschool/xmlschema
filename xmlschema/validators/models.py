@@ -360,7 +360,7 @@ class ModelVisitor:
 
         while self.element is not None and consumable_content:  # pragma: no cover
             for name in consumable_content:
-                if self.element.is_matching(name, default_namespace, self.group):
+                if self.element.is_matching(name, default_namespace, group=self.group):
                     yield name, consumable_content[name].popleft()
                     if not consumable_content[name]:
                         del consumable_content[name]
@@ -409,7 +409,7 @@ class ModelVisitor:
                 continue
 
             while self.element is not None:
-                if self.element.is_matching(name, default_namespace, self.group):
+                if self.element.is_matching(name, default_namespace, group=self.group):
                     yield name, value
                     prev_name = name
                     for _ in self.advance(True):
@@ -417,7 +417,7 @@ class ModelVisitor:
                     break
 
                 for key in unordered_content:
-                    if self.element.is_matching(key, default_namespace, self.group):
+                    if self.element.is_matching(key, default_namespace, group=self.group):
                         break
                 else:
                     if prev_name == name:
