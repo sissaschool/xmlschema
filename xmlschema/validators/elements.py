@@ -13,7 +13,7 @@ This module contains classes for XML Schema elements, complex types and model gr
 import warnings
 from decimal import Decimal
 from types import GeneratorType
-from typing import Optional
+from typing import Any
 from elementpath import XPath2Parser, ElementPathError, XPathContext
 from elementpath.datatypes import AbstractDateTime, Duration, AbstractBinary
 
@@ -90,7 +90,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             self.occurs
         )
 
-    def __setattr__(self, name: str, value: Optional[XsdType]):
+    def __setattr__(self, name: str, value: Any):
         if name == "type":
             try:
                 self.attributes = value.attributes
@@ -780,8 +780,8 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 yield self.validation_error(validation, err, elem, **kwargs)
             else:
                 if isinstance(result, GeneratorType):
-                    for err in result:
-                        yield self.validation_error(validation, err, elem, **kwargs)
+                    for error in result:
+                        yield self.validation_error(validation, error, elem, **kwargs)
 
         # Disable collect for out of scope identities and check key references
         if 'max_depth' not in kwargs:
@@ -789,8 +789,8 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 counter = identities[identity]
                 counter.enabled = False
                 if isinstance(identity, XsdKeyref):
-                    for err in counter.iter_errors(identities):
-                        yield self.validation_error(validation, err, elem, **kwargs)
+                    for error in counter.iter_errors(identities):
+                        yield self.validation_error(validation, error, elem, **kwargs)
         elif level:
             self.stop_identities(identities)
 

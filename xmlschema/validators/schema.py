@@ -23,6 +23,7 @@ from copy import copy
 from abc import ABCMeta
 from collections import namedtuple, Counter
 from itertools import chain
+from typing import Optional, Dict, Any, Type, Callable, Union
 
 from ..exceptions import XMLSchemaTypeError, XMLSchemaKeyError, \
     XMLSchemaValueError, XMLSchemaNamespaceError
@@ -267,12 +268,12 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
     :ivar elements: `xsd:element` global declarations.
     :vartype elements: NamespaceView
     """
-    XSD_VERSION = None
-    BUILDERS = None
+    XSD_VERSION: Optional[str] = None
+    BUILDERS: Optional[Dict[str, Union[Type, Callable]]] = None
     BUILDERS_MAP = None
-    BASE_SCHEMAS = None
-    fallback_locations = None
-    meta_schema = None
+    BASE_SCHEMAS: Optional[Dict[str, str]] = None
+    fallback_locations: Optional[Dict[str, str]] = None
+    meta_schema: Optional[Union[str, 'XMLSchemaBase']] = None
     _locations = None
     _annotations = None
 

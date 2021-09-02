@@ -7,6 +7,8 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+from typing import Any
+
 from ..exceptions import XMLSchemaException, XMLSchemaWarning, XMLSchemaValueError
 from ..etree import etree_tostring
 from ..helpers import get_prefixed_qname, etree_getpath, is_etree_element
@@ -115,7 +117,7 @@ class XMLSchemaNotBuiltError(XMLSchemaValidatorError, RuntimeError):
         )
 
 
-class XMLSchemaParseError(XMLSchemaValidatorError, SyntaxError):
+class XMLSchemaParseError(XMLSchemaValidatorError, SyntaxError):  # type: ignore[misc]
     """
     Raised when an error is found during the building of an XSD validator.
 

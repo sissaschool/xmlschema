@@ -24,14 +24,14 @@ from .xsdbase import XsdComponent
 from .attributes import XsdAttribute
 
 
-XSD_IDENTITY_XPATH_SYMBOLS = {
+XSD_IDENTITY_XPATH_SYMBOLS = frozenset((
     'processing-instruction', 'following-sibling', 'preceding-sibling',
     'ancestor-or-self', 'attribute', 'following', 'namespace', 'preceding',
     'ancestor', 'position', 'comment', 'parent', 'child', 'false', 'text', 'node',
     'true', 'last', 'not', 'and', 'mod', 'div', 'or', '..', '//', '!=', '<=', '>=', '(', ')',
     '[', ']', '.', '@', ',', '/', '|', '*', '-', '=', '+', '<', '>', ':', '(end)', '(name)',
     '(string)', '(float)', '(decimal)', '(integer)', '::', '{', '}',
-}
+))
 
 
 # XSD identities use a restricted parser and a context for iterate element
@@ -396,7 +396,7 @@ class Xsd11Keyref(XsdKeyref):
 class IdentityCounter:
 
     def __init__(self, identity: Union[XsdKey, XsdKeyref], enabled=True):
-        self.counter = Counter()
+        self.counter: Counter = Counter()
         self.identity = identity
         self.enabled = enabled
 
@@ -415,11 +415,12 @@ class IdentityCounter:
 
 
 class KeyrefCounter(IdentityCounter):
+    identity: XsdKeyref
 
     def increase(self, fields: tuple):
         self.counter[fields] += 1
 
-    def iter_errors(self, identities: Dict[Union[XsdKey, XsdKeyref],
+    def iter_errors(self, identities: Dict[Union[XsdKey, XsdKeyref, None],
                                            Union['IdentityCounter', 'KeyrefCounter']]):
         refer_values = identities[self.identity.refer].counter
 

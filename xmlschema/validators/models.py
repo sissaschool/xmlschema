@@ -17,8 +17,7 @@ from ..exceptions import XMLSchemaValueError
 from .particles import ParticleMixin, ModelGroup
 
 
-def distinguishable_paths(path1: List[Union[ParticleMixin, ModelGroup]],
-                          path2: List[Union[ParticleMixin, ModelGroup]]):
+def distinguishable_paths(path1: List[ModelGroup], path2: List[ModelGroup]):
     """
     Checks if two model paths are distinguishable in a deterministic way, without looking forward
     or backtracking. The arguments are lists containing paths from the base group of the model to
@@ -97,8 +96,8 @@ class ModelVisitor:
     """
     def __init__(self, root: ModelGroup):
         self.root = root
-        self.occurs = Counter()
-        self._groups: List[Tuple[ModelGroup, int, bool]] = []
+        self.occurs: Counter = Counter()
+        self._groups: List[Tuple[ModelGroup, Iterator[ParticleMixin], bool]] = []
         self.element = None
         self.group = root
         self.items = self.iter_group()
@@ -138,6 +137,7 @@ class ModelVisitor:
         Returns the expected elements of the current and descendant groups.
         """
         expected = []
+        items: Union[ModelGroup, Iterator[ParticleMixin]]
         if self.group.model == 'choice':
             items = self.group
         elif self.group.model == 'all':
@@ -178,7 +178,7 @@ class ModelVisitor:
 
         :param match: provides current element match.
         """
-        def stop_item(item: ParticleMixin) -> bool:
+        def stop_item(item: Union[ParticleMixin, ModelGroup]) -> bool:
             """
             Stops element or group matching, incrementing current group counter.
 

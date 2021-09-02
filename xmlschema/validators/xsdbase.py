@@ -11,7 +11,7 @@
 This module contains base functions and classes XML Schema components.
 """
 import re
-from typing import Optional
+from typing import Dict, Optional, Union, Set, Tuple
 
 import elementpath
 
@@ -214,7 +214,7 @@ class XsdComponent(XsdValidator):
     """
     _REGEX_SPACE = re.compile(r'\s')
     _REGEX_SPACES = re.compile(r'\s+')
-    _ADMITTED_TAGS = ()
+    _ADMITTED_TAGS: Union[Set[str], Tuple[str], Tuple] = ()
 
     parent = None
     name = None
@@ -277,12 +277,12 @@ class XsdComponent(XsdValidator):
         return self.schema.target_namespace if self.ref is None else self.ref.target_namespace
 
     @property
-    def default_namespace(self):
+    def default_namespace(self) -> Optional[str]:
         """Property that references to schema's default namespaces."""
         return self.schema.namespaces.get('')
 
     @property
-    def namespaces(self):
+    def namespaces(self) -> Dict[str, str]:
         """Property that references to schema's namespace mapping."""
         return self.schema.namespaces
 
@@ -602,10 +602,10 @@ class XsdType(XsdComponent):
     """Common base class for XSD types."""
 
     abstract = False
-    block = None
-    base_type = None
-    derivation = None
-    _final = None
+    block: Optional[str] = None
+    base_type: Optional['XsdType'] = None
+    derivation: Optional[str] = None
+    _final: Optional[str] = None
 
     @property
     def final(self):

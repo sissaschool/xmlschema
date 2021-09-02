@@ -11,7 +11,7 @@
 This module contains classes for XML Schema simple data types.
 """
 from decimal import DecimalException
-from typing import Any
+from typing import Any, Optional
 
 from ..etree import etree_element
 from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
@@ -102,7 +102,7 @@ class XsdSimpleType(XsdType, ValidationMixin):
     _special_types = {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE}
     _ADMITTED_TAGS = {XSD_SIMPLE_TYPE}
 
-    variety = None
+    variety: Optional[str] = None
     min_length = None
     max_length = None
     white_space = None
@@ -477,7 +477,7 @@ class XsdAtomic(XsdSimpleType):
         if base_type is None:
             self.primitive_type = self
         else:
-            self.base_type = base_type
+            self.base_type: Any = base_type
         super(XsdAtomic, self).__init__(elem, schema, parent, name, facets)
 
     def __repr__(self):
@@ -914,7 +914,7 @@ class XsdUnion(XsdSimpleType):
     variety = 'union'
 
     member_types = None
-    _ADMITTED_TYPES = XsdSimpleType
+    _ADMITTED_TYPES: Any = XsdSimpleType
     _ADMITTED_TAGS = {XSD_UNION}
 
     def __init__(self, elem, schema, parent, name=None):

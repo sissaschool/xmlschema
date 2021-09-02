@@ -671,13 +671,13 @@ XsdAssertionXPathParser.unregister('position')
 
 # noinspection PyUnusedLocal
 @XsdAssertionXPathParser.method(XsdAssertionXPathParser.function('last', nargs=0))
-def evaluate(self, context=None):
+def evaluate_last(self, context=None):
     raise self.missing_context("context item size is undefined")
 
 
 # noinspection PyUnusedLocal
 @XsdAssertionXPathParser.method(XsdAssertionXPathParser.function('position', nargs=0))
-def evaluate(self, context=None):
+def evaluate_position(self, context=None):
     raise self.missing_context("context item position is undefined")
 
 
