@@ -1,0 +1,42 @@
+<?xml version="1.0"?>
+<xs:schema
+  xmlns:xs="http://www.w3.org/2001/XMLSchema"
+  xmlns:vc="http://www.w3.org/2007/XMLSchema-versioning"
+  elementFormDefault="qualified"
+  vc:minVersion="1.1">
+
+  <xs:redefine schemaLocation="issue_259-1.xsd">
+    <xs:complexType name="ConfigurationType">
+      <xs:complexContent>
+        <xs:extension base="ConfigurationType">
+          <xs:all>
+            <xs:element name="MyProtDefault" type="CustomProtocolDefault" minOccurs="0" maxOccurs="1"/>
+          </xs:all>
+        </xs:extension>
+      </xs:complexContent>
+    </xs:complexType>
+
+
+    <xs:complexType name="redChannelType">
+      <xs:complexContent>
+        <xs:extension base="redChannelType">
+          <xs:all>
+            <xs:element name="MyProt" type="CustomProtocol" minOccurs="0" maxOccurs="1"/>
+          </xs:all>
+        </xs:extension>
+      </xs:complexContent>
+    </xs:complexType>
+  </xs:redefine>
+
+
+  <xs:complexType name="CustomProtocolDefault">
+        <xs:attribute name="interfaceIdentifier" use="optional" type="xs:unsignedByte"/>
+        <xs:attribute name="outgoingDirectionIdentifier" use="optional" type="xs:unsignedByte"/>
+  </xs:complexType>
+
+    <xs:complexType name="CustomProtocol">
+        <xs:attribute name="interfaceIdentifier" use="optional" type="xs:unsignedByte"/>
+        <xs:attribute name="outgoingDirectionIdentifier" use="optional" type="xs:unsignedByte"/>
+  </xs:complexType>
+
+</xs:schema>

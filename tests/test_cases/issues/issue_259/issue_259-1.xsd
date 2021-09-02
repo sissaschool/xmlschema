@@ -1,0 +1,65 @@
+<?xml version="1.0"?>
+<xs:schema
+  xmlns:xs="http://www.w3.org/2001/XMLSchema"
+  xmlns:vc="http://www.w3.org/2007/XMLSchema-versioning"
+  elementFormDefault="qualified"
+  vc:minVersion="1.1">
+
+  <xs:complexType name="ConfigurationType">
+    <xs:all>
+      <xs:element name="DefaultProt1" type="ProtocolDefault" minOccurs="0" maxOccurs="1"/>
+      <xs:element name="DefaultProt2" type="ProtocolDefault" minOccurs="0" maxOccurs="1"/>
+      <!-- More elements -->
+      <xs:element name="DefaultProt13" type="ProtocolDefault" minOccurs="0" maxOccurs="1"/>
+      <xs:element name="connectionChannel" type="connectionChannel" maxOccurs="1" >
+        <xs:unique name="redChannelNameUniqueness">
+          <xs:selector xpath="redChannel"/>
+          <xs:field xpath="@name"/>
+        </xs:unique>
+      </xs:element>
+    </xs:all>
+  </xs:complexType>
+
+  <xs:complexType name="connectionChannel">
+    <xs:all>
+      <xs:element name="Prot1" type="Protocol" minOccurs="0" maxOccurs="1"/>
+      <xs:element name="Prot2" type="Protocol" minOccurs="0" maxOccurs="1"/>
+      <!-- More elements -->
+      <xs:element name="Prot13" type="Protocol" minOccurs="0" maxOccurs="1"/>
+      <xs:element name="redChannel" type="redChannelType" minOccurs="1" maxOccurs="8"/>
+    </xs:all>
+    <xs:attribute name="name" use="required">
+      <xs:simpleType>
+        <xs:restriction base="xs:string">
+          <xs:minLength value="1"/>
+          <xs:maxLength value="63"/>
+          <xs:pattern value="([a-zA-Z0-9\._\-])*"/>
+        </xs:restriction>
+      </xs:simpleType>
+    </xs:attribute>
+  </xs:complexType>
+
+
+  <xs:element name="Configuration" type="ConfigurationType">
+    <xs:unique name="connectionChannelNameUniqueness">
+      <xs:selector xpath="connectionChannel"/>
+      <xs:field xpath="@name"/>
+    </xs:unique>
+  </xs:element>
+
+
+  <xs:complexType name="redChannelType">
+    <xs:attribute name="name" use="required" type="xs:string"/>
+  </xs:complexType>
+
+  <xs:complexType name="ProtocolDefault">
+  <xs:attribute name="interfaceIdentifier" use="optional" type="xs:unsignedByte"/>
+  <xs:attribute name="outgoingDirectionIdentifier" use="optional" type="xs:unsignedByte"/>
+</xs:complexType>
+
+  <xs:complexType name="Protocol">
+  <xs:attribute name="interfaceIdentifier" use="optional" type="xs:unsignedByte"/>
+  <xs:attribute name="outgoingDirectionIdentifier" use="optional" type="xs:unsignedByte"/>
+</xs:complexType>
+
+</xs:schema>

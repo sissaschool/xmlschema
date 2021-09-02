@@ -125,3 +125,4 @@ issues/issue_223/issue_223.xml -L '' issue_223.xsd --errors=1  # pattern matchin
 issues/issue_243/issue_243.xml --version=1.1 -L '' issue_243.xsd
 issues/issue_245/issue_245.xml --version=1.1 --errors=2  # duplicated key value with xsi:type
 issues/issue_245/issue_245-valid.xml --version=1.1
+issues/issue_259/issue_259-2.xsd --version=1.1
