@@ -11,18 +11,19 @@
 Observers for testing XMLSchema classes.
 """
 from functools import wraps
+from typing import List
 
 from xmlschema.names import XSD_NAMESPACE, XSD_ANY_TYPE
 from xmlschema.validators import XMLSchema10, XMLSchema11, \
-    XsdGroup, XsdAttributeGroup, XsdComplexType
+    XsdGroup, XsdAttributeGroup, XsdComplexType, XsdComponent
 
 
 class SchemaObserver:
     """
     Observer that registers created components. Run the 'clear' method after each usage.
     """
-    components = []
-    dummy_components = []
+    components: List[XsdComponent] = []
+    dummy_components: List[XsdComponent] = []
 
     @classmethod
     def observed_builder(cls, builder):

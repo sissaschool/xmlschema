@@ -19,6 +19,7 @@ import logging
 from abc import ABC, ABCMeta
 from fnmatch import fnmatch
 from pathlib import Path
+from typing import Optional, List
 
 from jinja2 import Environment, ChoiceLoader, FileSystemLoader, \
     TemplateNotFound, TemplateAssertionError
@@ -124,10 +125,10 @@ class AbstractGenerator(ABC, metaclass=GeneratorMeta):
     in generator class.
     :param types_map: a dictionary with custom mapping for XSD types.
     """
-    formal_language = None
+    formal_language: Optional[str] = None
     """The formal language associated to the code generator (eg. Python)."""
 
-    searchpaths = None
+    searchpaths: Optional[List[str]]  = None
     """
     Directory paths for searching templates, specified with a list or a tuple.
     Each path must be provided as relative from the directory of the module

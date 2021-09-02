@@ -17,11 +17,14 @@ import logging
 import importlib
 import tempfile
 import warnings
+from types import ModuleType
+from typing import Optional, Type
 
 try:
     import lxml.etree as lxml_etree
 except ImportError:
-    lxml_etree = lxml_etree_element = None
+    lxml_etree = None  # type: ignore[assignment]
+    lxml_etree_element = None
 else:
     lxml_etree_element = lxml_etree.Element
 
@@ -41,7 +44,7 @@ from xmlschema.dataobjects import DataElementConverter, DataBindingConverter, Da
 try:
     from xmlschema.extras.codegen import PythonGenerator
 except ImportError:
-    PythonGenerator = None
+    PythonGenerator: Optional[Type] = None  # type: ignore[no-redef]
 
 from .helpers import iter_nested_items, etree_elements_assert_equal
 from .case_class import XsdValidatorTestCase
