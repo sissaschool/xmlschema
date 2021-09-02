@@ -31,7 +31,7 @@ from ..xpath import XMLSchemaProxy, ElementPathMixin, XPathElement
 from .exceptions import XMLSchemaValidationError, XMLSchemaTypeTableWarning
 from .helpers import get_xsd_derivation_attribute
 from .xsdbase import XSD_TYPE_DERIVATIONS, XSD_ELEMENT_DERIVATIONS, \
-    XsdComponent, XsdType, ValidationMixin
+    XsdComponent, ValidationMixin
 from .particles import ParticleMixin
 from .models import OccursCounter
 from .identities import IdentityXPathContext, XsdIdentity, XsdKeyref

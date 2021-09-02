@@ -23,7 +23,7 @@ from copy import copy
 from abc import ABCMeta
 from collections import namedtuple, Counter
 from itertools import chain
-from typing import Optional, Dict, Any, Type, Callable, Union
+from typing import Optional, Dict, Any, Union
 
 from ..exceptions import XMLSchemaTypeError, XMLSchemaKeyError, \
     XMLSchemaValueError, XMLSchemaNamespaceError
@@ -269,7 +269,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
     :vartype elements: NamespaceView
     """
     XSD_VERSION: Optional[str] = None
-    BUILDERS: Optional[Dict[str, Union[Type, Callable]]] = None
+    BUILDERS: Optional[Dict[str, Any]] = None
     BUILDERS_MAP = None
     BASE_SCHEMAS: Optional[Dict[str, str]] = None
     fallback_locations: Optional[Dict[str, str]] = None

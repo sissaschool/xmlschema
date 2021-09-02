@@ -17,7 +17,6 @@ import logging
 import importlib
 import tempfile
 import warnings
-from types import ModuleType
 from typing import Optional, Type
 
 try:

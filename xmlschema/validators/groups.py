@@ -817,14 +817,18 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
         if element_data.content is None:
             content = []
         elif isinstance(element_data.content, MutableMapping) or kwargs.get('unordered'):
-            content = ModelVisitor(self).iter_unordered_content(element_data.content, default_namespace)
+            content = ModelVisitor(self).iter_unordered_content(
+                element_data.content, default_namespace
+            )
         elif not isinstance(element_data.content, MutableSequence):
             wrong_content_type = True
             content = []
         elif converter.losslessly:
             content = element_data.content
         else:
-            content = ModelVisitor(self).iter_collapsed_content(element_data.content, default_namespace)
+            content = ModelVisitor(self).iter_collapsed_content(
+                element_data.content, default_namespace
+            )
 
         for index, (name, value) in enumerate(content):
             if isinstance(name, int):

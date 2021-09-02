@@ -7,8 +7,6 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from typing import Any
-
 from ..exceptions import XMLSchemaException, XMLSchemaWarning, XMLSchemaValueError
 from ..etree import etree_tostring
 from ..helpers import get_prefixed_qname, etree_getpath, is_etree_element

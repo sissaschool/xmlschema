@@ -128,7 +128,7 @@ class AbstractGenerator(ABC, metaclass=GeneratorMeta):
     formal_language: Optional[str] = None
     """The formal language associated to the code generator (eg. Python)."""
 
-    searchpaths: Optional[List[str]]  = None
+    searchpaths: Optional[List[str]] = None
     """
     Directory paths for searching templates, specified with a list or a tuple.
     Each path must be provided as relative from the directory of the module
