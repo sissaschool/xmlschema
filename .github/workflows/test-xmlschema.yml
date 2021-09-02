@@ -33,14 +33,21 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Install Python dependencies
+      - name: Install pip and setuptools
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements-dev.txt
-          pip install flake8
-      - name: Lint with flake8
-        run: |
-          flake8 xmlschema --ignore=F811,W503 --max-line-length=100 --statistics
+          pip install setuptools
       - name: Test with unittest
         run: |
+          pip install elementpath>=2.3.0, <3.0.0
+          pip install lxml jinja2
           python tests/test_all.py
+      - name: Lint with flake8
+        run: |
+          pip install flake8
+          flake8 xmlschema --max-line-length=100 --statistics
+      - name: Lint with mypy
+        if: ${{ matrix.python-version != 'pypy3' }}
+        run: |
+          pip install mypy lxml-stubs
+          mypy --show-error-codes xmlschema
