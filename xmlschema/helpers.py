@@ -38,7 +38,7 @@ def get_namespace(qname: str, namespaces: Optional[Dict[str, str]] = None) -> st
         qname = get_extended_qname(qname, namespaces)
 
     try:
-        return NAMESPACE_PATTERN.match(qname).group(1)
+        return NAMESPACE_PATTERN.match(qname).group(1)  # type: ignore[union-attr]
     except (AttributeError, TypeError):
         return ''
 
@@ -172,10 +172,10 @@ def etree_iterpath(elem: Element, tag: Optional[str] = None,
         yield elem, path
 
     if add_position:
-        children_tags = Counter([e.tag for e in elem])
-        positions = Counter([t for t in children_tags if children_tags[t] > 1])
+        children_tags = Counter(e.tag for e in elem)
+        positions = Counter(t for t in children_tags if children_tags[t] > 1)
     else:
-        positions = ()
+        positions = Counter()
 
     for child in elem:
         if callable(child.tag):
@@ -222,9 +222,10 @@ def etree_getpath(elem: Element, root: Element, namespaces: Optional[Dict[str, s
         for e, path in etree_iterpath(root, None, path, namespaces, add_position):
             if elem in e:
                 return path
+    return None
 
 
-def etree_iter_location_hints(elem: Element) -> Iterator[Element]:
+def etree_iter_location_hints(elem: Element) -> Iterator[Tuple[str, str]]:
     """Yields schema location hints contained in the attributes of an element."""
     if XSI_SCHEMA_LOCATION in elem.attrib:
         locations = elem.attrib[XSI_SCHEMA_LOCATION].split()
@@ -258,10 +259,7 @@ def prune_etree(root: Element, selector: Callable[[Element], bool]) -> Optional[
         del root[:]
         return True
     _prune_subtree(root)
-
-
-def not_whitespace(s: Optional[str]) -> bool:
-    return s and s.strip()
+    return None
 
 
 def count_digits(number: Union[str, bytes, int, float, Decimal]) -> Tuple[int, int]:
@@ -280,9 +278,9 @@ def count_digits(number: Union[str, bytes, int, float, Decimal]) -> Tuple[int, i
         number = str(number).lstrip('-+')
 
     if 'E' in number:
-        significand, _, exponent = number.partition('E')
+        significand, _, _exponent = number.partition('E')
     elif 'e' in number:
-        significand, _, exponent = number.partition('e')
+        significand, _, _exponent = number.partition('e')
     elif '.' not in number:
         return len(number.lstrip('0')), 0
     else:
@@ -290,7 +288,7 @@ def count_digits(number: Union[str, bytes, int, float, Decimal]) -> Tuple[int, i
         return len(integer_part.lstrip('0')), len(decimal_part.rstrip('0'))
 
     significand = significand.strip('0')
-    exponent = int(exponent)
+    exponent = int(_exponent)
 
     num_digits = len(significand) - 1 if '.' in significand else len(significand)
     if exponent > 0:
@@ -311,5 +309,5 @@ def raw_xml_encode(value: Optional[Union[str, bytes, bool, int, float, Decimal, 
         return 'true' if value else 'false'
     elif isinstance(value, (list, tuple)):
         return ' '.join(str(e) for e in value)
-    elif value is not None:
-        return str(value)
+    else:
+        return str(value) if value is not None else None

@@ -12,6 +12,7 @@ This module contains classes for managing maps related to namespaces.
 """
 import re
 from collections.abc import MutableMapping, Mapping
+from typing import Any, Dict, List, Optional
 
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from .helpers import local_name
@@ -29,13 +30,13 @@ class NamespaceResourcesMap(MutableMapping):
     __slots__ = ('_store',)
 
     def __init__(self, *args, **kwargs):
-        self._store = dict()
+        self._store: Dict[str, List[str]] = {}
         self.update(*args, **kwargs)
 
-    def __getitem__(self, uri):
+    def __getitem__(self, uri: str):
         return self._store[uri]
 
-    def __setitem__(self, uri, value):
+    def __setitem__(self, uri: str, value: str):
         if isinstance(value, list):
             self._store[uri] = value[:]
         else:
@@ -44,7 +45,7 @@ class NamespaceResourcesMap(MutableMapping):
             except KeyError:
                 self._store[uri] = [value]
 
-    def __delitem__(self, uri):
+    def __delitem__(self, uri: str):
         del self._store[uri]
 
     def __iter__(self):
@@ -73,27 +74,29 @@ class NamespaceMapper(MutableMapping):
     namespace information.
     """
     __slots__ = '_namespaces', 'strip_namespaces', '__dict__'
+    _namespaces: Dict[str, str]
 
-    def __init__(self, namespaces=None, strip_namespaces=False):
+    def __init__(self, namespaces: Optional[Dict[str, str]] = None,
+                 strip_namespaces: bool = False):
         if namespaces is None:
             self._namespaces = {}
         else:
             self._namespaces = namespaces
         self.strip_namespaces = strip_namespaces
 
-    def __setattr__(self, name, value):
+    def __setattr__(self, name: str, value: str):
         if name == 'strip_namespaces':
             if value:
-                self.map_qname = self.unmap_qname = self._local_name
+                self.map_qname = self.unmap_qname = self._local_name  # type: ignore[assignment]
             elif getattr(self, 'strip_namespaces', False):
-                self.map_qname = self._map_qname
-                self.unmap_qname = self._unmap_qname
+                self.map_qname = self._map_qname  # type: ignore[assignment]
+                self.unmap_qname = self._unmap_qname  # type: ignore[assignment]
         super(NamespaceMapper, self).__setattr__(name, value)
 
-    def __getitem__(self, prefix):
+    def __getitem__(self, prefix: str):
         return self._namespaces[prefix]
 
-    def __setitem__(self, prefix, uri):
+    def __setitem__(self, prefix: str, uri: str):
         self._namespaces[prefix] = uri
 
     def __delitem__(self, prefix):
@@ -116,7 +119,7 @@ class NamespaceMapper(MutableMapping):
     def clear(self):
         self._namespaces.clear()
 
-    def insert_item(self, prefix, uri):
+    def insert_item(self, prefix: str, uri: str):
         """
         A method for setting an item that checks the prefix before inserting.
         In case of collision the prefix is changed adding a numerical suffix.
@@ -140,7 +143,7 @@ class NamespaceMapper(MutableMapping):
                 prefix += '0'
         self._namespaces[prefix] = uri
 
-    def _map_qname(self, qname):
+    def _map_qname(self, qname: str):
         """
         Converts an extended QName to the prefixed format. Only registered
         namespaces are mapped.
@@ -167,7 +170,7 @@ class NamespaceMapper(MutableMapping):
 
     map_qname = _map_qname
 
-    def _unmap_qname(self, qname, name_table=None):
+    def _unmap_qname(self, qname: str, name_table: Optional[Dict[str, str]] = None):
         """
         Converts a QName in prefixed format or a local name to the extended QName format.
         Local names are converted only if a default namespace is included in the instance.
@@ -206,10 +209,10 @@ class NamespaceMapper(MutableMapping):
     unmap_qname = _unmap_qname
 
     @staticmethod
-    def _local_name(qname, *_args, **_kwargs):
+    def _local_name(qname: str, *_args, **_kwargs) -> str:
         return local_name(qname)
 
-    def transfer(self, namespaces):
+    def transfer(self, namespaces: Dict[str, str]):
         """
         Transfers compatible prefix/namespace registrations from a dictionary.
         Registrations added to namespace mapper instance are deleted from argument.
@@ -236,7 +239,7 @@ class NamespaceView(Mapping):
     """
     __slots__ = 'target_dict', 'namespace', '_key_fmt'
 
-    def __init__(self, qname_dict, namespace_uri):
+    def __init__(self, qname_dict: Dict[str, Any], namespace_uri: str):
         self.target_dict = qname_dict
         self.namespace = namespace_uri
         if namespace_uri:

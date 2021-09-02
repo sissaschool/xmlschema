@@ -1,4 +1,4 @@
-#
+﻿#
 # Copyright (c), 2016-2020, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
@@ -30,11 +30,11 @@ SECURITY_MODES = ('all', 'remote', 'local', 'sandbox')
 
 ###
 # Restricted XPath parser for XML resources
-LAZY_XML_XPATH_SYMBOLS = {
+LAZY_XML_XPATH_SYMBOLS = frozenset((
     'position', 'last', 'not', 'and', 'or', '!=', '<=', '>=', '(', ')', 'text',
     '[', ']', '.', ',', '/', '|', '*', '=', '<', '>', ':', '(end)', '(name)',
     '(string)', '(float)', '(decimal)', '(integer)', '@'
-}
+))
 
 DRIVE_LETTERS = frozenset(string.ascii_letters)
 

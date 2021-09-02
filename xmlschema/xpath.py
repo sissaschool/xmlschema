@@ -12,6 +12,7 @@ This module defines a proxy class and a mixin class for enabling XPath on schema
 """
 from abc import abstractmethod
 from collections.abc import Sequence
+from typing import Any
 import re
 
 from elementpath import AttributeNode, TypedElement, XPath2Parser, \
@@ -140,8 +141,8 @@ class ElementPathMixin(Sequence):
     """
     text = None
     tail = None
-    attributes = {}
-    namespaces = {}
+    attributes: Any = {}
+    namespaces: Any = {}
     xpath_default_namespace = ''
 
     @abstractmethod
