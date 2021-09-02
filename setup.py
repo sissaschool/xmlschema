@@ -18,7 +18,7 @@ with Path(__file__).parent.joinpath('README.rst').open() as readme:
 
 setup(
     name='xmlschema',
-    version='1.7.0',
+    version='1.7.1',
     packages=find_packages(include=['xmlschema', 'xmlschema.*']),
     include_package_data=True,
     entry_points={
@@ -33,7 +33,8 @@ setup(
     extras_require={
         'codegen': ['elementpath>=2.2.2, <3.0.0', 'jinja2'],
         'dev': ['tox', 'coverage', 'lxml', 'elementpath>=2.2.2, <3.0.0',
-                'memory_profiler', 'Sphinx', 'sphinx_rtd_theme', 'jinja2'],
+                'memory_profiler', 'Sphinx', 'sphinx_rtd_theme', 'jinja2',
+                'flake8', 'mypy'],
         'docs': ['elementpath>=2.2.2, <3.0.0', 'Sphinx', 'sphinx_rtd_theme', 'jinja2']
     },
     author='Davide Brunato',
