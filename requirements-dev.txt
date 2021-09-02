@@ -2,11 +2,13 @@
 setuptools
 tox
 coverage
-elementpath>=2.2.2, <3.0.0
+elementpath>=2.3.0, <3.0.0
 lxml
+jinja2
 memory_profiler
 Sphinx
 sphinx_rtd_theme
 flake8
 mypy
+lxml-stubs
 -e .
