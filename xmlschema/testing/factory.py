@@ -107,6 +107,10 @@ def get_test_line_args_parser():
         help="Timeout for fetching resources (default=300)."
     )
     parser.add_argument(
+        '--validation-only', action="store_true", default=False,
+        help="Skip decode/encode tests on XML data."
+    )
+    parser.add_argument(
         '--lax-encode', action="store_true", default=False,
         help="Use lax mode on encode checks (for cases where test data uses default or "
              "fixed values or some test data are skipped by wildcards processContents). "
