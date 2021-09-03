@@ -24,19 +24,19 @@ from .helpers import local_name
 class NamespaceResourcesMap(MutableMapping):
     """
     Dictionary for storing information about namespace resources. The values are
-    lists of strings. Setting an existing value appends the string to the value.
+    lists of objects. Setting an existing value appends the object to the value.
     Setting a value with a list sets/replaces the value.
     """
     __slots__ = ('_store',)
 
     def __init__(self, *args, **kwargs):
-        self._store: Dict[str, List[str]] = {}
+        self._store: Dict[str, List[Any]] = {}
         self.update(*args, **kwargs)
 
     def __getitem__(self, uri: str):
         return self._store[uri]
 
-    def __setitem__(self, uri: str, value: str):
+    def __setitem__(self, uri: str, value: Any):
         if isinstance(value, list):
             self._store[uri] = value[:]
         else:

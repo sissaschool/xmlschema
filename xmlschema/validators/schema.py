@@ -23,7 +23,7 @@ from copy import copy
 from abc import ABCMeta
 from collections import namedtuple, Counter
 from itertools import chain
-from typing import Optional, Dict, Any, Union
+from typing import NamedTuple, Optional, Dict, Any, Union
 
 from ..exceptions import XMLSchemaTypeError, XMLSchemaKeyError, \
     XMLSchemaValueError, XMLSchemaNamespaceError
@@ -79,6 +79,23 @@ ANY_ELEMENT = etree_element(
         'minOccurs': '0',
         'maxOccurs': 'unbounded'
     })
+
+Builders = NamedTuple('Builders', [
+    ('notation_class', Any),
+    ('complex_type_class', Any),
+    ('attribute_class', Any),
+    ('any_attribute_class', Any),
+    ('attribute_group_class', Any),
+    ('group_class', Any),
+    ('element_class', Any),
+    ('any_element_class', Any),
+    ('restriction_class', Any),
+    ('union_class', Any),
+    ('key_class', Any),
+    ('keyref_class', Any),
+    ('unique_class', Any),
+    ('simple_type_factory', Any),
+])
 
 
 class XMLSchemaMeta(ABCMeta):
@@ -269,7 +286,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
     :vartype elements: NamespaceView
     """
     XSD_VERSION: Optional[str] = None
-    BUILDERS: Optional[Dict[str, Any]] = None
+    BUILDERS: Optional[Union[Dict[str, Any], Builders]] = None
     BUILDERS_MAP = None
     BASE_SCHEMAS: Optional[Dict[str, str]] = None
     fallback_locations: Optional[Dict[str, str]] = None

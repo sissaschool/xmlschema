@@ -12,6 +12,7 @@ This module contains classes for XML Schema model groups.
 """
 import warnings
 from collections.abc import MutableMapping, MutableSequence
+from typing import TYPE_CHECKING, Union
 
 from .. import limits
 from ..exceptions import XMLSchemaValueError
@@ -28,6 +29,9 @@ from .particles import ParticleMixin, ModelGroup
 from .elements import XsdElement
 from .wildcards import XsdAnyElement, Xsd11AnyElement
 from .models import ModelVisitor, distinguishable_paths
+
+if TYPE_CHECKING:
+    from .complex_types import XsdComplexType
 
 ANY_ELEMENT = etree_element(
     XSD_ANY,
@@ -77,6 +81,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
           Content: (annotation?, (element | group | choice | sequence | any)*)
         </sequence>
     """
+    parent: Union['XsdComplexType', 'XsdGroup']
     mixed = False
     restriction = None
     interleave = None  # an Xsd11AnyElement in case of XSD 1.1 openContent with mode='interleave'
@@ -84,7 +89,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
 
     _ADMITTED_TAGS = {XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE}
 
-    def __init__(self, elem, schema, parent):
+    def __init__(self, elem, schema, parent: Union['XsdComplexType', 'XsdGroup']):
         self._group = []
         if parent is not None and parent.mixed:
             self.mixed = parent.mixed

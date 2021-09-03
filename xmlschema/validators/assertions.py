@@ -8,13 +8,17 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import threading
-from elementpath import XPath2Parser, XPathContext, ElementPathError
+from typing import TYPE_CHECKING, Optional
+from elementpath import XPath2Parser, XPathContext, XPathToken, ElementPathError
 
 from ..names import XSD_ASSERT
 from ..xpath import ElementPathMixin, XMLSchemaProxy
 
 from .exceptions import XMLSchemaValidationError
 from .xsdbase import XsdComponent
+
+if TYPE_CHECKING:
+    from .complex_types import XsdComplexType
 
 
 class XsdAssert(XsdComponent, ElementPathMixin):
@@ -29,9 +33,10 @@ class XsdAssert(XsdComponent, ElementPathMixin):
           Content: (annotation?)
         </assert>
     """
+    parent: 'XsdComplexType'
     _ADMITTED_TAGS = {XSD_ASSERT}
-    token = None
-    parser = None
+    token: Optional[XPathToken] = None
+    parser: Optional[XPath2Parser] = None
     path = 'true()'
 
     def __init__(self, elem, schema, parent, base_type):

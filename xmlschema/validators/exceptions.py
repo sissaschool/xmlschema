@@ -231,7 +231,7 @@ class XMLSchemaDecodeError(XMLSchemaValidationError):
     :param obj: the not validated XML data.
     :type obj: Element or tuple or str or list or int or float or bool
     :param decoder: the XML data decoder.
-    :type decoder: type or function
+    :type decoder: type or function or list
     :param reason: the detailed reason of failed validation.
     :type reason: str or unicode
     :param source: the XML resource that contains the error.
@@ -255,7 +255,7 @@ class XMLSchemaEncodeError(XMLSchemaValidationError):
     :param obj: the not validated XML data.
     :type obj: Element or tuple or str or list or int or float or bool
     :param encoder: the XML encoder.
-    :type encoder: type or function
+    :type encoder: type or function or list
     :param reason: the detailed reason of failed validation.
     :type reason: str or unicode
     :param source: the XML resource that contains the error.

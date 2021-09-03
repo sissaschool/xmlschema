@@ -11,7 +11,7 @@
 This module contains base functions and classes XML Schema components.
 """
 import re
-from typing import Dict, Optional, Union, Set, Tuple
+from typing import TYPE_CHECKING, Dict, Optional, Union, Set, Tuple
 
 import elementpath
 
@@ -19,10 +19,16 @@ from ..exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from ..names import XSD_ANNOTATION, XSD_APPINFO, XSD_DOCUMENTATION, XML_LANG, \
     XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_ID, XSD_QNAME, \
     XSD_OVERRIDE, XSD_NOTATION_TYPE, XSD_DECIMAL
-from ..etree import is_etree_element, etree_tostring
+from ..etree import is_etree_element, etree_tostring, etree_element
 from ..helpers import get_qname, local_name, get_prefixed_qname
 from .. import dataobjects
 from .exceptions import XMLSchemaParseError, XMLSchemaValidationError
+
+if TYPE_CHECKING:
+    from .simple_types import XsdSimpleType
+    from .complex_types import XsdComplexType
+    from .global_maps import XsdGlobals
+    from .schema import XMLSchemaBase
 
 XSD_TYPE_DERIVATIONS = {'extension', 'restriction'}
 XSD_ELEMENT_DERIVATIONS = {'extension', 'restriction', 'substitution'}
@@ -34,7 +40,7 @@ Ref.: https://www.w3.org/TR/xmlschema11-1/#key-va
 """
 
 
-def check_validation_mode(validation):
+def check_validation_mode(validation: str) -> None:
     if validation not in XSD_VALIDATION_MODES:
         raise XMLSchemaValueError("validation mode can be 'strict', "
                                   "'lax' or 'skip': %r" % validation)
@@ -55,7 +61,8 @@ class XsdValidator:
     :ivar errors: XSD validator building errors.
     :vartype errors: list
     """
-    xsd_version = elem = None
+    xsd_version: Optional[str] = None
+    elem: Optional[etree_element] = None
 
     def __init__(self, validation='strict'):
         self.validation = validation
@@ -216,6 +223,7 @@ class XsdComponent(XsdValidator):
     _REGEX_SPACES = re.compile(r'\s+')
     _ADMITTED_TAGS: Union[Set[str], Tuple[str], Tuple] = ()
 
+    elem: etree_element
     parent = None
     name = None
     ref = None
@@ -223,14 +231,15 @@ class XsdComponent(XsdValidator):
     redefine = None
     _annotation = None
 
-    def __init__(self, elem, schema, parent=None, name: Optional[str] = None):
+    def __init__(self, elem: etree_element, schema: 'XMLSchemaBase',
+                 parent: Optional['XsdComponent'] = None, name: Optional[str] = None):
         super(XsdComponent, self).__init__(schema.validation)
         if name:
             self.name = name
         if parent is not None:
             self.parent = parent
         self.schema = schema
-        self.maps = schema.maps
+        self.maps: XsdGlobals = schema.maps
         self.elem = elem
 
     def __setattr__(self, name, value):
@@ -603,7 +612,7 @@ class XsdType(XsdComponent):
 
     abstract = False
     block: Optional[str] = None
-    base_type: Optional['XsdType'] = None
+    base_type: Optional[Union['XsdSimpleType', 'XsdComplexType']] = None
     derivation: Optional[str] = None
     _final: Optional[str] = None
 

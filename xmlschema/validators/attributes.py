@@ -319,8 +319,8 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
     }
 
     def __init__(self, elem, schema, parent, derivation=None, base_attributes=None):
+        self._attribute_group: Dict[Optional[str], Union[XsdAttribute, XsdAnyAttribute]] = {}
         self.derivation = derivation
-        self._attribute_group: Dict[str, Union[XsdAttribute, XsdAnyAttribute]] = {}
         self.base_attributes = base_attributes
         XsdComponent.__init__(self, elem, schema, parent)
 
@@ -417,7 +417,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                                 self.parse_error("in a redefinition the reference "
                                                  "to itself must be the first")
                             attribute_group_refs.append(attribute_group_qname)
-                            attributes.update(self._attribute_group.items())
+                            attributes.update(self._attribute_group)
                             continue
                         elif not attribute_group_refs:
                             # May be an attributeGroup restriction with a ref to another group

@@ -208,7 +208,7 @@ class XsdComplexType(XsdType, ValidationMixin):
                             self.elem[index + 1], self.schema, self
                         )
                     else:
-                        self.content = self.schema.self.schema.create_empty_content_group(self)
+                        self.content = self.schema.create_empty_content_group(self)
                     break
             self._parse_content_tail(self.elem)
 
@@ -577,7 +577,7 @@ class XsdComplexType(XsdType, ValidationMixin):
     def is_list(self):
         return self.has_simple_content() and self.content.is_list()
 
-    def is_valid(self, source, use_defaults=True, namespaces=None):
+    def is_valid(self, source, use_defaults=True, namespaces=None, **kwargs):
         if hasattr(source, 'tag'):
             return super(XsdComplexType, self).is_valid(source, use_defaults, namespaces)
         elif isinstance(self.content, XsdSimpleType):
@@ -650,7 +650,9 @@ class XsdComplexType(XsdType, ValidationMixin):
         elif self.has_simple_content():
             return self.content.decode(data, *args, **kwargs)
         else:
-            raise XMLSchemaDecodeError(self, data, "cannot decode %r data with %r" % (data, self))
+            raise XMLSchemaDecodeError(
+                self, data, str, "cannot decode %r data with %r" % (data, self)
+            )
 
     def iter_decode(self, elem, validation='lax', **kwargs):
         """

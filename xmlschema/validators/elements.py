@@ -13,7 +13,7 @@ This module contains classes for XML Schema elements, complex types and model gr
 import warnings
 from decimal import Decimal
 from types import GeneratorType
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from elementpath import XPath2Parser, ElementPathError, XPathContext
 from elementpath.datatypes import AbstractDateTime, Duration, AbstractBinary
 
@@ -36,6 +36,9 @@ from .particles import ParticleMixin
 from .models import OccursCounter
 from .identities import IdentityXPathContext, XsdIdentity, XsdKeyref
 from .wildcards import XsdAnyElement
+
+if TYPE_CHECKING:
+    from .groups import XsdGroup
 
 
 class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin):
@@ -64,6 +67,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
           Content: (annotation?, ((simpleType | complexType)?, (unique | key | keyref)*))
         </element>
     """
+    parent: 'XsdGroup'
     abstract = False
     nillable = False
     qualified = False
@@ -478,7 +482,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             if ns == self.target_namespace:
                 schema = self.schema.include_schema(url, self.schema.base_url)
             else:
-                schema = self.schema.import_namespace(ns, url, self.schema.base_url)
+                schema = self.schema.import_schema(ns, url, self.schema.base_url)
 
             if not schema.built:
                 reason = "dynamic loaded schema change the assessment"
@@ -1256,6 +1260,7 @@ class XsdAlternative(XsdComponent):
           Content: (annotation?, (simpleType | complexType)?)
         </alternative>
     """
+    parent: XsdElement
     type = None
     path = None
     token = None

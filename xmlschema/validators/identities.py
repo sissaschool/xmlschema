@@ -13,7 +13,7 @@ This module contains classes for other XML Schema identity constraints.
 import re
 import math
 from collections import Counter
-from typing import Dict, Union
+from typing import TYPE_CHECKING, Dict, Union
 from elementpath import XPath2Parser, ElementPathError, XPathContext, translate_pattern
 
 from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
@@ -22,6 +22,9 @@ from ..helpers import get_qname, get_extended_qname
 from ..xpath import iter_schema_nodes
 from .xsdbase import XsdComponent
 from .attributes import XsdAttribute
+
+if TYPE_CHECKING:
+    from .elements import XsdElement
 
 
 XSD_IDENTITY_XPATH_SYMBOLS = frozenset((
@@ -145,6 +148,7 @@ class XsdIdentity(XsdComponent):
     :ivar selector: the XPath selector of the identity constraint.
     :ivar fields: a list containing the XPath field selectors of the identity constraint.
     """
+    parent: 'XsdElement'
     selector = None
     elements = None  # XSD elements bound by selector (for speed-up and lazy mode)
     fields = ()
@@ -395,7 +399,7 @@ class Xsd11Keyref(XsdKeyref):
 
 class IdentityCounter:
 
-    def __init__(self, identity: Union[XsdKey, XsdKeyref], enabled=True):
+    def __init__(self, identity: XsdIdentity, enabled=True):
         self.counter: Counter = Counter()
         self.identity = identity
         self.enabled = enabled

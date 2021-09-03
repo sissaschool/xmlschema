@@ -1114,6 +1114,7 @@ class XsdAtomicRestriction(XsdAtomic):
           enumeration | whiteSpace | pattern)*))
         </restriction>
     """
+    base_type: XsdType
     derivation = 'restriction'
     _FACETS_BUILDERS = XSD_10_FACETS_BUILDERS
     _CONTENT_TAIL_TAGS = {XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ANY_ATTRIBUTE}
