@@ -2,7 +2,7 @@
 CHANGELOG
 *********
 
-`v1.7.1`_ (2021-09-02)
+`v1.7.1`_ (2021-09-03)
 ======================
 * Activate mypy checks for package
 * Fix for issues #257 and #259

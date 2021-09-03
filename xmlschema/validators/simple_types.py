@@ -11,7 +11,7 @@
 This module contains classes for XML Schema simple data types.
 """
 from decimal import DecimalException
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 from ..etree import etree_element
 from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
@@ -31,6 +31,9 @@ from .xsdbase import XsdAnnotation, XsdType, ValidationMixin
 from .facets import XsdFacet, XsdWhiteSpaceFacet, XSD_10_FACETS_BUILDERS, \
     XSD_11_FACETS_BUILDERS, XSD_10_FACETS, XSD_11_FACETS, XSD_10_LIST_FACETS, \
     XSD_11_LIST_FACETS, XSD_10_UNION_FACETS, XSD_11_UNION_FACETS, MULTIPLE_FACETS
+
+if TYPE_CHECKING:
+    from .complex_types import XsdComplexType
 
 
 def xsd_simple_type_factory(elem, schema, parent):
@@ -1114,7 +1117,8 @@ class XsdAtomicRestriction(XsdAtomic):
           enumeration | whiteSpace | pattern)*))
         </restriction>
     """
-    base_type: XsdType
+    parent: 'XsdSimpleType'
+    base_type: Union['XsdSimpleType', 'XsdComplexType']
     derivation = 'restriction'
     _FACETS_BUILDERS = XSD_10_FACETS_BUILDERS
     _CONTENT_TAIL_TAGS = {XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ANY_ATTRIBUTE}

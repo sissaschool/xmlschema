@@ -23,7 +23,7 @@ from copy import copy
 from abc import ABCMeta
 from collections import namedtuple, Counter
 from itertools import chain
-from typing import NamedTuple, Optional, Dict, Any, Union
+from typing import Callable, NamedTuple, Optional, Dict, Any, Union, Type
 
 from ..exceptions import XMLSchemaTypeError, XMLSchemaKeyError, \
     XMLSchemaValueError, XMLSchemaNamespaceError
@@ -80,21 +80,22 @@ ANY_ELEMENT = etree_element(
         'maxOccurs': 'unbounded'
     })
 
+ComponentType = Type[XsdComponent]
 Builders = NamedTuple('Builders', [
-    ('notation_class', Any),
-    ('complex_type_class', Any),
-    ('attribute_class', Any),
-    ('any_attribute_class', Any),
-    ('attribute_group_class', Any),
-    ('group_class', Any),
-    ('element_class', Any),
-    ('any_element_class', Any),
-    ('restriction_class', Any),
-    ('union_class', Any),
-    ('key_class', Any),
-    ('keyref_class', Any),
-    ('unique_class', Any),
-    ('simple_type_factory', Any),
+    ('notation_class', ComponentType),
+    ('complex_type_class', ComponentType),
+    ('attribute_class', ComponentType),
+    ('any_attribute_class', ComponentType),
+    ('attribute_group_class', ComponentType),
+    ('group_class', ComponentType),
+    ('element_class', ComponentType),
+    ('any_element_class', ComponentType),
+    ('restriction_class', ComponentType),
+    ('union_class', ComponentType),
+    ('key_class', ComponentType),
+    ('keyref_class', ComponentType),
+    ('unique_class', ComponentType),
+    ('simple_type_factory', Callable),
 ])
 
 
@@ -137,7 +138,7 @@ class XMLSchemaMeta(ABCMeta):
 
         # Build the new meta-schema class
         meta_schema_class_name = 'Meta' + name
-        meta_schema_class: XMLSchemaBase = super(XMLSchemaMeta, mcs).__new__(
+        meta_schema_class: Type['XMLSchemaBase'] = super(XMLSchemaMeta, mcs).__new__(
             mcs, meta_schema_class_name, bases, dict_
         )
 
@@ -256,7 +257,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
     this argument is not provided.
     :vartype maps: XsdGlobals
     :ivar converter: the default converter used for XML data decoding/encoding.
-    :vartype converter: XMLSchemaConverter
+    :vartype converter: XMLSchemaConverter or Type[XMLSchemaConverter]
     :ivar locations: schema location hints.
     :vartype locations: NamespaceResourcesMap
     :ivar namespaces: a dictionary that maps from the prefixes used by the schema \
@@ -285,6 +286,10 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
     :ivar elements: `xsd:element` global declarations.
     :vartype elements: NamespaceView
     """
+    converter: Union[Type[XMLSchemaConverter], XMLSchemaConverter]
+    locations: NamespaceResourcesMap
+    maps: XsdGlobals
+
     XSD_VERSION: Optional[str] = None
     BUILDERS: Optional[Union[Dict[str, Any], Builders]] = None
     BUILDERS_MAP = None
