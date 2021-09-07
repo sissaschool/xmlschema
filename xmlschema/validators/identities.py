@@ -31,9 +31,10 @@ XSD_IDENTITY_XPATH_SYMBOLS = frozenset((
     'processing-instruction', 'following-sibling', 'preceding-sibling',
     'ancestor-or-self', 'attribute', 'following', 'namespace', 'preceding',
     'ancestor', 'position', 'comment', 'parent', 'child', 'false', 'text', 'node',
-    'true', 'last', 'not', 'and', 'mod', 'div', 'or', '..', '//', '!=', '<=', '>=', '(', ')',
-    '[', ']', '.', '@', ',', '/', '|', '*', '-', '=', '+', '<', '>', ':', '(end)', '(name)',
-    '(string)', '(float)', '(decimal)', '(integer)', '::', '{', '}',
+    'true', 'last', 'not', 'and', 'mod', 'div', 'or', '..', '//', '!=', '<=', '>=',
+    '(', ')', '[', ']', '.', '@', ',', '/', '|', '*', '-', '=', '+', '<', '>', ':',
+    '(end)', '(unknown)', '(invalid)', '(name)', '(string)', '(float)', '(decimal)',
+    '(integer)', '::', '{', '}',
 ))
 
 
@@ -46,7 +47,8 @@ class IdentityXPathContext(XPathContext):
 
 class IdentityXPathParser(XPath2Parser):
     symbol_table = {
-        k: v for k, v in XPath2Parser.symbol_table.items() if k in XSD_IDENTITY_XPATH_SYMBOLS
+        k: v for k, v in XPath2Parser.symbol_table.items()
+        if k in XSD_IDENTITY_XPATH_SYMBOLS
     }
     SYMBOLS = XSD_IDENTITY_XPATH_SYMBOLS
 

@@ -12,7 +12,7 @@ import pathlib
 import platform
 import re
 import string
-from elementpath import iter_select, XPath1Parser, XPathContext, XPath2Parser
+from elementpath import iter_select, XPathContext, XPath2Parser
 from io import StringIO, BytesIO
 from urllib.request import urlopen
 from urllib.parse import urlsplit, urlunsplit, unquote, quote_from_bytes
@@ -32,8 +32,9 @@ SECURITY_MODES = ('all', 'remote', 'local', 'sandbox')
 # Restricted XPath parser for XML resources
 LAZY_XML_XPATH_SYMBOLS = frozenset((
     'position', 'last', 'not', 'and', 'or', '!=', '<=', '>=', '(', ')', 'text',
-    '[', ']', '.', ',', '/', '|', '*', '=', '<', '>', ':', '(end)', '(name)',
-    '(string)', '(float)', '(decimal)', '(integer)', '@'
+    '[', ']', '.', ',', '/', '|', '*', '=', '<', '>', ':', '@', '(end)',
+    '(unknown)', '(invalid)', '(name)', '(string)', '(float)', '(decimal)',
+    '(integer)'
 ))
 
 DRIVE_LETTERS = frozenset(string.ascii_letters)
@@ -41,7 +42,8 @@ DRIVE_LETTERS = frozenset(string.ascii_letters)
 
 class LazyXPath2Parser(XPath2Parser):
     symbol_table = {
-        k: v for k, v in XPath1Parser.symbol_table.items() if k in LAZY_XML_XPATH_SYMBOLS
+        k: v for k, v in XPath2Parser.symbol_table.items()
+        if k in LAZY_XML_XPATH_SYMBOLS
     }
     SYMBOLS = LAZY_XML_XPATH_SYMBOLS
 
