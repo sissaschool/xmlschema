@@ -11,7 +11,7 @@
 This module contains classes for XML Schema simple data types.
 """
 from decimal import DecimalException
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Union, Tuple
 
 from ..etree import etree_element
 from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
@@ -34,6 +34,7 @@ from .facets import XsdFacet, XsdWhiteSpaceFacet, XSD_10_FACETS_BUILDERS, \
 
 if TYPE_CHECKING:
     from .complex_types import XsdComplexType
+from .facets import XsdFacetType, XsdAssertionFacet
 
 
 def xsd_simple_type_factory(elem, schema, parent):
@@ -106,12 +107,13 @@ class XsdSimpleType(XsdType, ValidationMixin):
     _ADMITTED_TAGS = {XSD_SIMPLE_TYPE}
 
     variety: Optional[str] = None
-    min_length = None
-    max_length = None
-    white_space = None
+    min_length: Optional[int] = None
+    max_length: Optional[int] = None
+    white_space: Optional[str] = None
     patterns = None
-    validators = ()
+    validators: Union[Tuple, List[Union[XsdFacetType, Callable]]] = ()
     allow_empty = True
+    facets: Dict[str, Union[XsdFacetType, Callable, List[XsdAssertionFacet]]]
 
     # Unicode string as default datatype for XSD simple types
     python_type = instance_types = to_python = from_python = str
@@ -121,7 +123,7 @@ class XsdSimpleType(XsdType, ValidationMixin):
         if not hasattr(self, 'facets'):
             self.facets = facets or {}
 
-    def __setattr__(self, name, value):
+    def __setattr__(self, name: str, value):
         super(XsdSimpleType, self).__setattr__(name, value)
         if name == 'facets':
             if not isinstance(self, XsdAtomicBuiltin):
@@ -145,12 +147,14 @@ class XsdSimpleType(XsdType, ValidationMixin):
                 self.allow_empty = False
 
             if value:
+                validators: List[Union[XsdFacet, Callable]]
                 if None in value:
                     validators = [value[None]]  # Use only the validator function!
                 else:
                     validators = [v for k, v in value.items()
                                   if k not in {XSD_WHITE_SPACE, XSD_PATTERN, XSD_ASSERTION}]
                 if XSD_ASSERTION in value:
+                    assertions: Union[XsdAssertionFacet, List[XsdAssertionFacet]]
                     assertions = value[XSD_ASSERTION]
                     if isinstance(assertions, list):
                         validators.extend(assertions)

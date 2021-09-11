@@ -14,6 +14,7 @@ import re
 import math
 import operator
 from collections.abc import MutableSequence
+from typing import Union
 from elementpath import XPath2Parser, XPathContext, ElementPathError, \
     translate_pattern, RegexError
 
@@ -767,3 +768,9 @@ XSD_11_LIST_FACETS = XSD_10_LIST_FACETS | {XSD_ASSERTION}
 
 XSD_10_UNION_FACETS = {XSD_PATTERN, XSD_ENUMERATION}
 XSD_11_UNION_FACETS = MULTIPLE_FACETS = {XSD_PATTERN, XSD_ENUMERATION, XSD_ASSERTION}
+
+
+XsdFacetType = Union[XsdLengthFacet, XsdMinLengthFacet, XsdMaxLengthFacet,
+                     XsdMinInclusiveFacet, XsdMinExclusiveFacet, XsdMaxInclusiveFacet,
+                     XsdMaxExclusiveFacet, XsdTotalDigitsFacet, XsdFractionDigitsFacet,
+                     XsdEnumerationFacets, XsdPatternFacets]
