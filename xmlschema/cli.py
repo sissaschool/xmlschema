@@ -241,11 +241,13 @@ def validate():
 
     args = parser.parse_args()
 
+    schema_class = XMLSchema if args.version == '1.0' else XMLSchema11
+
     tot_errors = 0
     for filepath in args.files:
         try:
-            errors = list(iter_errors(filepath, schema=args.schema,
-                                      lazy=args.lazy, defuse=args.defuse))
+            errors = list(iter_errors(filepath, schema=args.schema, cls=schema_class,
+                                      locations=args.locations, lazy=args.lazy, defuse=args.defuse))
         except (xmlschema.XMLSchemaException, URLError) as err:
             tot_errors += 1
             print(str(err))
