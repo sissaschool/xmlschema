@@ -240,9 +240,9 @@ def validate():
                         help="XML files to be validated.")
 
     args = parser.parse_args()
-    
+
     schema_class = XMLSchema if args.version == '1.0' else XMLSchema11
-    
+
     tot_errors = 0
     for filepath in args.files:
         try:
