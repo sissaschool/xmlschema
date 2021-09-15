@@ -8,8 +8,13 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from collections.abc import MutableMapping, MutableSequence
+from typing import TYPE_CHECKING, Any, Optional, List, Dict, Type, cast
 
+from ..aliases import NamespacesType
 from .default import ElementData, XMLSchemaConverter
+
+if TYPE_CHECKING:
+    from ..validators import XsdElement, XsdType
 
 
 class ParkerConverter(XMLSchemaConverter):
@@ -27,8 +32,10 @@ class ParkerConverter(XMLSchemaConverter):
     """
     __slots__ = ()
 
-    def __init__(self, namespaces=None, dict_class=None, list_class=None,
-                 preserve_root=False, **kwargs):
+    def __init__(self, namespaces: NamespacesType = None,
+                 dict_class: Optional[Type[Dict[str, Any]]] = None,
+                 list_class: Optional[Type[List[Any]]] = None,
+                 preserve_root: bool = False, **kwargs: Any) -> None:
         kwargs.update(attr_prefix=None, text_key='', cdata_prefix=None)
         super(ParkerConverter, self).__init__(
             namespaces, dict_class, list_class,
@@ -36,10 +43,11 @@ class ParkerConverter(XMLSchemaConverter):
         )
 
     @property
-    def lossy(self):
+    def lossy(self) -> bool:
         return True
 
-    def element_decode(self, data, xsd_element, xsd_type=None, level=0):
+    def element_decode(self, data: ElementData, xsd_element: 'XsdElement',
+                       xsd_type: Optional['XsdType'] = None, level: int = 0) -> Any:
         xsd_type = xsd_type or xsd_element.type
         preserve_root = self.preserve_root
         if xsd_type.simple_type is not None:
@@ -77,7 +85,8 @@ class ParkerConverter(XMLSchemaConverter):
             else:
                 return result_dict if result_dict else None
 
-    def element_encode(self, obj, xsd_element, level=0):
+    def element_encode(self, obj: Any, xsd_element: 'XsdElement', level: int = 0) -> ElementData:
+        name: str = xsd_element.name
         if not isinstance(obj, MutableMapping):
             if obj == '':
                 obj = None
@@ -90,7 +99,7 @@ class ParkerConverter(XMLSchemaConverter):
                 return ElementData(xsd_element.name, None, None, {})
             elif self.preserve_root:
                 try:
-                    items = obj[self.map_qname(xsd_element.name)]
+                    items = obj[self.map_qname(name)]
                 except KeyError:
                     return ElementData(xsd_element.name, None, None, {})
             else:

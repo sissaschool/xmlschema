@@ -8,9 +8,14 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from collections.abc import MutableMapping, MutableSequence
+from typing import TYPE_CHECKING, Any, Optional, List, Dict, Type, Union
 
 from ..exceptions import XMLSchemaValueError
+from ..aliases import NamespacesType
 from .default import ElementData, XMLSchemaConverter
+
+if TYPE_CHECKING:
+    from ..validators import XsdElement, XsdType
 
 
 class AbderaConverter(XMLSchemaConverter):
@@ -26,17 +31,21 @@ class AbderaConverter(XMLSchemaConverter):
     """
     __slots__ = ()
 
-    def __init__(self, namespaces=None, dict_class=None, list_class=None, **kwargs):
+    def __init__(self, namespaces: NamespacesType = None,
+                 dict_class: Optional[Type[Dict[str, Any]]] = None,
+                 list_class: Optional[Type[List[Any]]] = None,
+                 **kwargs: Any) -> None:
         kwargs.update(attr_prefix='', text_key='', cdata_prefix=None)
         super(AbderaConverter, self).__init__(
             namespaces, dict_class, list_class, **kwargs
         )
 
     @property
-    def lossy(self):
+    def lossy(self) -> bool:
         return True  # Loss cdata parts
 
-    def element_decode(self, data, xsd_element, xsd_type=None, level=0):
+    def element_decode(self, data: ElementData, xsd_element: 'XsdElement',
+                       xsd_type: Optional['XsdType'] = None, level: int = 0) -> Any:
         xsd_type = xsd_type or xsd_element.type
         if xsd_type.simple_type is not None:
             children = data.text if data.text is not None and data.text != '' else None
@@ -74,7 +83,7 @@ class AbderaConverter(XMLSchemaConverter):
         else:
             return children if children is not None else self.list()
 
-    def element_encode(self, obj, xsd_element, level=0):
+    def element_encode(self, obj: Any, xsd_element: 'XsdElement', level: int = 0) -> ElementData:
         tag = xsd_element.qualified_name if level == 0 else xsd_element.name
 
         if not isinstance(obj, MutableMapping):
@@ -82,7 +91,9 @@ class AbderaConverter(XMLSchemaConverter):
                 obj = None
             return ElementData(tag, obj, None, {})
         else:
-            attributes = {}
+            attributes: Dict[str, Any] = {}
+            children: Union[List, MutableMapping]
+
             try:
                 attributes.update((self.unmap_qname(k, xsd_element.attributes), v)
                                   for k, v in obj['attributes'].items())

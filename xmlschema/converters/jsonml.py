@@ -8,9 +8,14 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from collections.abc import MutableSequence
+from typing import TYPE_CHECKING, Any, Optional, List, Dict, Type
 
 from ..exceptions import XMLSchemaValueError
+from ..aliases import NamespacesType
 from .default import ElementData, XMLSchemaConverter
+
+if TYPE_CHECKING:
+    from ..validators import XsdElement, XsdType
 
 
 class JsonMLConverter(XMLSchemaConverter):
@@ -26,21 +31,25 @@ class JsonMLConverter(XMLSchemaConverter):
     """
     __slots__ = ()
 
-    def __init__(self, namespaces=None, dict_class=None, list_class=None, **kwargs):
+    def __init__(self, namespaces: NamespacesType = None,
+                 dict_class: Optional[Type[Dict[str, Any]]] = None,
+                 list_class: Optional[Type[List[Any]]] = None,
+                 **kwargs: Any) -> None:
         kwargs.update(attr_prefix='', text_key='', cdata_prefix='')
         super(JsonMLConverter, self).__init__(
             namespaces, dict_class, list_class, **kwargs
         )
 
     @property
-    def lossy(self):
+    def lossy(self) -> bool:
         return False
 
     @property
-    def losslessly(self):
+    def losslessly(self) -> bool:
         return True
 
-    def element_decode(self, data, xsd_element, xsd_type=None, level=0):
+    def element_decode(self, data: ElementData, xsd_element: 'XsdElement',
+                       xsd_type: Optional['XsdType'] = None, level: int = 0) -> Any:
         xsd_type = xsd_type or xsd_element.type
         result_list = self.list()
         result_list.append(self.map_qname(data.tag))
@@ -63,8 +72,9 @@ class JsonMLConverter(XMLSchemaConverter):
 
         return result_list
 
-    def element_encode(self, obj, xsd_element, level=0):
-        attributes = {}
+    def element_encode(self, obj: Any, xsd_element: 'XsdElement', level: int = 0) -> ElementData:
+        attributes: Dict[str, Any] = {}
+
         if not isinstance(obj, MutableSequence) or not obj:
             raise XMLSchemaValueError("Wrong data format, a not empty list required: %r." % obj)
 

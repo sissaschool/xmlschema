@@ -9,11 +9,17 @@
 #
 from collections import namedtuple
 from collections.abc import MutableMapping, MutableSequence
+from typing import TYPE_CHECKING, Any, Dict, Iterator, Iterable, \
+    List, Optional, Type, Tuple, Callable, Union
 
 from ..exceptions import XMLSchemaTypeError
 from ..names import XSI_NAMESPACE
 from ..etree import etree_element
 from ..namespaces import NamespaceMapper
+from ..aliases import NamespacesType, ElementType
+
+if TYPE_CHECKING:
+    from ..validators import XsdElement, XsdType, XsdGroup
 
 
 ElementData = namedtuple('ElementData', ['tag', 'text', 'content', 'attributes'])
@@ -74,18 +80,28 @@ class XMLSchemaConverter(NamespaceMapper):
     :ivar force_dict: force dictionary for complex elements with simple content
     :ivar force_list: force list for child elements
     """
-
-    dict = dict
-    list = list
+    # etree_element_class: Union[Type[ElementType], Callable[[Any, Any], ElementType]]
+    ns_prefix: str
+    dict: Type[Dict[str, Any]] = dict
+    list: Type[List[Any]] = list
     etree_element_class = etree_element
 
     __slots__ = ('text_key', 'ns_prefix', 'attr_prefix', 'cdata_prefix',
                  'indent', 'preserve_root', 'force_dict', 'force_list')
 
-    def __init__(self, namespaces=None, dict_class=None, list_class=None,
-                 etree_element_class=None, text_key='$', attr_prefix='@',
-                 cdata_prefix=None, indent=4, strip_namespaces=False,
-                 preserve_root=False, force_dict=False, force_list=False, **kwargs):
+    def __init__(self, namespaces: NamespacesType = None,
+                 dict_class: Optional[Type[Dict[str, Any]]] = None,
+                 list_class: Optional[Type[List[Any]]] = None,
+                 etree_element_class: Optional[Type[ElementType]] = None,
+                 text_key: Optional[str] = '$',
+                 attr_prefix: Optional[str] = '@',
+                 cdata_prefix: Optional[str] = None,
+                 indent: int = 4,
+                 strip_namespaces: bool = False,
+                 preserve_root: bool = False,
+                 force_dict: bool = False,
+                 force_list: bool = False,
+                 **kwargs: Any) -> None:
 
         super(XMLSchemaConverter, self).__init__(namespaces, strip_namespaces)
 
@@ -96,23 +112,21 @@ class XMLSchemaConverter(NamespaceMapper):
         if etree_element_class is not None:
             self.etree_element_class = etree_element_class
 
-        self.ns_prefix = None
         self.text_key = text_key
         self.attr_prefix = attr_prefix
         self.cdata_prefix = cdata_prefix
+        self.ns_prefix = 'xmlns' if attr_prefix is None else f'{attr_prefix}xmlns'
+
         self.indent = indent
         self.preserve_root = preserve_root
         self.force_dict = force_dict
         self.force_list = force_list
 
-    def __setattr__(self, name, value):
+    def __setattr__(self, name: str, value: Any) -> None:
         if name in {'attr_prefix', 'text_key', 'cdata_prefix'}:
             if value is not None and not isinstance(value, str):
                 msg = '{} must be a str or None, not {}'
                 raise XMLSchemaTypeError(msg.format(name, type(value).__name__))
-
-            if name == 'attr_prefix':
-                self.ns_prefix = (value or '') + 'xmlns'
 
         elif name in {'strip_namespaces', 'preserve_root', 'force_dict', 'force_list'}:
             if not isinstance(value, bool):
@@ -137,12 +151,12 @@ class XMLSchemaConverter(NamespaceMapper):
         super(XMLSchemaConverter, self).__setattr__(name, value)
 
     @property
-    def lossy(self):
+    def lossy(self) -> bool:
         """The converter ignores some kind of XML data during decoding/encoding."""
         return self.cdata_prefix is None or self.text_key is None or self.attr_prefix is None
 
     @property
-    def losslessly(self):
+    def losslessly(self) ->bool:
         """
         The XML data is decoded without loss of quality, neither on data nor on data model
         shape. Only losslessly converters can be always used to encode to an XML data that
@@ -150,7 +164,7 @@ class XMLSchemaConverter(NamespaceMapper):
         """
         return False
 
-    def copy(self, **kwargs):
+    def copy(self, **kwargs: Any) -> 'XMLSchemaConverter':
         return type(self)(
             namespaces=kwargs.get('namespaces', self._namespaces),
             dict_class=kwargs.get('dict_class', self.dict),
@@ -166,7 +180,8 @@ class XMLSchemaConverter(NamespaceMapper):
             force_list=kwargs.get('force_list', self.force_list),
         )
 
-    def map_attributes(self, attributes):
+    def map_attributes(self, attributes: Iterable[Tuple[str, Any]]) \
+            -> Iterator[Tuple[str, Any]]:
         """
         Creates an iterator for converting decoded attributes to a data structure with
         appropriate prefixes. If the instance has a not-empty map of namespaces registers
@@ -185,7 +200,8 @@ class XMLSchemaConverter(NamespaceMapper):
             for name, value in attributes:
                 yield self.map_qname(name), value
 
-    def map_content(self, content):
+    def map_content(self, content: Iterable[Tuple[str, Any, Any]]) \
+            -> Iterator[Tuple[str, Any, Any]]:
         """
         A generator function for converting decoded content to a data structure.
         If the instance has a not-empty map of namespaces registers the mapped URIs
@@ -207,7 +223,11 @@ class XMLSchemaConverter(NamespaceMapper):
                 if self.cdata_prefix is not None:
                     yield '%s%s' % (self.cdata_prefix, name), value, xsd_child
 
-    def etree_element(self, tag, text=None, children=None, attrib=None, level=0):
+    def etree_element(self, tag: str,
+                      text: Optional[str] = None,
+                      children: Optional[List[ElementType]] = None,
+                      attrib: Optional[Dict[str, str]] = None,
+                      level: int = 0) -> ElementType:
         """
         Builds an ElementTree's Element using arguments and the element class and
         the indent spacing stored in the converter instance.
@@ -225,10 +245,11 @@ class XMLSchemaConverter(NamespaceMapper):
             else:
                 elem = self.etree_element_class(tag, self.dict(attrib))
         else:
+            # FIXME: need a more refined check
             nsmap = {prefix if prefix else None: uri
                      for prefix, uri in self._namespaces.items() if uri}
-            elem = self.etree_element_class(tag, nsmap=nsmap)
-            elem.attrib.update(attrib)
+            elem = self.etree_element_class(tag, nsmap=nsmap)  # type: ignore[arg-type]
+            elem.attrib.update(attrib)  # type: ignore[arg-type]
 
         if children:
             elem.extend(children)
@@ -240,7 +261,8 @@ class XMLSchemaConverter(NamespaceMapper):
 
         return elem
 
-    def element_decode(self, data, xsd_element, xsd_type=None, level=0):
+    def element_decode(self, data: ElementData, xsd_element: 'XsdElement',
+                       xsd_type: Optional['XsdType'] = None, level: int = 0) -> Any:
         """
         Converts a decoded element data to a data structure.
 
@@ -264,7 +286,7 @@ class XMLSchemaConverter(NamespaceMapper):
         if xsd_type.simple_type is not None:
             if data.attributes or self.force_dict and not xsd_type.is_simple():
                 result_dict.update(t for t in self.map_attributes(data.attributes))
-                if data.text is not None and data.text != '':
+                if data.text is not None and data.text != '' and self.text_key is not None:
                     result_dict[self.text_key] = data.text
                 return result_dict
             else:
@@ -273,7 +295,8 @@ class XMLSchemaConverter(NamespaceMapper):
             if data.attributes:
                 result_dict.update(t for t in self.map_attributes(data.attributes))
 
-            has_single_group = xsd_type.content.is_single()
+            content: 'XsdGroup' = getattr(xsd_type, 'content', None)
+            has_single_group = content.is_single()
             if data.content:
                 for name, value, xsd_child in self.map_content(data.content):
                     try:
@@ -292,7 +315,7 @@ class XMLSchemaConverter(NamespaceMapper):
                         else:
                             result_dict[name] = self.list([result, value])
 
-            elif data.text is not None and data.text != '':
+            elif data.text is not None and data.text != '' and self.text_key is not None:
                 result_dict[self.text_key] = data.text
 
             if level == 0 and self.preserve_root:
@@ -306,7 +329,7 @@ class XMLSchemaConverter(NamespaceMapper):
                 return result_dict[self.text_key]
             return result_dict
 
-    def element_encode(self, obj, xsd_element, level=0):
+    def element_encode(self, obj: Any, xsd_element: 'XsdElement', level: int = 0) -> ElementData:
         """
         Extracts XML decoded data from a data structure for encoding into an ElementTree.
 
@@ -337,7 +360,7 @@ class XMLSchemaConverter(NamespaceMapper):
                 return ElementData(tag, None, obj, {})
 
         text = None
-        content = []
+        content: List[Tuple[Union[int, str], Any]] = []
         attributes = {}
 
         for name, value in obj.items():

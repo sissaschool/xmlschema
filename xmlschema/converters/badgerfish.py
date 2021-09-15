@@ -8,8 +8,13 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from collections.abc import MutableMapping, MutableSequence
+from typing import TYPE_CHECKING, Any, Optional, List, Dict, Type, Union, Tuple
 
+from ..aliases import NamespacesType
 from .default import ElementData, XMLSchemaConverter
+
+if TYPE_CHECKING:
+    from ..validators import XsdElement, XsdType, XsdGroup
 
 
 class BadgerFishConverter(XMLSchemaConverter):
@@ -25,17 +30,21 @@ class BadgerFishConverter(XMLSchemaConverter):
     """
     __slots__ = ()
 
-    def __init__(self, namespaces=None, dict_class=None, list_class=None, **kwargs):
+    def __init__(self, namespaces: NamespacesType = None,
+                 dict_class: Optional[Type[Dict[str, Any]]] = None,
+                 list_class: Optional[Type[List[Any]]] = None,
+                 **kwargs: Any) -> None:
         kwargs.update(attr_prefix='@', text_key='$', cdata_prefix='$')
         super(BadgerFishConverter, self).__init__(
             namespaces, dict_class, list_class, **kwargs
         )
 
     @property
-    def lossy(self):
+    def lossy(self) -> bool:
         return False
 
-    def element_decode(self, data, xsd_element, xsd_type=None, level=0):
+    def element_decode(self, data: ElementData, xsd_element: 'XsdElement',
+                       xsd_type: Optional['XsdType'] = None, level: int = 0) -> Any:
         xsd_type = xsd_type or xsd_element.type
         dict_class = self.dict
 
@@ -49,7 +58,8 @@ class BadgerFishConverter(XMLSchemaConverter):
             if data.text is not None and data.text != '':
                 result_dict['$'] = data.text
         else:
-            has_single_group = xsd_type.content.is_single()
+            content: 'XsdGroup' = getattr(xsd_type, 'content', None)
+            has_single_group = content.is_single()
             for name, value, xsd_child in self.map_content(data.content):
                 try:
                     if '@xmlns' in value:
@@ -93,7 +103,7 @@ class BadgerFishConverter(XMLSchemaConverter):
         else:
             return dict_class([('@xmlns', dict_class(self)), (tag, result_dict)])
 
-    def element_encode(self, obj, xsd_element, level=0):
+    def element_encode(self, obj: Any, xsd_element: 'XsdElement', level: int = 0) -> ElementData:
         tag = xsd_element.qualified_name if level == 0 else xsd_element.name
 
         if not self.strip_namespaces:
@@ -111,7 +121,7 @@ class BadgerFishConverter(XMLSchemaConverter):
                 element_data = obj
 
         text = None
-        content = []
+        content: List[Tuple[Union[str, int], Any]] = []
         attributes = {}
 
         for name, value in element_data.items():

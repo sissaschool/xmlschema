@@ -8,8 +8,12 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from collections.abc import MutableMapping, MutableSequence
+from typing import TYPE_CHECKING, Any, Dict, Union
 
 from .default import ElementData, XMLSchemaConverter
+
+if TYPE_CHECKING:
+    from ..validators import XsdElement
 
 
 class UnorderedConverter(XMLSchemaConverter):
@@ -24,7 +28,7 @@ class UnorderedConverter(XMLSchemaConverter):
     """
     __slots__ = ()
 
-    def element_encode(self, obj, xsd_element, level=0):
+    def element_encode(self, obj: Any, xsd_element: 'XsdElement', level: int = 0) -> ElementData:
         """
         Extracts XML decoded data from a data structure for encoding into an ElementTree.
 
@@ -61,7 +65,7 @@ class UnorderedConverter(XMLSchemaConverter):
         # in a list to retain that structure. Character data are not wrapped into
         # lists because they because they are divided from the rest of the content
         # into the unordered mode generator function of the ModelVisitor class.
-        content_lu = {}
+        content_lu: Dict[Union[int, str], Any] = {}
 
         for name, value in obj.items():
             if name == self.text_key:

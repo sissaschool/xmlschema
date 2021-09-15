@@ -8,9 +8,14 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from collections.abc import MutableMapping, MutableSequence
+from typing import TYPE_CHECKING, Any, Optional, List, Dict, Type
 
 from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
+from ..aliases import NamespacesType
 from .default import ElementData, XMLSchemaConverter
+
+if TYPE_CHECKING:
+    from ..validators import XsdElement, XsdType
 
 
 class ColumnarConverter(XMLSchemaConverter):
@@ -25,17 +30,20 @@ class ColumnarConverter(XMLSchemaConverter):
     """
     __slots__ = ()
 
-    def __init__(self, namespaces=None, dict_class=None, list_class=None,
-                 attr_prefix='', **kwargs):
+    def __init__(self, namespaces: NamespacesType = None,
+                 dict_class: Optional[Type[Dict[str, Any]]] = None,
+                 list_class: Optional[Type[List[Any]]] = None,
+                 attr_prefix: Optional[str] = '',
+                 **kwargs: Any) -> None:
         kwargs.update(text_key=None, cdata_prefix=None)
         super(ColumnarConverter, self).__init__(namespaces, dict_class, list_class,
                                                 attr_prefix=attr_prefix, **kwargs)
 
     @property
-    def lossy(self):
+    def lossy(self) -> bool:
         return True  # Loss cdata parts
 
-    def __setattr__(self, name, value):
+    def __setattr__(self, name: str, value: Any) -> None:
         if name != 'attr_prefix':
             super(ColumnarConverter, self).__setattr__(name, value)
         elif not isinstance(value, str):
@@ -47,7 +55,10 @@ class ColumnarConverter(XMLSchemaConverter):
         else:
             super(XMLSchemaConverter, self).__setattr__(name, value)
 
-    def element_decode(self, data, xsd_element, xsd_type=None, level=0):
+    def element_decode(self, data: ElementData, xsd_element: 'XsdElement',
+                       xsd_type: Optional['XsdType'] = None, level: int = 0) -> Any:
+        result_dict: Any
+
         xsd_type = xsd_type or xsd_element.type
         if data.attributes:
             pfx = xsd_element.local_name + self.attr_prefix
@@ -101,7 +112,7 @@ class ColumnarConverter(XMLSchemaConverter):
         else:
             return result_dict
 
-    def element_encode(self, obj, xsd_element, level=0):
+    def element_encode(self, obj: Any, xsd_element: 'XsdElement', level: int = 0) -> ElementData:
         if level != 0:
             tag = xsd_element.local_name
         else:
