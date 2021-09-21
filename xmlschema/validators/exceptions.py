@@ -7,9 +7,18 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+from typing import TYPE_CHECKING, Any, Dict, Optional, cast, Iterable, Union, Callable
 from ..exceptions import XMLSchemaException, XMLSchemaWarning, XMLSchemaValueError
 from ..etree import etree_tostring
 from ..helpers import get_prefixed_qname, etree_getpath, is_etree_element
+from ..aliases import ElementType, NamespacesType
+
+if TYPE_CHECKING:
+    from ..resources import XMLResource
+    from .xsdbase import XsdValidator
+    from .particles import ParticleMixin, ModelGroup
+    from .elements import XsdElement
+    from .wildcards import XsdAnyElement
 
 
 class XMLSchemaValidatorError(XMLSchemaException):
@@ -17,7 +26,7 @@ class XMLSchemaValidatorError(XMLSchemaException):
     Base class for XSD validator errors.
 
     :param validator: the XSD validator.
-    :type validator: XsdValidator or function
+    :type validator: XsdValidator or ModelGroup or a callable
     :param message: the error message.
     :type message: str or unicode
     :param elem: the element that contains the error.
@@ -29,7 +38,13 @@ class XMLSchemaValidatorError(XMLSchemaException):
     :ivar path: the XPath of the element, calculated when the element is set \
     or the XML resource is set.
     """
-    def __init__(self, validator, message, elem=None, source=None, namespaces=None):
+    path: Optional[str]
+
+    def __init__(self, validator: Union['XsdValidator', 'ModelGroup', Callable[[Any], None]],
+                 message: str,
+                 elem: Optional[ElementType] = None,
+                 source: Optional['XMLResource'] = None,
+                 namespaces: Optional[Dict[str, str]] = None) -> None:
         self.path = None
         self.validator = validator
         self.message = message[:-1] if message[-1] in ('.', ':') else message
@@ -37,12 +52,12 @@ class XMLSchemaValidatorError(XMLSchemaException):
         self.source = source
         self.elem = elem
 
-    def __str__(self):
+    def __str__(self) -> str:
         if self.elem is None:
             return self.message
 
         msg = ['%s:\n' % self.message]
-        elem_as_string = etree_tostring(self.elem, self.namespaces, '  ', 20)
+        elem_as_string = cast(str, etree_tostring(self.elem, self.namespaces, '  ', 20))
         msg.append("Schema:\n\n%s\n" % elem_as_string)
 
         if self.path is not None:
@@ -54,46 +69,52 @@ class XMLSchemaValidatorError(XMLSchemaException):
         return '\n'.join(msg)
 
     @property
-    def msg(self):
+    def msg(self) -> str:
         return self.__str__()
 
-    def __setattr__(self, name, value):
+    def __setattr__(self, name: str, value: Any) -> None:
         if name == 'elem' and value is not None:
             if not is_etree_element(value):
                 raise XMLSchemaValueError(
                     "'elem' attribute requires an Element, not %r." % type(value)
                 )
-            if self.source is not None:
+            if self.root is not None:
                 self.path = etree_getpath(value, self.root, self.namespaces,
                                           relative=False, add_position=True)
-                if self.source.is_lazy():
+                if self.source is not None and self.source.is_lazy():
                     value = None  # Don't save the element of a lazy resource
         super(XMLSchemaValidatorError, self).__setattr__(name, value)
 
     @property
-    def sourceline(self):
+    def sourceline(self) -> Any:
         return getattr(self.elem, 'sourceline', None)
 
     @property
-    def root(self):
+    def root(self) -> Optional[ElementType]:
         try:
-            return self.source.root
+            return self.source.root  # type: ignore[union-attr]
         except AttributeError:
-            return
+            return None
 
     @property
-    def schema_url(self):
+    def schema_url(self) -> Optional[str]:
+        url: Optional[str]
         try:
-            return self.validator.schema.source.url
+            url = self.validator.schema.source.url  # type: ignore[union-attr]
         except AttributeError:
-            return
+            return None
+        else:
+            return url
 
     @property
-    def origin_url(self):
+    def origin_url(self) -> Optional[str]:
+        url: Optional[str]
         try:
-            return self.validator.maps.validator.source.url
+            url = self.validator.maps.validator.source.url  # type: ignore[union-attr]
         except AttributeError:
-            return
+            return None
+        else:
+            return url
 
 
 class XMLSchemaNotBuiltError(XMLSchemaValidatorError, RuntimeError):
@@ -105,7 +126,7 @@ class XMLSchemaNotBuiltError(XMLSchemaValidatorError, RuntimeError):
     :param message: the error message.
     :type message: str or unicode
     """
-    def __init__(self, validator, message):
+    def __init__(self, validator: 'XsdValidator', message: str) -> None:
         super(XMLSchemaNotBuiltError, self).__init__(
             validator=validator,
             message=message,
@@ -126,7 +147,8 @@ class XMLSchemaParseError(XMLSchemaValidatorError, SyntaxError):  # type: ignore
     :param elem: the element that contains the error.
     :type elem: Element
     """
-    def __init__(self, validator, message, elem=None):
+    def __init__(self, validator: 'XsdValidator', message: str,
+                 elem: Optional[ElementType] = None) -> None:
         super(XMLSchemaParseError, self).__init__(
             validator=validator,
             message=message,
@@ -141,11 +163,11 @@ class XMLSchemaModelError(XMLSchemaValidatorError, ValueError):
     Raised when a model error is found during the checking of a model group.
 
     :param group: the XSD model group.
-    :type group: XsdGroup
+    :type group: ModelGroup
     :param message: the error message.
     :type message: str or unicode
     """
-    def __init__(self, group, message):
+    def __init__(self, group: 'ModelGroup', message: str) -> None:
         super(XMLSchemaModelError, self).__init__(
             validator=group,
             message=message,
@@ -157,7 +179,7 @@ class XMLSchemaModelError(XMLSchemaValidatorError, ValueError):
 
 class XMLSchemaModelDepthError(XMLSchemaModelError):
     """Raised when recursion depth is exceeded while iterating a model group."""
-    def __init__(self, group):
+    def __init__(self, group: 'ModelGroup') -> None:
         msg = "maximum model recursion depth exceeded while iterating {!r}".format(group)
         super(XMLSchemaModelDepthError, self).__init__(group, message=msg)
 
@@ -180,7 +202,11 @@ class XMLSchemaValidationError(XMLSchemaValidatorError, ValueError):
     :param namespaces: is an optional mapping from namespace prefix to URI.
     :type namespaces: dict
     """
-    def __init__(self, validator, obj, reason=None, source=None, namespaces=None):
+    def __init__(self, validator: Union['XsdValidator', Callable[[Any], None]],
+                 obj: Any,
+                 reason: Optional[str] = None,
+                 source: Optional['XMLResource'] = None,
+                 namespaces: NamespacesType = None) -> None:
         if not isinstance(obj, str):
             _obj = obj
         else:
@@ -196,29 +222,37 @@ class XMLSchemaValidationError(XMLSchemaValidatorError, ValueError):
         self.obj = obj
         self.reason = reason
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return '%s(reason=%r)' % (self.__class__.__name__, self.reason)
 
-    def __str__(self):
+    def __str__(self) -> str:
         msg = ['%s:\n' % self.message]
+
         if self.reason is not None:
             msg.append('Reason: %s\n' % self.reason)
+
         if hasattr(self.validator, 'tostring'):
-            msg.append("Schema:\n\n%s\n" % self.validator.tostring('  ', 20))
-        if is_etree_element(self.elem):
+            chunk = self.validator.tostring('  ', 20)  # type: ignore[union-attr]
+            msg.append("Schema:\n\n%s\n" % chunk)
+
+        if self.elem is not None and is_etree_element(self.elem):
             try:
-                elem_as_string = etree_tostring(self.elem, self.namespaces, '  ', 20)
+                elem_as_string = cast(str, etree_tostring(self.elem, self.namespaces, '  ', 20))
             except (ValueError, TypeError):        # pragma: no cover
                 elem_as_string = repr(self.elem)   # pragma: no cover
 
             if hasattr(self.elem, 'sourceline'):
-                msg.append("Instance (line %r):\n\n%s\n" % (self.elem.sourceline, elem_as_string))
+                line = getattr(self.elem, 'sourceline')
+                msg.append("Instance (line %r):\n\n%s\n" % (line, elem_as_string))
             else:
                 msg.append("Instance:\n\n%s\n" % elem_as_string)
+
         if self.path is not None:
             msg.append("Path: %s\n" % self.path)
+
         if len(msg) == 1:
             return msg[0][:-2]
+
         return '\n'.join(msg)
 
 
@@ -241,7 +275,12 @@ class XMLSchemaDecodeError(XMLSchemaValidationError):
     """
     message = "failed decoding {!r} with {!r}.\n"
 
-    def __init__(self, validator, obj, decoder, reason=None, source=None, namespaces=None):
+    def __init__(self, validator: Union['XsdValidator', Callable[[Any], None]],
+                 obj: Any,
+                 decoder: Any,
+                 reason: Optional[str] = None,
+                 source: Optional['XMLResource'] = None,
+                 namespaces: NamespacesType = None) -> None:
         super(XMLSchemaDecodeError, self).__init__(validator, obj, reason, source, namespaces)
         self.decoder = decoder
 
@@ -265,7 +304,12 @@ class XMLSchemaEncodeError(XMLSchemaValidationError):
     """
     message = "failed encoding {!r} with {!r}.\n"
 
-    def __init__(self, validator, obj, encoder, reason=None, source=None, namespaces=None):
+    def __init__(self, validator: Union['XsdValidator', Callable[[Any], None]],
+                 obj: Any,
+                 encoder: Any,
+                 reason: Optional[str] = None,
+                 source: Optional['XMLResource'] = None,
+                 namespaces: NamespacesType = None) -> None:
         super(XMLSchemaEncodeError, self).__init__(validator, obj, reason, source, namespaces)
         self.encoder = encoder
 
@@ -277,7 +321,7 @@ class XMLSchemaChildrenValidationError(XMLSchemaValidationError):
     :param validator: the XSD validator.
     :type validator: XsdValidator or function
     :param elem: the not validated XML element.
-    :type elem: Element or ElementData
+    :type elem: Element
     :param index: the child index.
     :type index: int
     :param particle: the validator particle that generated the error. Maybe the validator itself.
@@ -285,14 +329,21 @@ class XMLSchemaChildrenValidationError(XMLSchemaValidationError):
     :param occurs: the particle occurrences.
     :type occurs: int
     :param expected: the expected element tags/object names.
-    :type expected: str or list or tuple
+    :type expected: list or tuple or None
     :param source: the XML resource that contains the error.
     :type source: XMLResource
     :param namespaces: is an optional mapping from namespace prefix to URI.
     :type namespaces: dict
     """
-    def __init__(self, validator, elem, index, particle, occurs=0,
-                 expected=None, source=None, namespaces=None):
+    def __init__(self, validator: 'XsdValidator',
+                 elem: ElementType,
+                 index: int,
+                 particle: 'ParticleMixin',
+                 occurs: int = 0,
+                 expected: Optional[Iterable[Union['XsdElement', 'XsdAnyElement']]] = None,
+                 source: Optional['XMLResource'] = None,
+                 namespaces: NamespacesType = None) -> None:
+
         self.index = index
         self.particle = particle
         self.occurs = occurs
@@ -310,7 +361,7 @@ class XMLSchemaChildrenValidationError(XMLSchemaValidationError):
                 particle, occurs, particle.min_occurs
             )
         elif particle.is_over(occurs):
-            reason += " The particle %r occurs %d times but the maximum is %d." % (
+            reason += " The particle %r occurs %r times but the maximum is %r." % (
                 particle, occurs, particle.max_occurs
             )
 

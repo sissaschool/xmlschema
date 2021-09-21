@@ -8,12 +8,16 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import re
-from xmlschema.helpers import get_namespace, get_qname
+from typing import Any, Dict, List, Type, Union, Iterator
+from ..helpers import get_namespace, get_qname
+from ..etree import etree_element
 
 _REGEX_SPACES = re.compile(r'\s+')
 
 
-def iter_nested_items(items, dict_class=dict, list_class=list):
+def iter_nested_items(items: Union[Dict[Any, Any], List[Any]],
+                      dict_class: Type[Dict[Any, Any]] = dict,
+                      list_class: Type[List[Any]] = list) -> Iterator[Any]:
     """Iterates a nested object composed by lists and dictionaries."""
     if isinstance(items, dict_class):
         for k, v in items.items():
@@ -29,7 +33,9 @@ def iter_nested_items(items, dict_class=dict, list_class=list):
         yield items
 
 
-def etree_elements_assert_equal(elem, other, strict=True, skip_comments=True, unordered=False):
+def etree_elements_assert_equal(elem: etree_element, other: etree_element,
+                                strict: bool = True, skip_comments: bool = True,
+                                unordered: bool = False) -> None:
     """
     Tests the equality of two XML Element trees.
 
@@ -40,6 +46,8 @@ def etree_elements_assert_equal(elem, other, strict=True, skip_comments=True, un
     :param unordered: children may have different order.
     :raise: an AssertionError containing information about first difference encountered.
     """
+    children: Union[etree_element, List[etree_element]]
+
     if unordered:
         children = sorted(elem, key=lambda x: '' if callable(x.tag) else x.tag)
         other_children = iter(sorted(
@@ -106,7 +114,7 @@ def etree_elements_assert_equal(elem, other, strict=True, skip_comments=True, un
             if strict:
                 raise AssertionError(message)
             elif e1.text is None:
-                if e2.text.strip():
+                if e2.text is not None and e2.text.strip():
                     raise AssertionError(message)
             elif e2.text is None:
                 if e1.text.strip():
@@ -143,7 +151,7 @@ def etree_elements_assert_equal(elem, other, strict=True, skip_comments=True, un
             if strict:
                 raise AssertionError(message)
             elif e1.tail is None:
-                if e2.tail.strip():
+                if e2.tail is not None and e2.tail.strip():
                     raise AssertionError(message)
             elif e2.tail is None:
                 if e1.tail.strip():

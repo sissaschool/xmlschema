@@ -10,6 +10,7 @@
 from abc import ABCMeta
 from collections.abc import MutableSequence
 from itertools import count
+from typing import Optional
 from elementpath import XPathContext, XPath2Parser
 
 from .exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, XMLSchemaValueError
@@ -33,7 +34,7 @@ class DataElement(MutableSequence):
     also if the instance is not bound with an XSD element.
     """
     value = None
-    tail = None
+    tail: Optional[str] = None
     xsd_element = None
     xsd_type = None
     _encoder = None

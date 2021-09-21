@@ -11,8 +11,7 @@
 This module contains classes for managing maps related to namespaces.
 """
 import re
-from collections.abc import MutableMapping, Mapping
-from typing import Any, Dict, List, Optional
+from typing import cast, Any, Dict, Iterator, List, Optional, MutableMapping, Mapping
 
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from .helpers import local_name
@@ -21,7 +20,7 @@ from .helpers import local_name
 ###
 # Base classes for managing namespaces
 
-class NamespaceResourcesMap(MutableMapping):
+class NamespaceResourcesMap(MutableMapping[str, Any]):
     """
     Dictionary for storing information about namespace resources. The values are
     lists of objects. Setting an existing value appends the object to the value.
@@ -29,14 +28,14 @@ class NamespaceResourcesMap(MutableMapping):
     """
     __slots__ = ('_store',)
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any):
         self._store: Dict[str, List[Any]] = {}
         self.update(*args, **kwargs)
 
-    def __getitem__(self, uri: str):
+    def __getitem__(self, uri: str) -> Any:
         return self._store[uri]
 
-    def __setitem__(self, uri: str, value: Any):
+    def __setitem__(self, uri: str, value: Any) -> None:
         if isinstance(value, list):
             self._store[uri] = value[:]
         else:
@@ -45,23 +44,23 @@ class NamespaceResourcesMap(MutableMapping):
             except KeyError:
                 self._store[uri] = [value]
 
-    def __delitem__(self, uri: str):
+    def __delitem__(self, uri: str) -> None:
         del self._store[uri]
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[str]:
         return iter(self._store)
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self._store)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return repr(self._store)
 
-    def clear(self):
+    def clear(self) -> None:
         self._store.clear()
 
 
-class NamespaceMapper(MutableMapping):
+class NamespaceMapper(MutableMapping[str, str]):
     """
     A class to map/unmap namespace prefixes to URIs. The mapped namespaces are
     automatically registered when set. Namespaces can be updated overwriting
@@ -84,7 +83,7 @@ class NamespaceMapper(MutableMapping):
             self._namespaces = namespaces
         self.strip_namespaces = strip_namespaces
 
-    def __setattr__(self, name: str, value: str):
+    def __setattr__(self, name: str, value: str) -> None:
         if name == 'strip_namespaces':
             if value:
                 self.map_qname = self.unmap_qname = self._local_name  # type: ignore[assignment]
@@ -93,33 +92,33 @@ class NamespaceMapper(MutableMapping):
                 self.unmap_qname = self._unmap_qname  # type: ignore[assignment]
         super(NamespaceMapper, self).__setattr__(name, value)
 
-    def __getitem__(self, prefix: str):
+    def __getitem__(self, prefix: str) -> str:
         return self._namespaces[prefix]
 
-    def __setitem__(self, prefix: str, uri: str):
+    def __setitem__(self, prefix: str, uri: str) -> None:
         self._namespaces[prefix] = uri
 
-    def __delitem__(self, prefix):
+    def __delitem__(self, prefix: str) -> None:
         del self._namespaces[prefix]
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[str]:
         return iter(self._namespaces)
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self._namespaces)
 
     @property
-    def namespaces(self):
+    def namespaces(self) -> Dict[str, str]:
         return self._namespaces
 
     @property
-    def default_namespace(self):
+    def default_namespace(self) -> Optional[str]:
         return self._namespaces.get('')
 
-    def clear(self):
+    def clear(self) -> None:
         self._namespaces.clear()
 
-    def insert_item(self, prefix: str, uri: str):
+    def insert_item(self, prefix: str, uri: str) -> None:
         """
         A method for setting an item that checks the prefix before inserting.
         In case of collision the prefix is changed adding a numerical suffix.
@@ -143,7 +142,7 @@ class NamespaceMapper(MutableMapping):
                 prefix += '0'
         self._namespaces[prefix] = uri
 
-    def _map_qname(self, qname: str):
+    def _map_qname(self, qname: str) -> str:
         """
         Converts an extended QName to the prefixed format. Only registered
         namespaces are mapped.
@@ -170,7 +169,7 @@ class NamespaceMapper(MutableMapping):
 
     map_qname = _map_qname
 
-    def _unmap_qname(self, qname: str, name_table: Optional[Dict[str, str]] = None):
+    def _unmap_qname(self, qname: str, name_table: Optional[Dict[str, str]] = None) -> str:
         """
         Converts a QName in prefixed format or a local name to the extended QName format.
         Local names are converted only if a default namespace is included in the instance.
@@ -209,10 +208,10 @@ class NamespaceMapper(MutableMapping):
     unmap_qname = _unmap_qname
 
     @staticmethod
-    def _local_name(qname: str, *_args, **_kwargs) -> str:
+    def _local_name(qname: str, *_args: Any, **_kwargs: Any) -> str:
         return local_name(qname)
 
-    def transfer(self, namespaces: Dict[str, str]):
+    def transfer(self, namespaces: Dict[str, str]) -> None:
         """
         Transfers compatible prefix/namespace registrations from a dictionary.
         Registrations added to namespace mapper instance are deleted from argument.
@@ -232,7 +231,7 @@ class NamespaceMapper(MutableMapping):
             del namespaces[k]
 
 
-class NamespaceView(Mapping):
+class NamespaceView(Mapping[str, Any]):
     """
     A read-only map for filtered access to a dictionary that stores
     objects mapped from QNames in extended format.
@@ -247,16 +246,16 @@ class NamespaceView(Mapping):
         else:
             self._key_fmt = '%s'
 
-    def __getitem__(self, key):
+    def __getitem__(self, key: str) -> Any:
         return self.target_dict[self._key_fmt % key]
 
-    def __len__(self):
+    def __len__(self) -> int:
         if not self.namespace:
             return len([k for k in self.target_dict if not k or k[0] != '{'])
         return len([k for k in self.target_dict
                     if k and k[0] == '{' and self.namespace == k[1:k.rindex('}')]])
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[str]:
         if not self.namespace:
             for k in self.target_dict:
                 if not k or k[0] != '{':
@@ -266,16 +265,16 @@ class NamespaceView(Mapping):
                 if k and k[0] == '{' and self.namespace == k[1:k.rindex('}')]:
                     yield k[k.rindex('}') + 1:]
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return '%s(%s)' % (self.__class__.__name__, str(self.as_dict()))
 
-    def __contains__(self, key):
+    def __contains__(self, key: Any) ->  bool:
         return self._key_fmt % key in self.target_dict
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> Any:
         return self.as_dict() == other
 
-    def as_dict(self, fqn_keys=False):
+    def as_dict(self, fqn_keys: bool = False) -> Dict[str, Any]:
         if not self.namespace:
             return {
                 k: v for k, v in self.target_dict.items() if not k or k[0] != '{'

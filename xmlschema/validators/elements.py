@@ -67,6 +67,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
           Content: (annotation?, ((simpleType | complexType)?, (unique | key | keyref)*))
         </element>
     """
+    name: str
     parent: 'XsdGroup'
     abstract = False
     nillable = False

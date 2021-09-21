@@ -24,7 +24,7 @@ if TYPE_CHECKING:
     XmlSourceType = Union[str, IO, ElementTree.Element, ElementTree.ElementTree]
     NormalizedLocationsType = List[Tuple[str, str]]
     LocationsType = Union[Dict[str, str], Tuple[Tuple[str, str]], NormalizedLocationsType]
-    NsmapType = Optional[List[Tuple[str, str]], Dict[str, str]]
+    NsmapType = Optional[Union[List[Tuple[str, str]], Dict[str, str]]]
     AncestorsType = Optional[List[ElementType]]
     ParentMapType = Optional[Dict[ElementType, Optional[ElementType]]]
     LazyType = Union[bool, int]

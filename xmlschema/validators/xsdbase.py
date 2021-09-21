@@ -11,7 +11,7 @@
 This module contains base functions and classes XML Schema components.
 """
 import re
-from typing import TYPE_CHECKING, Dict, Optional, Union, Set, Tuple
+from typing import TYPE_CHECKING, Any, Dict, Optional, Union, Set, Tuple
 
 import elementpath
 
@@ -63,7 +63,7 @@ class XsdValidator:
     """
     xsd_version: Optional[str] = None
     elem: Optional[etree_element] = None
-    namespaces: Dict[str, str]
+    namespaces: Any = None
 
     def __init__(self, validation='strict'):
         self.validation = validation

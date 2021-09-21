@@ -49,6 +49,7 @@ class XsdAttribute(XsdComponent, ValidationMixin):
     """
     _ADMITTED_TAGS = {XSD_ATTRIBUTE}
 
+    name: str
     type = None
     qualified = False
     default = None
