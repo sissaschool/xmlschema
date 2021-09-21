@@ -211,8 +211,8 @@ class TestHelpers(unittest.TestCase):
         self.assertEqual(local_name(XSD_SCHEMA), 'schema')
         self.assertEqual(local_name('schema'), 'schema')
         self.assertEqual(local_name(''), '')
-        self.assertEqual(local_name(None), None)
 
+        self.assertRaises(TypeError, local_name, None)
         self.assertRaises(ValueError, local_name, '{ns name')
         self.assertRaises(TypeError, local_name, 1.0)
         self.assertRaises(TypeError, local_name, 0)

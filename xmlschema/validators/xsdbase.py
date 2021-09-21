@@ -63,6 +63,7 @@ class XsdValidator:
     """
     xsd_version: Optional[str] = None
     elem: Optional[etree_element] = None
+    namespaces: Dict[str, str]
 
     def __init__(self, validation='strict'):
         self.validation = validation
@@ -407,7 +408,9 @@ class XsdComponent(XsdValidator):
                 self.parse_error("a declaration contained in a global complexType "
                                  "must have the same namespace as its parent schema")
 
-        if not self._target_namespace:
+        if self.name is None:
+            pass
+        elif not self._target_namespace:
             self.name = local_name(self.name)
         else:
             self.name = '{%s}%s' % (self._target_namespace, local_name(self.name))
@@ -415,7 +418,7 @@ class XsdComponent(XsdValidator):
     @property
     def local_name(self):
         """The local part of the name of the component, or `None` if the name is `None`."""
-        return local_name(self.name)
+        return None if self.name is None else local_name(self.name)
 
     @property
     def qualified_name(self):

@@ -1,5 +1,5 @@
 #
-# Copyright (c), 2016-2020, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2021, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -10,7 +10,7 @@
 import re
 from collections import Counter
 from decimal import Decimal
-from typing import Callable, Dict, Iterator, Optional, Tuple, Union
+from typing import Callable, Dict, Iterator, List, Optional, Tuple, Union
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from .names import XSI_SCHEMA_LOCATION, XSI_NONS_SCHEMA_LOCATION
 
@@ -75,9 +75,7 @@ def local_name(qname: str) -> str:
     except ValueError:
         raise XMLSchemaValueError("the argument 'qname' has a wrong format: %r" % qname)
     except TypeError:
-        if qname is None:
-            return qname
-        raise XMLSchemaTypeError("the argument 'qname' must be a string-like object or None")
+        raise XMLSchemaTypeError("the argument 'qname' must be a string")
     else:
         return qname
 
@@ -152,8 +150,8 @@ def is_etree_document(obj: object) -> bool:
 
 
 def etree_iterpath(elem: Element, tag: Optional[str] = None,
-                   path='.', namespaces: Optional[Dict[str, str]] = None,
-                   add_position=False) -> Iterator[Tuple[Element, str]]:
+                   path: str = '.', namespaces: Optional[Dict[str, str]] = None,
+                   add_position: bool = False) -> Iterator[Tuple[Element, str]]:
     """
     Creates an iterator for the element and its subelements that yield elements and paths.
     If tag is not `None` or '*', only elements whose matches tag are returned from the iterator.
@@ -194,8 +192,12 @@ def etree_iterpath(elem: Element, tag: Optional[str] = None,
         yield from etree_iterpath(child, tag, child_path, namespaces, add_position)
 
 
-def etree_getpath(elem: Element, root: Element, namespaces: Optional[Dict[str, str]] = None,
-                  relative=True, add_position=False, parent_path=False) -> Optional[str]:
+def etree_getpath(elem: Element,
+                  root: Element,
+                  namespaces: Optional[Dict[str, str]] = None,
+                  relative: bool = True,
+                  add_position: bool = False,
+                  parent_path: bool = False) -> Optional[str]:
     """
     Returns the XPath path from *root* to descendant *elem* element.
 
@@ -247,7 +249,7 @@ def prune_etree(root: Element, selector: Callable[[Element], bool]) -> Optional[
     :param selector: the single argument function to apply on each visited node.
     :return: `True` if the root node verify the selector function, `None` otherwise.
     """
-    def _prune_subtree(elem):
+    def _prune_subtree(elem: Element) -> None:
         for child in elem[:]:
             if selector(child):
                 elem.remove(child)
@@ -302,8 +304,9 @@ def strictly_equal(obj1: object, obj2: object) -> bool:
     return obj1 == obj2 and type(obj1) is type(obj2)
 
 
-def raw_xml_encode(value: Optional[Union[str, bytes, bool, int, float, Decimal, list, tuple]]) \
-        -> Optional[str]:
+def raw_xml_encode(
+    value: Optional[Union[str, bytes, bool, int, float, Decimal, List[str], Tuple[str]]]
+) -> Optional[str]:
     """Encodes a simple value to XML."""
     if isinstance(value, bool):
         return 'true' if value else 'false'
