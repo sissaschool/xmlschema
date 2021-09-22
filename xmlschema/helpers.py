@@ -10,11 +10,10 @@
 import re
 from collections import Counter
 from decimal import Decimal
-from typing import Callable, Dict, Iterator, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from .names import XSI_SCHEMA_LOCATION, XSI_NONS_SCHEMA_LOCATION
-
-from xml.etree.ElementTree import Element
+from .etree import ElementType, etree_element
 
 ###
 # Helper functions for QNames
@@ -149,9 +148,9 @@ def is_etree_document(obj: object) -> bool:
     return hasattr(obj, 'getroot') and hasattr(obj, 'parse') and hasattr(obj, 'iter')
 
 
-def etree_iterpath(elem: Element, tag: Optional[str] = None,
+def etree_iterpath(elem: ElementType, tag: Optional[str] = None,
                    path: str = '.', namespaces: Optional[Dict[str, str]] = None,
-                   add_position: bool = False) -> Iterator[Tuple[Element, str]]:
+                   add_position: bool = False) -> Iterator[Tuple[ElementType, str]]:
     """
     Creates an iterator for the element and its subelements that yield elements and paths.
     If tag is not `None` or '*', only elements whose matches tag are returned from the iterator.
@@ -192,8 +191,8 @@ def etree_iterpath(elem: Element, tag: Optional[str] = None,
         yield from etree_iterpath(child, tag, child_path, namespaces, add_position)
 
 
-def etree_getpath(elem: Element,
-                  root: Element,
+def etree_getpath(elem: ElementType,
+                  root: ElementType,
                   namespaces: Optional[Dict[str, str]] = None,
                   relative: bool = True,
                   add_position: bool = False,
@@ -227,7 +226,7 @@ def etree_getpath(elem: Element,
     return None
 
 
-def etree_iter_location_hints(elem: Element) -> Iterator[Tuple[str, str]]:
+def etree_iter_location_hints(elem: ElementType) -> Iterator[Tuple[Any, Any]]:
     """Yields schema location hints contained in the attributes of an element."""
     if XSI_SCHEMA_LOCATION in elem.attrib:
         locations = elem.attrib[XSI_SCHEMA_LOCATION].split()
@@ -239,7 +238,8 @@ def etree_iter_location_hints(elem: Element) -> Iterator[Tuple[str, str]]:
             yield '', url
 
 
-def prune_etree(root: Element, selector: Callable[[Element], bool]) -> Optional[bool]:
+def prune_etree(root: etree_element, selector: Callable[[etree_element], bool]) \
+        -> Optional[bool]:
     """
     Removes from an tree structure the elements that verify the selector
     function. The checking and eventual removals are performed using a
@@ -249,7 +249,7 @@ def prune_etree(root: Element, selector: Callable[[Element], bool]) -> Optional[
     :param selector: the single argument function to apply on each visited node.
     :return: `True` if the root node verify the selector function, `None` otherwise.
     """
-    def _prune_subtree(elem: Element) -> None:
+    def _prune_subtree(elem: etree_element) -> None:
         for child in elem[:]:
             if selector(child):
                 elem.remove(child)

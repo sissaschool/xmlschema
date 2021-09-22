@@ -8,9 +8,9 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from collections.abc import MutableMapping, MutableSequence
-from typing import TYPE_CHECKING, Any, Optional, List, Dict, Type, cast
+from typing import TYPE_CHECKING, Any, Optional, List, Dict, Type
 
-from ..aliases import NamespacesType
+from ..etree import NamespacesType
 from .default import ElementData, XMLSchemaConverter
 
 if TYPE_CHECKING:

@@ -12,7 +12,7 @@ A unified setup module for ElementTree with a safe parser and helper functions.
 """
 import sys
 import re
-from typing import Any, Dict, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, Optional, Union
 
 from .exceptions import XMLSchemaTypeError
 
@@ -58,6 +58,27 @@ else:
 
     # Load the C optimized ElementTree module
     import xml.etree.ElementTree as ElementTree
+
+# Aliases for static type checking
+if TYPE_CHECKING:
+    from typing import Union
+    import lxml.etree as lxml_etree
+
+    # noinspection PyProtectedMember
+    LxmlElementType = lxml_etree._Element
+    ElementType = Union[ElementTree.Element, LxmlElementType]
+
+    # noinspection PyProtectedMember
+    LxmlElementTreeType = lxml_etree._ElementTree
+    ElementTreeType = Union[ElementTree.ElementTree, LxmlElementTreeType]
+
+else:
+    LxmlElementType = Any
+    LxmlElementTreeType = Any
+    ElementType = ElementTree.Element
+    ElementTreeType = ElementTree.ElementTree
+
+NamespacesType = Optional[Dict[str, str]]
 
 
 etree_element = ElementTree.Element
@@ -105,7 +126,7 @@ def is_etree_element(obj: Any) -> bool:
     return hasattr(obj, 'append') and hasattr(obj, 'tag') and hasattr(obj, 'attrib')
 
 
-def etree_tostring(elem: etree_element,
+def etree_tostring(elem: ElementType,
                    namespaces: Optional[Dict[str, str]] = None,
                    indent: str = '',
                    max_lines: Optional[int] = None,
@@ -138,6 +159,7 @@ def etree_tostring(elem: etree_element,
         else:
             return indent + line
 
+    etree_module: Any
     if not is_etree_element(elem):
         raise XMLSchemaTypeError("{!r} is not an Element".format(elem))
 
@@ -207,5 +229,6 @@ def etree_tostring(elem: etree_element,
     return '\n'.join(reindent(line) for line in lines).encode(encoding)
 
 
-__all__ = ['ElementTree', 'PyElementTree', 'SafeXMLParser', 'etree_element',
-           'py_etree_element', 'is_etree_element', 'etree_tostring']
+__all__ = ['ElementType', 'LxmlElementType', 'ElementTreeType', 'LxmlElementTreeType',
+           'NamespacesType', 'ElementTree', 'PyElementTree', 'SafeXMLParser',
+           'etree_element', 'py_etree_element', 'is_etree_element', 'etree_tostring']

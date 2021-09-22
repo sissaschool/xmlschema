@@ -10,7 +10,7 @@
 from collections.abc import MutableMapping, MutableSequence
 from typing import TYPE_CHECKING, Any, Optional, List, Dict, Type, Union, Tuple
 
-from ..aliases import NamespacesType
+from ..etree import NamespacesType
 from .default import ElementData, XMLSchemaConverter
 
 if TYPE_CHECKING:

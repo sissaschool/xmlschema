@@ -10,13 +10,12 @@
 from collections import namedtuple
 from collections.abc import MutableMapping, MutableSequence
 from typing import TYPE_CHECKING, Any, Dict, Iterator, Iterable, \
-    List, Optional, Type, Tuple, Callable, Union
+    List, Optional, Type, Tuple, Union, Callable
 
 from ..exceptions import XMLSchemaTypeError
 from ..names import XSI_NAMESPACE
-from ..etree import etree_element
+from ..etree import NamespacesType, ElementType, LxmlElementType, etree_element
 from ..namespaces import NamespaceMapper
-from ..aliases import NamespacesType, ElementType
 
 if TYPE_CHECKING:
     from ..validators import XsdElement, XsdType, XsdGroup
@@ -80,10 +79,11 @@ class XMLSchemaConverter(NamespaceMapper):
     :ivar force_dict: force dictionary for complex elements with simple content
     :ivar force_list: force list for child elements
     """
-    # etree_element_class: Union[Type[ElementType], Callable[[Any, Any], ElementType]]
     ns_prefix: str
     dict: Type[Dict[str, Any]] = dict
     list: Type[List[Any]] = list
+
+    etree_element_class: Union[Type[etree_element], Callable[..., LxmlElementType]]
     etree_element_class = etree_element
 
     __slots__ = ('text_key', 'ns_prefix', 'attr_prefix', 'cdata_prefix',
@@ -156,7 +156,7 @@ class XMLSchemaConverter(NamespaceMapper):
         return self.cdata_prefix is None or self.text_key is None or self.attr_prefix is None
 
     @property
-    def losslessly(self) ->bool:
+    def losslessly(self) -> bool:
         """
         The XML data is decoded without loss of quality, neither on data nor on data model
         shape. Only losslessly converters can be always used to encode to an XML data that
@@ -237,7 +237,7 @@ class XMLSchemaConverter(NamespaceMapper):
         :param children: the list of Element children/subelements.
         :param attrib: a dictionary with Element attributes.
         :param level: the level related to the encoding process (0 means the root).
-        :return: an instance of the Element class setted for the converter instance.
+        :return: an instance of the Element class is set for the converter instance.
         """
         if type(self.etree_element_class) is type(etree_element):
             if attrib is None:
@@ -252,7 +252,7 @@ class XMLSchemaConverter(NamespaceMapper):
             elem.attrib.update(attrib)  # type: ignore[arg-type]
 
         if children:
-            elem.extend(children)
+            elem.extend(children)  # type: ignore[union-attr,arg-type]
             elem.text = text or '\n' + ' ' * self.indent * (level + 1)
             elem.tail = '\n' + ' ' * self.indent * level
         else:
