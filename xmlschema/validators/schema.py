@@ -92,7 +92,8 @@ SchemaSourceType = Union[str, IO, ElementTree.Element,
                          ElementTree.ElementTree, XMLResource]
 ConverterType = Union[Type[XMLSchemaConverter], XMLSchemaConverter]
 ComponentClassesType = Union[Type[XsdComponent], Tuple[Type[XsdComponent], ...]]
-
+ValidationSourceType = Union[XMLSourceType, XMLResource]
+DecodeSourceType = ValidationSourceType
 DecodeReturnType = Union[Any, List[Any],
                          Tuple[None, List[XMLSchemaValidationError]],
                          Tuple[Any, List[XMLSchemaValidationError]],
@@ -1588,7 +1589,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin, metaclass=XMLSchemaMeta):
             )
         return '{%s}%s' % (namespace, local_name)
 
-    def validate(self, source: XMLSourceType, path: Optional[str] = None,
+    def validate(self, source: ValidationSourceType, path: Optional[str] = None,
                  schema_path: Optional[str] = None, use_defaults: bool = True,
                  namespaces: NamespacesType = None, max_depth: Optional[int] = None,
                  extra_validator: Optional[Callable] = None) -> None:
@@ -1618,7 +1619,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin, metaclass=XMLSchemaMeta):
                                       namespaces, max_depth, extra_validator):
             raise error
 
-    def is_valid(self, source: XMLSourceType, path: Optional[str] = None,
+    def is_valid(self, source: ValidationSourceType, path: Optional[str] = None,
                  schema_path: Optional[str] = None, use_defaults: bool = True,
                  namespaces: NamespacesType = None, max_depth: Optional[int] = None,
                  extra_validator: Optional[Callable] = None) -> bool:
@@ -1630,7 +1631,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin, metaclass=XMLSchemaMeta):
                                       namespaces, max_depth, extra_validator), None)
         return error is None
 
-    def iter_errors(self, source: XMLSourceType, path: Optional[str] = None,
+    def iter_errors(self, source: ValidationSourceType, path: Optional[str] = None,
                     schema_path: Optional[str] = None, use_defaults: bool = True,
                     namespaces: NamespacesType = None, max_depth: Optional[int] = None,
                     extra_validator: Optional[Callable] = None) \
@@ -1774,7 +1775,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin, metaclass=XMLSchemaMeta):
         if 'max_depth' not in kwargs:
             yield from self._validate_references(source, validation=validation, **kwargs)
 
-    def iter_decode(self, source: XMLSourceType,
+    def iter_decode(self, source: DecodeSourceType,
                     path: Optional[str] = None,
                     schema_path: Optional[str] = None,
                     validation: str = 'lax',
@@ -1914,7 +1915,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin, metaclass=XMLSchemaMeta):
         if 'max_depth' not in kwargs:
             yield from self._validate_references(validation=validation, **kwargs)
 
-    def decode(self, source: XMLSourceType, path: Optional[str] = None,
+    def decode(self, source: DecodeSourceType, path: Optional[str] = None,
                schema_path: Optional[str] = None, validation: str = 'strict',
                *args: Any, **kwargs: Any) -> DecodeReturnType:
         """
