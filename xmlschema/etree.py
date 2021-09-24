@@ -64,7 +64,6 @@ else:
 ElementType = ElementTree.Element
 ElementTreeType = ElementTree.ElementTree
 XMLSourceType = Union[str, IO, ElementType, ElementTreeType]
-SchemaSourceType = Union[str, IO, ElementTree.Element, ElementTree.ElementTree]
 NamespacesType = Optional[Dict[str, str]]
 
 
@@ -216,6 +215,6 @@ def etree_tostring(elem: ElementType,
     return '\n'.join(reindent(line) for line in lines).encode(encoding)
 
 
-__all__ = ['ElementType', 'ElementTreeType', 'XMLSourceType', 'SchemaSourceType',
-           'NamespacesType', 'ElementTree', 'PyElementTree', 'ParseError', 'SafeXMLParser',
+__all__ = ['ElementType', 'ElementTreeType', 'XMLSourceType', 'NamespacesType',
+           'ElementTree', 'PyElementTree', 'ParseError', 'SafeXMLParser',
            'etree_element', 'py_etree_element', 'is_etree_element', 'etree_tostring']

@@ -13,7 +13,7 @@ This module contains classes for other XML Schema identity constraints.
 import re
 import math
 from collections import Counter
-from typing import TYPE_CHECKING, Dict, Union
+from typing import TYPE_CHECKING, Dict, Optional, Pattern, Union
 from elementpath import XPath2Parser, ElementPathError, XPathContext, translate_pattern
 
 from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
@@ -57,7 +57,7 @@ class XsdSelector(XsdComponent):
     """Class for defining an XPath selector for an XSD identity constraint."""
     _ADMITTED_TAGS = {XSD_SELECTOR}
     xpath_default_namespace = ''
-    pattern = translate_pattern(
+    pattern: Union[str, Pattern] = translate_pattern(
         r"(\.//)?(((child::)?((\i\c*:)?(\i\c*|\*)))|\.)(/(((child::)?"
         r"((\i\c*:)?(\i\c*|\*)))|\.))*(\|(\.//)?(((child::)?((\i\c*:)?"
         r"(\i\c*|\*)))|\.)(/(((child::)?((\i\c*:)?(\i\c*|\*)))|\.))*)*",
@@ -310,7 +310,7 @@ class XsdKeyref(XsdIdentity):
     or in a descendant element.
     """
     _ADMITTED_TAGS = {XSD_KEYREF}
-    refer = None
+    refer: Optional[Union[str, XsdKey]] = None
     refer_path = '.'
 
     def _parse(self):
@@ -426,7 +426,7 @@ class KeyrefCounter(IdentityCounter):
     def increase(self, fields: tuple):
         self.counter[fields] += 1
 
-    def iter_errors(self, identities: Dict[Union[XsdKey, XsdKeyref, None],
+    def iter_errors(self, identities: Dict[Union[XsdKey, XsdKeyref, str, None],
                                            Union['IdentityCounter', 'KeyrefCounter']]):
         refer_values = identities[self.identity.refer].counter
 

@@ -183,6 +183,42 @@ class XsdValidator:
         else:
             raise error
 
+    def validation_error(self, validation: str,
+                         error: Union[str, Exception],
+                         obj: Any = None,
+                         source: Optional[XMLResource] = None,
+                         namespaces: NamespacesType = None,
+                         **_kwargs: Any) -> XMLSchemaValidationError:
+        """
+        Helper method for generating and updating validation errors. If validation
+        mode is 'lax' or 'skip' returns the error, otherwise raises the error.
+
+        :param validation: an error-compatible validation mode: can be 'lax' or 'strict'.
+        :param error: an error instance or the detailed reason of failed validation.
+        :param obj: the instance related to the error.
+        :param source: the XML resource related to the validation process.
+        :param namespaces: is an optional mapping from namespace prefix to URI.
+        :param _kwargs: keyword arguments of the validation process that are not used.
+        """
+        check_validation_mode(validation)
+        if isinstance(error, XMLSchemaValidationError):
+            if error.namespaces is None and namespaces is not None:
+                error.namespaces = namespaces
+            if error.source is None and source is not None:
+                error.source = source
+            if error.obj is None and obj is not None:
+                error.obj = obj
+            if error.elem is None and is_etree_element(obj):
+                error.elem = obj
+        elif isinstance(error, Exception):
+            error = XMLSchemaValidationError(self, obj, str(error), source, namespaces)
+        else:
+            error = XMLSchemaValidationError(self, obj, error, source, namespaces)
+
+        if validation == 'strict' and error.elem is not None:
+            raise error
+        return error
+
     def _parse_xpath_default_namespace(self, elem):
         """
         Parse XSD 1.1 xpathDefaultNamespace attribute for schema, alternative, assert, assertion
@@ -795,8 +831,8 @@ class XsdType(XsdComponent):
 
 class ValidationMixin:
     """
-    Mixin for implementing XML data validators/decoders. A derived class must implement the
-    methods `iter_decode` and `iter_encode`.
+    Mixin for implementing XML data validators/decoders on XSD components.
+    A derived class must implement the methods `iter_decode` and `iter_encode`.
     """
     def validate(self, source, use_defaults=True, namespaces=None,
                  max_depth=None, extra_validator=None):
@@ -949,39 +985,3 @@ class ValidationMixin:
         or encoding errors.
         """
         raise NotImplementedError()
-
-    def validation_error(self, validation: str,
-                         error: Union[str, Exception],
-                         obj: Any = None,
-                         source: Optional[XMLResource] = None,
-                         namespaces: NamespacesType = None,
-                         **_kwargs: Any) -> XMLSchemaValidationError:
-        """
-        Helper method for generating and updating validation errors. If validation
-        mode is 'lax' or 'skip' returns the error, otherwise raises the error.
-
-        :param validation: an error-compatible validation mode: can be 'lax' or 'strict'.
-        :param error: an error instance or the detailed reason of failed validation.
-        :param obj: the instance related to the error.
-        :param source: the XML resource related to the validation process.
-        :param namespaces: is an optional mapping from namespace prefix to URI.
-        :param _kwargs: keyword arguments of the validation process that are not used.
-        """
-        check_validation_mode(validation)
-        if isinstance(error, XMLSchemaValidationError):
-            if error.namespaces is None and namespaces is not None:
-                error.namespaces = namespaces
-            if error.source is None and source is not None:
-                error.source = source
-            if error.obj is None and obj is not None:
-                error.obj = obj
-            if error.elem is None and is_etree_element(obj):
-                error.elem = obj
-        elif isinstance(error, Exception):
-            error = XMLSchemaValidationError(self, obj, str(error), source, namespaces)
-        else:
-            error = XMLSchemaValidationError(self, obj, error, source, namespaces)
-
-        if validation == 'strict' and error.elem is not None:
-            raise error
-        return error
