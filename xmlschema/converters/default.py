@@ -10,11 +10,11 @@
 from collections import namedtuple
 from collections.abc import MutableMapping, MutableSequence
 from typing import TYPE_CHECKING, Any, Dict, Iterator, Iterable, \
-    List, Optional, Type, Tuple, Union, Callable
+    List, Optional, Type, Tuple, Union
 
 from ..exceptions import XMLSchemaTypeError
 from ..names import XSI_NAMESPACE
-from ..etree import NamespacesType, ElementType, LxmlElementType, etree_element
+from ..etree import NamespacesType, ElementType, etree_element
 from ..namespaces import NamespaceMapper
 
 if TYPE_CHECKING:
@@ -83,7 +83,7 @@ class XMLSchemaConverter(NamespaceMapper):
     dict: Type[Dict[str, Any]] = dict
     list: Type[List[Any]] = list
 
-    etree_element_class: Union[Type[etree_element], Callable[..., LxmlElementType]]
+    etree_element_class: Type[ElementType]
     etree_element_class = etree_element
 
     __slots__ = ('text_key', 'ns_prefix', 'attr_prefix', 'cdata_prefix',
@@ -252,7 +252,7 @@ class XMLSchemaConverter(NamespaceMapper):
             elem.attrib.update(attrib)  # type: ignore[arg-type]
 
         if children:
-            elem.extend(children)  # type: ignore[union-attr,arg-type]
+            elem.extend(children)
             elem.text = text or '\n' + ' ' * self.indent * (level + 1)
             elem.tail = '\n' + ' ' * self.indent * level
         else:

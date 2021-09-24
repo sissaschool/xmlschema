@@ -22,12 +22,11 @@ from ..names import XSD_NAMESPACE, XSD_ANY_TYPE, XSD_SIMPLE_TYPE, XSD_PATTERN, \
     XSD_LIST, XSD_ANY_SIMPLE_TYPE, XSD_UNION, XSD_RESTRICTION, XSD_ANNOTATION, \
     XSD_ASSERTION, XSD_ID, XSD_IDREF, XSD_FRACTION_DIGITS, XSD_TOTAL_DIGITS, \
     XSD_EXPLICIT_TIMEZONE, XSD_ERROR, XSD_ASSERT, XSD_QNAME, XSD_UNTYPED_ATOMIC
-from ..helpers import get_qname, get_prefixed_qname, local_name
+from ..helpers import get_prefixed_qname, local_name
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaEncodeError, \
     XMLSchemaDecodeError, XMLSchemaParseError
-from .helpers import get_xsd_derivation_attribute
-from .xsdbase import XsdAnnotation, XsdType, ValidationMixin
+from .xsdbase import XsdType, ValidationMixin
 from .facets import XsdFacet, XsdWhiteSpaceFacet, XSD_10_FACETS_BUILDERS, \
     XSD_11_FACETS_BUILDERS, XSD_10_FACETS, XSD_11_FACETS, XSD_10_LIST_FACETS, \
     XSD_11_LIST_FACETS, XSD_10_UNION_FACETS, XSD_11_UNION_FACETS, MULTIPLE_FACETS
@@ -35,59 +34,6 @@ from .facets import XsdFacet, XsdWhiteSpaceFacet, XSD_10_FACETS_BUILDERS, \
 if TYPE_CHECKING:
     from .complex_types import XsdComplexType
 from .facets import XsdFacetType, XsdAssertionFacet
-
-
-def xsd_simple_type_factory(elem, schema, parent):
-    """
-    Factory function for XSD simple types. Parses the xs:simpleType element and its
-    child component, that can be a restriction, a list or an union. Annotations are
-    linked to simple type instance, omitting the inner annotation if both are given.
-    """
-    annotation = None
-    try:
-        child = elem[0]
-    except IndexError:
-        return schema.maps.types[XSD_ANY_SIMPLE_TYPE]
-    else:
-        if child.tag == XSD_ANNOTATION:
-            annotation = XsdAnnotation(elem[0], schema, child)
-            try:
-                child = elem[1]
-            except IndexError:
-                schema.parse_error("(restriction | list | union) expected", elem)
-                return schema.maps.types[XSD_ANY_SIMPLE_TYPE]
-
-    if child.tag == XSD_RESTRICTION:
-        xsd_type = schema.BUILDERS.restriction_class(child, schema, parent)
-    elif child.tag == XSD_LIST:
-        xsd_type = XsdList(child, schema, parent)
-    elif child.tag == XSD_UNION:
-        xsd_type = schema.BUILDERS.union_class(child, schema, parent)
-    else:
-        schema.parse_error("(restriction | list | union) expected", elem)
-        return schema.maps.types[XSD_ANY_SIMPLE_TYPE]
-
-    if annotation is not None:
-        xsd_type._annotation = annotation
-
-    try:
-        xsd_type.name = get_qname(schema.target_namespace, elem.attrib['name'])
-    except KeyError:
-        if parent is None:
-            schema.parse_error("missing attribute 'name' in a global simpleType", elem)
-            xsd_type.name = 'nameless_%s' % str(id(xsd_type))
-    else:
-        if parent is not None:
-            schema.parse_error("attribute 'name' not allowed for a local simpleType", elem)
-            xsd_type.name = None
-
-    if 'final' in elem.attrib:
-        try:
-            xsd_type._final = get_xsd_derivation_attribute(elem, 'final')
-        except ValueError as err:
-            xsd_type.parse_error(err, elem)
-
-    return xsd_type
 
 
 class XsdSimpleType(XsdType, ValidationMixin):
@@ -795,7 +741,7 @@ class XsdList(XsdSimpleType):
         if child is not None:
             # Case of a local simpleType declaration inside the list tag
             try:
-                base_type = xsd_simple_type_factory(child, self.schema, self)
+                base_type = self.schema.simple_type_factory(child, parent=self)
             except XMLSchemaParseError as err:
                 self.parse_error(err)
                 base_type = self.any_atomic_type
@@ -953,7 +899,7 @@ class XsdUnion(XsdSimpleType):
 
         for child in self.elem:
             if child.tag != XSD_ANNOTATION and not callable(child.tag):
-                mt = xsd_simple_type_factory(child, self.schema, self)
+                mt = self.schema.simple_type_factory(child, parent=self)
                 if isinstance(mt, XMLSchemaParseError):
                     self.parse_error(mt)
                 else:
@@ -1215,17 +1161,17 @@ class XsdAtomicRestriction(XsdAtomic):
 
                 if base_type is None:
                     try:
-                        base_type = xsd_simple_type_factory(child, self.schema, self)
+                        base_type = self.schema.simple_type_factory(child, parent=self)
                     except XMLSchemaParseError as err:
                         self.parse_error(err, child)
                         base_type = self.any_simple_type
                 elif base_type.is_complex():
                     if base_type.admit_simple_restriction():
-                        base_type = self.schema.BUILDERS.complex_type_class(
+                        base_type = self.schema.xsd_complex_type_class(
                             elem=elem,
                             schema=self.schema,
                             parent=self,
-                            content=xsd_simple_type_factory(child, self.schema, self),
+                            content=self.schema.simple_type_factory(child, parent=self),
                             attributes=base_type.attributes,
                             mixed=base_type.mixed,
                             block=base_type.block,

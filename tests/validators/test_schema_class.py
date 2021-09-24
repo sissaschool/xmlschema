@@ -819,34 +819,11 @@ class TestXMLSchemaMeta(unittest.TestCase):
         with self.assertRaises(ValueError) as ctx:
             class XMLSchema12(XMLSchemaBase):
                 XSD_VERSION = '1.2'
-                meta_schema = os.path.join(SCHEMAS_DIR, 'XSD_1.1/XMLSchema.xsd')
+                META_SCHEMA = os.path.join(SCHEMAS_DIR, 'XSD_1.1/XMLSchema.xsd')
 
             assert issubclass(XMLSchema12, XMLSchemaBase)
 
         self.assertEqual(str(ctx.exception), "XSD_VERSION must be '1.0' or '1.1'")
-
-    def test_missing_builders(self):
-        with self.assertRaises(ValueError) as ctx:
-            class XMLSchema12(XMLSchemaBase):
-                XSD_VERSION = '1.1'
-                meta_schema = os.path.join(SCHEMAS_DIR, 'XSD_1.1/XMLSchema.xsd')
-
-            assert issubclass(XMLSchema12, XMLSchemaBase)
-
-        self.assertEqual(str(ctx.exception),
-                         "validator class doesn't have defined XSD builders")
-
-    def test_missing_builder_map(self):
-        with self.assertRaises(ValueError) as ctx:
-            class XMLSchema12(XMLSchemaBase):
-                XSD_VERSION = '1.1'
-                meta_schema = os.path.join(SCHEMAS_DIR, 'XSD_1.1/XMLSchema.xsd')
-                BUILDERS = XMLSchema11.BUILDERS
-
-            assert issubclass(XMLSchema12, XMLSchemaBase)
-
-        self.assertEqual(str(ctx.exception),
-                         "validator class doesn't have a builder map for XSD globals")
 
     def test_from_schema_class(self):
         class XMLSchema11Bis(XMLSchema11):
@@ -855,26 +832,10 @@ class TestXMLSchemaMeta(unittest.TestCase):
         self.assertTrue(issubclass(XMLSchema11Bis, XMLSchemaBase))
 
     def test_dummy_validator_class(self):
+
         class DummySchema(XMLSchemaBase):
             XSD_VERSION = '1.1'
-            meta_schema = os.path.join(SCHEMAS_DIR, 'XSD_1.1/XMLSchema.xsd')
-            BUILDERS = {
-                'notation_class': None,
-                'complex_type_class': None,
-                'attribute_class': None,
-                'any_attribute_class': None,
-                'attribute_group_class': None,
-                'group_class': None,
-                'element_class': None,
-                'any_element_class': None,
-                'restriction_class': None,
-                'union_class': None,
-                'key_class': None,
-                'keyref_class': None,
-                'unique_class': None,
-                'simple_type_factory': None,
-            }
-            BASE_SCHEMAS = {}
+            meta_schema_file = os.path.join(SCHEMAS_DIR, 'XSD_1.1/XMLSchema.xsd')
 
         self.assertTrue(issubclass(DummySchema, XMLSchemaBase))
 

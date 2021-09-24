@@ -23,7 +23,7 @@ from elementpath.protocols import ElementProtocol
 
 from .exceptions import XMLSchemaTypeError, XMLSchemaValueError, XMLResourceError
 from .names import XML_NAMESPACE
-from .etree import ElementType, ElementTreeType, LxmlElementType, NamespacesType, \
+from .etree import ElementType, ElementTreeType, NamespacesType, XMLSourceType, \
     ElementTree, PyElementTree, SafeXMLParser, etree_tostring
 from .helpers import get_namespace, is_etree_element, is_etree_document, \
     etree_iter_location_hints
@@ -32,9 +32,8 @@ DEFUSE_MODES = frozenset(('never', 'remote', 'always'))
 SECURITY_MODES = frozenset(('all', 'remote', 'local', 'sandbox'))
 
 # Type Aliases
-XmlSourceType = Union[str, IO, ElementType, ElementTreeType]
 NormalizedLocationsType = List[Tuple[str, str]]
-LocationsType = Union[Dict[str, str], Tuple[Tuple[str, str]], NormalizedLocationsType]
+LocationsType = Union[Tuple[Tuple[str, str], ...], Dict[str, str], NormalizedLocationsType]
 NsmapType = Optional[Union[List[Tuple[str, str]], Dict[str, str]]]
 AncestorsType = Optional[List[ElementType]]
 ParentMapType = Optional[Dict[ElementType, Optional[ElementType]]]
@@ -318,7 +317,7 @@ def fetch_resource(location: str, base_url: Optional[str] = None, timeout: int =
             raise XMLResourceError("cannot access to resource %r: %s" % (url, err.reason))
 
 
-def fetch_schema_locations(source: Union['XMLResource', XmlSourceType],
+def fetch_schema_locations(source: Union['XMLResource', XMLSourceType],
                            locations: Optional[LocationsType] = None,
                            base_url: Optional[str] = None,
                            allow: str = 'all',
@@ -361,7 +360,7 @@ def fetch_schema_locations(source: Union['XMLResource', XmlSourceType],
     raise XMLSchemaValueError("not found a schema for XML data resource {!r}.".format(source))
 
 
-def fetch_schema(source: Union['XMLResource', XmlSourceType],
+def fetch_schema(source: Union['XMLResource', XMLSourceType],
                  locations: Optional[LocationsType] = None,
                  base_url: Optional[str] = None,
                  allow: str = 'all',
@@ -374,7 +373,7 @@ def fetch_schema(source: Union['XMLResource', XmlSourceType],
     return fetch_schema_locations(source, locations, base_url, allow, defuse, timeout)[0]
 
 
-def fetch_namespaces(source: XmlSourceType,
+def fetch_namespaces(source: XMLSourceType,
                      base_url: Optional[str] = None,
                      allow: str = 'all',
                      defuse: str = 'remote',
@@ -413,7 +412,7 @@ class XMLResource:
     iterated (`True` means 1).
     """
     # Protected attributes for data and resource location
-    _source: XmlSourceType
+    _source: XMLSourceType
     _root: ElementType
     _text: Optional[str] = None
     _url: Optional[str] = None
@@ -421,7 +420,7 @@ class XMLResource:
     _parent_map: ParentMapType = None
     _lazy: Union[bool, int] = False
 
-    def __init__(self, source: XmlSourceType,
+    def __init__(self, source: XMLSourceType,
                  base_url: Optional[str] = None,
                  allow: str = 'all',
                  defuse: str = 'remote',
@@ -466,12 +465,12 @@ class XMLResource:
         return '%s(root=%r)' % (self.__class__.__name__, self._root)
 
     @property
-    def source(self) -> XmlSourceType:
+    def source(self) -> XMLSourceType:
         """The XML data source."""
         return self._source
 
     @property
-    def root(self) -> Optional[ElementType]:
+    def root(self) -> ElementType:
         """The XML tree root Element."""
         return self._root
 
@@ -660,7 +659,7 @@ class XMLResource:
         self._root = elem
         self._nsmap = namespaces
 
-    def parse(self, source: XmlSourceType, lazy: Union[bool, int] = False) -> None:
+    def parse(self, source: XMLSourceType, lazy: Union[bool, int] = False) -> None:
         if isinstance(lazy, bool):
             pass
         elif not isinstance(lazy, int):
@@ -769,6 +768,8 @@ class XMLResource:
 
             self._text = self._url = None
             self._lazy = False
+
+            # TODO for Python 3.8+: need a Protocol for checking this with isinstance()
             if not hasattr(self._root, 'nsmap'):
                 self._nsmap = None
             else:
@@ -776,7 +777,7 @@ class XMLResource:
 
                 nsmap: Any = []
                 lxml_nsmap = None
-                for elem in cast(LxmlElementType, self._root.iter()):
+                for elem in cast(Any, self._root.iter()):
                     if lxml_nsmap != elem.nsmap:
                         lxml_nsmap = elem.nsmap
                         nsmap = [(k or '', v) for k, v in elem.nsmap.items()]

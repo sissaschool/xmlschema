@@ -11,7 +11,7 @@
 This module contains classes for managing maps related to namespaces.
 """
 import re
-from typing import cast, Any, Dict, Iterator, List, Optional, MutableMapping, Mapping
+from typing import Any, Dict, Iterator, List, Optional, MutableMapping, Mapping
 
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from .helpers import local_name
@@ -268,7 +268,7 @@ class NamespaceView(Mapping[str, Any]):
     def __repr__(self) -> str:
         return '%s(%s)' % (self.__class__.__name__, str(self.as_dict()))
 
-    def __contains__(self, key: Any) ->  bool:
+    def __contains__(self, key: Any) -> bool:
         return self._key_fmt % key in self.target_dict
 
     def __eq__(self, other: Any) -> Any:

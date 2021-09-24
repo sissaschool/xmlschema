@@ -135,7 +135,7 @@ class XsdAttribute(XsdComponent, ValidationMixin):
 
             elif child is not None:
                 # No 'type' attribute in declaration, parse for child local simpleType
-                self.type = self.schema.BUILDERS.simple_type_factory(child, self.schema, self)
+                self.type = self.schema.simple_type_factory(child, self.schema, self)
             else:
                 # Empty declaration means xsdAnySimpleType
                 self.type = self.any_simple_type
@@ -319,7 +319,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
         XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ATTRIBUTE, XSD_ANY_ATTRIBUTE
     }
 
-    def __init__(self, elem, schema, parent, derivation=None, base_attributes=None):
+    def __init__(self, elem, schema, parent=None, derivation=None, base_attributes=None):
         self._attribute_group: Dict[Optional[str], Union[XsdAttribute, XsdAnyAttribute]] = {}
         self.derivation = derivation
         self.base_attributes = base_attributes
@@ -382,7 +382,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                     self.parse_error("another declaration after anyAttribute")
 
             elif child.tag == XSD_ANY_ATTRIBUTE:
-                any_attribute = self.schema.BUILDERS.any_attribute_class(child, self.schema, self)
+                any_attribute = self.schema.xsd_any_attribute_class(child, self.schema, self)
                 if None in attributes:
                     attributes[None] = attributes[None].copy()
                     attributes[None].intersection(any_attribute)
@@ -390,7 +390,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                     attributes[None] = any_attribute
 
             elif child.tag == XSD_ATTRIBUTE:
-                attribute = self.schema.BUILDERS.attribute_class(child, self.schema, self)
+                attribute = self.schema.xsd_attribute_class(child, self.schema, self)
                 if attribute.name in attributes:
                     self.parse_error("multiple declaration for attribute "
                                      "{!r}".format(attribute.name))

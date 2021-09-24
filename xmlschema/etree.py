@@ -12,7 +12,7 @@ A unified setup module for ElementTree with a safe parser and helper functions.
 """
 import sys
 import re
-from typing import TYPE_CHECKING, Any, Dict, Optional, Union
+from typing import Any, Dict, Optional, Union, IO
 
 from .exceptions import XMLSchemaTypeError
 
@@ -59,25 +59,12 @@ else:
     # Load the C optimized ElementTree module
     import xml.etree.ElementTree as ElementTree
 
+
 # Aliases for static type checking
-if TYPE_CHECKING:
-    from typing import Union
-    import lxml.etree as lxml_etree
-
-    # noinspection PyProtectedMember
-    LxmlElementType = lxml_etree._Element
-    ElementType = Union[ElementTree.Element, LxmlElementType]
-
-    # noinspection PyProtectedMember
-    LxmlElementTreeType = lxml_etree._ElementTree
-    ElementTreeType = Union[ElementTree.ElementTree, LxmlElementTreeType]
-
-else:
-    LxmlElementType = Any
-    LxmlElementTreeType = Any
-    ElementType = ElementTree.Element
-    ElementTreeType = ElementTree.ElementTree
-
+ElementType = ElementTree.Element
+ElementTreeType = ElementTree.ElementTree
+XMLSourceType = Union[str, IO, ElementType, ElementTreeType]
+SchemaSourceType = Union[str, IO, ElementTree.Element, ElementTree.ElementTree]
 NamespacesType = Optional[Dict[str, str]]
 
 
@@ -229,6 +216,6 @@ def etree_tostring(elem: ElementType,
     return '\n'.join(reindent(line) for line in lines).encode(encoding)
 
 
-__all__ = ['ElementType', 'LxmlElementType', 'ElementTreeType', 'LxmlElementTreeType',
-           'NamespacesType', 'ElementTree', 'PyElementTree', 'SafeXMLParser',
+__all__ = ['ElementType', 'ElementTreeType', 'XMLSourceType', 'SchemaSourceType',
+           'NamespacesType', 'ElementTree', 'PyElementTree', 'ParseError', 'SafeXMLParser',
            'etree_element', 'py_etree_element', 'is_etree_element', 'etree_tostring']

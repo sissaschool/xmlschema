@@ -12,7 +12,7 @@ This module contains classes for XML Schema model groups.
 """
 import warnings
 from collections.abc import MutableMapping, MutableSequence
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Union, Optional
 
 from .. import limits
 from ..exceptions import XMLSchemaValueError
@@ -81,7 +81,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
           Content: (annotation?, (element | group | choice | sequence | any)*)
         </sequence>
     """
-    parent: Union['XsdComplexType', 'XsdGroup']
+    parent: Optional[Union['XsdComplexType', 'XsdGroup']]
     mixed = False
     restriction = None
     interleave = None  # an Xsd11AnyElement in case of XSD 1.1 openContent with mode='interleave'
@@ -89,7 +89,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
 
     _ADMITTED_TAGS = {XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE}
 
-    def __init__(self, elem, schema, parent: Union['XsdComplexType', 'XsdGroup']):
+    def __init__(self, elem, schema, parent: Optional[Union['XsdComplexType', 'XsdGroup']] = None):
         self._group = []
         if parent is not None and parent.mixed:
             self.mixed = parent.mixed
@@ -139,7 +139,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                                  xsd_group[0])
                 self.model = 'sequence'
                 self.mixed = True
-                self.append(self.schema.BUILDERS.any_element_class(ANY_ELEMENT, self.schema, self))
+                self.append(self.schema.xsd_any_class(ANY_ELEMENT, self.schema, self))
             else:
                 self.model = xsd_group.model
                 if self.model == 'all':
@@ -247,7 +247,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
         return error
 
     def build(self):
-        element_class = self.schema.BUILDERS.element_class
+        element_class = self.schema.xsd_element_class
         for k in range(len(self._group)):
             if isinstance(self._group[k], tuple):
                 elem, schema = self._group[k]

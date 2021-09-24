@@ -19,8 +19,10 @@ from ..exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from ..names import XSD_ANNOTATION, XSD_APPINFO, XSD_DOCUMENTATION, XML_LANG, \
     XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_ID, XSD_QNAME, \
     XSD_OVERRIDE, XSD_NOTATION_TYPE, XSD_DECIMAL
-from ..etree import is_etree_element, etree_tostring, etree_element
+from ..etree import ElementType, NamespacesType, is_etree_element, \
+    etree_tostring, etree_element
 from ..helpers import get_qname, local_name, get_prefixed_qname
+from ..resources import XMLResource
 from .. import dataobjects
 from .exceptions import XMLSchemaParseError, XMLSchemaValidationError
 
@@ -135,7 +137,9 @@ class XsdValidator:
 
     __copy__ = copy
 
-    def parse_error(self, error, elem=None, validation=None):
+    def parse_error(self, error: Union[str, Exception],
+                    elem: Optional[ElementType] = None,
+                    validation: Optional[str] = None) -> None:
         """
         Helper method for registering parse errors. Does nothing if validation mode is 'skip'.
         Il validation mode is 'lax' collects the error, otherwise raise the error.
@@ -145,7 +149,7 @@ class XsdValidator:
         attribute of the validator, if it's present.
         :param validation: overrides the default validation mode of the validator.
         """
-        if validation:
+        if validation is not None:
             check_validation_mode(validation)
         else:
             validation = self.validation
@@ -946,8 +950,12 @@ class ValidationMixin:
         """
         raise NotImplementedError()
 
-    def validation_error(self, validation, error, obj=None,
-                         source=None, namespaces=None, **_kwargs):
+    def validation_error(self, validation: str,
+                         error: Union[str, Exception],
+                         obj: Any = None,
+                         source: Optional[XMLResource] = None,
+                         namespaces: NamespacesType = None,
+                         **_kwargs: Any) -> XMLSchemaValidationError:
         """
         Helper method for generating and updating validation errors. If validation
         mode is 'lax' or 'skip' returns the error, otherwise raises the error.

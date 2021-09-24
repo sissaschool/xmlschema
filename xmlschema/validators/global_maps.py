@@ -141,10 +141,6 @@ class XsdGlobals(XsdValidator):
 
     def __init__(self, validator, validation='strict'):
         super(XsdGlobals, self).__init__(validation)
-        if not all(hasattr(validator, a) for a in ('meta_schema', 'BUILDERS_MAP')):
-            raise XMLSchemaValueError(
-                "The argument {!r} is not an XSD schema validator".format(validator)
-            )
 
         self.validator = validator
         self.namespaces = NamespaceResourcesMap()  # Registered schemas by namespace URI
@@ -161,6 +157,16 @@ class XsdGlobals(XsdValidator):
 
         self.global_maps = (self.notations, self.types, self.attributes,
                             self.attribute_groups, self.groups, self.elements)
+
+        self._builders = {
+            XSD_NOTATION: validator.xsd_notation_class,
+            XSD_SIMPLE_TYPE: validator.simple_type_factory,
+            XSD_COMPLEX_TYPE: validator.xsd_complex_type_class,
+            XSD_ATTRIBUTE: validator.xsd_attribute_class,
+            XSD_ATTRIBUTE_GROUP: validator.xsd_attribute_group_class,
+            XSD_GROUP: validator.xsd_group_class,
+            XSD_ELEMENT: validator.xsd_element_class,
+        }
 
     def __repr__(self):
         return '%s(validator=%r, validation=%r)' % (
@@ -274,12 +280,12 @@ class XsdGlobals(XsdValidator):
                 return obj[0]  # Circular build, simply return (elem, schema) couple
 
             try:
-                factory_or_class = self.validator.BUILDERS_MAP[elem.tag]
+                factory_or_class = self._builders[elem.tag]
             except KeyError:
                 raise XMLSchemaKeyError("wrong element %r for map %r." % (elem, global_map))
 
             global_map[qname] = obj,  # Encapsulate into a tuple to catch circular builds
-            global_map[qname] = factory_or_class(elem, schema, parent=None)
+            global_map[qname] = factory_or_class(elem, schema)
             return global_map[qname]
 
         elif isinstance(obj, list):
@@ -290,12 +296,12 @@ class XsdGlobals(XsdValidator):
                 return obj[0][0]  # Circular build, simply return (elem, schema) couple
 
             try:
-                factory_or_class = self.validator.BUILDERS_MAP[elem.tag]
+                factory_or_class = self._builders[elem.tag]
             except KeyError:
                 raise XMLSchemaKeyError("wrong element %r for map %r." % (elem, global_map))
 
             global_map[qname] = obj[0],  # To catch circular builds
-            global_map[qname] = component = factory_or_class(elem, schema, parent=None)
+            global_map[qname] = component = factory_or_class(elem, schema)
 
             # Apply redefinitions (changing elem involve a re-parsing of the component)
             for elem, schema in obj[1:]:
@@ -375,8 +381,8 @@ class XsdGlobals(XsdValidator):
         return self.validator.XSD_VERSION
 
     @property
-    def builders_map(self):
-        return self.validator.BUILDERS_MAP
+    def builders(self):
+        return self.validator.BUILDERS
 
     @property
     def all_errors(self):

@@ -14,7 +14,7 @@ from ..helpers import get_prefixed_qname, etree_getpath, is_etree_element
 
 if TYPE_CHECKING:
     from ..resources import XMLResource
-    from .xsdbase import XsdValidator
+    from .xsdbase import XsdValidator, ValidationMixin
     from .particles import ParticleMixin, ModelGroup
     from .elements import XsdElement
     from .wildcards import XsdAnyElement
@@ -39,7 +39,8 @@ class XMLSchemaValidatorError(XMLSchemaException):
     """
     path: Optional[str]
 
-    def __init__(self, validator: Union['XsdValidator', 'ModelGroup', Callable[[Any], None]],
+    def __init__(self, validator: Union['XsdValidator', 'ValidationMixin',
+                                        'ModelGroup', Callable[[Any], None]],
                  message: str,
                  elem: Optional[ElementType] = None,
                  source: Optional['XMLResource'] = None,
@@ -201,7 +202,8 @@ class XMLSchemaValidationError(XMLSchemaValidatorError, ValueError):
     :param namespaces: is an optional mapping from namespace prefix to URI.
     :type namespaces: dict
     """
-    def __init__(self, validator: Union['XsdValidator', Callable[[Any], None]],
+    def __init__(self,
+                 validator: Union['XsdValidator', 'ValidationMixin', Callable[[Any], None]],
                  obj: Any,
                  reason: Optional[str] = None,
                  source: Optional['XMLResource'] = None,

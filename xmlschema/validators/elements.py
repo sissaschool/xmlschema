@@ -224,9 +224,9 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             if child is None:
                 self.type = self.any_type
             elif child.tag == XSD_COMPLEX_TYPE:
-                self.type = self.schema.BUILDERS.complex_type_class(child, self.schema, self)
+                self.type = self.schema.xsd_complex_type_class(child, self.schema, self)
             elif child.tag == XSD_SIMPLE_TYPE:
-                self.type = self.schema.BUILDERS.simple_type_factory(child, self.schema, self)
+                self.type = self.schema.simple_type_factory(child, self.schema, self)
             else:
                 self.type = self.any_type
 
@@ -259,11 +259,11 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         self.identities = {}
         for child in self.elem:
             if child.tag == XSD_UNIQUE:
-                constraint = self.schema.BUILDERS.unique_class(child, self.schema, self)
+                constraint = self.schema.xsd_unique_class(child, self.schema, self)
             elif child.tag == XSD_KEY:
-                constraint = self.schema.BUILDERS.key_class(child, self.schema, self)
+                constraint = self.schema.xsd_key_class(child, self.schema, self)
             elif child.tag == XSD_KEYREF:
-                constraint = self.schema.BUILDERS.keyref_class(child, self.schema, self)
+                constraint = self.schema.xsd_keyref_class(child, self.schema, self)
             else:
                 # Invalid tags already caught by validation against the meta-schema
                 continue
@@ -1318,9 +1318,9 @@ class XsdAlternative(XsdComponent):
                     self.parse_error("missing 'type' attribute")
                     self.type = self.any_type
                 elif child.tag == XSD_COMPLEX_TYPE:
-                    self.type = self.schema.BUILDERS.complex_type_class(child, self.schema, self)
+                    self.type = self.schema.xsd_complex_type_class(child, self.schema, self)
                 else:
-                    self.type = self.schema.BUILDERS.simple_type_factory(child, self.schema, self)
+                    self.type = self.schema.simple_type_factory(child, self.schema, self)
 
                 if not self.type.is_derived(self.parent.type):
                     msg = "declared type is not derived from {!r}"

@@ -27,7 +27,7 @@ from .facets import XsdFacet, XsdWhiteSpaceFacet, XsdLengthFacet, XsdMinLengthFa
 from .wildcards import XsdAnyElement, Xsd11AnyElement, XsdAnyAttribute, Xsd11AnyAttribute, \
     XsdOpenContent, XsdDefaultOpenContent
 from .attributes import XsdAttribute, Xsd11Attribute, XsdAttributeGroup
-from .simple_types import xsd_simple_type_factory, XsdSimpleType, XsdAtomic, XsdAtomicBuiltin, \
+from .simple_types import XsdSimpleType, XsdAtomic, XsdAtomicBuiltin, \
     XsdAtomicRestriction, Xsd11AtomicRestriction, XsdList, XsdUnion, Xsd11Union
 from .complex_types import XsdComplexType, Xsd11ComplexType
 from .models import ModelGroup, ModelVisitor
@@ -52,10 +52,10 @@ __all__ = [
     'XsdTotalDigitsFacet', 'XsdExplicitTimezoneFacet', 'XsdPatternFacets',
     'XsdEnumerationFacets', 'XsdAssertionFacet', 'XsdAnyElement', 'Xsd11AnyElement',
     'XsdAnyAttribute', 'Xsd11AnyAttribute', 'XsdOpenContent', 'XsdDefaultOpenContent',
-    'XsdAttribute', 'Xsd11Attribute', 'XsdAttributeGroup', 'xsd_simple_type_factory',
-    'XsdSimpleType', 'XsdAtomic', 'XsdAtomicBuiltin', 'XsdAtomicRestriction',
-    'Xsd11AtomicRestriction', 'XsdList', 'XsdUnion', 'Xsd11Union', 'XsdComplexType',
-    'Xsd11ComplexType', 'ModelGroup', 'ModelVisitor', 'XsdGroup', 'Xsd11Group',
+    'XsdAttribute', 'Xsd11Attribute', 'XsdAttributeGroup', 'XsdSimpleType', 'XsdAtomic',
+    'XsdAtomicBuiltin', 'XsdAtomicRestriction', 'Xsd11AtomicRestriction',
+    'XsdList', 'XsdUnion', 'Xsd11Union', 'XsdComplexType', 'Xsd11ComplexType',
+    'ModelGroup', 'ModelVisitor', 'XsdGroup', 'Xsd11Group',
     'XsdElement', 'Xsd11Element', 'XsdAlternative', 'XsdGlobals', 'XMLSchemaMeta',
     'XMLSchemaBase', 'XMLSchema', 'XMLSchema10', 'XMLSchema11'
 ]

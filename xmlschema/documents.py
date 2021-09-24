@@ -9,17 +9,26 @@
 #
 import json
 from collections.abc import Iterator
+from typing import Any, List, Optional, Type, Union, Tuple
 
 from .exceptions import XMLSchemaTypeError, XMLSchemaValueError, XMLResourceError
 from .names import XSD_NAMESPACE, XSI_TYPE
-from .etree import ElementTree, etree_tostring
+from .etree import NamespacesType, ElementTree, etree_tostring
 from .helpers import is_etree_document
-from .resources import fetch_schema_locations, XMLResource
+from .resources import XMLSourceType, LocationsType, LazyType, \
+    fetch_schema_locations, XMLResource
 from .validators import XMLSchema10, XMLSchemaBase, XMLSchemaValidationError
 
 
-def get_context(source, schema=None, cls=None, locations=None, base_url=None,
-                defuse='remote', timeout=300, lazy=False, dummy_schema=False):
+def get_context(source: Union[XMLSourceType, XMLResource],
+                schema: Optional[XMLSchemaBase] = None,
+                cls: Optional[Type[XMLSchemaBase]] = None,
+                locations: Optional[LocationsType] = None,
+                base_url: Optional[str] = None,
+                defuse: str = 'remote',
+                timeout: int = 300,
+                lazy: LazyType = False,
+                dummy_schema: bool = False) -> Tuple[XMLResource, XMLSchemaBase]:
     """
     Get the XML document validation/decode context.
 
@@ -39,48 +48,49 @@ def get_context(source, schema=None, cls=None, locations=None, base_url=None,
     except ValueError:
         if schema is None:
             if XSI_TYPE in source.root.attrib:
-                schema = cls.meta_schema
+                return source, cls.meta_schema
             elif dummy_schema:
                 return source, get_dummy_schema(source, cls)
             else:
                 msg = "no schema can be retrieved for the provided XML data"
                 raise XMLSchemaValueError(msg) from None
 
-        elif not isinstance(schema, XMLSchemaBase):
-            schema = cls(schema, validation='strict', locations=locations,
-                         base_url=base_url, defuse=defuse, timeout=timeout)
+        elif isinstance(schema, XMLSchemaBase):
+            return source, schema
+        else:
+            kwargs = dict(locations=locations, base_url=base_url,
+                          defuse=defuse, timeout=timeout)
+            return source, cls(schema, **kwargs)
     else:
-        schema = cls(schema or schema_location, validation='strict', locations=locations,
-                     defuse=defuse, timeout=timeout)
-
-    return source, schema
+        kwargs = dict(locations=locations, defuse=defuse, timeout=timeout)
+        return source, cls(schema or schema_location, **kwargs)
 
 
-def get_dummy_schema(xml_resource, schema_class):
-    tag = xml_resource.root.tag
+def get_dummy_schema(resource: XMLResource, cls: Type[XMLSchemaBase]) -> XMLSchemaBase:
+    tag = resource.root.tag
     if tag.startswith('{'):
         namespace, name = tag[1:].split('}')
     else:
         namespace, name = '', tag
 
     if namespace:
-        return schema_class(
+        return cls(
             '<xs:schema xmlns:xs="{0}" targetNamespace="{1}">\n'
             '    <xs:element name="{2}"/>\n'
             '</xs:schema>'.format(XSD_NAMESPACE, namespace, name)
         )
     else:
-        return schema_class(
+        return cls(
             '<xs:schema xmlns:xs="{0}">\n'
             '    <xs:element name="{1}"/>\n'
             '</xs:schema>'.format(XSD_NAMESPACE, name)
         )
 
 
-def get_lazy_json_encoder(errors):
+def get_lazy_json_encoder(errors: List[XMLSchemaValidationError]) -> Type[json.JSONEncoder]:
 
     class JSONLazyEncoder(json.JSONEncoder):
-        def default(self, obj):
+        def default(self, obj: Any) -> Any:
             if isinstance(obj, Iterator):
                 while True:
                     result = next(obj, None)
@@ -93,9 +103,18 @@ def get_lazy_json_encoder(errors):
     return JSONLazyEncoder
 
 
-def validate(xml_document, schema=None, cls=None, path=None, schema_path=None,
-             use_defaults=True, namespaces=None, locations=None, base_url=None,
-             defuse='remote', timeout=300, lazy=False):
+def validate(xml_document: Union[XMLSourceType, XMLResource],
+             schema: Optional[XMLSchemaBase] = None,
+             cls: Optional[Type[XMLSchemaBase]] = None,
+             path: Optional[str] = None,
+             schema_path: Optional[str] = None,
+             use_defaults: bool = True,
+             namespaces: NamespacesType = None,
+             locations: Optional[LocationsType] = None,
+             base_url: Optional[str] = None,
+             defuse: str = 'remote',
+             timeout: int = 300,
+             lazy: LazyType = False) -> None:
     """
     Validates an XML document against a schema instance. This function builds an
     :class:`XMLSchema` object for validating the XML document. Raises an
@@ -133,9 +152,18 @@ def validate(xml_document, schema=None, cls=None, path=None, schema_path=None,
     schema.validate(source, path, schema_path, use_defaults, namespaces)
 
 
-def is_valid(xml_document, schema=None, cls=None, path=None, schema_path=None,
-             use_defaults=True, namespaces=None, locations=None, base_url=None,
-             defuse='remote', timeout=300, lazy=False):
+def is_valid(xml_document: Union[XMLSourceType, XMLResource],
+             schema: Optional[XMLSchemaBase] = None,
+             cls: Optional[Type[XMLSchemaBase]] = None,
+             path: Optional[str] = None,
+             schema_path: Optional[str] = None,
+             use_defaults: bool = True,
+             namespaces: NamespacesType = None,
+             locations: Optional[LocationsType] = None,
+             base_url: Optional[str] = None,
+             defuse: str = 'remote',
+             timeout: int = 300,
+             lazy: LazyType = False) -> bool:
     """
     Like :meth:`validate` except that do not raises an exception but returns ``True`` if
     the XML document is valid, ``False`` if it's invalid.
@@ -146,9 +174,18 @@ def is_valid(xml_document, schema=None, cls=None, path=None, schema_path=None,
     return schema.is_valid(source, path, schema_path, use_defaults, namespaces)
 
 
-def iter_errors(xml_document, schema=None, cls=None, path=None, schema_path=None,
-                use_defaults=True, namespaces=None, locations=None, base_url=None,
-                defuse='remote', timeout=300, lazy=False):
+def iter_errors(xml_document: Union[XMLSourceType, XMLResource],
+                schema: Optional[XMLSchemaBase] = None,
+                cls: Optional[Type[XMLSchemaBase]] = None,
+                path: Optional[str] = None,
+                schema_path: Optional[str] = None,
+                use_defaults: bool = True,
+                namespaces: NamespacesType = None,
+                locations: Optional[LocationsType] = None,
+                base_url: Optional[str] = None,
+                defuse: str = 'remote',
+                timeout: int = 300,
+                lazy: LazyType = False) -> Iterator[XMLSchemaValidationError]:
     """
     Creates an iterator for the errors generated by the validation of an XML document.
     Takes the same arguments of the function :meth:`validate`.

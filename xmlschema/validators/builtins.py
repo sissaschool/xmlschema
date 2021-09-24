@@ -474,7 +474,7 @@ def xsd_builtin_types_factory(meta_schema, xsd_types, atomic_builtin_class=None)
 
     # xs:anyAtomicType
     # Ref: https://www.w3.org/TR/xmlschema11-2/#builtin-stds
-    xsd_types[XSD_ANY_ATOMIC_TYPE] = meta_schema.BUILDERS.restriction_class(
+    xsd_types[XSD_ANY_ATOMIC_TYPE] = meta_schema.xsd_atomic_restriction_class(
         elem=etree_element(XSD_SIMPLE_TYPE, name=XSD_ANY_ATOMIC_TYPE),
         schema=meta_schema,
         parent=None,
