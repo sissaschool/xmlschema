@@ -12,7 +12,7 @@ A unified setup module for ElementTree with a safe parser and helper functions.
 """
 import sys
 import re
-from typing import Any, Dict, Optional, Union, IO
+from typing import Any, AnyStr, Dict, Optional, Union, IO
 
 from .exceptions import XMLSchemaTypeError
 
@@ -63,7 +63,7 @@ else:
 # Aliases for static type checking
 ElementType = ElementTree.Element
 ElementTreeType = ElementTree.ElementTree
-XMLSourceType = Union[str, IO, ElementType, ElementTreeType]
+XMLSourceType = Union[str, bytes, IO[AnyStr], ElementType, ElementTreeType]
 NamespacesType = Optional[Dict[str, str]]
 
 

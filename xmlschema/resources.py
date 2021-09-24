@@ -673,7 +673,10 @@ class XMLResource:
         if isinstance(source, (str, bytes)):
             if is_url(source):
                 # source is a string containing an URL or a file path
-                url = normalize_url(source)
+                if isinstance(source, str):
+                    url = normalize_url(source)
+                else:
+                    url = normalize_url(source.decode())
                 self._access_control(url)
 
                 _url, self._url = self._url, url
@@ -709,7 +712,10 @@ class XMLResource:
                     self._url = _url
                     raise
                 else:
-                    self._text = source
+                    if isinstance(source, str):
+                        self._text = source
+                    else:
+                        self._text = source.decode()
                     self._lazy = False
 
         elif isinstance(source, StringIO):
@@ -870,14 +876,14 @@ class XMLResource:
 
         return resource
 
-    def open(self) -> IO:
+    def open(self) -> IO[AnyStr]:
         """
         Returns a opened resource reader object for the instance URL. If the
         source attribute is a seekable file-like object rewind the source and
         return it.
         """
         if self.seek(0) == 0:
-            return cast(IO, self._source)
+            return cast(IO[AnyStr], self._source)
         elif self._url is None:
             raise XMLResourceError("can't open, the resource has no URL associated.")
 

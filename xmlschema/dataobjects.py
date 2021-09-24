@@ -10,18 +10,22 @@
 from abc import ABCMeta
 from collections.abc import MutableSequence
 from itertools import count
-from typing import Optional
+from typing import TYPE_CHECKING, cast, Any, Dict, List, Iterator, \
+    Optional, Union, Tuple, Type
 from elementpath import XPathContext, XPath2Parser
 
 from .exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, XMLSchemaValueError
-from .etree import etree_tostring
+from .etree import ElementType, NamespacesType, etree_tostring
 from .helpers import get_namespace, get_prefixed_qname, local_name, raw_xml_encode
 from .converters import ElementData, XMLSchemaConverter
 from .resources import XMLResource
 from . import validators
 
+if TYPE_CHECKING:
+    from .validators import XMLSchemaValidationError, XsdElement, XsdType
 
-class DataElement(MutableSequence):
+
+class DataElement(MutableSequence['DataElement']):
     """
     Data Element, an Element like object with decoded data and schema bindings.
 
@@ -33,13 +37,24 @@ class DataElement(MutableSequence):
     :param xsd_type: an optional XSD type association. Can be provided \
     also if the instance is not bound with an XSD element.
     """
-    value = None
-    tail: Optional[str] = None
-    xsd_element = None
-    xsd_type = None
-    _encoder = None
+    _children: List['DataElement']
+    tag: str
+    attrib: Dict[str, Any]
+    nsmap: Dict[str, str]
 
-    def __init__(self, tag, value=None, attrib=None, nsmap=None, xsd_element=None, xsd_type=None):
+    value: Optional[Any] = None
+    tail: Optional[str] = None
+    xsd_element: Optional['XsdElement'] = None
+    xsd_type: Optional['XsdType'] = None
+    _encoder: Optional['XsdElement'] = None
+
+    def __init__(self, tag: str,
+                 value: Optional[Any] = None,
+                 attrib: Optional[Dict[str, Any]] = None,
+                 nsmap: Optional[Dict[str, str]] = None,
+                 xsd_element: Optional['XsdElement'] = None,
+                 xsd_type: Optional['XsdType'] = None) -> None:
+
         super(DataElement, self).__init__()
         self._children = []
         self.tag = tag
@@ -48,9 +63,9 @@ class DataElement(MutableSequence):
 
         if value is not None:
             self.value = value
-        if attrib:
+        if attrib is not None:
             self.attrib.update(attrib)
-        if nsmap:
+        if nsmap is not None:
             self.nsmap.update(nsmap)
 
         if xsd_element is not None:
@@ -74,14 +89,14 @@ class DataElement(MutableSequence):
     def __len__(self):
         return len(self._children)
 
-    def insert(self, i, child):
+    def insert(self, i: int, child: 'DataElement') -> None:
         assert isinstance(child, DataElement)
         self._children.insert(i, child)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return '%s(tag=%r)' % (self.__class__.__name__, self.tag)
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator['DataElement']:
         yield from self._children
 
     def __setattr__(self, key, value):
@@ -111,45 +126,46 @@ class DataElement(MutableSequence):
         super(DataElement, self).__setattr__(key, value)
 
     @property
-    def text(self):
+    def text(self) -> Optional[str]:
         """The string value of the data element."""
         return raw_xml_encode(self.value)
 
-    def get(self, key, default=None):
+    def get(self, key: str, default: Any = None) -> Any:
         """Gets a data element attribute."""
         return self.attrib.get(key, default)
 
-    def set(self, key, value):
+    def set(self, key: str, value: Any) -> None:
         """Sets a data element attribute."""
         self.attrib[key] = value
 
     @property
-    def xsd_version(self):
+    def xsd_version(self) -> str:
         return '1.0' if self.xsd_element is None else self.xsd_element.xsd_version
 
     @property
-    def namespace(self):
+    def namespace(self) -> str:
         """The element's namespace."""
         if self.xsd_element is None:
             return get_namespace(self.tag)
         return get_namespace(self.tag) or self.xsd_element.target_namespace
 
     @property
-    def name(self):
+    def name(self) -> str:
         """The element's name, that matches the tag."""
         return self.tag
 
     @property
-    def prefixed_name(self):
+    def prefixed_name(self) -> str:
         """The prefixed name, or the tag if no prefix is defined for its namespace."""
         return get_prefixed_qname(self.tag, self.nsmap)
 
     @property
-    def local_name(self):
+    def local_name(self) -> str:
         """The local part of the tag."""
         return local_name(self.tag)
 
-    def validate(self, use_defaults=True, namespaces=None, max_depth=None):
+    def validate(self, use_defaults: bool = True, namespaces: NamespacesType = None,
+                 max_depth: Optional[int] = None) -> None:
         """
         Validates the XML data object.
 
@@ -163,7 +179,8 @@ class DataElement(MutableSequence):
         for error in self.iter_errors(use_defaults, namespaces, max_depth):
             raise error
 
-    def is_valid(self, use_defaults=True, namespaces=None, max_depth=None):
+    def is_valid(self, use_defaults: bool = True, namespaces: NamespacesType = None,
+                 max_depth: Optional[int] = None) -> bool:
         """
         Like :meth:`validate` except it does not raise an exception on validation
         error but returns ``True`` if the XML data object is valid, ``False`` if
@@ -174,7 +191,8 @@ class DataElement(MutableSequence):
         error = next(self.iter_errors(use_defaults, namespaces, max_depth), None)
         return error is None
 
-    def iter_errors(self, use_defaults=True, namespaces=None, max_depth=None):
+    def iter_errors(self, use_defaults: bool = True, namespaces: NamespacesType = None,
+                    max_depth: Optional[int] = None) -> Iterator['XMLSchemaValidationError']:
         """
         Generates a sequence of validation errors if the XML data object is invalid.
         Accepts the same arguments of :meth:`validate`.
@@ -197,7 +215,8 @@ class DataElement(MutableSequence):
             else:
                 del result
 
-    def encode(self, validation='strict', **kwargs):
+    def encode(self, validation: str = 'strict', **kwargs: Any) \
+            -> Union[ElementType, Tuple[ElementType, List['XMLSchemaValidationError']]]:
         """
         Encodes the data object to XML.
 
@@ -224,12 +243,13 @@ class DataElement(MutableSequence):
 
     to_etree = encode
 
-    def tostring(self, indent='', max_lines=None, spaces_for_tab=4):
+    def tostring(self, indent: str = '', max_lines: Optional[int] = None,
+                 spaces_for_tab: int = 4) -> Any:
         """Serializes the data element tree to an XML source string."""
-        root, _ = self.encode(validation='lax')
+        root, errors = self.encode(validation='lax')
         return etree_tostring(root, self.nsmap, indent, max_lines, spaces_for_tab)
 
-    def find(self, path, namespaces=None):
+    def find(self, path: str, namespaces: NamespacesType = None) -> Optional['DataElement']:
         """
         Finds the first data element matching the path.
 
@@ -238,10 +258,10 @@ class DataElement(MutableSequence):
         :return: the first matching data element or ``None`` if there is no match.
         """
         parser = XPath2Parser(namespaces, strict=False)
-        context = XPathContext(self)
+        context = XPathContext(cast(Any, self))
         return next(parser.parse(path).select_results(context), None)
 
-    def findall(self, path, namespaces=None):
+    def findall(self, path: str, namespaces: NamespacesType = None) -> List['DataElement']:
         """
         Finds all data elements matching the path.
 
@@ -251,10 +271,10 @@ class DataElement(MutableSequence):
         an empty list is returned if there is no match.
         """
         parser = XPath2Parser(namespaces, strict=False)
-        context = XPathContext(self)
+        context = XPathContext(cast(Any, self))
         return parser.parse(path).get_results(context)
 
-    def iterfind(self, path, namespaces=None):
+    def iterfind(self, path: str, namespaces: NamespacesType = None) -> Iterator['DataElement']:
         """
         Creates and iterator for all XSD subelements matching the path.
 
@@ -263,10 +283,10 @@ class DataElement(MutableSequence):
         :return: an iterable yielding all matching data elements in document order.
         """
         parser = XPath2Parser(namespaces, strict=False)
-        context = XPathContext(self)
+        context = XPathContext(cast(Any, self))
         return parser.parse(path).select_results(context)
 
-    def iter(self, tag=None):
+    def iter(self, tag: Optional[str] = None) -> Iterator['DataElement']:
         """
         Creates an iterator for the data element and its subelements. If tag
         is not `None` or '*', only data elements whose matches tag are returned
@@ -279,7 +299,7 @@ class DataElement(MutableSequence):
         for child in self._children:
             yield from child.iter(tag)
 
-    def iterchildren(self, tag=None):
+    def iterchildren(self, tag: Optional[str] = None) -> Iterator['DataElement']:
         """
         Creates an iterator for the child data elements. If *tag* is not `None` or '*',
         only data elements whose name matches tag are returned from the iterator.
@@ -332,25 +352,31 @@ class DataElementConverter(XMLSchemaConverter):
     """
     __slots__ = 'data_element_class',
 
-    def __init__(self, namespaces=None, data_element_class=None, **kwargs):
-        self.data_element_class = data_element_class or DataElement
+    def __init__(self, namespaces: NamespacesType = None,
+                 data_element_class: Optional[Type['DataElement']] = None,
+                 **kwargs: Any) -> None:
+        if data_element_class is None:
+            self.data_element_class = DataElement
+        else:
+            self.data_element_class = data_element_class
         kwargs.update(attr_prefix='', text_key='', cdata_prefix='')
         super(DataElementConverter, self).__init__(namespaces, **kwargs)
 
     @property
-    def lossy(self):
+    def lossy(self) -> bool:
         return False
 
     @property
-    def losslessly(self):
+    def losslessly(self) -> bool:
         return True
 
-    def copy(self, **kwargs):
-        obj = super().copy(**kwargs)
+    def copy(self, **kwargs: Any) -> 'DataElementConverter':
+        obj = cast(DataElementConverter, super().copy(**kwargs))
         obj.data_element_class = kwargs.get('data_element_class', self.data_element_class)
         return obj
 
-    def element_decode(self, data, xsd_element, xsd_type=None, level=0):
+    def element_decode(self, data: ElementData, xsd_element: 'XsdElement',
+                       xsd_type: Optional['XsdType'] = None, level: int = 0) -> 'DataElement':
         data_element = self.data_element_class(
             tag=data.tag,
             value=data.text,
@@ -372,7 +398,8 @@ class DataElementConverter(XMLSchemaConverter):
 
         return data_element
 
-    def element_encode(self, data_element, xsd_element, level=0):
+    def element_encode(self, data_element: 'DataElement', xsd_element: 'XsdElement',
+                       level: int = 0) -> ElementData:
         self.namespaces.update(data_element.nsmap)
         if not xsd_element.is_matching(data_element.tag, self._namespaces.get('')):
             raise XMLSchemaValueError("Unmatched tag")
@@ -384,7 +411,7 @@ class DataElementConverter(XMLSchemaConverter):
         if not data_len:
             return ElementData(data_element.tag, data_element.value, None, attributes)
 
-        content = []
+        content: List[Tuple[Union[str, int], Any]] = []
         cdata_num = count(1)
         if data_element.value is not None:
             content.append((next(cdata_num), data_element.value))
@@ -406,7 +433,8 @@ class DataBindingConverter(DataElementConverter):
     """
     __slots__ = ()
 
-    def element_decode(self, data, xsd_element, xsd_type=None, level=0):
+    def element_decode(self, data: ElementData, xsd_element: 'XsdElement',
+                       xsd_type: Optional['XsdType'] = None, level=0) -> 'DataElement':
         cls = xsd_element.get_binding(self.data_element_class)
         data_element = cls(
             tag=data.tag,

@@ -264,7 +264,7 @@ def to_dict(xml_document: XMLDocumentType,
 
 
 def to_json(xml_document: XMLDocumentType,
-            fp: Optional[IO] = None,
+            fp: Optional[IO[str]] = None,
             schema: Optional[XMLSchemaBase] = None,
             cls: Optional[Type[XMLSchemaBase]] = None,
             path: Optional[str] = None,
@@ -347,7 +347,7 @@ def to_json(xml_document: XMLDocumentType,
         return result if not errors else (result, tuple(errors))
 
 
-def from_json(source: Union[str, bytes, IO],
+def from_json(source: Union[str, bytes, IO[str]],
               schema: XMLSchemaBase,
               path: Optional[str] = None,
               converter: Optional[ConverterType] = None,
@@ -532,7 +532,7 @@ class XmlDocument(XMLResource):
         obj = schema.to_dict(self, **kwargs)
         return obj[0] if isinstance(obj, tuple) else obj
 
-    def to_json(self, fp: Optional[IO] = None, json_options: Optional[dict] = None,
+    def to_json(self, fp: Optional[IO[str]] = None, json_options: Optional[dict] = None,
                 **kwargs: Any) -> JsonDecodeReturnType:
         """
         Converts loaded XML data to a JSON string or file.
