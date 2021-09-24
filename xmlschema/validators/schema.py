@@ -19,6 +19,7 @@ import logging
 import threading
 import warnings
 import re
+import sys
 from copy import copy
 from abc import ABCMeta
 from collections import namedtuple, Counter
@@ -143,7 +144,7 @@ class XMLSchemaMeta(ABCMeta):
         )
 
         meta_schema_class.__qualname__ = meta_schema_class_name
-        globals()[meta_schema_class_name] = meta_schema_class
+        setattr(sys.modules[dict_['__module__']], meta_schema_class_name, meta_schema_class)
 
         # Build the shared meta-schema instance
         schema_location = meta_schema.url if isinstance(meta_schema, XMLSchemaBase) else meta_schema
