@@ -63,7 +63,6 @@ class XsdValidator:
     :ivar errors: XSD validator building errors.
     :vartype errors: list
     """
-    xsd_version: Optional[str] = None
     elem: Optional[etree_element] = None
     namespaces: Any = None
 
@@ -298,14 +297,14 @@ class XsdComponent(XsdValidator):
             super(XsdComponent, self).__setattr__(name, value)
 
     @property
-    def xsd_version(self):
+    def xsd_version(self) -> str:
         return self.schema.XSD_VERSION
 
-    def is_global(self):
+    def is_global(self) -> bool:
         """Returns `True` if the instance is a global component, `False` if it's local."""
         return self.parent is None
 
-    def is_override(self):
+    def is_override(self) -> bool:
         """Returns `True` if the instance is an override of a global component."""
         if self.parent is not None:
             return False
@@ -660,7 +659,7 @@ class XsdType(XsdComponent):
     _final: Optional[str] = None
 
     @property
-    def final(self):
+    def final(self) -> str:
         return self.schema.final_default if self._final is None else self._final
 
     @property
@@ -722,26 +721,22 @@ class XsdType(XsdComponent):
         raise NotImplementedError()
 
     @staticmethod
-    def is_complex():
+    def is_complex() -> bool:
         """Returns `True` if the instance is a complexType, `False` otherwise."""
 
-    @staticmethod
-    def is_atomic():
+    def is_atomic(self) -> bool:
         """Returns `True` if the instance is an atomic simpleType, `False` otherwise."""
         return False
 
-    @staticmethod
-    def is_list():
+    def is_list(self) -> bool:
         """Returns `True` if the instance is a list simpleType, `False` otherwise."""
         return False
 
-    @staticmethod
-    def is_union():
+    def is_union(self) -> bool:
         """Returns `True` if the instance is a union simpleType, `False` otherwise."""
         return False
 
-    @staticmethod
-    def is_datetime():
+    def is_datetime(self) -> bool:
         """
         Returns `True` if the instance is a datetime/duration XSD builtin-type, `False` otherwise.
         """
@@ -759,12 +754,14 @@ class XsdType(XsdComponent):
         """
         Returns `True` if the instance has a simple content, `False` otherwise.
         """
+        raise NotImplementedError()
 
     def has_complex_content(self):
         """
         Returns `True` if the instance is a complexType with mixed or element-only
         content, `False` otherwise.
         """
+        raise NotImplementedError()
 
     def has_mixed_content(self):
         """
@@ -787,13 +784,13 @@ class XsdType(XsdComponent):
         """
         raise NotImplementedError()
 
-    def is_extension(self):
+    def is_extension(self) -> bool:
         return self.derivation == 'extension'
 
-    def is_restriction(self):
+    def is_restriction(self) -> bool:
         return self.derivation == 'restriction'
 
-    def is_blocked(self, xsd_element):
+    def is_blocked(self, xsd_element) -> bool:
         """
         Returns `True` if the base type derivation is blocked, `False` otherwise.
         """
@@ -804,25 +801,25 @@ class XsdType(XsdComponent):
         block = ('%s %s' % (xsd_element.block, xsd_type.block)).strip()
         if not block:
             return False
-        block = {x for x in block.split() if x in ('extension', 'restriction')}
 
-        return any(self.is_derived(xsd_type, derivation) for derivation in block)
+        _block = {x for x in block.split() if x in ('extension', 'restriction')}
+        return any(self.is_derived(xsd_type, derivation) for derivation in _block)
 
-    def is_dynamic_consistent(self, other):
+    def is_dynamic_consistent(self, other: Any) -> bool:
         return other.name == XSD_ANY_TYPE or self.is_derived(other) or \
             hasattr(other, 'member_types') and \
             any(self.is_derived(mt) for mt in other.member_types)  # pragma: no cover
 
-    def is_key(self):
+    def is_key(self) -> bool:
         return self.name == XSD_ID or self.is_derived(self.maps.types[XSD_ID])
 
-    def is_qname(self):
+    def is_qname(self) -> bool:
         return self.name == XSD_QNAME or self.is_derived(self.maps.types[XSD_QNAME])
 
-    def is_notation(self):
+    def is_notation(self) -> bool:
         return self.name == XSD_NOTATION_TYPE or self.is_derived(self.maps.types[XSD_NOTATION_TYPE])
 
-    def is_decimal(self):
+    def is_decimal(self) -> bool:
         return self.name == XSD_DECIMAL or self.is_derived(self.maps.types[XSD_DECIMAL])
 
     def text_decode(self, text):

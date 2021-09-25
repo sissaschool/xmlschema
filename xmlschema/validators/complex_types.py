@@ -8,6 +8,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from collections.abc import MutableSequence
+from typing import Optional, Union
 
 from ..exceptions import XMLSchemaValueError
 from ..names import XSD_GROUP, XSD_ATTRIBUTE_GROUP, XSD_SEQUENCE, XSD_OVERRIDE, \
@@ -21,7 +22,7 @@ from .exceptions import XMLSchemaDecodeError
 from .helpers import get_xsd_derivation_attribute
 from .xsdbase import XSD_TYPE_DERIVATIONS, XsdComponent, XsdType, ValidationMixin
 from .assertions import XsdAssert
-from .simple_types import XsdSimpleType
+from .simple_types import FacetsValueType, XsdSimpleType
 from .groups import XsdGroup
 from .wildcards import XsdOpenContent
 
@@ -48,11 +49,11 @@ class XsdComplexType(XsdType, ValidationMixin):
           ((group | all | choice | sequence)?, ((attribute | attributeGroup)*, anyAttribute?))))
         </complexType>
     """
-    abstract = False
-    mixed = False
+    abstract: bool = False
+    mixed: bool = False
     assertions = ()
     open_content = None
-    content = None
+    content: Union[XsdGroup, XsdSimpleType] = None  # type: ignore[assignment]
     default_open_content = None
     _block = None
 
@@ -76,6 +77,7 @@ class XsdComplexType(XsdType, ValidationMixin):
             if 'final' in kwargs:
                 self._final = kwargs['final']
         super(XsdComplexType, self).__init__(elem, schema, parent, name)
+        assert self.content is not None
 
     def __repr__(self):
         if self.name is not None:
@@ -528,22 +530,22 @@ class XsdComplexType(XsdType, ValidationMixin):
         return '{}{}'.format(sequence_type, '*' if self.is_emptiable() else '+')
 
     @staticmethod
-    def is_simple():
+    def is_simple() -> bool:
         return False
 
     @staticmethod
-    def is_complex():
+    def is_complex() -> bool:
         return True
 
-    def is_empty(self):
+    def is_empty(self) -> bool:
         if self.open_content and self.open_content.mode != 'none':
             return False
         return self.content.is_empty()
 
-    def is_emptiable(self):
+    def is_emptiable(self) -> bool:
         return self.content.is_emptiable()
 
-    def has_simple_content(self):
+    def has_simple_content(self) -> bool:
         if not isinstance(self.content, XsdGroup):
             return not self.content.is_empty()
         elif self.content or self.content.mixed or self.base_type is None:
@@ -551,14 +553,14 @@ class XsdComplexType(XsdType, ValidationMixin):
         else:
             return self.base_type.is_simple() or self.base_type.has_simple_content()
 
-    def has_complex_content(self):
+    def has_complex_content(self) -> bool:
         if not isinstance(self.content, XsdGroup):
             return False
         elif self.open_content and self.open_content.mode != 'none':
             return True
         return not self.content.is_empty()
 
-    def has_mixed_content(self):
+    def has_mixed_content(self) -> bool:
         if not isinstance(self.content, XsdGroup):
             return False
         elif self.content.is_empty():
@@ -566,7 +568,7 @@ class XsdComplexType(XsdType, ValidationMixin):
         else:
             return self.content.mixed
 
-    def is_element_only(self):
+    def is_element_only(self) -> bool:
         if not isinstance(self.content, XsdGroup):
             return False
         elif self.content.is_empty():
@@ -574,8 +576,8 @@ class XsdComplexType(XsdType, ValidationMixin):
         else:
             return not self.content.mixed
 
-    def is_list(self):
-        return self.has_simple_content() and self.content.is_list()
+    def is_list(self) -> bool:
+        return isinstance(self.content, XsdSimpleType) and self.content.is_list()
 
     def is_valid(self, source, use_defaults=True, namespaces=None, **kwargs):
         if hasattr(source, 'tag'):
@@ -586,7 +588,7 @@ class XsdComplexType(XsdType, ValidationMixin):
             return self.mixed or self.base_type is not None and \
                 self.base_type.is_valid(source, use_defaults, namespaces)
 
-    def is_derived(self, other, derivation=None):
+    def is_derived(self, other, derivation=None) -> bool:
         if derivation and derivation == self.derivation:
             derivation = None  # derivation mode checked
 
@@ -601,9 +603,11 @@ class XsdComplexType(XsdType, ValidationMixin):
         elif self.base_type is None:
             if not self.has_simple_content():
                 return False
-            return self.content.is_derived(other, derivation)
+            return isinstance(self.content, XsdSimpleType) and \
+                self.content.is_derived(other, derivation)
         elif self.has_simple_content():
-            return self.content.is_derived(other, derivation) or \
+            return isinstance(self.content, XsdSimpleType) and \
+                self.content.is_derived(other, derivation) or \
                 self.base_type.is_derived(other, derivation)
         else:
             return self.base_type.is_derived(other, derivation)
@@ -622,9 +626,10 @@ class XsdComplexType(XsdType, ValidationMixin):
             if xsd_classes is None or isinstance(obj, xsd_classes):
                 yield obj
 
-    def get_facet(self, tag):
+    def get_facet(self, tag: str) -> Optional[FacetsValueType]:
         if isinstance(self.content, XsdSimpleType):
             return self.content.get_facet(tag)
+        return None
 
     def admit_simple_restriction(self):
         if 'restriction' in self.final:
@@ -632,10 +637,10 @@ class XsdComplexType(XsdType, ValidationMixin):
         else:
             return self.has_simple_content() or self.mixed and self.is_emptiable()
 
-    def has_restriction(self):
+    def has_restriction(self) -> bool:
         return self.derivation == 'restriction'
 
-    def has_extension(self):
+    def has_extension(self) -> bool:
         return self.derivation == 'extension'
 
     def text_decode(self, text):

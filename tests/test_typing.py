@@ -29,18 +29,28 @@ class TestTyping(unittest.TestCase):
         cls.cases_dir = Path(__file__).parent.joinpath('test_cases/mypy')
         cls.error_pattern = re.compile(r'Found \d+ error', re.IGNORECASE)
 
-    def check_mypy_output(self, testfile):
+    def check_mypy_output(self, testfile, *options):
         cmd = ['mypy', testfile]
+        if options:
+            cmd.extend(str(opt) for opt in options)
         process = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
         self.assertEqual(process.stderr, b'')
-        output_lines = process.stdout.decode('utf-8').strip().split('\n')
-        self.assertGreater(len(output_lines), 0)
-        self.assertNotRegex(output_lines[-1], self.error_pattern)
+        output = process.stdout.decode('utf-8').strip()
+        output_lines = output.split('\n')
+
+        self.assertGreater(len(output_lines), 0, msg=output)
+        self.assertNotRegex(output_lines[-1], self.error_pattern, msg=output)
         return output_lines
 
-    def test_simple_types(self):
-        output_lines = self.check_mypy_output(self.cases_dir.joinpath('typing_simple_types.py'))
+    def test_strict_simple_types(self):
+        case_path = self.cases_dir.joinpath('strict/simple_types.py')
+        output_lines = self.check_mypy_output(case_path, '--strict')
+        self.assertTrue(output_lines[0].startswith('Success:'), msg='\n'.join(output_lines))
+
+    def test_reveal_simple_type_restriction1(self):
+        case_path = self.cases_dir.joinpath('reveal/simple_type_restriction1.py')
+        output_lines = self.check_mypy_output(case_path)
         for line in output_lines:
             self.assertIn(': note: Revealed type is', line)
 

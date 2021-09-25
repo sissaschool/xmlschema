@@ -11,7 +11,8 @@
 This module contains classes for XML Schema simple data types.
 """
 from decimal import DecimalException
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Union, Tuple
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, \
+    Optional, Union, Tuple
 
 from ..etree import etree_element
 from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
@@ -27,13 +28,16 @@ from ..helpers import get_prefixed_qname, local_name
 from .exceptions import XMLSchemaValidationError, XMLSchemaEncodeError, \
     XMLSchemaDecodeError, XMLSchemaParseError
 from .xsdbase import XsdType, ValidationMixin
-from .facets import XsdFacet, XsdWhiteSpaceFacet, XSD_10_FACETS_BUILDERS, \
+from .facets import XsdFacet, XsdWhiteSpaceFacet, XsdPatternFacets, \
+    XsdEnumerationFacets, XsdAssertionFacet, XSD_10_FACETS_BUILDERS, \
     XSD_11_FACETS_BUILDERS, XSD_10_FACETS, XSD_11_FACETS, XSD_10_LIST_FACETS, \
-    XSD_11_LIST_FACETS, XSD_10_UNION_FACETS, XSD_11_UNION_FACETS, MULTIPLE_FACETS
+    XSD_11_LIST_FACETS, XSD_10_UNION_FACETS, XSD_11_UNION_FACETS, MULTIPLE_FACETS, \
+    XsdFacetType
 
 if TYPE_CHECKING:
     from .complex_types import XsdComplexType
-from .facets import XsdFacetType, XsdAssertionFacet
+
+FacetsValueType = Union[XsdFacetType, Callable, List[XsdAssertionFacet]]
 
 
 class XsdSimpleType(XsdType, ValidationMixin):
@@ -52,14 +56,13 @@ class XsdSimpleType(XsdType, ValidationMixin):
     _special_types = {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE}
     _ADMITTED_TAGS = {XSD_SIMPLE_TYPE}
 
-    variety: Optional[str] = None
     min_length: Optional[int] = None
     max_length: Optional[int] = None
     white_space: Optional[str] = None
     patterns = None
     validators: Union[Tuple, List[Union[XsdFacetType, Callable]]] = ()
     allow_empty = True
-    facets: Dict[str, Union[XsdFacetType, Callable, List[XsdAssertionFacet]]]
+    facets: Dict[str, FacetsValueType]
 
     # Unicode string as default datatype for XSD simple types
     python_type = instance_types = to_python = from_python = str
@@ -83,13 +86,13 @@ class XsdSimpleType(XsdType, ValidationMixin):
                 self.white_space = white_space
 
             patterns = self.get_facet(XSD_PATTERN)
-            if patterns is not None:
+            if isinstance(patterns, XsdPatternFacets):
                 self.patterns = patterns
                 if all(p.match('') is None for p in patterns.patterns):
                     self.allow_empty = False
 
             enumeration = self.get_facet(XSD_ENUMERATION)
-            if enumeration is not None and '' not in enumeration:
+            if isinstance(enumeration, XsdEnumerationFacets) and '' not in enumeration:
                 self.allow_empty = False
 
             if value:
@@ -226,6 +229,10 @@ class XsdSimpleType(XsdType, ValidationMixin):
         self.max_length = max_length
 
     @property
+    def variety(self) -> Optional[str]:
+        return None
+
+    @property
     def simple_type(self):
         return self
 
@@ -258,29 +265,30 @@ class XsdSimpleType(XsdType, ValidationMixin):
             return max_inclusive_facet.value
 
     @property
-    def enumeration(self):
+    def enumeration(self) -> Optional[List[str]]:
         enumeration = self.get_facet(XSD_ENUMERATION)
-        if enumeration is not None:
+        if isinstance(enumeration, XsdEnumerationFacets):
             return enumeration.enumeration
+        return None
 
     @property
     def admitted_facets(self):
         return XSD_10_FACETS if self.xsd_version == '1.0' else XSD_11_FACETS
 
     @property
-    def built(self):
+    def built(self) -> bool:
         return True
 
     @staticmethod
-    def is_simple():
+    def is_simple() -> bool:
         return True
 
     @staticmethod
-    def is_complex():
+    def is_complex() -> bool:
         return False
 
     @property
-    def content_type_label(self):
+    def content_type_label(self) -> str:
         return 'empty' if self.max_length == 0 else 'simple'
 
     @property
@@ -301,26 +309,26 @@ class XsdSimpleType(XsdType, ValidationMixin):
         else:
             return '{}+'.format(sequence_type)
 
-    def is_empty(self):
+    def is_empty(self) -> bool:
         return self.max_length == 0 or \
             self.enumeration is not None and all(v == '' for v in self.enumeration)
 
-    def is_emptiable(self):
+    def is_emptiable(self) -> bool:
         return self.allow_empty
 
-    def has_simple_content(self):
+    def has_simple_content(self) -> bool:
         return self.max_length != 0
 
-    def has_complex_content(self):
+    def has_complex_content(self) -> bool:
         return False
 
-    def has_mixed_content(self):
+    def has_mixed_content(self) -> bool:
         return False
 
-    def is_element_only(self):
+    def is_element_only(self) -> bool:
         return False
 
-    def is_derived(self, other, derivation=None):
+    def is_derived(self, other: Any, derivation: Optional[str] = None) -> bool:
         if self is other:
             return True
         elif derivation and self.derivation and derivation != self.derivation:
@@ -330,21 +338,21 @@ class XsdSimpleType(XsdType, ValidationMixin):
         elif self.base_type is other:
             return True
         elif self.base_type is None:
-            if hasattr(other, 'member_types'):
+            if isinstance(other, XsdUnion):
                 return any(self.is_derived(m, derivation) for m in other.member_types)
             return False
         elif self.base_type.is_complex():
             if not self.base_type.has_simple_content():
                 return False
-            return self.base_type.content.is_derived(other, derivation)
+            return self.base_type.content.is_derived(other, derivation)  # type: ignore
         elif hasattr(other, 'member_types'):
             return any(self.is_derived(m, derivation) for m in other.member_types)
         else:
             return self.base_type.is_derived(other, derivation)
 
-    def is_dynamic_consistent(self, other):
+    def is_dynamic_consistent(self, other: XsdType) -> bool:
         return other.name in {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE} or self.is_derived(other) or \
-            hasattr(other, 'member_types') and any(self.is_derived(mt) for mt in other.member_types)
+            isinstance(other, XsdUnion) and any(self.is_derived(mt) for mt in other.member_types)
 
     def normalize(self, text):
         """
@@ -409,7 +417,7 @@ class XsdSimpleType(XsdType, ValidationMixin):
 
         yield obj
 
-    def get_facet(self, tag):
+    def get_facet(self, tag: str) -> Optional[FacetsValueType]:
         return self.facets.get(tag)
 
 
@@ -421,8 +429,6 @@ class XsdAtomic(XsdSimpleType):
     a base_type attribute that refers to primitive or derived atomic
     built-in type or another derived simpleType.
     """
-    variety = 'atomic'
-
     _special_types = {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE}
     _ADMITTED_TAGS = {XSD_RESTRICTION, XSD_SIMPLE_TYPE}
 
@@ -458,25 +464,29 @@ class XsdAtomic(XsdSimpleType):
                 self.primitive_type = value
 
     @property
+    def variety(self) -> Optional[str]:
+        return 'atomic'
+
+    @property
     def admitted_facets(self):
         if self.primitive_type.is_complex():
             return XSD_10_FACETS if self.xsd_version == '1.0' else XSD_11_FACETS
         return self.primitive_type.admitted_facets
 
-    def is_datetime(self):
+    def is_datetime(self) -> bool:
         return self.primitive_type.to_python.__name__ == 'fromstring'
 
-    def get_facet(self, tag):
-        try:
-            return self.facets[tag]
-        except KeyError:
+    def get_facet(self, tag: str) -> Optional[FacetsValueType]:
+        facet = self.facets.get(tag)
+        if facet is not None:
+            return facet
+        else:
             try:
                 return self.base_type.get_facet(tag)
             except AttributeError:
-                return
+                return None
 
-    @staticmethod
-    def is_atomic():
+    def is_atomic(self) -> bool:
         return True
 
 
@@ -704,8 +714,6 @@ class XsdList(XsdSimpleType):
           Content: (annotation?, simpleType?)
         </list>
     """
-    variety = 'list'
-
     _ADMITTED_TAGS = {XSD_LIST}
     _white_space_elem = etree_element(
         XSD_WHITE_SPACE, attrib={'value': 'collapse', 'fixed': 'true'}
@@ -790,6 +798,10 @@ class XsdList(XsdSimpleType):
                 self.allow_empty = False
 
     @property
+    def variety(self) -> Optional[str]:
+        return 'list'
+
+    @property
     def admitted_facets(self):
         return XSD_10_LIST_FACETS if self.xsd_version == '1.0' else XSD_11_LIST_FACETS
 
@@ -797,15 +809,13 @@ class XsdList(XsdSimpleType):
     def item_type(self):
         return self.base_type
 
-    @staticmethod
-    def is_atomic():
+    def is_atomic(self) -> bool:
         return False
 
-    @staticmethod
-    def is_list():
+    def is_list(self) -> bool:
         return True
 
-    def is_derived(self, other, derivation=None):
+    def is_derived(self, other: Any, derivation: Optional[str] = None) -> bool:
         if self is other:
             return True
         elif derivation and self.derivation and derivation != self.derivation:
@@ -864,9 +874,7 @@ class XsdUnion(XsdSimpleType):
           Content: (annotation?, simpleType*)
         </union>
     """
-    variety = 'union'
-
-    member_types = None
+    member_types: Any = ()
     _ADMITTED_TYPES: Any = XsdSimpleType
     _ADMITTED_TAGS = {XSD_UNION}
 
@@ -947,22 +955,26 @@ class XsdUnion(XsdSimpleType):
                 self.allow_empty = False
 
     @property
+    def variety(self) -> Optional[str]:
+        return 'union'
+
+    @property
     def admitted_facets(self):
         return XSD_10_UNION_FACETS if self.xsd_version == '1.0' else XSD_11_UNION_FACETS
 
-    def is_atomic(self):
+    def is_atomic(self) -> bool:
         return all(mt.is_atomic() for mt in self.member_types)
 
-    def is_list(self):
+    def is_list(self) -> bool:
         return all(mt.is_list() for mt in self.member_types)
 
-    def is_key(self):
+    def is_key(self) -> bool:
         return any(mt.is_key() for mt in self.member_types)
 
-    def is_union(self):
+    def is_union(self) -> bool:
         return True
 
-    def is_dynamic_consistent(self, other):
+    def is_dynamic_consistent(self, other: Any) -> bool:
         return other.name in {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE} or \
             other.is_derived(self) or isinstance(other, self.__class__) and \
             any(mt1.is_derived(mt2) for mt1 in other.member_types for mt2 in self.member_types)
@@ -1215,8 +1227,8 @@ class XsdAtomicRestriction(XsdAtomic):
         self.facets = facets
 
     @property
-    def variety(self):
-        return self.base_type.variety
+    def variety(self) -> Optional[str]:
+        return getattr(self.base_type, 'variety', None)
 
     def iter_components(self, xsd_classes=None):
         if xsd_classes is None:
@@ -1333,10 +1345,10 @@ class XsdAtomicRestriction(XsdAtomic):
                 yield result
                 return
 
-    def is_list(self):
+    def is_list(self) -> bool:
         return self.primitive_type.is_list()
 
-    def is_union(self):
+    def is_union(self) -> bool:
         return self.primitive_type.is_union()
 
 

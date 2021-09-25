@@ -160,4 +160,12 @@
         </xs:restriction>
     </xs:simpleType>
 
+    <xs:simpleType name="enum1">
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="one"/>
+            <xs:enumeration value="two"/>
+            <xs:enumeration value="three"/>
+        </xs:restriction>
+    </xs:simpleType>
+
 </xs:schema>

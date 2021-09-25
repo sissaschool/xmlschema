@@ -8,8 +8,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import json
-from collections.abc import Iterator
-from typing import Any, Dict, List, Optional, Type, Union, Tuple, IO
+from typing import Any, Dict, List, Optional, Type, Union, Tuple, IO, Iterator
 
 from .exceptions import XMLSchemaTypeError, XMLSchemaValueError, XMLResourceError
 from .names import XSD_NAMESPACE, XSI_TYPE

@@ -25,7 +25,7 @@ if TYPE_CHECKING:
     from .validators import XMLSchemaValidationError, XsdElement, XsdType
 
 
-class DataElement(MutableSequence['DataElement']):
+class DataElement(MutableSequence):
     """
     Data Element, an Element like object with decoded data and schema bindings.
 
