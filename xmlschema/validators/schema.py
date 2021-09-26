@@ -62,7 +62,7 @@ from .groups import XsdGroup, Xsd11Group
 from .elements import XsdElement, Xsd11Element
 from .wildcards import XsdAnyElement, XsdAnyAttribute, Xsd11AnyElement, \
     Xsd11AnyAttribute, XsdDefaultOpenContent
-from .global_maps import XsdGlobals
+from .global_maps import ComponentClassesType, XsdGlobals
 
 logger = logging.getLogger('xmlschema')
 
@@ -91,7 +91,6 @@ GLOBAL_TAGS = frozenset((XSD_NOTATION, XSD_SIMPLE_TYPE, XSD_COMPLEX_TYPE,
 SchemaSourceType = Union[str, IO, ElementTree.Element,
                          ElementTree.ElementTree, XMLResource]
 ConverterType = Union[Type[XMLSchemaConverter], XMLSchemaConverter]
-ComponentClassesType = Union[Type[XsdComponent], Tuple[Type[XsdComponent], ...]]
 ValidationSourceType = Union[XMLSourceType, XMLResource]
 DecodeSourceType = ValidationSourceType
 DecodeReturnType = Union[Any, List[Any],
@@ -265,7 +264,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin, metaclass=XMLSchemaMeta):
     redefine = None
 
     # Additional defaults for XSD 1.1
-    default_attributes = None
+    default_attributes: Optional[Union[str, XsdAttributeGroup]] = None
     default_open_content = None
     override = None
 
