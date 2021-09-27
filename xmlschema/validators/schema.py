@@ -107,19 +107,30 @@ EncodeReturnType = Union[None, ElementType, List[ElementType],
 
 class XMLSchemaMeta(ABCMeta):
     XSD_VERSION: str
+    meta_schema: Any
     create_meta_schema: Callable
 
     def __new__(mcs, name, bases, dict_):
         meta_schema_file = dict_.get('meta_schema_file')
 
         if isinstance(meta_schema_file, str):
-            # Build a new meta-schema class
+            # Build a new meta-schema class and register it into module's globals
             meta_schema_class_name = 'Meta' + name
+
+            if getattr(bases[0], 'meta_schema', None) is None:
+                meta_bases = bases
+            else:
+                # Use base's meta_schema class as base for the new meta-schema
+                meta_bases = (bases[0].meta_schema.__class__,)
+                if len(bases) > 1:
+                    meta_bases += bases[1:]
+
             meta_schema_class = super(XMLSchemaMeta, mcs).__new__(
-                mcs, meta_schema_class_name, bases, dict_
+                mcs, meta_schema_class_name, meta_bases, dict_
             )
             meta_schema_class.__qualname__ = meta_schema_class_name
-            setattr(sys.modules[dict_['__module__']], meta_schema_class_name, meta_schema_class)
+            module = sys.modules[dict_['__module__']]
+            setattr(module, meta_schema_class_name, meta_schema_class)
 
             meta_schema = meta_schema_class.create_meta_schema(meta_schema_file)
             dict_['meta_schema'] = meta_schema
