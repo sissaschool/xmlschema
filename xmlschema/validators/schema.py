@@ -111,8 +111,32 @@ class XMLSchemaMeta(ABCMeta):
     create_meta_schema: Callable
 
     def __new__(mcs, name, bases, dict_):
-        meta_schema_file = dict_.get('meta_schema_file')
 
+        # For backward compatibility (will be removed in v2.0)
+        if 'BUILDERS' in dict_:
+            msg = "'BUILDERS' will be removed in v2.0, provide the appropriate " \
+                  "attributes instead (eg. xsd_element_class = Xsd11Element)"
+            warnings.warn(msg, DeprecationWarning, stacklevel=1)
+
+            base_class = bases[0]
+            for k, v in dict_['BUILDERS'].items():
+                if k == 'simple_type_factory':
+                    dict_['simple_type_factory'] = staticmethod(v)
+                    continue
+
+                attr_name = 'xsd_{}'.format(k)
+                if not hasattr(base_class, attr_name):
+                    continue
+                elif getattr(base_class, attr_name) is not v:
+                    dict_[attr_name] = v
+
+        # For backward compatibility (will be removed in v2.0)
+        if 'meta_schema' in dict_ and 'meta_schema_file' not in dict_:
+            msg = "'meta_schema' will be removed in v2.0, use 'meta_schema_file' instead"
+            warnings.warn(msg, DeprecationWarning, stacklevel=1)
+            dict_['meta_schema_file'] = dict_.pop('meta_schema')
+
+        meta_schema_file = dict_.get('meta_schema_file')
         if isinstance(meta_schema_file, str):
             # Build a new meta-schema class and register it into module's globals
             meta_schema_class_name = 'Meta' + name

@@ -23,7 +23,8 @@ from textwrap import dedent
 from xmlschema import XMLSchemaParseError, XMLSchemaIncludeWarning, XMLSchemaImportWarning
 from xmlschema.names import XML_NAMESPACE, LOCATION_HINTS, SCHEMAS_DIR, XSD_ELEMENT, XSI_TYPE
 from xmlschema.etree import etree_element
-from xmlschema.validators import XMLSchemaBase, XMLSchema10, XMLSchema11, XsdGlobals
+from xmlschema.validators import XMLSchemaBase, XMLSchema10, XMLSchema11, \
+    XsdGlobals, Xsd11Attribute
 from xmlschema.testing import SKIP_REMOTE_TESTS, XsdValidatorTestCase
 from xmlschema.validators.schema import logger, XMLSchemaNotBuiltError
 
@@ -813,6 +814,25 @@ class TestXMLSchema10(XsdValidatorTestCase):
             pickle.dumps(schema)
         self.assertIn("Can't pickle", str(ec.exception))
 
+    def test_old_subclassing_attribute(self):
+
+        with warnings.catch_warnings(record=True) as ctx:
+            warnings.simplefilter("always")
+
+            class OldXMLSchema10(XMLSchema10):
+                BUILDERS = {
+                    'attribute_class': Xsd11Attribute,
+                }
+
+            self.assertEqual(len(ctx), 1, "Expected one import warning")
+            self.assertIn("'BUILDERS' will be removed in v2.0", str(ctx[0].message))
+
+        self.assertIs(OldXMLSchema10.xsd_attribute_class, Xsd11Attribute)
+
+        name = OldXMLSchema10.meta_schema.__class__.__name__
+        self.assertEqual(name, 'MetaXMLSchema10')
+        self.assertNotIn(name, globals())
+
 
 class TestXMLSchema11(TestXMLSchema10):
 
@@ -916,6 +936,22 @@ class TestXMLSchemaMeta(unittest.TestCase):
 
         bases = CustomXMLSchema10.meta_schema.__class__.__bases__
         self.assertEqual(bases, (XMLSchemaBase,))
+
+    def test_old_subclassing_attribute(self):
+
+        with warnings.catch_warnings(record=True) as ctx:
+            warnings.simplefilter("always")
+
+            # noinspection PyAbstractClass
+            class OldXMLSchema10(XMLSchemaBase):
+                meta_schema = os.path.join(SCHEMAS_DIR, 'XSD_1.0/XMLSchema.xsd')
+
+            self.assertEqual(len(ctx), 1, "Expected one import warning")
+            self.assertIn("'meta_schema' will be removed in v2.0", str(ctx[0].message))
+
+        name = OldXMLSchema10.meta_schema.__class__.__name__
+        self.assertEqual(name, 'MetaOldXMLSchema10')
+        self.assertIn(name, globals())
 
 
 if __name__ == '__main__':
