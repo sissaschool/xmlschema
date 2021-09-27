@@ -875,7 +875,7 @@ class TestXMLSchemaMeta(unittest.TestCase):
         with self.assertRaises(ValueError) as ctx:
             class XMLSchema12(XMLSchemaBase):
                 XSD_VERSION = '1.2'
-                meta_schema_file = os.path.join(SCHEMAS_DIR, 'XSD_1.1/XMLSchema.xsd')
+                meta_schema = os.path.join(SCHEMAS_DIR, 'XSD_1.1/XMLSchema.xsd')
 
             assert issubclass(XMLSchema12, XMLSchemaBase)
 
@@ -891,7 +891,7 @@ class TestXMLSchemaMeta(unittest.TestCase):
 
         class DummySchema(XMLSchemaBase):
             XSD_VERSION = '1.1'
-            meta_schema_file = os.path.join(SCHEMAS_DIR, 'XSD_1.1/XMLSchema.xsd')
+            meta_schema = os.path.join(SCHEMAS_DIR, 'XSD_1.1/XMLSchema.xsd')
 
         self.assertTrue(issubclass(DummySchema, XMLSchemaBase))
 
@@ -910,7 +910,7 @@ class TestXMLSchemaMeta(unittest.TestCase):
     def test_subclass_and_replace_meta_schema(self):
 
         class CustomXMLSchema10(XMLSchema10):
-            meta_schema_file = os.path.join(SCHEMAS_DIR, 'XSD_1.0/XMLSchema.xsd')
+            meta_schema = os.path.join(SCHEMAS_DIR, 'XSD_1.0/XMLSchema.xsd')
 
         self.assertIsInstance(CustomXMLSchema10.meta_schema, XMLSchemaBase)
         self.assertIsNot(CustomXMLSchema10.meta_schema, XMLSchema10.meta_schema)
@@ -925,7 +925,7 @@ class TestXMLSchemaMeta(unittest.TestCase):
     def test_subclass_and_create_base_meta_schema(self):
 
         class CustomXMLSchema10(XMLSchemaBase):
-            meta_schema_file = os.path.join(SCHEMAS_DIR, 'XSD_1.0/XMLSchema.xsd')
+            meta_schema = os.path.join(SCHEMAS_DIR, 'XSD_1.0/XMLSchema.xsd')
 
         self.assertIsInstance(CustomXMLSchema10.meta_schema, XMLSchemaBase)
         self.assertIsNot(CustomXMLSchema10.meta_schema, XMLSchema10.meta_schema)
@@ -936,22 +936,6 @@ class TestXMLSchemaMeta(unittest.TestCase):
 
         bases = CustomXMLSchema10.meta_schema.__class__.__bases__
         self.assertEqual(bases, (XMLSchemaBase,))
-
-    def test_old_subclassing_attribute(self):
-
-        with warnings.catch_warnings(record=True) as ctx:
-            warnings.simplefilter("always")
-
-            # noinspection PyAbstractClass
-            class OldXMLSchema10(XMLSchemaBase):
-                meta_schema = os.path.join(SCHEMAS_DIR, 'XSD_1.0/XMLSchema.xsd')
-
-            self.assertEqual(len(ctx), 1, "Expected one import warning")
-            self.assertIn("'meta_schema' will be removed in v2.0", str(ctx[0].message))
-
-        name = OldXMLSchema10.meta_schema.__class__.__name__
-        self.assertEqual(name, 'MetaOldXMLSchema10')
-        self.assertIn(name, globals())
 
 
 if __name__ == '__main__':

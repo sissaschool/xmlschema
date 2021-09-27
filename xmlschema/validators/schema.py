@@ -21,7 +21,7 @@ import warnings
 import re
 import sys
 from copy import copy
-from abc import ABCMeta, abstractmethod
+from abc import ABCMeta
 from collections import Counter
 from itertools import chain
 from typing import cast, Callable, List, Optional, IO, \
@@ -130,15 +130,9 @@ class XMLSchemaMeta(ABCMeta):
                 elif getattr(base_class, attr_name) is not v:
                     dict_[attr_name] = v
 
-        # For backward compatibility (will be removed in v2.0)
-        if 'meta_schema' in dict_ and 'meta_schema_file' not in dict_:
-            msg = "'meta_schema' will be removed in v2.0, use 'meta_schema_file' instead"
-            warnings.warn(msg, DeprecationWarning, stacklevel=1)
-            dict_['meta_schema_file'] = dict_.pop('meta_schema')
-
-        meta_schema_file = dict_.get('meta_schema_file')
-        if isinstance(meta_schema_file, str):
+        if isinstance(dict_.get('meta_schema'), str):
             # Build a new meta-schema class and register it into module's globals
+            meta_schema_file = dict_.pop('meta_schema')
             meta_schema_class_name = 'Meta' + name
 
             if getattr(bases[0], 'meta_schema', None) is None:
@@ -558,11 +552,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin, metaclass=XMLSchemaMeta):
 
     def __len__(self):
         return len(self.elements)
-
-    @property
-    @abstractmethod
-    def meta_schema_file(self) -> str:
-        """Filepath of the meta-schema XSD file."""
 
     @property
     def xpath_proxy(self):
@@ -2102,8 +2091,7 @@ class XMLSchema10(XMLSchemaBase):
       attributeGroup) | element | attribute | notation), annotation*)*)
     </schema>
     """
-    meta_schema: 'XMLSchema10'
-    meta_schema_file = os.path.join(SCHEMAS_DIR, 'XSD_1.0/XMLSchema.xsd')
+    meta_schema = os.path.join(SCHEMAS_DIR, 'XSD_1.0/XMLSchema.xsd')
     BASE_SCHEMAS = {
         XML_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XML/xml_minimal.xsd'),
         XSI_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XSI/XMLSchema-instance_minimal.xsd'),
@@ -2145,8 +2133,7 @@ class XMLSchema11(XMLSchemaBase):
       attributeGroup) | element | attribute | notation), annotation*)*)
     </schema>
     """
-    meta_schema_file = os.path.join(SCHEMAS_DIR, 'XSD_1.1/XMLSchema.xsd')
-    meta_schema: 'XMLSchema11'
+    meta_schema = os.path.join(SCHEMAS_DIR, 'XSD_1.1/XMLSchema.xsd')
     XSD_VERSION = '1.1'
 
     BASE_SCHEMAS = {
