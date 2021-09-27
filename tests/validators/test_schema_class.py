@@ -780,6 +780,23 @@ class TestXMLSchema10(XsdValidatorTestCase):
 
         self.assertFalse(os.path.isdir(dirname))
 
+    def test_pickling_subclassed_schema__issue_263(self):
+        import pickle
+
+        class CustomXMLSchema(self.schema_class):
+            pass
+
+        cases_dir = pathlib.Path(__file__).parent.parent
+        schema_file = cases_dir.joinpath('test_cases/examples/vehicles/vehicles.xsd')
+        xml_file = cases_dir.joinpath('test_cases/examples/vehicles/vehicles.xml')
+
+        schema = CustomXMLSchema(str(schema_file))
+        self.assertTrue(schema.validate(str(xml_file)))
+
+        s = pickle.dumps(schema)
+        _schema = pickle.loads(s)
+        self.assertTrue(_schema.validate(str(xml_file)))
+
 
 class TestXMLSchema11(TestXMLSchema10):
 
@@ -819,7 +836,7 @@ class TestXMLSchemaMeta(unittest.TestCase):
         with self.assertRaises(ValueError) as ctx:
             class XMLSchema12(XMLSchemaBase):
                 XSD_VERSION = '1.2'
-                META_SCHEMA = os.path.join(SCHEMAS_DIR, 'XSD_1.1/XMLSchema.xsd')
+                meta_schema_file = os.path.join(SCHEMAS_DIR, 'XSD_1.1/XMLSchema.xsd')
 
             assert issubclass(XMLSchema12, XMLSchemaBase)
 
