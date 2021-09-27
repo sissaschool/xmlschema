@@ -408,7 +408,7 @@ class TestDecoding(XsdValidatorTestCase):
 
     def test_date_decoding(self):
         # Issue #136
-        schema = xmlschema.XMLSchema("""<?xml version="1.0" encoding="utf-8"?>
+        schema = self.schema_class("""<?xml version="1.0" encoding="utf-8"?>
             <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" version="1.0">
                 <xs:element name="Date">
                     <xs:simpleType>
@@ -627,7 +627,7 @@ class TestDecoding(XsdValidatorTestCase):
 
     def test_non_global_schema_path(self):
         # Issue #157
-        xs = xmlschema.XMLSchema("""<?xml version="1.0" encoding="UTF-8"?>
+        xs = self.schema_class("""<?xml version="1.0" encoding="UTF-8"?>
         <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
                 xmlns:foo="http://example.com/foo" 
                 targetNamespace="http://example.com/foo">
@@ -764,7 +764,7 @@ class TestDecoding(XsdValidatorTestCase):
         xsd_string = self.casepath('issues/issue_022/xsd_string.xsd')
         xml_string_1 = self.casepath('issues/issue_022/xml_string_1.xml')
         xml_string_2 = self.casepath('issues/issue_022/xml_string_2.xml')
-        xsd_schema = xmlschema.XMLSchema(xsd_string)
+        xsd_schema = self.schema_class(xsd_string)
         xml_data_1 = xsd_schema.to_dict(xml_string_1)
         xml_data_2 = xsd_schema.to_dict(xml_string_2)
         self.assertTrue(isinstance(xml_data_1['bar'], type(xml_data_2['bar'])),
@@ -772,14 +772,14 @@ class TestDecoding(XsdValidatorTestCase):
                             "xml must still yield a list.")
 
     def test_any_type(self):
-        any_type = xmlschema.XMLSchema.meta_schema.types['anyType']
+        any_type = self.schema_class.meta_schema.types['anyType']
         xml_data_1 = ElementTree.Element('dummy')
         self.assertIsNone(any_type.decode(xml_data_1))
         xml_data_2 = ElementTree.fromstring('<root>\n    <child_1/>\n    <child_2/>\n</root>')
         self.assertIsNone(any_type.decode(xml_data_2))  # Currently no decoding yet
 
     def test_choice_model_decoding__issue_041(self):
-        schema = xmlschema.XMLSchema(self.casepath('issues/issue_041/issue_041.xsd'))
+        schema = self.schema_class(self.casepath('issues/issue_041/issue_041.xsd'))
         data = schema.to_dict(self.casepath('issues/issue_041/issue_041.xml'))
         self.assertEqual(data, {
             '@xmlns:xsi': 'http://www.w3.org/2001/XMLSchema-instance',
@@ -789,7 +789,7 @@ class TestDecoding(XsdValidatorTestCase):
         })
 
     def test_cdata_decoding(self):
-        schema = xmlschema.XMLSchema(self.casepath('issues/issue_046/issue_046.xsd'))
+        schema = self.schema_class(self.casepath('issues/issue_046/issue_046.xsd'))
         xml_file = self.casepath('issues/issue_046/issue_046.xml')
         self.assertEqual(
             schema.decode(xml_file, cdata_prefix='#'),
@@ -918,7 +918,7 @@ class TestDecoding(XsdValidatorTestCase):
             </xs:complexType>
         </xs:schema>
         """
-        xsd_schema = xmlschema.XMLSchema(xsd_string)
+        xsd_schema = self.schema_class(xsd_string)
         xml_string_1 = "<foo><bar>0</bar></foo>"
         xml_string_2 = """<?xml version="1.0" encoding="UTF-8"?>
         <foo xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
@@ -931,7 +931,7 @@ class TestDecoding(XsdValidatorTestCase):
         self.check_etree_elements(ElementTree.fromstring(xml_string_2), xsd_schema.encode(obj))
 
     def test_default_namespace__issue_077(self):
-        xs = xmlschema.XMLSchema("""<?xml version="1.0" encoding="UTF-8"?>
+        xs = self.schema_class("""<?xml version="1.0" encoding="UTF-8"?>
         <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
             targetNamespace="http://example.com/foo">
           <xs:element name="foo" type="xs:string" />
