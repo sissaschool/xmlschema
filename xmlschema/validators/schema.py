@@ -19,6 +19,7 @@ import logging
 import threading
 import warnings
 import re
+import sys
 from copy import copy
 from abc import ABCMeta, abstractmethod
 from collections import Counter
@@ -118,7 +119,7 @@ class XMLSchemaMeta(ABCMeta):
                 mcs, meta_schema_class_name, bases, dict_
             )
             meta_schema_class.__qualname__ = meta_schema_class_name
-            globals()[meta_schema_class_name] = meta_schema_class
+            setattr(sys.modules[dict_['__module__']], meta_schema_class_name, meta_schema_class)
 
             meta_schema = meta_schema_class.create_meta_schema(meta_schema_file)
             dict_['meta_schema'] = meta_schema
