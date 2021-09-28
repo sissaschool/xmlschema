@@ -27,10 +27,11 @@ class TestTyping(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.cases_dir = Path(__file__).parent.joinpath('test_cases/mypy')
+        cls.config_file = Path(__file__).parent.parent.joinpath('mypy.ini')
         cls.error_pattern = re.compile(r'Found \d+ error', re.IGNORECASE)
 
     def check_mypy_output(self, testfile, *options):
-        cmd = ['mypy', testfile]
+        cmd = ['mypy', '--config-file', str(self.config_file), testfile]
         if options:
             cmd.extend(str(opt) for opt in options)
         process = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
