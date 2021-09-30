@@ -11,7 +11,7 @@
 This module contains base functions and classes XML Schema components.
 """
 import re
-from typing import TYPE_CHECKING, Any, Dict, Optional, Union, Set, Tuple
+from typing import TYPE_CHECKING, Any, Dict, Iterator, Optional, Union, Set, Tuple
 
 import elementpath
 
@@ -19,8 +19,9 @@ from ..exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from ..names import XSD_ANNOTATION, XSD_APPINFO, XSD_DOCUMENTATION, XML_LANG, \
     XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_ID, XSD_QNAME, \
     XSD_OVERRIDE, XSD_NOTATION_TYPE, XSD_DECIMAL
-from ..etree import ElementType, NamespacesType, is_etree_element, \
-    etree_tostring, etree_element
+from ..etree import is_etree_element, etree_tostring, etree_element
+from ..typing import ElementType, NamespacesType, ComponentClassesType, \
+    DecodeReturnType, EncodeReturnType
 from ..helpers import get_qname, local_name, get_prefixed_qname
 from ..resources import XMLResource
 from .. import dataobjects
@@ -29,6 +30,7 @@ from .exceptions import XMLSchemaParseError, XMLSchemaValidationError
 if TYPE_CHECKING:
     from .simple_types import XsdSimpleType
     from .complex_types import XsdComplexType
+    from .groups import XsdGroup
     from .global_maps import XsdGlobals
     from .schema import XMLSchemaBase
 
@@ -108,7 +110,7 @@ class XsdValidator:
         else:
             return 'notKnown'
 
-    def iter_components(self, xsd_classes=None):
+    def iter_components(self, xsd_classes: ComponentClassesType = None):
         """
         Creates an iterator for traversing all XSD components of the validator.
 
@@ -552,7 +554,7 @@ class XsdComponent(XsdValidator):
                 return component
             component = component.parent
 
-    def get_parent_type(self):
+    def get_parent_type(self) -> Optional['XsdType']:
         """
         Returns the nearest XSD type that contains the component instance,
         or `None` if the component doesn't have an XSD type parent.
@@ -563,7 +565,8 @@ class XsdComponent(XsdValidator):
                 return component
             component = component.parent
 
-    def iter_components(self, xsd_classes=None):
+    def iter_components(self, xsd_classes: ComponentClassesType = None) \
+            -> Iterator['XsdComponent']:
         """
         Creates an iterator for XSD subcomponents.
 
@@ -573,7 +576,8 @@ class XsdComponent(XsdValidator):
         if xsd_classes is None or isinstance(self, xsd_classes):
             yield self
 
-    def iter_ancestors(self, xsd_classes=None):
+    def iter_ancestors(self, xsd_classes: ComponentClassesType = None)\
+            -> Iterator['XsdComponent']:
         """
         Creates an iterator for XSD ancestor components, schema excluded. Stops when the component
         is global or if the ancestor is not an instance of the specified class/classes.
@@ -583,8 +587,10 @@ class XsdComponent(XsdValidator):
         """
         ancestor = self
         while True:
+            if ancestor.parent is None:
+                break
             ancestor = ancestor.parent
-            if ancestor is None or xsd_classes and not isinstance(ancestor, xsd_classes):
+            if xsd_classes is not None and not isinstance(ancestor, xsd_classes):
                 break
             yield ancestor
 
@@ -623,17 +629,17 @@ class XsdAnnotation(XsdComponent):
 
     annotation = None
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return '%s(%r)' % (self.__class__.__name__, str(self)[:40])
 
-    def __str__(self):
+    def __str__(self) -> str:
         return '\n'.join(elementpath.select(self.elem, '*/fn:string()'))
 
     @property
-    def built(self):
+    def built(self) -> bool:
         return True
 
-    def _parse(self):
+    def _parse(self) -> None:
         self.appinfo = []
         self.documentation = []
         for child in self.elem:
@@ -663,16 +669,16 @@ class XsdType(XsdComponent):
         return self.schema.final_default if self._final is None else self._final
 
     @property
-    def built(self):
+    def built(self) -> bool:
         raise NotImplementedError()
 
     @property
-    def content_type_label(self):
+    def content_type_label(self) -> str:
         """The content type classification."""
         raise NotImplementedError()
 
     @property
-    def sequence_type(self):
+    def sequence_type(self) -> str:
         """The XPath sequence type associated with the content."""
         raise NotImplementedError()
 
@@ -698,7 +704,7 @@ class XsdType(XsdComponent):
             return self.base_type.root_type
 
     @property
-    def simple_type(self):
+    def simple_type(self) -> Optional['XsdSimpleType']:
         """
         Property that is the instance itself for a simpleType. For a
         complexType is the instance's *content* if this is a simpleType
@@ -707,7 +713,7 @@ class XsdType(XsdComponent):
         raise NotImplementedError()
 
     @property
-    def model_group(self):
+    def model_group(self) -> Optional['XsdGroup']:
         """
         Property that is `None` for a simpleType. For a complexType is
         the instance's *content* if this is a model group or `None` if
@@ -716,7 +722,7 @@ class XsdType(XsdComponent):
         raise NotImplementedError()
 
     @staticmethod
-    def is_simple():
+    def is_simple() -> bool:
         """Returns `True` if the instance is a simpleType, `False` otherwise."""
         raise NotImplementedError()
 
@@ -742,41 +748,41 @@ class XsdType(XsdComponent):
         """
         return False
 
-    def is_empty(self):
+    def is_empty(self) -> bool:
         """Returns `True` if the instance has an empty content, `False` otherwise."""
         raise NotImplementedError()
 
-    def is_emptiable(self):
+    def is_emptiable(self) -> bool:
         """Returns `True` if the instance has an emptiable value or content, `False` otherwise."""
         raise NotImplementedError()
 
-    def has_simple_content(self):
+    def has_simple_content(self) -> bool:
         """
         Returns `True` if the instance has a simple content, `False` otherwise.
         """
         raise NotImplementedError()
 
-    def has_complex_content(self):
+    def has_complex_content(self) -> bool:
         """
         Returns `True` if the instance is a complexType with mixed or element-only
         content, `False` otherwise.
         """
         raise NotImplementedError()
 
-    def has_mixed_content(self):
+    def has_mixed_content(self) -> bool:
         """
         Returns `True` if the instance is a complexType with mixed content, `False` otherwise.
         """
         raise NotImplementedError()
 
-    def is_element_only(self):
+    def is_element_only(self) -> bool:
         """
         Returns `True` if the instance is a complexType with element-only content,
         `False` otherwise.
         """
         raise NotImplementedError()
 
-    def is_derived(self, other, derivation=None):
+    def is_derived(self, other: object, derivation: Optional[str] = None) -> bool:
         """
         Returns `True` if the instance is derived from *other*, `False` otherwise.
         The optional argument derivation can be a string containing the words
@@ -885,7 +891,7 @@ class ValidationMixin:
             else:
                 del result
 
-    def decode(self, source, validation='strict', **kwargs):
+    def decode(self, source, validation='strict', **kwargs) -> 'DecodeReturnType':
         """
         Decodes XML data.
 
@@ -915,7 +921,8 @@ class ValidationMixin:
 
         return (result, errors) if validation == 'lax' else result
 
-    def to_objects(self, source, with_bindings=False, **kwargs):
+    def to_objects(self, source: Union[str, dict, ElementType],
+                   with_bindings: bool = False, **kwargs):
         """
         Decodes XML data to Python data objects.
 
@@ -933,7 +940,7 @@ class ValidationMixin:
             return self.decode(source, converter=dataobjects.DataBindingConverter, **kwargs)
         return self.decode(source, converter=dataobjects.DataElementConverter, **kwargs)
 
-    def encode(self, obj, validation='strict', **kwargs):
+    def encode(self, obj: object, validation: str = 'strict', **kwargs: object) -> object:
         """
         Encodes data to XML.
 
@@ -959,7 +966,8 @@ class ValidationMixin:
 
         return (result, errors) if validation == 'lax' else result
 
-    def iter_decode(self, source, validation='lax', **kwargs):
+    def iter_decode(self, source: object, validation: str = 'lax', **kwargs: object) \
+            -> Iterator[object]:
         """
         Creates an iterator for decoding an XML source to a Python object.
 
@@ -971,7 +979,8 @@ class ValidationMixin:
         """
         raise NotImplementedError()
 
-    def iter_encode(self, obj, validation='lax', **kwargs):
+    def iter_encode(self, obj: object, validation: str = 'lax', **kwargs: object) \
+            -> Iterator[object]:
         """
         Creates an iterator for encoding data to an Element tree.
 

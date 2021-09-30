@@ -12,18 +12,13 @@ from typing import Any, Dict, List, Optional, Type, Union, Tuple, IO, Iterator
 
 from .exceptions import XMLSchemaTypeError, XMLSchemaValueError, XMLResourceError
 from .names import XSD_NAMESPACE, XSI_TYPE
-from .etree import ElementType, XMLSourceType, NamespacesType, \
-    ElementTree, etree_tostring
+from .etree import ElementTree, etree_tostring
+from .typing import ElementType, XMLSourceType, NamespacesType, LocationsType, \
+    LazyType, SchemaSourceType, ConverterType, DecodeReturnType, EncodeReturnType, \
+    XMLDocumentType, JsonDecodeReturnType
 from .helpers import is_etree_document
-from .resources import LocationsType, LazyType, fetch_schema_locations, XMLResource
+from .resources import fetch_schema_locations, XMLResource
 from .validators import XMLSchema10, XMLSchemaBase, XMLSchemaValidationError
-from .validators.schema import SchemaSourceType, ConverterType, \
-    DecodeReturnType, EncodeReturnType
-
-
-XMLDocumentType = Union[XMLSourceType, XMLResource]
-JsonDecodeReturnType = Union[str, None, Tuple[XMLSchemaValidationError, ...],
-                             Tuple[Union[str, None], Tuple[XMLSchemaValidationError, ...]]]
 
 
 def get_context(xml_document: XMLDocumentType,

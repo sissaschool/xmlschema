@@ -9,7 +9,8 @@
 #
 from typing import TYPE_CHECKING, Any, Dict, Optional, cast, Iterable, Union, Callable
 from ..exceptions import XMLSchemaException, XMLSchemaWarning, XMLSchemaValueError
-from ..etree import ElementType, NamespacesType, etree_tostring
+from ..etree import etree_tostring
+from ..typing import ElementType, NamespacesType
 from ..helpers import get_prefixed_qname, etree_getpath, is_etree_element
 
 if TYPE_CHECKING:

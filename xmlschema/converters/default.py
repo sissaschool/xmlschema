@@ -14,7 +14,8 @@ from typing import TYPE_CHECKING, Any, Dict, Iterator, Iterable, \
 
 from ..exceptions import XMLSchemaTypeError
 from ..names import XSI_NAMESPACE
-from ..etree import NamespacesType, ElementType, etree_element
+from ..etree import etree_element
+from ..typing import NamespacesType, ElementType
 from ..namespaces import NamespaceMapper
 
 if TYPE_CHECKING:

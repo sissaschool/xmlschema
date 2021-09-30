@@ -15,6 +15,7 @@ are created using the XSD 1.0 meta-schema or with and additional base schema for
 """
 from decimal import Decimal
 from elementpath import datatypes
+from typing import TYPE_CHECKING, Any, Dict, Optional, Type, Tuple, Union
 
 from ..exceptions import XMLSchemaValueError
 from ..names import XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_ENUMERATION, \
@@ -31,6 +32,7 @@ from ..names import XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_ENUMERATION,
     XSD_HEX_BINARY, XSD_NOTATION_TYPE, XSD_ERROR, XSD_ASSERTION, XSD_SIMPLE_TYPE, \
     XSD_ANY_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_ANY_SIMPLE_TYPE
 from ..etree import etree_element
+from ..typing import ElementType
 
 from .helpers import decimal_validator, qname_validator, byte_validator, \
     short_validator, int_validator, long_validator, unsigned_byte_validator, \
@@ -40,6 +42,10 @@ from .helpers import decimal_validator, qname_validator, byte_validator, \
     error_type_validator, boolean_to_python, python_to_boolean
 from .facets import XSD_10_FACETS_BUILDERS, XSD_11_FACETS_BUILDERS
 from .simple_types import XsdSimpleType, XsdAtomicBuiltin
+
+if TYPE_CHECKING:
+    from .xsdbase import XsdType
+    from .schema import XMLSchemaBase
 
 #
 # Admitted facets sets for XSD atomic types
@@ -326,7 +332,7 @@ XSD_COMMON_BUILTIN_TYPES = (
     },  # only negative value allowed [< 0]
 )
 
-XSD_10_BUILTIN_TYPES = XSD_COMMON_BUILTIN_TYPES + (
+XSD_10_BUILTIN_TYPES: Tuple[Dict[str, Any], ...] = XSD_COMMON_BUILTIN_TYPES + (
     {
         'name': XSD_DOUBLE,
         'python_type': float,
@@ -371,7 +377,7 @@ XSD_10_BUILTIN_TYPES = XSD_COMMON_BUILTIN_TYPES + (
     },  # [-][Y*]YYYY-MM
 )
 
-XSD_11_BUILTIN_TYPES = XSD_COMMON_BUILTIN_TYPES + (
+XSD_11_BUILTIN_TYPES: Tuple[Dict[str, Any], ...] = XSD_COMMON_BUILTIN_TYPES + (
     {
         'name': XSD_DOUBLE,
         'python_type': float,
@@ -444,7 +450,10 @@ XSD_11_BUILTIN_TYPES = XSD_COMMON_BUILTIN_TYPES + (
 )
 
 
-def xsd_builtin_types_factory(meta_schema, xsd_types, atomic_builtin_class=None):
+def xsd_builtin_types_factory(
+        meta_schema: 'XMLSchemaBase',
+        xsd_types: Dict[str, Union['XsdType', Tuple[ElementType, 'XMLSchemaBase']]],
+        atomic_builtin_class: Optional[Type[XsdAtomicBuiltin]] = None) -> None:
     """
     Builds the dictionary for XML Schema built-in types mapping.
     """
@@ -465,7 +474,7 @@ def xsd_builtin_types_factory(meta_schema, xsd_types, atomic_builtin_class=None)
 
     # xs:anySimpleType
     # Ref: https://www.w3.org/TR/xmlschema11-2/#builtin-stds
-    xsd_types[XSD_ANY_SIMPLE_TYPE] = XsdSimpleType(
+    xsd_any_simple_type = xsd_types[XSD_ANY_SIMPLE_TYPE] = XsdSimpleType(
         elem=etree_element(XSD_SIMPLE_TYPE, name=XSD_ANY_SIMPLE_TYPE),
         schema=meta_schema,
         parent=None,
@@ -479,29 +488,34 @@ def xsd_builtin_types_factory(meta_schema, xsd_types, atomic_builtin_class=None)
         schema=meta_schema,
         parent=None,
         name=XSD_ANY_ATOMIC_TYPE,
-        base_type=xsd_types[XSD_ANY_SIMPLE_TYPE]
+        base_type=xsd_any_simple_type,
     )
 
     for item in builtin_types:
         item = item.copy()
-        name = item['name']
+        name: str = item['name']
         try:
-            elem, schema = xsd_types[name]
+            value = xsd_types[name]
         except KeyError:
             # If builtin type element is missing create a dummy element. Necessary for the
             # meta-schema XMLSchema.xsd of XSD 1.1, that not includes builtins declarations.
             elem = etree_element(XSD_SIMPLE_TYPE, name=name, id=name)
         else:
+            if not isinstance(value, tuple):
+                continue
+
+            elem, schema = value
             if schema is not meta_schema:
                 raise XMLSchemaValueError("loaded entry schema is not the meta-schema!")
 
+        base_type: Union[None, 'XsdType', Tuple[ElementType, 'XMLSchemaBase']]
         if 'base_type' in item:
             base_type = item['base_type'] = xsd_types[item['base_type']]
         else:
             base_type = None
 
         facets = item.pop('facets', None)
-        builtin_type = atomic_builtin_class(elem, meta_schema, **item)
+        builtin_type: XsdAtomicBuiltin = atomic_builtin_class(elem, meta_schema, **item)
         if facets:
             built_facets = builtin_type.facets
             for e in facets:

@@ -11,7 +11,7 @@ from collections.abc import MutableSequence
 from typing import TYPE_CHECKING, Any, Optional, List, Dict, Type
 
 from ..exceptions import XMLSchemaValueError
-from ..etree import NamespacesType
+from ..typing import NamespacesType
 from .default import ElementData, XMLSchemaConverter
 
 if TYPE_CHECKING:

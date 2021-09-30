@@ -13,7 +13,7 @@ from decimal import Decimal
 from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from .names import XSI_SCHEMA_LOCATION, XSI_NONS_SCHEMA_LOCATION
-from .etree import ElementType, etree_element
+from .typing import ElementType
 
 ###
 # Helper functions for QNames
@@ -238,7 +238,7 @@ def etree_iter_location_hints(elem: ElementType) -> Iterator[Tuple[Any, Any]]:
             yield '', url
 
 
-def prune_etree(root: etree_element, selector: Callable[[etree_element], bool]) \
+def prune_etree(root: ElementType, selector: Callable[[ElementType], bool]) \
         -> Optional[bool]:
     """
     Removes from an tree structure the elements that verify the selector
@@ -249,7 +249,7 @@ def prune_etree(root: etree_element, selector: Callable[[etree_element], bool]) 
     :param selector: the single argument function to apply on each visited node.
     :return: `True` if the root node verify the selector function, `None` otherwise.
     """
-    def _prune_subtree(elem: etree_element) -> None:
+    def _prune_subtree(elem: ElementType) -> None:
         for child in elem[:]:
             if selector(child):
                 elem.remove(child)

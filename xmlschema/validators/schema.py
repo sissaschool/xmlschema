@@ -24,8 +24,7 @@ from copy import copy
 from abc import ABCMeta
 from collections import Counter
 from itertools import chain
-from typing import cast, Callable, List, Optional, IO, \
-    Dict, Any, Union, Tuple, Type, Iterator
+from typing import cast, Callable, List, Optional, Dict, Any, Union, Tuple, Type, Iterator
 
 from ..exceptions import XMLSchemaTypeError, XMLSchemaKeyError, \
     XMLSchemaValueError, XMLSchemaNamespaceError
@@ -37,11 +36,13 @@ from ..names import VC_MIN_VERSION, VC_MAX_VERSION, VC_TYPE_AVAILABLE, \
     VC_NAMESPACE, SCHEMAS_DIR, LOCATION_HINTS, XSD_ANNOTATION, XSD_INCLUDE, \
     XSD_IMPORT, XSD_REDEFINE, XSD_OVERRIDE, XSD_DEFAULT_OPEN_CONTENT, \
     XSD_ANY_SIMPLE_TYPE, XSD_UNION, XSD_LIST, XSD_RESTRICTION
-from ..etree import ElementTree, ElementType, XMLSourceType, NamespacesType, \
-    etree_element, ParseError
+from ..etree import etree_element, ParseError
+from ..typing import ElementType, NamespacesType, LocationsType, SchemaSourceType, \
+    ConverterType, ComponentClassesType, ValidationSourceType, DecodeSourceType, \
+    DecodeReturnType, EncodeReturnType
 from ..helpers import prune_etree, get_namespace, get_qname
 from ..namespaces import NamespaceResourcesMap, NamespaceView
-from ..resources import LocationsType, is_local_url, is_remote_url, url_path_is_file, \
+from ..resources import is_local_url, is_remote_url, url_path_is_file, \
     normalize_locations, fetch_resource, normalize_url, XMLResource
 from ..converters import XMLSchemaConverter
 from ..xpath import XMLSchemaProxy, ElementPathMixin
@@ -63,7 +64,7 @@ from .groups import XsdGroup, Xsd11Group
 from .elements import XsdElement, Xsd11Element
 from .wildcards import XsdAnyElement, XsdAnyAttribute, Xsd11AnyElement, \
     Xsd11AnyAttribute, XsdDefaultOpenContent
-from .global_maps import ComponentClassesType, XsdGlobals
+from .global_maps import XsdGlobals
 
 logger = logging.getLogger('xmlschema')
 
@@ -87,22 +88,6 @@ ANY_ELEMENT = etree_element(
 
 GLOBAL_TAGS = frozenset((XSD_NOTATION, XSD_SIMPLE_TYPE, XSD_COMPLEX_TYPE,
                          XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_GROUP, XSD_ELEMENT))
-
-# Type aliases
-SchemaSourceType = Union[str, IO, ElementTree.Element,
-                         ElementTree.ElementTree, XMLResource]
-ConverterType = Union[Type[XMLSchemaConverter], XMLSchemaConverter]
-ValidationSourceType = Union[XMLSourceType, XMLResource]
-DecodeSourceType = ValidationSourceType
-DecodeReturnType = Union[Any, List[Any],
-                         Tuple[None, List[XMLSchemaValidationError]],
-                         Tuple[Any, List[XMLSchemaValidationError]],
-                         Tuple[List[Any], List[XMLSchemaValidationError]]]
-
-EncodeReturnType = Union[None, ElementType, List[ElementType],
-                         Tuple[None, List[XMLSchemaValidationError]],
-                         Tuple[ElementType, List[XMLSchemaValidationError]],
-                         Tuple[List[ElementType], List[XMLSchemaValidationError]]]
 
 
 class XMLSchemaMeta(ABCMeta):
@@ -873,7 +858,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin, metaclass=XMLSchemaMeta):
         """
         return self.xsd_attribute_group_class(ATTRIBUTE_GROUP_ELEMENT, self, parent)
 
-    def create_any_type(self):
+    def create_any_type(self) -> XsdComplexType:
         """
         Creates an xs:anyType equivalent type related with the wildcards
         connected to global maps of the schema instance in order to do a

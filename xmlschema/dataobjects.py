@@ -15,7 +15,8 @@ from typing import TYPE_CHECKING, cast, Any, Dict, List, Iterator, \
 from elementpath import XPathContext, XPath2Parser
 
 from .exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, XMLSchemaValueError
-from .etree import ElementType, NamespacesType, etree_tostring
+from .etree import etree_tostring
+from .typing import ElementType, NamespacesType
 from .helpers import get_namespace, get_prefixed_qname, local_name, raw_xml_encode
 from .converters import ElementData, XMLSchemaConverter
 from .resources import XMLResource

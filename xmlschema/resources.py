@@ -23,21 +23,14 @@ from elementpath.protocols import ElementProtocol
 
 from .exceptions import XMLSchemaTypeError, XMLSchemaValueError, XMLResourceError
 from .names import XML_NAMESPACE
-from .etree import ElementType, ElementTreeType, NamespacesType, XMLSourceType, \
-    ElementTree, PyElementTree, SafeXMLParser, etree_tostring
+from .etree import ElementTree, PyElementTree, SafeXMLParser, etree_tostring
+from .typing import ElementType, ElementTreeType, NamespacesType, XMLSourceType, \
+    NormalizedLocationsType, LocationsType, NsmapType, AncestorsType, ParentMapType
 from .helpers import get_namespace, is_etree_element, is_etree_document, \
     etree_iter_location_hints
 
 DEFUSE_MODES = frozenset(('never', 'remote', 'always'))
 SECURITY_MODES = frozenset(('all', 'remote', 'local', 'sandbox'))
-
-# Type Aliases
-NormalizedLocationsType = List[Tuple[str, str]]
-LocationsType = Union[Tuple[Tuple[str, str], ...], Dict[str, str], NormalizedLocationsType]
-NsmapType = Optional[Union[List[Tuple[str, str]], Dict[str, str]]]
-AncestorsType = Optional[List[ElementType]]
-ParentMapType = Optional[Dict[ElementType, Optional[ElementType]]]
-LazyType = Union[bool, int]
 
 ###
 # Restricted XPath parser for XML resources

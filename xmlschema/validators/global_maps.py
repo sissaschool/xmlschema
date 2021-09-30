@@ -14,7 +14,7 @@ import warnings
 from collections import Counter
 from functools import lru_cache
 from typing import TYPE_CHECKING, Any, Dict, List, Iterable, Iterator, \
-    Optional, Set, Union, Tuple, Type
+    Optional, Set, Union, Tuple
 
 from ..exceptions import XMLSchemaKeyError, XMLSchemaTypeError, XMLSchemaValueError, \
     XMLSchemaWarning
@@ -23,16 +23,15 @@ from ..names import XSD_NAMESPACE, XSD_REDEFINE, XSD_OVERRIDE, XSD_NOTATION, \
     XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ELEMENT, XSI_TYPE
 from ..helpers import get_qname, local_name, get_extended_qname
 from ..namespaces import NamespaceResourcesMap
-from . import XMLSchemaNotBuiltError, XMLSchemaModelError, XMLSchemaModelDepthError, \
-    XMLSchemaValidatorError, XsdValidator, XsdComponent, XsdAttribute, XsdType, \
-    XsdSimpleType, XsdComplexType, XsdElement, XsdAttributeGroup, XsdGroup, XsdNotation,\
-    XsdIdentity, XsdAssert, XsdUnion, XsdAtomicRestriction
+from .exceptions import XMLSchemaNotBuiltError, XMLSchemaModelError, XMLSchemaModelDepthError, \
+    XMLSchemaValidatorError
+from .xsdbase import XsdValidator, XsdComponent, XsdType, ComponentClassesType
 from .builtins import xsd_builtin_types_factory
+from . import XsdAttribute, XsdSimpleType, XsdComplexType, XsdElement, XsdAttributeGroup, \
+    XsdGroup, XsdNotation, XsdIdentity, XsdAssert, XsdUnion, XsdAtomicRestriction
 
 if TYPE_CHECKING:
     from .schema import XMLSchemaBase
-
-ComponentClassesType = Union[Type[XsdComponent], Tuple[Type[XsdComponent], ...]]
 
 
 #
@@ -422,7 +421,7 @@ class XsdGlobals(XsdValidator):
             assert isinstance(xsd_element, XsdElement)
             xsd_element.binding = None
 
-    def iter_components(self, xsd_classes: Optional[ComponentClassesType] = None) \
+    def iter_components(self, xsd_classes: ComponentClassesType = None) \
             -> Iterator[Union['XsdGlobals', XsdComponent]]:
         """Creates an iterator for the XSD components of built schemas."""
         if xsd_classes is None or isinstance(self, xsd_classes):

@@ -13,7 +13,7 @@ This module contains classes for XML Schema attributes and attribute groups.
 from decimal import Decimal
 from collections.abc import MutableMapping
 from elementpath.datatypes import AbstractDateTime, Duration, AbstractBinary
-from typing import Union, Dict, Optional
+from typing import Union, Dict, Optional, Iterator
 
 from ..exceptions import XMLSchemaValueError
 from ..names import XSI_NAMESPACE, XSD_ANY_SIMPLE_TYPE, XSD_SIMPLE_TYPE, \
@@ -50,13 +50,13 @@ class XsdAttribute(XsdComponent, ValidationMixin):
     _ADMITTED_TAGS = {XSD_ATTRIBUTE}
 
     name: str
-    type = None
-    qualified = False
-    default = None
-    fixed = None
-    form = None
-    use = 'optional'
-    inheritable = False  # For XSD 1.1 attributes, always False for XSD 1.0 attributes.
+    type: Optional[XsdSimpleType] = None
+    qualified: bool = False
+    default: Optional[str] = None
+    fixed: Optional[str] = None
+    form: Optional[str] = None
+    use: str = 'optional'
+    inheritable: bool = False  # For XSD 1.1 attributes, always False for XSD 1.0 attributes.
 
     def _parse(self):
         attrib = self.elem.attrib
@@ -169,36 +169,36 @@ class XsdAttribute(XsdComponent, ValidationMixin):
                 self.parse_error("xs:ID key attributes cannot have a fixed value")
 
     @property
-    def built(self):
+    def built(self) -> bool:
         return True
 
     @property
-    def validation_attempted(self):
+    def validation_attempted(self) -> str:
         return 'full'
 
     @property
-    def scope(self):
+    def scope(self) -> str:
         """The scope of the attribute declaration that can be 'global' or 'local'."""
         return 'global' if self.parent is None else 'local'
 
     @property
-    def value_constraint(self):
+    def value_constraint(self) -> Optional[str]:
         """The fixed or the default value if either is defined, `None` otherwise."""
         return self.fixed if self.fixed is not None else self.default
 
-    def is_optional(self):
+    def is_optional(self) -> bool:
         return self.use == 'optional'
 
-    def is_required(self):
+    def is_required(self) -> bool:
         return self.use == 'required'
 
-    def is_prohibited(self):
+    def is_prohibited(self) -> bool:
         return self.use == 'prohibited'
 
-    def is_empty(self):
+    def is_empty(self) -> bool:
         return self.fixed == '' or self.type.is_empty()
 
-    def iter_components(self, xsd_classes=None):
+    def iter_components(self, xsd_classes=None) -> Iterator[XsdComponent]:
         if xsd_classes is None or isinstance(self, xsd_classes):
             yield self
         if self.ref is None and self.type.parent is not None:

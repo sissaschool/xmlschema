@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, List, \
     Optional, Union, Tuple
 
 from ..etree import etree_element
+from ..typing import ElementType
 from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from ..names import XSD_NAMESPACE, XSD_ANY_TYPE, XSD_SIMPLE_TYPE, XSD_PATTERN, \
     XSD_ANY_ATOMIC_TYPE, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ANY_ATTRIBUTE, \
@@ -27,7 +28,7 @@ from ..helpers import get_prefixed_qname, local_name
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaEncodeError, \
     XMLSchemaDecodeError, XMLSchemaParseError
-from .xsdbase import XsdType, ValidationMixin
+from .xsdbase import XsdComponent, XsdType, ValidationMixin
 from .facets import XsdFacet, XsdWhiteSpaceFacet, XsdPatternFacets, \
     XsdEnumerationFacets, XsdAssertionFacet, XSD_10_FACETS_BUILDERS, \
     XSD_11_FACETS_BUILDERS, XSD_10_FACETS, XSD_11_FACETS, XSD_10_LIST_FACETS, \
@@ -36,6 +37,7 @@ from .facets import XsdFacet, XsdWhiteSpaceFacet, XsdPatternFacets, \
 
 if TYPE_CHECKING:
     from .complex_types import XsdComplexType
+    from .schema import XMLSchemaBase
 
 FacetsValueType = Union[XsdFacetType, Callable, List[XsdAssertionFacet]]
 
@@ -62,12 +64,17 @@ class XsdSimpleType(XsdType, ValidationMixin):
     patterns = None
     validators: Union[Tuple, List[Union[XsdFacetType, Callable]]] = ()
     allow_empty = True
-    facets: Dict[str, FacetsValueType]
+    facets: Dict[Optional[str], FacetsValueType]
 
     # Unicode string as default datatype for XSD simple types
     python_type = instance_types = to_python = from_python = str
 
-    def __init__(self, elem, schema, parent, name=None, facets=None):
+    def __init__(self, elem: ElementType,
+                 schema: 'XMLSchemaBase',
+                 parent: Optional[XsdComponent] = None,
+                 name: Optional[str] = None,
+                 facets: Dict[str, FacetsValueType] = None) -> None:
+
         super(XsdSimpleType, self).__init__(elem, schema, parent, name)
         if not hasattr(self, 'facets'):
             self.facets = facets or {}
@@ -432,7 +439,13 @@ class XsdAtomic(XsdSimpleType):
     _special_types = {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE}
     _ADMITTED_TAGS = {XSD_RESTRICTION, XSD_SIMPLE_TYPE}
 
-    def __init__(self, elem, schema, parent, name=None, facets=None, base_type=None):
+    def __init__(self, elem: ElementType,
+                 schema: 'XMLSchemaBase',
+                 parent: Optional[XsdComponent] = None,
+                 name: Optional[str] = None,
+                 facets: Dict[str, FacetsValueType] = None,
+                 base_type: Optional[XsdType] = None):
+
         if base_type is None:
             self.primitive_type = self
         else:
@@ -501,8 +514,13 @@ class XsdAtomicBuiltin(XsdAtomic):
       - to_python(value): Decoding from XML
       - from_python(value): Encoding to XML
     """
-    def __init__(self, elem, schema, name, python_type, base_type=None, admitted_facets=None,
-                 facets=None, to_python=None, from_python=None):
+    def __init__(self, elem: ElementType,
+                 schema: 'XMLSchemaBase',
+                 name: str,
+                 python_type: type,
+                 base_type: Optional['XsdAtomicBuiltin'] = None,
+                 admitted_facets=None,
+                 facets=None, to_python=None, from_python=None) -> None:
         """
         :param name: the XSD type's qualified name.
         :param python_type: the correspondent Python's type. If a tuple or list of types \
