@@ -1,0 +1,120 @@
+<?xml version="1.0"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+    <xs:complexType name="studentInfoHuelle" abstract="true"/>
+
+	<xs:complexType name="studentInfoMinimal">
+		<xs:complexContent>
+			<xs:extension base="studentInfoHuelle">
+				<xs:sequence>
+					<xs:element name="vorname" type="sbtTextNotEmpty" minOccurs="1"/>
+					<xs:element name="nachname" type="sbtTextNotEmpty" minOccurs="1"/>
+					<xs:element name="geburtsdatum" type="xs:date" minOccurs="1"/>
+					<xs:element name="geschlecht" type="geschlechtTyp" minOccurs="1"/>
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+
+	<xs:complexType name="studentInfoBasis">
+		<xs:complexContent>
+			<xs:extension base="studentInfoMinimal">
+				<xs:sequence>
+					<xs:element name="staatsbuergerschaft" type="staatTyp" minOccurs="0"/>
+					<xs:element name="akadgrad" type="akadTyp" minOccurs="0"/>
+					<xs:element name="akadnach" type="akadTyp" minOccurs="0"/>
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+
+	<xs:complexType name="studentInfoExtended">
+		<xs:complexContent>
+			<xs:extension base="studentInfoBasis">
+				<xs:sequence>
+					<xs:element name="bpk" type="bpkTyp" minOccurs="0"/>
+					<xs:element name="svnr" type="svnrTyp" minOccurs="0"/>
+					<xs:element name="ekz" type="ekzTyp" minOccurs="0"/>
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+
+	<xs:complexType name="studentInfoBasisAdressen">
+		<xs:complexContent>
+			<xs:extension base="studentInfoExtended">
+				<xs:sequence>
+					<xs:element name="adressen" type="adressenListe"/>
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+
+	<xs:complexType name="UniStudentInfo">
+		<xs:complexContent>
+			<xs:extension base="studentInfoBasisAdressen">
+				<xs:sequence>
+					<xs:element name="studierendenkey" type="Studierendenkey" minOccurs="1" maxOccurs="1"/>
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+
+  <xs:complexType name="FullStudentInfo">
+		<xs:complexContent>
+			<xs:extension base="UniStudentInfo">
+				<xs:sequence>
+                  <xs:element name="studienliste" type="studienliste"/>
+                  <xs:element name="studienbeitrag" type="KontostandUniInfo"/>
+                </xs:sequence>
+            </xs:extension>
+        </xs:complexContent>
+  </xs:complexType>
+
+	<!-- Dummy simple types for validating the issue's case -->
+
+	<xs:simpleType name="sbtTextNotEmpty">
+		<xs:restriction base="xs:string"/>
+	</xs:simpleType>
+
+	<xs:simpleType name="geschlechtTyp">
+		<xs:restriction base="xs:string"/>
+	</xs:simpleType>
+
+	<xs:simpleType name="staatTyp">
+		<xs:restriction base="xs:string"/>
+	</xs:simpleType>
+
+	<xs:simpleType name="akadTyp">
+		<xs:restriction base="xs:string"/>
+	</xs:simpleType>
+
+	<xs:simpleType name="bpkTyp">
+		<xs:restriction base="xs:string"/>
+	</xs:simpleType>
+
+	<xs:simpleType name="svnrTyp">
+		<xs:restriction base="xs:string"/>
+	</xs:simpleType>
+
+	<xs:simpleType name="ekzTyp">
+		<xs:restriction base="xs:string"/>
+	</xs:simpleType>
+
+	<xs:simpleType name="adressenListe">
+		<xs:restriction base="xs:string"/>
+	</xs:simpleType>
+
+	<xs:simpleType name="Studierendenkey">
+		<xs:restriction base="xs:string"/>
+	</xs:simpleType>
+
+	<xs:simpleType name="studienliste">
+		<xs:restriction base="xs:string"/>
+	</xs:simpleType>
+
+	<xs:simpleType name="KontostandUniInfo">
+		<xs:restriction base="xs:string"/>
+	</xs:simpleType>
+
+</xs:schema>

@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+  <xs:override schemaLocation="issue_265-1.xsd">
+    <xs:complexType name="FullStudentInfo">
+      <xs:complexContent>
+	<xs:extension base="UniStudentInfo">
+          <xs:sequence>
+	    <xs:element name="studienbeitrag" type="KontostandUniInfo" minOccurs="0"/>
+	  </xs:sequence>
+	</xs:extension>
+      </xs:complexContent>
+    </xs:complexType>
+  </xs:override>
+
+</xs:schema>

@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+  <xs:redefine schemaLocation="issue_265-1.xsd">
+      <xs:complexType name="FullStudentInfo">
+        <xs:complexContent>
+          <xs:restriction base="FullStudentInfo">
+            <xs:sequence>
+              <xs:element name="vorname" type="sbtTextNotEmpty" minOccurs="1"/>
+              <xs:element name="nachname" type="sbtTextNotEmpty" minOccurs="1"/>
+              <xs:element name="geburtsdatum" type="xs:date" minOccurs="1"/>
+              <xs:element name="geschlecht" type="geschlechtTyp" minOccurs="1"/>
+              <xs:element name="staatsbuergerschaft" type="staatTyp" minOccurs="0"/>
+              <xs:element name="akadgrad" type="akadTyp" minOccurs="0"/>
+              <xs:element name="akadnach" type="akadTyp" minOccurs="0"/>
+              <xs:element name="bpk" type="bpkTyp" minOccurs="0"/>
+              <xs:element name="svnr" type="svnrTyp" minOccurs="0"/>
+              <xs:element name="ekz" type="ekzTyp" minOccurs="0"/>
+              <xs:element name="adressen" type="adressenListe"/>
+              <xs:element name="studierendenkey" type="Studierendenkey" minOccurs="1" maxOccurs="1"/>
+              <xs:element name="studienbeitrag" type="KontostandUniInfo"/>
+            </xs:sequence>
+          </xs:restriction>
+        </xs:complexContent>
+      </xs:complexType>
+  </xs:redefine>
+
+</xs:schema>

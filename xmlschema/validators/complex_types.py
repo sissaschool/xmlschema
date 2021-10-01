@@ -178,17 +178,15 @@ class XsdComplexType(XsdType, ValidationMixin):
             if derivation_elem is None:
                 return
 
-            base_type = self._parse_base_type(derivation_elem, complex_content=True)
-            if base_type is not self:
-                self.base_type = base_type
-            elif self.redefine:
+            self.base_type = self._parse_base_type(derivation_elem, complex_content=True)
+            if self.base_type is self and self.redefine is not None:
                 self.base_type = self.redefine
                 self.open_content = None
 
             if derivation_elem.tag == XSD_RESTRICTION:
-                self._parse_complex_content_restriction(derivation_elem, base_type)
+                self._parse_complex_content_restriction(derivation_elem, self.base_type)
             else:
-                self._parse_complex_content_extension(derivation_elem, base_type)
+                self._parse_complex_content_extension(derivation_elem, self.base_type)
 
             if content_elem is not self.elem[-1]:
                 k = 2 if content_elem is not self.elem[0] else 1
@@ -242,16 +240,13 @@ class XsdComplexType(XsdType, ValidationMixin):
             self.attributes = self.schema.create_any_attribute_group(self)
             return
 
-        derivation = local_name(derivation_elem.tag)
-        if self.derivation is None:
-            self.derivation = derivation
-        elif self.redefine is None:
-            raise XMLSchemaValueError(
-                "%r is expected to have a redefined/overridden component" % self
-            )
+        if self.derivation is not None and self.redefine is None:
+            raise XMLSchemaValueError("{!r} is expected to have a redefined/"
+                                      "overridden component".format(self))
+        self.derivation = local_name(derivation_elem.tag)
 
-        if self.base_type is not None and derivation in self.base_type.final:
-            self.parse_error("%r derivation not allowed for %r." % (derivation, self))
+        if self.base_type is not None and self.derivation in self.base_type.final:
+            self.parse_error(f"{self.derivation!r} derivation not allowed for {self!r}")
         return derivation_elem
 
     def _parse_base_type(self, elem, complex_content=False):
