@@ -361,7 +361,7 @@ class XsdSimpleType(XsdType, ValidationMixin):
         return other.name in {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE} or self.is_derived(other) or \
             isinstance(other, XsdUnion) and any(self.is_derived(mt) for mt in other.member_types)
 
-    def normalize(self, text):
+    def normalize(self, text: str) -> str:
         """
         Normalize and restrict value-space with pre-lexical and lexical facets.
 
@@ -380,7 +380,7 @@ class XsdSimpleType(XsdType, ValidationMixin):
         else:
             return text
 
-    def text_decode(self, text):
+    def text_decode(self, text: str):
         return self.decode(text, validation='skip')
 
     def iter_decode(self, obj, validation='lax', **kwargs):

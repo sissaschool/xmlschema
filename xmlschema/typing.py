@@ -9,8 +9,13 @@
 #
 """Type aliases for static typing analysis."""
 
+from decimal import Decimal
 from typing import TYPE_CHECKING, Any, BinaryIO, Callable, Dict, List, \
     Iterator, Optional, TextIO, Tuple, Type, Union
+from elementpath.datatypes import NormalizedString, QName, Float10, Integer, \
+    Time, Base64Binary, HexBinary, AnyURI, Duration
+from elementpath.datatypes.datetime import OrderedDateTime
+
 
 from .etree import ElementTree
 
@@ -18,7 +23,8 @@ if TYPE_CHECKING:
     from .resources import XMLResource
     from .converters import XMLSchemaConverter
     from .dataobjects import DataElement
-    from .validators import XMLSchemaValidationError, XsdComponent, XMLSchemaBase
+    from .validators import XMLSchemaValidationError, XsdComponent, XMLSchemaBase, \
+        XsdComplexType, XsdSimpleType, XsdAtomicBuiltin, XsdAtomicRestriction, XsdUnion, XsdList
 else:
     XMLResource = Any
     XMLSchemaConverter = Any
@@ -26,6 +32,12 @@ else:
     XMLSchemaValidationError = Any
     XsdComponent = Any
     XMLSchemaBase = Any
+    XsdComplexType = Any
+    XsdSimpleType = Any
+    XsdAtomicBuiltin = Any
+    XsdAtomicRestriction = Any
+    XsdUnion = Any
+    XsdList = Any
 
 ##
 # Type aliases for ElementTree
@@ -50,15 +62,23 @@ LazyType = Union[bool, int]
 ##
 # Type aliases for XSD validators
 
+AtomicValueType = Union[str, int, float, Decimal, bool, Integer, Float10, NormalizedString,
+                        AnyURI, HexBinary, Base64Binary, QName, Duration]
+NumericValueType = Union[str, bytes, int, float, Decimal]
+DateTimeType = Union[OrderedDateTime, Time]
+FacetBaseType = Union[XsdSimpleType, XsdComplexType]
+
 SchemaSourceType = Union[str, bytes, BinaryIO, TextIO, ElementTree.Element,
                          ElementTree.ElementTree, XMLResource]
 ConverterType = Union[Type[XMLSchemaConverter], XMLSchemaConverter]
 ComponentClassesType = Union[None, Type[XsdComponent], Tuple[Type[XsdComponent], ...]]
 
-DecodeReturnType = Union[Any, List[Any],
-                         Tuple[None, List[XMLSchemaValidationError]],
-                         Tuple[Any, List[XMLSchemaValidationError]],
-                         Tuple[List[Any], List[XMLSchemaValidationError]]]
+DecodeReturnType = Union[Any, Tuple[Any, List[XMLSchemaValidationError]]]
+
+DecodeReturnTypeOld = Union[Any, List[Any],
+                            Tuple[None, List[XMLSchemaValidationError]],
+                            Tuple[Any, List[XMLSchemaValidationError]],
+                            Tuple[List[Any], List[XMLSchemaValidationError]]]
 
 EncodeReturnType = Union[None, ElementType, List[ElementType],
                          Tuple[None, List[XMLSchemaValidationError]],

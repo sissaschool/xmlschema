@@ -13,7 +13,7 @@ from decimal import Decimal
 from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from .names import XSI_SCHEMA_LOCATION, XSI_NONS_SCHEMA_LOCATION
-from .typing import ElementType
+from .typing import ElementType, AtomicValueType, NumericValueType
 
 ###
 # Helper functions for QNames
@@ -264,7 +264,7 @@ def prune_etree(root: ElementType, selector: Callable[[ElementType], bool]) \
     return None
 
 
-def count_digits(number: Union[str, bytes, int, float, Decimal]) -> Tuple[int, int]:
+def count_digits(number: NumericValueType) -> Tuple[int, int]:
     """
     Counts the digits of a number.
 
@@ -304,9 +304,8 @@ def strictly_equal(obj1: object, obj2: object) -> bool:
     return obj1 == obj2 and type(obj1) is type(obj2)
 
 
-def raw_xml_encode(
-    value: Optional[Union[str, bytes, bool, int, float, Decimal, List[str], Tuple[str]]]
-) -> Optional[str]:
+def raw_xml_encode(value: Union[None, AtomicValueType, List[AtomicValueType],
+                                Tuple[AtomicValueType, ...]]) -> Optional[str]:
     """Encodes a simple value to XML."""
     if isinstance(value, bool):
         return 'true' if value else 'false'
