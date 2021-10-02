@@ -37,9 +37,8 @@ from ..names import VC_MIN_VERSION, VC_MAX_VERSION, VC_TYPE_AVAILABLE, \
     XSD_IMPORT, XSD_REDEFINE, XSD_OVERRIDE, XSD_DEFAULT_OPEN_CONTENT, \
     XSD_ANY_SIMPLE_TYPE, XSD_UNION, XSD_LIST, XSD_RESTRICTION
 from ..etree import etree_element, ParseError
-from ..typing import ElementType, NamespacesType, LocationsType, SchemaSourceType, \
-    ConverterType, ComponentClassesType, ValidationSourceType, DecodeSourceType, \
-    DecodeReturnType, EncodeReturnType
+from ..typing import ElementType, XMLSourceType, NamespacesType, LocationsType, \
+    SchemaSourceType, ConverterType, ComponentClassesType, DecodeReturnType, EncodeReturnType
 from ..helpers import prune_etree, get_namespace, get_qname
 from ..namespaces import NamespaceResourcesMap, NamespaceView
 from ..resources import is_local_url, is_remote_url, url_path_is_file, \
@@ -240,6 +239,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin, metaclass=XMLSchemaMeta):
     :vartype elements: NamespaceView
     """
     source: XMLResource
+    namespaces: Dict[str, str]
     converter: Union[ConverterType]
     locations: NamespaceResourcesMap
     maps: XsdGlobals
@@ -1598,9 +1598,12 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin, metaclass=XMLSchemaMeta):
             )
         return '{%s}%s' % (namespace, local_name)
 
-    def validate(self, source: ValidationSourceType, path: Optional[str] = None,
-                 schema_path: Optional[str] = None, use_defaults: bool = True,
-                 namespaces: NamespacesType = None, max_depth: Optional[int] = None,
+    def validate(self, source: Union[XMLSourceType, XMLResource],
+                 path: Optional[str] = None,
+                 schema_path: Optional[str] = None,
+                 use_defaults: bool = True,
+                 namespaces: NamespacesType = None,
+                 max_depth: Optional[int] = None,
                  extra_validator: Optional[Callable] = None) -> None:
         """
         Validates an XML data against the XSD schema/component instance.
@@ -1628,9 +1631,12 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin, metaclass=XMLSchemaMeta):
                                       namespaces, max_depth, extra_validator):
             raise error
 
-    def is_valid(self, source: ValidationSourceType, path: Optional[str] = None,
-                 schema_path: Optional[str] = None, use_defaults: bool = True,
-                 namespaces: NamespacesType = None, max_depth: Optional[int] = None,
+    def is_valid(self, source: Union[XMLSourceType, XMLResource],
+                 path: Optional[str] = None,
+                 schema_path: Optional[str] = None,
+                 use_defaults: bool = True,
+                 namespaces: NamespacesType = None,
+                 max_depth: Optional[int] = None,
                  extra_validator: Optional[Callable] = None) -> bool:
         """
         Like :meth:`validate` except that does not raise an exception but returns
@@ -1640,9 +1646,12 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin, metaclass=XMLSchemaMeta):
                                       namespaces, max_depth, extra_validator), None)
         return error is None
 
-    def iter_errors(self, source: ValidationSourceType, path: Optional[str] = None,
-                    schema_path: Optional[str] = None, use_defaults: bool = True,
-                    namespaces: NamespacesType = None, max_depth: Optional[int] = None,
+    def iter_errors(self, source: Union[XMLSourceType, XMLResource],
+                    path: Optional[str] = None,
+                    schema_path: Optional[str] = None,
+                    use_defaults: bool = True,
+                    namespaces: NamespacesType = None,
+                    max_depth: Optional[int] = None,
                     extra_validator: Optional[Callable] = None) \
             -> Iterator[XMLSchemaValidationError]:
         """
@@ -1784,7 +1793,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin, metaclass=XMLSchemaMeta):
         if 'max_depth' not in kwargs:
             yield from self._validate_references(source, validation=validation, **kwargs)
 
-    def iter_decode(self, source: DecodeSourceType,
+    def iter_decode(self, source: Union[XMLSourceType, XMLResource],
                     path: Optional[str] = None,
                     schema_path: Optional[str] = None,
                     validation: str = 'lax',
@@ -1924,8 +1933,10 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin, metaclass=XMLSchemaMeta):
         if 'max_depth' not in kwargs:
             yield from self._validate_references(validation=validation, **kwargs)
 
-    def decode(self, source: DecodeSourceType, path: Optional[str] = None,
-               schema_path: Optional[str] = None, validation: str = 'strict',
+    def decode(self, source: Union[XMLSourceType, XMLResource],
+               path: Optional[str] = None,
+               schema_path: Optional[str] = None,
+               validation: str = 'strict',
                *args: Any, **kwargs: Any) -> DecodeReturnType:
         """
         Decodes XML data. Takes the same arguments of the method :func:`XMLSchema.iter_decode`.

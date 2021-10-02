@@ -11,7 +11,8 @@
 This module contains base functions and classes XML Schema components.
 """
 import re
-from typing import TYPE_CHECKING, Any, Dict, Iterator, Optional, Union, Set, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Iterator, Optional, Union, \
+    Set, Tuple
 
 import elementpath
 
@@ -20,8 +21,8 @@ from ..names import XSD_ANNOTATION, XSD_APPINFO, XSD_DOCUMENTATION, XML_LANG, \
     XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_ID, XSD_QNAME, \
     XSD_OVERRIDE, XSD_NOTATION_TYPE, XSD_DECIMAL
 from ..etree import is_etree_element, etree_tostring, etree_element
-from ..typing import ElementType, NamespacesType, ComponentClassesType, \
-    DecodeReturnType, EncodeReturnType
+from ..typing import ElementType, XMLSourceType, NamespacesType, ComponentClassesType, \
+    ExtraValidatorType, DecodeReturnType, EncodeReturnType, ToObjectsReturnType
 from ..helpers import get_qname, local_name, get_prefixed_qname
 from ..resources import XMLResource
 from .. import dataobjects
@@ -30,6 +31,7 @@ from .exceptions import XMLSchemaParseError, XMLSchemaValidationError
 if TYPE_CHECKING:
     from .simple_types import XsdSimpleType
     from .complex_types import XsdComplexType
+    from .elements import XsdElement
     from .groups import XsdGroup
     from .global_maps import XsdGlobals
     from .schema import XMLSchemaBase
@@ -67,13 +69,14 @@ class XsdValidator:
     """
     elem: Optional[etree_element] = None
     namespaces: Any = None
+    errors: List[XMLSchemaParseError]
 
-    def __init__(self, validation='strict'):
+    def __init__(self, validation: str = 'strict') -> None:
         self.validation = validation
         self.errors = []
 
     @property
-    def built(self):
+    def built(self) -> bool:
         """
         Property that is ``True`` if XSD validator has been fully parsed and built,
         ``False`` otherwise. For schemas the property is checked on all global
@@ -82,7 +85,7 @@ class XsdValidator:
         raise NotImplementedError()
 
     @property
-    def validation_attempted(self):
+    def validation_attempted(self) -> str:
         """
         Property that returns the *validation status* of the XSD validator.
         It can be 'full', 'partial' or 'none'.
@@ -93,7 +96,7 @@ class XsdValidator:
         raise NotImplementedError()
 
     @property
-    def validity(self):
+    def validity(self) -> str:
         """
         Property that returns the XSD validator's validity.
         It can be ‘valid’, ‘invalid’ or ‘notKnown’.
@@ -110,7 +113,8 @@ class XsdValidator:
         else:
             return 'notKnown'
 
-    def iter_components(self, xsd_classes: ComponentClassesType = None):
+    def iter_components(self, xsd_classes: ComponentClassesType = None) \
+            -> Iterator['XsdComponent']:
         """
         Creates an iterator for traversing all XSD components of the validator.
 
@@ -120,7 +124,7 @@ class XsdValidator:
         raise NotImplementedError()
 
     @property
-    def all_errors(self):
+    def all_errors(self) -> List[XMLSchemaParseError]:
         """
         A list with all the building errors of the XSD validator and its components.
         """
@@ -130,8 +134,8 @@ class XsdValidator:
                 errors.extend(comp.errors)
         return errors
 
-    def copy(self):
-        validator = object.__new__(self.__class__)
+    def copy(self) -> 'XsdValidator':
+        validator: 'XsdValidator' = object.__new__(self.__class__)
         validator.__dict__.update(self.__dict__)
         validator.errors = self.errors[:]  # shallow copy duplicates errors list
         return validator
@@ -220,7 +224,7 @@ class XsdValidator:
             raise error
         return error
 
-    def _parse_xpath_default_namespace(self, elem):
+    def _parse_xpath_default_namespace(self, elem: ElementType) -> Optional[str]:
         """
         Parse XSD 1.1 xpathDefaultNamespace attribute for schema, alternative, assert, assertion
         and selector declarations, checking if the value is conforming to the specification. In
@@ -235,9 +239,11 @@ class XsdValidator:
         if value == '##local':
             return ''
         elif value == '##defaultNamespace':
-            return getattr(self, 'default_namespace')
+            default_namespace = getattr(self, 'default_namespace', None)
+            return default_namespace if isinstance(default_namespace, str) else None
         elif value == '##targetNamespace':
-            return getattr(self, 'target_namespace')
+            target_namespace = getattr(self, 'target_namespace', '')
+            return target_namespace if isinstance(target_namespace, str) else ''
         elif len(value.split()) == 1:
             return value
         else:
@@ -263,18 +269,21 @@ class XsdComponent(XsdValidator):
     """
     _REGEX_SPACE = re.compile(r'\s')
     _REGEX_SPACES = re.compile(r'\s+')
-    _ADMITTED_TAGS: Union[Set[str], Tuple[str], Tuple] = ()
+    _ADMITTED_TAGS: Union[Set[str], Tuple[str, ...], Tuple[()]] = ()
 
     elem: etree_element
     parent = None
     name = None
-    ref = None
+    ref: Optional['XsdComponent'] = None
     qualified = True
     redefine = None
     _annotation = None
 
-    def __init__(self, elem: etree_element, schema: 'XMLSchemaBase',
-                 parent: Optional['XsdComponent'] = None, name: Optional[str] = None):
+    def __init__(self, elem: etree_element,
+                 schema: 'XMLSchemaBase',
+                 parent: Optional['XsdComponent'] = None,
+                 name: Optional[str] = None) -> None:
+
         super(XsdComponent, self).__init__(schema.validation)
         if name:
             self.name = name
@@ -284,7 +293,7 @@ class XsdComponent(XsdValidator):
         self.maps: XsdGlobals = schema.maps
         self.elem = elem
 
-    def __setattr__(self, name, value):
+    def __setattr__(self, name: str, value: Any) -> None:
         if name == 'elem':
             if value.tag not in self._ADMITTED_TAGS:
                 msg = "wrong XSD element {!r} for {!r}, must be one of {!r}"
@@ -313,17 +322,17 @@ class XsdComponent(XsdValidator):
         return any(self.elem in x for x in self.schema.root if x.tag == XSD_OVERRIDE)
 
     @property
-    def schema_elem(self):
+    def schema_elem(self) -> ElementType:
         """The reference element of the schema for the component instance."""
         return self.elem
 
     @property
-    def source(self):
+    def source(self) -> XMLResource:
         """Property that references to schema source."""
         return self.schema.source
 
     @property
-    def target_namespace(self):
+    def target_namespace(self) -> str:
         """Property that references to schema's targetNamespace."""
         return self.schema.target_namespace if self.ref is None else self.ref.target_namespace
 
@@ -338,22 +347,22 @@ class XsdComponent(XsdValidator):
         return self.schema.namespaces
 
     @property
-    def any_type(self):
+    def any_type(self) -> 'XsdType':
         """Property that references to the xs:anyType instance of the global maps."""
         return self.maps.types[XSD_ANY_TYPE]
 
     @property
-    def any_simple_type(self):
+    def any_simple_type(self) -> 'XsdType':
         """Property that references to the xs:anySimpleType instance of the global maps."""
         return self.maps.types[XSD_ANY_SIMPLE_TYPE]
 
     @property
-    def any_atomic_type(self):
+    def any_atomic_type(self) -> 'XsdType':
         """Property that references to the xs:anyAtomicType instance of the global maps."""
         return self.maps.types[XSD_ANY_ATOMIC_TYPE]
 
     @property
-    def annotation(self):
+    def annotation(self) -> Optional['XsdAnnotation']:
         if '_annotation' not in self.__dict__:
             for child in self.elem:
                 if child.tag == XSD_ANNOTATION:
@@ -367,16 +376,16 @@ class XsdComponent(XsdValidator):
 
         return self._annotation
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         if self.ref is not None:
             return '%s(ref=%r)' % (self.__class__.__name__, self.prefixed_name)
         else:
             return '%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
 
-    def _parse(self):
-        pass
+    def _parse(self) -> None:
+        return
 
-    def _parse_reference(self):
+    def _parse_reference(self) -> Optional[bool]:
         """
         Helper method for referable components. Returns `True` if a valid reference QName
         is found without any error, otherwise returns `None`. Sets an id-related name for
@@ -386,7 +395,7 @@ class XsdComponent(XsdValidator):
         ref = self.elem.get('ref')
         if ref is None:
             if 'name' in self.elem.attrib:
-                return
+                return None
             elif self.parent is None:
                 self.parse_error("missing attribute 'name' in a global %r" % type(self))
             else:
@@ -408,7 +417,10 @@ class XsdComponent(XsdValidator):
                                      "child definitions/declarations")
                 return True
 
-    def _parse_child_component(self, elem, strict=True):
+        return None
+
+    def _parse_child_component(self, elem: ElementType, strict: bool = True) \
+            -> Optional[ElementType]:
         child = None
         for e in elem:
             if e.tag == XSD_ANNOTATION or callable(e.tag):
@@ -423,7 +435,7 @@ class XsdComponent(XsdValidator):
                 child = e
         return child
 
-    def _parse_target_namespace(self):
+    def _parse_target_namespace(self) -> None:
         """
         XSD 1.1 targetNamespace attribute in elements and attributes declarations.
         """
@@ -443,9 +455,10 @@ class XsdComponent(XsdValidator):
                                  "its parent schema" % self.__class__.__name__)
 
             xsd_type = self.get_parent_type()
-            if not xsd_type or xsd_type.parent is not None:
+            if xsd_type is None or xsd_type.parent is not None:
                 pass
-            elif xsd_type.derivation != 'restriction' or xsd_type.base_type.name == XSD_ANY_TYPE:
+            elif xsd_type.derivation != 'restriction' or \
+                    getattr(xsd_type.base_type, 'name', None) == XSD_ANY_TYPE:
                 self.parse_error("a declaration contained in a global complexType "
                                  "must have the same namespace as its parent schema")
 
@@ -457,34 +470,35 @@ class XsdComponent(XsdValidator):
             self.name = '{%s}%s' % (self._target_namespace, local_name(self.name))
 
     @property
-    def local_name(self):
+    def local_name(self) -> Optional[str]:
         """The local part of the name of the component, or `None` if the name is `None`."""
         return None if self.name is None else local_name(self.name)
 
     @property
-    def qualified_name(self):
+    def qualified_name(self) -> Optional[str]:
         """The name of the component in extended format, or `None` if the name is `None`."""
-        return get_qname(self.target_namespace, self.name)
+        return None if self.name is None else get_qname(self.target_namespace, self.name)
 
     @property
-    def prefixed_name(self):
+    def prefixed_name(self) -> Optional[str]:
         """The name of the component in prefixed format, or `None` if the name is `None`."""
-        return get_prefixed_qname(self.name, self.namespaces)
+        return None if self.name is None else get_prefixed_qname(self.name, self.namespaces)
 
     @property
-    def id(self):
+    def id(self) -> Optional[str]:
         """The ``'id'`` attribute of the component tag, ``None`` if missing."""
         return self.elem.get('id')
 
     @property
-    def validation_attempted(self):
+    def validation_attempted(self) -> str:
         return 'full' if self.built else 'partial'
 
     @property
-    def built(self):
+    def built(self) -> bool:
         raise NotImplementedError()
 
-    def is_matching(self, name, default_namespace=None, **kwargs):
+    def is_matching(self, name: str, default_namespace: Optional[str] = None,
+                    **kwargs: Any) -> bool:
         """
         Returns `True` if the component name is matching the name provided as argument,
         `False` otherwise. For XSD elements the matching is extended to substitutes.
@@ -504,19 +518,22 @@ class XsdComponent(XsdValidator):
             qname = '{%s}%s' % (default_namespace, name)
             return self.qualified_name == qname or not self.qualified and self.local_name == name
 
-    def match(self, name, default_namespace=None, **kwargs):
+    def match(self, name: str, default_namespace: Optional[str] = None,
+              **kwargs: Any) -> Optional['XsdComponent']:
         """
         Returns the component if its name is matching the name provided as argument,
         `None` otherwise.
         """
         return self if self.is_matching(name, default_namespace, **kwargs) else None
 
-    def get_matching_item(self, mapping, ns_prefix='xmlns', match_local_name=False):
+    def get_matching_item(self, mapping: Dict[str, Any],
+                          ns_prefix: str = 'xmlns',
+                          match_local_name: bool = False) -> Optional[Any]:
         """
         If a key is matching component name, returns its value, otherwise returns `None`.
         """
         if self.name is None:
-            return
+            return None
         elif not self.target_namespace:
             return mapping.get(self.name)
         elif self.qualified_name in mapping:
@@ -542,9 +559,10 @@ class XsdComponent(XsdValidator):
                 pass
         else:
             if match_local_name:
-                return mapping.get(self.local_name)
+                return mapping.get(self.local_name)  # type: ignore[arg-type]
+            return None
 
-    def get_global(self):
+    def get_global(self) -> 'XsdComponent':
         """Returns the global XSD component that contains the component instance."""
         if self.parent is None:
             return self
@@ -553,6 +571,8 @@ class XsdComponent(XsdValidator):
             if component.parent is None:
                 return component
             component = component.parent
+        else:
+            return self
 
     def get_parent_type(self) -> Optional['XsdType']:
         """
@@ -564,6 +584,7 @@ class XsdComponent(XsdValidator):
             if isinstance(component, XsdType):
                 return component
             component = component.parent
+        return None
 
     def iter_components(self, xsd_classes: ComponentClassesType = None) \
             -> Iterator['XsdComponent']:
@@ -594,7 +615,8 @@ class XsdComponent(XsdValidator):
                 break
             yield ancestor
 
-    def tostring(self, indent='', max_lines=None, spaces_for_tab=4):
+    def tostring(self, indent: str = '', max_lines: Optional[int] = None,
+                 spaces_for_tab: int = 4) -> Union[str, bytes]:
         """Serializes the XML elements that declare or define the component to a string."""
         return etree_tostring(self.schema_elem, self.namespaces, indent, max_lines, spaces_for_tab)
 
@@ -683,7 +705,7 @@ class XsdType(XsdComponent):
         raise NotImplementedError()
 
     @property
-    def root_type(self):
+    def root_type(self) -> 'XsdType':
         """
         The root type of the type definition hierarchy. For an atomic type
         is the primitive type. For a list is the primitive type of the item.
@@ -694,14 +716,17 @@ class XsdType(XsdComponent):
         elif self.base_type is None:
             return self if self.is_simple() else self.maps.types[XSD_ANY_TYPE]
 
+        primitive_type: 'XsdType'
         try:
             if self.base_type.is_simple():
-                return self.base_type.primitive_type
+                primitive_type = self.base_type.primitive_type  # type: ignore[union-attr]
             else:
-                return self.base_type.content.primitive_type
+                primitive_type = self.base_type.content.primitive_type  # type: ignore[union-attr]
         except AttributeError:
             # The type has complex or XsdList content
             return self.base_type.root_type
+        else:
+            return primitive_type
 
     @property
     def simple_type(self) -> Optional['XsdSimpleType']:
@@ -796,7 +821,7 @@ class XsdType(XsdComponent):
     def is_restriction(self) -> bool:
         return self.derivation == 'restriction'
 
-    def is_blocked(self, xsd_element) -> bool:
+    def is_blocked(self, xsd_element: 'XsdElement') -> bool:
         """
         Returns `True` if the base type derivation is blocked, `False` otherwise.
         """
@@ -828,7 +853,7 @@ class XsdType(XsdComponent):
     def is_decimal(self) -> bool:
         return self.name == XSD_DECIMAL or self.is_derived(self.maps.types[XSD_DECIMAL])
 
-    def text_decode(self, text):
+    def text_decode(self, text: str) -> Any:
         raise NotImplementedError()
 
 
@@ -837,8 +862,11 @@ class ValidationMixin:
     Mixin for implementing XML data validators/decoders on XSD components.
     A derived class must implement the methods `iter_decode` and `iter_encode`.
     """
-    def validate(self, source, use_defaults=True, namespaces=None,
-                 max_depth=None, extra_validator=None):
+    def validate(self, source: Union[XMLSourceType, XMLResource],
+                 use_defaults: bool = True,
+                 namespaces: NamespacesType = None,
+                 max_depth: Optional[int] = None,
+                 extra_validator: ExtraValidatorType = None) -> None:
         """
         Validates XML data against the XSD schema/component instance.
 
@@ -860,8 +888,11 @@ class ValidationMixin:
                                       max_depth, extra_validator):
             raise error
 
-    def is_valid(self, source, use_defaults=True, namespaces=None,
-                 max_depth=None, extra_validator=None):
+    def is_valid(self, source: Union[XMLSourceType, XMLResource],
+                 use_defaults: bool = True,
+                 namespaces: NamespacesType = None,
+                 max_depth: Optional[int] = None,
+                 extra_validator: ExtraValidatorType = None) -> bool:
         """
         Like :meth:`validate` except that does not raise an exception but returns
         ``True`` if the XML data instance is valid, ``False`` if it is invalid.
@@ -870,13 +901,17 @@ class ValidationMixin:
                                       max_depth, extra_validator), None)
         return error is None
 
-    def iter_errors(self, source, use_defaults=True, namespaces=None,
-                    max_depth=None, extra_validator=None):
+    def iter_errors(self, source: Union[XMLSourceType, XMLResource],
+                    use_defaults: bool = True,
+                    namespaces: NamespacesType = None,
+                    max_depth: Optional[int] = None,
+                    extra_validator: ExtraValidatorType = None) \
+            -> Iterator[XMLSchemaValidationError]:
         """
         Creates an iterator for the errors generated by the validation of an XML data against
         the XSD schema/component instance. Accepts the same arguments of :meth:`validate`.
         """
-        kwargs = {
+        kwargs: Dict[str, Any] = {
             'use_defaults': use_defaults,
             'namespaces': namespaces,
         }
@@ -891,7 +926,8 @@ class ValidationMixin:
             else:
                 del result
 
-    def decode(self, source, validation='strict', **kwargs) -> 'DecodeReturnType':
+    def decode(self, source: Union[XMLSourceType, XMLResource],
+               validation: str = 'strict', **kwargs: Any) -> DecodeReturnType:
         """
         Decodes XML data.
 
@@ -921,8 +957,8 @@ class ValidationMixin:
 
         return (result, errors) if validation == 'lax' else result
 
-    def to_objects(self, source: Union[str, dict, ElementType],
-                   with_bindings: bool = False, **kwargs):
+    def to_objects(self, source: Union[XMLSourceType, XMLResource],
+                   with_bindings: bool = False, **kwargs: Any) -> ToObjectsReturnType:
         """
         Decodes XML data to Python data objects.
 
@@ -966,8 +1002,8 @@ class ValidationMixin:
 
         return (result, errors) if validation == 'lax' else result
 
-    def iter_decode(self, source: object, validation: str = 'lax', **kwargs: object) \
-            -> Iterator[object]:
+    def iter_decode(self, source: Union[XMLSourceType, XMLResource],
+                    validation: str = 'lax', **kwargs: Any) -> Iterator[object]:
         """
         Creates an iterator for decoding an XML source to a Python object.
 
@@ -979,7 +1015,7 @@ class ValidationMixin:
         """
         raise NotImplementedError()
 
-    def iter_encode(self, obj: object, validation: str = 'lax', **kwargs: object) \
+    def iter_encode(self, obj: object, validation: str = 'lax', **kwargs: Any) \
             -> Iterator[object]:
         """
         Creates an iterator for encoding data to an Element tree.

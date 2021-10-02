@@ -9,22 +9,30 @@
 #
 """Type aliases for static typing analysis."""
 
-from typing import TYPE_CHECKING, Any, AnyStr, Dict, IO, List, Optional, Tuple, Type, Union
+from typing import TYPE_CHECKING, Any, BinaryIO, Callable, Dict, List, \
+    Iterator, Optional, TextIO, Tuple, Type, Union
 
 from .etree import ElementTree
 
 if TYPE_CHECKING:
     from .resources import XMLResource
     from .converters import XMLSchemaConverter
-    from .validators import XMLSchemaValidationError, XsdComponent
-
+    from .dataobjects import DataElement
+    from .validators import XMLSchemaValidationError, XsdComponent, XMLSchemaBase
+else:
+    XMLResource = Any
+    XMLSchemaConverter = Any
+    DataElement = Any
+    XMLSchemaValidationError = Any
+    XsdComponent = Any
+    XMLSchemaBase = Any
 
 ##
 # Type aliases for ElementTree
 
 ElementType = ElementTree.Element
 ElementTreeType = ElementTree.ElementTree
-XMLSourceType = Union[str, bytes, IO[AnyStr], ElementType, ElementTreeType]
+XMLSourceType = Union[str, bytes, BinaryIO, TextIO, ElementType, ElementTreeType]
 NamespacesType = Optional[Dict[str, str]]
 
 
@@ -42,28 +50,30 @@ LazyType = Union[bool, int]
 ##
 # Type aliases for XSD validators
 
-SchemaSourceType = Union[str, IO, ElementTree.Element,
-                         ElementTree.ElementTree, 'XMLResource']
-ConverterType = Union[Type['XMLSchemaConverter'], 'XMLSchemaConverter']
-ValidationSourceType = Union[XMLSourceType, 'XMLResource']
-DecodeSourceType = ValidationSourceType
+SchemaSourceType = Union[str, bytes, BinaryIO, TextIO, ElementTree.Element,
+                         ElementTree.ElementTree, XMLResource]
+ConverterType = Union[Type[XMLSchemaConverter], XMLSchemaConverter]
+ComponentClassesType = Union[None, Type[XsdComponent], Tuple[Type[XsdComponent], ...]]
 
-
-ComponentClassesType = Union[None, Type['XsdComponent'], Tuple[Type['XsdComponent'], ...]]
-SourceType = Union[str, ElementType]
 DecodeReturnType = Union[Any, List[Any],
-                         Tuple[None, List['XMLSchemaValidationError']],
-                         Tuple[Any, List['XMLSchemaValidationError']],
-                         Tuple[List[Any], List['XMLSchemaValidationError']]]
+                         Tuple[None, List[XMLSchemaValidationError]],
+                         Tuple[Any, List[XMLSchemaValidationError]],
+                         Tuple[List[Any], List[XMLSchemaValidationError]]]
 
 EncodeReturnType = Union[None, ElementType, List[ElementType],
-                         Tuple[None, List['XMLSchemaValidationError']],
-                         Tuple[ElementType, List['XMLSchemaValidationError']],
-                         Tuple[List[ElementType], List['XMLSchemaValidationError']]]
+                         Tuple[None, List[XMLSchemaValidationError]],
+                         Tuple[ElementType, List[XMLSchemaValidationError]],
+                         Tuple[List[ElementType], List[XMLSchemaValidationError]]]
+
+ToObjectsReturnType = Union[DataElement, List[DataElement],
+                            Tuple[None, List[XMLSchemaValidationError]],
+                            Tuple[DataElement, List[XMLSchemaValidationError]],
+                            Tuple[List[DataElement], List[XMLSchemaValidationError]]]
+
+ExtraValidatorType = Optional[Callable[[ElementType, XMLSchemaBase], Optional[Iterator[Any]]]]
 
 ##
 # Type aliases for XML documents API
 
-XMLDocumentType = Union[XMLSourceType, 'XMLResource']
-JsonDecodeReturnType = Union[str, None, Tuple['XMLSchemaValidationError', ...],
-                             Tuple[Union[str, None], Tuple['XMLSchemaValidationError', ...]]]
+JsonDecodeReturnType = Union[str, None, Tuple[XMLSchemaValidationError, ...],
+                             Tuple[Union[str, None], Tuple[XMLSchemaValidationError, ...]]]
