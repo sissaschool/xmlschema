@@ -8,17 +8,25 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import threading
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Dict, Iterator, Optional, Union
 from elementpath import XPath2Parser, XPathContext, XPathToken, ElementPathError
 
+from ..typing import ElementType, NamespacesType
 from ..names import XSD_ASSERT
 from ..xpath import ElementPathMixin, XMLSchemaProxy
 
-from .exceptions import XMLSchemaValidationError
+from .exceptions import XMLSchemaNotBuiltError, XMLSchemaValidationError
 from .xsdbase import XsdComponent
+from .groups import XsdGroup
+
 
 if TYPE_CHECKING:
+    from ..resources import XMLResource
+    from .attributes import XsdAttributeGroup
     from .complex_types import XsdComplexType
+    from .elements import XsdElement
+    from .wildcards import XsdAnyElement
+    from .schema import XMLSchemaBase
 
 
 class XsdAssert(XsdComponent, ElementPathMixin):
@@ -39,27 +47,31 @@ class XsdAssert(XsdComponent, ElementPathMixin):
     parser: Optional[XPath2Parser] = None
     path = 'true()'
 
-    def __init__(self, elem, schema, parent, base_type):
+    def __init__(self, elem: ElementType,
+                 schema: 'XMLSchemaBase',
+                 parent: 'XsdComplexType',
+                 base_type: 'XsdComplexType') -> None:
+
         self._xpath_lock = threading.Lock()
         self.base_type = base_type
         super(XsdAssert, self).__init__(elem, schema, parent)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         if len(self.path) < 40:
             return '%s(test=%r)' % (self.__class__.__name__, self.path)
         else:
             return '%s(test=%r)' % (self.__class__.__name__, self.path[:37] + '...')
 
-    def __getstate__(self):
+    def __getstate__(self) -> Dict[str, Any]:
         state = self.__dict__.copy()
         state.pop('_xpath_lock', None)
         return state
 
-    def __setstate__(self, state):
+    def __setstate__(self, state: Any) -> None:
         self.__dict__.update(state)
         self._xpath_lock = threading.Lock()
 
-    def _parse(self):
+    def _parse(self) -> None:
         if self.base_type.is_simple():
             self.parse_error("base_type=%r is not a complexType definition" % self.base_type)
         else:
@@ -74,10 +86,10 @@ class XsdAssert(XsdComponent, ElementPathMixin):
             self.xpath_default_namespace = self.schema.xpath_default_namespace
 
     @property
-    def built(self):
-        return self.token is not None and (self.base_type.parent is None or self.base_type.built)
+    def built(self) -> bool:
+        return self.parser is not None and self.token is not None
 
-    def build(self):
+    def build(self) -> None:
         # Assert requires a schema bound parser because select
         # is on XML elements and with XSD type decoded values
         self.parser = XPath2Parser(
@@ -96,7 +108,15 @@ class XsdAssert(XsdComponent, ElementPathMixin):
         finally:
             self.parser.variable_types.clear()
 
-    def __call__(self, elem, value=None, namespaces=None, source=None, **kwargs):
+    def __call__(self, elem: ElementType,
+                 value: Any = None,
+                 namespaces: NamespacesType = None,
+                 source: Optional['XMLResource'] = None,
+                 **kwargs: Any) -> Iterator[XMLSchemaValidationError]:
+
+        if self.parser is None or self.token is None:
+            raise XMLSchemaNotBuiltError(self, "schema bound parser not set")
+
         with self._xpath_lock:
             if not self.parser.is_schema_bound():
                 self.parser.schema.bind_parser(self.parser)
@@ -116,18 +136,18 @@ class XsdAssert(XsdComponent, ElementPathMixin):
             yield XMLSchemaValidationError(self, obj=elem, reason=str(err))
 
     # For implementing ElementPathMixin
-    def __iter__(self):
-        if not self.parent.has_simple_content():
+    def __iter__(self) -> Iterator[Union['XsdElement', 'XsdAnyElement']]:
+        if isinstance(self.parent.content, XsdGroup):
             yield from self.parent.content.iter_elements()
 
     @property
-    def attrib(self):
+    def attrib(self) -> 'XsdAttributeGroup':
         return self.parent.attributes
 
     @property
-    def type(self):
+    def type(self) -> 'XsdComplexType':
         return self.parent
 
     @property
-    def xpath_proxy(self):
+    def xpath_proxy(self) -> 'XMLSchemaProxy':
         return XMLSchemaProxy(self.schema, self)

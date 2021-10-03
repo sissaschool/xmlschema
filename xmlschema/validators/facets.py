@@ -15,13 +15,12 @@ import math
 import operator
 from abc import abstractmethod
 from typing import TYPE_CHECKING, cast, Any, List, Optional, Pattern, Union, \
-    MutableSequence, overload, Callable
-from elementpath import XPath2Parser, XPathContext, ElementPathError, \
+    MutableSequence, overload, Callable, Type
+from elementpath import XPath2Parser, XPathToken, XPathContext, ElementPathError, \
     translate_pattern, RegexError
 
 from ..etree import etree_element
-from ..typing import ElementType, AtomicValueType, NumericValueType, DateTimeType, \
-    FacetBaseType
+from ..typing import ElementType, AtomicValueType, FacetBaseType
 from ..names import XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_ENUMERATION, \
     XSD_INTEGER, XSD_WHITE_SPACE, XSD_PATTERN, XSD_MAX_INCLUSIVE, XSD_MAX_EXCLUSIVE, \
     XSD_MIN_INCLUSIVE, XSD_MIN_EXCLUSIVE, XSD_TOTAL_DIGITS, XSD_FRACTION_DIGITS, \
@@ -409,7 +408,7 @@ class XsdTotalDigitsFacet(XsdFacet):
                     "invalid restriction: base value is lower ({})".format(facet.value)
                 )
 
-    def __call__(self, value: NumericValueType) -> None:
+    def __call__(self, value: Any) -> None:
         try:
             if operator.add(*count_digits(value)) <= self.value:
                 return
@@ -747,13 +746,13 @@ XsdAssertionXPathParser.unregister('position')
 
 # noinspection PyUnusedLocal
 @XsdAssertionXPathParser.method(XsdAssertionXPathParser.function('last', nargs=0))
-def evaluate_last(self, context=None):
+def evaluate_last(self: XPathToken, context: Optional[XPathContext] = None) -> None:
     raise self.missing_context("context item size is undefined")
 
 
 # noinspection PyUnusedLocal
 @XsdAssertionXPathParser.method(XsdAssertionXPathParser.function('position', nargs=0))
-def evaluate_position(self, context=None):
+def evaluate_position(self: XPathToken, context: Optional[XPathContext] = None) -> None:
     raise self.missing_context("context item position is undefined")
 
 

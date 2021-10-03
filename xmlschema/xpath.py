@@ -12,7 +12,7 @@ This module defines a proxy class and a mixin class for enabling XPath on schema
 """
 from abc import abstractmethod
 from collections.abc import Sequence
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional, Union
 import re
 
 from elementpath import AttributeNode, TypedElement, XPath2Parser, \
@@ -21,6 +21,11 @@ from elementpath import AttributeNode, TypedElement, XPath2Parser, \
 from .names import XSD_NAMESPACE
 from .helpers import get_qname, local_name, get_prefixed_qname
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
+
+if TYPE_CHECKING:
+    from .validators import XMLSchemaBase, XsdElement, XsdAssert
+
+BaseElementType = Union['XsdElement', 'XsdAssert']
 
 _REGEX_TAG_POSITION = re.compile(r'\b\[\d+]')
 
@@ -76,7 +81,9 @@ class XMLSchemaContext(XPathSchemaContext):
 
 class XMLSchemaProxy(AbstractSchemaProxy):
     """XPath schema proxy for the *xmlschema* library."""
-    def __init__(self, schema=None, base_element=None):
+    def __init__(self, schema: Optional['XMLSchemaBase'] = None,
+                 base_element: Optional[BaseElementType] = None) -> None:
+
         if schema is None:
             from xmlschema import XMLSchema
             schema = XMLSchema.meta_schema
@@ -89,7 +96,7 @@ class XMLSchemaProxy(AbstractSchemaProxy):
             except AttributeError:
                 raise XMLSchemaTypeError("%r is not an XsdElement" % base_element)
 
-    def bind_parser(self, parser):
+    def bind_parser(self, parser: XPath2Parser) -> None:
         parser.schema = self
         parser.symbol_table = parser.__class__.symbol_table.copy()
 

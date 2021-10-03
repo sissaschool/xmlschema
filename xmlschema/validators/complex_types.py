@@ -21,6 +21,7 @@ from .. import dataobjects
 from .exceptions import XMLSchemaDecodeError
 from .helpers import get_xsd_derivation_attribute
 from .xsdbase import XSD_TYPE_DERIVATIONS, XsdComponent, XsdType, ValidationMixin
+from .attributes import XsdAttributeGroup
 from .assertions import XsdAssert
 from .simple_types import FacetsValueType, XsdSimpleType
 from .groups import XsdGroup
@@ -49,11 +50,13 @@ class XsdComplexType(XsdType, ValidationMixin):
           ((group | all | choice | sequence)?, ((attribute | attributeGroup)*, anyAttribute?))))
         </complexType>
     """
+    attributes: XsdAttributeGroup
+    content: Union[XsdGroup, XsdSimpleType] = None  # type: ignore[assignment]
+
     abstract: bool = False
     mixed: bool = False
     assertions = ()
     open_content = None
-    content: Union[XsdGroup, XsdSimpleType] = None  # type: ignore[assignment]
     default_open_content = None
     _block = None
 

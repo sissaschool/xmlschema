@@ -22,7 +22,7 @@ from ..names import XSD_ANNOTATION, XSD_APPINFO, XSD_DOCUMENTATION, XML_LANG, \
     XSD_OVERRIDE, XSD_NOTATION_TYPE, XSD_DECIMAL
 from ..etree import is_etree_element, etree_tostring, etree_element
 from ..typing import ElementType, XMLSourceType, NamespacesType, ComponentClassesType, \
-    ExtraValidatorType, DecodeReturnType, EncodeReturnType, ToObjectsReturnType
+    ExtraValidatorType, DecodeReturnType, ToObjectsReturnType
 from ..helpers import get_qname, local_name, get_prefixed_qname
 from ..resources import XMLResource
 from .. import dataobjects
@@ -224,7 +224,7 @@ class XsdValidator:
             raise error
         return error
 
-    def _parse_xpath_default_namespace(self, elem: ElementType) -> Optional[str]:
+    def _parse_xpath_default_namespace(self, elem: ElementType) -> str:
         """
         Parse XSD 1.1 xpathDefaultNamespace attribute for schema, alternative, assert, assertion
         and selector declarations, checking if the value is conforming to the specification. In
@@ -240,7 +240,7 @@ class XsdValidator:
             return ''
         elif value == '##defaultNamespace':
             default_namespace = getattr(self, 'default_namespace', None)
-            return default_namespace if isinstance(default_namespace, str) else None
+            return default_namespace if isinstance(default_namespace, str) else ''
         elif value == '##targetNamespace':
             target_namespace = getattr(self, 'target_namespace', '')
             return target_namespace if isinstance(target_namespace, str) else ''
