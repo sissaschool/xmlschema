@@ -46,7 +46,7 @@ class TestHelpers(unittest.TestCase):
             'a1': 'extension', 'a2': ' restriction', 'a3': '#all', 'a4': 'other',
             'a5': 'restriction extension restriction ', 'a6': 'other restriction'
         })
-        values = ('extension', 'restriction')
+        values = {'extension', 'restriction'}
         self.assertEqual(get_xsd_derivation_attribute(elem, 'a1', values), 'extension')
         self.assertEqual(get_xsd_derivation_attribute(elem, 'a2', values), ' restriction')
         self.assertEqual(get_xsd_derivation_attribute(elem, 'a3', values), 'extension restriction')

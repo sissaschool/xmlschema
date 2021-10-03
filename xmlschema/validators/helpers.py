@@ -9,7 +9,7 @@
 #
 from decimal import Decimal
 from math import isinf, isnan
-from typing import Optional, Union
+from typing import Optional, Set, Union
 from xml.etree.ElementTree import Element
 from elementpath import datatypes
 
@@ -20,7 +20,7 @@ XSD_FINAL_ATTRIBUTE_VALUES = {'restriction', 'extension', 'list', 'union'}
 
 
 def get_xsd_derivation_attribute(elem: Element, attribute: str,
-                                 values: Optional[set] = None) -> str:
+                                 values: Optional[Set[str]] = None) -> str:
     """
     Get a derivation attribute (maybe 'block', 'blockDefault', 'final' or 'finalDefault')
     checking the items with the values arguments. Returns a string.

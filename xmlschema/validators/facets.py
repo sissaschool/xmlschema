@@ -15,7 +15,7 @@ import math
 import operator
 from abc import abstractmethod
 from typing import TYPE_CHECKING, cast, Any, List, Optional, Pattern, Union, \
-    MutableSequence, overload, Callable, Type
+    MutableSequence, overload
 from elementpath import XPath2Parser, XPathToken, XPathContext, ElementPathError, \
     translate_pattern, RegexError
 
@@ -746,13 +746,13 @@ XsdAssertionXPathParser.unregister('position')
 
 # noinspection PyUnusedLocal
 @XsdAssertionXPathParser.method(XsdAssertionXPathParser.function('last', nargs=0))
-def evaluate_last(self: XPathToken, context: Optional[XPathContext] = None) -> None:
+def evaluate_last(self, context=None):  # type: ignore[no-untyped-def]
     raise self.missing_context("context item size is undefined")
 
 
 # noinspection PyUnusedLocal
 @XsdAssertionXPathParser.method(XsdAssertionXPathParser.function('position', nargs=0))
-def evaluate_position(self: XPathToken, context: Optional[XPathContext] = None) -> None:
+def evaluate_position(self, context=None):  # type: ignore[no-untyped-def]
     raise self.missing_context("context item position is undefined")
 
 
