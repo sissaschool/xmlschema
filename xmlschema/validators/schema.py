@@ -342,27 +342,30 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin, metaclass=XMLSchemaMeta):
         self._root_elements = None
         root = cast(etree_element, self.source.root)
 
-        # Get the schema's namespaces, the XML namespace is implicitly declared.
-        self.namespaces = self.source.get_namespaces(namespaces={'xml': XML_NAMESPACE})
-
-        try:
+        # Initialize schema's namespaces, the XML namespace is implicitly declared.
+        if 'targetNamespace' in root.attrib:
             self.target_namespace = root.attrib['targetNamespace'].strip()
-        except KeyError:
-            pass
-        else:
-            if self.target_namespace == '':
+            self.namespaces = self.source.get_namespaces({'xml': XML_NAMESPACE})
+
+            if not self.target_namespace:
                 # https://www.w3.org/TR/2004/REC-xmlschema-1-20041028/structures.html#element-schema
                 self.parse_error("the attribute 'targetNamespace' cannot be an empty string", root)
-
-        if namespace is not None and self.target_namespace != namespace:
-            if self.target_namespace:
+            elif namespace is not None and self.target_namespace != namespace:
                 msg = "wrong namespace (%r instead of %r) for XSD resource %s"
                 self.parse_error(msg % (self.target_namespace, namespace, self.url), root)
 
-            # Chameleon schema case: set the target namespace and the default namespace
-            self.target_namespace = namespace
-            if '' not in self.namespaces:
-                self.namespaces[''] = namespace
+        if not self.target_namespace:
+            # Without a target namespace, insert the default namespace after
+            # read root namespace declarations, to avoid internal overrides.
+            namespaces = self.source.get_namespaces({'xml': XML_NAMESPACE}, root_only=True)
+
+            if namespace is not None:
+                # Chameleon schema case: set the target namespace and the default namespace
+                self.target_namespace = namespace
+
+            if '' not in namespaces:
+                namespaces[''] = self.target_namespace
+            self.namespaces = self.source.get_namespaces(namespaces)
 
         logger.debug("Schema targetNamespace is %r", self.target_namespace)
         logger.debug("Declared namespaces: %r", self.namespaces)

@@ -1,0 +1,15 @@
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+ <xsd:element name="TestField" type="TestFieldType">
+    <xsd:annotation>
+        <xsd:documentation>
+            <h:div xmlns:h="http://www.w3.org/1999/xhtml">
+               <h:h3>Some documentation</h:h3>
+            </h:div>
+         </xsd:documentation>
+      </xsd:annotation>
+ </xsd:element>
+ <xsd:complexType name="TestFieldType">
+    <xsd:attribute name="testattribute" use="optional" type="xsd:string"/>
+ </xsd:complexType>
+</xsd:schema>
+

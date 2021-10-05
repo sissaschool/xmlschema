@@ -1,0 +1,3 @@
+<TestField xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+           xsi:noNamespaceSchemaLocation="issue_266-1.xsd"
+           testattribute="foo" />
