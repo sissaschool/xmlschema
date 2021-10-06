@@ -55,7 +55,7 @@ from .notations import XsdNotation
 from .identities import XsdIdentity, XsdKey, XsdKeyref, XsdUnique, \
     Xsd11Key, Xsd11Unique, Xsd11Keyref, IdentityCounter
 from .facets import XSD_10_FACETS, XSD_11_FACETS
-from .simple_types import XsdList, XsdUnion, XsdAtomicRestriction, \
+from .simple_types import XsdSimpleType, XsdList, XsdUnion, XsdAtomicRestriction, \
     Xsd11AtomicRestriction, Xsd11Union
 from .attributes import XsdAttribute, XsdAttributeGroup, Xsd11Attribute
 from .complex_types import XsdComplexType, Xsd11ComplexType
@@ -747,7 +747,9 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin, metaclass=XMLSchemaMeta):
                 meta_schema.import_schema(namespace=ns, location=location)
         return meta_schema
 
-    def simple_type_factory(self, elem, schema=None, parent=None):
+    def simple_type_factory(self, elem: ElementType,
+                            schema: Optional['XMLSchemaBase'] = None,
+                            parent: Optional[XsdComponent] = None) -> XsdSimpleType:
         """
         Factory function for XSD simple types. Parses the xs:simpleType element and its
         child component, that can be a restriction, a list or an union. Annotations are

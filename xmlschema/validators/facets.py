@@ -16,7 +16,7 @@ import operator
 from abc import abstractmethod
 from typing import TYPE_CHECKING, cast, Any, List, Optional, Pattern, Union, \
     MutableSequence, overload
-from elementpath import XPath2Parser, XPathToken, XPathContext, ElementPathError, \
+from elementpath import XPath2Parser, XPathContext, ElementPathError, \
     translate_pattern, RegexError
 
 from ..etree import etree_element
@@ -647,6 +647,7 @@ class XsdPatternFacets(MutableSequence[ElementType], XsdFacet):
         </pattern>
     """
     _ADMITTED_TAGS = {XSD_PATTERN}
+    patterns: List[Pattern[str]]
 
     def __init__(self, elem: ElementType,
                  schema: 'XMLSchemaBase',

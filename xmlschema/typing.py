@@ -11,7 +11,7 @@
 
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, BinaryIO, Callable, Dict, List, \
-    Iterator, Optional, TextIO, Tuple, Type, Union
+    Iterator, Optional, TextIO, Tuple, Type, TypeVar, Union
 from elementpath.datatypes import NormalizedString, QName, Float10, Integer, \
     Time, Base64Binary, HexBinary, AnyURI, Duration
 from elementpath.datatypes.datetime import OrderedDateTime
@@ -73,12 +73,11 @@ SchemaSourceType = Union[str, bytes, BinaryIO, TextIO, ElementTree.Element,
 ConverterType = Union[Type[XMLSchemaConverter], XMLSchemaConverter]
 ComponentClassesType = Union[None, Type[XsdComponent], Tuple[Type[XsdComponent], ...]]
 
-DecodeReturnType = Union[Any, Tuple[Any, List[XMLSchemaValidationError]]]
+D = TypeVar('D')
+DecodeReturnType = Union[D, Tuple[D, List[XMLSchemaValidationError]]]
 
-DecodeReturnTypeOld = Union[Any, List[Any],
-                            Tuple[None, List[XMLSchemaValidationError]],
-                            Tuple[Any, List[XMLSchemaValidationError]],
-                            Tuple[List[Any], List[XMLSchemaValidationError]]]
+E = TypeVar('E')
+EncodeReturnType = Union[E, Tuple[E, List[XMLSchemaValidationError]]]
 
 EncodeReturnType = Union[None, ElementType, List[ElementType],
                          Tuple[None, List[XMLSchemaValidationError]],

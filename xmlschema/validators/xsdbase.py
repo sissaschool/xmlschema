@@ -22,14 +22,14 @@ from ..names import XSD_ANNOTATION, XSD_APPINFO, XSD_DOCUMENTATION, XML_LANG, \
     XSD_OVERRIDE, XSD_NOTATION_TYPE, XSD_DECIMAL
 from ..etree import is_etree_element, etree_tostring, etree_element
 from ..typing import ElementType, XMLSourceType, NamespacesType, ComponentClassesType, \
-    ExtraValidatorType, DecodeReturnType, ToObjectsReturnType
+    ExtraValidatorType, DecodeReturnType, EncodeReturnType, ToObjectsReturnType
 from ..helpers import get_qname, local_name, get_prefixed_qname
 from ..resources import XMLResource
 from .. import dataobjects
 from .exceptions import XMLSchemaParseError, XMLSchemaValidationError
 
 if TYPE_CHECKING:
-    from .simple_types import XsdSimpleType
+    from .simple_types import XsdSimpleType, XsdAtomic
     from .complex_types import XsdComplexType
     from .elements import XsdElement
     from .groups import XsdGroup
@@ -352,12 +352,12 @@ class XsdComponent(XsdValidator):
         return self.maps.types[XSD_ANY_TYPE]
 
     @property
-    def any_simple_type(self) -> 'XsdType':
+    def any_simple_type(self) -> 'XsdSimpleType':
         """Property that references to the xs:anySimpleType instance of the global maps."""
         return self.maps.types[XSD_ANY_SIMPLE_TYPE]
 
     @property
-    def any_atomic_type(self) -> 'XsdType':
+    def any_atomic_type(self) -> 'XsdSimpleType':
         """Property that references to the xs:anyAtomicType instance of the global maps."""
         return self.maps.types[XSD_ANY_ATOMIC_TYPE]
 
@@ -926,8 +926,7 @@ class ValidationMixin:
             else:
                 del result
 
-    def decode(self, source: Union[XMLSourceType, XMLResource],
-               validation: str = 'strict', **kwargs: Any) -> DecodeReturnType:
+    def decode(self, source: Any, validation: str = 'strict', **kwargs: Any) -> DecodeReturnType:
         """
         Decodes XML data.
 
@@ -976,7 +975,7 @@ class ValidationMixin:
             return self.decode(source, converter=dataobjects.DataBindingConverter, **kwargs)
         return self.decode(source, converter=dataobjects.DataElementConverter, **kwargs)
 
-    def encode(self, obj: object, validation: str = 'strict', **kwargs: object) -> object:
+    def encode(self, obj: Any, validation: str = 'strict', **kwargs: Any) -> EncodeReturnType:
         """
         Encodes data to XML.
 
@@ -1002,12 +1001,11 @@ class ValidationMixin:
 
         return (result, errors) if validation == 'lax' else result
 
-    def iter_decode(self, source: Union[XMLSourceType, XMLResource],
-                    validation: str = 'lax', **kwargs: Any) -> Iterator[object]:
+    def iter_decode(self, obj: Any, validation: str = 'lax', **kwargs: Any) -> Iterator[Any]:
         """
         Creates an iterator for decoding an XML source to a Python object.
 
-        :param source: the XML data source.
+        :param obj: the XML data source.
         :param validation: the validation mode. Can be 'lax', 'strict' or 'skip.
         :param kwargs: keyword arguments for the decoder API.
         :return: Yields a decoded object, eventually preceded by a sequence of \
@@ -1015,8 +1013,7 @@ class ValidationMixin:
         """
         raise NotImplementedError()
 
-    def iter_encode(self, obj: object, validation: str = 'lax', **kwargs: Any) \
-            -> Iterator[object]:
+    def iter_encode(self, obj: Any, validation: str = 'lax', **kwargs: Any) -> Iterator[Any]:
         """
         Creates an iterator for encoding data to an Element tree.
 
