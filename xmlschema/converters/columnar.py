@@ -79,13 +79,13 @@ class ColumnarConverter(XMLSchemaConverter):
                     name = name[2 + len(xsd_child.namespace):]
 
                 if xsd_child.is_single():
-                    if hasattr(xsd_child, 'type') and xsd_child.type.simple_type is not None:
+                    if xsd_child.type is not None and xsd_child.type.simple_type is not None:
                         for k in value:
                             result_dict[k] = value[k]
                     else:
                         result_dict[name] = value
                 else:
-                    if hasattr(xsd_child, 'type') and xsd_child.type.simple_type is not None \
+                    if xsd_child.type is not None and xsd_child.type.simple_type is not None \
                             and not xsd_child.attributes:
                         if len(xsd_element.findall('*')) == 1:
                             try:

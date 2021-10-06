@@ -26,6 +26,11 @@ class XsdWildcard(XsdComponent, ValidationMixin):
     not_qname = ()
     process_contents = 'strict'
 
+    # For compatibility with protocol of XSD elements/attributes
+    type = None
+    default = None
+    fixed = None
+
     def __repr__(self):
         if self.not_namespace:
             return '%s(not_namespace=%r, process_contents=%r)' % (
@@ -545,6 +550,9 @@ class XsdAnyAttribute(XsdWildcard):
         </anyAttribute>
     """
     _ADMITTED_TAGS = {XSD_ANY_ATTRIBUTE}
+
+    # For compatibility with protocol of XSD attributes
+    use = None
 
     def match(self, name, default_namespace=None, resolve=False, **kwargs):
         """
