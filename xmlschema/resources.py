@@ -209,12 +209,13 @@ def is_url(obj: Any) -> bool:
     """
     Checks if and object can be an URL, restricting to strings that cannot be XML data.
     """
-    if not isinstance(obj, (str, bytes)):
-        return False
-    elif isinstance(obj, str):
+    if isinstance(obj, str):
         if '\n' in obj or obj.lstrip().startswith('<'):
             return False
-    elif b'\n' in obj or obj.lstrip().startswith(b'<'):
+    elif isinstance(obj, bytes):
+        if b'\n' in obj or obj.lstrip().startswith(b'<'):
+            return False
+    else:
         return False
 
     try:
