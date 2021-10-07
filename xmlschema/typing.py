@@ -62,6 +62,7 @@ LazyType = Union[bool, int]
 ##
 # Type aliases for XSD validators
 
+SchemaType = XMLSchemaBase
 AtomicValueType = Union[str, int, float, Decimal, bool, Integer, Float10, NormalizedString,
                         AnyURI, HexBinary, Base64Binary, QName, Duration]
 NumericValueType = Union[str, bytes, int, float, Decimal]

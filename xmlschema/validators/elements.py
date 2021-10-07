@@ -13,11 +13,12 @@ This module contains classes for XML Schema elements, complex types and model gr
 import warnings
 from decimal import Decimal
 from types import GeneratorType
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Union
 from elementpath import XPath2Parser, ElementPathError, XPathContext
 from elementpath.datatypes import AbstractDateTime, Duration, AbstractBinary
 
 from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
+from ..typing import ElementType
 from ..names import XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE, XSD_ALTERNATIVE, \
     XSD_ELEMENT, XSD_ANY_TYPE, XSD_UNIQUE, XSD_KEY, XSD_KEYREF, XSI_NIL, \
     XSI_TYPE, XSD_ERROR, XSD_NOTATION_TYPE
@@ -1051,7 +1052,8 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                     return True
         return False
 
-    def is_consistent(self, other):
+    def is_consistent(self, other: Union['XsdElement', XsdAnyElement],
+                      strict: bool = True) -> bool:
         """
         Element Declarations Consistent check between two element particles.
 
@@ -1173,7 +1175,7 @@ class Xsd11Element(XsdElement):
                 yield xsd_element
                 yield from xsd_element.iter_substitutes()
 
-    def get_type(self, elem, inherited=None):
+    def get_type(self, elem: ElementType, inherited=None):
         if not self.alternatives:
             return self._head_type or self.type
 
@@ -1198,7 +1200,7 @@ class Xsd11Element(XsdElement):
 
         return self._head_type or self.type
 
-    def is_overlap(self, other):
+    def is_overlap(self, other: Any) -> bool:
         if isinstance(other, XsdElement):
             if self.name == other.name:
                 return True
@@ -1217,7 +1219,8 @@ class Xsd11Element(XsdElement):
                     return True
         return False
 
-    def is_consistent(self, other, strict=True):
+    def is_consistent(self, other: Union['XsdElement', XsdAnyElement],
+                      strict: bool = True) -> bool:
         if isinstance(other, XsdAnyElement):
             if other.process_contents == 'skip':
                 return True

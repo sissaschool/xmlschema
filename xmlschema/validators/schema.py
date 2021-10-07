@@ -884,7 +884,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin, metaclass=XMLSchemaMeta):
             any_type.attributes[None].maps = self.maps
         return any_type
 
-    def create_element(self, name, parent=None, text=None, **attrib):
+    def create_element(self, name: str, parent: Optional[XsdComponent] = None,
+                       text: Optional[str] = None, **attrib: str) -> XsdElement:
         """
         Creates an xs:element instance related to schema component.
         Used as dummy element for validation/decoding/encoding
@@ -895,7 +896,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin, metaclass=XMLSchemaMeta):
             elem.text = text
         return self.xsd_element_class(elem=elem, schema=self, parent=parent)
 
-    def copy(self):
+    def copy(self) -> 'XMLSchemaBase':
         """
         Makes a copy of the schema instance. The new instance has independent maps
         of shared XSD components.

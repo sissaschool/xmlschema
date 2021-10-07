@@ -12,10 +12,12 @@ This module contains classes for XML Schema attributes and attribute groups.
 """
 from decimal import Decimal
 from elementpath.datatypes import AbstractDateTime, Duration, AbstractBinary
-from typing import cast, Any, Union, Dict, List, Optional, Iterator, MutableMapping, Tuple
+from typing import TYPE_CHECKING, cast, Any, Union, Dict, List, Optional, \
+    Iterator, MutableMapping, Tuple
 
 from ..exceptions import XMLSchemaValueError
-from ..typing import ComponentClassesType, ElementType, DecodeReturnType, EncodeReturnType, AtomicValueType
+from ..typing import ComponentClassesType, ElementType, DecodeReturnType, \
+    EncodeReturnType, AtomicValueType
 from ..names import XSI_NAMESPACE, XSD_ANY_SIMPLE_TYPE, XSD_SIMPLE_TYPE, \
     XSD_ATTRIBUTE_GROUP, XSD_COMPLEX_TYPE, XSD_RESTRICTION, XSD_EXTENSION, \
     XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ATTRIBUTE, XSD_ANY_ATTRIBUTE, \
@@ -26,6 +28,9 @@ from .exceptions import XMLSchemaValidationError
 from .xsdbase import XsdComponent, ValidationMixin
 from .simple_types import XsdSimpleType
 from .wildcards import XsdAnyAttribute
+
+if TYPE_CHECKING:
+    from .schema import XMLSchemaBase
 
 
 class XsdAttribute(XsdComponent, ValidationMixin):
@@ -323,7 +328,12 @@ class XsdAttributeGroup(MutableMapping[Optional[str], Union[XsdAttribute, XsdAny
         XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ATTRIBUTE, XSD_ANY_ATTRIBUTE
     }
 
-    def __init__(self, elem, schema, parent=None, derivation=None, base_attributes=None):
+    def __init__(self, elem: ElementType,
+                 schema: 'XMLSchemaBase',
+                 parent: Optional[XsdComponent] = None,
+                 derivation: Optional[str] = None,
+                 base_attributes: Optional['XsdAttributeGroup'] = None) -> None:
+
         self._attribute_group: Dict[Optional[str], Union[XsdAttribute, XsdAnyAttribute]] = {}
         self.derivation = derivation
         self.base_attributes = base_attributes

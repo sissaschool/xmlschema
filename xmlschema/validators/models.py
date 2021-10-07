@@ -10,12 +10,13 @@
 """
 This module contains classes and functions for validating XSD content models.
 """
-from collections import defaultdict, deque, Counter
-from typing import Any, Dict, Iterable, Iterator, List, Optional, Tuple, Union
+from collections import defaultdict, deque
+from typing import Any, Counter, Dict, Iterable, Iterator, List, Optional, Tuple, Union
 
 from ..exceptions import XMLSchemaValueError
 from .particles import ParticleMixin, ModelGroup
 
+OccursCounterType = Counter[Union[ParticleMixin, Tuple[ParticleMixin]]]
 AdvanceYieldedType = Tuple[ParticleMixin, int, List[ParticleMixin]]
 EncodedContentType = Union[Dict[Union[int, str], List[Any]],
                            List[Tuple[Union[int, str], List[Any]]]]
@@ -100,13 +101,12 @@ class ModelVisitor:
     :ivar match: if the XSD group has an effective item match.
     """
     _groups: List[Tuple[ModelGroup, Iterator[ParticleMixin], bool]]
-    occurs: Counter[Union[ParticleMixin, Tuple[ParticleMixin]]]
     element: Optional[ParticleMixin]
 
     def __init__(self, root: ModelGroup) -> None:
         self._groups = []
         self.root = root
-        self.occurs = Counter()
+        self.occurs = Counter[OccursCounterType]()
         self.element = None
         self.group = root
         self.items = self.iter_group()
@@ -355,7 +355,7 @@ class ModelVisitor:
         of a single element.
         :param default_namespace: the default namespace to apply for matching names.
         """
-        consumable_content: Dict[Union[int, str], Any]
+        consumable_content: Dict[str, Any]
 
         if isinstance(content, dict):
             cdata_content = sorted(
@@ -365,8 +365,9 @@ class ModelVisitor:
         else:
             cdata_content = sorted(((k, v) for k, v in content if isinstance(k, int)), reverse=True)
             consumable_content = defaultdict(deque)
-            for k, v in filter(lambda x: not isinstance(x[0], int), content):
-                consumable_content[k].append(v)
+            for k, v in content:
+                if isinstance(k, str):
+                    consumable_content[k].append(v)
 
         if cdata_content:
             yield cdata_content.pop()
@@ -415,7 +416,7 @@ class ModelVisitor:
         :param default_namespace: the default namespace to apply for matching names.
         """
         prev_name = None
-        unordered_content: Dict[Union[int, str], Any] = defaultdict(deque)
+        unordered_content: Dict[str, Any] = defaultdict(deque)
 
         for name, value in content:
             if isinstance(name, int) or self.element is None:

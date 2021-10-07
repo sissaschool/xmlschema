@@ -23,9 +23,9 @@ from .helpers import get_qname, local_name, get_prefixed_qname
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
 
 if TYPE_CHECKING:
-    from .validators import XMLSchemaBase, XsdElement, XsdAssert
+    from .validators import XMLSchemaBase, XsdElement, XsdAnyElement, XsdAssert
 
-BaseElementType = Union['XsdElement', 'XsdAssert']
+BaseElementType = Union['XsdElement', 'XsdAnyElement', 'XsdAssert']
 
 _REGEX_TAG_POSITION = re.compile(r'\b\[\d+]')
 

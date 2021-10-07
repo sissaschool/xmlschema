@@ -83,9 +83,9 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
     """
     parent: Optional[Union['XsdComplexType', 'XsdGroup']]
     mixed = False
-    restriction = None
-    interleave = None  # an Xsd11AnyElement in case of XSD 1.1 openContent with mode='interleave'
-    suffix = None  # an Xsd11AnyElement in case of openContent with mode='suffix' or 'interleave'
+    restriction: Optional['XsdGroup'] = None
+    interleave: Optional[Xsd11AnyElement] = None  # if openContent with mode='interleave'
+    suffix: Optional[Xsd11AnyElement] = None  # if openContent with mode='suffix'/'interleave'
 
     _ADMITTED_TAGS = {XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE}
 
@@ -311,7 +311,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
         else:
             return model == 'choice' or len(self.ref or self) <= 1
 
-    def is_empty(self):
+    def is_empty(self) -> bool:
         return not self.mixed and (not self._group or self.max_occurs == 0)
 
     def is_restriction(self, other, check_occurs=True):
