@@ -205,9 +205,9 @@ class TestXsd11Wildcards(TestXsdWildcards):
         any1, any2, any3 = schema.groups['group1'][:3]
 
         self.assertEqual(repr(any1), "Xsd11AnyElement(not_namespace=['tns1'], "
-                                     "process_contents='strict', occurs=[1, 1])")
+                                     "process_contents='strict', occurs=(1, 1))")
         self.assertEqual(repr(any2), "Xsd11AnyElement(not_namespace=['tns1', 'tns2'], "
-                                     "process_contents='strict', occurs=[1, 1])")
+                                     "process_contents='strict', occurs=(1, 1))")
 
         self.assertTrue(any1.is_restriction(any1))
         self.assertFalse(any1.is_restriction(any2))
@@ -222,9 +222,9 @@ class TestXsd11Wildcards(TestXsdWildcards):
         any1, any2, any3 = schema.groups['group1'][3:6]
 
         self.assertEqual(repr(any1), "Xsd11AnyElement(namespace=('##any',), "
-                                     "process_contents='strict', occurs=[1, 1])")
+                                     "process_contents='strict', occurs=(1, 1))")
         self.assertEqual(repr(any2), "Xsd11AnyElement(namespace=[''], "
-                                     "process_contents='strict', occurs=[1, 1])")
+                                     "process_contents='strict', occurs=(1, 1))")
 
         self.assertTrue(any1.is_restriction(any1))
         self.assertTrue(any2.is_restriction(any1))

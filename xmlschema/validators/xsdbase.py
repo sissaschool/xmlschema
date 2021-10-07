@@ -29,7 +29,7 @@ from .. import dataobjects
 from .exceptions import XMLSchemaParseError, XMLSchemaValidationError
 
 if TYPE_CHECKING:
-    from .simple_types import XsdSimpleType, XsdAtomic
+    from .simple_types import XsdSimpleType
     from .complex_types import XsdComplexType
     from .elements import XsdElement
     from .groups import XsdGroup
@@ -347,7 +347,7 @@ class XsdComponent(XsdValidator):
         return self.schema.namespaces
 
     @property
-    def any_type(self) -> 'XsdType':
+    def any_type(self) -> 'XsdComplexType':
         """Property that references to the xs:anyType instance of the global maps."""
         return self.maps.types[XSD_ANY_TYPE]
 
@@ -862,7 +862,7 @@ class ValidationMixin:
     Mixin for implementing XML data validators/decoders on XSD components.
     A derived class must implement the methods `iter_decode` and `iter_encode`.
     """
-    def validate(self, source: Union[XMLSourceType, XMLResource],
+    def validate(self, obj: Any,
                  use_defaults: bool = True,
                  namespaces: NamespacesType = None,
                  max_depth: Optional[int] = None,
@@ -870,10 +870,8 @@ class ValidationMixin:
         """
         Validates XML data against the XSD schema/component instance.
 
-        :param source: the source of the XML data. For a schema can be a path \
-        to a file or an URI of a resource or an opened file-like object or an Element Tree \
-        instance or a string containing XML data. For other XSD components can be a string \
-        for an attribute or a simple type validators, or an ElementTree's Element otherwise.
+        :param obj: the XML data. Can be a string for an attribute or a simple type \
+        validators, or an ElementTree's Element otherwise.
         :param use_defaults: indicates whether to use default values for filling missing data.
         :param namespaces: is an optional mapping from namespace prefix to URI.
         :param max_depth: maximum level of validation, for default there is no limit.
@@ -884,11 +882,11 @@ class ValidationMixin:
         raise/yield :exc:`XMLSchemaValidationError` exceptions.
         :raises: :exc:`XMLSchemaValidationError` if the XML data instance is invalid.
         """
-        for error in self.iter_errors(source, use_defaults, namespaces,
+        for error in self.iter_errors(obj, use_defaults, namespaces,
                                       max_depth, extra_validator):
             raise error
 
-    def is_valid(self, source: Union[XMLSourceType, XMLResource],
+    def is_valid(self, obj: Any,
                  use_defaults: bool = True,
                  namespaces: NamespacesType = None,
                  max_depth: Optional[int] = None,
@@ -897,7 +895,7 @@ class ValidationMixin:
         Like :meth:`validate` except that does not raise an exception but returns
         ``True`` if the XML data instance is valid, ``False`` if it is invalid.
         """
-        error = next(self.iter_errors(source, use_defaults, namespaces,
+        error = next(self.iter_errors(obj, use_defaults, namespaces,
                                       max_depth, extra_validator), None)
         return error is None
 
@@ -926,11 +924,11 @@ class ValidationMixin:
             else:
                 del result
 
-    def decode(self, source: Any, validation: str = 'strict', **kwargs: Any) -> DecodeReturnType:
+    def decode(self, obj: Any, validation: str = 'strict', **kwargs: Any) -> DecodeReturnType:
         """
         Decodes XML data.
 
-        :param source: the XML data. Can be a string for an attribute or for a simple \
+        :param obj: the XML data. Can be a string for an attribute or for a simple \
         type components or a dictionary for an attribute group or an ElementTree's \
         Element for other components.
         :param validation: the validation mode. Can be 'lax', 'strict' or 'skip.
@@ -946,7 +944,7 @@ class ValidationMixin:
         check_validation_mode(validation)
 
         result, errors = None, []
-        for result in self.iter_decode(source, validation, **kwargs):  # pragma: no cover
+        for result in self.iter_decode(obj, validation, **kwargs):  # pragma: no cover
             if not isinstance(result, XMLSchemaValidationError):
                 break
             elif validation == 'strict':
@@ -956,14 +954,12 @@ class ValidationMixin:
 
         return (result, errors) if validation == 'lax' else result
 
-    def to_objects(self, source: Union[XMLSourceType, XMLResource],
-                   with_bindings: bool = False, **kwargs: Any) -> ToObjectsReturnType:
+    def to_objects(self, obj: Any, with_bindings: bool = False,
+                   **kwargs: Any) -> ToObjectsReturnType:
         """
         Decodes XML data to Python data objects.
 
-        :param source: the XML data. Can be a string for an attribute or for a simple \
-        type components or a dictionary for an attribute group or an ElementTree's \
-        Element for other components.
+        :param obj: the XML data.
         :param with_bindings: if `True` is provided the decoding is done using \
         :class:`DataBindingConverter` that used XML data binding classes. For \
         default the objects are instances of :class:`DataElement` and uses the \
@@ -972,8 +968,8 @@ class ValidationMixin:
         :func:`iter_decode`, except the argument *converter*.
         """
         if with_bindings:
-            return self.decode(source, converter=dataobjects.DataBindingConverter, **kwargs)
-        return self.decode(source, converter=dataobjects.DataElementConverter, **kwargs)
+            return self.decode(obj, converter=dataobjects.DataBindingConverter, **kwargs)
+        return self.decode(obj, converter=dataobjects.DataElementConverter, **kwargs)
 
     def encode(self, obj: Any, validation: str = 'strict', **kwargs: Any) -> EncodeReturnType:
         """

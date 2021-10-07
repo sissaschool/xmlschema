@@ -7,13 +7,14 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from collections.abc import MutableSequence
-from typing import Any, Iterator, Optional, List, Tuple, Union
+from abc import abstractmethod
+from typing import overload, Any, Iterator, Optional, List, Tuple, \
+    Union, MutableSequence
 from xml.etree.ElementTree import Element
 
 from .. import limits
 from ..exceptions import XMLSchemaValueError
-from .exceptions import XMLSchemaParseError, XMLSchemaModelError, XMLSchemaModelDepthError
+from .exceptions import XMLSchemaModelError, XMLSchemaModelDepthError
 
 
 class ParticleMixin:
@@ -33,16 +34,16 @@ class ParticleMixin:
     min_occurs: int = 1
     max_occurs: Optional[int] = 1
 
-    def __init__(self, min_occurs=1, max_occurs: Optional[int] = 1):
+    def __init__(self, min_occurs: int = 1, max_occurs: Optional[int] = 1) -> None:
         self.min_occurs = min_occurs
         self.max_occurs = max_occurs
 
     @property
-    def occurs(self):
-        return [self.min_occurs, self.max_occurs]
+    def occurs(self) -> Tuple[int, Optional[int]]:
+        return self.min_occurs, self.max_occurs
 
     @property
-    def effective_min_occurs(self):
+    def effective_min_occurs(self) -> int:
         """
         A property calculated from minOccurs, that is equal to minOccurs
         for elements and may vary for content model groups, in dependance
@@ -51,7 +52,7 @@ class ParticleMixin:
         return self.min_occurs
 
     @property
-    def effective_max_occurs(self):
+    def effective_max_occurs(self) -> Optional[int]:
         """
         A property calculated from maxOccurs, that is equal to maxOccurs
         for elements and may vary for content model groups, in dependance
@@ -60,20 +61,20 @@ class ParticleMixin:
         """
         return self.max_occurs
 
-    def is_emptiable(self):
+    def is_emptiable(self) -> bool:
         """
         Tests if max_occurs == 0. A zero-length model group is considered emptiable.
         For model groups the test outcome depends also on nested particles.
         """
         return self.min_occurs == 0
 
-    def is_empty(self):
+    def is_empty(self) -> bool:
         """
         Tests if max_occurs == 0. A zero-length model group is considered empty.
         """
         return self.max_occurs == 0
 
-    def is_single(self):
+    def is_single(self) -> bool:
         """
         Tests if the particle has max_occurs == 1. For elements the test
         outcome depends also on parent group. For model groups the test
@@ -81,27 +82,27 @@ class ParticleMixin:
         """
         return self.max_occurs == 1
 
-    def is_multiple(self):
+    def is_multiple(self) -> bool:
         """Tests the particle can have multiple occurrences."""
         return not self.is_empty() and not self.is_single()
 
-    def is_ambiguous(self):
+    def is_ambiguous(self) -> bool:
         """Tests if min_occurs != max_occurs."""
         return self.min_occurs != self.max_occurs
 
-    def is_univocal(self):
+    def is_univocal(self) -> bool:
         """Tests if min_occurs == max_occurs."""
         return self.min_occurs == self.max_occurs
 
-    def is_missing(self, occurs: int):
+    def is_missing(self, occurs: int) -> bool:
         """Tests if provided occurrences are under the minimum."""
         return not self.is_emptiable() if occurs == 0 else self.min_occurs > occurs
 
-    def is_over(self, occurs: int):
+    def is_over(self, occurs: int) -> bool:
         """Tests if provided occurrences are over the maximum."""
         return self.max_occurs is not None and self.max_occurs <= occurs
 
-    def has_occurs_restriction(self, other):
+    def has_occurs_restriction(self, other: 'ParticleMixin') -> bool:
         if self.min_occurs < other.min_occurs:
             return False
         elif self.max_occurs == 0:
@@ -113,10 +114,10 @@ class ParticleMixin:
         else:
             return self.max_occurs <= other.max_occurs
 
-    def parse_error(self, message):
-        raise XMLSchemaParseError(self, message)  # pragma: no cover
+    def parse_error(self, message: Any) -> None:
+        raise XMLSchemaValueError(message)
 
-    def _parse_particle(self, elem: Element):
+    def _parse_particle(self, elem: Element) -> None:
         if 'minOccurs' in elem.attrib:
             try:
                 min_occurs = int(elem.attrib['minOccurs'])
@@ -145,50 +146,58 @@ class ParticleMixin:
                     self.max_occurs = None
 
 
-class ModelGroup(MutableSequence, ParticleMixin):
+class ModelGroup(MutableSequence[ParticleMixin], ParticleMixin):
     """
     Class for XSD model group particles. This class implements only model related methods,
     schema element parsing and validation methods are implemented in derived classes.
     """
-    def __init__(self, model: str, min_occurs=1, max_occurs: Optional[int] = 1):
+    def __init__(self, model: str, min_occurs: int = 1, max_occurs: Optional[int] = 1) -> None:
         super(ModelGroup, self).__init__(min_occurs, max_occurs)
         if model not in {'sequence', 'choice', 'all'}:
             raise XMLSchemaValueError("invalid model {!r} for a group".format(model))
-        self._group: List[Union[tuple, ParticleMixin]] = []
+        self._group: List[ParticleMixin] = []
         self.model = model
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return '%s(model=%r, occurs=%r)' % (self.__class__.__name__, self.model, self.occurs)
 
-    # Implements the abstract methods of MutableSequence
-    def __getitem__(self, i):
+    @overload
+    @abstractmethod
+    def __getitem__(self, i: int) -> ParticleMixin: ...
+
+    @overload
+    @abstractmethod
+    def __getitem__(self, s: slice) -> MutableSequence[ParticleMixin]: ...
+
+    def __getitem__(self, i: Union[int, slice]) \
+            -> Union[ParticleMixin, MutableSequence[ParticleMixin]]:
         return self._group[i]
 
-    def __setitem__(self, i, item):
-        self._group[i] = item
+    def __setitem__(self, i: Union[int, slice], o: Any) -> None:
+        self._group[i] = o
 
-    def __delitem__(self, i):
+    def __delitem__(self, i: Union[int, slice]) -> None:
         del self._group[i]
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self._group)
 
-    def insert(self, i: int, item: Union[tuple, ParticleMixin]):
+    def insert(self, i: int, item: ParticleMixin) -> None:
         self._group.insert(i, item)
 
-    def clear(self):
+    def clear(self) -> None:
         del self._group[:]
 
-    def is_emptiable(self):
+    def is_emptiable(self) -> bool:
         if self.model == 'choice':
             return self.min_occurs == 0 or not self or any(item.is_emptiable() for item in self)
         else:
             return self.min_occurs == 0 or not self or all(item.is_emptiable() for item in self)
 
-    def is_empty(self):
+    def is_empty(self) -> bool:
         return not self._group or self.max_occurs == 0
 
-    def is_single(self):
+    def is_single(self) -> bool:
         if self.max_occurs != 1 or not self:
             return False
         elif len(self) > 1 or not isinstance(self[0], ModelGroup):
@@ -196,7 +205,7 @@ class ModelGroup(MutableSequence, ParticleMixin):
         else:
             return self[0].is_single()
 
-    def is_pointless(self, parent: 'ModelGroup'):
+    def is_pointless(self, parent: 'ModelGroup') -> bool:
         """
         Returns `True` if the group may be eliminated without affecting the model,
         `False` otherwise. A group is pointless if one of those conditions is verified:
@@ -224,7 +233,7 @@ class ModelGroup(MutableSequence, ParticleMixin):
             return True
 
     @property
-    def effective_min_occurs(self):
+    def effective_min_occurs(self) -> int:
         if not self.min_occurs or not self:
             return 0
         elif self.model == 'choice':
@@ -236,34 +245,42 @@ class ModelGroup(MutableSequence, ParticleMixin):
         return self.min_occurs
 
     @property
-    def effective_max_occurs(self):
+    def effective_max_occurs(self) -> Optional[int]:
         if self.max_occurs == 0 or not self:
             return 0
+
+        effective_items: List[Any]
+        value: int
 
         effective_items = list(e for e in self.iter_model() if e.effective_max_occurs != 0)
         if not effective_items:
             return 0
         elif self.max_occurs is None:
-            return
+            return None
         elif self.model == 'choice':
-            if any(e.effective_max_occurs is None for e in effective_items):
-                return
-            return self.max_occurs * max(e.effective_max_occurs for e in effective_items)
+            try:
+                value = max(e.effective_max_occurs for e in effective_items)
+            except TypeError:
+                return None
+            else:
+                return self.max_occurs * value
 
         not_emptiable_items = [e for e in effective_items if e.effective_min_occurs]
         if not not_emptiable_items:
-            if any(e.effective_max_occurs is None for e in effective_items):
-                return
-            return self.max_occurs * max(e.effective_max_occurs for e in effective_items)
+            try:
+                value = max(e.effective_max_occurs for e in effective_items)
+            except TypeError:
+                return None
+            else:
+                return self.max_occurs * value
+
         elif len(not_emptiable_items) > 1:
             return self.max_occurs
 
-        try:
-            return self.max_occurs * not_emptiable_items[0].effective_max_occurs
-        except TypeError:
-            return
+        value = not_emptiable_items[0].effective_max_occurs
+        return None if value is None else self.max_occurs * value
 
-    def has_occurs_restriction(self, other: 'ModelGroup'):
+    def has_occurs_restriction(self, other: ParticleMixin) -> bool:
         if not self:
             return True
         elif isinstance(other, ModelGroup):
@@ -284,7 +301,13 @@ class ModelGroup(MutableSequence, ParticleMixin):
             elif other.max_occurs is None:
                 return True
             else:
-                return self.max_occurs * max(e.max_occurs for e in self) <= other.max_occurs
+                value: int
+                try:
+                    value = max(e.max_occurs for e in self)  # type: ignore[type-var, assignment]
+                except TypeError:
+                    return False
+                else:
+                    return self.max_occurs * value <= other.max_occurs
 
         else:
             if self.min_occurs * sum(e.min_occurs for e in self) < other.min_occurs:
@@ -292,9 +315,14 @@ class ModelGroup(MutableSequence, ParticleMixin):
             elif other.max_occurs is None:
                 return True
             else:
-                return self.max_occurs * sum(e.max_occurs for e in self) <= other.max_occurs
+                try:
+                    value = sum(e.max_occurs for e in self)  # type: ignore[misc]
+                except TypeError:
+                    return False
+                else:
+                    return self.max_occurs * value <= other.max_occurs
 
-    def iter_model(self, depth=0):
+    def iter_model(self, depth: int = 0) -> Iterator[ParticleMixin]:
         """
         A generator function iterating elements and groups of a model group.
         Skips pointless groups, iterating deeper through them.
@@ -306,14 +334,12 @@ class ModelGroup(MutableSequence, ParticleMixin):
         if depth > limits.MAX_MODEL_DEPTH:
             raise XMLSchemaModelDepthError(self)
         for item in self:
-            if not isinstance(item, ModelGroup):
-                yield item
-            elif not item.is_pointless(parent=self):
-                yield item
-            else:
+            if isinstance(item, ModelGroup) and item.is_pointless(parent=self):
                 yield from item.iter_model(depth + 1)
+            else:
+                yield item
 
-    def iter_elements(self, depth=0):
+    def iter_elements(self, depth: int = 0) -> Iterator[ParticleMixin]:
         """
         A generator function iterating model's elements. Raises `XMLSchemaModelDepthError`
         if the argument *depth* is over `limits.MAX_MODEL_DEPTH` value.

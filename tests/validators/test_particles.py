@@ -27,8 +27,8 @@ class TestParticleMixin(unittest.TestCase):
         cls.schema = XMLSchema10(xsd_file)
 
     def test_occurs_property(self):
-        self.assertListEqual(self.schema.elements['cars'].occurs, [1, 1])
-        self.assertListEqual(self.schema.elements['cars'].type.content[0].occurs, [0, None])
+        self.assertEqual(self.schema.elements['cars'].occurs, (1, 1))
+        self.assertEqual(self.schema.elements['cars'].type.content[0].occurs, (0, None))
 
     def test_effective_min_occurs_property(self):
         self.assertEqual(self.schema.elements['cars'].effective_min_occurs, 1)
@@ -177,7 +177,7 @@ class TestModelGroup(unittest.TestCase):
 
     def test_model_group_repr(self):
         group = ModelGroup('choice')
-        self.assertEqual(repr(group), "ModelGroup(model='choice', occurs=[1, 1])")
+        self.assertEqual(repr(group), "ModelGroup(model='choice', occurs=(1, 1))")
 
     def test_model_group_container(self):
         group = ModelGroup('choice')
