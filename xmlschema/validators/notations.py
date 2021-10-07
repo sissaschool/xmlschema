@@ -7,6 +7,8 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+from typing import Optional
+
 from ..names import XSD_NOTATION
 from ..helpers import get_qname
 from .xsdbase import XsdComponent
@@ -28,10 +30,10 @@ class XsdNotation(XsdComponent):
     _ADMITTED_TAGS = {XSD_NOTATION}
 
     @property
-    def built(self):
+    def built(self) -> bool:
         return True
 
-    def _parse(self):
+    def _parse(self) -> None:
         if self.parent is not None:
             self.parse_error("a notation declaration must be global")
         try:
@@ -43,9 +45,9 @@ class XsdNotation(XsdComponent):
             self.parse_error("a notation must have a 'public' or a 'system' attribute")
 
     @property
-    def public(self):
+    def public(self) -> Optional[str]:
         return self.elem.get('public')
 
     @property
-    def system(self):
+    def system(self) -> Optional[str]:
         return self.elem.get('system')

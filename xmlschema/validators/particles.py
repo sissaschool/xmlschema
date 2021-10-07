@@ -102,6 +102,9 @@ class ParticleMixin:
         """Tests if provided occurrences are over the maximum."""
         return self.max_occurs is not None and self.max_occurs <= occurs
 
+    def is_matching(self, *args: Any, **kwargs: Any) -> bool:
+        raise NotImplementedError()
+
     def has_occurs_restriction(self, other: 'ParticleMixin') -> bool:
         if self.min_occurs < other.min_occurs:
             return False

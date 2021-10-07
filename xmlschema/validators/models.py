@@ -11,13 +11,18 @@
 This module contains classes and functions for validating XSD content models.
 """
 from collections import defaultdict, deque, Counter
-from typing import List, Tuple, Union, Iterator
+from typing import Any, Dict, Iterable, Iterator, List, Optional, Tuple, Union
 
 from ..exceptions import XMLSchemaValueError
 from .particles import ParticleMixin, ModelGroup
 
+AdvanceYieldedType = Tuple[ParticleMixin, int, List[ParticleMixin]]
+EncodedContentType = Union[Dict[Union[int, str], List[Any]],
+                           List[Tuple[Union[int, str], List[Any]]]]
+ContentItemType = Tuple[Union[int, str], Any]
 
-def distinguishable_paths(path1: List[ModelGroup], path2: List[ModelGroup]):
+
+def distinguishable_paths(path1: List[ModelGroup], path2: List[ModelGroup]) -> bool:
     """
     Checks if two model paths are distinguishable in a deterministic way, without looking forward
     or backtracking. The arguments are lists containing paths from the base group of the model to
@@ -94,20 +99,24 @@ class ModelVisitor:
     :ivar items: the current XSD group's items iterator.
     :ivar match: if the XSD group has an effective item match.
     """
-    def __init__(self, root: ModelGroup):
+    _groups: List[Tuple[ModelGroup, Iterator[ParticleMixin], bool]]
+    occurs: Counter[Union[ParticleMixin, Tuple[ParticleMixin]]]
+    element: Optional[ParticleMixin]
+
+    def __init__(self, root: ModelGroup) -> None:
+        self._groups = []
         self.root = root
-        self.occurs: Counter = Counter()
-        self._groups: List[Tuple[ModelGroup, Iterator[ParticleMixin], bool]] = []
+        self.occurs = Counter()
         self.element = None
         self.group = root
         self.items = self.iter_group()
         self.match = False
         self._start()
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return '%s(root=%r)' % (self.__class__.__name__, self.root)
 
-    def clear(self):
+    def clear(self) -> None:
         del self._groups[:]
         self.occurs.clear()
         self.element = None
@@ -115,7 +124,7 @@ class ModelVisitor:
         self.items = self.iter_group()
         self.match = False
 
-    def _start(self):
+    def _start(self) -> None:
         while True:
             item = next(self.items, None)
             if item is None:
@@ -136,7 +145,7 @@ class ModelVisitor:
         """
         Returns the expected elements of the current and descendant groups.
         """
-        expected = []
+        expected: List[ParticleMixin] = []
         items: Union[ModelGroup, Iterator[ParticleMixin]]
         if self.group.model == 'choice':
             items = self.group
@@ -153,11 +162,11 @@ class ModelVisitor:
                 expected.extend(e.maps.substitution_groups.get(e.name, ()))
         return expected
 
-    def restart(self):
+    def restart(self) -> None:
         self.clear()
         self._start()
 
-    def stop(self):
+    def stop(self) -> Iterator[AdvanceYieldedType]:
         while self.element is not None:
             for e in self.advance():
                 yield e
@@ -171,7 +180,7 @@ class ModelVisitor:
         else:
             return (e for e in self.group.iter_elements() if not e.is_over(self.occurs[e]))
 
-    def advance(self, match=False) -> Iterator[Tuple[ParticleMixin, int, list]]:
+    def advance(self, match: bool = False) -> Iterator[AdvanceYieldedType]:
         """
         Generator function for advance to the next element. Yields tuples with
         particles information when occurrence violation is found.
@@ -321,12 +330,15 @@ class ModelVisitor:
             elif self.group.max_occurs is not None and self.group.max_occurs < occurs[self.group]:
                 yield self.group, occurs[self.group], self.expected
 
-    def sort_content(self, content, restart=True):
+    def sort_content(self, content: EncodedContentType, restart: bool = True) \
+            -> List[ContentItemType]:
         if restart:
             self.restart()
         return [(name, value) for name, value in self.iter_unordered_content(content)]
 
-    def iter_unordered_content(self, content, default_namespace=None):
+    def iter_unordered_content(
+            self, content: EncodedContentType,
+            default_namespace: Optional[str] = None) -> Iterator[ContentItemType]:
         """
         Takes an unordered content stored in a dictionary of lists and yields the
         content elements sorted with the ordering defined by the model. Character
@@ -342,8 +354,9 @@ class ModelVisitor:
         dictionary the values must be lists where each item is the content \
         of a single element.
         :param default_namespace: the default namespace to apply for matching names.
-        :return: yields of a sequence of the Element being encoded's children.
         """
+        consumable_content: Dict[Union[int, str], Any]
+
         if isinstance(content, dict):
             cdata_content = sorted(
                 ((k, v) for k, v in content.items() if isinstance(k, int)), reverse=True
@@ -384,7 +397,9 @@ class ModelVisitor:
         while cdata_content:
             yield cdata_content.pop()
 
-    def iter_collapsed_content(self, content, default_namespace=None):
+    def iter_collapsed_content(
+            self, content: Iterable[Tuple[Union[int, str], Any]],
+            default_namespace: Optional[str] = None) -> Iterator[ContentItemType]:
         """
         Iterates a content stored in a sequence of couples *(name, value)*, yielding
         items in the same order of the sequence, except for repetitions of the same
@@ -398,10 +413,9 @@ class ModelVisitor:
 
         :param content: an iterable containing couples of names and values.
         :param default_namespace: the default namespace to apply for matching names.
-        :return: yields of a sequence of the Element being encoded's children.
         """
         prev_name = None
-        unordered_content = defaultdict(deque)
+        unordered_content: Dict[Union[int, str], Any] = defaultdict(deque)
 
         for name, value in content:
             if isinstance(name, int) or self.element is None:
@@ -449,13 +463,16 @@ class OccursCounter:
     """
     An helper class for counting total min/max occurrences of XSD particles.
     """
-    def __init__(self):
+    min_occurs: int
+    max_occurs: Optional[int]
+
+    def __init__(self) -> None:
         self.min_occurs = self.max_occurs = 0
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return '%s(%r, %r)' % (self.__class__.__name__, self.min_occurs, self.max_occurs)
 
-    def __add__(self, other: ParticleMixin):
+    def __add__(self, other: ParticleMixin) -> 'OccursCounter':
         self.min_occurs += other.min_occurs
         if self.max_occurs is not None:
             if other.max_occurs is None:
@@ -464,7 +481,7 @@ class OccursCounter:
                 self.max_occurs += other.max_occurs
         return self
 
-    def __mul__(self, other: ParticleMixin):
+    def __mul__(self, other: ParticleMixin) -> 'OccursCounter':
         self.min_occurs *= other.min_occurs
         if self.max_occurs is None:
             if other.max_occurs == 0:
@@ -476,5 +493,5 @@ class OccursCounter:
             self.max_occurs *= other.max_occurs
         return self
 
-    def reset(self):
+    def reset(self) -> None:
         self.min_occurs = self.max_occurs = 0
