@@ -10,7 +10,7 @@
 from typing import TYPE_CHECKING, Any, Dict, Optional, cast, Iterable, Union, Callable
 from ..exceptions import XMLSchemaException, XMLSchemaWarning, XMLSchemaValueError
 from ..etree import etree_tostring
-from ..typing import ElementType, NamespacesType
+from ..aliases import ElementType, NamespacesType
 from ..helpers import get_prefixed_qname, etree_getpath, is_etree_element
 
 if TYPE_CHECKING:
@@ -208,7 +208,7 @@ class XMLSchemaValidationError(XMLSchemaValidatorError, ValueError):
                  obj: Any,
                  reason: Optional[str] = None,
                  source: Optional['XMLResource'] = None,
-                 namespaces: NamespacesType = None) -> None:
+                 namespaces: Optional[NamespacesType] = None) -> None:
         if not isinstance(obj, str):
             _obj = obj
         else:
@@ -282,7 +282,7 @@ class XMLSchemaDecodeError(XMLSchemaValidationError):
                  decoder: Any,
                  reason: Optional[str] = None,
                  source: Optional['XMLResource'] = None,
-                 namespaces: NamespacesType = None) -> None:
+                 namespaces: Optional[NamespacesType] = None) -> None:
         super(XMLSchemaDecodeError, self).__init__(validator, obj, reason, source, namespaces)
         self.decoder = decoder
 
@@ -311,7 +311,7 @@ class XMLSchemaEncodeError(XMLSchemaValidationError):
                  encoder: Any,
                  reason: Optional[str] = None,
                  source: Optional['XMLResource'] = None,
-                 namespaces: NamespacesType = None) -> None:
+                 namespaces: Optional[NamespacesType] = None) -> None:
         super(XMLSchemaEncodeError, self).__init__(validator, obj, reason, source, namespaces)
         self.encoder = encoder
 
@@ -344,7 +344,7 @@ class XMLSchemaChildrenValidationError(XMLSchemaValidationError):
                  occurs: int = 0,
                  expected: Optional[Iterable[Union['XsdElement', 'XsdAnyElement']]] = None,
                  source: Optional['XMLResource'] = None,
-                 namespaces: NamespacesType = None) -> None:
+                 namespaces: Optional[NamespacesType] = None) -> None:
 
         self.index = index
         self.particle = particle

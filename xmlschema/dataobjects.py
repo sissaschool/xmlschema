@@ -15,10 +15,10 @@ from typing import TYPE_CHECKING, cast, Any, Dict, List, Iterator, \
 from elementpath import XPathContext, XPath2Parser
 
 from .exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, XMLSchemaValueError
-from .etree import etree_tostring
-from .typing import ElementType, NamespacesType
+from .etree import ElementData, etree_tostring
+from .aliases import ElementType, NamespacesType
 from .helpers import get_namespace, get_prefixed_qname, local_name, raw_xml_encode
-from .converters import ElementData, XMLSchemaConverter
+from .converters import XMLSchemaConverter
 from .resources import XMLResource
 from . import validators
 
@@ -165,7 +165,8 @@ class DataElement(MutableSequence):
         """The local part of the tag."""
         return local_name(self.tag)
 
-    def validate(self, use_defaults: bool = True, namespaces: NamespacesType = None,
+    def validate(self, use_defaults: bool = True,
+                 namespaces: Optional[NamespacesType] = None,
                  max_depth: Optional[int] = None) -> None:
         """
         Validates the XML data object.
@@ -180,7 +181,8 @@ class DataElement(MutableSequence):
         for error in self.iter_errors(use_defaults, namespaces, max_depth):
             raise error
 
-    def is_valid(self, use_defaults: bool = True, namespaces: NamespacesType = None,
+    def is_valid(self, use_defaults: bool = True,
+                 namespaces: Optional[NamespacesType] = None,
                  max_depth: Optional[int] = None) -> bool:
         """
         Like :meth:`validate` except it does not raise an exception on validation
@@ -192,7 +194,8 @@ class DataElement(MutableSequence):
         error = next(self.iter_errors(use_defaults, namespaces, max_depth), None)
         return error is None
 
-    def iter_errors(self, use_defaults: bool = True, namespaces: NamespacesType = None,
+    def iter_errors(self, use_defaults: bool = True,
+                    namespaces: Optional[NamespacesType] = None,
                     max_depth: Optional[int] = None) -> Iterator['XMLSchemaValidationError']:
         """
         Generates a sequence of validation errors if the XML data object is invalid.
@@ -250,7 +253,8 @@ class DataElement(MutableSequence):
         root, errors = self.encode(validation='lax')
         return etree_tostring(root, self.nsmap, indent, max_lines, spaces_for_tab)
 
-    def find(self, path: str, namespaces: NamespacesType = None) -> Optional['DataElement']:
+    def find(self, path: str,
+             namespaces: Optional[NamespacesType] = None) -> Optional['DataElement']:
         """
         Finds the first data element matching the path.
 
@@ -262,7 +266,8 @@ class DataElement(MutableSequence):
         context = XPathContext(cast(Any, self))
         return next(parser.parse(path).select_results(context), None)
 
-    def findall(self, path: str, namespaces: NamespacesType = None) -> List['DataElement']:
+    def findall(self, path: str,
+                namespaces: Optional[NamespacesType] = None) -> List['DataElement']:
         """
         Finds all data elements matching the path.
 
@@ -275,7 +280,8 @@ class DataElement(MutableSequence):
         context = XPathContext(cast(Any, self))
         return parser.parse(path).get_results(context)
 
-    def iterfind(self, path: str, namespaces: NamespacesType = None) -> Iterator['DataElement']:
+    def iterfind(self, path: str,
+                 namespaces: Optional[NamespacesType] = None) -> Iterator['DataElement']:
         """
         Creates and iterator for all XSD subelements matching the path.
 
@@ -353,7 +359,7 @@ class DataElementConverter(XMLSchemaConverter):
     """
     __slots__ = 'data_element_class',
 
-    def __init__(self, namespaces: NamespacesType = None,
+    def __init__(self, namespaces: Optional[NamespacesType] = None,
                  data_element_class: Optional[Type['DataElement']] = None,
                  **kwargs: Any) -> None:
         if data_element_class is None:

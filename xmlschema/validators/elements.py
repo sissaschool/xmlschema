@@ -13,36 +13,38 @@ This module contains classes for XML Schema elements, complex types and model gr
 import warnings
 from decimal import Decimal
 from types import GeneratorType
-from typing import TYPE_CHECKING, Any, Union
-from elementpath import XPath2Parser, ElementPathError, XPathContext
+from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Tuple, Union
+from elementpath import XPath2Parser, ElementPathError, XPathContext, XPathToken
 from elementpath.datatypes import AbstractDateTime, Duration, AbstractBinary
 
 from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
-from ..typing import ElementType
 from ..names import XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE, XSD_ALTERNATIVE, \
     XSD_ELEMENT, XSD_ANY_TYPE, XSD_UNIQUE, XSD_KEY, XSD_KEYREF, XSI_NIL, \
     XSI_TYPE, XSD_ERROR, XSD_NOTATION_TYPE
-from ..etree import etree_element
+from ..etree import ElementData, etree_element
+from ..aliases import ElementType, SchemaType, BaseXsdType, GroupItemType, \
+    ComponentClassType, AtomicValueType, IterDecodeType, IterEncodeType
 from ..helpers import get_qname, get_namespace, etree_iter_location_hints, \
     raw_xml_encode, strictly_equal
 from .. import dataobjects
-from ..converters import ElementData, XMLSchemaConverter
+from ..converters import XMLSchemaConverter
 from ..xpath import XMLSchemaProxy, ElementPathMixin, XPathElement
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaTypeTableWarning
 from .helpers import get_xsd_derivation_attribute
 from .xsdbase import XSD_TYPE_DERIVATIONS, XSD_ELEMENT_DERIVATIONS, \
     XsdComponent, ValidationMixin
-from .particles import ParticleMixin
-from .models import OccursCounter
-from .identities import IdentityXPathContext, XsdIdentity, XsdKeyref
+from .particles import ParticleMixin, OccursCalculator
+from .identities import IdentityXPathContext, XsdIdentity, XsdKeyref, IdentityCounter
+from .attributes import XsdAttribute
 from .wildcards import XsdAnyElement
 
 if TYPE_CHECKING:
     from .groups import XsdGroup
 
 
-class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin):
+class XsdElement(XsdComponent, ParticleMixin, ElementPathMixin,
+                 ValidationMixin[ElementType, Any]):
     """
     Class for XSD 1.0 *element* declarations.
 
@@ -69,26 +71,28 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         </element>
     """
     name: str
-    parent: 'XsdGroup'
+    parent: Optional['XsdGroup']
+    ref: Optional['XsdElement']
     abstract = False
     nillable = False
     qualified = False
-    form = None
-    default = None
-    fixed = None
-    substitution_group = None
+    form: Optional[str] = None
+    default: Optional[str] = None
+    fixed: Optional[str] = None
+    substitution_group: Optional[str] = None
 
-    alternatives = ()
+    identities: Dict[str, XsdIdentity]
+    alternatives: Union[Tuple[()], List['XsdAlternative']] = ()
     inheritable = ()
 
     _ADMITTED_TAGS = {XSD_ELEMENT}
-    _block = None
-    _final = None
+    _block: Optional[str] = None
+    _final: Optional[str] = None
     _head_type = None
 
     binding = None
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return '%s(%s=%r, occurs=%r)' % (
             self.__class__.__name__,
             'name' if self.ref is None else 'ref',
@@ -96,19 +100,19 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             self.occurs
         )
 
-    def __setattr__(self, name: str, value: Any):
+    def __setattr__(self, name: str, value: Any) -> None:
         if name == "type":
-            try:
-                self.attributes = value.attributes
-            except AttributeError:
+            if value.attributes is None:
                 self.attributes = self.schema.create_empty_attribute_group(self)
+            else:
+                self.attributes = value.attributes
         super(XsdElement, self).__setattr__(name, value)
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[Union['XsdElement', XsdAnyElement]]:
         if self.type.has_complex_content():
             yield from self.type.content.iter_elements()
 
-    def _parse(self):
+    def _parse(self) -> None:
         self._parse_particle(self.elem)
         self._parse_attributes()
 
@@ -119,7 +123,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             if self.parent is None and 'substitutionGroup' in self.elem.attrib:
                 self._parse_substitution_group(self.elem.attrib['substitutionGroup'])
 
-    def _parse_attributes(self):
+    def _parse_attributes(self) -> None:
         attrib = self.elem.attrib
         if self._parse_reference():
             try:
@@ -198,7 +202,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                     msg = "attribute {!r} not allowed in a local element declaration"
                     self.parse_error(msg.format(attr_name))
 
-    def _parse_type(self):
+    def _parse_type(self) -> None:
         type_name = self.elem.get('type')
         if type_name is not None:
             try:
@@ -231,7 +235,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             else:
                 self.type = self.any_type
 
-    def _parse_constraints(self):
+    def _parse_constraints(self) -> None:
         # Value constraints
         if 'default' in self.elem.attrib:
             self.default = self.elem.attrib['default']
@@ -283,7 +287,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             finally:
                 self.identities[constraint.name] = constraint
 
-    def _parse_substitution_group(self, substitution_group):
+    def _parse_substitution_group(self, substitution_group: str) -> None:
         try:
             substitution_group_qname = self.schema.resolve_qname(substitution_group)
         except (KeyError, ValueError, RuntimeError) as err:
@@ -336,16 +340,16 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             self.substitution_group = substitution_group_qname
 
     @property
-    def xpath_proxy(self):
+    def xpath_proxy(self) -> XMLSchemaProxy:
         return XMLSchemaProxy(self.schema, self)
 
     @property
-    def built(self):
+    def built(self) -> bool:
         return (self.type.parent is None or self.type.built) and \
             all(c.built for c in self.identities.values())
 
     @property
-    def validation_attempted(self):
+    def validation_attempted(self) -> str:
         if self.built:
             return 'full'
         elif self.type.validation_attempted == 'partial':
@@ -356,17 +360,17 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             return 'none'
 
     @property
-    def scope(self):
+    def scope(self) -> str:
         """The scope of the element declaration that can be 'global' or 'local'."""
         return 'global' if self.parent is None else 'local'
 
     @property
-    def value_constraint(self):
+    def value_constraint(self) -> Optional[str]:
         """The fixed or the default value if either is defined, `None` otherwise."""
         return self.fixed if self.fixed is not None else self.default
 
     @property
-    def final(self):
+    def final(self) -> Optional[str]:
         if self.ref is not None:
             return self.ref.final
         elif self._final is not None:
@@ -374,7 +378,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         return self.schema.final_default
 
     @property
-    def block(self):
+    def block(self) -> Optional[str]:
         if self.ref is not None:
             return self.ref.block
         elif self._block is not None:
@@ -398,22 +402,22 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
 
         return self.binding
 
-    def get_attribute(self, name):
+    def get_attribute(self, name: str) -> XsdAttribute:
         if name[0] != '{':
             return self.type.attributes[get_qname(self.type.target_namespace, name)]
         return self.type.attributes[name]
 
-    def get_type(self, elem, inherited=None):
+    def get_type(self, elem: Union[ElementType, ElementData],
+                 inherited: Optional[Dict[str, Any]] = None) -> BaseXsdType:
         return self._head_type or self.type
 
-    def get_attributes(self, xsd_type):
-        try:
+    def get_attributes(self, xsd_type: BaseXsdType):
+        if xsd_type.attributes is not None:
             return xsd_type.attributes
-        except AttributeError:
-            if xsd_type is self.type:
-                return self.attributes
-            else:
-                return self.schema.create_empty_attribute_group(self)
+        elif xsd_type is self.type:
+            return self.attributes
+        else:
+            return self.schema.create_empty_attribute_group(self)
 
     def get_path(self, ancestor=None, reverse=False):
         """
@@ -450,7 +454,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         if self.ref is None and self.type.parent is not None:
             yield from self.type.iter_components(xsd_classes)
 
-    def iter_substitutes(self):
+    def iter_substitutes(self) -> Iterator['XsdElement']:
         if self.parent is None or self.ref is not None:
             for xsd_element in self.maps.substitution_groups.get(self.name, ()):
                 if not xsd_element.abstract:
@@ -459,16 +463,16 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                     if not e.abstract:
                         yield e
 
-    def data_value(self, elem):
+    def data_value(self, elem: ElementType) -> Optional[AtomicValueType]:
         """Returns the decoded data value of the provided element as XPath fn:data()."""
         text = elem.text
         if text is None:
             text = self.fixed if self.fixed is not None else self.default
             if text is None:
-                return
+                return None
         return self.type.text_decode(text)
 
-    def check_dynamic_context(self, elem, **kwargs):
+    def check_dynamic_context(self, elem: ElementType, **kwargs: Any) -> None:
         try:
             locations = kwargs['locations']
         except KeyError:
@@ -502,7 +506,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             if ns not in locations:
                 locations[ns] = None
 
-    def start_identities(self, identities):
+    def start_identities(self, identities: Dict[XsdIdentity, IdentityCounter]) -> None:
         """
         Start tracking of XSD element's identities.
 
@@ -514,7 +518,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             except KeyError:
                 identities[constraint] = constraint.get_counter()
 
-    def stop_identities(self, identities):
+    def stop_identities(self, identities: Dict[XsdIdentity, IdentityCounter]) -> None:
         """
         Stop tracking of XSD element's identities.
 
@@ -526,7 +530,8 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             except KeyError:
                 identities[identity] = identity.get_counter(enabled=False)
 
-    def iter_decode(self, elem, validation='lax', **kwargs):
+    def iter_decode(self, elem: ElementType, validation: str = 'lax', **kwargs: Any) \
+            -> IterDecodeType[Any]:
         """
         Creates an iterator for decoding an Element instance.
 
@@ -800,7 +805,8 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         elif level:
             self.stop_identities(identities)
 
-    def iter_encode(self, obj, validation='lax', **kwargs):
+    def iter_encode(self, obj: Any, validation: str = 'lax', **kwargs: Any) \
+            -> IterEncodeType[ElementType]:
         """
         Creates an iterator for encoding data to an Element.
 
@@ -947,9 +953,10 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         else:
             return any(name == e.name for e in self.iter_substitutes())
 
-    def match(self, name, default_namespace=None, **kwargs):
+    def match(self, name: str, default_namespace: Optional[str] = None,
+              **kwargs: Any) -> Optional['XsdElement']:
         if not name:
-            return
+            return None
         elif default_namespace and name[0] != '{':
             qname = '{%s}%s' % (default_namespace, name)
             if name == self.name or qname == self.name:
@@ -966,7 +973,9 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 if name == xsd_element.name:
                     return xsd_element
 
-    def is_restriction(self, other, check_occurs=True):
+    def is_restriction(self, other: GroupItemType, check_occurs: bool = True) -> bool:
+        e: GroupItemType
+
         if isinstance(other, XsdAnyElement):
             if self.min_occurs == self.max_occurs == 0:
                 return True
@@ -1014,17 +1023,17 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 return False
 
             check_group_items_occurs = self.xsd_version == '1.0'
-            counter = OccursCounter()
+            total_occurs = OccursCalculator()
             for e in other.iter_model():
                 if not isinstance(e, (XsdElement, XsdAnyElement)):
                     return False
                 elif not self.is_restriction(e, check_group_items_occurs):
                     continue
-                counter += e
-                counter *= other
-                if self.has_occurs_restriction(counter):
+                total_occurs += e
+                total_occurs *= other
+                if self.has_occurs_restriction(total_occurs):
                     return True
-                counter.reset()
+                total_occurs.reset()
             return False
         else:
             match_restriction = False
@@ -1038,7 +1047,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                     return False
             return True
 
-    def is_overlap(self, other):
+    def is_overlap(self, other: object) -> bool:
         if isinstance(other, XsdElement):
             if self.name == other.name:
                 return True
@@ -1063,18 +1072,17 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         """
         return self.name != other.name or self.type is other.type
 
-    def is_single(self):
-        try:
-            if self.max_occurs != 1:
-                return False
-            elif self.parent.max_occurs == 1:
-                return True
-            else:
-                return self.parent.model != 'choice' and len(self.parent) > 1
-        except AttributeError:
+    def is_single(self) -> bool:
+        if self.parent is None:
             return True
+        elif self.max_occurs != 1:
+            return False
+        elif self.parent.max_occurs == 1:
+            return True
+        else:
+            return self.parent.model != 'choice' and len(self.parent) > 1
 
-    def is_empty(self):
+    def is_empty(self) -> bool:
         return self.fixed == '' or self.type.is_empty()
 
 
@@ -1103,9 +1111,9 @@ class Xsd11Element(XsdElement):
           (unique | key | keyref)*))
         </element>
     """
-    _target_namespace = None
+    _target_namespace: Optional[str] = None
 
-    def _parse(self):
+    def _parse(self) -> None:
         self._parse_particle(self.elem)
         self._parse_attributes()
 
@@ -1123,7 +1131,7 @@ class Xsd11Element(XsdElement):
         if any(v.inheritable for v in self.attributes.values()):
             self.inheritable = {k: v for k, v in self.attributes.items() if v.inheritable}
 
-    def _parse_alternatives(self):
+    def _parse_alternatives(self) -> None:
         alternatives = []
         has_test = True
         for child in self.elem:
@@ -1137,13 +1145,13 @@ class Xsd11Element(XsdElement):
             self.alternatives = alternatives
 
     @property
-    def built(self):
+    def built(self) -> bool:
         return (self.type.parent is None or self.type.built) and \
             all(c.built for c in self.identities.values()) and \
             all(a.built for a in self.alternatives)
 
     @property
-    def target_namespace(self):
+    def target_namespace(self) -> str:
         if self._target_namespace is not None:
             return self._target_namespace
         elif self.ref is not None:
@@ -1151,7 +1159,7 @@ class Xsd11Element(XsdElement):
         else:
             return self.schema.target_namespace
 
-    def iter_components(self, xsd_classes=None):
+    def iter_components(self, xsd_classes: ComponentClassType = None) -> Iterator[XsdComponent]:
         if xsd_classes is None:
             yield self
             yield from self.identities.values()
@@ -1169,13 +1177,14 @@ class Xsd11Element(XsdElement):
         if self.ref is None and self.type.parent is not None:
             yield from self.type.iter_components(xsd_classes)
 
-    def iter_substitutes(self):
+    def iter_substitutes(self) -> Iterator['Xsd11Element']:
         if self.parent is None or self.ref is not None:
             for xsd_element in self.maps.substitution_groups.get(self.name, ()):
                 yield xsd_element
                 yield from xsd_element.iter_substitutes()
 
-    def get_type(self, elem: ElementType, inherited=None):
+    def get_type(self, elem: Union[ElementType, ElementData],
+                 inherited: Optional[Dict[str, Any]] = None) -> BaseXsdType:
         if not self.alternatives:
             return self._head_type or self.type
 
@@ -1265,28 +1274,30 @@ class XsdAlternative(XsdComponent):
         </alternative>
     """
     parent: XsdElement
-    type = None
-    path = None
-    token = None
+    type: Optional[BaseXsdType] = None
+    path: Optional[str] = None
+    token: Optional[XPathToken] = None
     _ADMITTED_TAGS = {XSD_ALTERNATIVE}
 
-    def __init__(self, elem, schema, parent):
+    def __init__(self, elem: ElementType, schema: SchemaType, parent: XsdElement) -> None:
         super(XsdAlternative, self).__init__(elem, schema, parent)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return '%s(type=%r, test=%r)' % (
             self.__class__.__name__, self.elem.get('type'), self.elem.get('test')
         )
 
-    def __eq__(self, other):
-        return self.path == other.path and self.type is other.type and \
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, XsdAlternative) and \
+            self.path == other.path and self.type is other.type and \
             self.xpath_default_namespace == other.xpath_default_namespace
 
-    def __ne__(self, other):
-        return self.path != other.path or self.type is not other.type or \
+    def __ne__(self, other: object) -> bool:
+        return not isinstance(other, XsdAlternative) or \
+            self.path != other.path or self.type is not other.type or \
             self.xpath_default_namespace != other.xpath_default_namespace
 
-    def _parse(self):
+    def _parse(self) -> None:
         attrib = self.elem.attrib
 
         if 'xpathDefaultNamespace' in attrib:
@@ -1334,6 +1345,7 @@ class XsdAlternative(XsdComponent):
             except KeyError:
                 self.parse_error("unknown type %r" % attrib['type'])
             else:
+                assert self.type is not None
                 if self.type.name != XSD_ERROR and not self.type.is_derived(self.parent.type):
                     msg = "type {!r} is not derived from {!r}"
                     self.parse_error(msg.format(attrib['type'], self.parent.type))
@@ -1344,20 +1356,30 @@ class XsdAlternative(XsdComponent):
                                      "are mutually exclusive" % child.tag.split('}')[-1])
 
     @property
-    def built(self):
+    def built(self) -> bool:
+        if self.type is None:
+            return False
         return self.type.parent is None or self.type.built
 
     @property
-    def validation_attempted(self):
-        return 'full' if self.built else self.type.validation_attempted
+    def validation_attempted(self) -> str:
+        if self.built:
+            return 'full'
+        elif self.type is None:
+            return 'none'
+        else:
+            return self.type.validation_attempted
 
-    def iter_components(self, xsd_classes=None):
+    def iter_components(self, xsd_classes: ComponentClassType = None) -> Iterator[XsdComponent]:
         if xsd_classes is None or isinstance(self, xsd_classes):
             yield self
         if self.type is not None and self.type.parent is not None:
             yield from self.type.iter_components(xsd_classes)
 
-    def test(self, elem):
+    def test(self, elem: ElementType) -> bool:
+        if self.token is None:
+            return False
+
         try:
             return self.token.boolean_value(list(self.token.select(context=XPathContext(elem))))
         except (TypeError, ValueError):

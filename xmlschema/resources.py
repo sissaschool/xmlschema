@@ -7,6 +7,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+import copy
 import os.path
 import pathlib
 import platform
@@ -24,8 +25,8 @@ from elementpath.protocols import ElementProtocol
 from .exceptions import XMLSchemaTypeError, XMLSchemaValueError, XMLResourceError
 from .names import XML_NAMESPACE
 from .etree import ElementTree, PyElementTree, SafeXMLParser, etree_tostring
-from .typing import ElementType, ElementTreeType, NamespacesType, XMLSourceType, \
-    NormalizedLocationsType, LocationsType, NsmapType, AncestorsType, ParentMapType
+from .aliases import ElementType, ElementTreeType, NamespacesType, XMLSourceType, \
+    NormalizedLocationsType, LocationsType, NsmapType, ParentMapType
 from .helpers import get_namespace, is_etree_element, is_etree_document, \
     etree_iter_location_hints
 
@@ -55,7 +56,7 @@ class LazyXPath2Parser(XPath2Parser):
 class LazySelector:
     """A limited XPath selector class for lazy XML resources."""
 
-    def __init__(self, path: str, namespaces: NamespacesType = None) -> None:
+    def __init__(self, path: str, namespaces: Optional[NamespacesType] = None) -> None:
         self.parser = LazyXPath2Parser(namespaces, strict=False)
         self.path = path
         self.root_token = self.parser.parse(path)
@@ -371,7 +372,7 @@ def fetch_namespaces(source: XMLSourceType,
                      base_url: Optional[str] = None,
                      allow: str = 'all',
                      defuse: str = 'remote',
-                     timeout: int = 30) -> Dict[str, str]:
+                     timeout: int = 30) -> NamespacesType:
     """
     Fetches namespaces information from the XML data source. The argument *source*
     can be a string containing the XML document or file path or an url or a file-like
@@ -411,7 +412,7 @@ class XMLResource:
     _text: Optional[str] = None
     _url: Optional[str] = None
     _nsmap: Optional[Dict[ElementType, List[Tuple[str, str]]]] = None
-    _parent_map: ParentMapType = None
+    _parent_map: Optional[ParentMapType] = None
     _lazy: Union[bool, int] = False
 
     def __init__(self, source: XMLSourceType,
@@ -553,7 +554,7 @@ class XMLResource:
                 prefix += '0'
         nsmap[prefix] = uri
 
-    def _lazy_iterparse(self, resource: IO[AnyStr], nsmap: NsmapType = None) \
+    def _lazy_iterparse(self, resource: IO[AnyStr], nsmap: Optional[NsmapType] = None) \
             -> Iterator[Tuple[str, ElementType]]:
         events: Tuple[str, ...]
         _nsmap: list
@@ -1023,8 +1024,8 @@ class XMLResource:
         for elem in self.iter(tag):
             yield from etree_iter_location_hints(elem)
 
-    def iter_depth(self, mode: int = 1, nsmap: NsmapType = None,
-                   ancestors: AncestorsType = None) -> Iterator[ElementType]:
+    def iter_depth(self, mode: int = 1, nsmap: Optional[NsmapType] = None,
+                   ancestors: Optional[List[ElementType]] = None) -> Iterator[ElementType]:
         """
         Iterates XML subtrees. For fully loaded resources yields the root element.
         On lazy resources the argument *mode* can change the sequence and the
@@ -1090,9 +1091,10 @@ class XMLResource:
             if self._source is not resource:
                 resource.close()
 
-    def iterfind(self, path: str, namespaces: NamespacesType = None,
-                 nsmap: NsmapType = None,
-                 ancestors: AncestorsType = None) -> Iterator[ElementType]:
+    def iterfind(self, path: str,
+                 namespaces: Optional[NamespacesType] = None,
+                 nsmap: Optional[NsmapType] = None,
+                 ancestors: Optional[List[ElementType]] = None) -> Iterator[ElementType]:
         """
         Apply XPath selection to XML resource that yields full subtrees.
 
@@ -1195,15 +1197,18 @@ class XMLResource:
 
                     yield elem
 
-    def find(self, path: str, namespaces: NamespacesType = None, nsmap: NsmapType = None,
-             ancestors: AncestorsType = None) -> Optional[ElementType]:
+    def find(self, path: str,
+             namespaces: Optional[NamespacesType] = None,
+             nsmap: Optional[NsmapType] = None,
+             ancestors: Optional[List[ElementType]] = None) -> Optional[ElementType]:
         return next(self.iterfind(path, namespaces, nsmap, ancestors), None)
 
-    def findall(self, path: str, namespaces: NamespacesType = None) -> List[ElementType]:
+    def findall(self, path: str, namespaces: Optional[NamespacesType] = None) \
+            -> List[ElementType]:
         return list(self.iterfind(path, namespaces))
 
-    def get_namespaces(self, namespaces: NamespacesType = None,
-                       root_only: Optional[bool] = None) -> Dict[str, str]:
+    def get_namespaces(self, namespaces: Optional[NamespacesType] = None,
+                       root_only: Optional[bool] = None) -> NamespacesType:
         """
         Extracts namespaces with related prefixes from the XML resource. If a duplicate
         prefix declaration is encountered and the prefix maps a different namespace,
@@ -1225,7 +1230,7 @@ class XMLResource:
             msg = "reserved prefix (xml) must not be bound to another namespace name"
             raise XMLSchemaValueError(msg)
         else:
-            namespaces = namespaces.copy()
+            namespaces = copy.copy(namespaces)
 
         try:
             for _ in self.iter(nsmap=namespaces):

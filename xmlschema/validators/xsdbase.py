@@ -11,8 +11,8 @@
 This module contains base functions and classes XML Schema components.
 """
 import re
-from typing import TYPE_CHECKING, Any, Dict, List, Iterator, Optional, Union, \
-    Set, Tuple
+from typing import TYPE_CHECKING, Any, Dict, Generic, List, Iterator, Optional, \
+    Set, Tuple, TypeVar, Union
 
 import elementpath
 
@@ -21,8 +21,8 @@ from ..names import XSD_ANNOTATION, XSD_APPINFO, XSD_DOCUMENTATION, XML_LANG, \
     XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_ID, XSD_QNAME, \
     XSD_OVERRIDE, XSD_NOTATION_TYPE, XSD_DECIMAL
 from ..etree import is_etree_element, etree_tostring, etree_element
-from ..typing import ElementType, XMLSourceType, NamespacesType, ComponentClassesType, \
-    ExtraValidatorType, DecodeReturnType, EncodeReturnType, ToObjectsReturnType
+from ..aliases import ElementType, NamespacesType, BaseXsdType, ComponentClassType, \
+    ExtraValidatorType, DecodeType, IterDecodeType, EncodeType, IterEncodeType
 from ..helpers import get_qname, local_name, get_prefixed_qname
 from ..resources import XMLResource
 from .. import dataobjects
@@ -113,7 +113,7 @@ class XsdValidator:
         else:
             return 'notKnown'
 
-    def iter_components(self, xsd_classes: ComponentClassesType = None) \
+    def iter_components(self, xsd_classes: ComponentClassType = None) \
             -> Iterator['XsdComponent']:
         """
         Creates an iterator for traversing all XSD components of the validator.
@@ -192,7 +192,7 @@ class XsdValidator:
                          error: Union[str, Exception],
                          obj: Any = None,
                          source: Optional[XMLResource] = None,
-                         namespaces: NamespacesType = None,
+                         namespaces: Optional[NamespacesType] = None,
                          **_kwargs: Any) -> XMLSchemaValidationError:
         """
         Helper method for generating and updating validation errors. If validation
@@ -586,7 +586,7 @@ class XsdComponent(XsdValidator):
             component = component.parent
         return None
 
-    def iter_components(self, xsd_classes: ComponentClassesType = None) \
+    def iter_components(self, xsd_classes: ComponentClassType = None) \
             -> Iterator['XsdComponent']:
         """
         Creates an iterator for XSD subcomponents.
@@ -597,7 +597,7 @@ class XsdComponent(XsdValidator):
         if xsd_classes is None or isinstance(self, xsd_classes):
             yield self
 
-    def iter_ancestors(self, xsd_classes: ComponentClassesType = None)\
+    def iter_ancestors(self, xsd_classes: ComponentClassType = None)\
             -> Iterator['XsdComponent']:
         """
         Creates an iterator for XSD ancestor components, schema excluded. Stops when the component
@@ -682,7 +682,8 @@ class XsdType(XsdComponent):
 
     abstract = False
     block: Optional[str] = None
-    base_type: Optional[Union['XsdSimpleType', 'XsdComplexType']] = None
+    base_type: Optional[BaseXsdType] = None
+    attributes = None
     derivation: Optional[str] = None
     _final: Optional[str] = None
 
@@ -857,14 +858,18 @@ class XsdType(XsdComponent):
         raise NotImplementedError()
 
 
-class ValidationMixin:
+ST = TypeVar('ST')
+DT = TypeVar('DT')
+
+
+class ValidationMixin(Generic[ST, DT]):
     """
     Mixin for implementing XML data validators/decoders on XSD components.
     A derived class must implement the methods `iter_decode` and `iter_encode`.
     """
-    def validate(self, obj: Any,
+    def validate(self, obj: ST,
                  use_defaults: bool = True,
-                 namespaces: NamespacesType = None,
+                 namespaces: Optional[NamespacesType] = None,
                  max_depth: Optional[int] = None,
                  extra_validator: ExtraValidatorType = None) -> None:
         """
@@ -886,9 +891,9 @@ class ValidationMixin:
                                       max_depth, extra_validator):
             raise error
 
-    def is_valid(self, obj: Any,
+    def is_valid(self, obj: ST,
                  use_defaults: bool = True,
-                 namespaces: NamespacesType = None,
+                 namespaces: Optional[NamespacesType] = None,
                  max_depth: Optional[int] = None,
                  extra_validator: ExtraValidatorType = None) -> bool:
         """
@@ -899,9 +904,9 @@ class ValidationMixin:
                                       max_depth, extra_validator), None)
         return error is None
 
-    def iter_errors(self, source: Union[XMLSourceType, XMLResource],
+    def iter_errors(self, obj: ST,
                     use_defaults: bool = True,
-                    namespaces: NamespacesType = None,
+                    namespaces: Optional[NamespacesType] = None,
                     max_depth: Optional[int] = None,
                     extra_validator: ExtraValidatorType = None) \
             -> Iterator[XMLSchemaValidationError]:
@@ -918,18 +923,18 @@ class ValidationMixin:
         if extra_validator is not None:
             kwargs['extra_validator'] = extra_validator
 
-        for result in self.iter_decode(source, **kwargs):
+        for result in self.iter_decode(obj, **kwargs):
             if isinstance(result, XMLSchemaValidationError):
                 yield result
             else:
                 del result
 
-    def decode(self, obj: Any, validation: str = 'strict', **kwargs: Any) -> DecodeReturnType:
+    def decode(self, obj: ST, validation: str = 'strict', **kwargs: Any) -> DecodeType[DT]:
         """
         Decodes XML data.
 
-        :param obj: the XML data. Can be a string for an attribute or for a simple \
-        type components or a dictionary for an attribute group or an ElementTree's \
+        :param obj: the XML data. Can be a string for an attribute or for simple type \
+        components or a dictionary for an attribute group or an ElementTree's \
         Element for other components.
         :param validation: the validation mode. Can be 'lax', 'strict' or 'skip.
         :param kwargs: optional keyword arguments for the method :func:`iter_decode`.
@@ -954,12 +959,12 @@ class ValidationMixin:
 
         return (result, errors) if validation == 'lax' else result
 
-    def to_objects(self, obj: Any, with_bindings: bool = False,
-                   **kwargs: Any) -> ToObjectsReturnType:
+    def to_objects(self, source: ST, with_bindings: bool = False, **kwargs: Any) \
+            -> DecodeType['dataobjects.DataElement']:
         """
         Decodes XML data to Python data objects.
 
-        :param obj: the XML data.
+        :param source: the XML data source.
         :param with_bindings: if `True` is provided the decoding is done using \
         :class:`DataBindingConverter` that used XML data binding classes. For \
         default the objects are instances of :class:`DataElement` and uses the \
@@ -968,10 +973,10 @@ class ValidationMixin:
         :func:`iter_decode`, except the argument *converter*.
         """
         if with_bindings:
-            return self.decode(obj, converter=dataobjects.DataBindingConverter, **kwargs)
-        return self.decode(obj, converter=dataobjects.DataElementConverter, **kwargs)
+            return self.decode(source, converter=dataobjects.DataBindingConverter, **kwargs)
+        return self.decode(source, converter=dataobjects.DataElementConverter, **kwargs)
 
-    def encode(self, obj: Any, validation: str = 'strict', **kwargs: Any) -> EncodeReturnType:
+    def encode(self, obj: Any, validation: str = 'strict', **kwargs: Any) -> EncodeType[Any]:
         """
         Encodes data to XML.
 
@@ -997,11 +1002,12 @@ class ValidationMixin:
 
         return (result, errors) if validation == 'lax' else result
 
-    def iter_decode(self, obj: Any, validation: str = 'lax', **kwargs: Any) -> Iterator[Any]:
+    def iter_decode(self, obj: ST, validation: str = 'lax', **kwargs: Any) \
+            -> IterDecodeType[DT]:
         """
         Creates an iterator for decoding an XML source to a Python object.
 
-        :param obj: the XML data source.
+        :param obj: the XML data.
         :param validation: the validation mode. Can be 'lax', 'strict' or 'skip.
         :param kwargs: keyword arguments for the decoder API.
         :return: Yields a decoded object, eventually preceded by a sequence of \
@@ -1009,7 +1015,8 @@ class ValidationMixin:
         """
         raise NotImplementedError()
 
-    def iter_encode(self, obj: Any, validation: str = 'lax', **kwargs: Any) -> Iterator[Any]:
+    def iter_encode(self, obj: Any, validation: str = 'lax', **kwargs: Any) \
+            -> IterEncodeType[Any]:
         """
         Creates an iterator for encoding data to an Element tree.
 

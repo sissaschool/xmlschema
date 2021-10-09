@@ -10,10 +10,11 @@
 import re
 from collections import Counter
 from decimal import Decimal
-from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Iterator, List, MutableMapping, \
+    Optional, Tuple, Union
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from .names import XSI_SCHEMA_LOCATION, XSI_NONS_SCHEMA_LOCATION
-from .typing import ElementType, AtomicValueType, NumericValueType
+from .aliases import ElementType, NamespacesType, AtomicValueType, NumericValueType
 
 ###
 # Helper functions for QNames
@@ -21,18 +22,18 @@ from .typing import ElementType, AtomicValueType, NumericValueType
 NAMESPACE_PATTERN = re.compile(r'{([^}]*)}')
 
 
-def get_namespace(qname: str, namespaces: Optional[Dict[str, str]] = None) -> str:
+def get_namespace(qname: str, namespaces: Optional[NamespacesType] = None) -> str:
     """
     Returns the namespace URI associated with a QName. If a namespace map is
     provided tries to resolve a prefixed QName and then to extract the namespace.
 
     :param qname: an extended QName or a local name or a prefixed QName.
-    :param namespaces: optional dictionary with a map from prefixes to namespace URIs.
+    :param namespaces: optional mapping from prefixes to namespace URIs.
     """
     if not qname:
         return ''
     elif qname[0] != '{':
-        if not namespaces:
+        if namespaces is None:
             return ''
         qname = get_extended_qname(qname, namespaces)
 
@@ -79,12 +80,14 @@ def local_name(qname: str) -> str:
         return qname
 
 
-def get_prefixed_qname(qname: str, namespaces: Dict[str, str], use_empty: bool = True) -> str:
+def get_prefixed_qname(qname: str,
+                       namespaces: MutableMapping[str, str],
+                       use_empty: bool = True) -> str:
     """
     Get the prefixed form of a QName, using a namespace map.
 
     :param qname: an extended QName or a local name or a prefixed QName.
-    :param namespaces: a dictionary with a map from prefixes to namespace URIs.
+    :param namespaces: a mapping from prefixes to namespace URIs.
     :param use_empty: if `True` use the empty prefix for mapping.
     """
     if not qname or qname[0] != '{':
@@ -105,13 +108,13 @@ def get_prefixed_qname(qname: str, namespaces: Dict[str, str], use_empty: bool =
         return qname
 
 
-def get_extended_qname(qname: str, namespaces: Dict[str, str]) -> str:
+def get_extended_qname(qname: str, namespaces: MutableMapping[str, str]) -> str:
     """
     Get the extended form of a QName, using a namespace map.
     Local names are mapped to the default namespace.
 
     :param qname: a prefixed QName or a local name or an extended QName.
-    :param namespaces: a dictionary with a map from prefixes to namespace URIs.
+    :param namespaces: a mapping from prefixes to namespace URIs.
     """
     try:
         if qname[0] == '{':
@@ -148,8 +151,10 @@ def is_etree_document(obj: object) -> bool:
     return hasattr(obj, 'getroot') and hasattr(obj, 'parse') and hasattr(obj, 'iter')
 
 
-def etree_iterpath(elem: ElementType, tag: Optional[str] = None,
-                   path: str = '.', namespaces: Optional[Dict[str, str]] = None,
+def etree_iterpath(elem: ElementType,
+                   tag: Optional[str] = None,
+                   path: str = '.',
+                   namespaces: Optional[NamespacesType] = None,
                    add_position: bool = False) -> Iterator[Tuple[ElementType, str]]:
     """
     Creates an iterator for the element and its subelements that yield elements and paths.
@@ -193,7 +198,7 @@ def etree_iterpath(elem: ElementType, tag: Optional[str] = None,
 
 def etree_getpath(elem: ElementType,
                   root: ElementType,
-                  namespaces: Optional[Dict[str, str]] = None,
+                  namespaces: Optional[NamespacesType] = None,
                   relative: bool = True,
                   add_position: bool = False,
                   parent_path: bool = False) -> Optional[str]:
@@ -202,7 +207,7 @@ def etree_getpath(elem: ElementType,
 
     :param elem: the descendant element.
     :param root: the root element.
-    :param namespaces: is an optional mapping from namespace prefix to URI.
+    :param namespaces: an optional mapping from namespace prefix to URI.
     :param relative: returns a relative path.
     :param add_position: add context position to child elements that appear multiple times.
     :param parent_path: if set to `True` returns the parent path. Default is `False`.

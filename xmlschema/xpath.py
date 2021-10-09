@@ -12,20 +12,16 @@ This module defines a proxy class and a mixin class for enabling XPath on schema
 """
 from abc import abstractmethod
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any, Iterator, List, Optional, Union
 import re
 
 from elementpath import AttributeNode, TypedElement, XPath2Parser, \
     XPathSchemaContext, AbstractSchemaProxy
 
 from .names import XSD_NAMESPACE
+from .aliases import NamespacesType, SchemaType, BaseElementType
 from .helpers import get_qname, local_name, get_prefixed_qname
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
-
-if TYPE_CHECKING:
-    from .validators import XMLSchemaBase, XsdElement, XsdAnyElement, XsdAssert
-
-BaseElementType = Union['XsdElement', 'XsdAnyElement', 'XsdAssert']
 
 _REGEX_TAG_POSITION = re.compile(r'\b\[\d+]')
 
@@ -81,7 +77,7 @@ class XMLSchemaContext(XPathSchemaContext):
 
 class XMLSchemaProxy(AbstractSchemaProxy):
     """XPath schema proxy for the *xmlschema* library."""
-    def __init__(self, schema: Optional['XMLSchemaBase'] = None,
+    def __init__(self, schema: Optional[SchemaType] = None,
                  base_element: Optional[BaseElementType] = None) -> None:
 
         if schema is None:
@@ -153,23 +149,23 @@ class ElementPathMixin(Sequence):
     xpath_default_namespace = ''
 
     @abstractmethod
-    def __iter__(self):
+    def __iter__(self) -> Iterator['ElementPathMixin']:
         raise NotImplementedError
 
-    def __getitem__(self, i):
+    def __getitem__(self, i) -> 'ElementPathMixin':
         try:
             return [e for e in self][i]
         except IndexError:
             raise IndexError('child index out of range')
 
-    def __reversed__(self):
+    def __reversed__(self) -> Iterator['ElementPathMixin']:
         return reversed([e for e in self])
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len([e for e in self])
 
     @property
-    def tag(self):
+    def tag(self) -> str:
         """Alias of the *name* attribute. For compatibility with the ElementTree API."""
         return getattr(self, 'name')
 
@@ -178,7 +174,7 @@ class ElementPathMixin(Sequence):
         """Returns the Element attributes. For compatibility with the ElementTree API."""
         return self.attributes
 
-    def get(self, key, default=None):
+    def get(self, key: str, default: Any = None) -> Any:
         """Gets an Element attribute. For compatibility with the ElementTree API."""
         return self.attributes.get(key, default)
 
@@ -204,7 +200,8 @@ class ElementPathMixin(Sequence):
         xpath_namespaces.update(namespaces)
         return xpath_namespaces
 
-    def find(self, path, namespaces=None):
+    def find(self, path: str, namespaces: Optional[NamespacesType] = None) \
+            -> Optional['ElementPathMixin']:
         """
         Finds the first XSD subelement matching the path.
 
@@ -219,7 +216,8 @@ class ElementPathMixin(Sequence):
 
         return next(parser.parse(path).select_results(context), None)
 
-    def findall(self, path, namespaces=None):
+    def findall(self, path: str, namespaces: Optional[NamespacesType] = None) \
+            -> List['ElementPathMixin']:
         """
         Finds all XSD subelements matching the path.
 
@@ -235,7 +233,8 @@ class ElementPathMixin(Sequence):
 
         return parser.parse(path).get_results(context)
 
-    def iterfind(self, path, namespaces=None):
+    def iterfind(self, path: str, namespaces: Optional[NamespacesType] = None) \
+            -> Iterator['ElementPathMixin']:
         """
         Creates and iterator for all XSD subelements matching the path.
 
@@ -250,7 +249,7 @@ class ElementPathMixin(Sequence):
 
         return parser.parse(path).select_results(context)
 
-    def iter(self, tag=None):
+    def iter(self, tag: Optional[str] = None) -> Iterator['ElementPathMixin']:
         """
         Creates an iterator for the XSD element and its subelements. If tag is not `None` or '*',
         only XSD elements whose matches tag are returned from the iterator. Local elements are
@@ -275,7 +274,7 @@ class ElementPathMixin(Sequence):
         local_elements = set()
         return safe_iter(self)
 
-    def iterchildren(self, tag=None):
+    def iterchildren(self, tag: Optional[str] = None) -> Iterator['ElementPathMixin']:
         """
         Creates an iterator for the child elements of the XSD component. If *tag* is not `None`
         or '*', only XSD elements whose name matches tag are returned from the iterator.
@@ -305,29 +304,29 @@ class XPathElement(ElementPathMixin):
             yield from self.type.content.iter_elements()
 
     @property
-    def xpath_proxy(self):
+    def xpath_proxy(self) -> XMLSchemaProxy:
         return XMLSchemaProxy(self.schema, self)
 
     @property
-    def schema(self):
+    def schema(self) -> SchemaType:
         return self.type.schema
 
     @property
-    def target_namespace(self):
+    def target_namespace(self) -> str:
         return self.type.schema.target_namespace
 
     @property
-    def namespaces(self):
+    def namespaces(self) -> NamespacesType:
         return self.type.schema.namespaces
 
     @property
-    def local_name(self):
+    def local_name(self) -> str:
         return local_name(self.name)
 
     @property
-    def qualified_name(self):
+    def qualified_name(self) -> str:
         return get_qname(self.target_namespace, self.name)
 
     @property
-    def prefixed_name(self):
+    def prefixed_name(self) -> str:
         return get_prefixed_qname(self.name, self.namespaces)

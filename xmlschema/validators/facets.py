@@ -19,13 +19,13 @@ from typing import TYPE_CHECKING, cast, Any, List, Optional, Pattern, Union, \
 from elementpath import XPath2Parser, XPathContext, ElementPathError, \
     translate_pattern, RegexError
 
-from ..etree import etree_element
-from ..typing import ElementType, AtomicValueType, FacetBaseType
 from ..names import XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_ENUMERATION, \
     XSD_INTEGER, XSD_WHITE_SPACE, XSD_PATTERN, XSD_MAX_INCLUSIVE, XSD_MAX_EXCLUSIVE, \
     XSD_MIN_INCLUSIVE, XSD_MIN_EXCLUSIVE, XSD_TOTAL_DIGITS, XSD_FRACTION_DIGITS, \
     XSD_ASSERTION, XSD_DECIMAL, XSD_EXPLICIT_TIMEZONE, XSD_NOTATION_TYPE, XSD_QNAME, \
     XSD_ANNOTATION
+from ..etree import etree_element
+from ..aliases import ElementType, AtomicValueType, BaseXsdType
 from ..helpers import count_digits, local_name
 from .exceptions import XMLSchemaValidationError, XMLSchemaDecodeError
 from .xsdbase import XsdComponent, XsdAnnotation
@@ -40,14 +40,14 @@ class XsdFacet(XsdComponent):
     XML Schema constraining facets base class.
     """
     value: Optional[AtomicValueType]
-    base_type: Optional[FacetBaseType]
+    base_type: Optional[BaseXsdType]
     base_value: Optional[AtomicValueType]
     fixed = False
 
     def __init__(self, elem: ElementType,
                  schema: 'XMLSchemaBase',
                  parent: Union['XsdList', 'XsdAtomicRestriction'],
-                 base_type: Optional[FacetBaseType]) -> None:
+                 base_type: Optional[BaseXsdType]) -> None:
         self.base_type = base_type
         super(XsdFacet, self).__init__(elem, schema, parent)
 
@@ -95,7 +95,7 @@ class XsdFacet(XsdComponent):
         """
         An object of the same type if the instance has a base facet, `None` otherwise.
         """
-        base_type: Optional[FacetBaseType] = self.base_type
+        base_type: Optional[BaseXsdType] = self.base_type
         tag = self.elem.tag
         while True:
             if base_type is None:
@@ -163,7 +163,7 @@ class XsdLengthFacet(XsdFacet):
         </length>
     """
     value: int
-    base_type: FacetBaseType
+    base_type: BaseXsdType
     base_value: Optional[int]
     _ADMITTED_TAGS = XSD_LENGTH,
 
@@ -196,7 +196,7 @@ class XsdMinLengthFacet(XsdFacet):
         </minLength>
     """
     value: int
-    base_type: FacetBaseType
+    base_type: BaseXsdType
     base_value: Optional[int]
     _ADMITTED_TAGS = XSD_MIN_LENGTH,
 
@@ -229,7 +229,7 @@ class XsdMaxLengthFacet(XsdFacet):
         </maxLength>
     """
     value: int
-    base_type: FacetBaseType
+    base_type: BaseXsdType
     base_value: Optional[int]
     _ADMITTED_TAGS = XSD_MAX_LENGTH,
 
@@ -261,7 +261,7 @@ class XsdMinInclusiveFacet(XsdFacet):
           Content: (annotation?)
         </minInclusive>
     """
-    base_type: FacetBaseType
+    base_type: BaseXsdType
     _ADMITTED_TAGS = XSD_MIN_INCLUSIVE,
 
     def _parse_value(self, elem: ElementType) -> None:
@@ -290,7 +290,7 @@ class XsdMinExclusiveFacet(XsdFacet):
           Content: (annotation?)
         </minExclusive>
     """
-    base_type: FacetBaseType
+    base_type: BaseXsdType
     _ADMITTED_TAGS = XSD_MIN_EXCLUSIVE,
 
     def _parse_value(self, elem: ElementType) -> None:
@@ -324,7 +324,7 @@ class XsdMaxInclusiveFacet(XsdFacet):
           Content: (annotation?)
         </maxInclusive>
     """
-    base_type: FacetBaseType
+    base_type: BaseXsdType
     _ADMITTED_TAGS = XSD_MAX_INCLUSIVE,
 
     def _parse_value(self, elem: ElementType) -> None:
@@ -353,7 +353,7 @@ class XsdMaxExclusiveFacet(XsdFacet):
           Content: (annotation?)
         </maxExclusive>
     """
-    base_type: FacetBaseType
+    base_type: BaseXsdType
     _ADMITTED_TAGS = XSD_MAX_EXCLUSIVE,
 
     def _parse_value(self, elem: ElementType) -> None:
@@ -388,7 +388,7 @@ class XsdTotalDigitsFacet(XsdFacet):
         </totalDigits>
     """
     value: int
-    base_type: FacetBaseType
+    base_type: BaseXsdType
     _ADMITTED_TAGS = XSD_TOTAL_DIGITS,
 
     def _parse_value(self, elem: ElementType) -> None:
@@ -433,13 +433,13 @@ class XsdFractionDigitsFacet(XsdFacet):
         </fractionDigits>
     """
     value: int
-    base_type: FacetBaseType
+    base_type: BaseXsdType
     _ADMITTED_TAGS = XSD_FRACTION_DIGITS,
 
     def __init__(self, elem: ElementType,
                  schema: 'XMLSchemaBase',
                  parent: 'XsdAtomicRestriction',
-                 base_type: FacetBaseType) -> None:
+                 base_type: BaseXsdType) -> None:
 
         super(XsdFractionDigitsFacet, self).__init__(elem, schema, parent, base_type)
         if not base_type.is_derived(self.maps.types[XSD_DECIMAL]):
@@ -492,7 +492,7 @@ class XsdExplicitTimezoneFacet(XsdFacet):
         </explicitTimezone>
     """
     value: str
-    base_type: FacetBaseType
+    base_type: BaseXsdType
     _ADMITTED_TAGS = XSD_EXPLICIT_TIMEZONE,
 
     def _parse_value(self, elem: ElementType) -> None:
@@ -532,13 +532,13 @@ class XsdEnumerationFacets(MutableSequence[ElementType], XsdFacet):
           Content: (annotation?)
         </enumeration>
     """
-    base_type: FacetBaseType
+    base_type: BaseXsdType
     _ADMITTED_TAGS = {XSD_ENUMERATION}
 
     def __init__(self, elem: ElementType,
                  schema: 'XMLSchemaBase',
                  parent: 'XsdAtomicRestriction',
-                 base_type: FacetBaseType) -> None:
+                 base_type: BaseXsdType) -> None:
         XsdFacet.__init__(self, elem, schema, parent, base_type)
 
     def _parse(self) -> None:
@@ -652,7 +652,7 @@ class XsdPatternFacets(MutableSequence[ElementType], XsdFacet):
     def __init__(self, elem: ElementType,
                  schema: 'XMLSchemaBase',
                  parent: 'XsdAtomicRestriction',
-                 base_type: Optional[FacetBaseType]) -> None:
+                 base_type: Optional[BaseXsdType]) -> None:
         XsdFacet.__init__(self, elem, schema, parent, base_type)
 
     def _parse(self) -> None:
@@ -722,7 +722,7 @@ class XsdPatternFacets(MutableSequence[ElementType], XsdFacet):
 
     @property
     def regexps(self) -> List[str]:
-        return [e.get('value', '') for e in self._elements]
+        return [e.attrib.get('value', '') for e in self._elements]
 
     def get_annotation(self, i: int) -> Optional[XsdAnnotation]:
         """

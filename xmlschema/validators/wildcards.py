@@ -14,12 +14,11 @@ from typing import TYPE_CHECKING, Any, Dict, Iterable, Iterator, List, \
     Optional, Tuple, Union
 
 from ..exceptions import XMLSchemaValueError
-from ..typing import ElementType, AtomicValueType
 from ..names import XSI_NAMESPACE, XSD_ANY, XSD_ANY_ATTRIBUTE, \
     XSD_OPEN_CONTENT, XSD_DEFAULT_OPEN_CONTENT, XSI_TYPE
+from ..aliases import ElementType, AtomicValueType, IterDecodeType, IterEncodeType
 from ..helpers import get_namespace, raw_xml_encode
 from ..xpath import XMLSchemaProxy, ElementPathMixin
-from .exceptions import XMLSchemaValidationError
 from .xsdbase import ValidationMixin, XsdComponent
 from .particles import ParticleMixin
 from .models import OccursCounterType
@@ -31,7 +30,7 @@ if TYPE_CHECKING:
     from .schema import XMLSchemaBase
 
 
-class XsdWildcard(XsdComponent, ValidationMixin):
+class XsdWildcard(XsdComponent):
     names = ()
     namespace: Union[Tuple[str], List[str]] = ('##any',)
     not_namespace: Union[Tuple[()], List[str]] = ()
@@ -370,14 +369,9 @@ class XsdWildcard(XsdComponent, ValidationMixin):
             if '' in self.namespace:
                 self.namespace.remove('')
 
-    def iter_decode(self, obj: Any, validation: str = 'lax', **kwargs: Any) -> Iterator[Any]:
-        raise NotImplementedError
 
-    def iter_encode(self, obj: Any, validation: str = 'lax', **kwargs: Any) -> Iterator[Any]:
-        raise NotImplementedError
-
-
-class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
+class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin,
+                    ValidationMixin[ElementType, Any]):
     """
     Class for XSD 1.0 *any* wildcards.
 
@@ -456,7 +450,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
         return iter(())
 
     def iter_decode(self, obj: ElementType, validation: str = 'lax', **kwargs: Any) \
-            -> Iterator[Union[XMLSchemaValidationError, Any]]:
+            -> IterDecodeType[Any]:
 
         if not self.is_matching(obj.tag):
             reason = "{!r} is not allowed here".format(obj)
@@ -497,8 +491,8 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
             reason = "unavailable namespace {!r}".format(get_namespace(obj.tag))
             yield self.validation_error(validation, reason, obj, **kwargs)
 
-    def iter_encode(self, obj: Tuple[str, ElementType],
-                    validation: str = 'lax', **kwargs: Any) -> Iterator[Any]:
+    def iter_encode(self, obj: Tuple[str, ElementType], validation: str = 'lax', **kwargs: Any) \
+            -> IterEncodeType[Any]:
         name, value = obj
         namespace = get_namespace(name)
 
@@ -564,7 +558,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
         return True
 
 
-class XsdAnyAttribute(XsdWildcard):
+class XsdAnyAttribute(XsdWildcard, ValidationMixin[Tuple[str, str], AtomicValueType]):
     """
     Class for XSD 1.0 *anyAttribute* wildcards.
 
@@ -611,7 +605,7 @@ class XsdAnyAttribute(XsdWildcard):
             return None
 
     def iter_decode(self, obj: Tuple[str, str], validation: str = 'lax', **kwargs: Any) \
-            -> Iterator[Union[AtomicValueType, XMLSchemaValidationError]]:
+            -> IterDecodeType[AtomicValueType]:
         name, value = obj
 
         if not self.is_matching(name):
@@ -641,7 +635,7 @@ class XsdAnyAttribute(XsdWildcard):
             yield self.validation_error(validation, reason, **kwargs)
 
     def iter_encode(self, obj: Tuple[str, AtomicValueType], validation: str = 'lax',
-                    **kwargs: Any) -> Iterator[Union[None, str, XMLSchemaValidationError]]:
+                    **kwargs: Any) -> IterEncodeType[Union[None, str]]:
         name, value = obj
         namespace = get_namespace(name)
 

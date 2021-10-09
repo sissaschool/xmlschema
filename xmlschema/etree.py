@@ -12,7 +12,8 @@ A unified setup module for ElementTree with a safe parser and helper functions.
 """
 import sys
 import re
-from typing import Any, Dict, Optional, Union
+from collections import namedtuple
+from typing import Any, MutableMapping, Optional, Union
 
 from .exceptions import XMLSchemaTypeError
 
@@ -100,13 +101,25 @@ class SafeXMLParser(PyElementTree.XMLParser):
         )  # pragma: no cover (EntityDeclHandler is called before)
 
 
+ElementData = namedtuple('ElementData', ['tag', 'text', 'content', 'attributes'])
+"""
+Namedtuple for Element data interchange between decoders and converters.
+The field *tag* is a string containing the Element's tag, *text* can be `None`
+or a string representing the Element's text, *content* can be `None`, a list
+containing the Element's children or a dictionary containing element name to
+list of element contents for the Element's children (used for unordered input
+data), *attributes* can be `None` or a dictionary containing the Element's
+attributes.
+"""
+
+
 def is_etree_element(obj: Any) -> bool:
     """A checker for valid ElementTree elements that excludes XsdElement objects."""
     return hasattr(obj, 'append') and hasattr(obj, 'tag') and hasattr(obj, 'attrib')
 
 
 def etree_tostring(elem: etree_element,
-                   namespaces: Optional[Dict[str, str]] = None,
+                   namespaces: Optional[MutableMapping[str, str]] = None,
                    indent: str = '',
                    max_lines: Optional[int] = None,
                    spaces_for_tab: Optional[int] = None,
@@ -160,7 +173,7 @@ def etree_tostring(elem: etree_element,
         if default_namespace and not hasattr(elem, 'nsmap'):
             etree_module.register_namespace('', default_namespace)
 
-    xml_text = etree_module.tostring(elem, encoding=encoding, method=method)
+    xml_text = etree_module.tostring(elem, encoding=encoding, method=method)  # type: ignore
     if isinstance(xml_text, bytes):
         xml_text = xml_text.decode('utf-8')
 
@@ -208,5 +221,5 @@ def etree_tostring(elem: etree_element,
     return '\n'.join(reindent(line) for line in lines).encode(encoding)
 
 
-__all__ = ['ElementTree', 'PyElementTree', 'ParseError', 'SafeXMLParser',
-           'etree_element', 'py_etree_element', 'is_etree_element', 'etree_tostring']
+__all__ = ['ElementTree', 'PyElementTree', 'ParseError', 'SafeXMLParser', 'etree_element',
+           'py_etree_element', 'ElementData', 'is_etree_element', 'etree_tostring']

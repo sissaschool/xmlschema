@@ -15,7 +15,8 @@ from typing import TYPE_CHECKING, cast, Any, Callable, Dict, Iterator, List, \
     Optional, Set, Union, Tuple, Type
 
 from ..etree import etree_element
-from ..typing import ElementType, AtomicValueType, ComponentClassesType
+from ..aliases import ElementType, AtomicValueType, ComponentClassType, \
+    IterDecodeType, IterEncodeType
 from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from ..names import XSD_NAMESPACE, XSD_ANY_TYPE, XSD_SIMPLE_TYPE, XSD_PATTERN, \
     XSD_ANY_ATOMIC_TYPE, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ANY_ATTRIBUTE, \
@@ -38,15 +39,14 @@ if TYPE_CHECKING:
     from .complex_types import XsdComplexType
     from .schema import XMLSchemaBase
 
+
 FacetsValueType = Union[XsdFacet, Callable[[Any], None], List[XsdAssertionFacet]]
-DecoderType = Iterator[Union[None, AtomicValueType, List[Any],
-                             XMLSchemaValidationError]]
-EncoderType = Iterator[Union[None, str, List[str], XMLSchemaValidationError]]
-
 PythonTypeClasses = Type[Any]
+DecodedValueType = Union[None, AtomicValueType, List[AtomicValueType]]
+EncodedValueType = Union[None, str, List[str]]
 
 
-class XsdSimpleType(XsdType, ValidationMixin):
+class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType]):
     """
     Base class for simpleTypes definitions. Generally used only for
     instances of xs:anySimpleType.
@@ -402,7 +402,7 @@ class XsdSimpleType(XsdType, ValidationMixin):
         return cast(AtomicValueType, self.decode(text, validation='skip'))
 
     def iter_decode(self, obj: Union[str, bytes], validation: str = 'lax',
-                    **kwargs: Any) -> DecoderType:
+                    **kwargs: Any) -> IterDecodeType[DecodedValueType]:
         if obj is None:
             yield obj
         else:
@@ -421,7 +421,8 @@ class XsdSimpleType(XsdType, ValidationMixin):
 
             yield text
 
-    def iter_encode(self, obj: Any, validation: str = 'lax', **kwargs: Any) -> EncoderType:
+    def iter_encode(self, obj: Any, validation: str = 'lax', **kwargs: Any) \
+            -> IterEncodeType[EncodedValueType]:
         if not isinstance(obj, (str, bytes)):
             reason = "a {!r} or {!r} object required".format(str, bytes)
             yield XMLSchemaEncodeError(self, obj, str, reason)
@@ -573,7 +574,8 @@ class XsdAtomicBuiltin(XsdAtomic):
     def admitted_facets(self) -> Set[str]:
         return self._admitted_facets or self.primitive_type.admitted_facets
 
-    def iter_decode(self, obj: Union[str, bytes], validation: str = 'lax', **kwargs: Any) -> DecoderType:
+    def iter_decode(self, obj: Union[str, bytes], validation: str = 'lax', **kwargs: Any) \
+            -> IterDecodeType[DecodedValueType]:
         if isinstance(obj, (str, bytes)):
             obj = self.normalize(obj)
         elif obj is not None and not isinstance(obj, self.instance_types):
@@ -677,7 +679,8 @@ class XsdAtomicBuiltin(XsdAtomic):
 
         yield result
 
-    def iter_encode(self, obj: Any, validation: str = 'lax', **kwargs: Any) -> EncoderType:
+    def iter_encode(self, obj: Any, validation: str = 'lax', **kwargs: Any) \
+            -> IterEncodeType[EncodedValueType]:
         if isinstance(obj, (str, bytes)):
             obj = self.normalize(obj)
 
@@ -871,14 +874,15 @@ class XsdList(XsdSimpleType):
         else:
             return False
 
-    def iter_components(self, xsd_classes: ComponentClassesType = None) \
+    def iter_components(self, xsd_classes: ComponentClassType = None) \
             -> Iterator[XsdComponent]:
         if xsd_classes is None or isinstance(self, xsd_classes):
             yield self
         if self.base_type.parent is not None:
             yield from self.base_type.iter_components(xsd_classes)
 
-    def iter_decode(self, obj: Union[str, bytes], validation: str = 'lax', **kwargs: Any) -> DecoderType:
+    def iter_decode(self, obj: Union[str, bytes], validation: str = 'lax', **kwargs: Any) \
+            -> IterDecodeType[DecodedValueType]:
         items = []
         for chunk in self.normalize(obj).split():
             for result in self.base_type.iter_decode(chunk, validation, **kwargs):
@@ -889,7 +893,8 @@ class XsdList(XsdSimpleType):
         else:
             yield items
 
-    def iter_encode(self, obj: Any, validation: str = 'lax', **kwargs: Any) -> EncoderType:
+    def iter_encode(self, obj: Any, validation: str = 'lax', **kwargs: Any) \
+            -> IterEncodeType[EncodedValueType]:
         if not hasattr(obj, '__iter__') or isinstance(obj, (str, bytes)):
             obj = [obj]
 
@@ -1025,7 +1030,7 @@ class XsdUnion(XsdSimpleType):
             other.is_derived(self) or isinstance(other, self.__class__) and \
             any(mt1.is_derived(mt2) for mt1 in other.member_types for mt2 in self.member_types)
 
-    def iter_components(self, xsd_classes: ComponentClassesType = None) \
+    def iter_components(self, xsd_classes: ComponentClassType = None) \
             -> Iterator[XsdComponent]:
         if xsd_classes is None or isinstance(self, xsd_classes):
             yield self
@@ -1034,7 +1039,7 @@ class XsdUnion(XsdSimpleType):
 
     def iter_decode(self, obj: Any, validation: str = 'lax',
                     patterns: Optional[XsdPatternFacets] = None,
-                    **kwargs: Any) -> DecoderType:
+                    **kwargs: Any) -> IterDecodeType[DecodedValueType]:
 
         # Try decoding the whole text
         for member_type in self.member_types:
@@ -1078,7 +1083,9 @@ class XsdUnion(XsdSimpleType):
 
         yield items if len(items) > 1 else items[0] if items else None
 
-    def iter_encode(self, obj: Any, validation: str = 'lax', **kwargs: Any) -> EncoderType:
+    def iter_encode(self, obj: Any, validation: str = 'lax', **kwargs: Any) \
+            -> IterEncodeType[EncodedValueType]:
+
         for member_type in self.member_types:
             for result in member_type.iter_encode(obj, validation='lax', **kwargs):
                 if result is not None and not isinstance(result, XMLSchemaValidationError):
@@ -1281,7 +1288,7 @@ class XsdAtomicRestriction(XsdAtomic):
     def variety(self) -> Optional[str]:
         return cast(Optional[str], getattr(self.base_type, 'variety', None))
 
-    def iter_components(self, xsd_classes: ComponentClassesType = None) \
+    def iter_components(self, xsd_classes: ComponentClassType = None) \
             -> Iterator[XsdComponent]:
         if xsd_classes is None:
             yield self
@@ -1304,7 +1311,7 @@ class XsdAtomicRestriction(XsdAtomic):
             yield from self.base_type.iter_components(xsd_classes)
 
     def iter_decode(self, obj: Union[str, bytes], validation: str = 'lax', **kwargs: Any) \
-            -> DecoderType:
+            -> IterDecodeType[DecodedValueType]:
         if isinstance(obj, (str, bytes)):
             obj = self.normalize(obj)
 
@@ -1345,9 +1352,10 @@ class XsdAtomicRestriction(XsdAtomic):
                 yield result
                 return
 
-    def iter_encode(self, obj: Any, validation: str = 'lax', **kwargs: Any) -> EncoderType:
-        base_type: Any
+    def iter_encode(self, obj: Any, validation: str = 'lax', **kwargs: Any) \
+            -> IterEncodeType[EncodedValueType]:
 
+        base_type: Any
         if self.is_list():
             if not hasattr(obj, '__iter__') or isinstance(obj, (str, bytes)):
                 obj = [] if obj is None or obj == '' else [obj]

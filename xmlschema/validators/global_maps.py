@@ -14,18 +14,19 @@ import warnings
 from collections import Counter
 from functools import lru_cache
 from typing import TYPE_CHECKING, Any, Dict, List, Iterable, Iterator, \
-    Optional, Set, Union, Tuple
+    MutableMapping, Optional, Set, Union, Tuple
 
 from ..exceptions import XMLSchemaKeyError, XMLSchemaTypeError, XMLSchemaValueError, \
     XMLSchemaWarning
 from ..names import XSD_NAMESPACE, XSD_REDEFINE, XSD_OVERRIDE, XSD_NOTATION, \
     XSD_ANY_TYPE, XSD_SIMPLE_TYPE, XSD_COMPLEX_TYPE, XSD_GROUP, \
     XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ELEMENT, XSI_TYPE
+from ..aliases import ComponentClassType
 from ..helpers import get_qname, local_name, get_extended_qname
 from ..namespaces import NamespaceResourcesMap
 from .exceptions import XMLSchemaNotBuiltError, XMLSchemaModelError, XMLSchemaModelDepthError, \
     XMLSchemaValidatorError
-from .xsdbase import XsdValidator, XsdComponent, XsdType, ComponentClassesType
+from .xsdbase import XsdValidator, XsdComponent, XsdType
 from .builtins import xsd_builtin_types_factory
 from . import XsdAttribute, XsdSimpleType, XsdComplexType, XsdElement, XsdAttributeGroup, \
     XsdGroup, XsdNotation, XsdIdentity, XsdAssert, XsdUnion, XsdAtomicRestriction
@@ -339,13 +340,13 @@ class XsdGlobals(XsdValidator):
             raise XMLSchemaTypeError(f"unexpected instance {obj} in global map")
 
     def get_instance_type(self, type_name: str, base_type: XsdType,
-                          namespaces: Dict[str, str]) -> XsdType:
+                          namespaces: MutableMapping[str, str]) -> XsdType:
         """
         Returns the instance XSI type from global maps, validating it with the reference base type.
 
         :param type_name: the XSI type attribute value, a QName in prefixed format.
         :param base_type: the XSD from which the instance type has to be derived.
-        :param namespaces: a map from prefixes to namespaces.
+        :param namespaces: a mapping from prefixes to namespaces.
         """
         if isinstance(base_type, XsdComplexType) and XSI_TYPE in base_type.attributes:
             base_type.attributes[XSI_TYPE].validate(type_name)
@@ -421,7 +422,7 @@ class XsdGlobals(XsdValidator):
             assert isinstance(xsd_element, XsdElement)
             xsd_element.binding = None
 
-    def iter_components(self, xsd_classes: ComponentClassesType = None) \
+    def iter_components(self, xsd_classes: ComponentClassType = None) \
             -> Iterator[Union['XsdGlobals', XsdComponent]]:
         """Creates an iterator for the XSD components of built schemas."""
         if xsd_classes is None or isinstance(self, xsd_classes):

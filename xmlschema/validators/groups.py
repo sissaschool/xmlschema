@@ -12,13 +12,14 @@ This module contains classes for XML Schema model groups.
 """
 import warnings
 from collections.abc import MutableMapping, MutableSequence
-from typing import TYPE_CHECKING, Union, Optional
+from typing import TYPE_CHECKING, Any, List, Optional, Tuple, Union
 
 from .. import limits
 from ..exceptions import XMLSchemaValueError
 from ..names import XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ELEMENT, \
     XSD_ANY, XSI_TYPE, XSD_ANY_TYPE, XSD_ANNOTATION
-from ..etree import etree_element
+from ..etree import etree_element, ElementData
+from ..aliases import ElementType, IterDecodeType, IterEncodeType
 from ..helpers import get_qname, local_name, raw_xml_encode
 
 from .exceptions import XMLSchemaModelError, XMLSchemaModelDepthError, \
@@ -42,8 +43,12 @@ ANY_ELEMENT = etree_element(
         'maxOccurs': 'unbounded'
     })
 
+GroupDecodeType = Tuple[Union[str, int], Any, XsdElement]
+GroupEncodeType = Tuple[Optional[str], List[ElementType]]
 
-class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
+
+class XsdGroup(XsdComponent, ModelGroup,
+               ValidationMixin[ElementType, GroupDecodeType]):
     """
     Class for XSD 1.0 *model group* definitions.
 
@@ -641,11 +646,12 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
             if xsd_element.is_matching(name, default_namespace, group=self):
                 return xsd_element
 
-    def iter_decode(self, elem, validation='lax', **kwargs):
+    def iter_decode(self, obj: ElementType, validation: str = 'lax', **kwargs: Any) \
+            -> IterDecodeType[GroupDecodeType]:
         """
         Creates an iterator for decoding an Element content.
 
-        :param elem: the Element that has to be decoded.
+        :param obj: an Element.
         :param validation: the validation mode, can be 'lax', 'strict' or 'skip'.
         :param kwargs: keyword arguments for the decoding process.
         :return: yields a list of 3-tuples (key, decoded data, decoder), \
@@ -656,23 +662,23 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
 
         if not self._group and self.model == 'choice' and self.min_occurs:
             reason = "an empty 'choice' group with minOccurs > 0 cannot validate any content"
-            yield self.validation_error(validation, reason, elem, **kwargs)
+            yield self.validation_error(validation, reason, obj, **kwargs)
             yield result_list
             return
 
         if not self.mixed:
             # Check element CDATA
-            if elem.text and elem.text.strip() or \
-                    any(child.tail and child.tail.strip() for child in elem):
+            if obj.text and obj.text.strip() or \
+                    any(child.tail and child.tail.strip() for child in obj):
                 if len(self) == 1 and isinstance(self[0], XsdAnyElement):
                     pass  # [XsdAnyElement()] equals to an empty complexType declaration
                 else:
                     reason = "character data between child elements not allowed"
-                    yield self.validation_error(validation, reason, elem, **kwargs)
+                    yield self.validation_error(validation, reason, obj, **kwargs)
                     cdata_index = 0  # Do not decode CDATA
 
-        if cdata_index and elem.text is not None:
-            text = str(elem.text.strip())
+        if cdata_index and obj.text is not None:
+            text = str(obj.text.strip())
             if text:
                 result_list.append((cdata_index, text, None))
                 cdata_index += 1
@@ -681,7 +687,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
         over_max_depth = 'max_depth' in kwargs and kwargs['max_depth'] <= level
         if level > limits.MAX_XML_DEPTH:
             reason = "XML data depth exceeded (MAX_XML_DEPTH=%r)" % limits.MAX_XML_DEPTH
-            self.validation_error('strict', reason, elem, **kwargs)
+            self.validation_error('strict', reason, obj, **kwargs)
 
         try:
             namespaces = kwargs['namespaces']
@@ -697,7 +703,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
         errors = []
         broken_model = False
 
-        for index, child in enumerate(elem):
+        for index, child in enumerate(obj):
             if callable(child.tag):
                 continue  # child is a <class 'lxml.etree._Comment'>
 
@@ -724,7 +730,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                 try:
                     self.check_dynamic_context(child, xsd_element, model.element, namespaces)
                 except XMLSchemaValidationError as err:
-                    yield self.validation_error(validation, err, elem, **kwargs)
+                    yield self.validation_error(validation, err, obj, **kwargs)
 
                 for particle, occurs, expected in model.advance(True):
                     errors.append((index, particle, occurs, expected))
@@ -755,8 +761,8 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                 continue
             elif over_max_depth:
                 if 'depth_filler' in kwargs:
-                    obj = kwargs['depth_filler']
-                    result_list.append((child.tag, obj(xsd_element), xsd_element))
+                    func = kwargs['depth_filler']
+                    result_list.append((child.tag, func(xsd_element), xsd_element))
                 continue
 
             for result in xsd_element.iter_decode(child, validation, **kwargs):
@@ -776,30 +782,30 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                         cdata_index += 1
 
         if model.element is not None:
-            index = len(elem)
+            index = len(obj)
             for particle, occurs, expected in model.stop():
                 errors.append((index, particle, occurs, expected))
 
         if errors:
             for model_error in errors:
-                yield self.children_validation_error(validation, elem, *model_error, **kwargs)
+                yield self.children_validation_error(validation, obj, *model_error, **kwargs)
 
         yield result_list
 
-    def iter_encode(self, element_data, validation='lax', **kwargs):
+    def iter_encode(self, obj: ElementData, validation: str = 'lax', **kwargs: Any) \
+            -> IterEncodeType[GroupEncodeType]:
         """
         Creates an iterator for encoding data to a list containing Element data.
 
-        :param element_data: an ElementData instance with unencoded data.
+        :param obj: an ElementData instance.
         :param validation: the validation mode: can be 'lax', 'strict' or 'skip'.
         :param kwargs: keyword arguments for the encoding process.
-        :return: yields a couple with the text of the Element and a list of 3-tuples \
-        (key, decoded data, decoder), eventually preceded by a sequence of validation \
-        or encoding errors.
+        :return: yields a couple with the text of the Element and a list of child \
+        elements, eventually preceded by a sequence of validation errors.
         """
         level = kwargs['level'] = kwargs.get('level', 0) + 1
         errors = []
-        text = raw_xml_encode(element_data.text)
+        text = raw_xml_encode(obj.text)
         children = []
         try:
             indent = kwargs['indent']
@@ -819,20 +825,20 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
         wrong_content_type = False
         over_max_depth = 'max_depth' in kwargs and kwargs['max_depth'] <= level
 
-        if element_data.content is None:
+        if obj.content is None:
             content = []
-        elif isinstance(element_data.content, MutableMapping) or kwargs.get('unordered'):
+        elif isinstance(obj.content, MutableMapping) or kwargs.get('unordered'):
             content = ModelVisitor(self).iter_unordered_content(
-                element_data.content, default_namespace
+                obj.content, default_namespace
             )
-        elif not isinstance(element_data.content, MutableSequence):
+        elif not isinstance(obj.content, MutableSequence):
             wrong_content_type = True
             content = []
         elif converter.losslessly:
-            content = element_data.content
+            content = obj.content
         else:
             content = ModelVisitor(self).iter_collapsed_content(
-                element_data.content, default_namespace
+                obj.content, default_namespace
             )
 
         for index, (name, value) in enumerate(content):
@@ -907,15 +913,15 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
             (len(self) > 1 or not isinstance(self[0], XsdAnyElement))
 
         if errors or cdata_not_allowed or wrong_content_type:
-            attrib = {k: str(v) for k, v in element_data.attributes.items()}
+            attrib = {k: str(v) for k, v in obj.attributes.items()}
             if validation != 'strict' and converter.etree_element_class is not etree_element:
                 child_tags = [converter.etree_element(e.tag, attrib=e.attrib) for e in children]
-                elem = converter.etree_element(element_data.tag, text, child_tags, attrib)
+                elem = converter.etree_element(obj.tag, text, child_tags, attrib)
             else:
-                elem = converter.etree_element(element_data.tag, text, children, attrib)
+                elem = converter.etree_element(obj.tag, text, children, attrib)
 
             if wrong_content_type:
-                reason = "wrong content type {!r}".format(type(element_data.content))
+                reason = "wrong content type {!r}".format(type(obj.content))
                 yield self.validation_error(validation, reason, elem, **kwargs)
 
             if cdata_not_allowed:

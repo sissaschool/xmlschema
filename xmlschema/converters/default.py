@@ -14,24 +14,12 @@ from typing import TYPE_CHECKING, Any, Dict, Iterator, Iterable, \
 
 from ..exceptions import XMLSchemaTypeError
 from ..names import XSI_NAMESPACE
-from ..etree import etree_element
-from ..typing import NamespacesType, ElementType
+from ..etree import etree_element, ElementData
+from ..aliases import NamespacesType, ElementType
 from ..namespaces import NamespaceMapper
 
 if TYPE_CHECKING:
     from ..validators import XsdElement, XsdType, XsdGroup
-
-
-ElementData = namedtuple('ElementData', ['tag', 'text', 'content', 'attributes'])
-"""
-Namedtuple for Element data interchange between decoders and converters.
-The field *tag* is a string containing the Element's tag, *text* can be `None`
-or a string representing the Element's text, *content* can be `None`, a list
-containing the Element's children or a dictionary containing element name to
-list of element contents for the Element's children (used for unordered input
-data), *attributes* can be `None` or a dictionary containing the Element's
-attributes.
-"""
 
 
 class XMLSchemaConverter(NamespaceMapper):
@@ -90,7 +78,7 @@ class XMLSchemaConverter(NamespaceMapper):
     __slots__ = ('text_key', 'ns_prefix', 'attr_prefix', 'cdata_prefix',
                  'indent', 'preserve_root', 'force_dict', 'force_list')
 
-    def __init__(self, namespaces: NamespacesType = None,
+    def __init__(self, namespaces: Optional[NamespacesType] = None,
                  dict_class: Optional[Type[Dict[str, Any]]] = None,
                  list_class: Optional[Type[List[Any]]] = None,
                  etree_element_class: Optional[Type[ElementType]] = None,

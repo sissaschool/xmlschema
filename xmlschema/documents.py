@@ -13,9 +13,9 @@ from typing import Any, Dict, List, Optional, Type, Union, Tuple, IO, Iterator
 from .exceptions import XMLSchemaTypeError, XMLSchemaValueError, XMLResourceError
 from .names import XSD_NAMESPACE, XSI_TYPE
 from .etree import ElementTree, etree_tostring
-from .typing import ElementType, XMLSourceType, NamespacesType, LocationsType, \
-    LazyType, SchemaSourceType, ConverterType, DecodeReturnType, EncodeReturnType, \
-    JsonDecodeReturnType
+from .aliases import ElementType, XMLSourceType, NamespacesType, LocationsType, \
+    LazyType, SchemaSourceType, ConverterType, DecodeType, EncodeType, \
+    JsonDecodeType
 from .helpers import is_etree_document
 from .resources import fetch_schema_locations, XMLResource
 from .validators import XMLSchema10, XMLSchemaBase, XMLSchemaValidationError
@@ -119,7 +119,7 @@ def validate(xml_document: Union[XMLSourceType, XMLResource],
              path: Optional[str] = None,
              schema_path: Optional[str] = None,
              use_defaults: bool = True,
-             namespaces: NamespacesType = None,
+             namespaces: Optional[NamespacesType] = None,
              locations: Optional[LocationsType] = None,
              base_url: Optional[str] = None,
              defuse: str = 'remote',
@@ -168,7 +168,7 @@ def is_valid(xml_document: Union[XMLSourceType, XMLResource],
              path: Optional[str] = None,
              schema_path: Optional[str] = None,
              use_defaults: bool = True,
-             namespaces: NamespacesType = None,
+             namespaces: Optional[NamespacesType] = None,
              locations: Optional[LocationsType] = None,
              base_url: Optional[str] = None,
              defuse: str = 'remote',
@@ -190,7 +190,7 @@ def iter_errors(xml_document: Union[XMLSourceType, XMLResource],
                 path: Optional[str] = None,
                 schema_path: Optional[str] = None,
                 use_defaults: bool = True,
-                namespaces: NamespacesType = None,
+                namespaces: Optional[NamespacesType] = None,
                 locations: Optional[LocationsType] = None,
                 base_url: Optional[str] = None,
                 defuse: str = 'remote',
@@ -215,7 +215,7 @@ def to_dict(xml_document: Union[XMLSourceType, XMLResource],
             base_url: Optional[str] = None,
             defuse: str = 'remote',
             timeout: int = 300,
-            lazy: LazyType = False, **kwargs: Any) -> DecodeReturnType:
+            lazy: LazyType = False, **kwargs: Any) -> DecodeType:
     """
     Decodes an XML document to a Python's nested dictionary. The decoding is based
     on an XML Schema class instance. For default the document is validated during
@@ -270,7 +270,7 @@ def to_json(xml_document: Union[XMLSourceType, XMLResource],
             timeout: int = 300,
             lazy: LazyType = False,
             json_options: Optional[dict] = None,
-            **kwargs: Any) -> JsonDecodeReturnType:
+            **kwargs: Any) -> JsonDecodeType:
     """
     Serialize an XML document to JSON. For default the XML data is validated during
     the decoding phase. Raises an :exc:`XMLSchemaValidationError` if the XML document
@@ -345,7 +345,7 @@ def from_json(source: Union[str, bytes, IO[str]],
               schema: XMLSchemaBase,
               path: Optional[str] = None,
               converter: Optional[ConverterType] = None,
-              json_options: Optional[dict] = None, **kwargs: Any) -> EncodeReturnType:
+              json_options: Optional[dict] = None, **kwargs: Any) -> EncodeType:
     """
     Deserialize JSON data to an XML Element.
 
@@ -405,14 +405,14 @@ class XmlDocument(XMLResource):
     schema: Optional[XMLSchemaBase] = None
     _fallback_schema: Optional[XMLSchemaBase] = None
     validation: str = 'skip'
-    namespaces: NamespacesType = None
+    namespaces: Optional[NamespacesType] = None
     errors: Union[tuple, List[XMLSchemaValidationError]] = ()
 
     def __init__(self, source: XMLSourceType,
                  schema: Optional[Union[XMLSchemaBase, SchemaSourceType]] = None,
                  cls: Optional[Type[XMLSchemaBase]] = None,
                  validation: str = 'strict',
-                 namespaces: NamespacesType = None,
+                 namespaces: Optional[NamespacesType] = None,
                  locations: Optional[LocationsType] = None,
                  base_url: Optional[str] = None,
                  allow: str = 'all',
@@ -508,7 +508,7 @@ class XmlDocument(XMLResource):
             method=method
         )
 
-    def decode(self, **kwargs: Any) -> DecodeReturnType:
+    def decode(self, **kwargs: Any) -> DecodeType:
         """
         Decode the XML document to a nested Python dictionary.
 
@@ -527,7 +527,7 @@ class XmlDocument(XMLResource):
         return obj[0] if isinstance(obj, tuple) else obj
 
     def to_json(self, fp: Optional[IO[str]] = None, json_options: Optional[dict] = None,
-                **kwargs: Any) -> JsonDecodeReturnType:
+                **kwargs: Any) -> JsonDecodeType:
         """
         Converts loaded XML data to a JSON string or file.
 

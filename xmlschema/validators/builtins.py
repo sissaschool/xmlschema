@@ -32,7 +32,7 @@ from ..names import XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_ENUMERATION,
     XSD_HEX_BINARY, XSD_NOTATION_TYPE, XSD_ERROR, XSD_ASSERTION, XSD_SIMPLE_TYPE, \
     XSD_ANY_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_ANY_SIMPLE_TYPE
 from ..etree import etree_element
-from ..typing import ElementType
+from ..aliases import ElementType
 
 from .helpers import decimal_validator, qname_validator, byte_validator, \
     short_validator, int_validator, long_validator, unsigned_byte_validator, \

@@ -11,15 +11,16 @@ from collections.abc import MutableSequence
 from typing import TYPE_CHECKING, Any, Iterator, List, Optional, Tuple, Union
 
 from ..exceptions import XMLSchemaValueError
-from ..typing import ElementType, NamespacesType, ComponentClassesType, DecodeReturnType
 from ..names import XSD_GROUP, XSD_ATTRIBUTE_GROUP, XSD_SEQUENCE, XSD_OVERRIDE, \
     XSD_ALL, XSD_CHOICE, XSD_ANY_ATTRIBUTE, XSD_ATTRIBUTE, XSD_COMPLEX_CONTENT, \
     XSD_RESTRICTION, XSD_COMPLEX_TYPE, XSD_EXTENSION, XSD_ANY_TYPE, XSD_ASSERT, \
     XSD_UNTYPED_ATOMIC, XSD_SIMPLE_CONTENT, XSD_OPEN_CONTENT, XSD_ANNOTATION
+from ..aliases import ElementType, NamespacesType, ComponentClassType, DecodeType, \
+    IterDecodeType, IterEncodeType
 from ..helpers import get_prefixed_qname, get_qname, local_name
 from .. import dataobjects
 
-from .exceptions import XMLSchemaValidationError, XMLSchemaDecodeError
+from .exceptions import XMLSchemaDecodeError
 from .helpers import get_xsd_derivation_attribute
 from .xsdbase import XSD_TYPE_DERIVATIONS, XsdComponent, XsdType, ValidationMixin
 from .attributes import XsdAttributeGroup
@@ -34,7 +35,7 @@ if TYPE_CHECKING:
 XSD_MODEL_GROUP_TAGS = {XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE}
 
 
-class XsdComplexType(XsdType, ValidationMixin):
+class XsdComplexType(XsdType, ValidationMixin[ElementType, Any]):
     """
     Class for XSD 1.0 *complexType* definitions.
 
@@ -591,7 +592,7 @@ class XsdComplexType(XsdType, ValidationMixin):
         return isinstance(self.content, XsdSimpleType) and self.content.is_list()
 
     def is_valid(self, obj: Union[ElementType, str, bytes], use_defaults: bool = True,
-                 namespaces: NamespacesType = None, **kwargs: Any) -> bool:
+                 namespaces: Optional[NamespacesType] = None, **kwargs: Any) -> bool:
         if hasattr(obj, 'tag'):
             return super(XsdComplexType, self).is_valid(obj, use_defaults, namespaces)
         elif isinstance(self.content, XsdSimpleType):
@@ -624,7 +625,7 @@ class XsdComplexType(XsdType, ValidationMixin):
         else:
             return self.base_type.is_derived(other, derivation)
 
-    def iter_components(self, xsd_classes: ComponentClassesType = None) \
+    def iter_components(self, xsd_classes: ComponentClassType = None) \
             -> Iterator[XsdComponent]:
         if xsd_classes is None or isinstance(self, xsd_classes):
             yield self
@@ -663,7 +664,7 @@ class XsdComplexType(XsdType, ValidationMixin):
             return text
 
     def decode(self, obj: Union[ElementType, str, bytes], *args: Any, **kwargs: Any) \
-            -> DecodeReturnType:
+            -> DecodeType[Any]:
         if hasattr(obj, 'attrib') or self.is_simple():
             return super(XsdComplexType, self).decode(obj, *args, **kwargs)
         elif self.has_simple_content():
@@ -674,7 +675,7 @@ class XsdComplexType(XsdType, ValidationMixin):
             )
 
     def iter_decode(self, obj: ElementType, validation: str = 'lax', **kwargs: Any) \
-            -> Iterator[Union[XMLSchemaValidationError, object]]:
+            -> IterDecodeType[Any]:
         """
         Decode an Element instance. A dummy element is created for the type and it's
         used for decode data. Typically used for decoding with xs:anyType when an XSD
@@ -691,7 +692,7 @@ class XsdComplexType(XsdType, ValidationMixin):
         yield from xsd_element.iter_decode(obj, validation, **kwargs)
 
     def iter_encode(self, obj: Any, validation: str = 'lax', **kwargs: Any) \
-            -> Iterator[Union[XMLSchemaValidationError, ElementType]]:
+            -> IterEncodeType[ElementType]:
         """
         Encode XML data. A dummy element is created for the type and it's used for
         encode data. Typically used for encoding with xs:anyType when an XSD element

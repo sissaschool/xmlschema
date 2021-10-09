@@ -10,11 +10,11 @@
 #
 from . import limits
 from .exceptions import XMLSchemaException, XMLResourceError, XMLSchemaNamespaceError
-from .etree import etree_tostring
+from .etree import ElementData, etree_tostring
 from .resources import normalize_url, normalize_locations, fetch_resource, \
     fetch_namespaces, fetch_schema_locations, fetch_schema, XMLResource
 from .xpath import ElementPathMixin
-from .converters import ElementData, XMLSchemaConverter, \
+from .converters import XMLSchemaConverter, \
     UnorderedConverter, ParkerConverter, BadgerFishConverter, \
     AbderaConverter, JsonMLConverter, ColumnarConverter
 from .dataobjects import DataElement, DataElementConverter, DataBindingConverter

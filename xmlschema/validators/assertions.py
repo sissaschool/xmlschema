@@ -11,8 +11,8 @@ import threading
 from typing import TYPE_CHECKING, Any, Dict, Iterator, Optional, Union
 from elementpath import XPath2Parser, XPathContext, XPathToken, ElementPathError
 
-from ..typing import ElementType, NamespacesType
 from ..names import XSD_ASSERT
+from ..aliases import ElementType, NamespacesType
 from ..xpath import ElementPathMixin, XMLSchemaProxy
 
 from .exceptions import XMLSchemaNotBuiltError, XMLSchemaValidationError
@@ -110,7 +110,7 @@ class XsdAssert(XsdComponent, ElementPathMixin):
 
     def __call__(self, elem: ElementType,
                  value: Any = None,
-                 namespaces: NamespacesType = None,
+                 namespaces: Optional[NamespacesType] = None,
                  source: Optional['XMLResource'] = None,
                  **kwargs: Any) -> Iterator[XMLSchemaValidationError]:
 

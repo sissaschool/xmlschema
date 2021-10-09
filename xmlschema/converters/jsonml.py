@@ -11,7 +11,7 @@ from collections.abc import MutableSequence
 from typing import TYPE_CHECKING, Any, Optional, List, Dict, Type
 
 from ..exceptions import XMLSchemaValueError
-from ..typing import NamespacesType
+from ..aliases import NamespacesType
 from .default import ElementData, XMLSchemaConverter
 
 if TYPE_CHECKING:
@@ -31,7 +31,7 @@ class JsonMLConverter(XMLSchemaConverter):
     """
     __slots__ = ()
 
-    def __init__(self, namespaces: NamespacesType = None,
+    def __init__(self, namespaces: Optional[NamespacesType] = None,
                  dict_class: Optional[Type[Dict[str, Any]]] = None,
                  list_class: Optional[Type[List[Any]]] = None,
                  **kwargs: Any) -> None:

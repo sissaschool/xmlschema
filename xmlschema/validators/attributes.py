@@ -16,12 +16,12 @@ from typing import TYPE_CHECKING, cast, Any, Union, Dict, List, Optional, \
     Iterator, MutableMapping, Tuple
 
 from ..exceptions import XMLSchemaValueError
-from ..typing import ComponentClassesType, ElementType, DecodeReturnType, \
-    EncodeReturnType, AtomicValueType
 from ..names import XSI_NAMESPACE, XSD_ANY_SIMPLE_TYPE, XSD_SIMPLE_TYPE, \
     XSD_ATTRIBUTE_GROUP, XSD_COMPLEX_TYPE, XSD_RESTRICTION, XSD_EXTENSION, \
     XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ATTRIBUTE, XSD_ANY_ATTRIBUTE, \
     XSD_ASSERT, XSD_NOTATION_TYPE, XSD_ANNOTATION
+from ..aliases import ComponentClassType, ElementType, IterDecodeType, \
+    IterEncodeType, AtomicValueType
 from ..helpers import get_namespace, get_qname
 
 from .exceptions import XMLSchemaValidationError
@@ -33,7 +33,7 @@ if TYPE_CHECKING:
     from .schema import XMLSchemaBase
 
 
-class XsdAttribute(XsdComponent, ValidationMixin):
+class XsdAttribute(XsdComponent, ValidationMixin[str, AtomicValueType]):
     """
     Class for XSD 1.0 *attribute* declarations.
 
@@ -203,7 +203,7 @@ class XsdAttribute(XsdComponent, ValidationMixin):
     def is_empty(self) -> bool:
         return self.fixed == '' or self.type.is_empty()
 
-    def iter_components(self, xsd_classes: ComponentClassesType = None) \
+    def iter_components(self, xsd_classes: ComponentClassType = None) \
             -> Iterator[XsdComponent]:
         if xsd_classes is None or isinstance(self, xsd_classes):
             yield self
@@ -214,32 +214,32 @@ class XsdAttribute(XsdComponent, ValidationMixin):
         """Returns the decoded data value of the provided text as XPath fn:data()."""
         return cast(AtomicValueType, self.decode(text, validation='skip'))
 
-    def iter_decode(self, text: str, validation: str = 'lax', **kwargs: Any) \
-            -> Iterator[Union[AtomicValueType, XMLSchemaValidationError]]:
-        if text is None and self.default is not None:
-            text = self.default
+    def iter_decode(self, obj: str, validation: str = 'lax', **kwargs: Any) \
+            -> IterDecodeType[AtomicValueType]:
+        if obj is None and self.default is not None:
+            obj = self.default
 
         if self.type.is_notation():
             if self.type.name == XSD_NOTATION_TYPE:
                 msg = "cannot validate against xs:NOTATION directly, " \
                       "only against a subtype with an enumeration facet"
-                yield self.validation_error(validation, msg, text, **kwargs)
+                yield self.validation_error(validation, msg, obj, **kwargs)
             elif not self.type.enumeration:
                 msg = "missing enumeration facet in xs:NOTATION subtype"
-                yield self.validation_error(validation, msg, text, **kwargs)
+                yield self.validation_error(validation, msg, obj, **kwargs)
 
         if self.fixed is not None:
-            if text is None:
-                text = self.fixed
-            elif text != self.fixed and \
-                    self.type.text_decode(text) != self.type.text_decode(self.fixed):
+            if obj is None:
+                obj = self.fixed
+            elif obj != self.fixed and \
+                    self.type.text_decode(obj) != self.type.text_decode(self.fixed):
                 msg = "attribute {!r} has a fixed value {!r}".format(self.name, self.fixed)
-                yield self.validation_error(validation, msg, text, **kwargs)
+                yield self.validation_error(validation, msg, obj, **kwargs)
 
-        for value in self.type.iter_decode(text, validation, **kwargs):
+        for value in self.type.iter_decode(obj, validation, **kwargs):
             if isinstance(value, XMLSchemaValidationError):
                 value.reason = 'attribute {}={!r}: {}'.format(
-                    self.prefixed_name, text, value.reason
+                    self.prefixed_name, obj, value.reason
                 )
                 yield value
                 continue
@@ -249,7 +249,7 @@ class XsdAttribute(XsdComponent, ValidationMixin):
                 yield value
             elif isinstance(value, str):
                 if value.startswith('{') and self.type.is_qname():
-                    yield text
+                    yield obj
                 else:
                     yield value
             elif isinstance(value, Decimal):
@@ -258,7 +258,7 @@ class XsdAttribute(XsdComponent, ValidationMixin):
                 except (KeyError, TypeError):
                     yield value
             elif isinstance(value, (AbstractDateTime, Duration)):
-                yield value if kwargs.get('datetime_types') else text.strip()
+                yield value if kwargs.get('datetime_types') else obj.strip()
             elif isinstance(value, AbstractBinary) and not kwargs.get('binary_types'):
                 yield str(value)
             else:
@@ -266,7 +266,7 @@ class XsdAttribute(XsdComponent, ValidationMixin):
             break  # pragma: no cover
 
     def iter_encode(self, obj: Any, validation: str = 'lax', **kwargs: Any) \
-            -> Iterator[Union[str, XMLSchemaValidationError]]:
+            -> IterEncodeType[str]:
         yield from self.type.iter_encode(obj, validation, **kwargs)
 
 
@@ -310,8 +310,10 @@ class Xsd11Attribute(XsdAttribute):
         self._parse_target_namespace()
 
 
-class XsdAttributeGroup(MutableMapping[Optional[str], Union[XsdAttribute, XsdAnyAttribute]],
-                        XsdComponent, ValidationMixin):
+class XsdAttributeGroup(
+        MutableMapping[Optional[str], Union[XsdAttribute, XsdAnyAttribute]], XsdComponent,
+        ValidationMixin[MutableMapping[str, str], List[Tuple[str, Any]]]
+):
     """
     Class for XSD *attributeGroup* definitions.
 
@@ -592,7 +594,7 @@ class XsdAttributeGroup(MutableMapping[Optional[str], Union[XsdAttribute, XsdAny
                 if v.fixed is not None:
                     yield k, v.fixed
 
-    def iter_components(self, xsd_classes: ComponentClassesType = None) \
+    def iter_components(self, xsd_classes: ComponentClassType = None) \
             -> Iterator[XsdComponent]:
         if xsd_classes is None or isinstance(self, xsd_classes):
             yield self
@@ -601,14 +603,14 @@ class XsdAttributeGroup(MutableMapping[Optional[str], Union[XsdAttribute, XsdAny
             if attr.parent is not None:
                 yield from attr.iter_components(xsd_classes)
 
-    def iter_decode(self, attrs: Dict[str, str], validation: str = 'lax', **kwargs: Any) \
-            -> Iterator[Union[XMLSchemaValidationError, List[Tuple[str, Any]]]]:
-        if not attrs and not self:
+    def iter_decode(self, obj: MutableMapping[str, str], validation: str = 'lax',
+                    **kwargs: Any) -> IterDecodeType[List[Tuple[str, Any]]]:
+        if not obj and not self:
             return
 
-        for name in filter(lambda x: x not in attrs, self.iter_required()):
+        for name in filter(lambda x: x not in obj, self.iter_required()):
             reason = "missing required attribute {!r}".format(name)
-            yield self.validation_error(validation, reason, attrs, **kwargs)
+            yield self.validation_error(validation, reason, obj, **kwargs)
 
         kwargs['level'] = kwargs.get('level', 0) + 1
         try:
@@ -617,18 +619,18 @@ class XsdAttributeGroup(MutableMapping[Optional[str], Union[XsdAttribute, XsdAny
             use_defaults = True
 
         additional_attrs = [
-            (k, v) for k, v in self.iter_value_constraints(use_defaults) if k not in attrs
+            (k, v) for k, v in self.iter_value_constraints(use_defaults) if k not in obj
         ]
         if additional_attrs:
-            attrs = {k: v for k, v in attrs.items()}
-            attrs.update(additional_attrs)
+            obj = {k: v for k, v in obj.items()}
+            obj.update(additional_attrs)
 
         if self.xsd_version == '1.0':
             kwargs['id_list'] = []
 
         filler = kwargs.get('filler')
         result_list = []
-        for name, value in attrs.items():
+        for name, value in obj.items():
             try:
                 xsd_attribute = self._attribute_group[name]
             except KeyError:
@@ -641,7 +643,7 @@ class XsdAttributeGroup(MutableMapping[Optional[str], Union[XsdAttribute, XsdAny
                             value = (name, value)
                         except KeyError:
                             reason = "%r is not an attribute of the XSI namespace." % name
-                            yield self.validation_error(validation, reason, attrs, **kwargs)
+                            yield self.validation_error(validation, reason, obj, **kwargs)
                             continue
                 else:
                     try:
@@ -649,13 +651,13 @@ class XsdAttributeGroup(MutableMapping[Optional[str], Union[XsdAttribute, XsdAny
                         value = (name, value)
                     except KeyError:
                         reason = "%r attribute not allowed for element." % name
-                        yield self.validation_error(validation, reason, attrs, **kwargs)
+                        yield self.validation_error(validation, reason, obj, **kwargs)
                         continue
             else:
                 if xsd_attribute.use == 'prohibited' and \
                         (None not in self or not self._attribute_group[None].is_matching(name)):
                     reason = "use of attribute %r is prohibited" % name
-                    yield self.validation_error(validation, reason, attrs, **kwargs)
+                    yield self.validation_error(validation, reason, obj, **kwargs)
 
             for result in xsd_attribute.iter_decode(value, validation, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
@@ -670,21 +672,21 @@ class XsdAttributeGroup(MutableMapping[Optional[str], Union[XsdAttribute, XsdAny
         if kwargs.get('fill_missing'):
             if filler is None:
                 result_list.extend((k, None) for k in self._attribute_group
-                                   if k is not None and k not in attrs)
+                                   if k is not None and k not in obj)
             else:
                 result_list.extend((k, filler(v)) for k, v in self._attribute_group.items()
-                                   if k is not None and k not in attrs)
+                                   if k is not None and k not in obj)
 
         yield result_list
 
-    def iter_encode(self, attrs: Dict[str, Any], validation: str = 'lax', **kwargs: Any) \
-            -> Iterator[Union[XMLSchemaValidationError, List[Tuple[str, str]]]]:
-        if not attrs and not self:
+    def iter_encode(self, obj: MutableMapping[str, Any], validation: str = 'lax',
+                    **kwargs: Any) -> IterEncodeType[List[Tuple[str, str]]]:
+        if not obj and not self:
             return
 
-        for name in filter(lambda x: x not in attrs, self.iter_required()):
+        for name in filter(lambda x: x not in obj, self.iter_required()):
             reason = "missing required attribute {!r}".format(name)
-            yield self.validation_error(validation, reason, attrs, **kwargs)
+            yield self.validation_error(validation, reason, obj, **kwargs)
 
         try:
             use_defaults = kwargs['use_defaults']
@@ -692,7 +694,7 @@ class XsdAttributeGroup(MutableMapping[Optional[str], Union[XsdAttribute, XsdAny
             use_defaults = True
 
         result_list = []
-        for name, value in attrs.items():
+        for name, value in obj.items():
             try:
                 xsd_attribute = self._attribute_group[name]
             except KeyError:
@@ -706,7 +708,7 @@ class XsdAttributeGroup(MutableMapping[Optional[str], Union[XsdAttribute, XsdAny
                             value = (name, value)
                         except KeyError:
                             reason = "%r is not an attribute of the XSI namespace." % name
-                            yield self.validation_error(validation, reason, attrs, **kwargs)
+                            yield self.validation_error(validation, reason, obj, **kwargs)
                             continue
                 else:
                     try:
@@ -714,7 +716,7 @@ class XsdAttributeGroup(MutableMapping[Optional[str], Union[XsdAttribute, XsdAny
                         value = (name, value)
                     except KeyError:
                         reason = "%r attribute not allowed for element." % name
-                        yield self.validation_error(validation, reason, attrs, **kwargs)
+                        yield self.validation_error(validation, reason, obj, **kwargs)
                         continue
 
             for result in xsd_attribute.iter_encode(value, validation, **kwargs):
@@ -726,6 +728,6 @@ class XsdAttributeGroup(MutableMapping[Optional[str], Union[XsdAttribute, XsdAny
                     break
 
         result_list.extend(
-            (k, v) for k, v in self.iter_value_constraints(use_defaults) if k not in attrs
+            (k, v) for k, v in self.iter_value_constraints(use_defaults) if k not in obj
         )
         yield result_list
