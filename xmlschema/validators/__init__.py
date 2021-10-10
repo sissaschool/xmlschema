@@ -30,7 +30,7 @@ from .attributes import XsdAttribute, Xsd11Attribute, XsdAttributeGroup
 from .simple_types import XsdSimpleType, XsdAtomic, XsdAtomicBuiltin, \
     XsdAtomicRestriction, Xsd11AtomicRestriction, XsdList, XsdUnion, Xsd11Union
 from .complex_types import XsdComplexType, Xsd11ComplexType
-from .models import ModelGroup, ModelVisitor
+from .models import ModelVisitor
 from .groups import XsdGroup, Xsd11Group
 from .elements import XsdElement, Xsd11Element, XsdAlternative
 
@@ -53,9 +53,8 @@ __all__ = [
     'XsdEnumerationFacets', 'XsdAssertionFacet', 'XsdAnyElement', 'Xsd11AnyElement',
     'XsdAnyAttribute', 'Xsd11AnyAttribute', 'XsdOpenContent', 'XsdDefaultOpenContent',
     'XsdAttribute', 'Xsd11Attribute', 'XsdAttributeGroup', 'XsdSimpleType', 'XsdAtomic',
-    'XsdAtomicBuiltin', 'XsdAtomicRestriction', 'Xsd11AtomicRestriction',
-    'XsdList', 'XsdUnion', 'Xsd11Union', 'XsdComplexType', 'Xsd11ComplexType',
-    'ModelGroup', 'ModelVisitor', 'XsdGroup', 'Xsd11Group',
-    'XsdElement', 'Xsd11Element', 'XsdAlternative', 'XsdGlobals', 'XMLSchemaMeta',
-    'XMLSchemaBase', 'XMLSchema', 'XMLSchema10', 'XMLSchema11'
+    'XsdAtomicBuiltin', 'XsdAtomicRestriction', 'Xsd11AtomicRestriction', 'XsdList',
+    'XsdUnion', 'Xsd11Union', 'XsdComplexType', 'Xsd11ComplexType', 'ModelVisitor',
+    'XsdGroup', 'Xsd11Group', 'XsdElement', 'Xsd11Element', 'XsdAlternative', 'XsdGlobals',
+    'XMLSchemaMeta', 'XMLSchemaBase', 'XMLSchema', 'XMLSchema10', 'XMLSchema11'
 ]

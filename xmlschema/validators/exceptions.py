@@ -16,9 +16,10 @@ from ..helpers import get_prefixed_qname, etree_getpath, is_etree_element
 if TYPE_CHECKING:
     from ..resources import XMLResource
     from .xsdbase import XsdValidator, ValidationMixin
-    from .particles import ParticleMixin, ModelGroup
+    from .particles import ParticleMixin
     from .elements import XsdElement
     from .wildcards import XsdAnyElement
+    from .groups import XsdGroup
 
 
 class XMLSchemaValidatorError(XMLSchemaException):
@@ -26,7 +27,7 @@ class XMLSchemaValidatorError(XMLSchemaException):
     Base class for XSD validator errors.
 
     :param validator: the XSD validator.
-    :type validator: XsdValidator or ModelGroup or a callable
+    :type validator: XsdValidator or a callable
     :param message: the error message.
     :type message: str or unicode
     :param elem: the element that contains the error.
@@ -40,8 +41,7 @@ class XMLSchemaValidatorError(XMLSchemaException):
     """
     path: Optional[str]
 
-    def __init__(self, validator: Union['XsdValidator', 'ValidationMixin',
-                                        'ModelGroup', Callable[[Any], None]],
+    def __init__(self, validator: Union['XsdValidator', Callable[[Any], None]],
                  message: str,
                  elem: Optional[ElementType] = None,
                  source: Optional['XMLResource'] = None,
@@ -164,11 +164,11 @@ class XMLSchemaModelError(XMLSchemaValidatorError, ValueError):
     Raised when a model error is found during the checking of a model group.
 
     :param group: the XSD model group.
-    :type group: ModelGroup
+    :type group: XsdGroup
     :param message: the error message.
     :type message: str or unicode
     """
-    def __init__(self, group: 'ModelGroup', message: str) -> None:
+    def __init__(self, group: 'XsdGroup', message: str) -> None:
         super(XMLSchemaModelError, self).__init__(
             validator=group,
             message=message,
@@ -180,7 +180,7 @@ class XMLSchemaModelError(XMLSchemaValidatorError, ValueError):
 
 class XMLSchemaModelDepthError(XMLSchemaModelError):
     """Raised when recursion depth is exceeded while iterating a model group."""
-    def __init__(self, group: 'ModelGroup') -> None:
+    def __init__(self, group: 'XsdGroup') -> None:
         msg = "maximum model recursion depth exceeded while iterating {!r}".format(group)
         super(XMLSchemaModelDepthError, self).__init__(group, message=msg)
 

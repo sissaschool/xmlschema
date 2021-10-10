@@ -11,22 +11,25 @@
 This module contains classes for XML Schema model groups.
 """
 import warnings
-from collections.abc import MutableMapping, MutableSequence
-from typing import TYPE_CHECKING, Any, List, Optional, Tuple, Union
+from abc import abstractmethod
+from collections.abc import MutableMapping
+from typing import TYPE_CHECKING, overload, Any, Iterator, List, MutableSequence, \
+    Optional, Tuple, Union
 
 from .. import limits
 from ..exceptions import XMLSchemaValueError
 from ..names import XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ELEMENT, \
     XSD_ANY, XSI_TYPE, XSD_ANY_TYPE, XSD_ANNOTATION
 from ..etree import etree_element, ElementData
-from ..aliases import ElementType, IterDecodeType, IterEncodeType
+from ..aliases import ElementType, BaseXsdType, IterDecodeType, IterEncodeType, \
+    GroupType, GroupItemType, GroupElementType
 from ..helpers import get_qname, local_name, raw_xml_encode
 
 from .exceptions import XMLSchemaModelError, XMLSchemaModelDepthError, \
     XMLSchemaValidationError, XMLSchemaChildrenValidationError, \
     XMLSchemaTypeTableWarning
 from .xsdbase import ValidationMixin, XsdComponent, XsdType
-from .particles import ParticleMixin, ModelGroup
+from .particles import ParticleMixin
 from .elements import XsdElement
 from .wildcards import XsdAnyElement, Xsd11AnyElement
 from .models import ModelVisitor, distinguishable_paths
@@ -47,7 +50,7 @@ GroupDecodeType = Tuple[Union[str, int], Any, XsdElement]
 GroupEncodeType = Tuple[Optional[str], List[ElementType]]
 
 
-class XsdGroup(XsdComponent, ModelGroup,
+class XsdGroup(XsdComponent, MutableSequence[GroupItemType], ParticleMixin,
                ValidationMixin[ElementType, GroupDecodeType]):
     """
     Class for XSD 1.0 *model group* definitions.
@@ -86,16 +89,18 @@ class XsdGroup(XsdComponent, ModelGroup,
           Content: (annotation?, (element | group | choice | sequence | any)*)
         </sequence>
     """
-    parent: Optional[Union['XsdComplexType', 'XsdGroup']]
-    mixed = False
+    parent: Optional[BaseXsdType]
+    mixed: bool = False
     restriction: Optional['XsdGroup'] = None
+
+    # For XSD 1.1 openContent processing
     interleave: Optional[Xsd11AnyElement] = None  # if openContent with mode='interleave'
     suffix: Optional[Xsd11AnyElement] = None  # if openContent with mode='suffix'/'interleave'
 
     _ADMITTED_TAGS = {XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE}
 
-    def __init__(self, elem, schema, parent: Optional[Union['XsdComplexType', 'XsdGroup']] = None):
-        self._group = []
+    def __init__(self, elem, schema, parent: Optional[BaseXsdType] = None):
+        self._group: List[GroupItemType] = []
         if parent is not None and parent.mixed:
             self.mixed = parent.mixed
         super(XsdGroup, self).__init__(elem, schema, parent)
@@ -111,6 +116,254 @@ class XsdGroup(XsdComponent, ModelGroup,
             return '%s(ref=%r, model=%r, occurs=%r)' % (
                 self.__class__.__name__, self.prefixed_name, self.model, self.occurs
             )
+
+    @overload
+    @abstractmethod
+    def __getitem__(self, i: int) -> GroupItemType: ...
+
+    @overload
+    @abstractmethod
+    def __getitem__(self, s: slice) -> MutableSequence[GroupItemType]: ...
+
+    def __getitem__(self, i: Union[int, slice]) \
+            -> Union[GroupItemType, MutableSequence[GroupItemType]]:
+        return self._group[i]
+
+    def __setitem__(self, i: Union[int, slice], o: Any) -> None:
+        self._group[i] = o
+
+    def __delitem__(self, i: Union[int, slice]) -> None:
+        del self._group[i]
+
+    def __len__(self) -> int:
+        return len(self._group)
+
+    def insert(self, i: int, item: GroupItemType) -> None:
+        self._group.insert(i, item)
+
+    def clear(self) -> None:
+        del self._group[:]
+
+    def is_emptiable(self) -> bool:
+        if self.model == 'choice':
+            return self.min_occurs == 0 or not self or any(item.is_emptiable() for item in self)
+        else:
+            return self.min_occurs == 0 or not self or all(item.is_emptiable() for item in self)
+
+    def is_single(self) -> bool:
+        if self.max_occurs != 1 or not self:
+            return False
+        elif len(self) > 1 or not isinstance(self[0], XsdGroup):
+            return True
+        else:
+            return self[0].is_single()
+
+    def is_pointless(self, parent: 'XsdGroup') -> bool:
+        """
+        Returns `True` if the group may be eliminated without affecting the model,
+        `False` otherwise. A group is pointless if one of those conditions is verified:
+
+         - the group is empty
+         - minOccurs == maxOccurs == 1 and the group has one child
+         - minOccurs == maxOccurs == 1 and the group and its parent have a sequence model
+         - minOccurs == maxOccurs == 1 and the group and its parent have a choice model
+
+        Ref: https://www.w3.org/TR/2004/REC-xmlschema-1-20041028/#coss-particle
+
+        :param parent: effective parent of the model group.
+        """
+        if not self:
+            return True
+        elif self.min_occurs != 1 or self.max_occurs != 1:
+            return False
+        elif len(self) == 1:
+            return True
+        elif self.model == 'sequence' and parent.model != 'sequence':
+            return False
+        elif self.model == 'choice' and parent.model != 'choice':
+            return False
+        else:
+            return True
+
+    @property
+    def effective_min_occurs(self) -> int:
+        if not self.min_occurs or not self:
+            return 0
+        elif self.model == 'choice':
+            if any(not e.effective_min_occurs for e in self.iter_model()):
+                return 0
+        else:
+            if all(not e.effective_min_occurs for e in self.iter_model()):
+                return 0
+        return self.min_occurs
+
+    @property
+    def effective_max_occurs(self) -> Optional[int]:
+        if self.max_occurs == 0 or not self:
+            return 0
+
+        effective_items: List[Any]
+        value: int
+
+        effective_items = [e for e in self.iter_model() if e.effective_max_occurs != 0]
+        if not effective_items:
+            return 0
+        elif self.max_occurs is None:
+            return None
+        elif self.model == 'choice':
+            try:
+                value = max(e.effective_max_occurs for e in effective_items)
+            except TypeError:
+                return None
+            else:
+                return self.max_occurs * value
+
+        not_emptiable_items = [e for e in effective_items if e.effective_min_occurs]
+        if not not_emptiable_items:
+            try:
+                value = max(e.effective_max_occurs for e in effective_items)
+            except TypeError:
+                return None
+            else:
+                return self.max_occurs * value
+
+        elif len(not_emptiable_items) > 1:
+            return self.max_occurs
+
+        value = not_emptiable_items[0].effective_max_occurs
+        return None if value is None else self.max_occurs * value
+
+    def has_occurs_restriction(self, other: Union[GroupItemType, 'OccursCalculator']) -> bool:
+        if not self:
+            return True
+        elif isinstance(other, XsdGroup):
+            return super(XsdGroup, self).has_occurs_restriction(other)
+
+        # Group particle compared to element particle
+        if self.max_occurs is None or any(e.max_occurs is None for e in self):
+            if other.max_occurs is not None:
+                return False
+            elif self.model == 'choice':
+                return self.min_occurs * min(e.min_occurs for e in self) >= other.min_occurs
+            else:
+                return self.min_occurs * sum(e.min_occurs for e in self) >= other.min_occurs
+
+        elif self.model == 'choice':
+            if self.min_occurs * min(e.min_occurs for e in self) < other.min_occurs:
+                return False
+            elif other.max_occurs is None:
+                return True
+            else:
+                value: int
+                try:
+                    value = max(e.max_occurs for e in self)  # type: ignore[type-var, assignment]
+                except TypeError:
+                    return False
+                else:
+                    return self.max_occurs * value <= other.max_occurs
+
+        else:
+            if self.min_occurs * sum(e.min_occurs for e in self) < other.min_occurs:
+                return False
+            elif other.max_occurs is None:
+                return True
+            else:
+                try:
+                    value = sum(e.max_occurs for e in self)  # type: ignore[misc]
+                except TypeError:
+                    return False
+                else:
+                    return self.max_occurs * value <= other.max_occurs
+
+    def iter_model(self, depth: int = 0) -> Iterator[GroupItemType]:
+        """
+        A generator function iterating elements and groups of a model group.
+        Skips pointless groups, iterating deeper through them.
+        Raises `XMLSchemaModelDepthError` if the argument *depth* is over
+        `limits.MAX_MODEL_DEPTH` value.
+
+        :param depth: guard for protect model nesting bombs, incremented at each deepest recursion.
+        """
+        if depth > limits.MAX_MODEL_DEPTH:
+            raise XMLSchemaModelDepthError(self)
+        for item in self:
+            if isinstance(item, XsdGroup) and item.is_pointless(parent=self):
+                yield from item.iter_model(depth + 1)
+            else:
+                yield item
+
+    def iter_elements(self, depth: int = 0) -> Iterator[GroupItemType]:
+        """
+        A generator function iterating model's elements. Raises `XMLSchemaModelDepthError`
+        if the argument *depth* is over `limits.MAX_MODEL_DEPTH` value.
+
+        :param depth: guard for protect model nesting bombs, incremented at each deepest recursion.
+        """
+        if depth > limits.MAX_MODEL_DEPTH:
+            raise XMLSchemaModelDepthError(self)
+        if self.max_occurs != 0:
+            for item in self:
+                if isinstance(item, XsdGroup):
+                    yield from item.iter_elements(depth + 1)
+                else:
+                    yield item
+
+    def get_subgroups(self, item: ParticleMixin) -> List['XsdGroup']:
+        """
+        Returns a list of the groups that represent the path to the enclosed particle.
+        Raises an `XMLSchemaModelError` if *item* is not a particle of the model group.
+        """
+        subgroups: List[Tuple[XsdGroup, Iterator[ParticleMixin]]] = []
+        group, children = self, iter(self)
+
+        while True:
+            try:
+                child = next(children)
+            except StopIteration:
+                try:
+                    group, children = subgroups.pop()
+                except IndexError:
+                    msg = '{!r} is not a particle of the model group'
+                    raise XMLSchemaModelError(self, msg.format(item)) from None
+                else:
+                    continue
+
+            if child is item:
+                _subgroups = [x[0] for x in subgroups]
+                _subgroups.append(group)
+                return _subgroups
+            elif isinstance(child, XsdGroup):
+                if len(subgroups) > limits.MAX_MODEL_DEPTH:
+                    raise XMLSchemaModelDepthError(self)
+                subgroups.append((group, children))
+                group, children = child, iter(child)
+
+    def overall_min_occurs(self, item: ParticleMixin) -> int:
+        """Returns the overall min occurs of a particle in the model."""
+        min_occurs = item.min_occurs
+
+        for group in self.get_subgroups(item):
+            if group.model == 'choice' and len(group) > 1:
+                return 0
+            min_occurs *= group.min_occurs
+
+        return min_occurs
+
+    def overall_max_occurs(self, item: ParticleMixin) -> Optional[int]:
+        """Returns the overall max occurs of a particle in the model."""
+        max_occurs = item.max_occurs
+
+        for group in self.get_subgroups(item):
+            if max_occurs == 0:
+                return 0
+            elif max_occurs is None:
+                continue
+            elif group.max_occurs is None:
+                max_occurs = None
+            else:
+                max_occurs *= group.max_occurs
+
+        return max_occurs
 
     def copy(self):
         group = object.__new__(self.__class__)
@@ -323,7 +576,7 @@ class XsdGroup(XsdComponent, ModelGroup,
         if not self._group:
             return True
         elif not isinstance(other, ParticleMixin):
-            raise XMLSchemaValueError("the argument 'base' must be a %r instance" % ParticleMixin)
+            raise XMLSchemaValueError("the argument 'other' must be an XSD particle")
         elif not isinstance(other, XsdGroup):
             return self.is_element_restriction(other)
         elif not other:
@@ -427,7 +680,10 @@ class XsdGroup(XsdComponent, ModelGroup,
             return False
 
         check_occurs = other.max_occurs != 0
-        restriction_items = list(self) if self.ref is None else list(self[0])
+        if self.ref is None:
+            restriction_items = [x for x in self]
+        else:
+            restriction_items = [x for x in self[0]]
 
         for other_item in other.iter_model():
             for item in restriction_items:
@@ -445,9 +701,9 @@ class XsdGroup(XsdComponent, ModelGroup,
         if self.ref is None:
             if self.parent is None and other.parent is not None:
                 return False  # not allowed restriction in XSD 1.0
-            restriction_items = list(self)
+            restriction_items = [x for x in self]
         elif other.parent is None:
-            restriction_items = list(self[0])
+            restriction_items = [x for x in self[0]]
         else:
             return False  # not allowed restriction in XSD 1.0
 
@@ -504,7 +760,7 @@ class XsdGroup(XsdComponent, ModelGroup,
             if not depth:
                 raise XMLSchemaModelDepthError(group)
             for item in group:
-                if isinstance(item, ModelGroup):
+                if isinstance(item, XsdGroup):
                     current_path.append(item)
                     yield from safe_iter_path(item, depth - 1)
                     current_path.pop()
@@ -1054,9 +1310,9 @@ class Xsd11Group(XsdGroup):
     def is_all_restriction(self, other):
         if not self.has_occurs_restriction(other):
             return False
-        restriction_items = list(self.iter_model())
+        restriction_items = [x for x in self.iter_model()]
 
-        base_items = list(other.iter_model())
+        base_items = [x for x in other.iter_model()]
 
         # If the base includes more wildcard, calculates and appends a
         # wildcard union for validating wildcard unions in restriction
@@ -1166,7 +1422,7 @@ class Xsd11Group(XsdGroup):
             return True
 
     def is_choice_restriction(self, other):
-        restriction_items = list(self.iter_model())
+        restriction_items = [x for x in self.iter_model()]
         has_not_empty_item = any(e.max_occurs != 0 for e in restriction_items)
 
         check_occurs = other.max_occurs != 0

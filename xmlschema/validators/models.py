@@ -14,16 +14,17 @@ from collections import defaultdict, deque
 from typing import Any, Counter, Dict, Iterable, Iterator, List, Optional, Tuple, Union
 
 from ..exceptions import XMLSchemaValueError
-from .particles import ParticleMixin, ModelGroup
+from ..aliases import GroupType, GroupItemType, GroupElementType
+from . import groups
 
-OccursCounterType = Counter[Union[ParticleMixin, Tuple[ParticleMixin]]]
-AdvanceYieldedType = Tuple[ParticleMixin, int, List[ParticleMixin]]
+OccursCounterType = Counter[Union[GroupItemType, Tuple[GroupItemType]]]
+AdvanceYieldedType = Tuple[GroupItemType, int, List[GroupElementType]]
 EncodedContentType = Union[Dict[Union[int, str], List[Any]],
                            List[Tuple[Union[int, str], List[Any]]]]
 ContentItemType = Tuple[Union[int, str], Any]
 
 
-def distinguishable_paths(path1: List[ModelGroup], path2: List[ModelGroup]) -> bool:
+def distinguishable_paths(path1: List[GroupType], path2: List[GroupType]) -> bool:
     """
     Checks if two model paths are distinguishable in a deterministic way, without looking forward
     or backtracking. The arguments are lists containing paths from the base group of the model to
@@ -93,17 +94,17 @@ class ModelVisitor:
     counting the occurrences and yielding tuples in case of model's item occurrence errors.
     Ends setting the current element to `None`.
 
-    :param root: the root ModelGroup instance of the model.
+    :param root: the root model group.
     :ivar occurs: the Counter instance for keeping track of occurrences of XSD elements and groups.
     :ivar element: the current XSD element, initialized to the first element of the model.
     :ivar group: the current XSD model group, initialized to *root* argument.
     :ivar items: the current XSD group's items iterator.
     :ivar match: if the XSD group has an effective item match.
     """
-    _groups: List[Tuple[ModelGroup, Iterator[ParticleMixin], bool]]
-    element: Optional[ParticleMixin]
+    _groups: List[Tuple[GroupType, Iterator[GroupItemType], bool]]
+    element: Optional[GroupElementType]
 
-    def __init__(self, root: ModelGroup) -> None:
+    def __init__(self, root: GroupType) -> None:
         self._groups = []
         self.root = root
         self.occurs = Counter[OccursCounterType]()
@@ -131,7 +132,7 @@ class ModelVisitor:
                 if not self._groups:
                     break
                 self.group, self.items, self.match = self._groups.pop()
-            elif not isinstance(item, ModelGroup):
+            elif not isinstance(item, groups.XsdGroup):
                 self.element = item
                 break
             elif item:
@@ -141,12 +142,12 @@ class ModelVisitor:
                 self.match = False
 
     @property
-    def expected(self) -> List[ParticleMixin]:
+    def expected(self) -> List[GroupElementType]:
         """
         Returns the expected elements of the current and descendant groups.
         """
-        expected: List[ParticleMixin] = []
-        items: Union[ModelGroup, Iterator[ParticleMixin]]
+        expected: List[GroupElementType] = []
+        items: Union[GroupType, Iterator[GroupElementType]]
         if self.group.model == 'choice':
             items = self.group
         elif self.group.model == 'all':
@@ -155,7 +156,7 @@ class ModelVisitor:
             items = (e for e in self.group if e.min_occurs > self.occurs[e])
 
         for e in items:
-            if isinstance(e, ModelGroup):
+            if isinstance(e, groups.XsdGroup):
                 expected.extend(e.iter_elements())
             else:
                 expected.append(e)
@@ -171,7 +172,7 @@ class ModelVisitor:
             for e in self.advance():
                 yield e
 
-    def iter_group(self) -> Iterator[ParticleMixin]:
+    def iter_group(self) -> Iterator[GroupItemType]:
         """Returns an iterator for the current model group."""
         if self.group.max_occurs == 0:
             return iter(())
@@ -187,14 +188,14 @@ class ModelVisitor:
 
         :param match: provides current element match.
         """
-        def stop_item(item: Union[ParticleMixin, ModelGroup]) -> bool:
+        def stop_item(item: GroupItemType) -> bool:
             """
             Stops element or group matching, incrementing current group counter.
 
             :return: `True` if the item has violated the minimum occurrences for itself \
             or for the current group, `False` otherwise.
             """
-            if isinstance(item, ModelGroup):
+            if isinstance(item, groups.XsdGroup):
                 self.group, self.items, self.match = self._groups.pop()
 
             if self.group.model == 'choice':
@@ -280,7 +281,7 @@ class ModelVisitor:
                     stop_item(self.group)
 
                 obj = next(self.items, None)
-                if isinstance(obj, ModelGroup):
+                if isinstance(obj, groups.XsdGroup):
                     # inner 'sequence' or 'choice' XsdGroup
                     self._groups.append((self.group, self.items, self.match))
                     self.group = obj

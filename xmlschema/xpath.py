@@ -11,15 +11,14 @@
 This module defines a proxy class and a mixin class for enabling XPath on schemas.
 """
 from abc import abstractmethod
-from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, Iterator, List, Optional, Union
+from typing import Any, Iterator, List, Optional, Sequence, TypeVar
 import re
 
 from elementpath import AttributeNode, TypedElement, XPath2Parser, \
     XPathSchemaContext, AbstractSchemaProxy
 
 from .names import XSD_NAMESPACE
-from .aliases import NamespacesType, SchemaType, BaseElementType
+from .aliases import NamespacesType, SchemaType, BaseXsdType, BaseElementType
 from .helpers import get_qname, local_name, get_prefixed_qname
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
 
@@ -135,7 +134,10 @@ class XMLSchemaProxy(AbstractSchemaProxy):
         return xsd_type.root_type
 
 
-class ElementPathMixin(Sequence):
+E = TypeVar('E')
+
+
+class ElementPathMixin(Sequence[E]):
     """
     Mixin abstract class for enabling ElementTree and XPath 2.0 API on XSD components.
 
@@ -149,16 +151,16 @@ class ElementPathMixin(Sequence):
     xpath_default_namespace = ''
 
     @abstractmethod
-    def __iter__(self) -> Iterator['ElementPathMixin']:
+    def __iter__(self) -> Iterator[E]:
         raise NotImplementedError
 
-    def __getitem__(self, i) -> 'ElementPathMixin':
+    def __getitem__(self, i) -> E:
         try:
             return [e for e in self][i]
         except IndexError:
             raise IndexError('child index out of range')
 
-    def __reversed__(self) -> Iterator['ElementPathMixin']:
+    def __reversed__(self) -> Iterator[E]:
         return reversed([e for e in self])
 
     def __len__(self) -> int:
@@ -200,8 +202,7 @@ class ElementPathMixin(Sequence):
         xpath_namespaces.update(namespaces)
         return xpath_namespaces
 
-    def find(self, path: str, namespaces: Optional[NamespacesType] = None) \
-            -> Optional['ElementPathMixin']:
+    def find(self, path: str, namespaces: Optional[NamespacesType] = None) -> Optional[E]:
         """
         Finds the first XSD subelement matching the path.
 
@@ -216,8 +217,7 @@ class ElementPathMixin(Sequence):
 
         return next(parser.parse(path).select_results(context), None)
 
-    def findall(self, path: str, namespaces: Optional[NamespacesType] = None) \
-            -> List['ElementPathMixin']:
+    def findall(self, path: str, namespaces: Optional[NamespacesType] = None) -> List[E]:
         """
         Finds all XSD subelements matching the path.
 
@@ -233,8 +233,7 @@ class ElementPathMixin(Sequence):
 
         return parser.parse(path).get_results(context)
 
-    def iterfind(self, path: str, namespaces: Optional[NamespacesType] = None) \
-            -> Iterator['ElementPathMixin']:
+    def iterfind(self, path: str, namespaces: Optional[NamespacesType] = None) -> Iterator[E]:
         """
         Creates and iterator for all XSD subelements matching the path.
 
@@ -249,7 +248,7 @@ class ElementPathMixin(Sequence):
 
         return parser.parse(path).select_results(context)
 
-    def iter(self, tag: Optional[str] = None) -> Iterator['ElementPathMixin']:
+    def iter(self, tag: Optional[str] = None) -> Iterator[E]:
         """
         Creates an iterator for the XSD element and its subelements. If tag is not `None` or '*',
         only XSD elements whose matches tag are returned from the iterator. Local elements are
@@ -274,7 +273,7 @@ class ElementPathMixin(Sequence):
         local_elements = set()
         return safe_iter(self)
 
-    def iterchildren(self, tag: Optional[str] = None) -> Iterator['ElementPathMixin']:
+    def iterchildren(self, tag: Optional[str] = None) -> Iterator[E]:
         """
         Creates an iterator for the child elements of the XSD component. If *tag* is not `None`
         or '*', only XSD elements whose name matches tag are returned from the iterator.
@@ -286,12 +285,12 @@ class ElementPathMixin(Sequence):
                 yield child
 
 
-class XPathElement(ElementPathMixin):
+class XPathElement(ElementPathMixin['XPathElement']):
     """An element node for making XPath operations on schema types."""
 
     parent = None
 
-    def __init__(self, name, xsd_type):
+    def __init__(self, name: str, xsd_type: BaseXsdType) -> None:
         self.name = name
         self.type = xsd_type
         try:

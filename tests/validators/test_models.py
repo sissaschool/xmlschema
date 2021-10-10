@@ -12,12 +12,32 @@
 import unittest
 import os.path
 from textwrap import dedent
+from typing import Any, Union, List, Optional
 
 from xmlschema import XMLSchema10, XMLSchema11
-from xmlschema.validators import XsdElement, ModelVisitor, XMLSchemaValidationError
-from xmlschema.validators.particles import ParticleMixin, ModelGroup
-from xmlschema.validators.models import distinguishable_paths
+from xmlschema.exceptions import XMLSchemaValueError
+from xmlschema.validators.exceptions import XMLSchemaValidationError
+from xmlschema.validators.particles import ParticleMixin
+from xmlschema.validators.models import distinguishable_paths, ModelVisitor
+from xmlschema.validators.groups import XsdGroup
+from xmlschema.validators.elements import XsdElement
 from xmlschema.testing import XsdValidatorTestCase
+
+
+class ModelGroup(XsdGroup):
+    """A subclass for testing XSD models, that disables element parsing and schema bindings."""
+
+    def __init__(self, model: str, min_occurs: int = 1, max_occurs: Optional[int] = 1) -> None:
+        ParticleMixin.__init__(self, min_occurs, max_occurs)
+        if model not in {'sequence', 'choice', 'all'}:
+            raise XMLSchemaValueError("invalid model {!r} for a group".format(model))
+        self._group: List[Union[ParticleMixin, 'ModelGroup']] = []
+        self.model: str = model
+
+    def __repr__(self) -> str:
+        return '%s(model=%r, occurs=%r)' % (self.__class__.__name__, self.model, self.occurs)
+
+    append: Any
 
 
 class TestModelValidation(XsdValidatorTestCase):

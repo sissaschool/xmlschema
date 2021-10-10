@@ -16,10 +16,11 @@ from typing import TYPE_CHECKING, Optional, TypeVar
 
 __all__ = ['ElementType', 'ElementTreeType', 'XMLSourceType', 'NamespacesType',
            'NormalizedLocationsType', 'LocationsType', 'NsmapType', 'ParentMapType',
-           'LazyType', 'SchemaType', 'BaseXsdType', 'BaseElementType', 'GroupItemType',
-           'AtomicValueType', 'NumericValueType', 'DateTimeType', 'SchemaSourceType',
-           'ConverterType', 'ComponentClassType', 'ExtraValidatorType', 'DecodeType',
-           'IterDecodeType', 'JsonDecodeType', 'EncodeType', 'IterEncodeType']
+           'LazyType', 'SchemaType', 'BaseXsdType', 'BaseElementType', 'GroupType',
+           'GroupItemType', 'GroupElementType', 'AtomicValueType', 'NumericValueType',
+           'DateTimeType', 'SchemaSourceType', 'ConverterType', 'ComponentClassType',
+           'ExtraValidatorType', 'DecodeType', 'IterDecodeType', 'JsonDecodeType',
+           'EncodeType', 'IterEncodeType']
 
 if TYPE_CHECKING:
     from decimal import Decimal
@@ -56,7 +57,10 @@ if TYPE_CHECKING:
     SchemaType = XMLSchemaBase
     BaseXsdType = Union[XsdSimpleType, XsdComplexType]
     BaseElementType = Union[XsdElement, XsdAnyElement, XsdAssert]
+
+    GroupType = XsdGroup
     GroupItemType = Union[XsdElement, XsdAnyElement, XsdGroup]
+    GroupElementType = Union[XsdElement, XsdAnyElement]
 
     SchemaSourceType = Union[str, bytes, BinaryIO, TextIO, ElementTree.Element,
                              ElementTree.ElementTree, XMLResource]
