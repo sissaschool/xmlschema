@@ -97,7 +97,7 @@ class XsdElement(XsdComponent, ParticleMixin, ElementPathMixin,
             self.__class__.__name__,
             'name' if self.ref is None else 'ref',
             self.prefixed_name,
-            self.occurs
+            list(self.occurs)
         )
 
     def __setattr__(self, name: str, value: Any) -> None:

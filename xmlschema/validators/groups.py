@@ -90,6 +90,7 @@ class XsdGroup(XsdComponent, MutableSequence[GroupItemType], ParticleMixin,
         </sequence>
     """
     parent: Optional[BaseXsdType]
+    model: str
     mixed: bool = False
     restriction: Optional['XsdGroup'] = None
 
@@ -107,14 +108,16 @@ class XsdGroup(XsdComponent, MutableSequence[GroupItemType], ParticleMixin,
 
     def __repr__(self):
         if self.name is None:
-            return '%s(model=%r, occurs=%r)' % (self.__class__.__name__, self.model, self.occurs)
+            return '%s(model=%r, occurs=%r)' % (
+                self.__class__.__name__, self.model, list(self.occurs)
+            )
         elif self.ref is None:
             return '%s(name=%r, model=%r, occurs=%r)' % (
-                self.__class__.__name__, self.prefixed_name, self.model, self.occurs
+                self.__class__.__name__, self.prefixed_name, self.model, list(self.occurs)
             )
         else:
             return '%s(ref=%r, model=%r, occurs=%r)' % (
-                self.__class__.__name__, self.prefixed_name, self.model, self.occurs
+                self.__class__.__name__, self.prefixed_name, self.model, list(self.occurs)
             )
 
     @overload
@@ -292,7 +295,7 @@ class XsdGroup(XsdComponent, MutableSequence[GroupItemType], ParticleMixin,
             else:
                 yield item
 
-    def iter_elements(self, depth: int = 0) -> Iterator[GroupItemType]:
+    def iter_elements(self, depth: int = 0) -> Iterator[GroupElementType]:
         """
         A generator function iterating model's elements. Raises `XMLSchemaModelDepthError`
         if the argument *depth* is over `limits.MAX_MODEL_DEPTH` value.

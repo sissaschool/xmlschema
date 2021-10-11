@@ -200,7 +200,7 @@ class TestXsdComponent(unittest.TestCase):
             <xs:attribute name="slot" type="xs:string"/>
         </xs:schema>""")
 
-        self.assertEqual(repr(schema.elements['node']), "XsdElement(name='node', occurs=(1, 1))")
+        self.assertEqual(repr(schema.elements['node']), "XsdElement(name='node', occurs=[1, 1])")
         self.assertEqual(repr(schema.attributes['slot']), "XsdAttribute(name='slot')")
         self.assertEqual(repr(schema.elements['node'].type.attributes['slot']),
                          "XsdAttribute(ref='slot')")

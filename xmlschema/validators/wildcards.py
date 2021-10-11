@@ -11,23 +11,26 @@
 This module contains classes for XML Schema wildcards.
 """
 from typing import TYPE_CHECKING, Any, Dict, Iterable, Iterator, List, \
-    Optional, Tuple, Union
+    Optional, Tuple, Union, Counter
 
 from ..exceptions import XMLSchemaValueError
 from ..names import XSI_NAMESPACE, XSD_ANY, XSD_ANY_ATTRIBUTE, \
     XSD_OPEN_CONTENT, XSD_DEFAULT_OPEN_CONTENT, XSI_TYPE
-from ..aliases import ElementType, AtomicValueType, IterDecodeType, IterEncodeType
+from ..aliases import ElementType, AtomicValueType, GroupItemType, \
+    IterDecodeType, IterEncodeType
 from ..helpers import get_namespace, raw_xml_encode
 from ..xpath import XMLSchemaProxy, ElementPathMixin
 from .xsdbase import ValidationMixin, XsdComponent
 from .particles import ParticleMixin
-from .models import OccursCounterType
 
 if TYPE_CHECKING:
     from .attributes import XsdAttribute
     from .elements import XsdElement
     from .groups import XsdGroup
     from .schema import XMLSchemaBase
+
+
+OccursCounterType = Counter[Union[GroupItemType, Tuple[GroupItemType]]]
 
 
 class XsdWildcard(XsdComponent):
@@ -395,11 +398,13 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin,
     def __repr__(self) -> str:
         if self.namespace:
             return '%s(namespace=%r, process_contents=%r, occurs=%r)' % (
-                self.__class__.__name__, self.namespace, self.process_contents, self.occurs
+                self.__class__.__name__, self.namespace,
+                self.process_contents, list(self.occurs)
             )
         else:
             return '%s(not_namespace=%r, process_contents=%r, occurs=%r)' % (
-                self.__class__.__name__, self.not_namespace, self.process_contents, self.occurs
+                self.__class__.__name__, self.not_namespace,
+                self.process_contents, list(self.occurs)
             )
 
     @property

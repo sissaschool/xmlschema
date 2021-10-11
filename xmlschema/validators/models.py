@@ -17,7 +17,6 @@ from ..exceptions import XMLSchemaValueError
 from ..aliases import GroupType, GroupItemType, GroupElementType
 from . import groups
 
-OccursCounterType = Counter[Union[GroupItemType, Tuple[GroupItemType]]]
 AdvanceYieldedType = Tuple[GroupItemType, int, List[GroupElementType]]
 EncodedContentType = Union[Dict[Union[int, str], List[Any]],
                            List[Tuple[Union[int, str], List[Any]]]]
@@ -107,7 +106,7 @@ class ModelVisitor:
     def __init__(self, root: GroupType) -> None:
         self._groups = []
         self.root = root
-        self.occurs = Counter[OccursCounterType]()
+        self.occurs = Counter[Union[GroupItemType, Tuple[GroupItemType]]]()
         self.element = None
         self.group = root
         self.items = self.iter_group()
@@ -147,7 +146,8 @@ class ModelVisitor:
         Returns the expected elements of the current and descendant groups.
         """
         expected: List[GroupElementType] = []
-        items: Union[GroupType, Iterator[GroupElementType]]
+        items: Union[GroupType, Iterator[GroupItemType]]
+
         if self.group.model == 'choice':
             items = self.group
         elif self.group.model == 'all':
@@ -160,7 +160,7 @@ class ModelVisitor:
                 expected.extend(e.iter_elements())
             else:
                 expected.append(e)
-                expected.extend(e.maps.substitution_groups.get(e.name, ()))
+                expected.extend(e.maps.substitution_groups.get(e.name or '', ()))
         return expected
 
     def restart(self) -> None:
