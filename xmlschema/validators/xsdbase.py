@@ -493,11 +493,17 @@ class XsdComponent(XsdValidator):
     def validation_attempted(self) -> str:
         return 'full' if self.built else 'partial'
 
+    def build(self) -> None:
+        """
+        Builds components that are not fully parsed at initialization, like model groups
+        or internal local elements in model groups. Otherwise does nothing.
+        """
+
     @property
     def built(self) -> bool:
         raise NotImplementedError()
 
-    def is_matching(self, name: str, default_namespace: Optional[str] = None,
+    def is_matching(self, name: Optional[str], default_namespace: Optional[str] = None,
                     **kwargs: Any) -> bool:
         """
         Returns `True` if the component name is matching the name provided as argument,
@@ -518,7 +524,7 @@ class XsdComponent(XsdValidator):
             qname = '{%s}%s' % (default_namespace, name)
             return self.qualified_name == qname or not self.qualified and self.local_name == name
 
-    def match(self, name: str, default_namespace: Optional[str] = None,
+    def match(self, name: Optional[str], default_namespace: Optional[str] = None,
               **kwargs: Any) -> Optional['XsdComponent']:
         """
         Returns the component if its name is matching the name provided as argument,

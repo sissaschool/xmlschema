@@ -10,27 +10,20 @@
 """
 This module contains classes for XML Schema wildcards.
 """
-from typing import TYPE_CHECKING, Any, Dict, Iterable, Iterator, List, \
-    Optional, Tuple, Union, Counter
+from typing import Any, Dict, Iterable, Iterator, List, Optional, Tuple, Union, Counter
 
 from ..exceptions import XMLSchemaValueError
 from ..names import XSI_NAMESPACE, XSD_ANY, XSD_ANY_ATTRIBUTE, \
     XSD_OPEN_CONTENT, XSD_DEFAULT_OPEN_CONTENT, XSI_TYPE
-from ..aliases import ElementType, AtomicValueType, GroupItemType, \
-    IterDecodeType, IterEncodeType
+from ..aliases import ElementType, SchemaType, BaseElementType, BaseAttributeType, \
+    ModelGroupType, ModelParticleType, AtomicValueType, IterDecodeType, IterEncodeType
 from ..helpers import get_namespace, raw_xml_encode
 from ..xpath import XMLSchemaProxy, ElementPathMixin
 from .xsdbase import ValidationMixin, XsdComponent
 from .particles import ParticleMixin
 
-if TYPE_CHECKING:
-    from .attributes import XsdAttribute
-    from .elements import XsdElement
-    from .groups import XsdGroup
-    from .schema import XMLSchemaBase
 
-
-OccursCounterType = Counter[Union[GroupItemType, Tuple[GroupItemType]]]
+OccursCounterType = Counter[Union[ModelParticleType, Tuple[ModelParticleType]]]
 
 
 class XsdWildcard(XsdComponent):
@@ -195,7 +188,7 @@ class XsdWildcard(XsdComponent):
             return all(x in self.not_qname or get_namespace(x) not in self.namespace
                        for x in names)
 
-    def is_restriction(self, other: ParticleMixin, check_occurs: bool = True) -> bool:
+    def is_restriction(self, other: ModelParticleType, check_occurs: bool = True) -> bool:
         if check_occurs and isinstance(self, ParticleMixin) \
                 and not self.has_occurs_restriction(other):
             return False
@@ -389,9 +382,9 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin,
         </any>
     """
     _ADMITTED_TAGS = {XSD_ANY}
-    precedences: Dict['XsdGroup', List[ParticleMixin]]
+    precedences: Dict[ModelGroupType, List[ModelParticleType]]
 
-    def __init__(self, elem: ElementType, schema: 'XMLSchemaBase', parent: XsdComponent) -> None:
+    def __init__(self, elem: ElementType, schema: SchemaType, parent: XsdComponent) -> None:
         self.precedences = {}
         super(XsdAnyElement, self).__init__(elem, schema, parent)
 
@@ -415,8 +408,8 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin,
         super(XsdAnyElement, self)._parse()
         self._parse_particle(self.elem)
 
-    def match(self, name: str, default_namespace: Optional[str] = None, resolve: bool = False,
-              **kwargs: Any) -> Optional[Union['XsdAnyElement', 'XsdElement']]:
+    def match(self, name: Optional[str], default_namespace: Optional[str] = None,
+              resolve: bool = False, **kwargs: Any) -> Optional[BaseElementType]:
         """
         Returns the element wildcard if name is matching the name provided
         as argument, `None` otherwise.
@@ -428,7 +421,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin,
         resolve and return the element matching the name.
         :param kwargs: additional options used by XSD 1.1 xs:any wildcards.
         """
-        if not self.is_matching(name, default_namespace, **kwargs):
+        if not name or not self.is_matching(name, default_namespace, **kwargs):
             return None
         elif not resolve:
             return self
@@ -527,7 +520,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin,
             reason = "unavailable namespace {!r}".format(namespace)
             yield self.validation_error(validation, reason, **kwargs)
 
-    def is_overlap(self, other: ParticleMixin) -> bool:
+    def is_overlap(self, other: ModelParticleType) -> bool:
         if not isinstance(other, XsdAnyElement):
             return other.is_overlap(self)
 
@@ -559,7 +552,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin,
         else:
             return any(ns in self.namespace for ns in other.namespace)
 
-    def is_consistent(self, other: Union['XsdElement', 'XsdAnyElement'], **kwargs: Any) -> bool:
+    def is_consistent(self, other: BaseElementType, **kwargs: Any) -> bool:
         return True
 
 
@@ -581,10 +574,8 @@ class XsdAnyAttribute(XsdWildcard, ValidationMixin[Tuple[str, str], AtomicValueT
     use = None
     inheritable = False  # XSD 1.1 attributes
 
-    def match(self, name: str,
-              default_namespace: Optional[str] = None,
-              resolve: bool = False,
-              **kwargs: Any) -> Optional[Union['XsdAnyAttribute', 'XsdAttribute']]:
+    def match(self, name: Optional[str], default_namespace: Optional[str] = None,
+              resolve: bool = False, **kwargs: Any) -> Optional[BaseAttributeType]:
         """
         Returns the attribute wildcard if name is matching the name provided
         as argument, `None` otherwise.
@@ -596,7 +587,7 @@ class XsdAnyAttribute(XsdWildcard, ValidationMixin[Tuple[str, str], AtomicValueT
         resolve and return the attribute matching the name.
         :param kwargs: additional options that can be used by certain components.
         """
-        if not self.is_matching(name, default_namespace, **kwargs):
+        if not name or not self.is_matching(name, default_namespace, **kwargs):
             return None
         elif not resolve:
             return self
@@ -691,9 +682,9 @@ class Xsd11AnyElement(XsdAnyElement):
         super(Xsd11AnyElement, self)._parse()
         self._parse_not_constraints()
 
-    def is_matching(self, name: str,
+    def is_matching(self, name: Optional[str],
                     default_namespace: Optional[str] = None,
-                    group: Optional['XsdGroup'] = None,
+                    group: Optional[ModelGroupType] = None,
                     occurs: Optional[OccursCounterType] = None,
                     **kwargs: Any) -> bool:
         """
@@ -738,13 +729,13 @@ class Xsd11AnyElement(XsdAnyElement):
 
         return name not in self.not_qname
 
-    def is_consistent(self, other: Union['XsdElement', 'XsdAnyElement'], **kwargs: Any) -> bool:
+    def is_consistent(self, other: BaseElementType, **kwargs: Any) -> bool:
         if isinstance(other, XsdAnyElement) or self.process_contents == 'skip':
             return True
         xsd_element = self.match(other.name, other.default_namespace, resolve=True)
         return xsd_element is None or other.is_consistent(xsd_element, strict=False)
 
-    def add_precedence(self, other: ParticleMixin, group: 'XsdGroup') -> None:
+    def add_precedence(self, other: ModelParticleType, group: ModelGroupType) -> None:
         try:
             self.precedences[group].append(other)
         except KeyError:
@@ -769,7 +760,7 @@ class Xsd11AnyAttribute(XsdAnyAttribute):
         super(Xsd11AnyAttribute, self)._parse()
         self._parse_not_constraints()
 
-    def is_matching(self, name: str,
+    def is_matching(self, name: Optional[str],
                     default_namespace: Optional[str] = None,
                     **kwargs: Any) -> bool:
         if name is None:
@@ -801,9 +792,9 @@ class XsdOpenContent(XsdComponent):
     """
     _ADMITTED_TAGS = {XSD_OPEN_CONTENT}
     mode = 'interleave'
-    any_element: Optional[Xsd11AnyElement] = None
+    any_element = None  # type: Xsd11AnyElement
 
-    def __init__(self, elem: ElementType, schema: 'XMLSchemaBase', parent: XsdComponent) -> None:
+    def __init__(self, elem: ElementType, schema: SchemaType, parent: XsdComponent) -> None:
         super(XsdOpenContent, self).__init__(elem, schema, parent)
 
     def __repr__(self) -> str:
@@ -860,7 +851,7 @@ class XsdDefaultOpenContent(XsdOpenContent):
     _ADMITTED_TAGS = {XSD_DEFAULT_OPEN_CONTENT}
     applies_to_empty = False
 
-    def __init__(self, elem: ElementType, schema: 'XMLSchemaBase') -> None:
+    def __init__(self, elem: ElementType, schema: SchemaType) -> None:
         super(XsdOpenContent, self).__init__(elem, schema)
 
     def _parse(self) -> None:

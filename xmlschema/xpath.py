@@ -18,7 +18,7 @@ from elementpath import AttributeNode, TypedElement, XPath2Parser, \
     XPathSchemaContext, AbstractSchemaProxy
 
 from .names import XSD_NAMESPACE
-from .aliases import NamespacesType, SchemaType, BaseXsdType, BaseElementType
+from .aliases import NamespacesType, SchemaType, BaseXsdType, XPathElementType
 from .helpers import get_qname, local_name, get_prefixed_qname
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
 
@@ -77,7 +77,7 @@ class XMLSchemaContext(XPathSchemaContext):
 class XMLSchemaProxy(AbstractSchemaProxy):
     """XPath schema proxy for the *xmlschema* library."""
     def __init__(self, schema: Optional[SchemaType] = None,
-                 base_element: Optional[BaseElementType] = None) -> None:
+                 base_element: Optional[XPathElementType] = None) -> None:
 
         if schema is None:
             from xmlschema import XMLSchema

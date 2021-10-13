@@ -635,12 +635,12 @@ class XsdGlobals(XsdValidator):
         # Build element declarations inside model groups.
         for schema in not_built_schemas:
             for group in schema.iter_components(XsdGroup):
-                group.build()  # type: ignore[union-attr]
+                group.build()
 
         # Build identity references and XSD 1.1 assertions
         for schema in not_built_schemas:
             for obj in schema.iter_components((XsdIdentity, XsdAssert)):
-                obj.build()  # type: ignore[union-attr]
+                obj.build()
 
         self.check(filter(lambda x: x.meta_schema is not None, not_built_schemas), self.validation)
 

@@ -10,15 +10,12 @@
 from typing import TYPE_CHECKING, Any, Dict, Optional, cast, Iterable, Union, Callable
 from ..exceptions import XMLSchemaException, XMLSchemaWarning, XMLSchemaValueError
 from ..etree import etree_tostring
-from ..aliases import ElementType, NamespacesType
+from ..aliases import ElementType, NamespacesType, BaseElementType, ModelParticleType
 from ..helpers import get_prefixed_qname, etree_getpath, is_etree_element
 
 if TYPE_CHECKING:
     from ..resources import XMLResource
     from .xsdbase import XsdValidator, ValidationMixin
-    from .particles import ParticleMixin
-    from .elements import XsdElement
-    from .wildcards import XsdAnyElement
     from .groups import XsdGroup
 
 
@@ -321,28 +318,20 @@ class XMLSchemaChildrenValidationError(XMLSchemaValidationError):
     Raised when a child element is not validated.
 
     :param validator: the XSD validator.
-    :type validator: XsdValidator or function
     :param elem: the not validated XML element.
-    :type elem: Element
     :param index: the child index.
-    :type index: int
-    :param particle: the validator particle that generated the error. Maybe the validator itself.
-    :type particle: ParticleMixin
+    :param particle: the model particle that generated the error. Maybe the validator itself.
     :param occurs: the particle occurrences.
-    :type occurs: int
     :param expected: the expected element tags/object names.
-    :type expected: list or tuple or None
     :param source: the XML resource that contains the error.
-    :type source: XMLResource
     :param namespaces: is an optional mapping from namespace prefix to URI.
-    :type namespaces: dict
     """
     def __init__(self, validator: 'XsdValidator',
                  elem: ElementType,
                  index: int,
-                 particle: 'ParticleMixin',
+                 particle: ModelParticleType,
                  occurs: int = 0,
-                 expected: Optional[Iterable[Union['XsdElement', 'XsdAnyElement']]] = None,
+                 expected: Optional[Iterable[BaseElementType]] = None,
                  source: Optional['XMLResource'] = None,
                  namespaces: Optional[NamespacesType] = None) -> None:
 

@@ -16,11 +16,11 @@ from typing import TYPE_CHECKING, Optional, TypeVar
 
 __all__ = ['ElementType', 'ElementTreeType', 'XMLSourceType', 'NamespacesType',
            'NormalizedLocationsType', 'LocationsType', 'NsmapType', 'ParentMapType',
-           'LazyType', 'SchemaType', 'BaseXsdType', 'BaseElementType', 'GroupType',
-           'GroupItemType', 'GroupElementType', 'AtomicValueType', 'NumericValueType',
-           'DateTimeType', 'SchemaSourceType', 'ConverterType', 'ComponentClassType',
-           'ExtraValidatorType', 'DecodeType', 'IterDecodeType', 'JsonDecodeType',
-           'EncodeType', 'IterEncodeType']
+           'LazyType', 'SchemaType', 'BaseXsdType', 'BaseElementType', 'BaseAttributeType',
+           'ModelGroupType', 'ModelParticleType', 'XPathElementType', 'AtomicValueType',
+           'NumericValueType', 'DateTimeType', 'SchemaSourceType', 'ConverterType',
+           'ComponentClassType', 'ExtraValidatorType', 'DecodeType', 'IterDecodeType',
+           'JsonDecodeType', 'EncodeType', 'IterEncodeType']
 
 if TYPE_CHECKING:
     from decimal import Decimal
@@ -35,7 +35,8 @@ if TYPE_CHECKING:
     from .resources import XMLResource
     from .converters import XMLSchemaConverter
     from .validators import XMLSchemaValidationError, XsdComponent, XMLSchemaBase, \
-        XsdComplexType, XsdSimpleType, XsdElement, XsdAnyElement, XsdAssert, XsdGroup
+        XsdComplexType, XsdSimpleType, XsdElement, XsdAnyElement, XsdAttribute, \
+        XsdAnyAttribute, XsdAssert, XsdGroup
 
     ##
     # Type aliases for ElementTree
@@ -56,11 +57,14 @@ if TYPE_CHECKING:
     # Type aliases for XSD components
     SchemaType = XMLSchemaBase
     BaseXsdType = Union[XsdSimpleType, XsdComplexType]
-    BaseElementType = Union[XsdElement, XsdAnyElement, XsdAssert]
+    BaseElementType = Union[XsdElement, XsdAnyElement]
+    BaseAttributeType = Union[XsdAttribute, XsdAnyAttribute]
 
-    GroupType = XsdGroup
-    GroupItemType = Union[XsdElement, XsdAnyElement, XsdGroup]
-    GroupElementType = Union[XsdElement, XsdAnyElement]
+    ModelGroupType = XsdGroup
+    ModelParticleType = Union[XsdElement, XsdAnyElement, XsdGroup]
+    ExpectedChildrenType = Optional
+
+    XPathElementType = Union[XsdElement, XsdAnyElement, XsdAssert]
 
     SchemaSourceType = Union[str, bytes, BinaryIO, TextIO, ElementTree.Element,
                              ElementTree.ElementTree, XMLResource]

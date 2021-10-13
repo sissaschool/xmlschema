@@ -14,22 +14,24 @@ from collections import defaultdict, deque
 from typing import Any, Counter, Dict, Iterable, Iterator, List, Optional, Tuple, Union
 
 from ..exceptions import XMLSchemaValueError
-from ..aliases import GroupType, GroupItemType, GroupElementType
+from ..aliases import ModelGroupType, ModelParticleType, BaseElementType
 from . import groups
 
-AdvanceYieldedType = Tuple[GroupItemType, int, List[GroupElementType]]
+AdvanceYieldedType = Tuple[ModelParticleType, int, List[BaseElementType]]
 EncodedContentType = Union[Dict[Union[int, str], List[Any]],
                            List[Tuple[Union[int, str], List[Any]]]]
 ContentItemType = Tuple[Union[int, str], Any]
 
 
-def distinguishable_paths(path1: List[GroupType], path2: List[GroupType]) -> bool:
+def distinguishable_paths(path1: List[ModelParticleType], path2: List[ModelParticleType]) -> bool:
     """
     Checks if two model paths are distinguishable in a deterministic way, without looking forward
     or backtracking. The arguments are lists containing paths from the base group of the model to
     a couple of leaf elements. Returns `True` if there is a deterministic separation between paths,
     `False` if the paths are ambiguous.
     """
+    e: ModelParticleType
+
     for k, e in enumerate(path1):
         if e not in path2:
             if not k:
@@ -43,7 +45,7 @@ def distinguishable_paths(path1: List[GroupType], path2: List[GroupType]) -> boo
         return True
 
     univocal1 = univocal2 = True
-    if path1[depth].model == 'sequence':
+    if path1[depth].model == 'sequence':  # type: ignore[union-attr]
         idx1 = path1[depth].index(path1[depth + 1])
         idx2 = path2[depth].index(path2[depth + 1])
         before1 = any(not e.is_emptiable() for e in path1[depth][:idx1])
@@ -55,7 +57,7 @@ def distinguishable_paths(path1: List[GroupType], path2: List[GroupType]) -> boo
     for k in range(depth + 1, len(path1) - 1):
         univocal1 &= path1[k].is_univocal()
         idx = path1[k].index(path1[k + 1])
-        if path1[k].model == 'sequence':
+        if path1[k].model == 'sequence':  # type: ignore[union-attr]
             before1 |= any(not e.is_emptiable() for e in path1[k][:idx])
             after1 |= any(not e.is_emptiable() for e in path1[k][idx + 1:])
         elif any(e.is_emptiable() for e in path1[k] if e is not path1[k][idx]):
@@ -64,13 +66,13 @@ def distinguishable_paths(path1: List[GroupType], path2: List[GroupType]) -> boo
     for k in range(depth + 1, len(path2) - 1):
         univocal2 &= path2[k].is_univocal()
         idx = path2[k].index(path2[k + 1])
-        if path2[k].model == 'sequence':
+        if path2[k].model == 'sequence':  # type: ignore[union-attr]
             before2 |= any(not e.is_emptiable() for e in path2[k][:idx])
             after2 |= any(not e.is_emptiable() for e in path2[k][idx + 1:])
         elif any(e.is_emptiable() for e in path2[k] if e is not path2[k][idx]):
             univocal2 = False
 
-    if path1[depth].model != 'sequence':
+    if path1[depth].model != 'sequence':  # type: ignore[union-attr]
         if before1 and before2:
             return True
         elif before1:
@@ -100,13 +102,13 @@ class ModelVisitor:
     :ivar items: the current XSD group's items iterator.
     :ivar match: if the XSD group has an effective item match.
     """
-    _groups: List[Tuple[GroupType, Iterator[GroupItemType], bool]]
-    element: Optional[GroupElementType]
+    _groups: List[Tuple[ModelGroupType, Iterator[ModelParticleType], bool]]
+    element: Optional[BaseElementType]
 
-    def __init__(self, root: GroupType) -> None:
+    def __init__(self, root: ModelGroupType) -> None:
         self._groups = []
         self.root = root
-        self.occurs = Counter[Union[GroupItemType, Tuple[GroupItemType]]]()
+        self.occurs = Counter[Union[ModelParticleType, Tuple[ModelParticleType]]]()
         self.element = None
         self.group = root
         self.items = self.iter_group()
@@ -141,12 +143,12 @@ class ModelVisitor:
                 self.match = False
 
     @property
-    def expected(self) -> List[GroupElementType]:
+    def expected(self) -> List[BaseElementType]:
         """
         Returns the expected elements of the current and descendant groups.
         """
-        expected: List[GroupElementType] = []
-        items: Union[GroupType, Iterator[GroupItemType]]
+        expected: List[BaseElementType] = []
+        items: Union[ModelGroupType, Iterator[ModelParticleType]]
 
         if self.group.model == 'choice':
             items = self.group
@@ -172,7 +174,7 @@ class ModelVisitor:
             for e in self.advance():
                 yield e
 
-    def iter_group(self) -> Iterator[GroupItemType]:
+    def iter_group(self) -> Iterator[ModelParticleType]:
         """Returns an iterator for the current model group."""
         if self.group.max_occurs == 0:
             return iter(())
@@ -188,7 +190,7 @@ class ModelVisitor:
 
         :param match: provides current element match.
         """
-        def stop_item(item: GroupItemType) -> bool:
+        def stop_item(item: ModelParticleType) -> bool:
             """
             Stops element or group matching, incrementing current group counter.
 

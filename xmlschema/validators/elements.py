@@ -22,7 +22,7 @@ from ..names import XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE, XSD_ALTERNATIVE, \
     XSD_ELEMENT, XSD_ANY_TYPE, XSD_UNIQUE, XSD_KEY, XSD_KEYREF, XSI_NIL, \
     XSI_TYPE, XSD_ERROR, XSD_NOTATION_TYPE
 from ..etree import ElementData, etree_element
-from ..aliases import ElementType, SchemaType, BaseXsdType, GroupItemType, \
+from ..aliases import ElementType, SchemaType, BaseXsdType, ModelParticleType, \
     ComponentClassType, AtomicValueType, IterDecodeType, IterEncodeType
 from ..helpers import get_qname, get_namespace, etree_iter_location_hints, \
     raw_xml_encode, strictly_equal
@@ -73,6 +73,8 @@ class XsdElement(XsdComponent, ParticleMixin, ElementPathMixin,
     name: str
     parent: Optional['XsdGroup']
     ref: Optional['XsdElement']
+
+    type = None  # type: BaseXsdType
     abstract = False
     nillable = False
     qualified = False
@@ -82,15 +84,25 @@ class XsdElement(XsdComponent, ParticleMixin, ElementPathMixin,
     substitution_group: Optional[str] = None
 
     identities: Dict[str, XsdIdentity]
-    alternatives: Union[Tuple[()], List['XsdAlternative']] = ()
+    alternatives = ()  # type: List[XsdAlternative]
     inheritable = ()
 
     _ADMITTED_TAGS = {XSD_ELEMENT}
     _block: Optional[str] = None
     _final: Optional[str] = None
     _head_type = None
+    _build = True
 
     binding = None
+
+    def __init__(self, elem: etree_element,
+                 schema: 'XMLSchemaBase',
+                 parent: Optional['XsdComponent'] = None,
+                 build: bool = True) -> None:
+
+        if not build:
+            self._build = False
+        super(XsdElement, self).__init__(elem, schema, parent)
 
     def __repr__(self) -> str:
         return '%s(%s=%r, occurs=%r)' % (
@@ -113,6 +125,9 @@ class XsdElement(XsdComponent, ParticleMixin, ElementPathMixin,
             yield from self.type.content.iter_elements()
 
     def _parse(self) -> None:
+        if not self._build:
+            return
+
         self._parse_particle(self.elem)
         self._parse_attributes()
 
@@ -343,9 +358,16 @@ class XsdElement(XsdComponent, ParticleMixin, ElementPathMixin,
     def xpath_proxy(self) -> XMLSchemaProxy:
         return XMLSchemaProxy(self.schema, self)
 
+    def build(self) -> None:
+        if self._build:
+            return
+        self._build = True
+        self._parse()
+
     @property
     def built(self) -> bool:
-        return (self.type.parent is None or self.type.built) and \
+        return self.type is not None and \
+            (self.type.parent is None or self.type.built) and \
             all(c.built for c in self.identities.values())
 
     @property
@@ -370,7 +392,7 @@ class XsdElement(XsdComponent, ParticleMixin, ElementPathMixin,
         return self.fixed if self.fixed is not None else self.default
 
     @property
-    def final(self) -> Optional[str]:
+    def final(self) -> str:
         if self.ref is not None:
             return self.ref.final
         elif self._final is not None:
@@ -378,7 +400,7 @@ class XsdElement(XsdComponent, ParticleMixin, ElementPathMixin,
         return self.schema.final_default
 
     @property
-    def block(self) -> Optional[str]:
+    def block(self) -> str:
         if self.ref is not None:
             return self.ref.block
         elif self._block is not None:
@@ -940,7 +962,8 @@ class XsdElement(XsdComponent, ParticleMixin, ElementPathMixin,
         yield elem
         del element_data
 
-    def is_matching(self, name, default_namespace=None, group=None):
+    def is_matching(self, name: Optional[str], default_namespace: Optional[str] = None,
+                    group: Optional['XsdGroup'] = None) -> bool:
         if not name:
             return False
         elif default_namespace and name[0] != '{':
@@ -953,7 +976,7 @@ class XsdElement(XsdComponent, ParticleMixin, ElementPathMixin,
         else:
             return any(name == e.name for e in self.iter_substitutes())
 
-    def match(self, name: str, default_namespace: Optional[str] = None,
+    def match(self, name: Optional[str], default_namespace: Optional[str] = None,
               **kwargs: Any) -> Optional['XsdElement']:
         if not name:
             return None
@@ -973,8 +996,8 @@ class XsdElement(XsdComponent, ParticleMixin, ElementPathMixin,
                 if name == xsd_element.name:
                     return xsd_element
 
-    def is_restriction(self, other: GroupItemType, check_occurs: bool = True) -> bool:
-        e: GroupItemType
+    def is_restriction(self, other: ModelParticleType, check_occurs: bool = True) -> bool:
+        e: ModelParticleType
 
         if isinstance(other, XsdAnyElement):
             if self.min_occurs == self.max_occurs == 0:
@@ -1114,6 +1137,9 @@ class Xsd11Element(XsdElement):
     _target_namespace: Optional[str] = None
 
     def _parse(self) -> None:
+        if not self._build:
+            return
+
         self._parse_particle(self.elem)
         self._parse_attributes()
 
