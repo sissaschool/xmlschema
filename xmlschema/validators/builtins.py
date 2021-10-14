@@ -520,7 +520,7 @@ def xsd_builtin_types_factory(
             built_facets = builtin_type.facets
             for e in facets:
                 try:
-                    cls = facets_map[e.tag]
+                    cls: Any = facets_map[e.tag]
                 except AttributeError:
                     built_facets[None] = e
                 else:

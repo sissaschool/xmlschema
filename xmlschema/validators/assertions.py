@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Any, Dict, Iterator, Optional, Union
 from elementpath import XPath2Parser, XPathContext, XPathToken, ElementPathError
 
 from ..names import XSD_ASSERT
-from ..aliases import ElementType, NamespacesType
+from ..aliases import ElementType, SchemaType, BaseElementType, NamespacesType
 from ..xpath import ElementPathMixin, XMLSchemaProxy
 
 from .exceptions import XMLSchemaNotBuiltError, XMLSchemaValidationError
@@ -26,10 +26,9 @@ if TYPE_CHECKING:
     from .complex_types import XsdComplexType
     from .elements import XsdElement
     from .wildcards import XsdAnyElement
-    from .schema import XMLSchemaBase
 
 
-class XsdAssert(XsdComponent, ElementPathMixin):
+class XsdAssert(XsdComponent, ElementPathMixin[Union['XsdAssert', BaseElementType]]):
     """
     Class for XSD *assert* constraint definitions.
 
@@ -48,7 +47,7 @@ class XsdAssert(XsdComponent, ElementPathMixin):
     path = 'true()'
 
     def __init__(self, elem: ElementType,
-                 schema: 'XMLSchemaBase',
+                 schema: SchemaType,
                  parent: 'XsdComplexType',
                  base_type: 'XsdComplexType') -> None:
 
@@ -121,9 +120,14 @@ class XsdAssert(XsdComponent, ElementPathMixin):
             if not self.parser.is_schema_bound():
                 self.parser.schema.bind_parser(self.parser)
 
+        if namespaces is None or isinstance(namespaces, dict):
+            _namespaces = namespaces
+        else:
+            _namespaces = dict(namespaces)
+
         variables = {'value': None if value is None else self.base_type.text_decode(value)}
         if source is not None:
-            context = XPathContext(source.root, namespaces=namespaces,
+            context = XPathContext(source.root, namespaces=_namespaces,
                                    item=elem, variables=variables)
         else:
             # If validated from a component (could not work with rooted XPath expressions)

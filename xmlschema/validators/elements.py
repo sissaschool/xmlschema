@@ -441,7 +441,7 @@ class XsdElement(XsdComponent, ParticleMixin, ElementPathMixin,
         else:
             return self.schema.create_empty_attribute_group(self)
 
-    def get_path(self, ancestor=None, reverse=False):
+    def get_path(self, ancestor: Optional[XsdComponent] = None, reverse: bool = False) -> str:
         """
         Returns the XPath expression of the element. The path is relative to the schema instance
         in which the element is contained or is relative to a specific ancestor passed as argument.
@@ -463,7 +463,9 @@ class XsdElement(XsdComponent, ParticleMixin, ElementPathMixin,
             if ancestor is None:
                 return '/'.join(reversed(path)) or '.'
 
-    def iter_components(self, xsd_classes=None):
+    def iter_components(self, xsd_classes: Optional[ComponentClassType] = None) \
+            -> Iterator[XsdComponent]:
+
         if xsd_classes is None:
             yield self
             yield from self.identities.values()

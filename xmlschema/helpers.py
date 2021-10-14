@@ -10,7 +10,7 @@
 import re
 from collections import Counter
 from decimal import Decimal
-from typing import Any, Callable, Dict, Iterator, List, MutableMapping, \
+from typing import Any, Callable, Iterator, List, MutableMapping, \
     Optional, Tuple, Union
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from .names import XSI_SCHEMA_LOCATION, XSI_NONS_SCHEMA_LOCATION
@@ -81,16 +81,16 @@ def local_name(qname: str) -> str:
 
 
 def get_prefixed_qname(qname: str,
-                       namespaces: MutableMapping[str, str],
+                       namespaces: Optional[MutableMapping[str, str]],
                        use_empty: bool = True) -> str:
     """
     Get the prefixed form of a QName, using a namespace map.
 
     :param qname: an extended QName or a local name or a prefixed QName.
-    :param namespaces: a mapping from prefixes to namespace URIs.
+    :param namespaces: an optional mapping from prefixes to namespace URIs.
     :param use_empty: if `True` use the empty prefix for mapping.
     """
-    if not qname or qname[0] != '{':
+    if not namespaces or not qname or qname[0] != '{':
         return qname
 
     namespace = get_namespace(qname)
@@ -108,14 +108,17 @@ def get_prefixed_qname(qname: str,
         return qname
 
 
-def get_extended_qname(qname: str, namespaces: MutableMapping[str, str]) -> str:
+def get_extended_qname(qname: str, namespaces: Optional[MutableMapping[str, str]]) -> str:
     """
     Get the extended form of a QName, using a namespace map.
     Local names are mapped to the default namespace.
 
     :param qname: a prefixed QName or a local name or an extended QName.
-    :param namespaces: a mapping from prefixes to namespace URIs.
+    :param namespaces: an optional mapping from prefixes to namespace URIs.
     """
+    if not namespaces:
+        return qname
+
     try:
         if qname[0] == '{':
             return qname
