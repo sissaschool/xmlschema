@@ -278,6 +278,7 @@ class XsdComponent(XsdValidator):
     qualified = True
     redefine = None
     _annotation = None
+    _target_namespace: Optional[str]
 
     def __init__(self, elem: etree_element,
                  schema: 'XMLSchemaBase',

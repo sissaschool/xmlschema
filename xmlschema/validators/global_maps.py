@@ -21,12 +21,12 @@ from ..exceptions import XMLSchemaKeyError, XMLSchemaTypeError, XMLSchemaValueEr
 from ..names import XSD_NAMESPACE, XSD_REDEFINE, XSD_OVERRIDE, XSD_NOTATION, \
     XSD_ANY_TYPE, XSD_SIMPLE_TYPE, XSD_COMPLEX_TYPE, XSD_GROUP, \
     XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ELEMENT, XSI_TYPE
-from ..aliases import ComponentClassType
+from ..aliases import ComponentClassType, BaseXsdType
 from ..helpers import get_qname, local_name, get_extended_qname
 from ..namespaces import NamespaceResourcesMap
 from .exceptions import XMLSchemaNotBuiltError, XMLSchemaModelError, XMLSchemaModelDepthError, \
     XMLSchemaValidatorError
-from .xsdbase import XsdValidator, XsdComponent, XsdType
+from .xsdbase import XsdValidator, XsdComponent
 from .builtins import xsd_builtin_types_factory
 from . import XsdAttribute, XsdSimpleType, XsdComplexType, XsdElement, XsdAttributeGroup, \
     XsdGroup, XsdNotation, XsdIdentity, XsdAssert, XsdUnion, XsdAtomicRestriction
@@ -339,8 +339,8 @@ class XsdGlobals(XsdValidator):
         else:
             raise XMLSchemaTypeError(f"unexpected instance {obj} in global map")
 
-    def get_instance_type(self, type_name: str, base_type: XsdType,
-                          namespaces: MutableMapping[str, str]) -> XsdType:
+    def get_instance_type(self, type_name: str, base_type: BaseXsdType,
+                          namespaces: MutableMapping[str, str]) -> BaseXsdType:
         """
         Returns the instance XSI type from global maps, validating it with the reference base type.
 

@@ -157,6 +157,9 @@ class XsdIdentity(XsdComponent):
     :ivar selector: the XPath selector of the identity constraint.
     :ivar fields: a list containing the XPath field selectors of the identity constraint.
     """
+    name: str
+    local_name: str
+    prefixed_name: str
     parent: 'XsdElement'
     ref: Optional['XsdIdentity']
     elements: Dict['XsdElement', Optional[IdentityCounterType]]
@@ -174,7 +177,7 @@ class XsdIdentity(XsdComponent):
             self.name = get_qname(self.target_namespace, self.elem.attrib['name'])
         except KeyError:
             self.parse_error("missing required attribute 'name'")
-            self.name = None
+            self.name = ''
 
         for child in self.elem:
             if child.tag == XSD_SELECTOR:
@@ -380,8 +383,11 @@ class XsdKeyref(XsdIdentity):
                 # needs to propagate upwards, with conflict resolution."
                 refer_path = self.parent.get_path(ancestor=self.refer.parent, reverse=True)
                 if refer_path is None:
-                    refer_path = self.parent.get_path(reverse=True) + '/' + \
-                        self.refer.parent.get_path()
+                    path1 = self.parent.get_path(reverse=True)
+                    path2 = self.refer.parent.get_path()
+                    assert path1 is not None
+                    assert path2 is not None
+                    refer_path = f'{path1}/{path2}'
 
             self.refer_path = refer_path
 

@@ -846,7 +846,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin, metaclass=XMLSchemaMeta):
         group_elem.text = '\n    '
         return self.xsd_group_class(group_elem, self, parent)
 
-    def create_any_attribute_group(self, parent):
+    def create_any_attribute_group(self, parent: Union[XsdComplexType, XsdElement]) \
+            -> XsdAttributeGroup:
         """
         Creates an attribute group related to schema instance that accepts any attribute.
 
@@ -860,7 +861,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin, metaclass=XMLSchemaMeta):
         )
         return attribute_group
 
-    def create_empty_attribute_group(self, parent):
+    def create_empty_attribute_group(self, parent: Union[XsdComplexType, XsdElement]) \
+            -> XsdAttributeGroup:
         """
         Creates an empty attribute group related to schema instance.
 
