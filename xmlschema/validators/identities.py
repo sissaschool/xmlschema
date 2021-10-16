@@ -31,6 +31,8 @@ if TYPE_CHECKING:
 
 IdentityFieldItemType = Union[AtomicValueType, XsdAttribute, Tuple[Any, ...], None]
 IdentityCounterType = Tuple[IdentityFieldItemType, ...]
+IdentityMapType = Dict[Union['XsdKey', 'XsdKeyref', str, None],
+                       Union['IdentityCounter', 'KeyrefCounter']]
 
 XSD_IDENTITY_XPATH_SYMBOLS = frozenset((
     'processing-instruction', 'following-sibling', 'preceding-sibling',
@@ -450,10 +452,7 @@ class KeyrefCounter(IdentityCounter):
     def increase(self, fields: IdentityCounterType) -> None:
         self.counter[fields] += 1
 
-    def iter_errors(self, identities: Dict[Union[XsdKey, XsdKeyref, str, None],
-                                           Union['IdentityCounter', 'KeyrefCounter']]) \
-            -> Iterator[XMLSchemaValueError]:
-
+    def iter_errors(self, identities: IdentityMapType) -> Iterator[XMLSchemaValueError]:
         refer_values = identities[self.identity.refer].counter
 
         for v in filter(lambda x: x not in refer_values, self.counter):

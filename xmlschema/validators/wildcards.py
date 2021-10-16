@@ -10,7 +10,8 @@
 """
 This module contains classes for XML Schema wildcards.
 """
-from typing import Any, Dict, Iterable, Iterator, List, Optional, Tuple, Union, Counter
+from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, \
+    Tuple, Union, Counter
 
 from ..exceptions import XMLSchemaValueError
 from ..names import XSI_NAMESPACE, XSD_ANY, XSD_ANY_ATTRIBUTE, \
@@ -366,7 +367,8 @@ class XsdWildcard(XsdComponent):
                 self.namespace.remove('')
 
 
-class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin,
+class XsdAnyElement(XsdWildcard, ParticleMixin,
+                    ElementPathMixin[BaseElementType],
                     ValidationMixin[ElementType, Any]):
     """
     Class for XSD 1.0 *any* wildcards.
@@ -383,6 +385,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin,
     """
     _ADMITTED_TAGS = {XSD_ANY}
     precedences: Dict[ModelGroupType, List[ModelParticleType]]
+    copy: Callable[['XsdAnyElement'], 'XsdAnyElement']
 
     def __init__(self, elem: ElementType, schema: SchemaType, parent: XsdComponent) -> None:
         self.precedences = {}
@@ -434,17 +437,17 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin,
         except LookupError:
             return None
 
-    def __iter__(self) -> Iterator[Tuple[()]]:
+    def __iter__(self) -> Iterator[Any]:
         return iter(())
 
-    def iter(self, tag: Optional[str] = None) -> Iterator[Tuple[()]]:
+    def iter(self, tag: Optional[str] = None) -> Iterator[Any]:
         return iter(())
 
-    def iterchildren(self, tag: Optional[str] = None) -> Iterator[Tuple[()]]:
+    def iterchildren(self, tag: Optional[str] = None) -> Iterator[Any]:
         return iter(())
 
     @staticmethod
-    def iter_substitutes() -> Iterator[Tuple[()]]:
+    def iter_substitutes() -> Iterator[Any]:
         return iter(())
 
     def iter_decode(self, obj: ElementType, validation: str = 'lax', **kwargs: Any) \
@@ -568,6 +571,7 @@ class XsdAnyAttribute(XsdWildcard, ValidationMixin[Tuple[str, str], AtomicValueT
           Content: (annotation?)
         </anyAttribute>
     """
+    copy: Callable[['XsdAnyAttribute'], 'XsdAnyAttribute']
     _ADMITTED_TAGS = {XSD_ANY_ATTRIBUTE}
 
     # Added for compatibility with protocol of XSD attributes

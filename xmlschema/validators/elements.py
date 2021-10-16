@@ -42,7 +42,6 @@ from .attributes import XsdAttribute
 from .wildcards import XsdAnyElement
 
 if TYPE_CHECKING:
-    from ..dataobjects import DataElement
     from .attributes import XsdAttributeGroup
     from .groups import XsdGroup
 
@@ -417,7 +416,7 @@ class XsdElement(XsdComponent, ParticleMixin,
         return self.schema.block_default
 
     def get_binding(self, *bases: Type[Any], replace_existing: bool = False, **attrs: Any) \
-            -> Type[DataElement]:
+            -> Type['dataobjects.DataElement']:
         """
         Gets data object binding for XSD element, creating a new one if it doesn't exist.
 

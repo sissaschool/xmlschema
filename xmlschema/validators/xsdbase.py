@@ -21,8 +21,9 @@ from ..names import XSD_ANNOTATION, XSD_APPINFO, XSD_DOCUMENTATION, XML_LANG, \
     XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_ID, XSD_QNAME, \
     XSD_OVERRIDE, XSD_NOTATION_TYPE, XSD_DECIMAL
 from ..etree import is_etree_element, etree_tostring, etree_element
-from ..aliases import ElementType, NamespacesType, BaseXsdType, ComponentClassType, \
-    ExtraValidatorType, DecodeType, IterDecodeType, EncodeType, IterEncodeType
+from ..aliases import ElementType, NamespacesType, SchemaType, BaseXsdType, \
+    ComponentClassType, ExtraValidatorType, DecodeType, IterDecodeType, \
+    EncodeType, IterEncodeType
 from ..helpers import get_qname, local_name, get_prefixed_qname
 from ..resources import XMLResource
 from .. import dataobjects
@@ -114,7 +115,7 @@ class XsdValidator:
             return 'notKnown'
 
     def iter_components(self, xsd_classes: ComponentClassType = None) \
-            -> Iterator['XsdComponent']:
+            -> Iterator[Union['XsdComponent', SchemaType]]:
         """
         Creates an iterator for traversing all XSD components of the validator.
 

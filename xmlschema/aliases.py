@@ -17,10 +17,10 @@ from typing import TYPE_CHECKING, Optional, TypeVar
 __all__ = ['ElementType', 'ElementTreeType', 'XMLSourceType', 'NamespacesType',
            'NormalizedLocationsType', 'LocationsType', 'NsmapType', 'ParentMapType',
            'LazyType', 'SchemaType', 'BaseXsdType', 'BaseElementType', 'BaseAttributeType',
-           'ModelGroupType', 'ModelParticleType', 'XPathElementType', 'AtomicValueType',
-           'NumericValueType', 'DateTimeType', 'SchemaSourceType', 'ConverterType',
-           'ComponentClassType', 'ExtraValidatorType', 'DecodeType', 'IterDecodeType',
-           'JsonDecodeType', 'EncodeType', 'IterEncodeType']
+           'GlobalComponentType', 'ModelGroupType', 'ModelParticleType', 'XPathElementType',
+           'AtomicValueType', 'NumericValueType', 'DateTimeType', 'SchemaSourceType',
+           'ConverterType', 'ComponentClassType', 'ExtraValidatorType', 'DecodeType',
+           'IterDecodeType', 'JsonDecodeType', 'EncodeType', 'IterEncodeType']
 
 if TYPE_CHECKING:
     from decimal import Decimal
@@ -36,7 +36,7 @@ if TYPE_CHECKING:
     from .converters import XMLSchemaConverter
     from .validators import XMLSchemaValidationError, XsdComponent, XMLSchemaBase, \
         XsdComplexType, XsdSimpleType, XsdElement, XsdAnyElement, XsdAttribute, \
-        XsdAnyAttribute, XsdAssert, XsdGroup
+        XsdAnyAttribute, XsdAssert, XsdGroup, XsdAttributeGroup, XsdNotation
 
     ##
     # Type aliases for ElementTree
@@ -59,6 +59,8 @@ if TYPE_CHECKING:
     BaseXsdType = Union[XsdSimpleType, XsdComplexType]
     BaseElementType = Union[XsdElement, XsdAnyElement]
     BaseAttributeType = Union[XsdAttribute, XsdAnyAttribute]
+    GlobalComponentType = Union[XsdNotation, BaseXsdType, XsdElement,
+                                XsdAttribute, XsdAttributeGroup, XsdGroup]
 
     ModelGroupType = XsdGroup
     ModelParticleType = Union[XsdElement, XsdAnyElement, XsdGroup]

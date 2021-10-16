@@ -11,7 +11,7 @@
 This module contains classes for managing maps related to namespaces.
 """
 import re
-from typing import Any, Dict, Iterator, List, Optional, MutableMapping, Mapping
+from typing import Any, Dict, Iterator, List, Optional, MutableMapping, Mapping, TypeVar
 
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from .helpers import local_name
@@ -231,14 +231,17 @@ class NamespaceMapper(MutableMapping[str, str]):
             del namespaces[k]
 
 
-class NamespaceView(Mapping[str, Any]):
+T = TypeVar('T')
+
+
+class NamespaceView(Mapping[str, T]):
     """
     A read-only map for filtered access to a dictionary that stores
     objects mapped from QNames in extended format.
     """
     __slots__ = 'target_dict', 'namespace', '_key_fmt'
 
-    def __init__(self, qname_dict: Dict[str, Any], namespace_uri: str):
+    def __init__(self, qname_dict: Dict[str, T], namespace_uri: str):
         self.target_dict = qname_dict
         self.namespace = namespace_uri
         if namespace_uri:
@@ -246,7 +249,7 @@ class NamespaceView(Mapping[str, Any]):
         else:
             self._key_fmt = '%s'
 
-    def __getitem__(self, key: str) -> Any:
+    def __getitem__(self, key: str) -> T:
         return self.target_dict[self._key_fmt % key]
 
     def __len__(self) -> int:
@@ -268,13 +271,15 @@ class NamespaceView(Mapping[str, Any]):
     def __repr__(self) -> str:
         return '%s(%s)' % (self.__class__.__name__, str(self.as_dict()))
 
-    def __contains__(self, key: Any) -> bool:
-        return self._key_fmt % key in self.target_dict
+    def __contains__(self, key: object) -> bool:
+        if isinstance(key, str):
+            return self._key_fmt % key in self.target_dict
+        return key in self.target_dict
 
     def __eq__(self, other: Any) -> Any:
         return self.as_dict() == other
 
-    def as_dict(self, fqn_keys: bool = False) -> Dict[str, Any]:
+    def as_dict(self, fqn_keys: bool = False) -> Dict[str, T]:
         if not self.namespace:
             return {
                 k: v for k, v in self.target_dict.items() if not k or k[0] != '{'
