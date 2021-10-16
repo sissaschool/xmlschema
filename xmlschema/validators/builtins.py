@@ -15,7 +15,7 @@ are created using the XSD 1.0 meta-schema or with and additional base schema for
 """
 from decimal import Decimal
 from elementpath import datatypes
-from typing import TYPE_CHECKING, Any, Dict, Optional, Type, Tuple, Union
+from typing import Any, Dict, Optional, Type, Tuple, Union
 
 from ..exceptions import XMLSchemaValueError
 from ..names import XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_ENUMERATION, \
@@ -32,7 +32,7 @@ from ..names import XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_ENUMERATION,
     XSD_HEX_BINARY, XSD_NOTATION_TYPE, XSD_ERROR, XSD_ASSERTION, XSD_SIMPLE_TYPE, \
     XSD_ANY_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_ANY_SIMPLE_TYPE
 from ..etree import etree_element
-from ..aliases import ElementType
+from ..aliases import ElementType, SchemaType, BaseXsdType
 
 from .helpers import decimal_validator, qname_validator, byte_validator, \
     short_validator, int_validator, long_validator, unsigned_byte_validator, \
@@ -42,10 +42,6 @@ from .helpers import decimal_validator, qname_validator, byte_validator, \
     error_type_validator, boolean_to_python, python_to_boolean
 from .facets import XSD_10_FACETS_BUILDERS, XSD_11_FACETS_BUILDERS
 from .simple_types import XsdSimpleType, XsdAtomicBuiltin
-
-if TYPE_CHECKING:
-    from .xsdbase import XsdType
-    from .schema import XMLSchemaBase
 
 #
 # Admitted facets sets for XSD atomic types
@@ -451,8 +447,8 @@ XSD_11_BUILTIN_TYPES: Tuple[Dict[str, Any], ...] = XSD_COMMON_BUILTIN_TYPES + (
 
 
 def xsd_builtin_types_factory(
-        meta_schema: 'XMLSchemaBase',
-        xsd_types: Dict[str, Union['XsdType', Tuple[ElementType, 'XMLSchemaBase']]],
+        meta_schema: SchemaType,
+        xsd_types: Dict[str, Union[BaseXsdType, Tuple[ElementType, SchemaType]]],
         atomic_builtin_class: Optional[Type[XsdAtomicBuiltin]] = None) -> None:
     """
     Builds the dictionary for XML Schema built-in types mapping.
@@ -508,7 +504,7 @@ def xsd_builtin_types_factory(
             if schema is not meta_schema:
                 raise XMLSchemaValueError("loaded entry schema is not the meta-schema!")
 
-        base_type: Union[None, 'XsdType', Tuple[ElementType, 'XMLSchemaBase']]
+        base_type: Union[None, BaseXsdType, Tuple[ElementType, SchemaType]]
         if 'base_type' in item:
             base_type = item['base_type'] = xsd_types[item['base_type']]
         else:

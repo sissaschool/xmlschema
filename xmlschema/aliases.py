@@ -17,10 +17,10 @@ from typing import TYPE_CHECKING, Optional, TypeVar
 __all__ = ['ElementType', 'ElementTreeType', 'XMLSourceType', 'NamespacesType',
            'NormalizedLocationsType', 'LocationsType', 'NsmapType', 'ParentMapType',
            'LazyType', 'SchemaType', 'BaseXsdType', 'BaseElementType', 'BaseAttributeType',
-           'GlobalComponentType', 'ModelGroupType', 'ModelParticleType', 'XPathElementType',
-           'AtomicValueType', 'NumericValueType', 'DateTimeType', 'SchemaSourceType',
-           'ConverterType', 'ComponentClassType', 'ExtraValidatorType', 'DecodeType',
-           'IterDecodeType', 'JsonDecodeType', 'EncodeType', 'IterEncodeType']
+           'GlobalComponentType', 'GlobalMapType', 'ModelGroupType', 'ModelParticleType',
+           'XPathElementType', 'AtomicValueType', 'NumericValueType', 'DateTimeType',
+           'SchemaSourceType', 'ConverterType', 'ComponentClassType', 'ExtraValidatorType',
+           'DecodeType', 'IterDecodeType', 'JsonDecodeType', 'EncodeType', 'IterEncodeType']
 
 if TYPE_CHECKING:
     from decimal import Decimal
@@ -61,6 +61,9 @@ if TYPE_CHECKING:
     BaseAttributeType = Union[XsdAttribute, XsdAnyAttribute]
     GlobalComponentType = Union[XsdNotation, BaseXsdType, XsdElement,
                                 XsdAttribute, XsdAttributeGroup, XsdGroup]
+
+    C = TypeVar('C')
+    GlobalMapType = Dict[str, Union[C, Tuple[ElementType, SchemaType]]]
 
     ModelGroupType = XsdGroup
     ModelParticleType = Union[XsdElement, XsdAnyElement, XsdGroup]

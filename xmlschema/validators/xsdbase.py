@@ -115,7 +115,7 @@ class XsdValidator:
             return 'notKnown'
 
     def iter_components(self, xsd_classes: ComponentClassType = None) \
-            -> Iterator[Union['XsdComponent', SchemaType]]:
+            -> Iterator[Union['XsdComponent', SchemaType, 'XsdGlobals']]:
         """
         Creates an iterator for traversing all XSD components of the validator.
 

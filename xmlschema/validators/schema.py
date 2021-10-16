@@ -1116,7 +1116,9 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             xsd_element = self.find(path[:-1] + tag, namespaces)
             if isinstance(xsd_element, XsdElement):
                 return xsd_element
-            return self.maps.elements.get(tag)
+
+            obj = self.maps.elements.get(tag)
+            return obj if isinstance(obj, XsdElement) else None
         else:
             xsd_element = self.find(path, namespaces)
             return xsd_element if isinstance(xsd_element, XsdElement) else None
