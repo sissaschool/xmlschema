@@ -17,11 +17,13 @@ from ..exceptions import XMLSchemaValueError
 from ..names import XSI_NAMESPACE, XSD_ANY, XSD_ANY_ATTRIBUTE, \
     XSD_OPEN_CONTENT, XSD_DEFAULT_OPEN_CONTENT, XSI_TYPE
 from ..aliases import ElementType, SchemaType, BaseElementType, BaseAttributeType, \
-    ModelGroupType, ModelParticleType, AtomicValueType, IterDecodeType, IterEncodeType
+    ModelGroupType, ModelParticleType, AtomicValueType, IterDecodeType, IterEncodeType, \
+    DecodedValueType, EncodedValueType
 from ..helpers import get_namespace, raw_xml_encode
 from ..xpath import XMLSchemaProxy, ElementPathMixin
 from .xsdbase import ValidationMixin, XsdComponent
 from .particles import ParticleMixin
+from . import elements
 
 
 OccursCounterType = Counter[Union[ModelParticleType, Tuple[ModelParticleType]]]
@@ -189,8 +191,10 @@ class XsdWildcard(XsdComponent):
             return all(x in self.not_qname or get_namespace(x) not in self.namespace
                        for x in names)
 
-    def is_restriction(self, other: ModelParticleType, check_occurs: bool = True) -> bool:
+    def is_restriction(self, other: Union[ModelParticleType, 'XsdAnyAttribute'],
+                       check_occurs: bool = True) -> bool:
         if check_occurs and isinstance(self, ParticleMixin) \
+                and not isinstance(other, XsdAnyAttribute) \
                 and not self.has_occurs_restriction(other):
             return False
         elif not isinstance(other, self.__class__):
@@ -243,7 +247,7 @@ class XsdWildcard(XsdComponent):
         else:
             return all(ns in other.namespace for ns in self.namespace)
 
-    def union(self, other: 'XsdWildcard') -> None:
+    def union(self, other: Union['XsdAnyElement', 'XsdAnyAttribute']) -> None:
         """
         Update an XSD wildcard with the union of itself and another XSD wildcard.
         """
@@ -284,6 +288,8 @@ class XsdWildcard(XsdComponent):
             self.namespace = ['##any'] if not self.not_namespace else []
             return
 
+        w1: XsdWildcard
+        w2: XsdWildcard
         if '##any' in self.namespace or self.namespace == other.namespace:
             return
         elif '##any' in other.namespace:
@@ -309,7 +315,7 @@ class XsdWildcard(XsdComponent):
             self.namespace = []
             self.not_namespace = ['', w1.target_namespace] if w1.target_namespace else ['']
 
-    def intersection(self, other: 'XsdWildcard') -> None:
+    def intersection(self, other: Union['XsdAnyElement', 'XsdAnyAttribute']) -> None:
         """
         Update an XSD wildcard with the intersection of itself and another XSD wildcard.
         """
@@ -525,9 +531,10 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
 
     def is_overlap(self, other: ModelParticleType) -> bool:
         if not isinstance(other, XsdAnyElement):
-            return other.is_overlap(self)
+            if isinstance(other, elements.XsdElement):
+                return other.is_overlap(self)
+            return False
 
-        assert isinstance(other, XsdAnyElement)
         if self.not_namespace:
             if other.not_namespace:
                 return True
@@ -559,7 +566,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
         return True
 
 
-class XsdAnyAttribute(XsdWildcard, ValidationMixin[Tuple[str, str], AtomicValueType]):
+class XsdAnyAttribute(XsdWildcard, ValidationMixin[Tuple[str, str], DecodedValueType]):
     """
     Class for XSD 1.0 *anyAttribute* wildcards.
 
@@ -605,7 +612,7 @@ class XsdAnyAttribute(XsdWildcard, ValidationMixin[Tuple[str, str], AtomicValueT
             return None
 
     def iter_decode(self, obj: Tuple[str, str], validation: str = 'lax', **kwargs: Any) \
-            -> IterDecodeType[AtomicValueType]:
+            -> IterDecodeType[DecodedValueType]:
         name, value = obj
 
         if not self.is_matching(name):
@@ -635,7 +642,7 @@ class XsdAnyAttribute(XsdWildcard, ValidationMixin[Tuple[str, str], AtomicValueT
             yield self.validation_error(validation, reason, **kwargs)
 
     def iter_encode(self, obj: Tuple[str, AtomicValueType], validation: str = 'lax',
-                    **kwargs: Any) -> IterEncodeType[Union[None, str]]:
+                    **kwargs: Any) -> IterEncodeType[EncodedValueType]:
         name, value = obj
         namespace = get_namespace(name)
 
@@ -778,8 +785,13 @@ class Xsd11AnyAttribute(XsdAnyAttribute):
             namespace = default_namespace
 
         if '##defined' in self.not_qname and name in self.maps.attributes:
-            if self.maps.attributes[name].schema is self.schema:
+            xsd_attribute = self.maps.attributes[name]
+            if isinstance(xsd_attribute, tuple):
+                if xsd_attribute[1] is self.schema:
+                    return False
+            elif xsd_attribute.schema is self.schema:
                 return False
+
         return name not in self.not_qname and self.is_namespace_allowed(namespace)
 
 

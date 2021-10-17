@@ -10,7 +10,7 @@
 from typing import Any, Optional, Tuple, Union
 
 from ..exceptions import XMLSchemaValueError
-from ..aliases import ElementType
+from ..aliases import ElementType, ModelParticleType
 
 
 class ParticleMixin:
@@ -98,7 +98,7 @@ class ParticleMixin:
         """Tests if provided occurrences are over the maximum."""
         return self.max_occurs is not None and self.max_occurs <= occurs
 
-    def has_occurs_restriction(self, other: Union['ParticleMixin', 'OccursCalculator']) -> bool:
+    def has_occurs_restriction(self, other: Union[ModelParticleType, 'OccursCalculator']) -> bool:
         if self.min_occurs < other.min_occurs:
             return False
         elif self.max_occurs == 0:

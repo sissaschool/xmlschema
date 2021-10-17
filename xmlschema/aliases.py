@@ -20,7 +20,8 @@ __all__ = ['ElementType', 'ElementTreeType', 'XMLSourceType', 'NamespacesType',
            'GlobalComponentType', 'GlobalMapType', 'ModelGroupType', 'ModelParticleType',
            'XPathElementType', 'AtomicValueType', 'NumericValueType', 'DateTimeType',
            'SchemaSourceType', 'ConverterType', 'ComponentClassType', 'ExtraValidatorType',
-           'DecodeType', 'IterDecodeType', 'JsonDecodeType', 'EncodeType', 'IterEncodeType']
+           'DecodeType', 'IterDecodeType', 'JsonDecodeType', 'EncodeType', 'IterEncodeType',
+           'DecodedValueType', 'EncodedValueType']
 
 if TYPE_CHECKING:
     from decimal import Decimal
@@ -88,7 +89,7 @@ if TYPE_CHECKING:
     ##
     # Type aliases for decoding/encoding
     D = TypeVar('D')
-    DecodeType = Union[D, Tuple[D, List[XMLSchemaValidationError]]]
+    DecodeType = Union[Optional[D], Tuple[Optional[D], List[XMLSchemaValidationError]]]
     IterDecodeType = Iterator[Union[D, XMLSchemaValidationError]]
 
     E = TypeVar('E')
@@ -97,6 +98,9 @@ if TYPE_CHECKING:
 
     JsonDecodeType = Union[str, None, Tuple[XMLSchemaValidationError, ...],
                            Tuple[Union[str, None], Tuple[XMLSchemaValidationError, ...]]]
+
+    DecodedValueType = Union[None, AtomicValueType, List[AtomicValueType]]
+    EncodedValueType = Union[None, str, List[str]]
 
 else:
     # In runtime use a dummy subscriptable type for compatibility

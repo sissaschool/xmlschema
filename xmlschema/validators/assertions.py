@@ -92,7 +92,7 @@ class XsdAssert(XsdComponent, ElementPathMixin[Union['XsdAssert', BaseElementTyp
         # Assert requires a schema bound parser because select
         # is on XML elements and with XSD type decoded values
         self.parser = XPath2Parser(
-            namespaces=self.namespaces,
+            namespaces=dict(self.namespaces),
             variable_types={'value': self.base_type.sequence_type},
             strict=False,
             default_namespace=self.xpath_default_namespace,
@@ -105,7 +105,8 @@ class XsdAssert(XsdComponent, ElementPathMixin[Union['XsdAssert', BaseElementTyp
             self.parse_error(err)
             self.token = self.parser.parse('true()')
         finally:
-            self.parser.variable_types.clear()
+            if self.parser.variable_types:
+                self.parser.variable_types.clear()
 
     def __call__(self, elem: ElementType,
                  value: Any = None,
@@ -117,7 +118,7 @@ class XsdAssert(XsdComponent, ElementPathMixin[Union['XsdAssert', BaseElementTyp
             raise XMLSchemaNotBuiltError(self, "schema bound parser not set")
 
         with self._xpath_lock:
-            if not self.parser.is_schema_bound():
+            if not self.parser.is_schema_bound() and self.parser.schema:
                 self.parser.schema.bind_parser(self.parser)
 
         if namespaces is None or isinstance(namespaces, dict):

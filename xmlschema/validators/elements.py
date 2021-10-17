@@ -23,7 +23,8 @@ from ..names import XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE, XSD_ALTERNATIVE, \
     XSI_TYPE, XSD_ERROR, XSD_NOTATION_TYPE
 from ..etree import ElementData, etree_element
 from ..aliases import ElementType, SchemaType, BaseXsdType, BaseElementType, \
-    ModelParticleType, ComponentClassType, AtomicValueType, IterDecodeType, IterEncodeType
+    ModelParticleType, ComponentClassType, AtomicValueType, DecodeType, \
+    IterDecodeType, IterEncodeType
 from ..helpers import get_qname, get_namespace, etree_iter_location_hints, \
     raw_xml_encode, strictly_equal
 from .. import dataobjects
@@ -36,7 +37,7 @@ from .xsdbase import XSD_TYPE_DERIVATIONS, XSD_ELEMENT_DERIVATIONS, \
     XsdComponent, ValidationMixin
 from .particles import ParticleMixin, OccursCalculator
 from .identities import IdentityXPathContext, XsdIdentity, XsdKey, XsdUnique, \
-    XsdKeyref, IdentityCounter
+    XsdKeyref, IdentityCounter, IdentityCounterType
 from .simple_types import XsdSimpleType
 from .attributes import XsdAttribute
 from .wildcards import XsdAnyElement
@@ -100,7 +101,7 @@ class XsdElement(XsdComponent, ParticleMixin,
     _head_type = None
     _build = True
 
-    binding = None
+    binding: Optional['dataobjects.DataElement'] = None
 
     def __init__(self, elem: etree_element,
                  schema: SchemaType,
@@ -634,6 +635,9 @@ class XsdElement(XsdComponent, ParticleMixin,
                 if self.identities:
                     xpath_element = XPathElement(self.name, xsd_type)
                     for identity in self.identities.values():
+                        if isinstance(identity.elements, tuple):
+                            continue  # Skip unbuilt identities
+
                         context = IdentityXPathContext(
                             self.schema, item=xpath_element  # type: ignore[arg-type]
                         )
@@ -798,7 +802,7 @@ class XsdElement(XsdComponent, ParticleMixin,
 
         # Collects fields values for identities that refer to this element.
         for identity, counter in identities.items():
-            if not counter.enabled:
+            if not counter.enabled or not identity.elements:
                 continue
             elif self in identity.elements:
                 xsd_element = self
@@ -808,7 +812,7 @@ class XsdElement(XsdComponent, ParticleMixin,
                 continue
 
             try:
-                xsd_fields: Any
+                xsd_fields: Optional[IdentityCounterType]
                 if xsd_type is self.type:
                     xsd_fields = identity.elements[xsd_element]
                     if xsd_fields is None:
@@ -821,7 +825,8 @@ class XsdElement(XsdComponent, ParticleMixin,
 
                 if all(x is None for x in xsd_fields):
                     continue
-                fields = identity.get_fields(obj, namespaces, decoders=xsd_fields)
+                decoders = cast(Tuple[XsdAttribute, ...], xsd_fields)
+                fields = identity.get_fields(obj, namespaces, decoders=decoders)
             except (XMLSchemaValueError, XMLSchemaTypeError) as err:
                 yield self.validation_error(validation, err, obj, **kwargs)
             else:
@@ -852,6 +857,23 @@ class XsdElement(XsdComponent, ParticleMixin,
                         yield self.validation_error(validation, error, obj, **kwargs)
         elif level:
             self.stop_identities(identities)
+
+    def to_objects(self, obj: ElementType, with_bindings: bool = False, **kwargs: Any) \
+            -> DecodeType['dataobjects.DataElement']:
+        """
+        Decodes XML data to Python data objects.
+
+        :param obj: the XML data source.
+        :param with_bindings: if `True` is provided the decoding is done using \
+        :class:`DataBindingConverter` that used XML data binding classes. For \
+        default the objects are instances of :class:`DataElement` and uses the \
+        :class:`DataElementConverter`.
+        :param kwargs: other optional keyword arguments for the method \
+        :func:`iter_decode`, except the argument *converter*.
+        """
+        if with_bindings:
+            return self.decode(obj, converter=dataobjects.DataBindingConverter, **kwargs)
+        return self.decode(obj, converter=dataobjects.DataElementConverter, **kwargs)
 
     def iter_encode(self, obj: Any, validation: str = 'lax', **kwargs: Any) \
             -> IterEncodeType[ElementType]:
@@ -1369,7 +1391,9 @@ class XsdAlternative(XsdComponent):
         else:
             self.xpath_default_namespace = self.schema.xpath_default_namespace
         parser = XPath2Parser(
-            self.namespaces, strict=False, default_namespace=self.xpath_default_namespace
+            namespaces=dict(self.namespaces),
+            strict=False,
+            default_namespace=self.xpath_default_namespace
         )
 
         try:

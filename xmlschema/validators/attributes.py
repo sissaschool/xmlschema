@@ -12,7 +12,7 @@ This module contains classes for XML Schema attributes and attribute groups.
 """
 from decimal import Decimal
 from elementpath.datatypes import AbstractDateTime, Duration, AbstractBinary
-from typing import TYPE_CHECKING, cast, Any, Union, Dict, List, Optional, \
+from typing import cast, Any, Callable, Union, Dict, List, Optional, \
     Iterator, MutableMapping, Tuple
 
 from ..exceptions import XMLSchemaValueError
@@ -21,7 +21,7 @@ from ..names import XSI_NAMESPACE, XSD_ANY_SIMPLE_TYPE, XSD_SIMPLE_TYPE, \
     XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ATTRIBUTE, XSD_ANY_ATTRIBUTE, \
     XSD_ASSERT, XSD_NOTATION_TYPE, XSD_ANNOTATION
 from ..aliases import ComponentClassType, ElementType, IterDecodeType, \
-    IterEncodeType, AtomicValueType
+    IterEncodeType, AtomicValueType, SchemaType, DecodedValueType, EncodedValueType
 from ..helpers import get_namespace, get_qname
 
 from .exceptions import XMLSchemaValidationError
@@ -29,11 +29,8 @@ from .xsdbase import XsdComponent, ValidationMixin
 from .simple_types import XsdSimpleType
 from .wildcards import XsdAnyAttribute
 
-if TYPE_CHECKING:
-    from .schema import XMLSchemaBase
 
-
-class XsdAttribute(XsdComponent, ValidationMixin[str, AtomicValueType]):
+class XsdAttribute(XsdComponent, ValidationMixin[str, DecodedValueType]):
     """
     Class for XSD 1.0 *attribute* declarations.
 
@@ -56,6 +53,8 @@ class XsdAttribute(XsdComponent, ValidationMixin[str, AtomicValueType]):
 
     name: str
     type: XsdSimpleType
+    copy: Callable[['XsdAttribute'], 'XsdAttribute']
+
     qualified: bool = False
     default: Optional[str] = None
     fixed: Optional[str] = None
@@ -215,7 +214,7 @@ class XsdAttribute(XsdComponent, ValidationMixin[str, AtomicValueType]):
         return cast(AtomicValueType, self.decode(text, validation='skip'))
 
     def iter_decode(self, obj: str, validation: str = 'lax', **kwargs: Any) \
-            -> IterDecodeType[AtomicValueType]:
+            -> IterDecodeType[DecodedValueType]:
         if obj is None and self.default is not None:
             obj = self.default
 
@@ -266,7 +265,7 @@ class XsdAttribute(XsdComponent, ValidationMixin[str, AtomicValueType]):
             break  # pragma: no cover
 
     def iter_encode(self, obj: Any, validation: str = 'lax', **kwargs: Any) \
-            -> IterEncodeType[str]:
+            -> IterEncodeType[Union[EncodedValueType]]:
         yield from self.type.iter_encode(obj, validation, **kwargs)
 
 
@@ -329,9 +328,10 @@ class XsdAttributeGroup(
         XSD_ATTRIBUTE_GROUP, XSD_COMPLEX_TYPE, XSD_RESTRICTION, XSD_EXTENSION,
         XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ATTRIBUTE, XSD_ANY_ATTRIBUTE
     }
+    copy: Callable[['XsdAttributeGroup'], 'XsdAttributeGroup']
 
     def __init__(self, elem: ElementType,
-                 schema: 'XMLSchemaBase',
+                 schema: SchemaType,
                  parent: Optional[XsdComponent] = None,
                  derivation: Optional[str] = None,
                  base_attributes: Optional['XsdAttributeGroup'] = None) -> None:
@@ -363,7 +363,7 @@ class XsdAttributeGroup(
     def __delitem__(self, key: Optional[str]) -> None:
         del self._attribute_group[key]
 
-    def __iter__(self) -> Iterator[Union[XsdAttribute, XsdAnyAttribute]]:
+    def __iter__(self) -> Iterator[Optional[str]]:
         if None in self._attribute_group:
             # Put AnyAttribute ('None' key) at the end of iteration
             yield from sorted(self._attribute_group, key=lambda x: (x is None, x))
@@ -401,8 +401,9 @@ class XsdAttributeGroup(
             elif child.tag == XSD_ANY_ATTRIBUTE:
                 any_attribute = self.schema.xsd_any_attribute_class(child, self.schema, self)
                 if None in attributes:
-                    attributes[None] = attributes[None].copy()
-                    attributes[None].intersection(any_attribute)
+                    attributes[None] = attr = attributes[None].copy()
+                    assert isinstance(attr, XsdAnyAttribute)
+                    attr.intersection(any_attribute)
                 else:
                     attributes[None] = any_attribute
 
@@ -448,20 +449,23 @@ class XsdAttributeGroup(
                     attribute_group_refs.append(attribute_group_qname)
 
                     try:
-                        base_attrs = self.maps.lookup_attribute_group(attribute_group_qname)
+                        ref_attributes = self.maps.lookup_attribute_group(attribute_group_qname)
                     except LookupError:
                         self.parse_error("unknown attribute group %r" % child.attrib['ref'])
                     else:
-                        if not isinstance(base_attrs, tuple):
-                            for name, attr in base_attrs.items():
+                        if not isinstance(ref_attributes, tuple):
+                            for name, base_attr in ref_attributes.items():
                                 if name not in attributes:
-                                    attributes[name] = attr
+                                    attributes[name] = base_attr
                                 elif name is not None:
-                                    self.parse_error("multiple declaration for attribute "
-                                                     "{!r}".format(name))
+                                    self.parse_error(
+                                        f"multiple declaration of attribute {name!r}"
+                                    )
                                 else:
-                                    attributes[None] = attributes[None].copy()
-                                    attributes[None].intersection(attr)
+                                    assert isinstance(base_attr, XsdAnyAttribute)
+                                    attributes[None] = attr = attributes[None].copy()
+                                    assert isinstance(attr, XsdAnyAttribute)
+                                    attr.intersection(base_attr)
 
                         elif self.xsd_version == '1.0':
                             self.parse_error(
@@ -485,7 +489,10 @@ class XsdAttributeGroup(
 
                 base_attr = self.base_attributes[name]
 
-                if name is None:
+                if isinstance(attr, XsdAnyAttribute):
+                    assert name is None, "name key resolves to an xs:anyAttribute"
+                    assert isinstance(base_attr, XsdAnyAttribute), "invalid base attribute"
+
                     if self.derivation == 'extension':
                         try:
                             attr.union(base_attr)
@@ -495,6 +502,10 @@ class XsdAttributeGroup(
                         self.parse_error("Attribute wildcard is not a restriction "
                                          "of the base wildcard")
                     continue
+
+                assert name is not None, "None key resolves to an xs:attribute"
+                assert isinstance(base_attr, XsdAttribute), "invalid base attribute"
+
                 if self.derivation == 'restriction' and attr.type.name != XSD_ANY_SIMPLE_TYPE and \
                         not attr.type.is_derived(base_attr.type, 'restriction'):
                     self.parse_error("Attribute type is not a restriction "
@@ -502,11 +513,11 @@ class XsdAttributeGroup(
                 if base_attr.use != 'optional' and attr.use == 'optional' or \
                         base_attr.use == 'required' and attr.use != 'required':
                     self.parse_error("Attribute %r: unmatched attribute use in restriction" % name)
-                if base_attr.fixed is not None and \
-                        attr.type.normalize(attr.fixed) != \
-                        base_attr.type.normalize(base_attr.fixed):
-                    self.parse_error("Attribute %r: derived attribute "
-                                     "has a different fixed value" % name)
+                if base_attr.fixed is not None:
+                    if attr.fixed is None or attr.type.normalize(attr.fixed) != \
+                            base_attr.type.normalize(base_attr.fixed):
+                        self.parse_error("Attribute %r: derived attribute "
+                                         "has a different fixed value" % name)
                 if base_attr.inheritable is not attr.inheritable:
                     msg = "Attribute %r: attribute 'inheritable' value change in restriction"
                     self.parse_error(msg % name)
@@ -585,13 +596,13 @@ class XsdAttributeGroup(
     def iter_value_constraints(self, use_defaults: bool = True) -> Iterator[Tuple[str, str]]:
         if use_defaults:
             for k, v in self._attribute_group.items():
-                if v.fixed is not None:
+                if v.fixed is not None and k:
                     yield k, v.fixed
-                elif v.default is not None:
+                elif v.default is not None and k:
                     yield k, v.default
         else:
             for k, v in self._attribute_group.items():
-                if v.fixed is not None:
+                if v.fixed is not None and k:
                     yield k, v.fixed
 
     def iter_components(self, xsd_classes: ComponentClassType = None) \
@@ -629,7 +640,9 @@ class XsdAttributeGroup(
             kwargs['id_list'] = []
 
         filler = kwargs.get('filler')
-        result_list = []
+        result_list: List[Tuple[str, DecodedValueType]] = []
+
+        value: Any
         for name, value in obj.items():
             try:
                 xsd_attribute = self._attribute_group[name]
@@ -680,7 +693,7 @@ class XsdAttributeGroup(
         yield result_list
 
     def iter_encode(self, obj: MutableMapping[str, Any], validation: str = 'lax',
-                    **kwargs: Any) -> IterEncodeType[List[Tuple[str, str]]]:
+                    **kwargs: Any) -> IterEncodeType[List[Tuple[str, Union[str, List[str]]]]]:
         if not obj and not self:
             return
 

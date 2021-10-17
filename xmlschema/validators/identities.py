@@ -106,7 +106,7 @@ class XsdSelector(XsdComponent):
                 self.xpath_default_namespace = self.schema.xpath_default_namespace
 
         self.parser = IdentityXPathParser(
-            namespaces=self.namespaces,
+            namespaces=dict(self.namespaces),
             strict=False,
             compatibility_mode=True,
             default_namespace=self.xpath_default_namespace,
@@ -164,11 +164,12 @@ class XsdIdentity(XsdComponent):
     prefixed_name: str
     parent: 'XsdElement'
     ref: Optional['XsdIdentity']
-    elements: Dict['XsdElement', Optional[IdentityCounterType]]
 
     selector = None  # type: XsdSelector
-    elements = None  # XSD elements bound by selector (for speed-up and lazy mode)
     fields = ()      # type: Union[Tuple[()], List[XsdFieldSelector]]
+
+    # XSD elements bound by selector (for speed-up and for lazy mode)
+    elements: Union[Tuple[()], Dict['XsdElement', Optional[IdentityCounterType]]] = ()
 
     def __init__(self, elem: ElementType, schema: SchemaType,
                  parent: Optional['XsdElement']) -> None:
@@ -228,12 +229,14 @@ class XsdIdentity(XsdComponent):
                     xsd_element = self.maps.elements.get(
                         get_extended_qname(qname, self.namespaces)
                     )
-                    if xsd_element is not None and xsd_element not in self.elements:
+                    if xsd_element is not None and \
+                            not isinstance(xsd_element, tuple) and \
+                            xsd_element not in self.elements:
                         self.elements[xsd_element] = None
 
     @property
     def built(self) -> bool:
-        return self.elements is not None
+        return not isinstance(self.elements, tuple)
 
     def get_fields(self, elem: Union[ElementType, 'XsdElement'],
                    namespaces: Optional[NamespacesType] = None,
@@ -395,7 +398,7 @@ class XsdKeyref(XsdIdentity):
 
     @property
     def built(self) -> bool:
-        return self.elements is not None and isinstance(self.refer, XsdIdentity)
+        return not isinstance(self.elements, tuple) and isinstance(self.refer, XsdIdentity)
 
     def get_counter(self, enabled: bool = True) -> 'KeyrefCounter':
         return KeyrefCounter(self, enabled)

@@ -11,7 +11,7 @@
 This module contains base functions and classes XML Schema components.
 """
 import re
-from typing import TYPE_CHECKING, Any, Dict, Generic, List, Iterator, Optional, \
+from typing import TYPE_CHECKING, cast, Any, Dict, Generic, List, Iterator, Optional, \
     Set, Tuple, TypeVar, Union
 
 import elementpath
@@ -26,11 +26,11 @@ from ..aliases import ElementType, NamespacesType, SchemaType, BaseXsdType, \
     EncodeType, IterEncodeType
 from ..helpers import get_qname, local_name, get_prefixed_qname
 from ..resources import XMLResource
-from .. import dataobjects
 from .exceptions import XMLSchemaParseError, XMLSchemaValidationError
 
 if TYPE_CHECKING:
     from .simple_types import XsdSimpleType
+    from .attributes import XsdAttributeGroup
     from .complex_types import XsdComplexType
     from .elements import XsdElement
     from .groups import XsdGroup
@@ -344,24 +344,24 @@ class XsdComponent(XsdValidator):
         return self.schema.namespaces.get('')
 
     @property
-    def namespaces(self) -> Dict[str, str]:
+    def namespaces(self) -> NamespacesType:
         """Property that references to schema's namespace mapping."""
         return self.schema.namespaces
 
     @property
     def any_type(self) -> 'XsdComplexType':
         """Property that references to the xs:anyType instance of the global maps."""
-        return self.maps.types[XSD_ANY_TYPE]
+        return cast('XsdComplexType', self.maps.types[XSD_ANY_TYPE])
 
     @property
     def any_simple_type(self) -> 'XsdSimpleType':
         """Property that references to the xs:anySimpleType instance of the global maps."""
-        return self.maps.types[XSD_ANY_SIMPLE_TYPE]
+        return cast('XsdSimpleType', self.maps.types[XSD_ANY_SIMPLE_TYPE])
 
     @property
     def any_atomic_type(self) -> 'XsdSimpleType':
         """Property that references to the xs:anyAtomicType instance of the global maps."""
-        return self.maps.types[XSD_ANY_ATOMIC_TYPE]
+        return cast('XsdSimpleType', self.maps.types[XSD_ANY_ATOMIC_TYPE])
 
     @property
     def annotation(self) -> Optional['XsdAnnotation']:
@@ -689,9 +689,8 @@ class XsdType(XsdComponent):
     """Common base class for XSD types."""
 
     abstract = False
-    block: Optional[str] = None
     base_type: Optional[BaseXsdType] = None
-    attributes = None
+    attributes: Optional['XsdAttributeGroup'] = None
     derivation: Optional[str] = None
     _final: Optional[str] = None
 
@@ -714,18 +713,20 @@ class XsdType(XsdComponent):
         raise NotImplementedError()
 
     @property
-    def root_type(self) -> 'XsdType':
+    def root_type(self) -> BaseXsdType:
         """
         The root type of the type definition hierarchy. For an atomic type
         is the primitive type. For a list is the primitive type of the item.
         For a union is the base union type. For a complex type is xs:anyType.
         """
         if getattr(self, 'attributes', None):
-            return self.maps.types[XSD_ANY_TYPE]
+            return cast('XsdComplexType', self.maps.types[XSD_ANY_TYPE])
         elif self.base_type is None:
-            return self if self.is_simple() else self.maps.types[XSD_ANY_TYPE]
+            if self.is_simple():
+                return cast('XsdSimpleType', self)
+            return cast('XsdComplexType', self.maps.types[XSD_ANY_TYPE])
 
-        primitive_type: 'XsdType'
+        primitive_type: BaseXsdType
         try:
             if self.base_type.is_simple():
                 primitive_type = self.base_type.primitive_type  # type: ignore[union-attr]
@@ -816,7 +817,8 @@ class XsdType(XsdComponent):
         """
         raise NotImplementedError()
 
-    def is_derived(self, other: object, derivation: Optional[str] = None) -> bool:
+    def is_derived(self, other: Union[BaseXsdType, Tuple[ElementType, SchemaType]],
+                   derivation: Optional[str] = None) -> bool:
         """
         Returns `True` if the instance is derived from *other*, `False` otherwise.
         The optional argument derivation can be a string containing the words
@@ -879,7 +881,7 @@ class ValidationMixin(Generic[ST, DT]):
                  use_defaults: bool = True,
                  namespaces: Optional[NamespacesType] = None,
                  max_depth: Optional[int] = None,
-                 extra_validator: ExtraValidatorType = None) -> None:
+                 extra_validator: Optional[ExtraValidatorType] = None) -> None:
         """
         Validates XML data against the XSD schema/component instance.
 
@@ -903,7 +905,7 @@ class ValidationMixin(Generic[ST, DT]):
                  use_defaults: bool = True,
                  namespaces: Optional[NamespacesType] = None,
                  max_depth: Optional[int] = None,
-                 extra_validator: ExtraValidatorType = None) -> bool:
+                 extra_validator: Optional[ExtraValidatorType] = None) -> bool:
         """
         Like :meth:`validate` except that does not raise an exception but returns
         ``True`` if the XML data instance is valid, ``False`` if it is invalid.
@@ -916,7 +918,7 @@ class ValidationMixin(Generic[ST, DT]):
                     use_defaults: bool = True,
                     namespaces: Optional[NamespacesType] = None,
                     max_depth: Optional[int] = None,
-                    extra_validator: ExtraValidatorType = None) \
+                    extra_validator: Optional[ExtraValidatorType] = None) \
             -> Iterator[XMLSchemaValidationError]:
         """
         Creates an iterator for the errors generated by the validation of an XML data against
@@ -956,33 +958,17 @@ class ValidationMixin(Generic[ST, DT]):
         """
         check_validation_mode(validation)
 
-        result, errors = None, []
+        result: Union[DT, XMLSchemaValidationError]
+        errors: List[XMLSchemaValidationError] = []
         for result in self.iter_decode(obj, validation, **kwargs):  # pragma: no cover
             if not isinstance(result, XMLSchemaValidationError):
-                break
+                return (result, errors) if validation == 'lax' else result
             elif validation == 'strict':
                 raise result
             else:
                 errors.append(result)
 
-        return (result, errors) if validation == 'lax' else result
-
-    def to_objects(self, source: ST, with_bindings: bool = False, **kwargs: Any) \
-            -> DecodeType['dataobjects.DataElement']:
-        """
-        Decodes XML data to Python data objects.
-
-        :param source: the XML data source.
-        :param with_bindings: if `True` is provided the decoding is done using \
-        :class:`DataBindingConverter` that used XML data binding classes. For \
-        default the objects are instances of :class:`DataElement` and uses the \
-        :class:`DataElementConverter`.
-        :param kwargs: other optional keyword arguments for the method \
-        :func:`iter_decode`, except the argument *converter*.
-        """
-        if with_bindings:
-            return self.decode(source, converter=dataobjects.DataBindingConverter, **kwargs)
-        return self.decode(source, converter=dataobjects.DataElementConverter, **kwargs)
+        return (None, errors) if validation == 'lax' else None
 
     def encode(self, obj: Any, validation: str = 'strict', **kwargs: Any) -> EncodeType[Any]:
         """

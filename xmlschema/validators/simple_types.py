@@ -11,12 +11,13 @@
 This module contains classes for XML Schema simple data types.
 """
 from decimal import DecimalException
-from typing import TYPE_CHECKING, cast, Any, Callable, Dict, Iterator, List, \
+from typing import cast, Any, Callable, Dict, Iterator, List, \
     Optional, Set, Union, Tuple, Type
 
 from ..etree import etree_element
 from ..aliases import ElementType, AtomicValueType, ComponentClassType, \
-    IterDecodeType, IterEncodeType
+    IterDecodeType, IterEncodeType, BaseXsdType, SchemaType, DecodedValueType, \
+    EncodedValueType
 from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from ..names import XSD_NAMESPACE, XSD_ANY_TYPE, XSD_SIMPLE_TYPE, XSD_PATTERN, \
     XSD_ANY_ATOMIC_TYPE, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ANY_ATTRIBUTE, \
@@ -35,15 +36,8 @@ from .facets import XsdFacet, XsdWhiteSpaceFacet, XsdPatternFacets, \
     XSD_11_FACETS_BUILDERS, XSD_10_FACETS, XSD_11_FACETS, XSD_10_LIST_FACETS, \
     XSD_11_LIST_FACETS, XSD_10_UNION_FACETS, XSD_11_UNION_FACETS, MULTIPLE_FACETS
 
-if TYPE_CHECKING:
-    from .complex_types import XsdComplexType
-    from .schema import XMLSchemaBase
-
-
 FacetsValueType = Union[XsdFacet, Callable[[Any], None], List[XsdAssertionFacet]]
 PythonTypeClasses = Type[Any]
-DecodedValueType = Union[None, AtomicValueType, List[AtomicValueType]]
-EncodedValueType = Union[None, str, List[str]]
 
 
 class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType]):
@@ -61,7 +55,9 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
     """
     _special_types = {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE}
     _ADMITTED_TAGS = {XSD_SIMPLE_TYPE}
+    copy: Callable[['XsdSimpleType'], 'XsdSimpleType']
 
+    block: str = ''
     min_length: Optional[int] = None
     max_length: Optional[int] = None
     white_space: Optional[str] = None
@@ -77,7 +73,7 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
     python_type = instance_types = to_python = from_python = str
 
     def __init__(self, elem: ElementType,
-                 schema: 'XMLSchemaBase',
+                 schema: SchemaType,
                  parent: Optional[XsdComponent] = None,
                  name: Optional[str] = None,
                  facets: Optional[Dict[Optional[str], FacetsValueType]] = None) -> None:
@@ -353,9 +349,13 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
     def is_element_only(self) -> bool:
         return False
 
-    def is_derived(self, other: Any, derivation: Optional[str] = None) -> bool:
+    def is_derived(self, other: Union[BaseXsdType, Tuple[ElementType, SchemaType]],
+                   derivation: Optional[str] = None) -> bool:
         if self is other:
             return True
+        elif isinstance(other, tuple):
+            other[1].parse_error(f"global type {other[0].tag!r} is not built")
+            return False
         elif derivation and self.derivation and derivation != self.derivation:
             return False
         elif other.name in self._special_types:
@@ -370,12 +370,12 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
             if not self.base_type.has_simple_content():
                 return False
             return self.base_type.content.is_derived(other, derivation)  # type: ignore
-        elif hasattr(other, 'member_types'):
+        elif isinstance(other, XsdUnion):
             return any(self.is_derived(m, derivation) for m in other.member_types)
         else:
             return self.base_type.is_derived(other, derivation)
 
-    def is_dynamic_consistent(self, other: XsdType) -> bool:
+    def is_dynamic_consistent(self, other: BaseXsdType) -> bool:
         return other.name in {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE} or self.is_derived(other) or \
             isinstance(other, XsdUnion) and any(self.is_derived(mt) for mt in other.member_types)
 
@@ -458,11 +458,11 @@ class XsdAtomic(XsdSimpleType):
     _ADMITTED_TAGS = {XSD_RESTRICTION, XSD_SIMPLE_TYPE}
 
     def __init__(self, elem: ElementType,
-                 schema: 'XMLSchemaBase',
+                 schema: SchemaType,
                  parent: Optional[XsdComponent] = None,
                  name: Optional[str] = None,
                  facets: Optional[Dict[Optional[str], FacetsValueType]] = None,
-                 base_type: Optional[Union[XsdSimpleType, 'XsdComplexType']] = None) -> None:
+                 base_type: Optional[BaseXsdType] = None) -> None:
 
         if base_type is None:
             self.primitive_type = self
@@ -532,7 +532,7 @@ class XsdAtomicBuiltin(XsdAtomic):
       - from_python(value): Encoding to XML
     """
     def __init__(self, elem: ElementType,
-                 schema: 'XMLSchemaBase',
+                 schema: SchemaType,
                  name: str,
                  python_type: Type[Any],
                  base_type: Optional['XsdAtomicBuiltin'] = None,
@@ -760,7 +760,7 @@ class XsdList(XsdSimpleType):
     )
 
     def __init__(self, elem: ElementType,
-                 schema: 'XMLSchemaBase',
+                 schema: SchemaType,
                  parent: Optional[XsdComponent],
                  name: Optional[str] = None) -> None:
         facets: Optional[Dict[Optional[str], FacetsValueType]] = {
@@ -853,7 +853,7 @@ class XsdList(XsdSimpleType):
         return XSD_10_LIST_FACETS if self.xsd_version == '1.0' else XSD_11_LIST_FACETS
 
     @property
-    def item_type(self) -> 'XsdType':
+    def item_type(self) -> BaseXsdType:
         return self.base_type
 
     def is_atomic(self) -> bool:
@@ -862,9 +862,13 @@ class XsdList(XsdSimpleType):
     def is_list(self) -> bool:
         return True
 
-    def is_derived(self, other: Any, derivation: Optional[str] = None) -> bool:
+    def is_derived(self, other: Union[BaseXsdType, Tuple[ElementType, SchemaType]],
+                   derivation: Optional[str] = None) -> bool:
         if self is other:
             return True
+        elif isinstance(other, tuple):
+            other[1].parse_error(f"global type {other[0].tag!r} is not built")
+            return False
         elif derivation and self.derivation and derivation != self.derivation:
             return False
         elif other.name in self._special_types:
@@ -881,8 +885,9 @@ class XsdList(XsdSimpleType):
         if self.base_type.parent is not None:
             yield from self.base_type.iter_components(xsd_classes)
 
-    def iter_decode(self, obj: Union[str, bytes], validation: str = 'lax', **kwargs: Any) \
-            -> IterDecodeType[DecodedValueType]:
+    def iter_decode(self, obj: Union[str, bytes],  # type: ignore[override]
+                    validation: str = 'lax', **kwargs: Any) \
+            -> IterDecodeType[List[DecodedValueType]]:
         items = []
         for chunk in self.normalize(obj).split():
             for result in self.base_type.iter_decode(chunk, validation, **kwargs):
@@ -926,7 +931,7 @@ class XsdUnion(XsdSimpleType):
     _ADMITTED_TAGS = {XSD_UNION}
 
     def __init__(self, elem: ElementType,
-                 schema: 'XMLSchemaBase',
+                 schema: SchemaType,
                  parent: Optional[XsdComponent],
                  name: Optional[str] = None) -> None:
         super(XsdUnion, self).__init__(elem, schema, parent, name, facets=None)
@@ -1137,7 +1142,7 @@ class XsdAtomicRestriction(XsdAtomic):
         </restriction>
     """
     parent: 'XsdSimpleType'
-    base_type: Union['XsdSimpleType', 'XsdComplexType']
+    base_type: BaseXsdType
     derivation = 'restriction'
     _FACETS_BUILDERS = XSD_10_FACETS_BUILDERS
     _CONTENT_TAIL_TAGS = {XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ANY_ATTRIBUTE}

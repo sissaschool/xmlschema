@@ -12,7 +12,7 @@ This module contains classes for XML Schema model groups.
 """
 import warnings
 from collections.abc import MutableMapping
-from typing import TYPE_CHECKING, cast, overload, Any, Iterable, Iterator, List, \
+from typing import TYPE_CHECKING, overload, Any, Iterable, Iterator, List, \
     MutableSequence, Optional, Tuple, Union
 
 from .. import limits
@@ -29,7 +29,7 @@ from .exceptions import XMLSchemaModelError, XMLSchemaModelDepthError, \
     XMLSchemaTypeTableWarning
 from .xsdbase import ValidationMixin, XsdComponent, XsdType
 from .particles import ParticleMixin, OccursCalculator
-from .elements import XsdElement
+from .elements import XsdElement, XsdAlternative
 from .wildcards import XsdAnyElement, Xsd11AnyElement
 from .models import ModelVisitor, distinguishable_paths
 
@@ -843,7 +843,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                     model_element, elem, "substitution of %r is blocked" % model_element
                 )
 
-        alternatives = []
+        alternatives: Union[Tuple[()], List[XsdAlternative]] = []
         if isinstance(xsd_element, XsdAnyElement):
             if xsd_element.process_contents == 'skip':
                 return
@@ -1366,7 +1366,7 @@ class Xsd11Group(XsdGroup):
                         w2.extended = True
                         break
                 else:
-                    wildcards.append(cast(XsdAnyElement, w1.copy()))
+                    wildcards.append(w1.copy())
 
         base_items.extend(w for w in wildcards if hasattr(w, 'extended'))
 

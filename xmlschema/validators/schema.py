@@ -25,7 +25,7 @@ from abc import ABCMeta
 from collections import Counter
 from itertools import chain
 from typing import cast, Callable, ItemsView, List, Optional, Dict, Any, \
-    MutableMapping, Set, Union, Tuple, Type, Iterator
+    Set, Union, Tuple, Type, Iterator
 
 from ..exceptions import XMLSchemaTypeError, XMLSchemaKeyError, \
     XMLSchemaValueError, XMLSchemaNamespaceError
@@ -39,9 +39,8 @@ from ..names import VC_MIN_VERSION, VC_MAX_VERSION, VC_TYPE_AVAILABLE, \
     XSD_ANY_SIMPLE_TYPE, XSD_UNION, XSD_LIST, XSD_RESTRICTION
 from ..etree import etree_element, ParseError
 from ..aliases import ElementType, XMLSourceType, NamespacesType, LocationsType, \
-    SchemaType, BaseElementType, SchemaSourceType, ConverterType, ComponentClassType, \
-    DecodeType, EncodeType, BaseXsdType, AtomicValueType, ExtraValidatorType, \
-    GlobalComponentType
+    SchemaType, SchemaSourceType, ConverterType, ComponentClassType, DecodeType, \
+    EncodeType, BaseXsdType, AtomicValueType, ExtraValidatorType, GlobalComponentType
 from ..helpers import prune_etree, get_namespace, get_qname
 from ..namespaces import NamespaceResourcesMap, NamespaceView
 from ..resources import is_local_url, is_remote_url, url_path_is_file, \
@@ -245,7 +244,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     """
     # Instance attributes annotations
     source: XMLResource
-    namespaces: MutableMapping[str, str]
+    namespaces: NamespacesType
     converter: Union[ConverterType]
     locations: NamespaceResourcesMap
     maps: XsdGlobals

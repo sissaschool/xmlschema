@@ -15,7 +15,7 @@ import math
 import operator
 from abc import abstractmethod
 from typing import TYPE_CHECKING, cast, Any, List, Optional, Pattern, Union, \
-    MutableSequence, overload
+    MutableSequence, overload, Tuple
 from elementpath import XPath2Parser, XPathContext, ElementPathError, \
     translate_pattern, RegexError
 
@@ -33,6 +33,8 @@ from .xsdbase import XsdComponent, XsdAnnotation
 if TYPE_CHECKING:
     from .simple_types import XsdList, XsdAtomicRestriction
     from .schema import XMLSchemaBase
+
+LaxDecodeType = Tuple[Any, List[XMLSchemaValidationError]]
 
 
 class XsdFacet(XsdComponent):
@@ -265,7 +267,8 @@ class XsdMinInclusiveFacet(XsdFacet):
     _ADMITTED_TAGS = XSD_MIN_INCLUSIVE,
 
     def _parse_value(self, elem: ElementType) -> None:
-        self.value, errors = self.base_type.decode(elem.attrib['value'], validation='lax')
+        value = elem.attrib['value']
+        self.value, errors = cast(LaxDecodeType, self.base_type.decode(value, 'lax'))
         for e in errors:
             self.parse_error("invalid restriction: {}".format(e.reason))
 
@@ -294,7 +297,8 @@ class XsdMinExclusiveFacet(XsdFacet):
     _ADMITTED_TAGS = XSD_MIN_EXCLUSIVE,
 
     def _parse_value(self, elem: ElementType) -> None:
-        self.value, errors = self.base_type.decode(elem.attrib['value'], validation='lax')
+        value = elem.attrib['value']
+        self.value, errors = cast(LaxDecodeType, self.base_type.decode(value, 'lax'))
         for e in errors:
             if not isinstance(e.validator, self.__class__) or e.validator.value != self.value:
                 self.parse_error("invalid restriction: {}".format(e.reason))
@@ -328,7 +332,8 @@ class XsdMaxInclusiveFacet(XsdFacet):
     _ADMITTED_TAGS = XSD_MAX_INCLUSIVE,
 
     def _parse_value(self, elem: ElementType) -> None:
-        self.value, errors = self.base_type.decode(elem.attrib['value'], validation='lax')
+        value = elem.attrib['value']
+        self.value, errors = cast(LaxDecodeType, self.base_type.decode(value, 'lax'))
         for e in errors:
             self.parse_error("invalid restriction: {}".format(e.reason))
 
@@ -357,7 +362,8 @@ class XsdMaxExclusiveFacet(XsdFacet):
     _ADMITTED_TAGS = XSD_MAX_EXCLUSIVE,
 
     def _parse_value(self, elem: ElementType) -> None:
-        self.value, errors = self.base_type.decode(elem.attrib['value'], validation='lax')
+        value = elem.attrib['value']
+        self.value, errors = cast(LaxDecodeType, self.base_type.decode(value, 'lax'))
         for e in errors:
             if not isinstance(e.validator, self.__class__) or e.validator.value != self.value:
                 self.parse_error("invalid restriction: {}".format(e.reason))
@@ -737,7 +743,7 @@ class XsdPatternFacets(MutableSequence[ElementType], XsdFacet):
         return None
 
 
-class XsdAssertionXPathParser(XPath2Parser):
+class XsdAssertionXPathParser(XPath2Parser):  # type: ignore[misc]
     """Parser for XSD 1.1 assertion facets."""
 
 
@@ -793,7 +799,9 @@ class XsdAssertionFacet(XsdFacet):
             self.xpath_default_namespace = self.schema.xpath_default_namespace
 
         self.parser = XsdAssertionXPathParser(
-            self.namespaces, strict=False, variable_types={'value': value},
+            namespaces=dict(self.namespaces),
+            strict=False,
+            variable_types={'value': value},
             default_namespace=self.xpath_default_namespace
         )
 
