@@ -8,7 +8,8 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import json
-from typing import Any, Dict, List, Optional, Type, Union, Tuple, IO, Iterator
+from typing import Any, Dict, List, Optional, Type, Union, Tuple, \
+    IO, BinaryIO, TextIO, Iterator
 
 from .exceptions import XMLSchemaTypeError, XMLSchemaValueError, XMLResourceError
 from .names import XSD_NAMESPACE, XSI_TYPE
@@ -215,7 +216,7 @@ def to_dict(xml_document: Union[XMLSourceType, XMLResource],
             base_url: Optional[str] = None,
             defuse: str = 'remote',
             timeout: int = 300,
-            lazy: LazyType = False, **kwargs: Any) -> DecodeType:
+            lazy: LazyType = False, **kwargs: Any) -> DecodeType[Any]:
     """
     Decodes an XML document to a Python's nested dictionary. The decoding is based
     on an XML Schema class instance. For default the document is validated during
@@ -269,7 +270,7 @@ def to_json(xml_document: Union[XMLSourceType, XMLResource],
             defuse: str = 'remote',
             timeout: int = 300,
             lazy: LazyType = False,
-            json_options: Optional[dict] = None,
+            json_options: Optional[Dict[str, Any]] = None,
             **kwargs: Any) -> JsonDecodeType:
     """
     Serialize an XML document to JSON. For default the XML data is validated during
@@ -345,7 +346,8 @@ def from_json(source: Union[str, bytes, IO[str]],
               schema: XMLSchemaBase,
               path: Optional[str] = None,
               converter: Optional[ConverterType] = None,
-              json_options: Optional[dict] = None, **kwargs: Any) -> EncodeType:
+              json_options: Optional[Dict[str, Any]] = None,
+              **kwargs: Any) -> EncodeType[ElementType]:
     """
     Deserialize JSON data to an XML Element.
 
@@ -406,7 +408,7 @@ class XmlDocument(XMLResource):
     _fallback_schema: Optional[XMLSchemaBase] = None
     validation: str = 'skip'
     namespaces: Optional[NamespacesType] = None
-    errors: Union[tuple, List[XMLSchemaValidationError]] = ()
+    errors: Union[Tuple[()], List[XMLSchemaValidationError]] = ()
 
     def __init__(self, source: XMLSourceType,
                  schema: Optional[Union[XMLSchemaBase, SchemaSourceType]] = None,
@@ -495,20 +497,24 @@ class XmlDocument(XMLResource):
         else:
             return ElementTree.ElementTree(self._root)
 
-    def tostring(self, indent: str = '', max_lines=None, spaces_for_tab=4,
-                 xml_declaration=False, encoding='unicode', method='xml'):
+    def tostring(self, indent: str = '', max_lines: Optional[int] = None,
+                 spaces_for_tab: int = 4, xml_declaration: bool = False,
+                 encoding: str = 'unicode', method: str = 'xml') -> str:
         if self._lazy:
             raise XMLResourceError("cannot serialize a lazy XML document")
 
-        return etree_tostring(
+        _string = etree_tostring(
             elem=self._root,
             namespaces=self.namespaces,
             xml_declaration=xml_declaration,
             encoding=encoding,
             method=method
         )
+        if isinstance(_string, bytes):
+            return _string.decode('utf-8')
+        return _string
 
-    def decode(self, **kwargs: Any) -> DecodeType:
+    def decode(self, **kwargs: Any) -> DecodeType[Any]:
         """
         Decode the XML document to a nested Python dictionary.
 
@@ -526,7 +532,8 @@ class XmlDocument(XMLResource):
         obj = schema.to_dict(self, **kwargs)
         return obj[0] if isinstance(obj, tuple) else obj
 
-    def to_json(self, fp: Optional[IO[str]] = None, json_options: Optional[dict] = None,
+    def to_json(self, fp: Optional[IO[str]] = None,
+                json_options: Optional[Dict[str, Any]] = None,
                 **kwargs: Any) -> JsonDecodeType:
         """
         Converts loaded XML data to a JSON string or file.
@@ -574,13 +581,14 @@ class XmlDocument(XMLResource):
             result = json.dumps(obj, **json_options)
             return result if not errors else (result, tuple(errors))
 
-    def write(self, file, encoding='us-ascii', xml_declaration=None,
-              default_namespace=None, method="xml"):
+    def write(self, file: Union[str, TextIO, BinaryIO],
+              encoding: str = 'us-ascii', xml_declaration: bool = False,
+              default_namespace: Optional[str] = None, method: str = "xml") -> None:
         """Serialize an XML resource to a file. Cannot be used with lazy resources."""
         if self._lazy:
             raise XMLResourceError("cannot serialize a lazy XML document")
 
-        kwargs = {
+        kwargs: Dict[str, Any] = {
             'xml_declaration': xml_declaration,
             'encoding': encoding,
             'method': method,
@@ -588,7 +596,12 @@ class XmlDocument(XMLResource):
         if not default_namespace:
             kwargs['namespaces'] = self.namespaces
         else:
-            namespaces = self.namespaces.copy()
+            namespaces: Optional[Dict[Optional[str], str]]
+            if self.namespaces is None:
+                namespaces = {}
+            else:
+                namespaces = {k: v for k, v in self.namespaces.items()}
+
             if hasattr(self._root, 'nsmap'):
                 # noinspection PyTypeChecker
                 namespaces[None] = default_namespace
@@ -596,12 +609,25 @@ class XmlDocument(XMLResource):
                 namespaces[''] = default_namespace
             kwargs['namespaces'] = namespaces
 
-        if hasattr(file, 'write'):
-            file.write(etree_tostring(self._root, **kwargs))
+        fp: Union[TextIO, BinaryIO]
+        _string = etree_tostring(self._root, **kwargs)
+        if isinstance(file, BinaryIO):
+            if isinstance(_string, str):
+                file.write(_string.encode('utf-8'))
+            else:
+                file.write(_string)
             file.close()
-        elif encoding == 'unicode':
+
+        elif isinstance(file, TextIO):
+            if isinstance(_string, bytes):
+                file.write(_string.decode('utf-8'))
+            else:
+                file.write(_string)
+            file.close()
+
+        elif isinstance(_string, str):
             with open(file, 'w', encoding='utf-8') as fp:
-                fp.write(etree_tostring(self._root, **kwargs))
+                fp.write(_string)
         else:
             with open(file, 'wb') as fp:
-                fp.write(etree_tostring(self._root, **kwargs))
+                fp.write(_string)

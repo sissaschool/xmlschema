@@ -58,7 +58,7 @@ class LazySelector:
     """A limited XPath selector class for lazy XML resources."""
 
     def __init__(self, path: str, namespaces: Optional[NamespacesType] = None) -> None:
-        self.parser = LazyXPath2Parser(namespaces, strict=False)
+        self.parser = LazyXPath2Parser(namespaces, strict=False)  # type: ignore[arg-type]
         self.path = path
         self.root_token = self.parser.parse(path)
 

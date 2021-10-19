@@ -1397,7 +1397,7 @@ class XsdAlternative(XsdComponent):
         else:
             self.xpath_default_namespace = self.schema.xpath_default_namespace
         parser = XPath2Parser(
-            namespaces=dict(self.namespaces),
+            namespaces=self.namespaces,  # type: ignore[arg-type]
             strict=False,
             default_namespace=self.xpath_default_namespace
         )

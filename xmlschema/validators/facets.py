@@ -799,7 +799,7 @@ class XsdAssertionFacet(XsdFacet):
             self.xpath_default_namespace = self.schema.xpath_default_namespace
 
         self.parser = XsdAssertionXPathParser(
-            namespaces=dict(self.namespaces),
+            namespaces=self.namespaces,  # type: ignore[arg-type]
             strict=False,
             variable_types={'value': value},
             default_namespace=self.xpath_default_namespace

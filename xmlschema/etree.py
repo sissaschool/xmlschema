@@ -76,25 +76,25 @@ class SafeXMLParser(PyElementTree.XMLParser):
     :param encoding: if provided, its value overrides the encoding specified \
     in the XML file.
     """
-    def __init__(self, target=None, encoding=None):
+    def __init__(self, target: Optional[Any] = None, encoding: Optional[str] = None) -> None:
         super(SafeXMLParser, self).__init__(target=target, encoding=encoding)
         self.parser.EntityDeclHandler = self.entity_declaration
         self.parser.UnparsedEntityDeclHandler = self.unparsed_entity_declaration
         self.parser.ExternalEntityRefHandler = self.external_entity_reference
 
-    def entity_declaration(self, entity_name, is_parameter_entity, value, base,
+    def entity_declaration(self, entity_name, is_parameter_entity, value, base,  # type: ignore
                            system_id, public_id, notation_name):
         raise PyElementTree.ParseError(
             "Entities are forbidden (entity_name={!r})".format(entity_name)
         )
 
-    def unparsed_entity_declaration(self, entity_name, base, system_id,
+    def unparsed_entity_declaration(self, entity_name, base, system_id,  # type: ignore
                                     public_id, notation_name):
         raise PyElementTree.ParseError(
             "Unparsed entities are forbidden (entity_name={!r})".format(entity_name)
         )
 
-    def external_entity_reference(self, context, base, system_id, public_id):
+    def external_entity_reference(self, context, base, system_id, public_id):  # type: ignore
         raise PyElementTree.ParseError(
             "External references are forbidden (system_id={!r}, "
             "public_id={!r})".format(system_id, public_id)
@@ -173,7 +173,7 @@ def etree_tostring(elem: etree_element,
         if default_namespace and not hasattr(elem, 'nsmap'):
             etree_module.register_namespace('', default_namespace)
 
-    xml_text = etree_module.tostring(elem, encoding=encoding, method=method)  # type: ignore
+    xml_text = etree_module.tostring(elem, encoding=encoding, method=method)
     if isinstance(xml_text, bytes):
         xml_text = xml_text.decode('utf-8')
 

@@ -106,7 +106,7 @@ class XsdSelector(XsdComponent):
                 self.xpath_default_namespace = self.schema.xpath_default_namespace
 
         self.parser = IdentityXPathParser(
-            namespaces=dict(self.namespaces),
+            namespaces=self.namespaces,  # type: ignore[arg-type]
             strict=False,
             compatibility_mode=True,
             default_namespace=self.xpath_default_namespace,
