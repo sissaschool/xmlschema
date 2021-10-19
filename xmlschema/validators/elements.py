@@ -29,7 +29,8 @@ from ..helpers import get_qname, get_namespace, etree_iter_location_hints, \
     raw_xml_encode, strictly_equal
 from .. import dataobjects
 from ..converters import XMLSchemaConverter
-from ..xpath import XMLSchemaProxy, ElementPathMixin, XPathElement
+from ..xpath import XMLSchemaProtocol, ElementProtocol, XMLSchemaProxy, \
+    ElementPathMixin, XPathElement
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaTypeTableWarning
 from .helpers import get_xsd_derivation_attribute
@@ -365,7 +366,10 @@ class XsdElement(XsdComponent, ParticleMixin,
 
     @property
     def xpath_proxy(self) -> XMLSchemaProxy:
-        return XMLSchemaProxy(self.schema, self)
+        return XMLSchemaProxy(
+            schema=cast(XMLSchemaProtocol, self.schema),
+            base_element=cast(ElementProtocol, self)
+        )
 
     def build(self) -> None:
         if self._build:

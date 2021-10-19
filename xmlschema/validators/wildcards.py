@@ -10,7 +10,7 @@
 """
 This module contains classes for XML Schema wildcards.
 """
-from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, \
+from typing import cast, Any, Callable, Dict, Iterable, Iterator, List, Optional, \
     Tuple, Union, Counter
 
 from ..exceptions import XMLSchemaValueError
@@ -20,7 +20,7 @@ from ..aliases import ElementType, SchemaType, BaseElementType, BaseAttributeTyp
     ModelGroupType, ModelParticleType, AtomicValueType, IterDecodeType, IterEncodeType, \
     DecodedValueType, EncodedValueType
 from ..helpers import get_namespace, raw_xml_encode
-from ..xpath import XMLSchemaProxy, ElementPathMixin
+from ..xpath import XMLSchemaProtocol, ElementProtocol, XMLSchemaProxy, ElementPathMixin
 from .xsdbase import ValidationMixin, XsdComponent
 from .particles import ParticleMixin
 from . import elements
@@ -411,7 +411,10 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
 
     @property
     def xpath_proxy(self) -> XMLSchemaProxy:
-        return XMLSchemaProxy(self.schema, self)
+        return XMLSchemaProxy(
+            schema=cast(XMLSchemaProtocol, self.schema),
+            base_element=cast(ElementProtocol, self)
+        )
 
     def _parse(self) -> None:
         super(XsdAnyElement, self)._parse()

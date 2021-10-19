@@ -14,7 +14,8 @@ import platform
 import re
 import string
 from io import StringIO, BytesIO
-from typing import cast, Any, AnyStr, Dict, Optional, IO, Iterator, List, Union, Tuple
+from typing import cast, Any, AnyStr, Dict, Optional, IO, Iterator, List, \
+    MutableMapping, Union, Tuple
 from urllib.request import urlopen
 from urllib.parse import urlsplit, urlunsplit, unquote, quote_from_bytes
 from urllib.error import URLError
@@ -45,7 +46,7 @@ LAZY_XML_XPATH_SYMBOLS = frozenset((
 DRIVE_LETTERS = frozenset(string.ascii_letters)
 
 
-class LazyXPath2Parser(XPath2Parser):
+class LazyXPath2Parser(XPath2Parser):  # type: ignore[misc]
     symbol_table = {
         k: v for k, v in XPath2Parser.symbol_table.items()
         if k in LAZY_XML_XPATH_SYMBOLS
@@ -94,7 +95,7 @@ class _PurePath(pathlib.PurePath):
     def __new__(cls, *args: str) -> '_PurePath':
         if cls is _PurePath:
             cls = _WindowsPurePath if os.name == 'nt' else _PosixPurePath
-        return cls._from_parts(args)
+        return cast('_PurePath', cls._from_parts(args))
 
     @classmethod
     def from_uri(cls, uri: str) -> '_PurePath':
@@ -141,15 +142,15 @@ class _PurePath(pathlib.PurePath):
 
     def as_uri(self) -> str:
         if not self.is_absolute():
-            uri = self._flavour.make_uri(self)
+            uri: str = self._flavour.make_uri(self)
             while uri.startswith('file:/'):
                 uri = uri.replace('file:/', 'file:', 1)
             return uri
-        return self._flavour.make_uri(self)
+        return cast(str, self._flavour.make_uri(self))
 
     def normalize(self) -> '_PurePath':
         normalized_path = self._flavour.pathmod.normpath(str(self))
-        return self._from_parts((normalized_path,))
+        return cast('_PurePath', self._from_parts((normalized_path,)))
 
 
 class _PosixPurePath(_PurePath, pathlib.PurePosixPath):
@@ -531,7 +532,7 @@ class XMLResource:
             if not url.startswith(normalize_url(self._base_url)):
                 raise XMLResourceError("block access to out of sandbox file {}".format(url))
 
-    def _update_nsmap(self, nsmap: Dict[str, str], prefix: str, uri: str) -> None:
+    def _update_nsmap(self, nsmap: MutableMapping[str, str], prefix: str, uri: str) -> None:
         if not prefix:
             if not uri:
                 return
@@ -557,7 +558,7 @@ class XMLResource:
     def _lazy_iterparse(self, resource: IO[AnyStr], nsmap: Optional[NsmapType] = None) \
             -> Iterator[Tuple[str, ElementType]]:
         events: Tuple[str, ...]
-        _nsmap: list
+        _nsmap: List[Tuple[str, str]]
 
         if nsmap is None:
             events = 'start', 'end'
@@ -741,9 +742,9 @@ class XMLResource:
             _url, self._url = self._url, url
             try:
                 if not lazy:
-                    self._parse(cast(IO, source))
+                    self._parse(cast(IO[str], source))
                 else:
-                    for _ in self._lazy_iterparse(cast(IO, source)):  # pragma: no cover
+                    for _ in self._lazy_iterparse(cast(IO[str], source)):  # pragma: no cover
                         break
             except Exception:
                 self._url = _url
@@ -883,13 +884,13 @@ class XMLResource:
             raise XMLResourceError("can't open, the resource has no URL associated.")
 
         try:
-            return urlopen(self._url, timeout=self._timeout)
+            return cast(IO[AnyStr], urlopen(self._url, timeout=self._timeout))
         except URLError as err:
             raise XMLResourceError(
                 "cannot access to resource %r: %s" % (self._url, err.reason)
             )
 
-    def seek(self, position) -> Optional[int]:
+    def seek(self, position: int) -> Optional[int]:
         """
         Change stream position if the XML resource was created with a seekable
         file-like object. In the other cases this method has no effect.
@@ -972,7 +973,7 @@ class XMLResource:
         return self._text is not None
 
     def iter(self, tag: Optional[str] = None,
-             nsmap: Optional[Dict[str, str]] = None) -> Iterator[ElementType]:
+             nsmap: Optional[MutableMapping[str, str]] = None) -> Iterator[ElementType]:
         """
         XML resource tree iterator. The iteration of a lazy resource
         is in reverse order (top level element is the last). If tag

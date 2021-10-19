@@ -8,12 +8,12 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import threading
-from typing import TYPE_CHECKING, Any, Dict, Iterator, Optional, Union
+from typing import TYPE_CHECKING, cast, Any, Dict, Iterator, Optional, Union
 from elementpath import XPath2Parser, XPathContext, XPathToken, ElementPathError
 
 from ..names import XSD_ASSERT
 from ..aliases import ElementType, SchemaType, BaseElementType, NamespacesType
-from ..xpath import ElementPathMixin, XMLSchemaProxy
+from ..xpath import XMLSchemaProtocol, ElementProtocol, ElementPathMixin, XMLSchemaProxy
 
 from .exceptions import XMLSchemaNotBuiltError, XMLSchemaValidationError
 from .xsdbase import XsdComponent
@@ -96,7 +96,7 @@ class XsdAssert(XsdComponent, ElementPathMixin[Union['XsdAssert', BaseElementTyp
             variable_types={'value': self.base_type.sequence_type},
             strict=False,
             default_namespace=self.xpath_default_namespace,
-            schema=XMLSchemaProxy(self.schema, self)
+            schema=self.xpath_proxy,
         )
 
         try:
@@ -155,4 +155,7 @@ class XsdAssert(XsdComponent, ElementPathMixin[Union['XsdAssert', BaseElementTyp
 
     @property
     def xpath_proxy(self) -> 'XMLSchemaProxy':
-        return XMLSchemaProxy(self.schema, self)
+        return XMLSchemaProxy(
+            schema=cast(XMLSchemaProtocol, self.schema),
+            base_element=cast(ElementProtocol, self)
+        )

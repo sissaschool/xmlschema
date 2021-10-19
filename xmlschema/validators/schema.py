@@ -27,6 +27,8 @@ from itertools import chain
 from typing import cast, Callable, ItemsView, List, Optional, Dict, Any, \
     Set, Union, Tuple, Type, Iterator
 
+from elementpath import XPathToken
+
 from ..exceptions import XMLSchemaTypeError, XMLSchemaKeyError, \
     XMLSchemaValueError, XMLSchemaNamespaceError
 from ..names import VC_MIN_VERSION, VC_MAX_VERSION, VC_TYPE_AVAILABLE, \
@@ -46,7 +48,7 @@ from ..namespaces import NamespaceResourcesMap, NamespaceView
 from ..resources import is_local_url, is_remote_url, url_path_is_file, \
     normalize_locations, fetch_resource, normalize_url, XMLResource
 from ..converters import XMLSchemaConverter
-from ..xpath import XMLSchemaProxy, ElementPathMixin
+from ..xpath import XMLSchemaProtocol, XMLSchemaProxy, ElementPathMixin
 from .. import dataobjects
 
 from .exceptions import XMLSchemaParseError, XMLSchemaValidationError, XMLSchemaEncodeError, \
@@ -298,7 +300,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     override = None
 
     # Store XPath constructors tokens (for schema and its assertions)
-    xpath_tokens = None
+    xpath_tokens: Optional[Dict[Optional[str], Type[XPathToken]]] = None
 
     def __init__(self, source: Union[SchemaSourceType, List[SchemaSourceType]],
                  namespace: Optional[str] = None,
@@ -354,6 +356,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         self.includes = {}
         self.warnings = []
         self._root_elements = None  # type: Optional[Set[str]]
+
+        self.name = self.source.name
         root = self.source.root
 
         # Initialize schema's namespaces, the XML namespace is implicitly declared.
@@ -556,7 +560,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
     @property
     def xpath_proxy(self) -> XMLSchemaProxy:
-        return XMLSchemaProxy(self)
+        return XMLSchemaProxy(cast(XMLSchemaProtocol, self))
 
     @property
     def xsd_version(self) -> str:
@@ -572,11 +576,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     def get_text(self) -> str:
         """Returns the source text of the XSD schema."""
         return self.source.get_text()
-
-    @property
-    def name(self) -> Optional[str]:
-        """Schema resource name, is `None` if the schema is built from an Element or a string."""
-        return self.source.name
 
     @property
     def url(self) -> Optional[str]:
