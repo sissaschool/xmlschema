@@ -12,7 +12,7 @@ This module contains base functions and classes XML Schema components.
 """
 import re
 from typing import TYPE_CHECKING, cast, Any, Dict, Generic, List, Iterator, Optional, \
-    Set, Tuple, TypeVar, Union
+    Set, Tuple, TypeVar, Union, MutableMapping
 
 import elementpath
 
@@ -534,7 +534,7 @@ class XsdComponent(XsdValidator):
         """
         return self if self.is_matching(name, default_namespace, **kwargs) else None
 
-    def get_matching_item(self, mapping: Dict[str, Any],
+    def get_matching_item(self, mapping: MutableMapping[str, Any],
                           ns_prefix: str = 'xmlns',
                           match_local_name: bool = False) -> Optional[Any]:
         """
@@ -545,9 +545,9 @@ class XsdComponent(XsdValidator):
         elif not self.target_namespace:
             return mapping.get(self.name)
         elif self.qualified_name in mapping:
-            return mapping[self.qualified_name]
+            return mapping[cast(str, self.qualified_name)]
         elif self.prefixed_name in mapping:
-            return mapping[self.prefixed_name]
+            return mapping[cast(str, self.prefixed_name)]
 
         # Try a match with other prefixes
         target_namespace = self.target_namespace
@@ -745,7 +745,7 @@ class XsdType(XsdComponent):
         complexType is the instance's *content* if this is a simpleType
         or `None` if the instance's *content* is a model group.
         """
-        raise NotImplementedError()
+        return None
 
     @property
     def model_group(self) -> Optional['XsdGroup']:
@@ -754,7 +754,7 @@ class XsdType(XsdComponent):
         the instance's *content* if this is a model group or `None` if
         the instance's *content* is a simpleType.
         """
-        raise NotImplementedError()
+        return None
 
     @staticmethod
     def is_simple() -> bool:

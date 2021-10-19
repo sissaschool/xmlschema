@@ -11,10 +11,12 @@
 This module contains classes for managing maps related to namespaces.
 """
 import re
-from typing import Any, Dict, Iterator, List, Optional, MutableMapping, Mapping, TypeVar
+from typing import Any, Container, Dict, Iterator, List, Optional, MutableMapping, \
+    Mapping, TypeVar
 
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from .helpers import local_name
+from .aliases import NamespacesType
 
 
 ###
@@ -73,9 +75,9 @@ class NamespaceMapper(MutableMapping[str, str]):
     namespace information.
     """
     __slots__ = '_namespaces', 'strip_namespaces', '__dict__'
-    _namespaces: Dict[str, str]
+    _namespaces: NamespacesType
 
-    def __init__(self, namespaces: Optional[Dict[str, str]] = None,
+    def __init__(self, namespaces: Optional[NamespacesType] = None,
                  strip_namespaces: bool = False):
         if namespaces is None:
             self._namespaces = {}
@@ -108,7 +110,7 @@ class NamespaceMapper(MutableMapping[str, str]):
         return len(self._namespaces)
 
     @property
-    def namespaces(self) -> Dict[str, str]:
+    def namespaces(self) -> NamespacesType:
         return self._namespaces
 
     @property
@@ -169,7 +171,8 @@ class NamespaceMapper(MutableMapping[str, str]):
 
     map_qname = _map_qname
 
-    def _unmap_qname(self, qname: str, name_table: Optional[Dict[str, str]] = None) -> str:
+    def _unmap_qname(self, qname: str,
+                     name_table: Optional[Container[Optional[str]]] = None) -> str:
         """
         Converts a QName in prefixed format or a local name to the extended QName format.
         Local names are converted only if a default namespace is included in the instance.
@@ -211,7 +214,7 @@ class NamespaceMapper(MutableMapping[str, str]):
     def _local_name(qname: str, *_args: Any, **_kwargs: Any) -> str:
         return local_name(qname)
 
-    def transfer(self, namespaces: Dict[str, str]) -> None:
+    def transfer(self, namespaces: NamespacesType) -> None:
         """
         Transfers compatible prefix/namespace registrations from a dictionary.
         Registrations added to namespace mapper instance are deleted from argument.

@@ -52,6 +52,10 @@ class XsdAttribute(XsdComponent, ValidationMixin[str, DecodedValueType]):
     _ADMITTED_TAGS = {XSD_ATTRIBUTE}
 
     name: str
+    local_name: str
+    qualified_name: str
+    prefixed_name: str
+
     type: XsdSimpleType
     copy: Callable[['XsdAttribute'], 'XsdAttribute']
 

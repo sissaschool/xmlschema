@@ -7,19 +7,18 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from collections import namedtuple
 from collections.abc import MutableMapping, MutableSequence
-from typing import TYPE_CHECKING, Any, Dict, Iterator, Iterable, \
+from typing import TYPE_CHECKING, cast, Any, Dict, Iterator, Iterable, \
     List, Optional, Type, Tuple, Union
 
 from ..exceptions import XMLSchemaTypeError
 from ..names import XSI_NAMESPACE
 from ..etree import etree_element, ElementData
-from ..aliases import NamespacesType, ElementType
+from ..aliases import NamespacesType, ElementType, BaseXsdType
 from ..namespaces import NamespaceMapper
 
 if TYPE_CHECKING:
-    from ..validators import XsdElement, XsdType, XsdGroup
+    from ..validators import XsdElement
 
 
 class XMLSchemaConverter(NamespaceMapper):
@@ -251,14 +250,14 @@ class XMLSchemaConverter(NamespaceMapper):
         return elem
 
     def element_decode(self, data: ElementData, xsd_element: 'XsdElement',
-                       xsd_type: Optional['XsdType'] = None, level: int = 0) -> Any:
+                       xsd_type: Optional[BaseXsdType] = None, level: int = 0) -> Any:
         """
         Converts a decoded element data to a data structure.
 
         :param data: ElementData instance decoded from an Element node.
         :param xsd_element: the `XsdElement` associated to decoded the data.
-        :param xsd_type: optional `XsdType` for supporting dynamic type through \
-        xsi:type or xs:alternative.
+        :param xsd_type: optional XSD type for supporting dynamic type through \
+        *xsi:type* or xs:alternative.
         :param level: the level related to the decoding process (0 means the root).
         :return: a data structure containing the decoded data.
         """
@@ -272,7 +271,8 @@ class XMLSchemaConverter(NamespaceMapper):
                 if v in schema_namespaces or v == XSI_NAMESPACE
             )
 
-        if xsd_type.simple_type is not None:
+        xsd_group = xsd_type.model_group
+        if xsd_group is None:
             if data.attributes or self.force_dict and not xsd_type.is_simple():
                 result_dict.update(t for t in self.map_attributes(data.attributes))
                 if data.text is not None and data.text != '' and self.text_key is not None:
@@ -284,8 +284,7 @@ class XMLSchemaConverter(NamespaceMapper):
             if data.attributes:
                 result_dict.update(t for t in self.map_attributes(data.attributes))
 
-            content: 'XsdGroup' = getattr(xsd_type, 'content', None)
-            has_single_group = content.is_single()
+            has_single_group = xsd_group.is_single()
             if data.content:
                 for name, value, xsd_child in self.map_content(data.content):
                     try:
@@ -335,7 +334,7 @@ class XMLSchemaConverter(NamespaceMapper):
             else:
                 tag = xsd_element.name
             if self.preserve_root and isinstance(obj, MutableMapping):
-                match_local_name = self.strip_namespaces or self.default_namespace
+                match_local_name = cast(bool, self.strip_namespaces or self.default_namespace)
                 match = xsd_element.get_matching_item(obj, self.ns_prefix, match_local_name)
                 if match is not None:
                     obj = match
@@ -377,11 +376,17 @@ class XMLSchemaConverter(NamespaceMapper):
                 ns_name = self.unmap_qname(name)
                 content.extend((ns_name, item) for item in value)
             else:
+                xsd_group = xsd_element.type.model_group
+                if xsd_group is None:
+                    # fallback to xs:anyType encoder
+                    xsd_group = xsd_element.any_type.model_group
+                    assert xsd_group is not None
+
                 ns_name = self.unmap_qname(name)
-                for xsd_child in xsd_element.type.content.iter_elements():
+                for xsd_child in xsd_group.iter_elements():
                     matched_element = xsd_child.match(ns_name, resolve=True)
                     if matched_element is not None:
-                        if matched_element.type.is_list():
+                        if matched_element.type and matched_element.type.is_list():
                             content.append((ns_name, value))
                         else:
                             content.extend((ns_name, item) for item in value)
@@ -389,7 +394,7 @@ class XMLSchemaConverter(NamespaceMapper):
                 else:
                     if self.attr_prefix == '' and ns_name not in attributes:
                         for key, xsd_attribute in xsd_element.attributes.items():
-                            if xsd_attribute.is_matching(ns_name):
+                            if key and xsd_attribute.is_matching(ns_name):
                                 attributes[key] = value
                                 break
                         else:

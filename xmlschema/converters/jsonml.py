@@ -11,11 +11,12 @@ from collections.abc import MutableSequence
 from typing import TYPE_CHECKING, Any, Optional, List, Dict, Type
 
 from ..exceptions import XMLSchemaValueError
-from ..aliases import NamespacesType
-from .default import ElementData, XMLSchemaConverter
+from ..etree import ElementData
+from ..aliases import NamespacesType, BaseXsdType
+from .default import XMLSchemaConverter
 
 if TYPE_CHECKING:
-    from ..validators import XsdElement, XsdType
+    from ..validators import XsdElement
 
 
 class JsonMLConverter(XMLSchemaConverter):
@@ -49,7 +50,7 @@ class JsonMLConverter(XMLSchemaConverter):
         return True
 
     def element_decode(self, data: ElementData, xsd_element: 'XsdElement',
-                       xsd_type: Optional['XsdType'] = None, level: int = 0) -> Any:
+                       xsd_type: Optional[BaseXsdType] = None, level: int = 0) -> Any:
         xsd_type = xsd_type or xsd_element.type
         result_list = self.list()
         result_list.append(self.map_qname(data.tag))

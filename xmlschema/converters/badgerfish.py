@@ -10,11 +10,12 @@
 from collections.abc import MutableMapping, MutableSequence
 from typing import TYPE_CHECKING, Any, Optional, List, Dict, Type, Union, Tuple
 
-from ..aliases import NamespacesType
-from .default import ElementData, XMLSchemaConverter
+from ..etree import ElementData
+from ..aliases import NamespacesType, BaseXsdType
+from .default import XMLSchemaConverter
 
 if TYPE_CHECKING:
-    from ..validators import XsdElement, XsdType, XsdGroup
+    from ..validators import XsdElement
 
 
 class BadgerFishConverter(XMLSchemaConverter):
@@ -44,7 +45,7 @@ class BadgerFishConverter(XMLSchemaConverter):
         return False
 
     def element_decode(self, data: ElementData, xsd_element: 'XsdElement',
-                       xsd_type: Optional['XsdType'] = None, level: int = 0) -> Any:
+                       xsd_type: Optional[BaseXsdType] = None, level: int = 0) -> Any:
         xsd_type = xsd_type or xsd_element.type
         dict_class = self.dict
 
@@ -54,12 +55,12 @@ class BadgerFishConverter(XMLSchemaConverter):
         if has_local_root:
             result_dict['@xmlns'] = dict_class()
 
-        if xsd_type.simple_type is not None:
+        xsd_group = xsd_type.model_group
+        if xsd_group is None:
             if data.text is not None and data.text != '':
                 result_dict['$'] = data.text
         else:
-            content: 'XsdGroup' = getattr(xsd_type, 'content', None)
-            has_single_group = content.is_single()
+            has_single_group = xsd_group.is_single()
             for name, value, xsd_child in self.map_content(data.content):
                 try:
                     if '@xmlns' in value:
@@ -142,11 +143,16 @@ class BadgerFishConverter(XMLSchemaConverter):
                 for item in value:
                     content.append((ns_name, item))
             else:
+                xsd_group = xsd_element.type.model_group
+                if xsd_group is None:
+                    xsd_group = xsd_element.any_type.model_group
+                    assert xsd_group is not None
+
                 ns_name = self.unmap_qname(name)
-                for xsd_child in xsd_element.type.content.iter_elements():
+                for xsd_child in xsd_group.iter_elements():
                     matched_element = xsd_child.match(ns_name, resolve=True)
                     if matched_element is not None:
-                        if matched_element.type.is_list():
+                        if matched_element.type and matched_element.type.is_list():
                             content.append((ns_name, value))
                         else:
                             content.extend((ns_name, item) for item in value)

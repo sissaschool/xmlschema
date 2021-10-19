@@ -78,12 +78,14 @@ class XsdElement(XsdComponent, ParticleMixin,
     """
     name: str
     local_name: str
+    qualified_name: str
     prefixed_name: str
+
     parent: Optional['XsdGroup']
     ref: Optional['XsdElement']
     attributes: 'XsdAttributeGroup'
 
-    type = None  # type: BaseXsdType
+    type: BaseXsdType
     abstract = False
     nillable = False
     qualified = False
@@ -379,7 +381,7 @@ class XsdElement(XsdComponent, ParticleMixin,
 
     @property
     def built(self) -> bool:
-        return self.type is not None and \
+        return hasattr(self, 'type') and \
             (self.type.parent is None or self.type.built) and \
             all(c.built for c in self.identities.values())
 
@@ -1364,7 +1366,7 @@ class XsdAlternative(XsdComponent):
         </alternative>
     """
     parent: XsdElement
-    type: Optional[BaseXsdType] = None
+    type: BaseXsdType
     path: Optional[str] = None
     token: Optional[XPathToken] = None
     _ADMITTED_TAGS = {XSD_ALTERNATIVE}
@@ -1436,8 +1438,8 @@ class XsdAlternative(XsdComponent):
                 self.type = self.maps.lookup_type(type_qname)
             except KeyError:
                 self.parse_error("unknown type %r" % attrib['type'])
+                self.type = self.any_type
             else:
-                assert self.type is not None
                 if self.type.name != XSD_ERROR and not self.type.is_derived(self.parent.type):
                     msg = "type {!r} is not derived from {!r}"
                     self.parse_error(msg.format(attrib['type'], self.parent.type))
@@ -1449,7 +1451,7 @@ class XsdAlternative(XsdComponent):
 
     @property
     def built(self) -> bool:
-        if self.type is None:
+        if not hasattr(self, 'type'):
             return False
         return self.type.parent is None or self.type.built
 
@@ -1457,7 +1459,7 @@ class XsdAlternative(XsdComponent):
     def validation_attempted(self) -> str:
         if self.built:
             return 'full'
-        elif self.type is None:
+        elif not hasattr(self, 'type'):
             return 'none'
         else:
             return self.type.validation_attempted

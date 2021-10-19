@@ -8,14 +8,15 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from collections.abc import MutableMapping, MutableSequence
-from typing import TYPE_CHECKING, Any, Optional, List, Dict, Type
+from typing import TYPE_CHECKING, Any, Optional, List, Dict, Union, Type, Tuple
 
 from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
-from ..aliases import NamespacesType
-from .default import ElementData, XMLSchemaConverter
+from ..etree import ElementData
+from ..aliases import NamespacesType, BaseXsdType
+from .default import XMLSchemaConverter
 
 if TYPE_CHECKING:
-    from ..validators import XsdElement, XsdType
+    from ..validators import XsdElement
 
 
 class ColumnarConverter(XMLSchemaConverter):
@@ -56,12 +57,15 @@ class ColumnarConverter(XMLSchemaConverter):
             super(XMLSchemaConverter, self).__setattr__(name, value)
 
     def element_decode(self, data: ElementData, xsd_element: 'XsdElement',
-                       xsd_type: Optional['XsdType'] = None, level: int = 0) -> Any:
+                       xsd_type: Optional[BaseXsdType] = None, level: int = 0) -> Any:
         result_dict: Any
 
         xsd_type = xsd_type or xsd_element.type
         if data.attributes:
-            pfx = xsd_element.local_name + self.attr_prefix
+            if self.attr_prefix:
+                pfx = xsd_element.local_name + self.attr_prefix
+            else:
+                pfx = xsd_element.local_name
             result_dict = self.dict((pfx + self.map_qname(k), v) for k, v in data.attributes)
         else:
             result_dict = self.dict()
@@ -131,9 +135,9 @@ class ColumnarConverter(XMLSchemaConverter):
                 return ElementData(xsd_element.name, None, obj, {})
 
         text = None
-        content = []
+        content: List[Tuple[Optional[str], MutableSequence[Any]]] = []
         attributes = {}
-        pfx = tag + self.attr_prefix
+        pfx = tag + self.attr_prefix if self.attr_prefix else tag
 
         for name, value in obj.items():
             if name == tag:
@@ -148,11 +152,16 @@ class ColumnarConverter(XMLSchemaConverter):
                 ns_name = self.unmap_qname(name)
                 content.extend((ns_name, item) for item in value)
             else:
+                xsd_group = xsd_element.type.model_group
+                if xsd_group is None:
+                    xsd_group = xsd_element.any_type.model_group
+                    assert xsd_group is not None
+
                 ns_name = self.unmap_qname(name)
-                for xsd_child in xsd_element.type.content.iter_elements():
+                for xsd_child in xsd_group.iter_elements():
                     matched_element = xsd_child.match(ns_name, resolve=True)
                     if matched_element is not None:
-                        if matched_element.type.is_list():
+                        if matched_element.type and matched_element.type.is_list():
                             content.append((xsd_child.name, value))
                         else:
                             content.extend((xsd_child.name, item) for item in value)

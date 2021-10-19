@@ -250,10 +250,6 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
         return self
 
     @property
-    def model_group(self) -> None:
-        return
-
-    @property
     def min_value(self) -> Optional[AtomicValueType]:
         min_exclusive: Optional['AtomicValueType']
         min_inclusive: Optional['AtomicValueType']

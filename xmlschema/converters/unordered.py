@@ -8,9 +8,10 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from collections.abc import MutableMapping, MutableSequence
-from typing import TYPE_CHECKING, Any, Dict, Union
+from typing import TYPE_CHECKING, cast, Any, Dict, Union
 
-from .default import ElementData, XMLSchemaConverter
+from ..etree import ElementData
+from .default import XMLSchemaConverter
 
 if TYPE_CHECKING:
     from ..validators import XsdElement
@@ -42,7 +43,7 @@ class UnorderedConverter(XMLSchemaConverter):
         else:
             tag = xsd_element.qualified_name
             if self.preserve_root and isinstance(obj, MutableMapping):
-                match_local_name = self.strip_namespaces or self.default_namespace
+                match_local_name = cast(bool, self.strip_namespaces or self.default_namespace)
                 match = xsd_element.get_matching_item(obj, self.ns_prefix, match_local_name)
                 if match is not None:
                     obj = match
@@ -90,12 +91,17 @@ class UnorderedConverter(XMLSchemaConverter):
             elif isinstance(value[0], (MutableMapping, MutableSequence)):
                 content_lu[self.unmap_qname(name)] = value
             else:
+                xsd_group = xsd_element.type.model_group
+                if xsd_group is None:
+                    xsd_group = xsd_element.any_type.model_group
+                    assert xsd_group is not None
+
                 # `value` is a list but not a list of lists or list of dicts.
                 ns_name = self.unmap_qname(name)
-                for xsd_child in xsd_element.type.content.iter_elements():
+                for xsd_child in xsd_group.iter_elements():
                     matched_element = xsd_child.match(ns_name, resolve=True)
                     if matched_element is not None:
-                        if matched_element.type.is_list():
+                        if matched_element.type and matched_element.type.is_list():
                             content_lu[self.unmap_qname(name)] = [value]
                         else:
                             content_lu[self.unmap_qname(name)] = value
