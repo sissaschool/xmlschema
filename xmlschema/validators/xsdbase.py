@@ -30,12 +30,10 @@ from .exceptions import XMLSchemaParseError, XMLSchemaValidationError
 
 if TYPE_CHECKING:
     from .simple_types import XsdSimpleType
-    from .attributes import XsdAttributeGroup
     from .complex_types import XsdComplexType
     from .elements import XsdElement
     from .groups import XsdGroup
     from .global_maps import XsdGlobals
-    from .schema import XMLSchemaBase
 
 XSD_TYPE_DERIVATIONS = {'extension', 'restriction'}
 XSD_ELEMENT_DERIVATIONS = {'extension', 'restriction', 'substitution'}
@@ -282,7 +280,7 @@ class XsdComponent(XsdValidator):
     _target_namespace: Optional[str]
 
     def __init__(self, elem: etree_element,
-                 schema: 'XMLSchemaBase',
+                 schema: SchemaType,
                  parent: Optional['XsdComponent'] = None,
                  name: Optional[str] = None) -> None:
 

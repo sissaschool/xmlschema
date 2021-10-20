@@ -11,8 +11,9 @@ def main() -> None:
     st_xsd = case_dir.joinpath('features/decoder/simple-types.xsd')
     schema = xmlschema.XMLSchema10(str(st_xsd))
 
-    xsd_type: XsdAtomicRestriction = schema.types['enum1']
-    assert xsd_type.enumeration == ['one', 'two', 'three']
+    xsd_type = schema.types['enum1']
+    if isinstance(xsd_type, XsdAtomicRestriction):
+        assert xsd_type.enumeration == ['one', 'two', 'three']
 
     facet = xsd_type.get_facet(XSD_ENUMERATION)
     print(facet)
