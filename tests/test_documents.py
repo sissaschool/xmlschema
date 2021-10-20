@@ -333,7 +333,8 @@ class TestXmlDocuments(unittest.TestCase):
             col_file_path = pathlib.Path(dirname).joinpath('collection.xml')
 
             xml_document = XmlDocument(self.col_xml_file)
-            xml_document.write(col_file_path.open(mode='wb'))
+            with col_file_path.open(mode='wb') as fp:
+                xml_document.write(fp)
 
             schema = XMLSchema10(self.col_xsd_file)
             xml_document = XmlDocument(str(col_file_path), schema=schema)

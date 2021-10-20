@@ -8,6 +8,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import json
+from io import IOBase, TextIOBase
 from typing import Any, Dict, List, Optional, Type, Union, Tuple, \
     IO, BinaryIO, TextIO, Iterator
 
@@ -41,6 +42,9 @@ def get_context(xml_document: Union[XMLSourceType, XMLResource],
 
     if cls is None:
         cls = XMLSchema10
+    elif not issubclass(cls, XMLSchemaBase):
+        raise XMLSchemaTypeError(f"invalid schema class {cls}")
+
     if isinstance(xml_document, XMLResource):
         resource = xml_document
     else:
@@ -56,7 +60,7 @@ def get_context(xml_document: Union[XMLSourceType, XMLResource],
         schema_location, locations = fetch_schema_locations(resource, locations, base_url=base_url)
     except ValueError:
         if schema is None:
-            if XSI_TYPE in resource.root.attrib:
+            if XSI_TYPE in resource.root.attrib and cls.meta_schema is not None:
                 return resource, cls.meta_schema
             elif dummy_schema:
                 return resource, get_dummy_schema(resource, cls)
@@ -611,23 +615,25 @@ class XmlDocument(XMLResource):
 
         fp: Union[TextIO, BinaryIO]
         _string = etree_tostring(self._root, **kwargs)
-        if isinstance(file, BinaryIO):
-            if isinstance(_string, str):
-                file.write(_string.encode('utf-8'))
-            else:
-                file.write(_string)
-            file.close()
 
-        elif isinstance(file, TextIO):
+        if isinstance(file, str):
+            if isinstance(_string, str):
+                with open(file, 'w', encoding='utf-8') as fp:
+                    fp.write(_string)
+            else:
+                with open(file, 'wb') as fp:
+                    fp.write(_string)  # type: ignore[argument]
+
+        elif isinstance(file, TextIOBase):
             if isinstance(_string, bytes):
                 file.write(_string.decode('utf-8'))
             else:
                 file.write(_string)
-            file.close()
 
-        elif isinstance(_string, str):
-            with open(file, 'w', encoding='utf-8') as fp:
-                fp.write(_string)
+        elif isinstance(file, IOBase):
+            if isinstance(_string, str):
+                file.write(_string.encode('utf-8'))
+            else:
+                file.write(_string)
         else:
-            with open(file, 'wb') as fp:
-                fp.write(_string)
+            raise XMLSchemaTypeError(f"unexpected type {type(file)} for 'file' argument")

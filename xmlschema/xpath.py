@@ -19,10 +19,10 @@ import re
 from elementpath import AttributeNode, TypedElement, XPath2Parser, \
     XPathSchemaContext, AbstractSchemaProxy, protocols
 
+from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from .names import XSD_NAMESPACE
 from .aliases import NamespacesType, SchemaType, BaseXsdType, XPathElementType
 from .helpers import get_qname, local_name, get_prefixed_qname
-from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
 
 if sys.version_info < (3, 8):
     XMLSchemaProtocol = SchemaType
@@ -106,7 +106,7 @@ class XMLSchemaProxy(AbstractSchemaProxy):
 
         if schema is None:
             from xmlschema import XMLSchema
-            schema = XMLSchema.meta_schema
+            schema = getattr(XMLSchema, 'meta_schema', None)
         super(XMLSchemaProxy, self).__init__(schema, base_element)  # type: ignore[arg-type]
 
         if base_element is not None:
@@ -118,13 +118,13 @@ class XMLSchemaProxy(AbstractSchemaProxy):
 
     def bind_parser(self, parser: XPath2Parser) -> None:
         parser.schema = self
-        parser.symbol_table = parser.__class__.symbol_table.copy()
+        parser.symbol_table = parser.__class__.symbol_table.copy()  # type: ignore[misc]
 
         with self._schema.lock:
             if self._schema.xpath_tokens is None:
                 self._schema.xpath_tokens = {
                     xsd_type.name: parser.schema_constructor(xsd_type.name)
-                    for xsd_type in self.iter_atomic_types()
+                    for xsd_type in self.iter_atomic_types() if xsd_type.name
                 }
 
         parser.symbol_table.update(self._schema.xpath_tokens)

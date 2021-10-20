@@ -29,7 +29,7 @@ from typing import cast, Callable, ItemsView, List, Optional, Dict, Any, \
 
 from elementpath import XPathToken
 
-from ..exceptions import XMLSchemaTypeError, XMLSchemaKeyError, \
+from ..exceptions import XMLSchemaTypeError, XMLSchemaKeyError, XMLSchemaRuntimeError, \
     XMLSchemaValueError, XMLSchemaNamespaceError
 from ..names import VC_MIN_VERSION, VC_MAX_VERSION, VC_TYPE_AVAILABLE, \
     VC_TYPE_UNAVAILABLE, VC_FACET_AVAILABLE, VC_FACET_UNAVAILABLE, XSD_NOTATION, \
@@ -95,11 +95,12 @@ GLOBAL_TAGS = frozenset((XSD_NOTATION, XSD_SIMPLE_TYPE, XSD_COMPLEX_TYPE,
 
 class XMLSchemaMeta(ABCMeta):
     XSD_VERSION: str
-    meta_schema: Any
-    create_meta_schema: Callable[['XMLSchemaMeta', Optional[SchemaSourceType]], SchemaType]
+    create_meta_schema: Callable[['XMLSchemaMeta', Optional[str]], SchemaType]
 
     def __new__(mcs, name: str, bases: Tuple[Type[Any], ...], dict_: Dict[str, Any]) \
             -> 'XMLSchemaMeta':
+        assert bases, "a base class is mandatory"
+        base_class = bases[0]
 
         # For backward compatibility (will be removed in v2.0)
         if 'BUILDERS' in dict_:
@@ -107,7 +108,6 @@ class XMLSchemaMeta(ABCMeta):
                   "attributes instead (eg. xsd_element_class = Xsd11Element)"
             warnings.warn(msg, DeprecationWarning, stacklevel=1)
 
-            base_class = bases[0]
             for k, v in dict_['BUILDERS'].items():
                 if k == 'simple_type_factory':
                     dict_['simple_type_factory'] = staticmethod(v)
@@ -121,14 +121,16 @@ class XMLSchemaMeta(ABCMeta):
 
         if isinstance(dict_.get('meta_schema'), str):
             # Build a new meta-schema class and register it into module's globals
-            meta_schema_file = dict_.pop('meta_schema')
+            meta_schema_file: str = dict_.pop('meta_schema')
             meta_schema_class_name = 'Meta' + name
 
-            if getattr(bases[0], 'meta_schema', None) is None:
+            meta_schema: Optional[SchemaType]
+            meta_schema = getattr(base_class, 'meta_schema', None)
+            if meta_schema is None:
                 meta_bases = bases
             else:
                 # Use base's meta_schema class as base for the new meta-schema
-                meta_bases = (bases[0].meta_schema.__class__,)
+                meta_bases = (meta_schema.__class__,)
                 if len(bases) > 1:
                     meta_bases += bases[1:]
 
@@ -264,7 +266,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     identities: NamespaceView[XsdIdentity]
 
     XSD_VERSION: str = '1.0'
-    meta_schema: Any = None
+    meta_schema: Optional['XMLSchemaBase'] = None
     BASE_SCHEMAS: Dict[str, str] = {}
     fallback_locations: Dict[str, str] = LOCATION_HINTS.copy()
     _locations: Tuple[Tuple[str, str], ...] = ()
@@ -300,7 +302,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     override = None
 
     # Store XPath constructors tokens (for schema and its assertions)
-    xpath_tokens: Optional[Dict[Optional[str], Type[XPathToken]]] = None
+    xpath_tokens: Optional[Dict[str, Type[XPathToken]]] = None
 
     def __init__(self, source: Union[SchemaSourceType, List[SchemaSourceType]],
                  namespace: Optional[str] = None,
@@ -463,7 +465,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         # Validate the schema document (transforming validation errors to parse errors)
         if validation != 'skip':
             for e in self.meta_schema.iter_errors(root, namespaces=self.namespaces):
-                self.parse_error(e.reason, elem=e.elem)
+                self.parse_error(e.reason or e, elem=e.elem)
 
         self._parse_inclusions()
         self._parse_imports()
@@ -661,13 +663,14 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     @classmethod
     def builtin_types(cls) -> NamespaceView[BaseXsdType]:
         """Returns the XSD built-in types of the meta-schema."""
+        if cls.meta_schema is None:
+            raise XMLSchemaRuntimeError("meta-schema unavailable for %r" % cls)
+
         try:
             meta_schema: SchemaType = cls.meta_schema.maps.namespaces[XSD_NAMESPACE][0]
             builtin_types = meta_schema.types
         except KeyError:
             raise XMLSchemaNotBuiltError(cls.meta_schema, "missing XSD namespace in meta-schema")
-        except AttributeError:
-            raise XMLSchemaNotBuiltError(cls.meta_schema, "meta-schema unavailable for %r" % cls)
         else:
             if not builtin_types:
                 cls.meta_schema.build()
@@ -720,7 +723,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         return [x for x in self.types.values() if isinstance(x, XsdComplexType)]
 
     @classmethod
-    def create_meta_schema(cls, source: Optional[SchemaType] = None,
+    def create_meta_schema(cls, source: Optional[str] = None,
                            base_schemas: Union[None, Dict[str, str],
                                                List[Tuple[str, str]]] = None,
                            global_maps: Optional[XsdGlobals] = None) -> SchemaType:
@@ -737,11 +740,9 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         instance for the new meta schema. If not provided a new map is created.
         """
         if source is None:
-            try:
-                source = cls.meta_schema.url
-            except AttributeError:
-                raise XMLSchemaValueError("The argument 'source' is required when "
-                                          "the class doesn't already have a meta-schema")
+            if cls.meta_schema is None or cls.meta_schema.url:
+                raise XMLSchemaValueError("Missing meta-schema source URL")
+            source = cast(str, cls.meta_schema.url)
 
         _base_schemas: Union[ItemsView[str, str], List[Tuple[str, str]]]
         if base_schemas is None:
@@ -837,7 +838,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         """
         group: XsdGroup = self.xsd_group_class(SEQUENCE_ELEMENT, self, parent)
 
-        if any_element is not None:
+        if isinstance(any_element, XsdAnyElement):
             particle = any_element.copy()
             particle.min_occurs = 0
             particle.max_occurs = None
@@ -940,7 +941,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     __copy__ = copy
 
     @classmethod
-    def check_schema(cls, schema: SchemaType, 
+    def check_schema(cls, schema: SchemaType,
                      namespaces: Optional[NamespacesType] = None) -> None:
         """
         Validates the given schema against the XSD meta-schema (:attr:`meta_schema`).
@@ -950,10 +951,12 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
         :raises: :exc:`XMLSchemaValidationError` if the schema is invalid.
         """
-        if not cls.meta_schema.maps.types:
+        if cls.meta_schema is None:
+            raise XMLSchemaRuntimeError("meta-schema unavailable for %r" % cls)
+        elif not cls.meta_schema.maps.types:
             cls.meta_schema.maps.build()
 
-        for error in cls.meta_schema.iter_errors(schema, namespaces=namespaces):
+        for error in cls.meta_schema.iter_errors(schema.source, namespaces=namespaces):
             raise error
 
     def check_validator(self, validation: str = 'strict') -> None:
@@ -2137,7 +2140,7 @@ class XMLSchema10(XMLSchemaBase):
       attributeGroup) | element | attribute | notation), annotation*)*)
     </schema>
     """
-    meta_schema = os.path.join(SCHEMAS_DIR, 'XSD_1.0/XMLSchema.xsd')
+    meta_schema = os.path.join(SCHEMAS_DIR, 'XSD_1.0/XMLSchema.xsd')  # type: ignore
     BASE_SCHEMAS = {
         XML_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XML/xml_minimal.xsd'),
         XSI_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XSI/XMLSchema-instance_minimal.xsd'),
@@ -2179,7 +2182,7 @@ class XMLSchema11(XMLSchemaBase):
       attributeGroup) | element | attribute | notation), annotation*)*)
     </schema>
     """
-    meta_schema = os.path.join(SCHEMAS_DIR, 'XSD_1.1/XMLSchema.xsd')
+    meta_schema = os.path.join(SCHEMAS_DIR, 'XSD_1.1/XMLSchema.xsd')  # type: ignore
     XSD_VERSION = '1.1'
 
     BASE_SCHEMAS = {

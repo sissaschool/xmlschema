@@ -108,7 +108,7 @@ class TestXMLSchema10(XsdValidatorTestCase):
     def test_builtin_types(self):
         self.assertIn('string', self.schema_class.builtin_types())
 
-        with self.assertRaises(XMLSchemaNotBuiltError):
+        with self.assertRaises(RuntimeError):
             self.schema_class.meta_schema.builtin_types()
 
     def test_resolve_qname(self):

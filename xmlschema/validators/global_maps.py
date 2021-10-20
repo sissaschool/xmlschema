@@ -17,7 +17,7 @@ from typing import cast, Any, Callable, Dict, List, Iterable, Iterator, \
     MutableMapping, Optional, Set, Union, Tuple, Type
 
 from ..exceptions import XMLSchemaKeyError, XMLSchemaTypeError, XMLSchemaValueError, \
-    XMLSchemaWarning
+    XMLSchemaRuntimeError, XMLSchemaWarning
 from ..names import XSD_NAMESPACE, XSD_REDEFINE, XSD_OVERRIDE, XSD_NOTATION, \
     XSD_ANY_TYPE, XSD_SIMPLE_TYPE, XSD_COMPLEX_TYPE, XSD_GROUP, \
     XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ELEMENT, XSI_TYPE
@@ -565,7 +565,6 @@ class XsdGlobals(XsdValidator):
         Build the maps of XSD global definitions/declarations. The global maps are
         updated adding and building the globals of not built registered schemas.
         """
-
         try:
             meta_schema = self.namespaces[XSD_NAMESPACE][0]
         except KeyError:
@@ -575,7 +574,13 @@ class XsdGlobals(XsdValidator):
             meta_schema = None
 
         if meta_schema is None or meta_schema.meta_schema is not None:
-            # XSD namespace not imported: replace the meta-schema with a new one
+            # XSD namespace not imported or XSD namespace not managed by a meta-schema.
+            # Creates a new meta-schema instance from the XSD meta-schema source and
+            # replaces the default meta-schema instance in all registered schemas.
+            if self.validator.meta_schema is None:
+                msg = "missing default meta-schema instance {!r}"
+                raise XMLSchemaRuntimeError(msg.format(self.validator))
+
             url = self.validator.meta_schema.url
             base_schemas = {k: v for k, v in self.validator.meta_schema.BASE_SCHEMAS.items()
                             if k not in self.namespaces}

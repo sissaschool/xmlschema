@@ -47,6 +47,8 @@ if TYPE_CHECKING:
     from .attributes import XsdAttributeGroup
     from .groups import XsdGroup
 
+DataBindingType = Type['dataobjects.DataElement']
+
 
 class XsdElement(XsdComponent, ParticleMixin,
                  ElementPathMixin[BaseElementType],
@@ -104,7 +106,7 @@ class XsdElement(XsdComponent, ParticleMixin,
     _head_type = None
     _build = True
 
-    binding: Optional['dataobjects.DataElement'] = None
+    binding: Optional[DataBindingType] = None
 
     def __init__(self, elem: etree_element,
                  schema: SchemaType,
@@ -423,7 +425,7 @@ class XsdElement(XsdComponent, ParticleMixin,
         return self.schema.block_default
 
     def get_binding(self, *bases: Type[Any], replace_existing: bool = False, **attrs: Any) \
-            -> Type['dataobjects.DataElement']:
+            -> DataBindingType:
         """
         Gets data object binding for XSD element, creating a new one if it doesn't exist.
 
@@ -431,13 +433,13 @@ class XsdElement(XsdComponent, ParticleMixin,
         :param replace_existing: provide `True` to replace an existing binding class.
         :param attrs: attribute and method definitions for the binding class body.
         """
-        if self.binding is None or replace_existing:
+        if self.binding is None or not replace_existing:
             if not bases:
                 bases = (dataobjects.DataElement,)
             attrs['xsd_element'] = self
             class_name = '{}Binding'.format(self.local_name.title().replace('_', ''))
-            self.binding = dataobjects.DataBindingMeta(class_name, bases, attrs)
-
+            self.binding = cast(DataBindingType,
+                                dataobjects.DataBindingMeta(class_name, bases, attrs))
         return self.binding
 
     def get_attribute(self, name: str) -> Optional[XsdAttribute]:
