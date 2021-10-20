@@ -7,11 +7,15 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from abc import ABCMeta
-from collections.abc import MutableSequence
+import sys
+if sys.version_info < (3, 7):
+    from typing import GenericMeta as ABCMeta
+else:
+    from abc import ABCMeta
+
 from itertools import count
 from typing import TYPE_CHECKING, cast, overload, Any, Dict, List, Iterator, \
-    Optional, Union, Tuple, Type, MutableMapping
+    Optional, Union, Tuple, Type, MutableMapping, MutableSequence
 from elementpath import XPathContext, XPath2Parser
 
 from .exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, XMLSchemaValueError

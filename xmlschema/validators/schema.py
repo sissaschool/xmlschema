@@ -14,6 +14,12 @@ Two schema classes are created at the end of this module, XMLSchema10 for XSD 1.
 XMLSchema11 for XSD 1.1. The latter class parses also XSD 1.0 schemas, as prescribed by
 the standard.
 """
+import sys
+if sys.version_info < (3, 7):
+    from typing import GenericMeta as ABCMeta
+else:
+    from abc import ABCMeta
+
 import os
 import logging
 import threading
@@ -21,11 +27,9 @@ import warnings
 import re
 import sys
 from copy import copy
-from abc import ABCMeta
-from collections import Counter
 from itertools import chain
 from typing import cast, Callable, ItemsView, List, Optional, Dict, Any, \
-    Set, Union, Tuple, Type, Iterator
+    Set, Union, Tuple, Type, Iterator, Counter
 
 from elementpath import XPathToken
 
@@ -1730,7 +1734,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             'namespaces': namespaces,
             'converter': None,
             'use_defaults': use_defaults,
-            'id_map': Counter(),
+            'id_map': Counter[str](),
             'identities': identities,
             'inherited': {},
             'locations': locations,  # TODO: lazy schemas load
@@ -1928,7 +1932,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             namespaces=namespaces,
             source=resource,
             use_defaults=use_defaults,
-            id_map=Counter(),
+            id_map=Counter[str](),
             identities={},
             inherited={},
         )
