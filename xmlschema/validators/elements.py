@@ -127,7 +127,7 @@ class XsdElement(XsdComponent, ParticleMixin,
 
     def __setattr__(self, name: str, value: Any) -> None:
         if name == "type":
-            if value.attributes is None:
+            if isinstance(value, XsdSimpleType):
                 self.attributes = self.schema.create_empty_attribute_group(self)
             else:
                 self.attributes = value.attributes
@@ -445,7 +445,7 @@ class XsdElement(XsdComponent, ParticleMixin,
     def get_attribute(self, name: str) -> Optional[XsdAttribute]:
         if name[0] != '{':
             name = get_qname(self.type.target_namespace, name)
-        if self.type.attributes:
+        if not isinstance(self.type, XsdSimpleType):
             xsd_attribute = self.type.attributes[name]
             assert isinstance(xsd_attribute, XsdAttribute)
             return xsd_attribute
@@ -932,7 +932,7 @@ class XsdElement(XsdComponent, ParticleMixin,
                 errors.append(err)
             else:
                 default_namespace = converter.get('')
-                if default_namespace and xsd_type.attributes:
+                if default_namespace and not isinstance(xsd_type, XsdSimpleType):
                     # Adjust attributes mapped into default namespace
 
                     ns_part = '{%s}' % default_namespace

@@ -342,10 +342,7 @@ class XPathElement(ElementPathMixin['XPathElement']):
     def __init__(self, name: str, xsd_type: BaseXsdType) -> None:
         self.name = name
         self.type = xsd_type
-        try:
-            self.attributes = xsd_type.attributes
-        except AttributeError:
-            pass
+        self.attributes = getattr(xsd_type, 'attributes', {})
 
     def __iter__(self) -> Iterator['XPathElement']:
         if not self.type.has_simple_content():

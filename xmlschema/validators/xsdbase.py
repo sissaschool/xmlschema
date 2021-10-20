@@ -690,7 +690,6 @@ class XsdType(XsdComponent):
 
     abstract = False
     base_type: Optional[BaseXsdType] = None
-    attributes: Optional['XsdAttributeGroup'] = None
     derivation: Optional[str] = None
     _final: Optional[str] = None
 
