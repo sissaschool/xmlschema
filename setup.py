@@ -32,7 +32,7 @@ setup(
     install_requires=['elementpath>=2.3.2, <3.0.0'],
     extras_require={
         'codegen': ['elementpath>=2.3.2, <3.0.0', 'jinja2'],
-        'dev': ['tox', 'coverage', 'lxml', 'elementpath>=2.2.2, <3.0.0',
+        'dev': ['tox', 'coverage', 'lxml', 'elementpath>=2.3.2, <3.0.0',
                 'memory_profiler', 'Sphinx', 'sphinx_rtd_theme', 'jinja2',
                 'flake8', 'mypy', 'lxml-stubs'],
         'docs': ['elementpath>=2.3.2, <3.0.0', 'Sphinx', 'sphinx_rtd_theme', 'jinja2']

@@ -16,6 +16,7 @@ import fileinput
 import os
 import re
 import importlib
+import pathlib
 
 
 class TestPackaging(unittest.TestCase):
@@ -81,6 +82,19 @@ class TestPackaging(unittest.TestCase):
                         version == match.group(1).strip('\'\"'),
                         message % (lineno, filename, match.group(1).strip('\'\"'), version)
                     )
+
+    def test_elementpath_requirement(self):
+        package_dir = pathlib.Path(__file__).parent.parent
+        ep_requirement = None
+        for line in fileinput.input(str(package_dir.joinpath('requirements-dev.txt'))):
+            if 'elementpath' in line:
+                ep_requirement = line.strip()
+
+        self.assertIsNotNone(ep_requirement, msg="Missing elementpath in requirements-dev.txt")
+
+        for line in fileinput.input(str(package_dir.joinpath('setup.py'))):
+            if 'elementpath' in line:
+                self.assertIn(ep_requirement, line, msg="Unmatched requirement in setup.py")
 
     def test_base_schema_files(self):
         et = importlib.import_module('xml.etree.ElementTree')
