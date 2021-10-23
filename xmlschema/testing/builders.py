@@ -68,6 +68,7 @@ def make_schema_test_class(test_file, test_args, test_num, schema_class, check_w
     inspect = test_args.inspect
     locations = test_args.locations
     defuse = test_args.defuse
+    no_pickle = test_args.no_pickle
     debug_mode = test_args.debug
     codegen = test_args.codegen
     loglevel = logging.DEBUG if debug_mode else None
@@ -102,8 +103,8 @@ def make_schema_test_class(test_file, test_args, test_num, schema_class, check_w
                 if missing:
                     raise ValueError("schema missing %d components: %r" % (len(missing), missing))
 
-            # Pickling test (only for Python 3, skip inspected schema classes test)
-            if not inspect:
+            # Pickling test (skip inspected schema classes test)
+            if not inspect and not no_pickle:
                 try:
                     obj = pickle.dumps(schema)
                     deserialized_schema = pickle.loads(obj)
@@ -240,6 +241,7 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
     locations = test_args.locations
     defuse = test_args.defuse
     validation_only = test_args.validation_only
+    no_pickle = test_args.no_pickle
     lax_encode = test_args.lax_encode
     debug_mode = test_args.debug
     codegen = test_args.codegen
@@ -610,7 +612,7 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
         def test_xml_document_validation(self):
             if not validation_only:
                 self.check_decoding_with_element_tree()
-                if not inspect:
+                if not inspect and not no_pickle:
                     self.check_schema_serialization()
 
                 if not self.errors:
