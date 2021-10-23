@@ -46,7 +46,7 @@ from ..names import VC_MIN_VERSION, VC_MAX_VERSION, VC_TYPE_AVAILABLE, \
 from ..etree import etree_element, ParseError
 from ..aliases import ElementType, XMLSourceType, NamespacesType, LocationsType, \
     SchemaType, SchemaSourceType, ConverterType, ComponentClassType, DecodeType, \
-    EncodeType, BaseXsdType, AtomicValueType, ExtraValidatorType, GlobalComponentType
+    EncodeType, BaseXsdType, AtomicValueType, ExtraValidatorType, SchemaGlobalType
 from ..helpers import prune_etree, get_namespace, get_qname
 from ..namespaces import NamespaceResourcesMap, NamespaceView
 from ..resources import is_local_url, is_remote_url, url_path_is_file, \
@@ -1025,7 +1025,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             return 'none'
 
     def iter_globals(self, schema: Optional[SchemaType] = None) \
-            -> Iterator[Union[GlobalComponentType, Tuple[Any, ...]]]:
+            -> Iterator[Union[SchemaGlobalType, Tuple[Any, ...]]]:
         """
         Creates an iterator for XSD global definitions/declarations related to schema namespace.
 

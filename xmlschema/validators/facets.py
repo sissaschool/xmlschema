@@ -25,14 +25,13 @@ from ..names import XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_ENUMERATION,
     XSD_ASSERTION, XSD_DECIMAL, XSD_EXPLICIT_TIMEZONE, XSD_NOTATION_TYPE, XSD_QNAME, \
     XSD_ANNOTATION
 from ..etree import etree_element
-from ..aliases import ElementType, AtomicValueType, BaseXsdType
+from ..aliases import ElementType, SchemaType, AtomicValueType, BaseXsdType
 from ..helpers import count_digits, local_name
 from .exceptions import XMLSchemaValidationError, XMLSchemaDecodeError
 from .xsdbase import XsdComponent, XsdAnnotation
 
 if TYPE_CHECKING:
     from .simple_types import XsdList, XsdAtomicRestriction
-    from .schema import XMLSchemaBase
 
 LaxDecodeType = Tuple[Any, List[XMLSchemaValidationError]]
 
@@ -47,7 +46,7 @@ class XsdFacet(XsdComponent):
     fixed = False
 
     def __init__(self, elem: ElementType,
-                 schema: 'XMLSchemaBase',
+                 schema: SchemaType,
                  parent: Union['XsdList', 'XsdAtomicRestriction'],
                  base_type: Optional[BaseXsdType]) -> None:
         self.base_type = base_type
@@ -443,7 +442,7 @@ class XsdFractionDigitsFacet(XsdFacet):
     _ADMITTED_TAGS = XSD_FRACTION_DIGITS,
 
     def __init__(self, elem: ElementType,
-                 schema: 'XMLSchemaBase',
+                 schema: SchemaType,
                  parent: 'XsdAtomicRestriction',
                  base_type: BaseXsdType) -> None:
 
@@ -542,7 +541,7 @@ class XsdEnumerationFacets(MutableSequence[ElementType], XsdFacet):
     _ADMITTED_TAGS = {XSD_ENUMERATION}
 
     def __init__(self, elem: ElementType,
-                 schema: 'XMLSchemaBase',
+                 schema: SchemaType,
                  parent: 'XsdAtomicRestriction',
                  base_type: BaseXsdType) -> None:
         XsdFacet.__init__(self, elem, schema, parent, base_type)
@@ -656,7 +655,7 @@ class XsdPatternFacets(MutableSequence[ElementType], XsdFacet):
     patterns: List[Pattern[str]]
 
     def __init__(self, elem: ElementType,
-                 schema: 'XMLSchemaBase',
+                 schema: SchemaType,
                  parent: 'XsdAtomicRestriction',
                  base_type: Optional[BaseXsdType]) -> None:
         XsdFacet.__init__(self, elem, schema, parent, base_type)

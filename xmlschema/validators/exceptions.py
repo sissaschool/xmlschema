@@ -10,7 +10,7 @@
 from typing import TYPE_CHECKING, Any, Optional, cast, Iterable, Union, Callable
 from ..exceptions import XMLSchemaException, XMLSchemaWarning, XMLSchemaValueError
 from ..etree import etree_tostring
-from ..aliases import ElementType, NamespacesType, BaseElementType, ModelParticleType
+from ..aliases import ElementType, NamespacesType, SchemaElementType, ModelParticleType
 from ..helpers import get_prefixed_qname, etree_getpath, is_etree_element
 
 if TYPE_CHECKING:
@@ -304,7 +304,7 @@ class XMLSchemaChildrenValidationError(XMLSchemaValidationError):
                  index: int,
                  particle: ModelParticleType,
                  occurs: int = 0,
-                 expected: Optional[Iterable[BaseElementType]] = None,
+                 expected: Optional[Iterable[SchemaElementType]] = None,
                  source: Optional['XMLResource'] = None,
                  namespaces: Optional[NamespacesType] = None) -> None:
 

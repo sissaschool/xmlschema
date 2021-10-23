@@ -22,7 +22,7 @@ from ..names import XSD_NAMESPACE, XSD_REDEFINE, XSD_OVERRIDE, XSD_NOTATION, \
     XSD_ANY_TYPE, XSD_SIMPLE_TYPE, XSD_COMPLEX_TYPE, XSD_GROUP, \
     XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ELEMENT, XSI_TYPE
 from ..aliases import ComponentClassType, ElementType, SchemaType, BaseXsdType, \
-    GlobalComponentType
+    SchemaGlobalType
 from ..helpers import get_qname, local_name, get_extended_qname
 from ..namespaces import NamespaceResourcesMap
 from .exceptions import XMLSchemaNotBuiltError, XMLSchemaModelError, XMLSchemaModelDepthError, \
@@ -213,7 +213,7 @@ class XsdGlobals(XsdValidator):
 
     __copy__ = copy
 
-    def lookup(self, tag: str, qname: str) -> GlobalComponentType:
+    def lookup(self, tag: str, qname: str) -> SchemaGlobalType:
         """
         General lookup method for XSD global components.
 
@@ -225,7 +225,7 @@ class XsdGlobals(XsdValidator):
         :raises: an XMLSchemaValueError if the *tag* argument is not appropriate for a global \
         component, an XMLSchemaKeyError if the *qname* argument is not found in the global map.
         """
-        lookup_function: Callable[[str], GlobalComponentType]
+        lookup_function: Callable[[str], SchemaGlobalType]
         try:
             lookup_function = getattr(self, self._lookup_function_resolver[tag])
         except KeyError:
@@ -437,7 +437,7 @@ class XsdGlobals(XsdValidator):
         for xsd_global in self.iter_globals():
             yield from xsd_global.iter_components(xsd_classes)
 
-    def iter_globals(self) -> Iterator[GlobalComponentType]:
+    def iter_globals(self) -> Iterator[SchemaGlobalType]:
         """Creates an iterator for the XSD global components of built schemas."""
         for global_map in self.global_maps:
             yield from global_map.values()

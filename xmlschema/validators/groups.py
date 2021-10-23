@@ -21,7 +21,7 @@ from ..names import XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ELEMENT, \
     XSD_ANY, XSI_TYPE, XSD_ANY_TYPE, XSD_ANNOTATION
 from ..etree import etree_element, ElementData
 from ..aliases import ElementType, NamespacesType, SchemaType, IterDecodeType, \
-    IterEncodeType, ModelParticleType, BaseElementType, ComponentClassType
+    IterEncodeType, ModelParticleType, SchemaElementType, ComponentClassType
 from ..helpers import get_qname, local_name, raw_xml_encode
 
 from .exceptions import XMLSchemaModelError, XMLSchemaModelDepthError, \
@@ -46,7 +46,7 @@ ANY_ELEMENT = etree_element(
         'maxOccurs': 'unbounded'
     })
 
-GroupDecodeType = List[Tuple[Union[str, int], Any, Optional[BaseElementType]]]
+GroupDecodeType = List[Tuple[Union[str, int], Any, Optional[SchemaElementType]]]
 GroupEncodeType = Tuple[Optional[str], List[ElementType]]
 
 
@@ -299,7 +299,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
             else:
                 yield item
 
-    def iter_elements(self, depth: int = 0) -> Iterator[BaseElementType]:
+    def iter_elements(self, depth: int = 0) -> Iterator[SchemaElementType]:
         """
         A generator function iterating model's elements. Raises `XMLSchemaModelDepthError`
         if the argument *depth* is over `limits.MAX_MODEL_DEPTH` value.
@@ -499,7 +499,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                                   index: int,
                                   particle: ModelParticleType,
                                   occurs: int = 0,
-                                  expected: Optional[List[BaseElementType]] = None,
+                                  expected: Optional[List[SchemaElementType]] = None,
                                   source: Optional['XMLResource'] = None,
                                   namespaces: Optional[NamespacesType] = None,
                                   **_kwargs: Any) -> XMLSchemaChildrenValidationError:
@@ -776,7 +776,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         Unique Particle Attribution constraints are checked.
         :raises: an `XMLSchemaModelError` at first violated constraint.
         """
-        def safe_iter_path(group: XsdGroup, depth: int) -> Iterator[BaseElementType]:
+        def safe_iter_path(group: XsdGroup, depth: int) -> Iterator[SchemaElementType]:
             if not depth:
                 raise XMLSchemaModelDepthError(group)
             for item in group:
@@ -832,8 +832,8 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
             paths[e.name] = e, current_path[:]
 
     def check_dynamic_context(self, elem: ElementType,
-                              xsd_element: BaseElementType,
-                              model_element: BaseElementType,
+                              xsd_element: SchemaElementType,
+                              model_element: SchemaElementType,
                               namespaces: NamespacesType) -> None:
 
         if model_element is not xsd_element and isinstance(model_element, XsdElement):
@@ -924,7 +924,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                 warnings.warn(msg % (self, xsd_element), XMLSchemaTypeTableWarning, stacklevel=3)
 
     def match_element(self, name: str, default_namespace: Optional[str] = None) \
-            -> Optional[BaseElementType]:
+            -> Optional[SchemaElementType]:
         """
         Try a model-less match of a child element. Returns the
         matched element, or `None` if there is no match.
@@ -987,9 +987,9 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
             except AttributeError:
                 default_namespace = None
 
-        errors: List[Tuple[int, ModelParticleType, int, Optional[List[BaseElementType]]]]
-        xsd_element: Optional[BaseElementType]
-        expected: Optional[List[BaseElementType]]
+        errors: List[Tuple[int, ModelParticleType, int, Optional[List[SchemaElementType]]]]
+        xsd_element: Optional[SchemaElementType]
+        expected: Optional[List[SchemaElementType]]
 
         model = ModelVisitor(self)
         errors = []
@@ -1147,7 +1147,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                 cdata_index += 1
                 continue
 
-            xsd_element: Optional[BaseElementType]
+            xsd_element: Optional[SchemaElementType]
             if self.interleave and self.interleave.is_matching(name, default_namespace, group=self):
                 xsd_element = self.interleave
                 value = get_qname(default_namespace, name), value

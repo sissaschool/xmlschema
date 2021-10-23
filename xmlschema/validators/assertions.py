@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, cast, Any, Dict, Iterator, Optional, Union
 from elementpath import XPath2Parser, XPathContext, XPathToken, ElementPathError
 
 from ..names import XSD_ASSERT
-from ..aliases import ElementType, SchemaType, BaseElementType, NamespacesType
+from ..aliases import ElementType, SchemaType, SchemaElementType, NamespacesType
 from ..xpath import XMLSchemaProtocol, ElementProtocol, ElementPathMixin, XMLSchemaProxy
 
 from .exceptions import XMLSchemaNotBuiltError, XMLSchemaValidationError
@@ -28,7 +28,7 @@ if TYPE_CHECKING:
     from .wildcards import XsdAnyElement
 
 
-class XsdAssert(XsdComponent, ElementPathMixin[Union['XsdAssert', BaseElementType]]):
+class XsdAssert(XsdComponent, ElementPathMixin[Union['XsdAssert', SchemaElementType]]):
     """
     Class for XSD *assert* constraint definitions.
 

@@ -14,10 +14,10 @@ from collections import defaultdict, deque
 from typing import Any, Counter, Dict, Iterable, Iterator, List, Optional, Tuple, Union
 
 from ..exceptions import XMLSchemaValueError
-from ..aliases import ModelGroupType, ModelParticleType, BaseElementType
+from ..aliases import ModelGroupType, ModelParticleType, SchemaElementType
 from . import groups
 
-AdvanceYieldedType = Tuple[ModelParticleType, int, List[BaseElementType]]
+AdvanceYieldedType = Tuple[ModelParticleType, int, List[SchemaElementType]]
 EncodedContentType = Union[Dict[Union[int, str], List[Any]],
                            List[Tuple[Union[int, str], List[Any]]]]
 ContentItemType = Tuple[Union[int, str], Any]
@@ -103,7 +103,7 @@ class ModelVisitor:
     :ivar match: if the XSD group has an effective item match.
     """
     _groups: List[Tuple[ModelGroupType, Iterator[ModelParticleType], bool]]
-    element: Optional[BaseElementType]
+    element: Optional[SchemaElementType]
 
     def __init__(self, root: ModelGroupType) -> None:
         self._groups = []
@@ -143,11 +143,11 @@ class ModelVisitor:
                 self.match = False
 
     @property
-    def expected(self) -> List[BaseElementType]:
+    def expected(self) -> List[SchemaElementType]:
         """
         Returns the expected elements of the current and descendant groups.
         """
-        expected: List[BaseElementType] = []
+        expected: List[SchemaElementType] = []
         items: Union[ModelGroupType, Iterator[ModelParticleType]]
 
         if self.group.model == 'choice':

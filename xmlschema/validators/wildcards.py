@@ -16,7 +16,7 @@ from typing import cast, Any, Callable, Dict, Iterable, Iterator, List, Optional
 from ..exceptions import XMLSchemaValueError
 from ..names import XSI_NAMESPACE, XSD_ANY, XSD_ANY_ATTRIBUTE, \
     XSD_OPEN_CONTENT, XSD_DEFAULT_OPEN_CONTENT, XSI_TYPE
-from ..aliases import ElementType, SchemaType, BaseElementType, BaseAttributeType, \
+from ..aliases import ElementType, SchemaType, SchemaElementType, SchemaAttributeType, \
     ModelGroupType, ModelParticleType, AtomicValueType, IterDecodeType, IterEncodeType, \
     DecodedValueType, EncodedValueType
 from ..helpers import get_namespace, raw_xml_encode
@@ -374,7 +374,7 @@ class XsdWildcard(XsdComponent):
 
 
 class XsdAnyElement(XsdWildcard, ParticleMixin,
-                    ElementPathMixin[BaseElementType],
+                    ElementPathMixin[SchemaElementType],
                     ValidationMixin[ElementType, Any]):
     """
     Class for XSD 1.0 *any* wildcards.
@@ -421,7 +421,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
         self._parse_particle(self.elem)
 
     def match(self, name: Optional[str], default_namespace: Optional[str] = None,
-              resolve: bool = False, **kwargs: Any) -> Optional[BaseElementType]:
+              resolve: bool = False, **kwargs: Any) -> Optional[SchemaElementType]:
         """
         Returns the element wildcard if name is matching the name provided
         as argument, `None` otherwise.
@@ -565,7 +565,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
         else:
             return any(ns in self.namespace for ns in other.namespace)
 
-    def is_consistent(self, other: BaseElementType, **kwargs: Any) -> bool:
+    def is_consistent(self, other: SchemaElementType, **kwargs: Any) -> bool:
         return True
 
 
@@ -589,7 +589,7 @@ class XsdAnyAttribute(XsdWildcard, ValidationMixin[Tuple[str, str], DecodedValue
     inheritable = False  # XSD 1.1 attributes
 
     def match(self, name: Optional[str], default_namespace: Optional[str] = None,
-              resolve: bool = False, **kwargs: Any) -> Optional[BaseAttributeType]:
+              resolve: bool = False, **kwargs: Any) -> Optional[SchemaAttributeType]:
         """
         Returns the attribute wildcard if name is matching the name provided
         as argument, `None` otherwise.
@@ -743,7 +743,7 @@ class Xsd11AnyElement(XsdAnyElement):
 
         return name not in self.not_qname
 
-    def is_consistent(self, other: BaseElementType, **kwargs: Any) -> bool:
+    def is_consistent(self, other: SchemaElementType, **kwargs: Any) -> bool:
         if isinstance(other, XsdAnyElement) or self.process_contents == 'skip':
             return True
         xsd_element = self.match(other.name, other.default_namespace, resolve=True)

@@ -1,5 +1,5 @@
 #
-# Copyright (c), 2016, SISSA (International School for Advanced Studies).
+# Copyright (c), 2021, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -10,18 +10,19 @@
 """
 Type aliases for static typing analysis. In a type checking context the aliases
 are defined from effective classes imported from package modules. In a runtime
-context the aliases are set to Any.
+context the aliases cannot be set from the same bases, due to circular imports,
+so they are set with a common dummy subscriptable type to keep compatibility.
 """
 from typing import TYPE_CHECKING, Optional, TypeVar
 
 __all__ = ['ElementType', 'ElementTreeType', 'XMLSourceType', 'NamespacesType',
            'NormalizedLocationsType', 'LocationsType', 'NsmapType', 'ParentMapType',
-           'LazyType', 'SchemaType', 'BaseXsdType', 'BaseElementType', 'BaseAttributeType',
-           'GlobalComponentType', 'GlobalMapType', 'ModelGroupType', 'ModelParticleType',
-           'XPathElementType', 'AtomicValueType', 'NumericValueType', 'DateTimeType',
-           'SchemaSourceType', 'ConverterType', 'ComponentClassType', 'ExtraValidatorType',
-           'DecodeType', 'IterDecodeType', 'JsonDecodeType', 'EncodeType', 'IterEncodeType',
-           'DecodedValueType', 'EncodedValueType']
+           'LazyType', 'SchemaType', 'BaseXsdType', 'SchemaElementType',
+           'SchemaAttributeType', 'SchemaGlobalType', 'GlobalMapType', 'ModelGroupType',
+           'ModelParticleType', 'XPathElementType', 'AtomicValueType', 'NumericValueType',
+           'DateTimeType', 'SchemaSourceType', 'ConverterType', 'ComponentClassType',
+           'ExtraValidatorType', 'DecodeType', 'IterDecodeType', 'JsonDecodeType',
+           'EncodeType', 'IterEncodeType', 'DecodedValueType', 'EncodedValueType']
 
 if TYPE_CHECKING:
     from decimal import Decimal
@@ -56,28 +57,22 @@ if TYPE_CHECKING:
 
     ##
     # Type aliases for XSD components
+    SchemaSourceType = Union[str, bytes, BinaryIO, TextIO, ElementTree.Element,
+                             ElementTree.ElementTree, XMLResource]
     SchemaType = XMLSchemaBase
     BaseXsdType = Union[XsdSimpleType, XsdComplexType]
-    BaseElementType = Union[XsdElement, XsdAnyElement]
-    BaseAttributeType = Union[XsdAttribute, XsdAnyAttribute]
-    GlobalComponentType = Union[XsdNotation, BaseXsdType, XsdElement,
-                                XsdAttribute, XsdAttributeGroup, XsdGroup]
-
-    C = TypeVar('C')
-    GlobalMapType = Dict[str, Union[C, Tuple[ElementType, SchemaType]]]
+    SchemaElementType = Union[XsdElement, XsdAnyElement]
+    SchemaAttributeType = Union[XsdAttribute, XsdAnyAttribute]
+    SchemaGlobalType = Union[XsdNotation, BaseXsdType, XsdElement,
+                             XsdAttribute, XsdAttributeGroup, XsdGroup]
 
     ModelGroupType = XsdGroup
     ModelParticleType = Union[XsdElement, XsdAnyElement, XsdGroup]
-    ExpectedChildrenType = Optional
-
+    ComponentClassType = Union[None, Type[XsdComponent], Tuple[Type[XsdComponent], ...]]
     XPathElementType = Union[XsdElement, XsdAnyElement, XsdAssert]
 
-    SchemaSourceType = Union[str, bytes, BinaryIO, TextIO, ElementTree.Element,
-                             ElementTree.ElementTree, XMLResource]
-    ConverterType = Union[Type[XMLSchemaConverter], XMLSchemaConverter]
-    ComponentClassType = Union[None, Type[XsdComponent], Tuple[Type[XsdComponent], ...]]
-    ExtraValidatorType = Callable[[ElementType, SchemaType],
-                                  Optional[Iterator[XMLSchemaValidationError]]]
+    C = TypeVar('C')
+    GlobalMapType = Dict[str, Union[C, Tuple[ElementType, SchemaType]]]
 
     ##
     # Type aliases for datatypes
@@ -87,7 +82,11 @@ if TYPE_CHECKING:
     DateTimeType = Union[OrderedDateTime, Time]
 
     ##
-    # Type aliases for decoding/encoding
+    # Type aliases for validation/decoding/encoding
+    ConverterType = Union[Type[XMLSchemaConverter], XMLSchemaConverter]
+    ExtraValidatorType = Callable[[ElementType, SchemaType],
+                                  Optional[Iterator[XMLSchemaValidationError]]]
+
     D = TypeVar('D')
     DecodeType = Union[Optional[D], Tuple[Optional[D], List[XMLSchemaValidationError]]]
     IterDecodeType = Iterator[Union[D, XMLSchemaValidationError]]
