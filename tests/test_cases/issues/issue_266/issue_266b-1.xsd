@@ -1,0 +1,22 @@
+<xsd:schema xmlns:test2="http://namespaceuri/test2"
+            xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+<xsd:import namespace="http://namespaceuri/test2" schemaLocation="issue_266b-2.xsd"/>
+
+
+    <xsd:complexType name="element3">
+      <xsd:choice>
+         <xsd:element ref="test2:testElement3" />
+      </xsd:choice>
+   </xsd:complexType>
+
+   <xsd:attribute name="testAttribute3" type="xsd:string">
+      <xsd:annotation>
+         <xsd:documentation>
+            <div xmlns="http://www.w3.org/1999/xhtml">
+               <h3>docs</h3>
+            </div>
+         </xsd:documentation>
+      </xsd:annotation>
+   </xsd:attribute>
+
+ </xsd:schema>

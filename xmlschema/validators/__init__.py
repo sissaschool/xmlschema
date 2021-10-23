@@ -35,7 +35,7 @@ from .groups import XsdGroup, Xsd11Group
 from .elements import XsdElement, Xsd11Element, XsdAlternative
 
 from .global_maps import XsdGlobals
-from .schema import XMLSchemaMeta, XMLSchemaBase, XMLSchema, XMLSchema10, XMLSchema11
+from .schemas import XMLSchemaMeta, XMLSchemaBase, XMLSchema, XMLSchema10, XMLSchema11
 
 
 __all__ = [

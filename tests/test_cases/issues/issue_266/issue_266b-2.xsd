@@ -1,0 +1,17 @@
+<xsd:schema xmlns:test2="http://namespaceuri/test2"
+            xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+            targetNamespace="http://namespaceuri/test2">
+
+   <xsd:element name="testElement3">
+      <xsd:annotation>
+         <xsd:documentation>
+            <div xmlns="http://www.w3.org/1999/xhtml">
+               <h3>docs blah blah</h3>
+            </div>
+         </xsd:documentation>
+      </xsd:annotation>
+      <xsd:complexType>
+         <xsd:attribute ref="testAttribute3" />
+      </xsd:complexType>
+   </xsd:element>
+</xsd:schema>

@@ -26,7 +26,7 @@ from xmlschema.etree import etree_element
 from xmlschema.validators import XMLSchemaBase, XMLSchema10, XMLSchema11, \
     XsdGlobals, Xsd11Attribute
 from xmlschema.testing import SKIP_REMOTE_TESTS, XsdValidatorTestCase
-from xmlschema.validators.schema import logger, XMLSchemaNotBuiltError
+from xmlschema.validators.schemas import logger
 
 
 class CustomXMLSchema(XMLSchema10):
@@ -558,7 +558,7 @@ class TestXMLSchema10(XsdValidatorTestCase):
         elements.reverse()
         self.assertListEqual(elements, list(reversed(schema)))
 
-    def test_multi_schema_initilization(self):
+    def test_multi_schema_initialization(self):
         source1 = dedent("""\
             <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
                 <xs:element name="elem1"/>
@@ -832,6 +832,15 @@ class TestXMLSchema10(XsdValidatorTestCase):
         name = OldXMLSchema10.meta_schema.__class__.__name__
         self.assertEqual(name, 'MetaXMLSchema10')
         self.assertNotIn(name, globals())
+
+    def test_default_namespace_mapping__issue_266(self):
+        schema_file = self.casepath('issues/issue_266/issue_266b-1.xsd')
+        with self.assertRaises(XMLSchemaParseError) as ec:
+            self.schema_class(schema_file)
+
+        error_message = str(ec.exception)
+        self.assertIn("the QName 'testAttribute3' is mapped to no namespace", error_message)
+        self.assertIn("requires that there is an xs:import statement", error_message)
 
 
 class TestXMLSchema11(TestXMLSchema10):

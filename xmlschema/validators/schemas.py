@@ -367,10 +367,10 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         root = self.source.root
 
         # Initialize schema's namespaces, the XML namespace is implicitly declared.
+        self.namespaces = self.source.get_namespaces({'xml': XML_NAMESPACE}, root_only=True)
+
         if 'targetNamespace' in root.attrib:
             self.target_namespace = root.attrib['targetNamespace'].strip()
-            self.namespaces = self.source.get_namespaces({'xml': XML_NAMESPACE})
-
             if not self.target_namespace:
                 # https://www.w3.org/TR/2004/REC-xmlschema-1-20041028/structures.html#element-schema
                 self.parse_error("the attribute 'targetNamespace' cannot be an empty string", root)
@@ -378,18 +378,15 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 msg = "wrong namespace (%r instead of %r) for XSD resource %s"
                 self.parse_error(msg % (self.target_namespace, namespace, self.url), root)
 
-        if not self.target_namespace:
-            # Without a target namespace, insert the default namespace after
-            # read root namespace declarations, to avoid internal overrides.
-            namespaces = self.source.get_namespaces({'xml': XML_NAMESPACE}, root_only=True)
+        if not self.target_namespace and namespace is not None:
+            # Chameleon schema case
+            self.target_namespace = namespace
+            if '' not in self.namespaces:
+                self.namespaces[''] = namespace
 
-            if namespace is not None:
-                # Chameleon schema case: set the target namespace and the default namespace
-                self.target_namespace = namespace
-
-            if '' not in namespaces:
-                namespaces[''] = self.target_namespace
-            self.namespaces = self.source.get_namespaces(namespaces)
+        elif '' not in self.namespaces:
+            # If not declared map the default namespace to no namespace
+            self.namespaces[''] = ''
 
         logger.debug("Schema targetNamespace is %r", self.target_namespace)
         logger.debug("Declared namespaces: %r", self.namespaces)
@@ -432,6 +429,9 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 if child.tag == XSD_OVERRIDE:
                     self.include_schema(child.attrib['schemaLocation'], self.base_url)
             return  # Meta-schemas don't need to be checked and don't process imports
+
+        # Completes the namespaces map with internal declarations, remapping same prefixes.
+        self.namespaces = self.source.get_namespaces(self.namespaces)
 
         if locations:
             if isinstance(locations, tuple):
@@ -478,9 +478,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         for ns in self.locations:
             if ns not in self.maps.namespaces:
                 self._import_namespace(ns, self.locations[ns])
-
-        if '' not in self.namespaces:
-            self.namespaces[''] = ''  # For default local names are mapped to no namespace
 
         # XSD 1.1 default declarations (defaultAttributes, defaultOpenContent,
         # xpathDefaultNamespace)
