@@ -6,7 +6,7 @@ def main() -> None:
     from xmlschema.names import XSD_ENUMERATION
     from xmlschema.validators import XsdAtomicRestriction
 
-    case_dir = Path(__file__).parent.parent.parent
+    case_dir = Path(__file__).parent.parent
 
     st_xsd = case_dir.joinpath('features/decoder/simple-types.xsd')
     schema = xmlschema.XMLSchema10(str(st_xsd))

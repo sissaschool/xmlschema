@@ -26,8 +26,7 @@ __all__ = ['ElementType', 'ElementTreeType', 'XMLSourceType', 'NamespacesType',
 
 if TYPE_CHECKING:
     from decimal import Decimal
-    from typing import BinaryIO, Callable, Dict, List, Iterator, MutableMapping, \
-        TextIO, Tuple, Type, Union
+    from typing import Callable, Dict, List, IO, Iterator, MutableMapping, Tuple, Type, Union
 
     from elementpath.datatypes import NormalizedString, QName, Float10, Integer, \
         Time, Base64Binary, HexBinary, AnyURI, Duration
@@ -44,7 +43,7 @@ if TYPE_CHECKING:
     # Type aliases for ElementTree
     ElementType = ElementTree.Element
     ElementTreeType = ElementTree.ElementTree
-    XMLSourceType = Union[str, bytes, BinaryIO, TextIO, ElementType, ElementTreeType]
+    XMLSourceType = Union[str, bytes, IO[str], IO[bytes], ElementType, ElementTreeType]
     NamespacesType = MutableMapping[str, str]
 
     ##
@@ -57,7 +56,7 @@ if TYPE_CHECKING:
 
     ##
     # Type aliases for XSD components
-    SchemaSourceType = Union[str, bytes, BinaryIO, TextIO, ElementTree.Element,
+    SchemaSourceType = Union[str, bytes, IO[str], IO[bytes], ElementTree.Element,
                              ElementTree.ElementTree, XMLResource]
     SchemaType = XMLSchemaBase
     BaseXsdType = Union[XsdSimpleType, XsdComplexType]
@@ -77,7 +76,7 @@ if TYPE_CHECKING:
     ##
     # Type aliases for datatypes
     AtomicValueType = Union[str, int, float, Decimal, bool, Integer, Float10, NormalizedString,
-                            AnyURI, HexBinary, Base64Binary, QName, Duration]
+                            AnyURI, HexBinary, Base64Binary, QName, Duration, OrderedDateTime, Time]
     NumericValueType = Union[str, bytes, int, float, Decimal]
     DateTimeType = Union[OrderedDateTime, Time]
 
