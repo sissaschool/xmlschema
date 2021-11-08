@@ -39,7 +39,7 @@ from .helpers import decimal_validator, qname_validator, byte_validator, \
     unsigned_short_validator, unsigned_int_validator, unsigned_long_validator, \
     negative_int_validator, positive_int_validator, non_positive_int_validator, \
     non_negative_int_validator, hex_binary_validator, base64_binary_validator, \
-    error_type_validator, boolean_to_python, python_to_boolean
+    error_type_validator, boolean_to_python, python_to_boolean, python_to_float
 from .facets import XSD_10_FACETS_BUILDERS, XSD_11_FACETS_BUILDERS
 from .simple_types import XsdSimpleType, XsdAtomicBuiltin
 
@@ -334,12 +334,14 @@ XSD_10_BUILTIN_TYPES: Tuple[Dict[str, Any], ...] = XSD_COMMON_BUILTIN_TYPES + (
         'python_type': float,
         'admitted_facets': FLOAT_FACETS,
         'facets': [XSD10_FLOAT_PATTERN_ELEMENT, COLLAPSE_WHITE_SPACE_ELEMENT],
+        'from_python': python_to_float,
     },  # 64 bit floating point
     {
         'name': XSD_FLOAT,
         'python_type': float,
         'admitted_facets': FLOAT_FACETS,
         'facets': [XSD10_FLOAT_PATTERN_ELEMENT, COLLAPSE_WHITE_SPACE_ELEMENT],
+        'from_python': python_to_float,
     },  # 32 bit floating point
 
     # --- Year related primitive types (year 0 not allowed) ---
@@ -379,12 +381,14 @@ XSD_11_BUILTIN_TYPES: Tuple[Dict[str, Any], ...] = XSD_COMMON_BUILTIN_TYPES + (
         'python_type': float,
         'admitted_facets': FLOAT_FACETS,
         'facets': [XSD11_FLOAT_PATTERN_ELEMENT, COLLAPSE_WHITE_SPACE_ELEMENT],
+        'from_python': python_to_float,
     },  # 64 bit floating point
     {
         'name': XSD_FLOAT,
         'python_type': float,
         'admitted_facets': FLOAT_FACETS,
         'facets': [XSD11_FLOAT_PATTERN_ELEMENT, COLLAPSE_WHITE_SPACE_ELEMENT],
+        'from_python': python_to_float,
     },  # 32 bit floating point
 
     # --- Year related primitive types (year 0 allowed and mapped to 1 BCE) ---
