@@ -227,9 +227,9 @@ class TestXsd11SimpleTypes(TestXsdSimpleTypes):
             </xs:simpleType>""")
         self.assertFalse(schema.types['RestrictedDateTimeType'].is_valid('2000-01-01T12:00:00'))
 
-        with self.assertRaises(XMLSchemaValidationError) as ctx:
+        # '>' not supported between instances of 'DateTime' and 'str'
+        with self.assertRaises(XMLSchemaValidationError):
             schema.types['RestrictedDateTimeType'].validate('2000-01-01T12:00:00')
-        self.assertIn("wrong type <class 'str'> for operand", str(ctx.exception))
 
         schema = self.check_schema("""
         <xs:simpleType name='RestrictedDateTimeType'>
