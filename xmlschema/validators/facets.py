@@ -742,7 +742,7 @@ class XsdPatternFacets(MutableSequence[ElementType], XsdFacet):
         return None
 
 
-class XsdAssertionXPathParser(XPath2Parser):  # type: ignore[misc]
+class XsdAssertionXPathParser(XPath2Parser):
     """Parser for XSD 1.1 assertion facets."""
 
 
@@ -798,7 +798,7 @@ class XsdAssertionFacet(XsdFacet):
             self.xpath_default_namespace = self.schema.xpath_default_namespace
 
         self.parser = XsdAssertionXPathParser(
-            namespaces=self.namespaces,  # type: ignore[arg-type]
+            namespaces=self.namespaces,
             strict=False,
             variable_types={'value': value},
             default_namespace=self.xpath_default_namespace

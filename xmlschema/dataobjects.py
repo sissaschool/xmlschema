@@ -273,9 +273,10 @@ class DataElement(MutableSequence['DataElement']):
         :param namespaces: an optional mapping from namespace prefix to namespace URI.
         :return: the first matching data element or ``None`` if there is no match.
         """
-        parser = XPath2Parser(namespaces, strict=False)  # type: ignore[arg-type]
+        parser = XPath2Parser(namespaces, strict=False)
         context = XPathContext(cast(Any, self))
-        return next(parser.parse(path).select_results(context), None)
+        result = next(parser.parse(path).select_results(context), None)
+        return result if isinstance(result, DataElement) else None
 
     def findall(self, path: str,
                 namespaces: Optional[NamespacesType] = None) -> List['DataElement']:
@@ -287,9 +288,11 @@ class DataElement(MutableSequence['DataElement']):
         :return: a list containing all matching data elements in document order, \
         an empty list is returned if there is no match.
         """
-        parser = XPath2Parser(namespaces, strict=False)  # type: ignore[arg-type]
+        parser = XPath2Parser(namespaces, strict=False)
         context = XPathContext(cast(Any, self))
         results = parser.parse(path).get_results(context)
+        if not isinstance(results, list):
+            return []
         return [e for e in results if isinstance(e, DataElement)]
 
     def iterfind(self, path: str,
@@ -301,10 +304,10 @@ class DataElement(MutableSequence['DataElement']):
         :param namespaces: is an optional mapping from namespace prefix to full name.
         :return: an iterable yielding all matching data elements in document order.
         """
-        parser = XPath2Parser(namespaces, strict=False)  # type: ignore[arg-type]
+        parser = XPath2Parser(namespaces, strict=False)
         context = XPathContext(cast(Any, self))
         results = parser.parse(path).select_results(context)
-        yield from filter(lambda x: isinstance(x, DataElement), results)
+        yield from filter(lambda x: isinstance(x, DataElement), results)  # type: ignore[misc]
 
     def iter(self, tag: Optional[str] = None) -> Iterator['DataElement']:
         """

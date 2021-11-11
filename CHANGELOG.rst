@@ -2,6 +2,11 @@
 CHANGELOG
 *********
 
+`v1.8.2`_ (2021-11-11)
+======================
+* Fix for issues #266 and #268
+# Fix type annotation of XMLSchema source argument (issue #230)
+
 `v1.8.1`_ (2021-10-20)
 ======================
 * Near compliance with strict type annotations
@@ -484,3 +489,4 @@ v0.9.6 (2017-05-05)
 .. _v1.7.1: https://github.com/brunato/xmlschema/compare/v1.7.0...v1.7.1
 .. _v1.8.0: https://github.com/brunato/xmlschema/compare/v1.7.1...v1.8.0
 .. _v1.8.1: https://github.com/brunato/xmlschema/compare/v1.8.0...v1.8.1
+.. _v1.8.2: https://github.com/brunato/xmlschema/compare/v1.8.1...v1.8.2

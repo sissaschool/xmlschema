@@ -46,9 +46,9 @@ LAZY_XML_XPATH_SYMBOLS = frozenset((
 DRIVE_LETTERS = frozenset(string.ascii_letters)
 
 
-class LazyXPath2Parser(XPath2Parser):  # type: ignore[misc]
+class LazyXPath2Parser(XPath2Parser):
     symbol_table = {
-        k: v for k, v in XPath2Parser.symbol_table.items()
+        k: v for k, v in XPath2Parser.symbol_table.items()  # type: ignore[misc]
         if k in LAZY_XML_XPATH_SYMBOLS
     }
     SYMBOLS = LAZY_XML_XPATH_SYMBOLS
@@ -58,7 +58,7 @@ class LazySelector:
     """A limited XPath selector class for lazy XML resources."""
 
     def __init__(self, path: str, namespaces: Optional[NamespacesType] = None) -> None:
-        self.parser = LazyXPath2Parser(namespaces, strict=False)  # type: ignore[arg-type]
+        self.parser = LazyXPath2Parser(namespaces, strict=False)
         self.path = path
         self.root_token = self.parser.parse(path)
 
@@ -79,7 +79,7 @@ class LazySelector:
             if not is_etree_element(elem):
                 msg = "XPath expressions on lazy resources can select only elements"
                 raise XMLResourceError(msg)
-            yield elem
+            yield cast(ElementProtocol, elem)
 
 
 ###

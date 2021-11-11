@@ -157,7 +157,8 @@ class TestXsdIdentities(XsdValidatorTestCase):
                 </xs:element>
                 <xs:element name="a" type="xs:string"/>""")
 
-        self.assertEqual(ctx.exception.message, 'selector xpath cannot select attributes')
+        self.assertEqual(ctx.exception.message,
+                         'selector xpath expression can only select elements')
 
     def test_key_validation(self):
         schema = self.check_schema("""

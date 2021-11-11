@@ -622,7 +622,7 @@ class XmlDocument(XMLResource):
                     fp.write(_string)
             else:
                 with open(file, 'wb') as fp:
-                    fp.write(_string)  # type: ignore[argument]
+                    fp.write(_string)
 
         elif isinstance(file, TextIOBase):
             if isinstance(_string, bytes):

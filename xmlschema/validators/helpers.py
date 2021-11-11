@@ -50,7 +50,7 @@ def get_xsd_derivation_attribute(elem: Element, attribute: str,
 def decimal_validator(value: Union[Decimal, int, float, str]) -> None:
     try:
         if not isinstance(value, (Decimal, float)):
-            datatypes.DecimalProxy.validate(value)  # type: ignore[no-untyped-call]
+            datatypes.DecimalProxy.validate(value)
         elif isinf(value) or isnan(value):
             raise ValueError()
     except (ValueError, TypeError):

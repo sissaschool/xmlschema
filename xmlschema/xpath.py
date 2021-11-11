@@ -107,7 +107,7 @@ class XMLSchemaProxy(AbstractSchemaProxy):
         if schema is None:
             from xmlschema import XMLSchema
             schema = getattr(XMLSchema, 'meta_schema', None)
-        super(XMLSchemaProxy, self).__init__(schema, base_element)  # type: ignore[arg-type]
+        super(XMLSchemaProxy, self).__init__(schema, base_element)
 
         if base_element is not None:
             try:
@@ -118,7 +118,7 @@ class XMLSchemaProxy(AbstractSchemaProxy):
 
     def bind_parser(self, parser: XPath2Parser) -> None:
         parser.schema = self
-        parser.symbol_table = parser.__class__.symbol_table.copy()  # type: ignore[misc]
+        parser.symbol_table = dict(parser.__class__.symbol_table)
 
         with self._schema.lock:
             if self._schema.xpath_tokens is None:
@@ -264,7 +264,7 @@ class ElementPathMixin(Sequence[E]):
         parser = XPath2Parser(namespaces, strict=False)
         context = XMLSchemaContext(self)  # type: ignore[arg-type]
 
-        return next(parser.parse(path).select_results(context), None)
+        return cast(Optional[E], next(parser.parse(path).select_results(context), None))
 
     def findall(self, path: str, namespaces: Optional[NamespacesType] = None) -> List[E]:
         """

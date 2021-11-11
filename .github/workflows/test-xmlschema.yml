@@ -9,7 +9,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        python-version: [3.6, 3.7, 3.8, 3.9, 3.10-dev, pypy3]
+        python-version: [3.6, 3.7, 3.8, 3.9, 3.10, pypy3]
         exclude:
           - os: macos-latest
             python-version: 3.6
@@ -27,7 +27,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Install additional development libraries for building lxml
-        if: ${{ matrix.os == 'ubuntu-latest' && (matrix.python-version == '3.10-dev' || matrix.python-version == 'pypy3') }}
+        if: ${{ matrix.os == 'ubuntu-latest' && matrix.python-version == 'pypy3' }}
         run: sudo apt-get update && sudo apt-get install libxml2-dev libxslt-dev python-dev
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
@@ -47,7 +47,7 @@ jobs:
           pip install flake8
           flake8 xmlschema --max-line-length=100 --statistics
       - name: Lint with mypy
-        if: ${{ matrix.python-version == '3.10-dev' && matrix.python-version == 'pypy3' }}
+        if: ${{ matrix.python-version != 'pypy3' }}
         run: |
-          pip install mypy==0.910 elementpath==2.3.2 lxml-stubs
+          pip install mypy==0.910 elementpath==2.4.0 lxml-stubs
           mypy --show-error-codes --no-warn-unused-ignores xmlschema
