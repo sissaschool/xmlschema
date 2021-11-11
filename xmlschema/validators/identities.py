@@ -12,9 +12,8 @@ This module contains classes for other XML Schema identity constraints.
 """
 import re
 import math
-from collections import Counter
 from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Pattern, \
-    Tuple, Union
+    Tuple, Union, Counter
 from elementpath import XPath2Parser, ElementPathError, XPathToken, XPathContext, \
     translate_pattern, datatypes
 
@@ -216,7 +215,7 @@ class XsdIdentity(XsdComponent):
                 if not isinstance(e, XsdComponent) or isinstance(e, XsdAttribute):
                     self.parse_error("selector xpath expression can only select elements")
                 elif e.name is not None:
-                    self.elements[e] = None
+                    self.elements[e] = None  # type: ignore[index]
         except AttributeError:
             pass
         else:
@@ -432,7 +431,7 @@ class Xsd11Keyref(XsdKeyref):
 class IdentityCounter:
 
     def __init__(self, identity: XsdIdentity, enabled: bool = True) -> None:
-        self.counter: Counter[IdentityCounterType] = Counter()
+        self.counter: Counter[IdentityCounterType] = Counter[IdentityCounterType]()
         self.identity = identity
         self.enabled = enabled
 
