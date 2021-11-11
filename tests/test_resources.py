@@ -193,14 +193,20 @@ class TestResources(unittest.TestCase):
 
     def test_normalize_url_unc_paths__issue_246(self):
         url = PureWindowsPath(r'\\host\share\file.xsd').as_uri()
-        self.assertEqual(normalize_url(r'\\host\share\file.xsd'), url)  # file://host/share/file.xsd
+        self.assertNotEqual(normalize_url(r'\\host\share\file.xsd'), url)  # file://host/share/file.xsd
+        self.assertEqual(normalize_url(r'\\host\share\file.xsd'), url.replace('file://', 'file:////'))
 
     def test_normalize_url_unc_paths__issue_268(self,):
         unc_path = r'\\filer01\MY_HOME\dev\XMLSCHEMA\test.xsd'
         url = PureWindowsPath(unc_path).as_uri()
         self.assertEqual(str(PureWindowsPath(unc_path)), unc_path)
         self.assertEqual(url, 'file://filer01/MY_HOME/dev/XMLSCHEMA/test.xsd')
-        self.assertEqual(normalize_url(unc_path), url)
+
+        # Same UNC path as URI with the host inserted in path path.
+        url_host_in_path = url.replace('file://', 'file:////')
+        self.assertEqual(url_host_in_path, 'file:////filer01/MY_HOME/dev/XMLSCHEMA/test.xsd')
+
+        self.assertEqual(normalize_url(unc_path), url_host_in_path)
 
         with patch.object(os, 'name', 'nt'):
             self.assertEqual(os.name, 'nt')
@@ -211,8 +217,8 @@ class TestResources(unittest.TestCase):
             self.assertEqual(xmlschema.resources.os.name, 'nt')
             path = xmlschema.resources._PurePath(unc_path)
             self.assertIs(path.__class__, xmlschema.resources._WindowsPurePath)
-            self.assertEqual(path.as_uri(), url)
-            self.assertEqual(normalize_url(unc_path), url)
+            self.assertEqual(path.as_uri(), url_host_in_path)
+            self.assertEqual(normalize_url(unc_path), url_host_in_path)
 
         with patch.object(os, 'name', 'posix'):
             self.assertEqual(os.name, 'posix')
@@ -226,7 +232,47 @@ class TestResources(unittest.TestCase):
             self.assertIs(path.__class__, xmlschema.resources._PosixPurePath)
             self.assertEqual(str(path), unc_path)
             self.assertNotEqual(path.as_uri(), url)
-            self.assertEqual(normalize_url(unc_path), url)
+            self.assertEqual(normalize_url(unc_path), url_host_in_path)
+
+    def test_normalize_url_with_base_unc_path(self,):
+        base_unc_path = '\\\\filer01\\MY_HOME\\'
+        base_url = PureWindowsPath(base_unc_path).as_uri()
+        self.assertEqual(str(PureWindowsPath(base_unc_path)), base_unc_path)
+        self.assertEqual(base_url, 'file://filer01/MY_HOME/')
+
+        # Same UNC path as URI with the host inserted in path path.
+        base_url_host_in_path = base_url.replace('file://', 'file:////')
+        self.assertEqual(base_url_host_in_path, 'file:////filer01/MY_HOME/')
+
+        self.assertEqual(normalize_url(base_unc_path), base_url_host_in_path)
+
+        with patch.object(os, 'name', 'nt'):
+            self.assertEqual(os.name, 'nt')
+            path = PurePath('dir/file')
+            self.assertIs(path.__class__, PureWindowsPath)
+
+            url = normalize_url(r'dev\XMLSCHEMA\test.xsd', base_url=base_unc_path)
+            self.assertEqual(url, 'file:////filer01/MY_HOME/dev/XMLSCHEMA/test.xsd')
+
+            url = normalize_url(r'dev\XMLSCHEMA\test.xsd', base_url=base_url)
+            self.assertEqual(url, 'file:////filer01/MY_HOME/dev/XMLSCHEMA/test.xsd')
+
+            url = normalize_url(r'dev\XMLSCHEMA\test.xsd', base_url=base_url_host_in_path)
+            self.assertEqual(url, 'file:////filer01/MY_HOME/dev/XMLSCHEMA/test.xsd')
+
+        with patch.object(os, 'name', 'posix'):
+            self.assertEqual(os.name, 'posix')
+            path = PurePath('dir/file')
+            self.assertIs(path.__class__, PurePosixPath)
+
+            url = normalize_url(r'dev\XMLSCHEMA\test.xsd', base_url=base_unc_path)
+            self.assertEqual(url, 'file:////filer01/MY_HOME/dev/XMLSCHEMA/test.xsd')
+
+            url = normalize_url(r'dev/XMLSCHEMA/test.xsd', base_url=base_url)
+            self.assertEqual(url, 'file:////filer01/MY_HOME/dev/XMLSCHEMA/test.xsd')
+
+            url = normalize_url(r'dev/XMLSCHEMA/test.xsd', base_url=base_url_host_in_path)
+            self.assertEqual(url, 'file:////filer01/MY_HOME/dev/XMLSCHEMA/test.xsd')
 
     def test_normalize_url_slashes(self):
         # Issue #116

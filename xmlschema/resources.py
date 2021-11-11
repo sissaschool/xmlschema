@@ -146,7 +146,14 @@ class _PurePath(pathlib.PurePath):
             while uri.startswith('file:/'):
                 uri = uri.replace('file:/', 'file:', 1)
             return uri
-        return cast(str, self._flavour.make_uri(self))
+
+        uri = cast(str, self._flavour.make_uri(self))
+        if isinstance(self, _WindowsPurePath) and str(self).startswith(r'\\'):
+            # UNC format case: use the format where the host part is included
+            # in the path part, to let urlopen() works.
+            if not uri.startswith('file:////'):
+                return uri.replace('file://', 'file:////')
+        return uri
 
     def normalize(self) -> '_PurePath':
         normalized_path = self._flavour.pathmod.normpath(str(self))
