@@ -277,7 +277,14 @@ class TestResources(unittest.TestCase):
     def test_normalize_url_slashes(self):
         # Issue #116
         url = '//anaconda/envs/testenv/lib/python3.6/site-packages/xmlschema/validators/schemas/'
-        self.assertEqual(normalize_url(url), pathlib.PurePath(url).as_uri())
+        if os.name == 'posix':
+            self.assertEqual(normalize_url(url), pathlib.PurePath(url).as_uri())
+        else:
+            # On Windows // is interpreted as a network share UNC path
+            self.assertEqual(os.name, 'nt')
+            self.assertEqual(normalize_url(url),
+                             pathlib.PurePath(url).as_uri().replace('file://', 'file:////'))
+
         self.assertRegex(normalize_url('/root/dir1/schema.xsd'),
                          f'file://{DRIVE_REGEX}/root/dir1/schema.xsd')
 
@@ -286,21 +293,12 @@ class TestResources(unittest.TestCase):
         self.assertRegex(normalize_url('dir2/schema.xsd', '////root/dir1'),
                          f'file://{DRIVE_REGEX}/root/dir1/dir2/schema.xsd')
 
-        if platform.system() == 'Windows':
-            # On Windows // is interpreted as a network share UNC path
-            self.assertEqual(normalize_url('//root/dir1/schema.xsd'),
-                             'file://root/dir1/schema.xsd')
-            self.assertEqual(normalize_url('dir2/schema.xsd', '//root/dir1/'),
-                             f'file://root/dir1/dir2/schema.xsd')
-            self.assertEqual(normalize_url('dir2/schema.xsd', '//root/dir1'),
-                             f'file://root/dir1/dir2/schema.xsd')
-        else:
-            self.assertEqual(normalize_url('//root/dir1/schema.xsd'),
-                             'file:////root/dir1/schema.xsd')
-            self.assertEqual(normalize_url('dir2/schema.xsd', '//root/dir1/'),
-                             f'file:////root/dir1/dir2/schema.xsd')
-            self.assertEqual(normalize_url('dir2/schema.xsd', '//root/dir1'),
-                             f'file:////root/dir1/dir2/schema.xsd')
+        self.assertEqual(normalize_url('//root/dir1/schema.xsd'),
+                         'file:////root/dir1/schema.xsd')
+        self.assertEqual(normalize_url('dir2/schema.xsd', '//root/dir1/'),
+                         f'file:////root/dir1/dir2/schema.xsd')
+        self.assertEqual(normalize_url('dir2/schema.xsd', '//root/dir1'),
+                         f'file:////root/dir1/dir2/schema.xsd')
 
     def test_normalize_url_hash_character(self):
         url = normalize_url('issue #000.xml', 'file:///dir1/dir2/')
