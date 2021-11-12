@@ -417,9 +417,9 @@ class XMLResource:
     # Protected attributes for data and resource location
     _source: XMLSourceType
     _root: ElementType
+    _nsmap: Dict[ElementType, List[Tuple[str, str]]]
     _text: Optional[str] = None
     _url: Optional[str] = None
-    _nsmap: Optional[Dict[ElementType, List[Tuple[str, str]]]] = None
     _parent_map: Optional[ParentMapType] = None
     _lazy: Union[bool, int] = False
 
@@ -612,7 +612,8 @@ class XMLResource:
                     nsmap_update = isinstance(nsmap, dict)
 
         except Exception as err:
-            self._root = _root
+            if _root is not None:
+                self._root = _root
             if isinstance(err, PyElementTree.ParseError):
                 raise ElementTree.ParseError(str(err)) from None
             raise
@@ -688,7 +689,9 @@ class XMLResource:
                         if not lazy:
                             self._parse(resource)
                         else:
-                            for _ in self._lazy_iterparse(resource):  # pragma: no cover
+                            nsmap = []
+                            for _, root in self._lazy_iterparse(resource, nsmap):  # pragma: no cover
+                                self._nsmap = {root: nsmap}
                                 break
                 except Exception:
                     self._url = _url
@@ -709,7 +712,9 @@ class XMLResource:
                     if not lazy:
                         self._parse(resource)
                     else:
-                        for _ in self._lazy_iterparse(resource):  # pragma: no cover
+                        nsmap = []
+                        for _, root in self._lazy_iterparse(resource, nsmap):  # pragma: no cover
+                            self._nsmap = {root: nsmap}
                             break
                 except Exception:
                     self._url = _url
@@ -727,7 +732,9 @@ class XMLResource:
                 if not lazy:
                     self._parse(source)
                 else:
-                    for _ in self._lazy_iterparse(source):  # pragma: no cover
+                    nsmap = []
+                    for _, root in self._lazy_iterparse(source, nsmap):  # pragma: no cover
+                        self._nsmap = {root: nsmap}
                         break
             except Exception:
                 self._url = _url
@@ -751,7 +758,9 @@ class XMLResource:
                 if not lazy:
                     self._parse(cast(IO[str], source))
                 else:
-                    for _ in self._lazy_iterparse(cast(IO[str], source)):  # pragma: no cover
+                    nsmap = []
+                    for _, root in self._lazy_iterparse(cast(IO[str], source), nsmap):  # pragma: no cover
+                        self._nsmap = {root: nsmap}
                         break
             except Exception:
                 self._url = _url
@@ -777,13 +786,10 @@ class XMLResource:
 
             self._text = self._url = None
             self._lazy = False
+            self._nsmap = {}
 
             # TODO for Python 3.8+: need a Protocol for checking this with isinstance()
-            if not hasattr(self._root, 'nsmap'):
-                self._nsmap = None
-            else:
-                self._nsmap = {}
-
+            if hasattr(self._root, 'nsmap'):
                 nsmap: Any = []
                 lxml_nsmap = None
                 for elem in cast(Any, self._root.iter()):
@@ -809,6 +815,17 @@ class XMLResource:
             self._parent_map = {child: elem for elem in self._root.iter() for child in elem}
             self._parent_map[self._root] = None
         return self._parent_map
+
+    def get_nsmap(self, elem: ElementType) -> List[Tuple[str, str]]:
+        """
+        Returns a list of couples with the namespace (nsmap) map of the element.
+        Lazy resources have only a nsmap for the root element. If no nsmap is
+        found for the element returns an empty list.
+        """
+        try:
+            return self._nsmap[elem]
+        except KeyError:
+            return []
 
     def get_absolute_path(self, path: Optional[str] = None) -> str:
         if path is None:
@@ -980,7 +997,8 @@ class XMLResource:
         return self._text is not None
 
     def iter(self, tag: Optional[str] = None,
-             nsmap: Optional[MutableMapping[str, str]] = None) -> Iterator[ElementType]:
+             nsmap: Union[None, List[Tuple[str, str]], MutableMapping[str, str]] = None) \
+            -> Iterator[ElementType]:
         """
         XML resource tree iterator. The iteration of a lazy resource
         is in reverse order (top level element is the last). If tag

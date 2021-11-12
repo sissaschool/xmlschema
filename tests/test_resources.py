@@ -1378,6 +1378,43 @@ class TestResources(unittest.TestCase):
             _ = resource.parent_map
         self.assertEqual("cannot create the parent map of a lazy resource", str(ctx.exception))
 
+    def test_get_nsmap(self):
+        source = '<a xmlns="uri1"><b1 xmlns:x="uri2"><c1/><c2/></b1><b2 xmlns="uri3"/></a>'
+        alien_elem = ElementTree.XML('<a/>')
+
+        root = ElementTree.XML(source)
+        resource = XMLResource(root)
+
+        self.assertListEqual(resource.get_nsmap(root), [])
+        self.assertListEqual(resource.get_nsmap(root[1]), [])
+        self.assertListEqual(resource.get_nsmap(alien_elem), [])
+
+        if lxml_etree is not None:
+            root = lxml_etree.XML(source)
+            resource = XMLResource(root)
+
+            self.assertListEqual(resource.get_nsmap(root), [('', 'uri1')])
+            self.assertListEqual(resource.get_nsmap(root[0]), [('x', 'uri2'), ('', 'uri1')])
+            self.assertListEqual(resource.get_nsmap(root[1]), [('', 'uri3')])
+            self.assertListEqual(resource.get_nsmap(alien_elem), [])
+
+        resource = XMLResource(source)
+        root = resource.root
+
+        self.assertListEqual(resource.get_nsmap(root), [('', 'uri1')])
+        self.assertListEqual(resource.get_nsmap(root[0]), [('', 'uri1'), ('x', 'uri2')])
+        self.assertListEqual(resource.get_nsmap(root[1]), [('', 'uri1'), ('', 'uri3')])
+        self.assertListEqual(resource.get_nsmap(alien_elem), [])
+
+        resource = XMLResource(StringIO(source), lazy=True)
+        root = resource.root
+        self.assertTrue(resource.is_lazy())
+
+        self.assertListEqual(resource.get_nsmap(root), [('', 'uri1')])
+        self.assertListEqual(resource.get_nsmap(root[0]), [])
+        self.assertListEqual(resource.get_nsmap(root[1]), [])
+        self.assertListEqual(resource.get_nsmap(alien_elem), [])
+
     def test_xml_subresource(self):
         resource = XMLResource(self.vh_xml_file, lazy=True)
         with self.assertRaises(XMLResourceError) as ctx:
