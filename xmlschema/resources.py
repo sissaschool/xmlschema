@@ -458,22 +458,31 @@ class XMLResource:
     _lazy: Union[bool, int] = False
 
     def __init__(self, source: XMLSourceType,
-                 base_url: Optional[str] = None,
+                 base_url: Union[None, str, Path, bytes] = None,
                  allow: str = 'all',
                  defuse: str = 'remote',
                  timeout: int = 300,
                  lazy: Union[bool, int] = False) -> None:
 
-        if base_url is not None and not isinstance(base_url, str):
-            msg = "invalid type {!r} for the attribute 'base_url'"
+        if isinstance(base_url, str):
+            if not is_url(base_url):
+                raise XMLSchemaValueError("'base_url' argument is not an URL")
+            self._base_url = base_url
+        elif isinstance(base_url, Path):
+            self._base_url = str(base_url)
+        elif isinstance(base_url, bytes):
+            if not is_url(base_url):
+                raise XMLSchemaValueError("'base_url' argument is not an URL")
+            self._base_url = base_url.decode()
+        elif base_url is not None:
+            msg = "invalid type {!r} for argument 'base_url'"
             raise XMLSchemaTypeError(msg.format(type(base_url)))
-        self._base_url = base_url
 
         if not isinstance(allow, str):
-            msg = "invalid type {!r} for the attribute 'allow'"
+            msg = "invalid type {!r} for argument 'allow'"
             raise XMLSchemaTypeError(msg.format(type(allow)))
         elif allow not in SECURITY_MODES:
-            msg = "'allow' attribute: {!r} is not a security mode"
+            msg = "'allow' argument: {!r} is not a security mode"
             raise XMLSchemaValueError(msg.format(allow))
         elif allow == 'sandbox' and self._base_url is None:
             msg = "block access to files out of sandbox requires 'base_url' to be set"
@@ -481,18 +490,18 @@ class XMLResource:
         self._allow = allow
 
         if not isinstance(defuse, str):
-            msg = "invalid type {!r} for the attribute 'defuse'"
+            msg = "invalid type {!r} for argument 'defuse'"
             raise XMLSchemaTypeError(msg.format(type(defuse)))
         elif defuse not in DEFUSE_MODES:
-            msg = "'defuse' attribute: {!r} is not a defuse mode"
+            msg = "'defuse' argument: {!r} is not a defuse mode"
             raise XMLSchemaValueError(msg.format(defuse))
         self._defuse = defuse
 
         if not isinstance(timeout, int):
-            msg = "invalid type {!r} for the attribute 'timeout'"
+            msg = "invalid type {!r} for argument 'timeout'"
             raise XMLSchemaTypeError(msg.format(type(timeout)))
         elif timeout <= 0:
-            msg = "the attribute 'timeout' must be a positive integer"
+            msg = "the argument 'timeout' must be a positive integer"
             raise XMLSchemaValueError(msg)
         self._timeout = timeout
 
@@ -727,7 +736,7 @@ class XMLResource:
         if isinstance(source, str):
             if is_url(source):
                 # source is a string containing an URL or a file path
-                url = normalize_url(source)
+                url = normalize_url(source, self._base_url)
                 self._access_control(url)
 
                 with urlopen(url, timeout=self._timeout) as resource:
@@ -744,7 +753,7 @@ class XMLResource:
 
         elif isinstance(source, bytes):
             if is_url(source):
-                url = normalize_url(source.decode())
+                url = normalize_url(source.decode(), self._base_url)
                 self._access_control(url)
 
                 with urlopen(url, timeout=self._timeout) as resource:
@@ -760,7 +769,7 @@ class XMLResource:
                 self._lazy = False
 
         elif isinstance(source, Path):
-            url = normalize_url(str(source))
+            url = normalize_url(str(source), self._base_url)
             self._access_control(url)
 
             with urlopen(url, timeout=self._timeout) as resource:

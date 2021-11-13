@@ -649,7 +649,7 @@ class TestResources(unittest.TestCase):
         self.assertRaises(TypeError, XMLResource, [b'<UNSUPPORTED_DATA_TYPE/>'])
 
         with self.assertRaises(TypeError) as ctx:
-            XMLResource('<root/>', base_url=b'/home')
+            XMLResource('<root/>', base_url=[b'/home'])
         self.assertIn(' ', str(ctx.exception))
 
     def test_xml_resource_namespace(self):
@@ -730,12 +730,12 @@ class TestResources(unittest.TestCase):
         with self.assertRaises(TypeError) as ctx:
             XMLResource("https://xmlschema.test/vehicles.xsd", allow=None)
         self.assertEqual(str(ctx.exception),
-                         "invalid type <class 'NoneType'> for the attribute 'allow'")
+                         "invalid type <class 'NoneType'> for argument 'allow'")
 
         with self.assertRaises(ValueError) as ctx:
             XMLResource("https://xmlschema.test/vehicles.xsd", allow='any')
         self.assertEqual(str(ctx.exception),
-                         "'allow' attribute: 'any' is not a security mode")
+                         "'allow' argument: 'any' is not a security mode")
 
     def test_xml_resource_defuse(self):
         resource = XMLResource(self.vh_xml_file, defuse='never', lazy=True)
@@ -816,6 +816,23 @@ class TestResources(unittest.TestCase):
         with open(self.vh_xml_file) as fp:
             resource = XMLResource(fp.read(), base_url='/foo')
             self.assertEqual(resource.base_url, '/foo')
+
+        base_url = Path(self.vh_xml_file).parent
+        resource = XMLResource('vehicles.xml', base_url)
+        self.assertEqual(resource.base_url, base_url.as_uri())
+
+        resource = XMLResource('vehicles.xml', str(base_url))
+        self.assertEqual(resource.base_url, base_url.as_uri())
+
+        resource = XMLResource('vehicles.xml', str(base_url).encode())
+        self.assertEqual(resource.base_url, base_url.as_uri())
+        self.assertEqual(resource.base_url, base_url.as_uri())
+
+        with self.assertRaises(TypeError):
+            XMLResource(self.vh_xml_file, base_url=False)
+
+        with self.assertRaises(ValueError):
+            XMLResource(self.vh_xml_file, base_url='<root/>')
 
     def test_xml_resource_is_local(self):
         resource = XMLResource(self.vh_xml_file)
