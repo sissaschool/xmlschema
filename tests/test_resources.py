@@ -102,8 +102,8 @@ class TestResources(unittest.TestCase):
 
     def test_path_from_uri(self):
         _PurePath = xmlschema.resources._PurePath
-        _PosixPurePath = xmlschema.resources._PosixPurePath
-        _WindowsPurePath = xmlschema.resources._WindowsPurePath
+        _PosixPurePath = xmlschema.resources._PurePosixPath
+        _WindowsPurePath = xmlschema.resources._PureWindowsPath
 
         with self.assertRaises(ValueError) as ec:
             _PurePath.from_uri('')
@@ -216,7 +216,7 @@ class TestResources(unittest.TestCase):
 
             self.assertEqual(xmlschema.resources.os.name, 'nt')
             path = xmlschema.resources._PurePath(unc_path)
-            self.assertIs(path.__class__, xmlschema.resources._WindowsPurePath)
+            self.assertIs(path.__class__, xmlschema.resources._PureWindowsPath)
             self.assertEqual(path.as_uri(), url_host_in_path)
             self.assertEqual(normalize_url(unc_path), url_host_in_path)
 
@@ -229,7 +229,7 @@ class TestResources(unittest.TestCase):
 
             self.assertEqual(xmlschema.resources.os.name, 'posix')
             path = xmlschema.resources._PurePath(unc_path)
-            self.assertIs(path.__class__, xmlschema.resources._PosixPurePath)
+            self.assertIs(path.__class__, xmlschema.resources._PurePosixPath)
             self.assertEqual(str(path), unc_path)
             self.assertNotEqual(path.as_uri(), url)
             self.assertEqual(normalize_url(unc_path), url_host_in_path)
@@ -445,6 +445,33 @@ class TestResources(unittest.TestCase):
         self.assertTrue(resource.text.startswith('<?xml'))
 
         resource = XMLResource(self.vh_xml_file, lazy=False)
+        resource._url = resource._url[:-12] + 'unknown.xml'
+        with self.assertRaises(XMLResourceError):
+            resource.load()
+
+    def test_xml_resource_from_path(self):
+        path = Path(self.vh_xml_file)
+
+        resource = XMLResource(path, lazy=True)
+        self.assertIs(resource.source, path)
+        self.assertEqual(resource.root.tag, '{http://example.com/vehicles}vehicles')
+        self.check_url(resource.url, path.as_uri())
+        self.assertTrue(resource.filepath.endswith('vehicles.xml'))
+        self.assertIsNone(resource.text)
+        with self.assertRaises(XMLResourceError) as ctx:
+            resource.load()
+        self.assertIn('cannot load a lazy resource', str(ctx.exception))
+        self.assertIsNone(resource.text)
+
+        resource = XMLResource(path, lazy=False)
+        self.assertEqual(resource.source, path)
+        self.assertEqual(resource.root.tag, '{http://example.com/vehicles}vehicles')
+        self.check_url(resource.url, path.as_uri())
+        self.assertIsNone(resource.text)
+        resource.load()
+        self.assertTrue(resource.text.startswith('<?xml'))
+
+        resource = XMLResource(path, lazy=False)
         resource._url = resource._url[:-12] + 'unknown.xml'
         with self.assertRaises(XMLResourceError):
             resource.load()
