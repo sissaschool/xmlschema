@@ -5,7 +5,7 @@ CHANGELOG
 `v1.8.2`_ (2021-11-11)
 ======================
 * Fix for issues #266 and #268
-# Fix type annotation of XMLSchema source argument (issue #230)
+* Fix type annotation of XMLSchema source argument (issue #230)
 
 `v1.8.1`_ (2021-10-20)
 ======================
