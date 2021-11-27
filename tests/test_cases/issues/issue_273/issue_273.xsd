@@ -1,0 +1,13 @@
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+    <xs:element name="someName">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:any processContents="lax" minOccurs="1" maxOccurs="unbounded" />
+            </xs:sequence>
+            <xs:attribute name="x" use="optional" type="xs:ID" />
+            <xs:attribute name="y" use="required" type="xs:integer" />
+            <xs:attribute name="z" use="optional" type="xs:NCName" />
+        </xs:complexType>
+    </xs:element>
+</xs:schema>
+
