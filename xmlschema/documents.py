@@ -211,6 +211,57 @@ def iter_errors(xml_document: Union[XMLSourceType, XMLResource],
     return schema.iter_errors(source, path, schema_path, use_defaults, namespaces)
 
 
+def iter_decode(xml_document: Union[XMLSourceType, XMLResource],
+                schema: Optional[XMLSchemaBase] = None,
+                cls: Optional[Type[XMLSchemaBase]] = None,
+                path: Optional[str] = None,
+                process_namespaces: bool = True,
+                locations: Optional[LocationsType] = None,
+                base_url: Optional[str] = None,
+                defuse: str = 'remote',
+                timeout: int = 300,
+                lazy: LazyType = False,
+                **kwargs: Any) -> Iterator[Union[Any, XMLSchemaValidationError]]:
+    """
+    Creates an iterator for decoding an XML source to a data structure.
+
+    :param xml_document: can be an :class:`XMLResource` instance, a file-like object a path \
+    to a file or an URI of a resource or an Element instance or an ElementTree instance or \
+    a string containing the XML data. If the passed argument is not an :class:`XMLResource` \
+    instance a new one is built using this and *defuse*, *timeout* and *lazy* arguments.
+    :param schema: can be a schema instance or a file-like object or a file path or a URL \
+    of a resource or a string containing the schema.
+    :param cls: class to use for building the schema instance (for default uses \
+    :class:`XMLSchema10`).
+    :param path: is an optional XPath expression that matches the elements of the XML \
+    data that have to be decoded. If not provided the XML root element is used.
+    :param process_namespaces: indicates whether to use namespace information in \
+    the decoding process.
+    :param locations: additional schema location hints, in case a schema instance \
+    has to be built.
+    :param base_url: is an optional custom base URL for remapping relative locations, for \
+    default uses the directory where the XSD or alternatively the XML document is located.
+    :param defuse: optional argument to pass for construct schema and \
+    :class:`XMLResource` instances.
+    :param timeout: optional argument to pass for construct schema and \
+    :class:`XMLResource` instances.
+    :param lazy: optional argument for construct the :class:`XMLResource` instance.
+    :param kwargs: other optional arguments of :meth:`XMLSchema.iter_decode` \
+    as keyword arguments.
+    :return: an object containing the decoded data. If ``validation='lax'`` keyword argument \
+    is provided the validation errors are collected and returned coupled in a tuple with the \
+    decoded data.
+    :raises: :exc:`XMLSchemaValidationError` if the object is not decodable by \
+    the XSD component, or also if it's invalid when ``validation='strict'`` is provided.
+    """
+    source, _schema = get_context(
+        xml_document, schema, cls, locations, base_url, defuse, timeout, lazy
+    )
+    yield from _schema.iter_decode(
+        source, path=path, process_namespaces=process_namespaces, **kwargs
+    )
+
+
 def to_dict(xml_document: Union[XMLSourceType, XMLResource],
             schema: Optional[XMLSchemaBase] = None,
             cls: Optional[Type[XMLSchemaBase]] = None,
@@ -226,6 +277,7 @@ def to_dict(xml_document: Union[XMLSourceType, XMLResource],
     on an XML Schema class instance. For default the document is validated during
     the decoding phase. Raises an :exc:`XMLSchemaValidationError` if the XML document
     is not validated against the schema.
+    Takes the same arguments of the function :meth:`iter_decode`.
 
     :param xml_document: can be an :class:`XMLResource` instance, a file-like object a path \
     to a file or an URI of a resource or an Element instance or an ElementTree instance or \

@@ -11,8 +11,10 @@
 import unittest
 import os
 import decimal
+import pathlib
 import subprocess
 import sys
+import tempfile
 
 try:
     import memory_profiler
@@ -73,21 +75,31 @@ class TestMemoryUsage(unittest.TestCase):
         self.assertLess(lazy_iterparse_mem, iterparse_mem)
 
     def test_decode_memory_usage(self):
-        test_dir = os.path.dirname(__file__) or '.'
-        xsd10_schema_file = os.path.join(
-            os.path.dirname(os.path.abspath(test_dir)),
-            'xmlschema/schemas/XSD_1.0/XMLSchema.xsd'
-        )
+        with tempfile.TemporaryDirectory() as dirname:
+            python_script = pathlib.Path(__file__).parent.joinpath('check_memory.py')
+            xsd_file = pathlib.Path(__file__).parent.absolute().joinpath(
+                'test_cases/features/decoder/long-sequence-1.xsd'
+            )
+            xml_file = pathlib.Path(dirname).joinpath('data.xml')
 
-        cmd = [sys.executable, os.path.join(test_dir, 'check_memory.py'), '5', xsd10_schema_file]
-        output = subprocess.check_output(cmd, universal_newlines=True)
-        decode_mem = self.check_memory_profile(output)
+            with xml_file.open('w') as fp:
+                fp.write('<data ')
+                fp.write('xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" ')
+                fp.write(f'xsi:noNamespaceSchemaLocation="{xsd_file.as_uri()}">\n')
+                for k in range(1000):
+                    fp.write('<chunk><a><b1/><b2/><b3/></a></chunk>\n')
+                fp.write('</data>\n')
 
-        cmd = [sys.executable, os.path.join(test_dir, 'check_memory.py'), '6', xsd10_schema_file]
-        output = subprocess.check_output(cmd, universal_newlines=True)
-        lazy_decode_mem = self.check_memory_profile(output)
+            cmd = [sys.executable, python_script, '5', str(xml_file)]
+            output = subprocess.check_output(cmd, universal_newlines=True)
+            decode_mem = self.check_memory_profile(output)
 
-        self.assertLess(decode_mem, 2.6)
+            cmd = [sys.executable, python_script, '6', str(xml_file)]
+            output = subprocess.check_output(cmd, universal_newlines=True)
+            lazy_decode_mem = self.check_memory_profile(output)
+
+        self.assertLessEqual(decode_mem, 2.6)
+        self.assertLessEqual(lazy_decode_mem, 1.6)
         self.assertLess(lazy_decode_mem, decode_mem)
 
     def test_validate_memory_usage(self):
@@ -106,6 +118,7 @@ class TestMemoryUsage(unittest.TestCase):
         lazy_validate_mem = self.check_memory_profile(output)
 
         self.assertLess(validate_mem, 2.6)
+        print("VAL:", lazy_validate_mem, validate_mem)
         self.assertLess(lazy_validate_mem, validate_mem)
 
 
