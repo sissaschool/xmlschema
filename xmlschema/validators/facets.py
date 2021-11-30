@@ -242,9 +242,9 @@ class XsdMaxLengthFacet(XsdFacet):
         primitive_type = getattr(self.base_type, 'primitive_type', None)
         if primitive_type is None or primitive_type.name not in {XSD_QNAME, XSD_NOTATION_TYPE}:
             # See: https://www.w3.org/Bugs/Public/show_bug.cgi?id=4009
-            self._validator = self._min_length_validator  # type: ignore[assignment]
+            self._validator = self._max_length_validator  # type: ignore[assignment]
 
-    def _min_length_validator(self, value: Any) -> None:
+    def _max_length_validator(self, value: Any) -> None:
         if len(value) > self.value:
             reason = "value length cannot be greater than {!r}".format(self.value)
             raise XMLSchemaValidationError(self, value, reason)
