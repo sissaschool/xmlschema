@@ -9,11 +9,11 @@
 #
 import copy
 import os.path
-import pathlib
 import platform
 import re
 import string
 from io import StringIO, BytesIO
+from pathlib import Path, PurePath, PurePosixPath, PureWindowsPath
 from typing import cast, Any, AnyStr, Dict, Optional, IO, Iterator, List, \
     MutableMapping, Union, Tuple
 from urllib.request import urlopen
@@ -84,7 +84,7 @@ class LazySelector:
 
 ###
 # URL normalization (that fixes many headaches :)
-class _PurePath(pathlib.PurePath):
+class _PurePath(PurePath):
     """
     A version of pathlib.PurePath adapted for managing the creation
     from URIs and the simple normalization of paths.
@@ -94,7 +94,7 @@ class _PurePath(pathlib.PurePath):
 
     def __new__(cls, *args: str) -> '_PurePath':
         if cls is _PurePath:
-            cls = _WindowsPurePath if os.name == 'nt' else _PosixPurePath
+            cls = _PureWindowsPath if os.name == 'nt' else _PurePosixPath
         return cast('_PurePath', cls._from_parts(args))
 
     @classmethod
@@ -104,7 +104,7 @@ class _PurePath(pathlib.PurePath):
             raise XMLSchemaValueError("Empty URI provided!")
 
         if uri.startswith(r'\\'):
-            return _WindowsPurePath(uri)  # UNC path
+            return _PureWindowsPath(uri)  # UNC path
         elif uri.startswith('/'):
             return cls(uri)
 
@@ -112,9 +112,9 @@ class _PurePath(pathlib.PurePath):
         if not parts.scheme:
             return cls(uri)
         elif parts.scheme in DRIVE_LETTERS and len(parts.scheme) == 1:
-            return _WindowsPurePath(uri)  # Eg. k:/Python/lib/....
+            return _PureWindowsPath(uri)  # Eg. k:/Python/lib/....
         elif parts.scheme != 'file':
-            return _PosixPurePath(unquote(parts.path))
+            return _PurePosixPath(unquote(parts.path))
 
         # Get file URI path because urlsplit does not parse it well
         start = 7 if uri.startswith('file:///') else 5
@@ -129,15 +129,15 @@ class _PurePath(pathlib.PurePath):
             # Windows path with a drive
             pos = path.index(':')
             if pos == 2 and path[0] == '/' and path[1] in DRIVE_LETTERS:
-                return _WindowsPurePath(unquote(path[1:]))
+                return _PureWindowsPath(unquote(path[1:]))
 
-            obj = _WindowsPurePath(unquote(path))
+            obj = _PureWindowsPath(unquote(path))
             if len(obj.drive) != 2 or obj.drive[1] != ':':
                 raise XMLSchemaValueError("Invalid URI {!r}".format(uri))
             return obj
 
         if '\\' in path:
-            return _WindowsPurePath(unquote(path))
+            return _PureWindowsPath(unquote(path))
         return cls(unquote(path))
 
     def as_uri(self) -> str:
@@ -148,7 +148,7 @@ class _PurePath(pathlib.PurePath):
             return uri
 
         uri = cast(str, self._flavour.make_uri(self))
-        if isinstance(self, _WindowsPurePath) and str(self).startswith(r'\\'):
+        if isinstance(self, _PureWindowsPath) and str(self).startswith(r'\\'):
             # UNC format case: use the format where the host part is included
             # in the path part, to let urlopen() works.
             if not uri.startswith('file:////'):
@@ -160,11 +160,11 @@ class _PurePath(pathlib.PurePath):
         return cast('_PurePath', self._from_parts((normalized_path,)))
 
 
-class _PosixPurePath(_PurePath, pathlib.PurePosixPath):
+class _PurePosixPath(_PurePath, PurePosixPath):
     __slots__ = ()
 
 
-class _WindowsPurePath(_PurePath, pathlib.PureWindowsPath):
+class _PureWindowsPath(_PurePath, PureWindowsPath):
     __slots__ = ()
 
 
@@ -214,37 +214,70 @@ def normalize_url(url: str, base_url: Optional[str] = None,
 ###
 # Internal helper functions
 
-def is_url(obj: Any) -> bool:
-    """
-    Checks if and object can be an URL, restricting to strings that cannot be XML data.
-    """
-    if isinstance(obj, str):
-        if '\n' in obj or obj.lstrip().startswith('<'):
-            return False
-    elif isinstance(obj, bytes):
-        if b'\n' in obj or obj.lstrip().startswith(b'<'):
-            return False
-    else:
-        return False
-
-    try:
-        urlsplit(obj.strip())
-    except ValueError:
-        return False
-    else:
-        return True
-
-
 def is_local_scheme(scheme: str) -> bool:
     return not scheme or scheme == 'file' or scheme in DRIVE_LETTERS
 
 
-def is_remote_url(url: Any) -> bool:
-    return is_url(url) and not is_local_scheme(urlsplit(url.strip()).scheme)
+def is_url(obj: object) -> bool:
+    """Returns `True` if the provided object is an URL, `False` otherwise."""
+    if isinstance(obj, str):
+        if '\n' in obj or obj.lstrip().startswith('<'):
+            return False
+        try:
+            urlsplit(obj.strip())
+        except ValueError:
+            return False
+    elif isinstance(obj, bytes):
+        if b'\n' in obj or obj.lstrip().startswith(b'<'):
+            return False
+        try:
+            urlsplit(obj.strip())
+        except ValueError:
+            return False
+    else:
+        return isinstance(obj, Path)
+
+    return True
 
 
-def is_local_url(url: Any) -> bool:
-    return is_url(url) and is_local_scheme(urlsplit(url.strip()).scheme)
+def is_remote_url(obj: object) -> bool:
+    if isinstance(obj, str):
+        if '\n' in obj or obj.lstrip().startswith('<'):
+            return False
+        try:
+            return not is_local_scheme(urlsplit(obj.strip()).scheme)
+        except ValueError:
+            return False
+
+    elif isinstance(obj, bytes):
+        if b'\n' in obj or obj.lstrip().startswith(b'<'):
+            return False
+        try:
+            return not is_local_scheme(urlsplit(obj.strip().decode('utf-8')).scheme)
+        except ValueError:
+            return False
+    else:
+        return False
+
+
+def is_local_url(obj: object) -> bool:
+    if isinstance(obj, str):
+        if '\n' in obj or obj.lstrip().startswith('<'):
+            return False
+        try:
+            return is_local_scheme(urlsplit(obj.strip()).scheme)
+        except ValueError:
+            return False
+
+    elif isinstance(obj, bytes):
+        if b'\n' in obj or obj.lstrip().startswith(b'<'):
+            return False
+        try:
+            return is_local_scheme(urlsplit(obj.strip().decode('utf-8')).scheme)
+        except ValueError:
+            return False
+    else:
+        return isinstance(obj, Path)
 
 
 def url_path_is_file(url: str) -> bool:
@@ -417,29 +450,39 @@ class XMLResource:
     # Protected attributes for data and resource location
     _source: XMLSourceType
     _root: ElementType
+    _nsmap: Dict[ElementType, List[Tuple[str, str]]]
     _text: Optional[str] = None
     _url: Optional[str] = None
-    _nsmap: Optional[Dict[ElementType, List[Tuple[str, str]]]] = None
+    _base_url: Optional[str] = None
     _parent_map: Optional[ParentMapType] = None
     _lazy: Union[bool, int] = False
 
     def __init__(self, source: XMLSourceType,
-                 base_url: Optional[str] = None,
+                 base_url: Union[None, str, Path, bytes] = None,
                  allow: str = 'all',
                  defuse: str = 'remote',
                  timeout: int = 300,
                  lazy: Union[bool, int] = False) -> None:
 
-        if base_url is not None and not isinstance(base_url, str):
-            msg = "invalid type {!r} for the attribute 'base_url'"
+        if isinstance(base_url, str):
+            if not is_url(base_url):
+                raise XMLSchemaValueError("'base_url' argument is not an URL")
+            self._base_url = base_url
+        elif isinstance(base_url, Path):
+            self._base_url = str(base_url)
+        elif isinstance(base_url, bytes):
+            if not is_url(base_url):
+                raise XMLSchemaValueError("'base_url' argument is not an URL")
+            self._base_url = base_url.decode()
+        elif base_url is not None:
+            msg = "invalid type {!r} for argument 'base_url'"
             raise XMLSchemaTypeError(msg.format(type(base_url)))
-        self._base_url = base_url
 
         if not isinstance(allow, str):
-            msg = "invalid type {!r} for the attribute 'allow'"
+            msg = "invalid type {!r} for argument 'allow'"
             raise XMLSchemaTypeError(msg.format(type(allow)))
         elif allow not in SECURITY_MODES:
-            msg = "'allow' attribute: {!r} is not a security mode"
+            msg = "'allow' argument: {!r} is not a security mode"
             raise XMLSchemaValueError(msg.format(allow))
         elif allow == 'sandbox' and self._base_url is None:
             msg = "block access to files out of sandbox requires 'base_url' to be set"
@@ -447,18 +490,18 @@ class XMLResource:
         self._allow = allow
 
         if not isinstance(defuse, str):
-            msg = "invalid type {!r} for the attribute 'defuse'"
+            msg = "invalid type {!r} for argument 'defuse'"
             raise XMLSchemaTypeError(msg.format(type(defuse)))
         elif defuse not in DEFUSE_MODES:
-            msg = "'defuse' attribute: {!r} is not a defuse mode"
+            msg = "'defuse' argument: {!r} is not a defuse mode"
             raise XMLSchemaValueError(msg.format(defuse))
         self._defuse = defuse
 
         if not isinstance(timeout, int):
-            msg = "invalid type {!r} for the attribute 'timeout'"
+            msg = "invalid type {!r} for argument 'timeout'"
             raise XMLSchemaTypeError(msg.format(type(timeout)))
         elif timeout <= 0:
-            msg = "the attribute 'timeout' must be a positive integer"
+            msg = "the argument 'timeout' must be a positive integer"
             raise XMLSchemaValueError(msg)
         self._timeout = timeout
 
@@ -612,7 +655,8 @@ class XMLResource:
                     nsmap_update = isinstance(nsmap, dict)
 
         except Exception as err:
-            self._root = _root
+            if _root is not None:
+                self._root = _root
             if isinstance(err, PyElementTree.ParseError):
                 raise ElementTree.ParseError(str(err)) from None
             raise
@@ -662,6 +706,22 @@ class XMLResource:
         self._root = elem
         self._nsmap = namespaces
 
+    def _parse_resource(self, resource: IO[AnyStr],
+                        url: Optional[str],
+                        lazy: Union[bool, int]) -> None:
+        _url, self._url = self._url, url
+        try:
+            if not lazy:
+                self._parse(resource)
+            else:
+                nsmap: List[Tuple[str, str]] = []
+                for _, root in self._lazy_iterparse(resource, nsmap):  # pragma: no cover
+                    self._nsmap = {root: nsmap}
+                    break
+        except Exception:
+            self._url = _url
+            raise
+
     def parse(self, source: XMLSourceType, lazy: Union[bool, int] = False) -> None:
         if isinstance(lazy, bool):
             pass
@@ -673,68 +733,55 @@ class XMLResource:
             raise XMLSchemaValueError(msg.format(lazy))
 
         url: Optional[str]
-        if isinstance(source, (str, bytes)):
+        if isinstance(source, str):
             if is_url(source):
                 # source is a string containing an URL or a file path
-                if isinstance(source, str):
-                    url = normalize_url(source)
-                else:
-                    url = normalize_url(source.decode())
+                url = normalize_url(source, self._base_url)
                 self._access_control(url)
 
-                _url, self._url = self._url, url
-                try:
-                    with urlopen(url, timeout=self._timeout) as resource:
-                        if not lazy:
-                            self._parse(resource)
-                        else:
-                            for _ in self._lazy_iterparse(resource):  # pragma: no cover
-                                break
-                except Exception:
-                    self._url = _url
-                    raise
-                else:
-                    self._text = None
-                    self._lazy = lazy
+                with urlopen(url, timeout=self._timeout) as resource:
+                    self._parse_resource(resource, url, lazy)
 
+                self._text = None
+                self._lazy = lazy
             else:
                 # source is a string containing an XML document
-                _url, self._url = self._url, None
-                if isinstance(source, str):
-                    resource = StringIO(source)
-                else:
-                    resource = BytesIO(source)
+                resource = StringIO(source)
+                self._parse_resource(resource, None, lazy)
+                self._text = source
+                self._lazy = False
 
-                try:
-                    if not lazy:
-                        self._parse(resource)
-                    else:
-                        for _ in self._lazy_iterparse(resource):  # pragma: no cover
-                            break
-                except Exception:
-                    self._url = _url
-                    raise
-                else:
-                    if isinstance(source, str):
-                        self._text = source
-                    else:
-                        self._text = source.decode()
-                    self._lazy = False
+        elif isinstance(source, bytes):
+            if is_url(source):
+                url = normalize_url(source.decode(), self._base_url)
+                self._access_control(url)
+
+                with urlopen(url, timeout=self._timeout) as resource:
+                    self._parse_resource(resource, url, lazy)
+
+                self._text = None
+                self._lazy = lazy
+
+            else:
+                resource = BytesIO(source)
+                self._parse_resource(resource, None, lazy)
+                self._text = source.decode()
+                self._lazy = False
+
+        elif isinstance(source, Path):
+            url = normalize_url(str(source), self._base_url)
+            self._access_control(url)
+
+            with urlopen(url, timeout=self._timeout) as resource:
+                self._parse_resource(resource, url, lazy)
+
+            self._text = None
+            self._lazy = lazy
 
         elif isinstance(source, StringIO):
-            _url, self._url = self._url, None
-            try:
-                if not lazy:
-                    self._parse(source)
-                else:
-                    for _ in self._lazy_iterparse(source):  # pragma: no cover
-                        break
-            except Exception:
-                self._url = _url
-                raise
-            else:
-                self._text = source.getvalue()
-                self._lazy = lazy
+            self._parse_resource(source, None, lazy)
+            self._text = source.getvalue()
+            self._lazy = lazy
 
         elif hasattr(source, 'read'):
             # source is a readable resource (remote or local file)
@@ -746,19 +793,9 @@ class XMLResource:
                 else:
                     url = None
 
-            _url, self._url = self._url, url
-            try:
-                if not lazy:
-                    self._parse(cast(IO[str], source))
-                else:
-                    for _ in self._lazy_iterparse(cast(IO[str], source)):  # pragma: no cover
-                        break
-            except Exception:
-                self._url = _url
-                raise
-            else:
-                self._text = None
-                self._lazy = lazy
+            self._parse_resource(cast(IO[str], source), url, lazy)
+            self._text = None
+            self._lazy = lazy
 
         else:
             # Source is already an Element or an ElementTree.
@@ -777,14 +814,11 @@ class XMLResource:
 
             self._text = self._url = None
             self._lazy = False
+            self._nsmap = {}
 
             # TODO for Python 3.8+: need a Protocol for checking this with isinstance()
-            if not hasattr(self._root, 'nsmap'):
-                self._nsmap = None
-            else:
-                self._nsmap = {}
-
-                nsmap: Any = []
+            if hasattr(self._root, 'nsmap'):
+                nsmap = []
                 lxml_nsmap = None
                 for elem in cast(Any, self._root.iter()):
                     if lxml_nsmap != elem.nsmap:
@@ -809,6 +843,17 @@ class XMLResource:
             self._parent_map = {child: elem for elem in self._root.iter() for child in elem}
             self._parent_map[self._root] = None
         return self._parent_map
+
+    def get_nsmap(self, elem: ElementType) -> List[Tuple[str, str]]:
+        """
+        Returns a list of couples with the namespace (nsmap) map of the element.
+        Lazy resources have only a nsmap for the root element. If no nsmap is
+        found for the element returns an empty list.
+        """
+        try:
+            return self._nsmap[elem]
+        except KeyError:
+            return []
 
     def get_absolute_path(self, path: Optional[str] = None) -> str:
         if path is None:
@@ -980,7 +1025,8 @@ class XMLResource:
         return self._text is not None
 
     def iter(self, tag: Optional[str] = None,
-             nsmap: Optional[MutableMapping[str, str]] = None) -> Iterator[ElementType]:
+             nsmap: Union[None, List[Tuple[str, str]], MutableMapping[str, str]] = None) \
+            -> Iterator[ElementType]:
         """
         XML resource tree iterator. The iteration of a lazy resource
         is in reverse order (top level element is the last). If tag
@@ -1229,9 +1275,6 @@ class XMLResource:
         only the namespaces declared in the root element.
         :return: a dictionary for mapping namespace prefixes to full URI.
         """
-        if root_only is None:
-            root_only = bool(self._lazy)
-
         if namespaces is None:
             namespaces = {}
         elif namespaces.get('xml', XML_NAMESPACE) != XML_NAMESPACE:
@@ -1241,9 +1284,12 @@ class XMLResource:
             namespaces = copy.copy(namespaces)
 
         try:
-            for _ in self.iter(nsmap=namespaces):
-                if root_only:
+            if root_only or root_only is None and self._lazy:
+                for _ in self.iter(nsmap=namespaces):
                     break
+            else:
+                for _ in self.iter(nsmap=namespaces):
+                    pass
         except (ElementTree.ParseError, PyElementTree.ParseError, UnicodeEncodeError):
             pass
 

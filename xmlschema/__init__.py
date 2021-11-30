@@ -18,8 +18,8 @@ from .converters import XMLSchemaConverter, \
     UnorderedConverter, ParkerConverter, BadgerFishConverter, \
     AbderaConverter, JsonMLConverter, ColumnarConverter
 from .dataobjects import DataElement, DataElementConverter, DataBindingConverter
-from .documents import validate, is_valid, iter_errors, to_dict, to_json, \
-    from_json, XmlDocument
+from .documents import validate, is_valid, iter_errors, iter_decode, \
+    to_dict, to_json, from_json, XmlDocument
 
 from .validators import (
     XMLSchemaValidatorError, XMLSchemaParseError, XMLSchemaNotBuiltError,
@@ -30,7 +30,7 @@ from .validators import (
     XsdComponent, XsdType, XsdElement, XsdAttribute
 )
 
-__version__ = '1.8.2'
+__version__ = '1.9.0'
 __author__ = "Davide Brunato"
 __contact__ = "brunato@sissa.it"
 __copyright__ = "Copyright 2016-2021, SISSA"
@@ -45,11 +45,12 @@ __all__ = [
     'ElementPathMixin', 'ElementData', 'XMLSchemaConverter', 'UnorderedConverter',
     'ParkerConverter', 'BadgerFishConverter', 'AbderaConverter', 'JsonMLConverter',
     'ColumnarConverter', 'DataElement', 'DataElementConverter', 'DataBindingConverter',
-    'validate', 'is_valid', 'iter_errors', 'to_dict', 'to_json', 'from_json', 'XmlDocument',
-    'XMLSchemaValidatorError', 'XMLSchemaParseError', 'XMLSchemaNotBuiltError',
-    'XMLSchemaModelError', 'XMLSchemaModelDepthError', 'XMLSchemaValidationError',
-    'XMLSchemaDecodeError', 'XMLSchemaEncodeError', 'XMLSchemaChildrenValidationError',
-    'XMLSchemaIncludeWarning', 'XMLSchemaImportWarning', 'XMLSchemaTypeTableWarning',
+    'validate', 'is_valid', 'iter_errors', 'iter_decode', 'to_dict', 'to_json',
+    'from_json', 'XmlDocument', 'XMLSchemaValidatorError', 'XMLSchemaParseError',
+    'XMLSchemaNotBuiltError', 'XMLSchemaModelError', 'XMLSchemaModelDepthError',
+    'XMLSchemaValidationError', 'XMLSchemaDecodeError', 'XMLSchemaEncodeError',
+    'XMLSchemaChildrenValidationError', 'XMLSchemaIncludeWarning',
+    'XMLSchemaImportWarning', 'XMLSchemaTypeTableWarning',
     'XsdGlobals', 'XMLSchemaBase', 'XMLSchema', 'XMLSchema10', 'XMLSchema11',
     'XsdComponent', 'XsdType', 'XsdElement', 'XsdAttribute',
 ]

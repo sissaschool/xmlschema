@@ -103,9 +103,13 @@ def decode(source, repeat=1):
 
 @profile
 def lazy_decode(source, repeat=1):
-    decoder = xmlschema.XMLSchema.meta_schema if source.endswith('.xsd') else xmlschema
+    if source.endswith('.xsd'):
+        decoder = xmlschema.XMLSchema.meta_schema.iter_decode
+    else:
+        decoder = xmlschema.iter_decode
+
     for _ in range(repeat):
-        for _result in decoder.to_dict(xmlschema.XMLResource(source, lazy=True), path='*'):
+        for _result in decoder(xmlschema.XMLResource(source, lazy=True), path='*'):
             del _result
 
 

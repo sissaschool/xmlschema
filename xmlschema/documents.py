@@ -211,21 +211,22 @@ def iter_errors(xml_document: Union[XMLSourceType, XMLResource],
     return schema.iter_errors(source, path, schema_path, use_defaults, namespaces)
 
 
-def to_dict(xml_document: Union[XMLSourceType, XMLResource],
-            schema: Optional[XMLSchemaBase] = None,
-            cls: Optional[Type[XMLSchemaBase]] = None,
-            path: Optional[str] = None,
-            process_namespaces: bool = True,
-            locations: Optional[LocationsType] = None,
-            base_url: Optional[str] = None,
-            defuse: str = 'remote',
-            timeout: int = 300,
-            lazy: LazyType = False, **kwargs: Any) -> DecodeType[Any]:
+def iter_decode(xml_document: Union[XMLSourceType, XMLResource],
+                schema: Optional[XMLSchemaBase] = None,
+                cls: Optional[Type[XMLSchemaBase]] = None,
+                path: Optional[str] = None,
+                validation: str = 'strict',
+                process_namespaces: bool = True,
+                locations: Optional[LocationsType] = None,
+                base_url: Optional[str] = None,
+                defuse: str = 'remote',
+                timeout: int = 300,
+                lazy: LazyType = False,
+                **kwargs: Any) -> Iterator[Union[Any, XMLSchemaValidationError]]:
     """
-    Decodes an XML document to a Python's nested dictionary. The decoding is based
-    on an XML Schema class instance. For default the document is validated during
-    the decoding phase. Raises an :exc:`XMLSchemaValidationError` if the XML document
-    is not validated against the schema.
+    Creates an iterator for decoding an XML source to a data structure. For default
+    the document is validated during the decoding phase and if it's invalid then one
+    or more :exc:`XMLSchemaValidationError` instances are yielded before the decoded data.
 
     :param xml_document: can be an :class:`XMLResource` instance, a file-like object a path \
     to a file or an URI of a resource or an Element instance or an ElementTree instance or \
@@ -237,6 +238,8 @@ def to_dict(xml_document: Union[XMLSourceType, XMLResource],
     :class:`XMLSchema10`).
     :param path: is an optional XPath expression that matches the elements of the XML \
     data that have to be decoded. If not provided the XML root element is used.
+    :param validation: defines the XSD validation mode to use for decode, can be \
+    'strict', 'lax' or 'skip'.
     :param process_namespaces: indicates whether to use namespace information in \
     the decoding process.
     :param locations: additional schema location hints, in case a schema instance \
@@ -250,16 +253,41 @@ def to_dict(xml_document: Union[XMLSourceType, XMLResource],
     :param lazy: optional argument for construct the :class:`XMLResource` instance.
     :param kwargs: other optional arguments of :meth:`XMLSchema.iter_decode` \
     as keyword arguments.
-    :return: an object containing the decoded data. If ``validation='lax'`` keyword argument \
-    is provided the validation errors are collected and returned coupled in a tuple with the \
-    decoded data.
-    :raises: :exc:`XMLSchemaValidationError` if the object is not decodable by \
-    the XSD component, or also if it's invalid when ``validation='strict'`` is provided.
+    :raises: :exc:`XMLSchemaValidationError` if the XML document is invalid and \
+    ``validation='strict'`` is provided.
     """
     source, _schema = get_context(
         xml_document, schema, cls, locations, base_url, defuse, timeout, lazy
     )
-    return _schema.decode(source, path=path, process_namespaces=process_namespaces, **kwargs)
+    yield from _schema.iter_decode(source, path=path, validation=validation,
+                                   process_namespaces=process_namespaces, **kwargs)
+
+
+def to_dict(xml_document: Union[XMLSourceType, XMLResource],
+            schema: Optional[XMLSchemaBase] = None,
+            cls: Optional[Type[XMLSchemaBase]] = None,
+            path: Optional[str] = None,
+            validation: str = 'strict',
+            process_namespaces: bool = True,
+            locations: Optional[LocationsType] = None,
+            base_url: Optional[str] = None,
+            defuse: str = 'remote',
+            timeout: int = 300,
+            lazy: LazyType = False, **kwargs: Any) -> DecodeType[Any]:
+    """
+    Decodes an XML document to a Python's nested dictionary. Takes the same arguments
+    of the function :meth:`iter_decode`, but *validation* mode defaults to 'strict'.
+
+    :return: an object containing the decoded data. If ``validation='lax'`` is provided \
+    validation errors are collected and returned in a tuple with the decoded data.
+    :raises: :exc:`XMLSchemaValidationError` if the XML document is invalid and \
+    ``validation='strict'`` is provided.
+    """
+    source, _schema = get_context(
+        xml_document, schema, cls, locations, base_url, defuse, timeout, lazy
+    )
+    return _schema.decode(source, path=path, validation=validation,
+                          process_namespaces=process_namespaces, **kwargs)
 
 
 def to_json(xml_document: Union[XMLSourceType, XMLResource],
@@ -613,7 +641,6 @@ class XmlDocument(XMLResource):
                 namespaces[''] = default_namespace
             kwargs['namespaces'] = namespaces
 
-        fp: Union[TextIO, BinaryIO]
         _string = etree_tostring(self._root, **kwargs)
 
         if isinstance(file, str):
@@ -621,8 +648,8 @@ class XmlDocument(XMLResource):
                 with open(file, 'w', encoding='utf-8') as fp:
                     fp.write(_string)
             else:
-                with open(file, 'wb') as fp:
-                    fp.write(_string)
+                with open(file, 'wb') as _fp:
+                    _fp.write(_string)
 
         elif isinstance(file, TextIOBase):
             if isinstance(_string, bytes):

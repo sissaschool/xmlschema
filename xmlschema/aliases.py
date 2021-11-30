@@ -25,6 +25,7 @@ __all__ = ['ElementType', 'ElementTreeType', 'XMLSourceType', 'NamespacesType',
            'EncodeType', 'IterEncodeType', 'DecodedValueType', 'EncodedValueType']
 
 if TYPE_CHECKING:
+    from pathlib import Path
     from decimal import Decimal
     from typing import Callable, Dict, List, IO, Iterator, MutableMapping, Tuple, Type, Union
 
@@ -43,7 +44,7 @@ if TYPE_CHECKING:
     # Type aliases for ElementTree
     ElementType = ElementTree.Element
     ElementTreeType = ElementTree.ElementTree
-    XMLSourceType = Union[str, bytes, IO[str], IO[bytes], ElementType, ElementTreeType]
+    XMLSourceType = Union[str, bytes, Path, IO[str], IO[bytes], ElementType, ElementTreeType]
     NamespacesType = MutableMapping[str, str]
 
     ##
@@ -56,8 +57,8 @@ if TYPE_CHECKING:
 
     ##
     # Type aliases for XSD components
-    SchemaSourceType = Union[str, bytes, IO[str], IO[bytes], ElementTree.Element,
-                             ElementTree.ElementTree, XMLResource]
+    SchemaSourceType = Union[str, bytes, Path, IO[str], IO[bytes], XMLResource,
+                             ElementTree.Element, ElementTree.ElementTree]
     SchemaType = XMLSchemaBase
     BaseXsdType = Union[XsdSimpleType, XsdComplexType]
     SchemaElementType = Union[XsdElement, XsdAnyElement]

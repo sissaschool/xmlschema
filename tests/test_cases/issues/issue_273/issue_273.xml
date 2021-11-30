@@ -1,0 +1,10 @@
+<someName x="QA01_sequence" y="2500">
+	<QA01>
+		<qa01_elem01>13</qa01_elem01>
+		<qa01_elem02>5139</qa01_elem02>
+		<qa01_elem03>170</qa01_elem03>
+		<qa01_elem04 these="attributes" get="dropped">0</qa01_elem04>
+		<qa01_elem05>56</qa01_elem05>
+		<qa01_elem06>11141178</qa01_elem06>
+	</QA01>
+</someName>

@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python
 #
 # Copyright (c), 2016-2020, SISSA (International School for Advanced Studies).
@@ -771,12 +772,30 @@ class TestDecoding(XsdValidatorTestCase):
                         msg="XSD with an array that return a single element from "
                             "xml must still yield a list.")
 
-    def test_any_type(self):
+    def test_any_type_decoding(self):
         any_type = self.schema_class.meta_schema.types['anyType']
         xml_data_1 = ElementTree.Element('dummy')
         self.assertIsNone(any_type.decode(xml_data_1))
         xml_data_2 = ElementTree.fromstring('<root>\n    <child_1/>\n    <child_2/>\n</root>')
-        self.assertIsNone(any_type.decode(xml_data_2))  # Currently no decoding yet
+
+        # Fix for processContent='lax' (issue 273, previously result was None)
+        self.assertEqual(any_type.decode(xml_data_2), {'child_1': [None], 'child_2': [None]})
+
+    def test_any_type_decoding__issue_273(self):
+        schema = self.schema_class(self.casepath('issues/issue_273/issue_273.xsd'))
+        data = schema.to_dict(self.casepath('issues/issue_273/issue_273.xml'))
+
+        self.assertDictEqual(data, {
+            '@x': 'QA01_sequence',
+            '@y': 2500,
+            'QA01': [
+                {'qa01_elem01': ['13'],
+                 'qa01_elem02': ['5139'],
+                 'qa01_elem03': ['170'],
+                 'qa01_elem04': [{'@these': 'attributes', '@get': 'dropped', '$': '0'}],
+                 'qa01_elem05': ['56'],
+                 'qa01_elem06': ['11141178']
+                 }]})
 
     def test_choice_model_decoding__issue_041(self):
         schema = self.schema_class(self.casepath('issues/issue_041/issue_041.xsd'))
@@ -1090,13 +1109,13 @@ class TestDecoding(XsdValidatorTestCase):
             </xs:schema>"""
 
         schema = self.schema_class(xsd_text)
-        result = schema.to_dict(
-            """<root xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+        xml_source = """<root xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
               <ExtensionSub xsi:type="ExtensionType">
                 <Content>my content</Content>
               </ExtensionSub>
             </root>"""
-        )
+
+        result = schema.to_dict(xml_source)
         expected = {
             "@xmlns:xsi": "http://www.w3.org/2001/XMLSchema-instance",
             "ExtensionSub": {
@@ -1105,6 +1124,11 @@ class TestDecoding(XsdValidatorTestCase):
             }
         }
         self.assertEqual(result, expected)
+
+        root = schema.to_etree(result)
+        self.assertIsNone(etree_elements_assert_equal(
+            root, ElementTree.XML(xml_source), strict=False
+        ))
 
     def test_issue_190(self):
         # Changed is_single() for XsdElement to check also parent group.

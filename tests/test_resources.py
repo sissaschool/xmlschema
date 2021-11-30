@@ -102,8 +102,8 @@ class TestResources(unittest.TestCase):
 
     def test_path_from_uri(self):
         _PurePath = xmlschema.resources._PurePath
-        _PosixPurePath = xmlschema.resources._PosixPurePath
-        _WindowsPurePath = xmlschema.resources._WindowsPurePath
+        _PosixPurePath = xmlschema.resources._PurePosixPath
+        _WindowsPurePath = xmlschema.resources._PureWindowsPath
 
         with self.assertRaises(ValueError) as ec:
             _PurePath.from_uri('')
@@ -216,7 +216,7 @@ class TestResources(unittest.TestCase):
 
             self.assertEqual(xmlschema.resources.os.name, 'nt')
             path = xmlschema.resources._PurePath(unc_path)
-            self.assertIs(path.__class__, xmlschema.resources._WindowsPurePath)
+            self.assertIs(path.__class__, xmlschema.resources._PureWindowsPath)
             self.assertEqual(path.as_uri(), url_host_in_path)
             self.assertEqual(normalize_url(unc_path), url_host_in_path)
 
@@ -229,7 +229,7 @@ class TestResources(unittest.TestCase):
 
             self.assertEqual(xmlschema.resources.os.name, 'posix')
             path = xmlschema.resources._PurePath(unc_path)
-            self.assertIs(path.__class__, xmlschema.resources._PosixPurePath)
+            self.assertIs(path.__class__, xmlschema.resources._PurePosixPath)
             self.assertEqual(str(path), unc_path)
             self.assertNotEqual(path.as_uri(), url)
             self.assertEqual(normalize_url(unc_path), url_host_in_path)
@@ -449,6 +449,33 @@ class TestResources(unittest.TestCase):
         with self.assertRaises(XMLResourceError):
             resource.load()
 
+    def test_xml_resource_from_path(self):
+        path = Path(self.vh_xml_file)
+
+        resource = XMLResource(path, lazy=True)
+        self.assertIs(resource.source, path)
+        self.assertEqual(resource.root.tag, '{http://example.com/vehicles}vehicles')
+        self.check_url(resource.url, path.as_uri())
+        self.assertTrue(resource.filepath.endswith('vehicles.xml'))
+        self.assertIsNone(resource.text)
+        with self.assertRaises(XMLResourceError) as ctx:
+            resource.load()
+        self.assertIn('cannot load a lazy resource', str(ctx.exception))
+        self.assertIsNone(resource.text)
+
+        resource = XMLResource(path, lazy=False)
+        self.assertEqual(resource.source, path)
+        self.assertEqual(resource.root.tag, '{http://example.com/vehicles}vehicles')
+        self.check_url(resource.url, path.as_uri())
+        self.assertIsNone(resource.text)
+        resource.load()
+        self.assertTrue(resource.text.startswith('<?xml'))
+
+        resource = XMLResource(path, lazy=False)
+        resource._url = resource._url[:-12] + 'unknown.xml'
+        with self.assertRaises(XMLResourceError):
+            resource.load()
+
     def test_xml_resource_from_element_tree(self):
         vh_etree = ElementTree.parse(self.vh_xml_file)
         vh_root = vh_etree.getroot()
@@ -622,7 +649,7 @@ class TestResources(unittest.TestCase):
         self.assertRaises(TypeError, XMLResource, [b'<UNSUPPORTED_DATA_TYPE/>'])
 
         with self.assertRaises(TypeError) as ctx:
-            XMLResource('<root/>', base_url=b'/home')
+            XMLResource('<root/>', base_url=[b'/home'])
         self.assertIn(' ', str(ctx.exception))
 
     def test_xml_resource_namespace(self):
@@ -703,12 +730,12 @@ class TestResources(unittest.TestCase):
         with self.assertRaises(TypeError) as ctx:
             XMLResource("https://xmlschema.test/vehicles.xsd", allow=None)
         self.assertEqual(str(ctx.exception),
-                         "invalid type <class 'NoneType'> for the attribute 'allow'")
+                         "invalid type <class 'NoneType'> for argument 'allow'")
 
         with self.assertRaises(ValueError) as ctx:
             XMLResource("https://xmlschema.test/vehicles.xsd", allow='any')
         self.assertEqual(str(ctx.exception),
-                         "'allow' attribute: 'any' is not a security mode")
+                         "'allow' argument: 'any' is not a security mode")
 
     def test_xml_resource_defuse(self):
         resource = XMLResource(self.vh_xml_file, defuse='never', lazy=True)
@@ -789,6 +816,23 @@ class TestResources(unittest.TestCase):
         with open(self.vh_xml_file) as fp:
             resource = XMLResource(fp.read(), base_url='/foo')
             self.assertEqual(resource.base_url, '/foo')
+
+        base_url = Path(self.vh_xml_file).parent
+        resource = XMLResource('vehicles.xml', base_url)
+        self.assertEqual(resource.base_url, base_url.as_uri())
+
+        resource = XMLResource('vehicles.xml', str(base_url))
+        self.assertEqual(resource.base_url, base_url.as_uri())
+
+        resource = XMLResource('vehicles.xml', str(base_url).encode())
+        self.assertEqual(resource.base_url, base_url.as_uri())
+        self.assertEqual(resource.base_url, base_url.as_uri())
+
+        with self.assertRaises(TypeError):
+            XMLResource(self.vh_xml_file, base_url=False)
+
+        with self.assertRaises(ValueError):
+            XMLResource(self.vh_xml_file, base_url='<root/>')
 
     def test_xml_resource_is_local(self):
         resource = XMLResource(self.vh_xml_file)
@@ -1377,6 +1421,43 @@ class TestResources(unittest.TestCase):
         with self.assertRaises(XMLResourceError) as ctx:
             _ = resource.parent_map
         self.assertEqual("cannot create the parent map of a lazy resource", str(ctx.exception))
+
+    def test_get_nsmap(self):
+        source = '<a xmlns="uri1"><b1 xmlns:x="uri2"><c1/><c2/></b1><b2 xmlns="uri3"/></a>'
+        alien_elem = ElementTree.XML('<a/>')
+
+        root = ElementTree.XML(source)
+        resource = XMLResource(root)
+
+        self.assertListEqual(resource.get_nsmap(root), [])
+        self.assertListEqual(resource.get_nsmap(root[1]), [])
+        self.assertListEqual(resource.get_nsmap(alien_elem), [])
+
+        if lxml_etree is not None:
+            root = lxml_etree.XML(source)
+            resource = XMLResource(root)
+
+            self.assertListEqual(resource.get_nsmap(root), [('', 'uri1')])
+            self.assertListEqual(resource.get_nsmap(root[0]), [('x', 'uri2'), ('', 'uri1')])
+            self.assertListEqual(resource.get_nsmap(root[1]), [('', 'uri3')])
+            self.assertListEqual(resource.get_nsmap(alien_elem), [])
+
+        resource = XMLResource(source)
+        root = resource.root
+
+        self.assertListEqual(resource.get_nsmap(root), [('', 'uri1')])
+        self.assertListEqual(resource.get_nsmap(root[0]), [('', 'uri1'), ('x', 'uri2')])
+        self.assertListEqual(resource.get_nsmap(root[1]), [('', 'uri1'), ('', 'uri3')])
+        self.assertListEqual(resource.get_nsmap(alien_elem), [])
+
+        resource = XMLResource(StringIO(source), lazy=True)
+        root = resource.root
+        self.assertTrue(resource.is_lazy())
+
+        self.assertListEqual(resource.get_nsmap(root), [('', 'uri1')])
+        self.assertListEqual(resource.get_nsmap(root[0]), [])
+        self.assertListEqual(resource.get_nsmap(root[1]), [])
+        self.assertListEqual(resource.get_nsmap(alien_elem), [])
 
     def test_xml_subresource(self):
         resource = XMLResource(self.vh_xml_file, lazy=True)

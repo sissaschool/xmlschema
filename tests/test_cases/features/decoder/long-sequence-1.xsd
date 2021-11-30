@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+    <xs:element name="data">
+        <xs:complexType>
+            <xs:choice maxOccurs="unbounded">
+                <xs:element name="chunk" type="chunkType"/>
+                <xs:element name="number" type="xs:int"/>
+                <xs:element name="name" type="xs:string"/>
+                <xs:element name="hexbin" type="xs:hexBinary"/>
+            </xs:choice>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:complexType name="chunkType">
+        <xs:sequence>
+            <xs:any maxOccurs="unbounded" processContents="lax"/>
+        </xs:sequence>
+    </xs:complexType>
+
+</xs:schema>
