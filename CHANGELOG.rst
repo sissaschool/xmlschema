@@ -2,10 +2,12 @@
 CHANGELOG
 *********
 
-`v1.9.0`_ (2021-11-13)
+`v1.9.0`_ (2021-11-30)
 ======================
+* Add iter_decode() to document level API
 * Enhance XMLResource class adding usage of pathlib.Path objects
   for source and base_url arguments
+* Fix for issue #273
 
 `v1.8.2`_ (2021-11-11)
 ======================
