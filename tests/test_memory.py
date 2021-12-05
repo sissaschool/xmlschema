@@ -125,8 +125,8 @@ class TestMemoryUsage(unittest.TestCase):
             output = subprocess.check_output(cmd, universal_newlines=True)
             lazy_validate_mem = self.check_memory_profile(output)
 
-            self.assertLess(validate_mem, 2.0)
-            self.assertLess(lazy_validate_mem, 1.7)
+            self.assertLess(validate_mem, 2.6)
+            self.assertLess(lazy_validate_mem, 1.8)
 
 
 if __name__ == '__main__':

@@ -212,8 +212,11 @@ class XsdValidator:
                 error.source = source
             if error.obj is None and obj is not None:
                 error.obj = obj
-            if error.elem is None and is_etree_element(obj):
+            if error.elem is None and obj is not None and is_etree_element(obj):
                 error.elem = obj
+                if is_etree_element(error.obj) and obj.tag == error.obj.tag:
+                    error.obj = obj
+
         elif isinstance(error, Exception):
             error = XMLSchemaValidationError(self, obj, str(error), source, namespaces)
         else:

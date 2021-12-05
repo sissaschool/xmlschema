@@ -2116,6 +2116,11 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         if not data:
             return (None, errors) if validation == 'lax' else None
         elif len(data) == 1:
+            if errors:
+                resource = XMLResource(data[0])
+                for e in errors:
+                    e.source = resource
+
             return (data[0], errors) if validation == 'lax' else data[0]
         else:
             return (data, errors) if validation == 'lax' else data

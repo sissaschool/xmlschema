@@ -34,7 +34,6 @@ from .wildcards import XsdAnyElement, Xsd11AnyElement
 from .models import ModelVisitor, distinguishable_paths
 
 if TYPE_CHECKING:
-    from ..resources import XMLResource
     from .complex_types import XsdComplexType
 
 ANY_ELEMENT = etree_element(
@@ -282,36 +281,58 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                 else:
                     return self.max_occurs * value <= other.max_occurs
 
-    def iter_model(self, depth: int = 0) -> Iterator[ModelParticleType]:
+    def iter_model(self) -> Iterator[ModelParticleType]:
         """
         A generator function iterating elements and groups of a model group.
         Skips pointless groups, iterating deeper through them.
-        Raises `XMLSchemaModelDepthError` if the argument *depth* is over
+        Raises `XMLSchemaModelDepthError` if the *depth* of the model is over
         `limits.MAX_MODEL_DEPTH` value.
-
-        :param depth: guard for protect model nesting bombs, incremented at each deepest recursion.
         """
-        if depth > limits.MAX_MODEL_DEPTH:
-            raise XMLSchemaModelDepthError(self)
-        for item in self:
-            if isinstance(item, XsdGroup) and item.is_pointless(parent=self):
-                yield from item.iter_model(depth + 1)
-            else:
-                yield item
+        iterators: List[Iterator[ModelParticleType]] = []
+        particles = iter(self)
 
-    def iter_elements(self, depth: int = 0) -> Iterator[SchemaElementType]:
+        while True:
+            try:
+                item = next(particles)
+            except StopIteration:
+                try:
+                    particles = iterators.pop()
+                except IndexError:
+                    return
+            else:
+                if isinstance(item, XsdGroup) and item.is_pointless(parent=self):
+                    iterators.append(particles)
+                    particles = iter(item)
+                    if len(iterators) > limits.MAX_MODEL_DEPTH:
+                        raise XMLSchemaModelDepthError(self)
+                else:
+                    yield item
+
+    def iter_elements(self) -> Iterator[SchemaElementType]:
         """
         A generator function iterating model's elements. Raises `XMLSchemaModelDepthError`
-        if the argument *depth* is over `limits.MAX_MODEL_DEPTH` value.
-
-        :param depth: guard for protect model nesting bombs, incremented at each deepest recursion.
+        if the overall depth of the model groups is over `limits.MAX_MODEL_DEPTH`.
         """
-        if depth > limits.MAX_MODEL_DEPTH:
-            raise XMLSchemaModelDepthError(self)
-        if self.max_occurs != 0:
-            for item in self:
+        if self.max_occurs == 0:
+            return
+
+        iterators: List[Iterator[ModelParticleType]] = []
+        particles = iter(self)
+
+        while True:
+            try:
+                item = next(particles)
+            except StopIteration:
+                try:
+                    particles = iterators.pop()
+                except IndexError:
+                    return
+            else:
                 if isinstance(item, XsdGroup):
-                    yield from item.iter_elements(depth + 1)
+                    iterators.append(particles)
+                    particles = iter(item)
+                    if len(iterators) > limits.MAX_MODEL_DEPTH:
+                        raise XMLSchemaModelDepthError(self)
                 else:
                     yield item
 
@@ -493,35 +514,6 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                         self.parse_error("Redefined group reference cannot have "
                                          "minOccurs/maxOccurs other than 1:")
                     self._group.append(self.redefine)
-
-    def children_validation_error(self, validation: str,
-                                  elem: ElementType,
-                                  index: int,
-                                  particle: ModelParticleType,
-                                  occurs: int = 0,
-                                  expected: Optional[List[SchemaElementType]] = None,
-                                  source: Optional['XMLResource'] = None,
-                                  namespaces: Optional[NamespacesType] = None,
-                                  **_kwargs: Any) -> XMLSchemaChildrenValidationError:
-        """
-        Helper method for generating model validation errors. If validation mode
-        is 'lax' or 'skip' returns the error, otherwise raise the error.
-
-        :param validation: the validation mode. Can be 'lax' or 'strict'.
-        :param elem: the instance Element.
-        :param index: the child index.
-        :param particle: the XSD component (subgroup or element) associated to the child.
-        :param occurs: the child tag occurs.
-        :param expected: the expected element tags/object names.
-        :param source: the XML resource related to the validation process.
-        :param namespaces: is an optional mapping from namespace prefix to URI.
-        :param _kwargs: keyword arguments of the validation process that are not used.
-        """
-        error = XMLSchemaChildrenValidationError(self, elem, index, particle, occurs,
-                                                 expected, source, namespaces)
-        if validation == 'strict':
-            raise error
-        return error
 
     def build(self) -> None:
         for item in self._group:
@@ -776,16 +768,28 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         Unique Particle Attribution constraints are checked.
         :raises: an `XMLSchemaModelError` at first violated constraint.
         """
-        def safe_iter_path(group: XsdGroup, depth: int) -> Iterator[SchemaElementType]:
-            if not depth:
-                raise XMLSchemaModelDepthError(group)
-            for item in group:
-                if isinstance(item, XsdGroup):
-                    current_path.append(item)
-                    yield from safe_iter_path(item, depth - 1)
-                    current_path.pop()
+        def safe_iter_path() -> Iterator[SchemaElementType]:
+            iterators: List[Iterator[ModelParticleType]] = []
+            particles = iter(self)
+
+            while True:
+                try:
+                    item = next(particles)
+                except StopIteration:
+                    try:
+                        current_path.pop()
+                        particles = iterators.pop()
+                    except IndexError:
+                        return
                 else:
-                    yield item
+                    if isinstance(item, XsdGroup):
+                        current_path.append(item)
+                        iterators.append(particles)
+                        particles = iter(item)
+                        if len(iterators) > limits.MAX_MODEL_DEPTH:
+                            raise XMLSchemaModelDepthError(self)
+                    else:
+                        yield item
 
         paths: Any = {}
         current_path: List[ModelParticleType] = [self]
@@ -794,7 +798,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         except AttributeError:
             any_element = None
 
-        for e in safe_iter_path(self, limits.MAX_MODEL_DEPTH):
+        for e in safe_iter_path():
 
             previous_path: List[ModelParticleType]
             for pe, previous_path in paths.values():
@@ -1079,10 +1083,14 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                 errors.append((index, particle, occurs, expected))
 
         if errors:
+            source = kwargs.get('source')
             for index, particle, occurs, expected in errors:
-                yield self.children_validation_error(
-                    validation, obj, index, particle, occurs, expected, **kwargs
+                error = XMLSchemaChildrenValidationError(
+                    self, obj, index, particle, occurs, expected, source, namespaces
                 )
+                if validation == 'strict':
+                    raise error
+                yield error
 
         yield result_list
 
@@ -1209,12 +1217,8 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
             (len(self) > 1 or not isinstance(self[0], XsdAnyElement))
 
         if errors or cdata_not_allowed or wrong_content_type:
-            attrib = {k: str(v) for k, v in obj.attributes.items()}
-            if validation != 'strict' and converter.etree_element_class is not etree_element:
-                child_tags = [converter.etree_element(e.tag, attrib=e.attrib) for e in children]
-                elem = converter.etree_element(obj.tag, text, child_tags, attrib)
-            else:
-                elem = converter.etree_element(obj.tag, text, children, attrib)
+            attrib = {k: raw_xml_encode(v) for k, v in obj.attributes.items()}
+            elem = converter.etree_element(obj.tag, text, children, attrib)
 
             if wrong_content_type:
                 reason = "wrong content type {!r}".format(type(obj.content))
@@ -1225,9 +1229,20 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                 yield self.validation_error(validation, reason, elem, **kwargs)
 
             for index, particle, occurs, expected in errors:
-                yield self.children_validation_error(
-                    validation, elem, index, particle, occurs, expected, **kwargs
+                error = XMLSchemaChildrenValidationError(
+                    validator=self,
+                    elem=elem,
+                    index=index,
+                    particle=particle,
+                    occurs=occurs,
+                    expected=expected,
+                    namespaces=converter.namespaces,
                 )
+                if validation == 'strict':
+                    raise error
+
+                error.elem = None  # replace with the element of the encoded tree
+                yield error
 
         yield text, children
 

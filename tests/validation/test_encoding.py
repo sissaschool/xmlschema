@@ -24,6 +24,7 @@ from xmlschema import XMLSchemaEncodeError, XMLSchemaValidationError
 from xmlschema.converters import UnorderedConverter
 from xmlschema.etree import etree_element, etree_tostring, ElementTree
 from xmlschema.helpers import local_name, is_etree_element
+from xmlschema.resources import XMLResource
 from xmlschema.validators.exceptions import XMLSchemaChildrenValidationError
 from xmlschema.validators import XMLSchema11
 from xmlschema.testing import XsdValidatorTestCase
@@ -310,8 +311,10 @@ class TestEncoding(XsdValidatorTestCase):
         message_lines = []
         try:
             schema.encode(rotation_data)
-        except Exception as err:
+        except XMLSchemaValidationError as err:
             message_lines = str(err).split('\n')
+            self.assertIsNone(err.source)
+            self.assertIsNone(err.path)
 
         self.assertTrue(message_lines, msg="Empty error message!")
         self.assertEqual(message_lines[-4], 'Instance:')
@@ -322,6 +325,11 @@ class TestEncoding(XsdValidatorTestCase):
             text = '<tns:rotation xmlns:tns="http://www.example.org/Rotation/" ' \
                    'roll="0.0" pitch="0.0" yaw="-1.0" />'
         self.assertEqual(message_lines[-2].strip(), text)
+
+        # With 'lax' validation a dummy resource is assigned to source attribute
+        _, errors = schema.encode(rotation_data, validation='lax')
+        self.assertIsInstance(errors[0].source, XMLResource)
+        self.assertEqual(errors[0].path, '/{http://www.example.org/Rotation/}rotation')
 
     def test_max_occurs_sequence(self):
         # Issue #119

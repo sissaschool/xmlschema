@@ -64,8 +64,8 @@ class TestValidatorExceptions(unittest.TestCase):
         self.assertGreater(len(lines), 10, msg=output)
         self.assertEqual(lines[0], 'unknown error:', msg=output)
         self.assertEqual(lines[2], 'Schema:', msg=output)
-        self.assertTrue(lines[4].strip().startswith('<xs:schema '), msg=output)
-        self.assertEqual(lines[-2].strip(), '</xs:schema>', msg=output)
+        self.assertRegex(lines[4].strip(), '^<(xs:)?schema ', msg=output)
+        self.assertRegex(lines[-2].strip(), '</(xs:)?schema>$', msg=output)
 
     @unittest.skipIf(lxml_etree is None, 'lxml is not installed ...')
     def test_exception_repr_lxml(self):
