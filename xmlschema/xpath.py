@@ -61,8 +61,27 @@ def iter_schema_nodes(root: Union[XMLSchemaProtocol, ElementProtocol],
     def attribute_node(x: Any) -> AttributeNode:
         return AttributeNode(*x)
 
-    def _iter_schema_nodes(elem: Any) -> Iterator[Any]:
-        for child in elem:
+    if isinstance(root, TypedElement):
+        root = cast(ElementProtocol, root.elem)
+
+    nodes = {root}
+    if with_root:
+        yield root
+    if with_attributes:
+        yield from map(attribute_node, root.attributes.items())
+
+    iterators: List[Any] = []
+    children: Iterator[Any] = iter(root)
+
+    while True:
+        try:
+            child = next(children)
+        except StopIteration:
+            try:
+                children = iterators.pop()
+            except IndexError:
+                return
+        else:
             if child in nodes:
                 continue
             elif child.ref is not None:
@@ -73,23 +92,15 @@ def iter_schema_nodes(root: Union[XMLSchemaProtocol, ElementProtocol],
                     yield child.ref
                     if with_attributes:
                         yield from map(attribute_node, child.attributes.items())
-                    yield from _iter_schema_nodes(child.ref)
+                    iterators.append(children)
+                    children = iter(child.ref)
             else:
                 nodes.add(child)
                 yield child
                 if with_attributes:
                     yield from map(attribute_node, child.attributes.items())
-                yield from _iter_schema_nodes(child)
-
-    if isinstance(root, TypedElement):
-        root = cast(ElementProtocol, root.elem)
-
-    nodes = {root}
-    if with_root:
-        yield root
-    if with_attributes:
-        yield from map(attribute_node, root.attributes.items())
-    yield from _iter_schema_nodes(root)
+                iterators.append(children)
+                children = iter(child)
 
 
 class XMLSchemaContext(XPathSchemaContext):
