@@ -462,9 +462,10 @@ class XsdAttributeGroup(
                                 if name not in attributes:
                                     attributes[name] = base_attr
                                 elif name is not None:
-                                    self.parse_error(
-                                        f"multiple declaration of attribute {name!r}"
-                                    )
+                                    if base_attr is not attributes[name]:
+                                        self.parse_error(
+                                            f"multiple declaration of attribute {name!r}"
+                                        )
                                 else:
                                     assert isinstance(base_attr, XsdAnyAttribute)
                                     attributes[None] = attr = attributes[None].copy()

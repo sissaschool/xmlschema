@@ -1,0 +1,18 @@
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+   <xs:element name="dummy">
+      <xs:complexType>
+         <xs:attributeGroup ref="ag1"/>
+         <xs:attributeGroup ref="ag2"/>
+      </xs:complexType>
+   </xs:element>
+
+   <xs:attributeGroup name="ag1">
+      <xs:attribute name="a1" type="xs:string"/>
+      <xs:attributeGroup ref="ag2"/>
+   </xs:attributeGroup>
+
+   <xs:attributeGroup name="ag2">
+      <xs:attribute name="a2" type="xs:string"/>
+   </xs:attributeGroup>
+
+</xs:schema>
