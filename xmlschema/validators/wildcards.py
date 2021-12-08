@@ -467,7 +467,8 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
             yield self.validation_error(validation, reason, obj, **kwargs)
 
         if self.process_contents == 'skip':
-            return
+            if 'process_skipped' not in kwargs or not kwargs['process_skipped']:
+                return
 
         namespace = get_namespace(obj.tag)
         if not self.maps.load_namespace(namespace):
@@ -482,14 +483,15 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
                 return
 
         if XSI_TYPE in obj.attrib:
-            if self.process_contents == 'lax':
-                xsd_element = self.maps.validator.create_element(
-                    obj.tag, parent=self, nillable='true', form='unqualified'
-                )
-            else:
+            if self.process_contents == 'strict':
                 xsd_element = self.maps.validator.create_element(
                     obj.tag, parent=self, form='unqualified'
                 )
+            else:
+                xsd_element = self.maps.validator.create_element(
+                    obj.tag, parent=self, nillable='true', form='unqualified'
+                )
+
             yield from xsd_element.iter_decode(obj, validation, **kwargs)
             return
 
@@ -507,7 +509,8 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
             yield self.validation_error(validation, reason, value, **kwargs)
 
         if self.process_contents == 'skip':
-            return
+            if 'process_skipped' not in kwargs or not kwargs['process_skipped']:
+                return
 
         if not self.maps.load_namespace(namespace):
             reason = f"unavailable namespace {namespace!r}"
@@ -522,13 +525,13 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
 
         # Check if there is an xsi:type attribute, but it has to extract
         # attributes using the converter instance.
-        if self.process_contents == 'lax':
+        if self.process_contents == 'strict':
             xsd_element = self.maps.validator.create_element(
-                name, parent=self, nillable='true', form='unqualified'
+                name, parent=self, form='unqualified'
             )
         else:
             xsd_element = self.maps.validator.create_element(
-                name, parent=self, form='unqualified'
+                name, parent=self, nillable='true', form='unqualified'
             )
 
         try:
@@ -642,8 +645,10 @@ class XsdAnyAttribute(XsdWildcard, ValidationMixin[Tuple[str, str], DecodedValue
             yield self.validation_error(validation, reason, obj, **kwargs)
 
         if self.process_contents == 'skip':
-            return
-        elif self.maps.load_namespace(get_namespace(name)):
+            if 'process_skipped' not in kwargs or not kwargs['process_skipped']:
+                return
+
+        if self.maps.load_namespace(get_namespace(name)):
             try:
                 xsd_attribute = self.maps.lookup_attribute(name)
             except LookupError:
@@ -670,8 +675,10 @@ class XsdAnyAttribute(XsdWildcard, ValidationMixin[Tuple[str, str], DecodedValue
             yield self.validation_error(validation, reason, obj, **kwargs)
 
         if self.process_contents == 'skip':
-            return
-        elif self.maps.load_namespace(namespace):
+            if 'process_skipped' not in kwargs or not kwargs['process_skipped']:
+                return
+
+        if self.maps.load_namespace(namespace):
             try:
                 xsd_attribute = self.maps.lookup_attribute(name)
             except LookupError:

@@ -778,8 +778,34 @@ class TestDecoding(XsdValidatorTestCase):
         self.assertIsNone(any_type.decode(xml_data_1))
         xml_data_2 = ElementTree.fromstring('<root>\n    <child_1/>\n    <child_2/>\n</root>')
 
-        # Fix for processContent='lax' (issue 273, previously result was None)
+        # Fix for processContents='lax' (issue 273, previously result was None)
         self.assertEqual(any_type.decode(xml_data_2), {'child_1': [None], 'child_2': [None]})
+
+    def test_skip_wildcard_decoding(self):
+        schema = self.schema_class("""<?xml version="1.0" encoding="UTF-8"?>
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:element name="foo">
+                    <xs:complexType>
+                        <xs:sequence>
+                            <xs:any processContents="skip"/>
+                        </xs:sequence>
+                    </xs:complexType>
+                </xs:element>
+            </xs:schema>""")
+
+        self.assertIsNone(schema.decode('<foo><bar/></foo>'))
+
+        obj = schema.decode('<foo><bar/></foo>', process_skipped=True)
+        self.assertEqual(obj, {'bar': None})
+
+        root = schema.encode(obj)
+        self.assertEqual(root.tag, 'foo')
+        self.assertEqual(len(root), 0)
+
+        root = schema.encode(obj, process_skipped=True)
+        self.assertEqual(root.tag, 'foo')
+        self.assertEqual(len(root), 1)
+        self.assertEqual(root[0].tag, 'bar')
 
     def test_any_type_decoding__issue_273(self):
         schema = self.schema_class(self.casepath('issues/issue_273/issue_273.xsd'))

@@ -6,6 +6,7 @@ CHANGELOG
 ======================
 * Improve error reporting for encoded data (issue #275)
 * Fix attribute duplicates in attribute group (issue #276)
+* Add process_skipped optional argument to decoding/encoding
 
 `v1.9.0`_ (2021-11-30)
 ======================

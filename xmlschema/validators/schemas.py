@@ -1856,6 +1856,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                     filler: Optional[Callable[[Union[XsdElement, XsdAttribute]], Any]] = None,
                     fill_missing: bool = False,
                     keep_unknown: bool = False,
+                    process_skipped: bool = False,
                     max_depth: Optional[int] = None,
                     depth_filler: Optional[Callable[[XsdElement], Any]] = None,
                     value_hook: Optional[Callable[[AtomicValueType, BaseXsdType], Any]] = None,
@@ -1895,6 +1896,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         The filling value is `None` or a typed value if the *filler* callback is provided.
         :param keep_unknown: if set to `True` unknown tags are kept and are decoded with \
         *xs:anyType*. For default unknown tags not decoded by a wildcard are discarded.
+        :param process_skipped: process XML data that match a wildcard with \
+        `processContents='skip'`.
         :param max_depth: maximum level of decoding, for default there is no limit. \
         With lazy resources is set to `source.lazy_depth` for managing lazy decoding.
         :param depth_filler: an optional callback function to replace data over the \
@@ -1946,6 +1949,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             kwargs['fill_missing'] = fill_missing
         if keep_unknown:
             kwargs['keep_unknown'] = keep_unknown
+        if process_skipped:
+            kwargs['process_skipped'] = process_skipped
         if max_depth is not None:
             kwargs['max_depth'] = max_depth
         if depth_filler is not None:
@@ -2046,7 +2051,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         :param unordered: a flag for explicitly activating unordered encoding mode for \
         content model data. This mode uses content models for a reordered-by-model \
         iteration of the child elements.
-        :param kwargs: keyword arguments containing options for converter.
+        :param kwargs: keyword arguments with other options for encoding and for \
+        building the converter instance.
         :return: yields an Element instance/s or validation/encoding errors.
         """
         self.check_validator(validation)
