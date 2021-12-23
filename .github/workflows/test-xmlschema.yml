@@ -53,5 +53,5 @@ jobs:
       - name: Lint with mypy
         if: ${{ matrix.python-version != 'pypy3' }}
         run: |
-          pip install mypy==0.910 elementpath==2.4.0 lxml-stubs
+          pip install mypy==0.930 elementpath==2.4.0 lxml-stubs
           mypy --show-error-codes --no-warn-unused-ignores xmlschema

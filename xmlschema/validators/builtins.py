@@ -15,7 +15,7 @@ are created using the XSD 1.0 meta-schema or with and additional base schema for
 """
 from decimal import Decimal
 from elementpath import datatypes
-from typing import Any, Dict, Optional, Type, Tuple, Union
+from typing import cast, Any, Dict, Optional, Type, Tuple, Union
 
 from ..exceptions import XMLSchemaValueError
 from ..names import XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_ENUMERATION, \
@@ -83,7 +83,7 @@ XSD11_FLOAT_PATTERN_ELEMENT = etree_element(
 )
 
 
-XSD_COMMON_BUILTIN_TYPES = (
+XSD_COMMON_BUILTIN_TYPES: Tuple[Dict[str, Any], ...] = (
     # ***********************
     # *** Primitive types ***
     # ***********************
@@ -491,15 +491,12 @@ def xsd_builtin_types_factory(
         item = item.copy()
         name: str = item['name']
         try:
-            value = xsd_types[name]
+            value = cast(Tuple[ElementType, SchemaType], xsd_types[name])
         except KeyError:
             # If builtin type element is missing create a dummy element. Necessary for the
             # meta-schema XMLSchema.xsd of XSD 1.1, that not includes builtins declarations.
             elem = etree_element(XSD_SIMPLE_TYPE, name=name, id=name)
         else:
-            if not isinstance(value, tuple):
-                continue
-
             elem, schema = value
             if schema is not meta_schema:
                 raise XMLSchemaValueError("loaded entry schema is not the meta-schema!")

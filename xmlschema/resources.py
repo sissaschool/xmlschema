@@ -631,7 +631,7 @@ class XMLResource:
         root_started = False
         nsmap_update = False
 
-        _root: ElementType = getattr(self, '_root', None)
+        _root = cast(Optional[ElementType], getattr(self, '_root', None))
 
         try:
             for event, node in tree_iterator:
@@ -890,9 +890,8 @@ class XMLResource:
         namespaces = self.get_namespaces(root_only=False)
         _string = etree_tostring(elem, namespaces, indent, max_lines,
                                  spaces_for_tab, xml_declaration)
-        if isinstance(_string, bytes):
-            return _string.decode('utf-8')
-        return _string
+
+        return _string.decode('utf-8') if isinstance(_string, bytes) else _string
 
     def subresource(self, elem: ElementType) -> 'XMLResource':
         """Create an XMLResource instance from a subelement of a non-lazy XML tree."""
@@ -1024,8 +1023,7 @@ class XMLResource:
         """Returns `True` if the XML text of the data source is loaded."""
         return self._text is not None
 
-    def iter(self, tag: Optional[str] = None,
-             nsmap: Union[None, List[Tuple[str, str]], MutableMapping[str, str]] = None) \
+    def iter(self, tag: Optional[str] = None, nsmap: Optional[NsmapType] = None) \
             -> Iterator[ElementType]:
         """
         XML resource tree iterator. The iteration of a lazy resource

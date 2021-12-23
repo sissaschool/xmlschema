@@ -205,6 +205,17 @@ class TestNamespaceView(unittest.TestCase):
         ns_view = NamespaceView(qnames, 'tns0')
         self.assertEqual(repr(ns_view), "NamespaceView({'name0': 0})")
 
+    def test_contains(self):
+        qnames = {'{tns0}name0': 0, '{tns1}name1': 1, 'name2': 2}
+        ns_view = NamespaceView(qnames, 'tns1')
+
+        self.assertIn('name1', ns_view)
+        self.assertNotIn('{tns1}name1', ns_view)
+        self.assertNotIn('{tns0}name0', ns_view)
+        self.assertNotIn('name0', ns_view)
+        self.assertNotIn('name2', ns_view)
+        self.assertNotIn(1, ns_view)
+
     def test_as_dict(self):
         qnames = {'{tns0}name0': 0, '{tns1}name1': 1, '{tns1}name2': 2, 'name3': 3}
         ns_view = NamespaceView(qnames, 'tns1')

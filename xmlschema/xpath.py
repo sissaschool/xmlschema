@@ -116,8 +116,9 @@ class XMLSchemaProxy(AbstractSchemaProxy):
                  base_element: Optional[ElementProtocol] = None) -> None:
 
         if schema is None:
-            from xmlschema import XMLSchema
-            schema = getattr(XMLSchema, 'meta_schema', None)
+            from xmlschema import XMLSchema10
+            schema = cast(XMLSchemaProtocol, getattr(XMLSchema10, 'meta_schema', None))
+
         super(XMLSchemaProxy, self).__init__(schema, base_element)
 
         if base_element is not None:
