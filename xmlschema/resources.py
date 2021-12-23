@@ -1024,8 +1024,7 @@ class XMLResource:
         """Returns `True` if the XML text of the data source is loaded."""
         return self._text is not None
 
-    def iter(self, tag: Optional[str] = None,
-             nsmap: Union[None, List[Tuple[str, str]], MutableMapping[str, str]] = None) \
+    def iter(self, tag: Optional[str] = None, nsmap: Optional[NsmapType] = None) \
             -> Iterator[ElementType]:
         """
         XML resource tree iterator. The iteration of a lazy resource

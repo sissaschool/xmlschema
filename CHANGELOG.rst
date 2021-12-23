@@ -2,6 +2,10 @@
 CHANGELOG
 *********
 
+`v1.9.2`_ (2021-12-23)
+======================
+* Fix for global simple type naming (issue #278)
+
 `v1.9.1`_ (2021-12-08)
 ======================
 * Improve error reporting for encoded data (issue #275)
@@ -505,3 +509,4 @@ v0.9.6 (2017-05-05)
 .. _v1.8.2: https://github.com/brunato/xmlschema/compare/v1.8.1...v1.8.2
 .. _v1.9.0: https://github.com/brunato/xmlschema/compare/v1.8.2...v1.9.0
 .. _v1.9.1: https://github.com/brunato/xmlschema/compare/v1.9.0...v1.9.1
+.. _v1.9.2: https://github.com/brunato/xmlschema/compare/v1.9.1...v1.9.2

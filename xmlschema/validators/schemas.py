@@ -791,7 +791,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 try:
                     child = elem[1]
                 except IndexError:
-                    self.parse_error("(restriction | list | union) expected", elem)
+                    schema.parse_error("(restriction | list | union) expected", elem)
                     return cast(XsdSimpleType, self.maps.types[XSD_ANY_SIMPLE_TYPE])
 
         xsd_type: XsdSimpleType
@@ -802,21 +802,21 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         elif child.tag == XSD_UNION:
             xsd_type = self.xsd_union_class(child, schema, parent)
         else:
-            self.parse_error("(restriction | list | union) expected", elem)
+            schema.parse_error("(restriction | list | union) expected", elem)
             return cast(XsdSimpleType, self.maps.types[XSD_ANY_SIMPLE_TYPE])
 
         if annotation is not None:
             xsd_type._annotation = annotation
 
         try:
-            xsd_type.name = get_qname(self.target_namespace, elem.attrib['name'])
+            xsd_type.name = get_qname(schema.target_namespace, elem.attrib['name'])
         except KeyError:
             if parent is None:
-                self.parse_error("missing attribute 'name' in a global simpleType", elem)
+                schema.parse_error("missing attribute 'name' in a global simpleType", elem)
                 xsd_type.name = 'nameless_%s' % str(id(xsd_type))
         else:
             if parent is not None:
-                self.parse_error("attribute 'name' not allowed for a local simpleType", elem)
+                schema.parse_error("attribute 'name' not allowed for a local simpleType", elem)
                 xsd_type.name = None
 
         if 'final' in elem.attrib:
