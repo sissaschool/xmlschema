@@ -321,19 +321,38 @@ class TestResources(unittest.TestCase):
 
     def test_is_local_url_function(self):
         self.assertTrue(is_local_url(self.col_xsd_file))
+        self.assertTrue(is_local_url(Path(self.col_xsd_file)))
+
         self.assertTrue(is_local_url('/home/user/'))
+        self.assertFalse(is_local_url('<home/>'))
         self.assertTrue(is_local_url('/home/user/schema.xsd'))
         self.assertTrue(is_local_url('  /home/user/schema.xsd  '))
         self.assertTrue(is_local_url('C:\\Users\\foo\\schema.xsd'))
         self.assertTrue(is_local_url(' file:///home/user/schema.xsd'))
         self.assertFalse(is_local_url('http://example.com/schema.xsd'))
 
+        self.assertTrue(is_local_url(b'/home/user/'))
+        self.assertFalse(is_local_url(b'<home/>'))
+        self.assertTrue(is_local_url(b'/home/user/schema.xsd'))
+        self.assertTrue(is_local_url(b'  /home/user/schema.xsd  '))
+        self.assertTrue(is_local_url(b'C:\\Users\\foo\\schema.xsd'))
+        self.assertTrue(is_local_url(b' file:///home/user/schema.xsd'))
+        self.assertFalse(is_local_url(b'http://example.com/schema.xsd'))
+
     def test_is_remote_url_function(self):
         self.assertFalse(is_remote_url(self.col_xsd_file))
+
         self.assertFalse(is_remote_url('/home/user/'))
+        self.assertFalse(is_remote_url('<home/>'))
         self.assertFalse(is_remote_url('/home/user/schema.xsd'))
         self.assertFalse(is_remote_url(' file:///home/user/schema.xsd'))
         self.assertTrue(is_remote_url('  http://example.com/schema.xsd'))
+
+        self.assertFalse(is_remote_url(b'/home/user/'))
+        self.assertFalse(is_remote_url(b'<home/>'))
+        self.assertFalse(is_remote_url(b'/home/user/schema.xsd'))
+        self.assertFalse(is_remote_url(b' file:///home/user/schema.xsd'))
+        self.assertTrue(is_remote_url(b'  http://example.com/schema.xsd'))
 
     def test_url_path_is_file_function(self):
         self.assertTrue(url_path_is_file(self.col_xml_file))
@@ -448,6 +467,15 @@ class TestResources(unittest.TestCase):
         resource._url = resource._url[:-12] + 'unknown.xml'
         with self.assertRaises(XMLResourceError):
             resource.load()
+
+    def test_xml_resource_from_url_in_bytes(self):
+        resource = XMLResource(self.vh_xml_file.encode('utf-8'), lazy=False)
+        self.assertEqual(resource.source, self.vh_xml_file.encode('utf-8'))
+        self.assertEqual(resource.root.tag, '{http://example.com/vehicles}vehicles')
+        self.check_url(resource.url, self.vh_xml_file)
+        self.assertIsNone(resource.text)
+        resource.load()
+        self.assertTrue(resource.text.startswith('<?xml'))
 
     def test_xml_resource_from_path(self):
         path = Path(self.vh_xml_file)
@@ -833,6 +861,9 @@ class TestResources(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             XMLResource(self.vh_xml_file, base_url='<root/>')
+
+        with self.assertRaises(ValueError):
+            XMLResource(self.vh_xml_file, base_url=b'<root/>')
 
     def test_xml_resource_is_local(self):
         resource = XMLResource(self.vh_xml_file)

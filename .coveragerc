@@ -1,7 +1,9 @@
 [run]
 branch = True
 source = xmlschema/
-omit = xmlschema/testing/*
+omit =
+    xmlschema/testing/*
+    xmlschema/aliases.py
 
 [report]
 exclude_lines =

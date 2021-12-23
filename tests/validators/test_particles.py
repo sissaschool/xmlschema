@@ -120,6 +120,11 @@ class TestParticleMixin(unittest.TestCase):
         self.assertTrue(xsd_group[9].has_occurs_restriction(xsd_group[1]))
         self.assertTrue(xsd_group[9].has_occurs_restriction(xsd_group[2]))
 
+    def test_default_parse_error(self):
+        with self.assertRaises(ValueError) as ctx:
+            ParticleMixin().parse_error('unexpected error')
+        self.assertEqual(str(ctx.exception), 'unexpected error')
+
     def test_parse_particle(self):
         schema = XMLSchema10("""<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
                      <xs:element name="root"/>

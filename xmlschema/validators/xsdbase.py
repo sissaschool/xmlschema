@@ -466,7 +466,7 @@ class XsdComponent(XsdValidator):
                                  "must have the same namespace as its parent schema")
 
         if self.name is None:
-            pass
+            pass  # pragma: no cover
         elif not self._target_namespace:
             self.name = local_name(self.name)
         else:
@@ -581,7 +581,7 @@ class XsdComponent(XsdValidator):
                 return component
             component = component.parent
         else:
-            return self
+            raise XMLSchemaValueError(f"parent circularity from {self}")  # pragma: no cover
 
     def get_parent_type(self) -> Optional['XsdType']:
         """
@@ -745,7 +745,7 @@ class XsdType(XsdComponent):
         complexType is the instance's *content* if this is a simpleType
         or `None` if the instance's *content* is a model group.
         """
-        return None
+        raise NotImplementedError()
 
     @property
     def model_group(self) -> Optional['XsdGroup']:
@@ -968,7 +968,7 @@ class ValidationMixin(Generic[ST, DT]):
             else:
                 errors.append(result)
 
-        return (None, errors) if validation == 'lax' else None
+        return (None, errors) if validation == 'lax' else None  # fallback: pragma: no cover
 
     def encode(self, obj: Any, validation: str = 'strict', **kwargs: Any) -> EncodeType[Any]:
         """

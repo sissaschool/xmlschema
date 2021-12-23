@@ -890,9 +890,8 @@ class XMLResource:
         namespaces = self.get_namespaces(root_only=False)
         _string = etree_tostring(elem, namespaces, indent, max_lines,
                                  spaces_for_tab, xml_declaration)
-        if isinstance(_string, bytes):
-            return _string.decode('utf-8')
-        return _string
+
+        return _string.decode('utf-8') if isinstance(_string, bytes) else _string
 
     def subresource(self, elem: ElementType) -> 'XMLResource':
         """Create an XMLResource instance from a subelement of a non-lazy XML tree."""
