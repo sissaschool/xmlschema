@@ -253,8 +253,14 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
     def min_value(self) -> Optional[AtomicValueType]:
         min_exclusive: Optional['AtomicValueType']
         min_inclusive: Optional['AtomicValueType']
-        min_exclusive = getattr(self.get_facet(XSD_MIN_EXCLUSIVE), 'value', None)
-        min_inclusive = getattr(self.get_facet(XSD_MIN_INCLUSIVE), 'value', None)
+        min_exclusive = cast(
+            Optional['AtomicValueType'],
+            getattr(self.get_facet(XSD_MIN_EXCLUSIVE), 'value', None)
+        )
+        min_inclusive = cast(
+            Optional['AtomicValueType'],
+            getattr(self.get_facet(XSD_MIN_INCLUSIVE), 'value', None)
+        )
 
         if min_exclusive is None:
             return min_inclusive
@@ -269,8 +275,14 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
     def max_value(self) -> Optional[AtomicValueType]:
         max_exclusive: Optional['AtomicValueType']
         max_inclusive: Optional['AtomicValueType']
-        max_exclusive = getattr(self.get_facet(XSD_MAX_EXCLUSIVE), 'value', None)
-        max_inclusive = getattr(self.get_facet(XSD_MAX_INCLUSIVE), 'value', None)
+        max_exclusive = cast(
+            Optional['AtomicValueType'],
+            getattr(self.get_facet(XSD_MAX_EXCLUSIVE), 'value', None)
+        )
+        max_inclusive = cast(
+            Optional['AtomicValueType'],
+            getattr(self.get_facet(XSD_MAX_INCLUSIVE), 'value', None)
+        )
 
         if max_exclusive is None:
             return max_inclusive

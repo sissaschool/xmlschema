@@ -631,7 +631,7 @@ class XMLResource:
         root_started = False
         nsmap_update = False
 
-        _root: ElementType = getattr(self, '_root', None)
+        _root = cast(Optional[ElementType], getattr(self, '_root', None))
 
         try:
             for event, node in tree_iterator:
