@@ -215,6 +215,8 @@ class XsdIdentity(XsdComponent):
                 if not isinstance(e, XsdComponent) or isinstance(e, XsdAttribute):
                     self.parse_error("selector xpath expression can only select elements")
                 elif e.name is not None:
+                    if TYPE_CHECKING:
+                        assert isinstance(e, XsdElement)  # for mypy checks with Python 3.7
                     self.elements[e] = None
         except AttributeError:
             pass

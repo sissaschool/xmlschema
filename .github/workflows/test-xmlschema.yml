@@ -50,4 +50,4 @@ jobs:
         if: ${{ matrix.python-version != 'pypy-3.8' }}
         run: |
           pip install mypy==0.931 elementpath==2.5.0 lxml-stubs
-          mypy --show-error-codes --no-warn-unused-ignores xmlschema
+          mypy --show-error-codes xmlschema
