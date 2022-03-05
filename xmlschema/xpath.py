@@ -16,7 +16,7 @@ from typing import cast, overload, Any, Dict, Iterator, List, Optional, \
     Sequence, Set, TypeVar, Union
 import re
 
-from elementpath import AttributeNode, TypedElement, XPath2Parser, \
+from elementpath import TypedElement, XPath2Parser, \
     XPathSchemaContext, AbstractSchemaProxy, protocols
 
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
@@ -45,10 +45,8 @@ else:
 _REGEX_TAG_POSITION = re.compile(r'\b\[\d+]')
 
 
-def iter_schema_nodes(root: Union[XMLSchemaProtocol, ElementProtocol],
-                      with_root: bool = True,
-                      with_attributes: bool = False) \
-        -> Iterator[Union[XMLSchemaProtocol, ElementProtocol, AttributeNode]]:
+def iter_schema_nodes(root: Union[XMLSchemaProtocol, ElementProtocol], with_root: bool = True) \
+        -> Iterator[Union[XMLSchemaProtocol, ElementProtocol]]:
     """
     Iteration function for schema nodes. It doesn't yield text nodes,
     that are always `None` for schema elements, and detects visited
@@ -56,19 +54,13 @@ def iter_schema_nodes(root: Union[XMLSchemaProtocol, ElementProtocol],
 
     :param root: schema or schema element.
     :param with_root: if `True` yields initial element.
-    :param with_attributes: if `True` yields also attribute nodes.
     """
-    def attribute_node(x: Any) -> AttributeNode:
-        return AttributeNode(*x)
-
     if isinstance(root, TypedElement):
         root = cast(ElementProtocol, root.elem)
 
     nodes = {root}
     if with_root:
         yield root
-    if with_attributes:
-        yield from map(attribute_node, root.attributes.items())
 
     iterators: List[Any] = []
     children: Iterator[Any] = iter(root)
@@ -90,15 +82,11 @@ def iter_schema_nodes(root: Union[XMLSchemaProtocol, ElementProtocol],
                 if child.ref not in nodes:
                     nodes.add(child.ref)
                     yield child.ref
-                    if with_attributes:
-                        yield from map(attribute_node, child.attributes.items())
                     iterators.append(children)
                     children = iter(child.ref)
             else:
                 nodes.add(child)
                 yield child
-                if with_attributes:
-                    yield from map(attribute_node, child.attributes.items())
                 iterators.append(children)
                 children = iter(child)
 

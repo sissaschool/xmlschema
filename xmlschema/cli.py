@@ -6,6 +6,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+# type: ignore
 """Command Line Interface"""
 import sys
 import os
@@ -62,7 +63,7 @@ def get_converter(name):
     try:
         return CONVERTERS_MAP[name]
     except KeyError:
-        raise ValueError("--converter must be in {!r}".format_map(list(CONVERTERS_MAP)))
+        raise ValueError("--converter must be in {!r}".format(tuple(CONVERTERS_MAP)))
 
 
 def xml2json():

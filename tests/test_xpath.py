@@ -143,11 +143,6 @@ class XMLSchemaProxyTest(unittest.TestCase):
             else:
                 vh_nodes.add(node)
 
-        self.assertEqual(set(iter_schema_nodes(self.xs1, with_attributes=True)),
-                         vh_nodes | {self.xs1})
-        self.assertEqual(set(iter_schema_nodes(self.xs1, with_root=False, with_attributes=True)),
-                         vh_nodes)
-
         cars = self.xs1.elements['cars']
         car = self.xs1.find('//vh:car')
         typed_cars = TypedElement(cars, cars.type, None)
@@ -155,8 +150,6 @@ class XMLSchemaProxyTest(unittest.TestCase):
         self.assertListEqual(list(iter_schema_nodes(typed_cars)), [cars, car])
         self.assertListEqual(list(iter_schema_nodes(cars, with_root=False)), [car])
         self.assertListEqual(list(iter_schema_nodes(typed_cars, with_root=False)), [car])
-        self.assertEqual(len(list(iter_schema_nodes(cars, with_attributes=True))), 4)
-        self.assertEqual(len(list(iter_schema_nodes(cars, False, with_attributes=True))), 3)
 
 
 class XMLSchemaXPathTest(unittest.TestCase):

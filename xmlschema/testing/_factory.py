@@ -7,6 +7,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+# type: ignore
 """
 Test factory for creating test cases from lists of paths to XSD or XML files.
 
@@ -23,7 +24,7 @@ import logging
 
 from xmlschema.cli import xsd_version_number, defuse_data
 from xmlschema.validators import XMLSchema10, XMLSchema11
-from .observers import ObservedXMLSchema10, ObservedXMLSchema11
+from ._observers import ObservedXMLSchema10, ObservedXMLSchema11
 
 logger = logging.getLogger(__file__)
 
