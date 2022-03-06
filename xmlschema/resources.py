@@ -31,8 +31,8 @@ from .aliases import ElementType, ElementTreeType, NamespacesType, XMLSourceType
 from .helpers import get_namespace, is_etree_element, is_etree_document, \
     etree_iter_location_hints
 
-DEFUSE_MODES = frozenset(('never', 'remote', 'always'))
-SECURITY_MODES = frozenset(('all', 'remote', 'local', 'sandbox'))
+DEFUSE_MODES = frozenset(('never', 'remote', 'nonlocal', 'always'))
+SECURITY_MODES = frozenset(('all', 'remote', 'local', 'sandbox', 'none'))
 
 ###
 # Restricted XPath parser for XML resources
@@ -434,12 +434,15 @@ class XMLResource:
     when the URL of the resource can't be obtained from the source argument. For security \
     access to a local file resource is always denied if the *base_url* is a remote URL.
     :param allow: defines the security mode for accessing resource locations. Can be \
-    'all', 'remote', 'local' or 'sandbox'. Default is 'all' that means all types of \
+    'all', 'remote', 'local', 'sandbox' or 'none'. Default is 'all' that means all types of \
     URLs are allowed. With 'remote' only remote resource URLs are allowed. With 'local' \
     only file paths and URLs are allowed. With 'sandbox' only file paths and URLs that \
-    are under the directory path identified by the *base_url* argument are allowed.
+    are under the directory path identified by the *base_url* argument are allowed. \
+    If you provide 'none' no located resource is allowed.
     :param defuse: defines when to defuse XML data using a `SafeXMLParser`. Can be \
-    'always', 'remote' or 'never'. For default defuses only remote XML data.
+    'always', 'remote', 'nonlocal' or 'never'. For default defuses only remote XML data. \
+    With 'always' all the XML data that is not already parsed is defused. With 'nonlocal' \
+    it defuses unparsed data except local files. With 'never' no XML data source is defused.
     :param timeout: the timeout in seconds for the connection attempt in case of remote data.
     :param lazy: if a value `False` or 0 is provided the XML data is fully loaded into and \
     processed from memory. For default only the root element of the source is loaded, \
@@ -573,6 +576,8 @@ class XMLResource:
     def _access_control(self, url: str) -> None:
         if self._allow == 'all':
             return
+        elif self._allow == 'none':
+            raise XMLResourceError("block access to resource {}".format(url))
         elif self._allow == 'remote':
             if is_local_url(url):
                 raise XMLResourceError("block access to local resource {}".format(url))
@@ -622,6 +627,7 @@ class XMLResource:
                 _nsmap = []
 
         if self._defuse == 'remote' and is_remote_url(self.base_url) \
+                or self._defuse == 'nonlocal' and not is_local_url(self.base_url) \
                 or self._defuse == 'always':
             safe_parser = SafeXMLParser(target=PyElementTree.TreeBuilder())
             tree_iterator = PyElementTree.iterparse(resource, events, safe_parser)
@@ -663,6 +669,7 @@ class XMLResource:
 
     def _parse(self, resource: IO[AnyStr]) -> None:
         if self._defuse == 'remote' and is_remote_url(self.base_url) \
+                or self._defuse == 'nonlocal' and not is_local_url(self.base_url) \
                 or self._defuse == 'always':
 
             if not hasattr(resource, 'seekable') or not resource.seekable():
@@ -787,10 +794,10 @@ class XMLResource:
             # source is a readable resource (remote or local file)
             url = getattr(source, 'url', None)
             if url is not None:
+                self._access_control(url)
+
                 # Save remote urls for open new resources (non seekable)
-                if is_remote_url(url):
-                    self._access_control(url)
-                else:
+                if not is_remote_url(url):
                     url = None
 
             self._parse_resource(cast(IO[str], source), url, lazy)
