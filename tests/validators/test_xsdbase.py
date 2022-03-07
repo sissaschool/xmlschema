@@ -500,7 +500,7 @@ class TestXsdComponent(unittest.TestCase):
         self.assertIsInstance(annotation, XsdAnnotation)
         self.assertIn('_annotation', xsd_element.__dict__)
         self.assertEqual(len(schema.all_errors), 3)
-        self.assertEqual(len(annotation.errors), 2)
+        self.assertEqual(len(annotation.errors), 0)  # see issue 287
         self.assertIsNone(annotation.annotation)
 
 

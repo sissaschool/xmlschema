@@ -17,9 +17,9 @@ from typing import TYPE_CHECKING, cast, Any, Dict, Generic, List, Iterator, Opti
 import elementpath
 
 from ..exceptions import XMLSchemaValueError, XMLSchemaTypeError
-from ..names import XSD_ANNOTATION, XSD_APPINFO, XSD_DOCUMENTATION, XML_LANG, \
-    XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_ID, XSD_QNAME, \
-    XSD_OVERRIDE, XSD_NOTATION_TYPE, XSD_DECIMAL
+from ..names import XSD_ANNOTATION, XSD_APPINFO, XSD_DOCUMENTATION, \
+    XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_ID, \
+    XSD_QNAME, XSD_OVERRIDE, XSD_NOTATION_TYPE, XSD_DECIMAL
 from ..etree import is_etree_element, etree_tostring, etree_element
 from ..aliases import ElementType, NamespacesType, SchemaType, BaseXsdType, \
     ComponentClassType, ExtraValidatorType, DecodeType, IterDecodeType, \
@@ -675,14 +675,8 @@ class XsdAnnotation(XsdComponent):
         self.documentation = []
         for child in self.elem:
             if child.tag == XSD_APPINFO:
-                for key in child.attrib:
-                    if key != 'source':
-                        self.parse_error("wrong attribute %r for appinfo declaration." % key)
                 self.appinfo.append(child)
             elif child.tag == XSD_DOCUMENTATION:
-                for key in child.attrib:
-                    if key not in ['source', XML_LANG]:
-                        self.parse_error("wrong attribute %r for documentation declaration." % key)
                 self.documentation.append(child)
 
 
