@@ -2,6 +2,13 @@
 CHANGELOG
 *********
 
+`v1.10.0`_ (2022-03-07)
+======================
+* Add 'nonlocal' option to *defuse* argument of `XMLResource` (also for schema classes)
+* Add 'none' option to *allow* argument of `XMLResource`
+* Fix too strict parsing on XSD annotations (issue #287)
+* Drop support for Python 3.6
+
 `v1.9.2`_ (2021-12-23)
 ======================
 * Fix for global simple type naming (issue #278)
@@ -510,3 +517,4 @@ v0.9.6 (2017-05-05)
 .. _v1.9.0: https://github.com/brunato/xmlschema/compare/v1.8.2...v1.9.0
 .. _v1.9.1: https://github.com/brunato/xmlschema/compare/v1.9.0...v1.9.1
 .. _v1.9.2: https://github.com/brunato/xmlschema/compare/v1.9.1...v1.9.2
+.. _v1.10.0: https://github.com/brunato/xmlschema/compare/v1.9.2...v1.10.0
