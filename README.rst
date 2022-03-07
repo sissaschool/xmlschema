@@ -11,8 +11,6 @@ xmlschema
 .. image:: https://img.shields.io/badge/License-MIT-blue.svg
    :alt: MIT License
    :target: https://lbesson.mit-license.org/
-.. image:: https://travis-ci.org/sissaschool/xmlschema.svg?branch=master
-   :target: https://travis-ci.org/sissaschool/xmlschema
 .. image:: https://img.shields.io/pypi/dm/xmlschema.svg
    :target: https://pypi.python.org/pypi/xmlschema/
 .. image:: https://img.shields.io/badge/Maintained%3F-yes-green.svg
@@ -21,7 +19,7 @@ xmlschema
 .. xmlschema-introduction-start
 
 The *xmlschema* library is an implementation of `XML Schema <http://www.w3.org/2001/XMLSchema>`_
-for Python (supports Python 3.6+).
+for Python (supports Python 3.7+).
 
 This library arises from the needs of a solid Python layer for processing XML
 Schema based files for
@@ -50,7 +48,8 @@ This library includes the following features:
 * Data decoding and encoding ruled by converter classes
 * An XPath based API for finding schema's elements and attributes
 * Support of XSD validation modes *strict*/*lax*/*skip*
-* Remote attacks protection by default using an XMLParser that forbids entities
+* XML attacks protection using an XMLParser that forbids entities
+* Access control on resources addressed by an URL or filesystem path
 * XML data bindings based on DataElement class
 * Static code generation with Jinja2 templates
 

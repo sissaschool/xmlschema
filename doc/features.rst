@@ -90,17 +90,21 @@ The protection is applied both to XSD schemas and to XML data. The usage of this
 is regulated by the XMLSchema's argument *defuse*.
 
 For default this argument has value *'remote'* that means the protection on XML data is
-applied only to data loaded from remote. Other values for this argument can be *'always'*
-and *'never'*.
+applied only to data loaded from remote. Providing *'nonlocal'* all XML data are defused
+except local files. Other values for this argument can be *'always'* and *'never'*, with
+obvious meaning.
 
 
-Security modes on accessing resources
+Access control on accessing resources
 =====================================
 
 From release v1.2.0 the schema class includes an argument named *allow* for
-protecting the access to XML resources identified by an URL. For default all
-types of URLs are allowed. Provide a different value to restrict the set of
-URLs that the schema instance can access:
+protecting the access to XML resources identified by an URL or filesystem path.
+For default all types of URLs are allowed. Provide a different value to restrict
+the set of URLs that the schema instance can access:
+
+all
+    All types of URL and file paths are allowed.
 
 remote
     Only remote resource URLs are allowed.
@@ -111,6 +115,22 @@ local
 sandbox
     Allows only the file paths and URLs that are under the directory path
     identified by *source* argument or *base_url* argument.
+
+none
+    No URL based or file path access is allowed.
+
+
+.. warning::
+    For protecting services that are freely accessible for validation (eg. a web
+    on-line validator that has a form for loading schema and/or XML instance) the
+    recommendation is to provide 'always' for the *defuse* argument and 'none' for
+    the *allow* argument. These settings prevent attacks to your local filesystem,
+    through direct paths or injection in XSD schema imports or includes.
+
+    For XSD schemas, if you want to permit imports of namespaces located on other
+    web services you can provide 'remote' for the *allow* argument and provide an
+    `XMLResource` instance, initialized providing `allow='none'`, as the *source*
+    argument for the main schema.
 
 
 Processing limits

@@ -7,23 +7,23 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+# type: ignore
 """
 Observers for testing XMLSchema classes.
 """
 from functools import wraps
-from typing import List
 
-from xmlschema.names import XSD_NAMESPACE, XSD_ANY_TYPE
-from xmlschema.validators import XMLSchema10, XMLSchema11, \
-    XsdGroup, XsdAttributeGroup, XsdComplexType, XsdComponent
+from ..names import XSD_NAMESPACE, XSD_ANY_TYPE
+from ..validators import XMLSchema10, XMLSchema11, XsdGroup, \
+    XsdAttributeGroup, XsdComplexType, XsdComponent
 
 
 class SchemaObserver:
     """
     Observer that registers created components. Run the 'clear' method after each usage.
     """
-    components: List[XsdComponent] = []
-    dummy_components: List[XsdComponent] = []
+    components = []
+    dummy_components = []
 
     @classmethod
     def observed_builder(cls, builder):
@@ -31,10 +31,13 @@ class SchemaObserver:
             class BuilderProxy(builder):
                 def __init__(self, *args, **kwargs):
                     super(BuilderProxy, self).__init__(*args, **kwargs)
+                    assert isinstance(self, XsdComponent)
+
                     if not cls.is_dummy_component(self):
                         cls.components.append(self)
                     else:
                         cls.dummy_components.append(self)
+
             BuilderProxy.__name__ = builder.__name__
             return BuilderProxy
 
@@ -42,20 +45,23 @@ class SchemaObserver:
             @wraps(builder)
             def builder_proxy(*args, **kwargs):
                 obj = builder(*args, **kwargs)
+                assert isinstance(obj, XsdComponent)
+
                 if not cls.is_dummy_component(obj):
                     cls.components.append(obj)
                 else:
                     cls.dummy_components.append(obj)
                 return obj
+
             return builder_proxy
 
     @classmethod
-    def clear(cls):
+    def clear(cls) -> None:
         del cls.components[:]
         del cls.dummy_components[:]
 
     @classmethod
-    def is_dummy_component(cls, component):
+    def is_dummy_component(cls, component) -> bool:
         # Dummy components are empty attribute groups and xs:anyType
         # definitions not related to XSD namespace.
         if component.parent in cls.dummy_components:

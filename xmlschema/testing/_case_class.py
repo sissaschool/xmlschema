@@ -7,6 +7,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+# type: ignore
 """
 Tests subpackage module: common definitions for unittest scripts of the 'xmlschema' package.
 """
@@ -21,7 +22,7 @@ from xmlschema.helpers import get_namespace
 from xmlschema.etree import is_etree_element, etree_element
 from xmlschema.resources import fetch_namespaces
 from xmlschema.validators import XMLSchema10
-from .helpers import etree_elements_assert_equal
+from ._helpers import etree_elements_assert_equal
 
 
 PROTECTED_PREFIX_PATTERN = re.compile(r'\bns\d:')

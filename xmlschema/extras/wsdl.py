@@ -7,6 +7,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+# type: ignore
 import os
 
 from ..exceptions import XMLSchemaException, XMLSchemaValueError

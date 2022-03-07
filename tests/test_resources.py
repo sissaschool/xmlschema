@@ -765,6 +765,26 @@ class TestResources(unittest.TestCase):
         self.assertEqual(str(ctx.exception),
                          "'allow' argument: 'any' is not a security mode")
 
+        with self.assertRaises(XMLResourceError) as ctx:
+            XMLResource(self.vh_xml_file, allow='none')
+        self.assertTrue(str(ctx.exception).startswith('block access to resource'))
+        self.assertTrue(str(ctx.exception).endswith('vehicles.xml'))
+
+        with open(self.vh_xml_file) as fp:
+            resource = XMLResource(fp, allow='none')
+            self.assertIsInstance(resource, XMLResource)
+            self.assertIsNone(resource.url)
+
+        with open(self.vh_xml_file) as fp:
+            resource = XMLResource(fp.read(), allow='none')
+            self.assertIsInstance(resource, XMLResource)
+            self.assertIsNone(resource.url)
+
+        with open(self.vh_xml_file) as fp:
+            resource = XMLResource(StringIO(fp.read()), allow='none')
+            self.assertIsInstance(resource, XMLResource)
+            self.assertIsNone(resource.url)
+
     def test_xml_resource_defuse(self):
         resource = XMLResource(self.vh_xml_file, defuse='never', lazy=True)
         self.assertEqual(resource.defuse, 'never')
@@ -808,6 +828,23 @@ class TestResources(unittest.TestCase):
         with self.assertRaises(ElementTree.ParseError):
             with open(xml_file) as fp:
                 XMLResource(StringIO(fp.read()), defuse='always', lazy=False)
+
+    def test_xml_resource_defuse_nonlocal(self):
+        xml_file = casepath('resources/external_entity.xml')
+        resource = XMLResource(xml_file, defuse='nonlocal', lazy=True)
+        self.assertIsInstance(resource, XMLResource)
+
+        with self.assertRaises(ElementTree.ParseError):
+            with open(xml_file) as fp:
+                XMLResource(fp, defuse='nonlocal', lazy=True)
+
+        with self.assertRaises(ElementTree.ParseError):
+            with open(xml_file) as fp:
+                XMLResource(fp.read(), defuse='nonlocal', lazy=True)
+
+        with self.assertRaises(ElementTree.ParseError):
+            with open(xml_file) as fp:
+                XMLResource(StringIO(fp.read()), defuse='nonlocal', lazy=True)
 
     def test_xml_resource_timeout(self):
         resource = XMLResource(self.vh_xml_file, timeout=30)

@@ -12,13 +12,14 @@
 
 import unittest
 import os
+import pathlib
 from elementpath import XPath1Parser, XPath2Parser, Selector, \
     AttributeNode, TypedElement, ElementPathSyntaxError
 
 from xmlschema import XMLSchema10, XMLSchema11, XsdElement, XsdAttribute
 from xmlschema.names import XSD_NAMESPACE
 from xmlschema.etree import ElementTree
-from xmlschema.xpath import XMLSchemaProxy, iter_schema_nodes
+from xmlschema.xpath import XMLSchemaProxy, iter_schema_nodes, XPathElement
 from xmlschema.validators import XsdAtomic, XsdAtomicRestriction
 
 CASES_DIR = os.path.join(os.path.dirname(__file__), 'test_cases/')
@@ -143,11 +144,6 @@ class XMLSchemaProxyTest(unittest.TestCase):
             else:
                 vh_nodes.add(node)
 
-        self.assertEqual(set(iter_schema_nodes(self.xs1, with_attributes=True)),
-                         vh_nodes | {self.xs1})
-        self.assertEqual(set(iter_schema_nodes(self.xs1, with_root=False, with_attributes=True)),
-                         vh_nodes)
-
         cars = self.xs1.elements['cars']
         car = self.xs1.find('//vh:car')
         typed_cars = TypedElement(cars, cars.type, None)
@@ -155,8 +151,70 @@ class XMLSchemaProxyTest(unittest.TestCase):
         self.assertListEqual(list(iter_schema_nodes(typed_cars)), [cars, car])
         self.assertListEqual(list(iter_schema_nodes(cars, with_root=False)), [car])
         self.assertListEqual(list(iter_schema_nodes(typed_cars, with_root=False)), [car])
-        self.assertEqual(len(list(iter_schema_nodes(cars, with_attributes=True))), 4)
-        self.assertEqual(len(list(iter_schema_nodes(cars, False, with_attributes=True))), 3)
+
+
+class XPathElementTest(unittest.TestCase):
+
+    schema_class = XMLSchema10
+    col_xsd_path = None
+
+    @classmethod
+    def setUpClass(cls):
+        cls.col_xsd_path = pathlib.Path(CASES_DIR).joinpath("examples/collection/collection.xsd")
+        cls.col_schema = cls.schema_class(cls.col_xsd_path)
+
+    def test_is_matching(self):
+        # The mixin method is used by schema class but overridden for XSD components.
+        # A schema has no formal name, so it takes the source's filename, if any.
+        # This does not have effect on validation because schema is the root.
+        self.assertEqual(self.col_schema.default_namespace, 'http://example.com/ns/collection')
+        self.assertEqual(self.col_schema.name, 'collection.xsd')
+        self.assertTrue(self.col_schema.is_matching('collection.xsd'))
+        self.assertFalse(
+            self.col_schema.is_matching('collection.xsd', 'http://example.com/ns/collection')
+        )
+
+    def test_iteration(self):
+        elem = XPathElement('foo', self.col_schema.types['objType'])
+        self.assertListEqual(
+            [child.name for child in elem],
+            ['position', 'title', 'year', 'author', 'estimation', 'characters']
+        )
+
+        elem = XPathElement('foo', self.col_schema.builtin_types()['string'])
+        self.assertListEqual(list(elem), [])
+
+    def test_xpath_proxy(self):
+        elem = XPathElement('foo', self.col_schema.types['objType'])
+        xpath_proxy = elem.xpath_proxy
+        self.assertIsInstance(xpath_proxy, XMLSchemaProxy)
+        self.assertIs(xpath_proxy._schema, self.col_schema)
+
+    def test_schema(self):
+        elem = XPathElement('foo', self.col_schema.types['objType'])
+        self.assertIs(elem.schema, self.col_schema)
+        self.assertIs(elem.namespaces, self.col_schema.namespaces)
+
+    def test_target_namespace(self):
+        elem = XPathElement('foo', self.col_schema.types['objType'])
+        self.assertEqual(elem.target_namespace, 'http://example.com/ns/collection')
+
+    def test_elem_name(self):
+        elem = XPathElement('foo', self.col_schema.types['objType'])
+        try:
+            elem.namespaces['col'] = 'http://example.com/ns/collection'
+
+            self.assertEqual(elem.local_name, 'foo')
+            self.assertEqual(elem.qualified_name, '{http://example.com/ns/collection}foo')
+            self.assertEqual(elem.prefixed_name, 'foo')
+
+            elem = XPathElement('{http://example.com/ns/collection}foo',
+                                self.col_schema.types['objType'])
+            self.assertEqual(elem.local_name, 'foo')
+            self.assertEqual(elem.qualified_name, '{http://example.com/ns/collection}foo')
+            self.assertEqual(elem.prefixed_name, 'col:foo')
+        finally:
+            elem.namespaces.pop('col')
 
 
 class XMLSchemaXPathTest(unittest.TestCase):

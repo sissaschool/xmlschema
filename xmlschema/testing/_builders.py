@@ -7,6 +7,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+# type: ignore
 import pdb
 import os
 import ast
@@ -16,12 +17,11 @@ import logging
 import importlib
 import tempfile
 import warnings
-from typing import Optional, Type
 
 try:
     import lxml.etree as lxml_etree
 except ImportError:
-    lxml_etree = None  # type: ignore[assignment]
+    lxml_etree = None
     lxml_etree_element = None
 else:
     lxml_etree_element = lxml_etree.Element
@@ -42,11 +42,11 @@ from xmlschema.dataobjects import DataElementConverter, DataBindingConverter, Da
 try:
     from xmlschema.extras.codegen import PythonGenerator
 except ImportError:
-    PythonGenerator: Optional[Type] = None  # type: ignore[no-redef]
+    PythonGenerator = None
 
-from .helpers import iter_nested_items, etree_elements_assert_equal
-from .case_class import XsdValidatorTestCase
-from .observers import SchemaObserver
+from ._helpers import iter_nested_items, etree_elements_assert_equal
+from ._case_class import XsdValidatorTestCase
+from ._observers import SchemaObserver
 
 
 def make_schema_test_class(test_file, test_args, test_num, schema_class, check_with_lxml):

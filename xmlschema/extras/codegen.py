@@ -7,6 +7,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+# type: ignore
 """
 This module contains abstact base class and helper
 functions for building XSD based code generators.
