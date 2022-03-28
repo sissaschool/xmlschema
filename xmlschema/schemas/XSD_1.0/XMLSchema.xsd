@@ -34,6 +34,11 @@
 <!--
      keep this schema XML1.0 DTD valid
   -->
+<!--
+     Commented to make xmlschema compatible with defusedxml.defuse_stdlib()
+     that creates a monkey patched version of xml.etree.ElementTree library
+     with a safe parser.
+
         <!ENTITY % schemaAttrs 'xmlns:hfp CDATA #IMPLIED'>
 
         <!ELEMENT hfp:hasFacet EMPTY>
@@ -44,6 +49,7 @@
         <!ATTLIST hfp:hasProperty
                 name NMTOKEN #REQUIRED
                 value CDATA #REQUIRED>
+  -->
 <!--
         Make sure that processors that do not read the external
         subset will know about the various IDs we declare
