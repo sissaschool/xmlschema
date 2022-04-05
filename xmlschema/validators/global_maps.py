@@ -402,7 +402,7 @@ class XsdGlobals(XsdValidator):
         if all(schema.validity == 'valid' for schema in self.iter_schemas()):
             return 'valid'
         elif any(schema.validity == 'invalid' for schema in self.iter_schemas()):
-            return 'invalid'
+            return _('invalid')
         else:
             return 'notKnown'
 

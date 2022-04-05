@@ -606,6 +606,7 @@ class XsdAtomicBuiltin(XsdAtomic):
         try:
             result = self.to_python(obj)
         except (ValueError, DecimalException) as err:
+            # todo: maybe need to translate python error messages?
             yield XMLSchemaDecodeError(self, obj, self.to_python, reason=str(err))
             yield None
             return

@@ -8,6 +8,8 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+import gettext
+import pathlib
 from . import limits
 from .exceptions import XMLSchemaException, XMLResourceError, XMLSchemaNamespaceError
 from .etree import ElementData, etree_tostring
@@ -37,7 +39,6 @@ __copyright__ = "Copyright 2016-2022, SISSA"
 __license__ = "MIT"
 __status__ = "Production/Stable"
 
-
 __all__ = [
     'limits', 'XMLSchemaException', 'XMLResourceError', 'XMLSchemaNamespaceError',
     'etree_tostring', 'normalize_url', 'normalize_locations', 'fetch_resource',
@@ -54,3 +55,12 @@ __all__ = [
     'XsdGlobals', 'XMLSchemaBase', 'XMLSchema', 'XMLSchema10', 'XMLSchema11',
     'XsdComponent', 'XsdType', 'XsdElement', 'XsdAttribute',
 ]
+
+folder = pathlib.Path(__file__).parent.resolve()
+translation = gettext.translation(
+    'xmlschema',
+    pathlib.Path.joinpath(folder, 'locale'),
+    fallback=True,
+)
+
+translation.install()
