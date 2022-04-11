@@ -12,6 +12,7 @@ from ..exceptions import XMLSchemaException, XMLSchemaWarning, XMLSchemaValueErr
 from ..etree import etree_tostring
 from ..aliases import ElementType, NamespacesType, SchemaElementType, ModelParticleType
 from ..helpers import get_prefixed_qname, etree_getpath, is_etree_element
+from ..locale import _
 
 if TYPE_CHECKING:
     from ..resources import XMLResource

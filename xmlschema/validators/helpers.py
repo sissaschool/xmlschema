@@ -15,6 +15,7 @@ from elementpath import datatypes
 
 from ..exceptions import XMLSchemaValueError
 from .exceptions import XMLSchemaValidationError
+from ..locale import _
 
 XSD_FINAL_ATTRIBUTE_VALUES = {'restriction', 'extension', 'list', 'union'}
 
