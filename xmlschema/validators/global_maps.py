@@ -31,8 +31,8 @@ from .xsdbase import XsdValidator, XsdComponent
 from .builtins import xsd_builtin_types_factory
 from . import XsdAttribute, XsdSimpleType, XsdComplexType, XsdElement, XsdAttributeGroup, \
     XsdGroup, XsdNotation, XsdIdentity, XsdAssert, XsdUnion, XsdAtomicRestriction
-
 from ..locale import _
+
 
 #
 # Defines the load functions for XML Schema structures
