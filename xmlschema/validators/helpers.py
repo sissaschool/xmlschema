@@ -15,6 +15,7 @@ from elementpath import datatypes
 
 from ..exceptions import XMLSchemaValueError
 from .exceptions import XMLSchemaValidationError
+from ..locale import _
 
 XSD_FINAL_ATTRIBUTE_VALUES = {'restriction', 'extension', 'list', 'union'}
 
@@ -40,7 +41,7 @@ def get_xsd_derivation_attribute(elem: Element, attribute: str,
     if len(items) == 1 and items[0] == '#all':
         return ' '.join(values)
     elif not all(s in values for s in items):
-        raise ValueError("wrong value %r for attribute %r" % (value, attribute))
+        raise ValueError(_("wrong value %r for attribute %r") % (value, attribute))
     return value
 
 
@@ -55,92 +56,92 @@ def decimal_validator(value: Union[Decimal, int, float, str]) -> None:
             raise ValueError()
     except (ValueError, TypeError):
         raise XMLSchemaValidationError(decimal_validator, value,
-                                       "value is not a valid xs:decimal") from None
+                                       _("value is not a valid xs:decimal")) from None
 
 
 def qname_validator(value: str) -> None:
     if datatypes.QName.pattern.match(value) is None:
         raise XMLSchemaValidationError(qname_validator, value,
-                                       "value is not an xs:QName")
+                                       _("value is not an xs:QName"))
 
 
 def byte_validator(value: int) -> None:
     if not (-2**7 <= value < 2 ** 7):
         raise XMLSchemaValidationError(int_validator, value,
-                                       "value must be -128 <= x < 128")
+                                       _("value must be {:s}").format("-128 <= x < 128"))
 
 
 def short_validator(value: int) -> None:
     if not (-2**15 <= value < 2 ** 15):
         raise XMLSchemaValidationError(short_validator, value,
-                                       "value must be -2^15 <= x < 2^15")
+                                       _("value must be {:s}").format("-2^15 <= x < 2^15"))
 
 
 def int_validator(value: int) -> None:
     if not (-2**31 <= value < 2 ** 31):
         raise XMLSchemaValidationError(int_validator, value,
-                                       "value must be -2^31 <= x < 2^31")
+                                       _("value must be {:s}").format("-2^31 <= x < 2^31"))
 
 
 def long_validator(value: int) -> None:
     if not (-2**63 <= value < 2 ** 63):
         raise XMLSchemaValidationError(long_validator, value,
-                                       "value must be -2^63 <= x < 2^63")
+                                       _("value must be {:s}").format("-2^63 <= x < 2^63"))
 
 
 def unsigned_byte_validator(value: int) -> None:
     if not (0 <= value < 2 ** 8):
         raise XMLSchemaValidationError(unsigned_byte_validator, value,
-                                       "value must be 0 <= x < 256")
+                                       _("value must be {:s}").format("0 <= x < 256"))
 
 
 def unsigned_short_validator(value: int) -> None:
     if not (0 <= value < 2 ** 16):
         raise XMLSchemaValidationError(unsigned_short_validator, value,
-                                       "value must be 0 <= x < 2^16")
+                                       _("value must be {:s}").format("0 <= x < 2^16"))
 
 
 def unsigned_int_validator(value: int) -> None:
     if not (0 <= value < 2 ** 32):
         raise XMLSchemaValidationError(unsigned_int_validator, value,
-                                       "value must be 0 <= x < 2^32")
+                                       _("value must be {:s}").format("0 <= x < 2^32"))
 
 
 def unsigned_long_validator(value: int) -> None:
     if not (0 <= value < 2 ** 64):
         raise XMLSchemaValidationError(unsigned_long_validator, value,
-                                       "value must be 0 <= x < 2^64")
+                                       _("value must be {:s}").format("0 <= x < 2^64"))
 
 
 def negative_int_validator(value: int) -> None:
     if value >= 0:
         raise XMLSchemaValidationError(negative_int_validator, value,
-                                       "value must be negative")
+                                       _("value must be negative"))
 
 
 def positive_int_validator(value: int) -> None:
     if value <= 0:
         raise XMLSchemaValidationError(positive_int_validator, value,
-                                       "value must be positive")
+                                       _("value must be positive"))
 
 
 def non_positive_int_validator(value: int) -> None:
     if value > 0:
         raise XMLSchemaValidationError(non_positive_int_validator, value,
-                                       "value must be non positive")
+                                       _("value must be non positive"))
 
 
 def non_negative_int_validator(value: int) -> None:
     if value < 0:
         raise XMLSchemaValidationError(non_negative_int_validator, value,
-                                       "value must be non negative")
+                                       _("value must be non negative"))
 
 
 def hex_binary_validator(value: Union[str, datatypes.HexBinary]) -> None:
     if not isinstance(value, datatypes.HexBinary) and \
             datatypes.HexBinary.pattern.match(value) is None:
         raise XMLSchemaValidationError(hex_binary_validator, value,
-                                       "not an hexadecimal number")
+                                       _("not an hexadecimal number"))
 
 
 def base64_binary_validator(value: Union[str, datatypes.Base64Binary]) -> None:
@@ -153,12 +154,12 @@ def base64_binary_validator(value: Union[str, datatypes.Base64Binary]) -> None:
     match = datatypes.Base64Binary.pattern.match(value)
     if match is None or match.group(0) != value:
         raise XMLSchemaValidationError(base64_binary_validator, value,
-                                       "not a base64 encoding")
+                                       _("not a base64 encoding"))
 
 
 def error_type_validator(value: object) -> None:
     raise XMLSchemaValidationError(error_type_validator, value,
-                                   "no value is allowed for xs:error type")
+                                   _("no value is allowed for xs:error type"))
 
 
 #
@@ -170,7 +171,7 @@ def boolean_to_python(value: str) -> bool:
     elif value in {'false', '0'}:
         return False
     else:
-        raise XMLSchemaValueError('{!r} is not a boolean value'.format(value))
+        raise XMLSchemaValueError(_('{!r} is not a boolean value').format(value))
 
 
 def python_to_boolean(value: object) -> str:

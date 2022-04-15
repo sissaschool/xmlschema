@@ -31,6 +31,7 @@ from .xsdbase import XsdValidator, XsdComponent
 from .builtins import xsd_builtin_types_factory
 from . import XsdAttribute, XsdSimpleType, XsdComplexType, XsdElement, XsdAttributeGroup, \
     XsdGroup, XsdNotation, XsdIdentity, XsdAssert, XsdUnion, XsdAtomicRestriction
+from ..locale import _
 
 
 #
@@ -402,7 +403,7 @@ class XsdGlobals(XsdValidator):
         if all(schema.validity == 'valid' for schema in self.iter_schemas()):
             return 'valid'
         elif any(schema.validity == 'invalid' for schema in self.iter_schemas()):
-            return 'invalid'
+            return _('invalid')
         else:
             return 'notKnown'
 
