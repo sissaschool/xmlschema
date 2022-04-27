@@ -867,7 +867,7 @@ class TestXMLSchema11(TestXMLSchema10):
                         defaultAttributes="attrs">
                     <xs:element name="root"/>
                 </xs:schema>"""))
-        self.assertIn("'attrs' doesn't match an attribute group", ctx.exception.message)
+        self.assertIn("'attrs' doesn't match any attribute group", ctx.exception.message)
 
         with self.assertRaises(XMLSchemaParseError) as ctx:
             self.schema_class(dedent("""\
