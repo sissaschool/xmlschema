@@ -12,6 +12,7 @@ from ..exceptions import XMLSchemaException, XMLSchemaWarning, XMLSchemaValueErr
 from ..etree import etree_tostring
 from ..aliases import ElementType, NamespacesType, SchemaElementType, ModelParticleType
 from ..helpers import get_prefixed_qname, etree_getpath, is_etree_element
+from ..locale import _
 
 if TYPE_CHECKING:
     from ..resources import XMLResource
@@ -340,7 +341,7 @@ class XMLSchemaChildrenValidationError(XMLSchemaValidationError):
             reason = "The content of element %r is not complete." % tag
         else:
             child_tag = get_prefixed_qname(elem[index].tag, validator.namespaces, use_empty=False)
-            reason = "Unexpected child with tag %r at position %d." % (child_tag, index + 1)
+            reason = _("Unexpected child with tag %r at position %d.") % (child_tag, index + 1)
 
         if occurs and particle.is_missing(occurs):
             reason += " The particle %r occurs %d times but the minimum is %d." % (
@@ -367,11 +368,11 @@ class XMLSchemaChildrenValidationError(XMLSchemaValidationError):
             if not expected_tags:
                 pass
             elif len(expected_tags) > 1:
-                reason += " Tag (%s) expected." % ' | '.join(repr(tag) for tag in expected_tags)
+                reason += _(" Tag (%s) expected.") % ' | '.join(repr(tag) for tag in expected_tags)
             elif expected_tags[0].startswith('from '):
-                reason += " Tag %s expected." % expected_tags[0]
+                reason += _(" Tag %s expected.") % expected_tags[0]
             else:
-                reason += " Tag %r expected." % expected_tags[0]
+                reason += _(" Tag %r expected.") % expected_tags[0]
 
         super(XMLSchemaChildrenValidationError, self).\
             __init__(validator, elem, reason, source, namespaces)

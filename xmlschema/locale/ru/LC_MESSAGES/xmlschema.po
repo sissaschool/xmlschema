@@ -1,0 +1,94 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2022-04-05 17:41+0300\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: xmlschema/validators/exceptions.py:343
+#, python-format
+msgid "Unexpected child with tag %r at position %d."
+msgstr "Неожиданный дочерний тэг %r в позиции %d."
+
+#: xmlschema/validators/exceptions.py:370
+#, python-format
+msgid " Tag (%s) expected."
+msgstr " Ожидается тэг (%s)"
+
+#: xmlschema/validators/exceptions.py:372
+#, python-format
+msgid " Tag %s expected."
+msgstr " Ожидается тэг %s"
+
+#: xmlschema/validators/exceptions.py:374
+#, python-format
+msgid " Tag %r expected."
+msgstr " Ожидается тэг (%r)"
+
+#: xmlschema/validators/global_maps.py:405
+msgid "invalid"
+msgstr "невалидный"
+
+#: xmlschema/validators/helpers.py:43
+#, python-format
+msgid "wrong value %r for attribute %r"
+msgstr "неверное значение %r для атрибута %r"
+
+#: xmlschema/validators/helpers.py:58
+msgid "value is not a valid xs:decimal"
+msgstr "значение неверно для типа xs:decimal"
+
+#: xmlschema/validators/helpers.py:64
+msgid "value is not an xs:QName"
+msgstr "значение не xs:QName"
+
+#: xmlschema/validators/helpers.py:70 xmlschema/validators/helpers.py:76
+#: xmlschema/validators/helpers.py:82 xmlschema/validators/helpers.py:88
+#: xmlschema/validators/helpers.py:94 xmlschema/validators/helpers.py:100
+#: xmlschema/validators/helpers.py:106 xmlschema/validators/helpers.py:112
+msgid "value must be {:s}"
+msgstr "значение должно быть {:s}"
+
+#: xmlschema/validators/helpers.py:118
+msgid "value must be negative"
+msgstr "значение должно быть отрицательным"
+
+#: xmlschema/validators/helpers.py:124
+msgid "value must be positive"
+msgstr "значение должно быть положительным"
+
+#: xmlschema/validators/helpers.py:130
+msgid "value must be non positive"
+msgstr "значение не должно быть положительным"
+
+#: xmlschema/validators/helpers.py:136
+msgid "value must be non negative"
+msgstr "значение не должно быть отрицательным"
+
+#: xmlschema/validators/helpers.py:143
+msgid "not an hexadecimal number"
+msgstr "не шестнадцатеричное число"
+
+#: xmlschema/validators/helpers.py:156
+msgid "not a base64 encoding"
+msgstr "не закодировано в base64"
+
+#: xmlschema/validators/helpers.py:161
+msgid "no value is allowed for xs:error type"
+msgstr "значение недоступно для типа xs:error"
+
+#: xmlschema/validators/helpers.py:173
+msgid "{!r} is not a boolean value"
+msgstr "{!r} не булево значение"

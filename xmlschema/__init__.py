@@ -37,7 +37,6 @@ __copyright__ = "Copyright 2016-2022, SISSA"
 __license__ = "MIT"
 __status__ = "Production/Stable"
 
-
 __all__ = [
     'limits', 'XMLSchemaException', 'XMLResourceError', 'XMLSchemaNamespaceError',
     'etree_tostring', 'normalize_url', 'normalize_locations', 'fetch_resource',

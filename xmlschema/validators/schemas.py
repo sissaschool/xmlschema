@@ -15,6 +15,8 @@ XMLSchema11 for XSD 1.1. The latter class parses also XSD 1.0 schemas, as prescr
 the standard.
 """
 import sys
+from pathlib import Path, PurePath
+
 if sys.version_info < (3, 7):
     from typing import GenericMeta as ABCMeta
 else:
@@ -321,10 +323,18 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                  build: bool = True,
                  use_meta: bool = True,
                  use_fallback: bool = True,
-                 loglevel: Optional[Union[str, int]] = None) -> None:
+                 loglevel: Optional[Union[str, int]] = None, use_translation=False,
+                 translation_folder: PurePath = None) -> None:
 
         super(XMLSchemaBase, self).__init__(validation)
         self.lock = threading.Lock()  # Lock for build operations
+
+        if use_translation:
+            from xmlschema.locale import register_translator
+            if not translation_folder:
+                translation_folder = Path.joinpath(Path(__file__).parent.resolve(), '../locale')
+
+            register_translator(translation_folder)
 
         if loglevel is not None:
             if isinstance(loglevel, str):
