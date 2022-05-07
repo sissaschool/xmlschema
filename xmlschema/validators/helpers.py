@@ -8,13 +8,13 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from decimal import Decimal
-from gettext import gettext as _
 from math import isinf, isnan
 from typing import Optional, Set, Union
 from xml.etree.ElementTree import Element
 from elementpath import datatypes
 
 from ..exceptions import XMLSchemaValueError
+from ..translation import gettext as _
 from .exceptions import XMLSchemaValidationError
 
 XSD_FINAL_ATTRIBUTE_VALUES = {'restriction', 'extension', 'list', 'union'}

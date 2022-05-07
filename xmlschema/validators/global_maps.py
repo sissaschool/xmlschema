@@ -13,7 +13,6 @@ This module contains functions and classes for namespaces XSD declarations/defin
 import warnings
 from collections import Counter
 from functools import lru_cache
-from gettext import gettext as _
 from typing import cast, Any, Callable, Dict, List, Iterable, Iterator, \
     MutableMapping, Optional, Set, Union, Tuple, Type
 
@@ -26,6 +25,8 @@ from ..aliases import ComponentClassType, ElementType, SchemaType, BaseXsdType, 
     SchemaGlobalType
 from ..helpers import get_qname, local_name, get_extended_qname
 from ..namespaces import NamespaceResourcesMap
+from ..translation import gettext as _
+
 from .exceptions import XMLSchemaNotBuiltError, XMLSchemaModelError, XMLSchemaModelDepthError, \
     XMLSchemaParseError
 from .xsdbase import XsdValidator, XsdComponent

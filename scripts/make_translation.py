@@ -43,7 +43,7 @@ if __name__ == '__main__':
     if args.directory is not None:
         locale_dir = Path(args.directory).resolve()
     else:
-        locale_dir = Path(__file__).parent.parent.joinpath('locale').resolve()
+        locale_dir = Path(__file__).parent.parent.joinpath('xmlschema/locale').resolve()
     assert locale_dir.is_dir(), 'locale directory not found!'
 
     package_dir = Path(__file__).parent.parent.resolve()

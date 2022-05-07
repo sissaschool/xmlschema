@@ -1,6 +1,5 @@
-# -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016-2021, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2022, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -20,6 +19,7 @@ from .converters import XMLSchemaConverter, \
 from .dataobjects import DataElement, DataElementConverter, DataBindingConverter
 from .documents import validate, is_valid, iter_errors, iter_decode, \
     to_dict, to_json, from_json, XmlDocument
+from .translation import use_translation
 
 from .validators import (
     XMLSchemaValidatorError, XMLSchemaParseError, XMLSchemaNotBuiltError,
@@ -45,11 +45,11 @@ __all__ = [
     'ParkerConverter', 'BadgerFishConverter', 'AbderaConverter', 'JsonMLConverter',
     'ColumnarConverter', 'DataElement', 'DataElementConverter', 'DataBindingConverter',
     'validate', 'is_valid', 'iter_errors', 'iter_decode', 'to_dict', 'to_json',
-    'from_json', 'XmlDocument', 'XMLSchemaValidatorError', 'XMLSchemaParseError',
-    'XMLSchemaNotBuiltError', 'XMLSchemaModelError', 'XMLSchemaModelDepthError',
-    'XMLSchemaValidationError', 'XMLSchemaDecodeError', 'XMLSchemaEncodeError',
-    'XMLSchemaChildrenValidationError', 'XMLSchemaIncludeWarning',
-    'XMLSchemaImportWarning', 'XMLSchemaTypeTableWarning',
-    'XsdGlobals', 'XMLSchemaBase', 'XMLSchema', 'XMLSchema10', 'XMLSchema11',
-    'XsdComponent', 'XsdType', 'XsdElement', 'XsdAttribute',
+    'from_json', 'XmlDocument', 'use_translation', 'XMLSchemaValidatorError',
+    'XMLSchemaParseError', 'XMLSchemaNotBuiltError', 'XMLSchemaModelError',
+    'XMLSchemaModelDepthError', 'XMLSchemaValidationError', 'XMLSchemaDecodeError',
+    'XMLSchemaEncodeError', 'XMLSchemaChildrenValidationError', 'XMLSchemaIncludeWarning',
+    'XMLSchemaImportWarning', 'XMLSchemaTypeTableWarning', 'XsdGlobals', 'XMLSchemaBase',
+    'XMLSchema', 'XMLSchema10', 'XMLSchema11', 'XsdComponent', 'XsdType', 'XsdElement',
+    'XsdAttribute',
 ]
