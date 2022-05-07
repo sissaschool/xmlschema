@@ -9,7 +9,7 @@
 #
 from decimal import Decimal
 from math import isinf, isnan
-from typing import Optional, Set, Union
+from typing import Optional, Set, SupportsFloat, Union
 from xml.etree.ElementTree import Element
 from elementpath import datatypes
 
@@ -176,3 +176,13 @@ def boolean_to_python(value: str) -> bool:
 
 def python_to_boolean(value: object) -> str:
     return str(value).lower()
+
+
+def python_to_float(value: SupportsFloat) -> str:
+    if isnan(value):
+        return "NaN"
+    if value == float("inf"):
+        return "INF"
+    if value == float("-inf"):
+        return "-INF"
+    return str(value)
