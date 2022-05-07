@@ -31,7 +31,7 @@ msgstr ""
 
 #: /home/brunato/Development/projects/xmlschema/xmlschema/validators/global_maps.py:116
 msgid "not a redefinition!"
-msgstr ""
+msgstr "non è una ridefinizione!"
 
 #: /home/brunato/Development/projects/xmlschema/xmlschema/validators/global_maps.py:233
 msgid "wrong tag {!r} for an XSD global definition/declaration"

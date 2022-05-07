@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: xmlschema\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2022-05-07 12:44+0200\n"
-"PO-Revision-Date: 2022-05-07 12:48+0200\n"
+"PO-Revision-Date: 2022-05-07 17:21+0200\n"
 "Last-Translator: Davide Brunato <brunato@sissa.it>\n"
 "Language-Team: English\n"
 "Language: en\n"
@@ -19,100 +19,102 @@ msgstr ""
 
 #: /home/brunato/Development/projects/xmlschema/xmlschema/validators/global_maps.py:76
 msgid "global {0} with name={1!r} is already defined"
-msgstr ""
+msgstr "global {0} with name={1!r} is already defined"
 
 #: /home/brunato/Development/projects/xmlschema/xmlschema/validators/global_maps.py:89
 msgid "multiple redefinition for {0} {1!r}"
-msgstr ""
+msgstr "multiple redefinition for {0} {1!r}"
 
 #: /home/brunato/Development/projects/xmlschema/xmlschema/validators/global_maps.py:101
 msgid "circular redefinition for {0} {1!r}"
-msgstr ""
+msgstr "circular redefinition for {0} {1!r}"
 
 #: /home/brunato/Development/projects/xmlschema/xmlschema/validators/global_maps.py:116
 msgid "not a redefinition!"
-msgstr ""
+msgstr "not a redefinition!"
 
 #: /home/brunato/Development/projects/xmlschema/xmlschema/validators/global_maps.py:233
 msgid "wrong tag {!r} for an XSD global definition/declaration"
-msgstr ""
+msgstr "wrong tag {!r} for an XSD global definition/declaration"
 
 #: /home/brunato/Development/projects/xmlschema/xmlschema/validators/global_maps.py:312
 #: /home/brunato/Development/projects/xmlschema/xmlschema/validators/global_maps.py:329
 msgid "wrong element {0!r} for map {1!r}"
-msgstr ""
+msgstr "wrong element {0!r} for map {1!r}"
 
 #: /home/brunato/Development/projects/xmlschema/xmlschema/validators/global_maps.py:338
 msgid "redefined schema {!r} has a different targetNamespace"
-msgstr ""
+msgstr "redefined schema {!r} has a different targetNamespace"
 
 #: /home/brunato/Development/projects/xmlschema/xmlschema/validators/global_maps.py:349
 msgid "unexpected instance {!r} in global map"
-msgstr ""
+msgstr "unexpected instance {!r} in global map"
 
 #: /home/brunato/Development/projects/xmlschema/xmlschema/validators/global_maps.py:381
 msgid "{0!r} cannot substitute {1!r}"
-msgstr ""
+msgstr "{0!r} cannot substitute {1!r}"
 
 #: /home/brunato/Development/projects/xmlschema/xmlschema/validators/global_maps.py:577
 msgid "missing XSD namespace in meta-schema instance {!r}"
-msgstr ""
+msgstr "missing XSD namespace in meta-schema instance {!r}"
 
 #: /home/brunato/Development/projects/xmlschema/xmlschema/validators/global_maps.py:586
 msgid "missing default meta-schema instance {!r}"
-msgstr ""
+msgstr "missing default meta-schema instance {!r}"
 
 #: /home/brunato/Development/projects/xmlschema/xmlschema/validators/global_maps.py:638
 msgid "defaultAttributes={0!r} doesn't match any attribute group of {1!r}"
-msgstr ""
+msgstr "defaultAttributes={0!r} doesn't match any attribute group of {1!r}"
 
 #: /home/brunato/Development/projects/xmlschema/xmlschema/validators/global_maps.py:681
 msgid "global element not built!"
-msgstr ""
+msgstr "global element not built!"
 
 #: /home/brunato/Development/projects/xmlschema/xmlschema/validators/global_maps.py:683
 msgid "circularity found for substitution group with head element {}"
-msgstr ""
+msgstr "circularity found for substitution group with head element {}"
 
 #: /home/brunato/Development/projects/xmlschema/xmlschema/validators/global_maps.py:688
 #, python-format
 msgid "global map has unbuilt components: %r"
-msgstr ""
+msgstr "global map has unbuilt components: %r"
 
 #: /home/brunato/Development/projects/xmlschema/xmlschema/validators/global_maps.py:693
 msgid "global group not built!"
-msgstr ""
+msgstr "global group not built!"
 
 #: /home/brunato/Development/projects/xmlschema/xmlschema/validators/global_maps.py:700
 msgid "the redefined group is an illegal restriction"
-msgstr ""
+msgstr "the redefined group is an illegal restriction"
 
 #: /home/brunato/Development/projects/xmlschema/xmlschema/validators/global_maps.py:716
 msgid "the derived group is an illegal restriction"
-msgstr ""
+msgstr "the derived group is an illegal restriction"
 
 #: /home/brunato/Development/projects/xmlschema/xmlschema/validators/global_maps.py:726
 msgid "restriction has an open content but base type has not"
-msgstr ""
+msgstr "restriction has an open content but base type has not"
 
 #: /home/brunato/Development/projects/xmlschema/xmlschema/validators/global_maps.py:732
 msgid ""
 "can't verify the content model of {!r} due to exceeding of maximum recursion "
 "depth"
 msgstr ""
+"can't verify the content model of {!r} due to exceeding of maximum recursion "
+"depth"
 
 #: /home/brunato/Development/projects/xmlschema/xmlschema/validators/helpers.py:44
 #, python-format
 msgid "wrong value %r for attribute %r"
-msgstr ""
+msgstr "wrong value %r for attribute %r"
 
 #: /home/brunato/Development/projects/xmlschema/xmlschema/validators/helpers.py:59
 msgid "value is not a valid xs:decimal"
-msgstr ""
+msgstr "value is not a valid xs:decimal"
 
 #: /home/brunato/Development/projects/xmlschema/xmlschema/validators/helpers.py:65
 msgid "value is not an xs:QName"
-msgstr ""
+msgstr "value is not an xs:QName"
 
 #: /home/brunato/Development/projects/xmlschema/xmlschema/validators/helpers.py:71
 #: /home/brunato/Development/projects/xmlschema/xmlschema/validators/helpers.py:77
@@ -123,56 +125,56 @@ msgstr ""
 #: /home/brunato/Development/projects/xmlschema/xmlschema/validators/helpers.py:107
 #: /home/brunato/Development/projects/xmlschema/xmlschema/validators/helpers.py:113
 msgid "value must be {:s}"
-msgstr ""
+msgstr "value must be {:s}"
 
 #: /home/brunato/Development/projects/xmlschema/xmlschema/validators/helpers.py:119
 msgid "value must be negative"
-msgstr ""
+msgstr "value must be negative"
 
 #: /home/brunato/Development/projects/xmlschema/xmlschema/validators/helpers.py:125
 msgid "value must be positive"
-msgstr ""
+msgstr "value must be positive"
 
 #: /home/brunato/Development/projects/xmlschema/xmlschema/validators/helpers.py:131
 msgid "value must be non positive"
-msgstr ""
+msgstr "value must be non positive"
 
 #: /home/brunato/Development/projects/xmlschema/xmlschema/validators/helpers.py:137
 msgid "value must be non negative"
-msgstr ""
+msgstr "value must be non negative"
 
 #: /home/brunato/Development/projects/xmlschema/xmlschema/validators/helpers.py:144
 msgid "not an hexadecimal number"
-msgstr ""
+msgstr "not an hexadecimal number"
 
 #: /home/brunato/Development/projects/xmlschema/xmlschema/validators/helpers.py:157
 msgid "not a base64 encoding"
-msgstr ""
+msgstr "not a base64 encoding"
 
 #: /home/brunato/Development/projects/xmlschema/xmlschema/validators/helpers.py:162
 msgid "no value is allowed for xs:error type"
-msgstr ""
+msgstr "no value is allowed for xs:error type"
 
 #: /home/brunato/Development/projects/xmlschema/xmlschema/validators/helpers.py:174
 msgid "{!r} is not a boolean value"
-msgstr ""
+msgstr "{!r} is not a boolean value"
 
 #: /home/brunato/Development/projects/xmlschema/xmlschema/validators/exceptions.py:345
 #, python-format
 msgid "Unexpected child with tag %r at position %d."
-msgstr ""
+msgstr "Unexpected child with tag %r at position %d."
 
 #: /home/brunato/Development/projects/xmlschema/xmlschema/validators/exceptions.py:372
 #, python-format
 msgid " Tag (%s) expected."
-msgstr ""
+msgstr " Tag (%s) expected."
 
 #: /home/brunato/Development/projects/xmlschema/xmlschema/validators/exceptions.py:374
 #, python-format
 msgid " Tag %s expected."
-msgstr ""
+msgstr " Tag %s expected."
 
 #: /home/brunato/Development/projects/xmlschema/xmlschema/validators/exceptions.py:376
 #, python-format
 msgid " Tag %r expected."
-msgstr ""
+msgstr " Tag %r expected."
