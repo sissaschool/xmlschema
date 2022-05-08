@@ -7,12 +7,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-import sys
-if sys.version_info < (3, 7):
-    from typing import GenericMeta as ABCMeta
-else:
-    from abc import ABCMeta
-
+from abc import ABCMeta
 from itertools import count
 from typing import TYPE_CHECKING, cast, overload, Any, Dict, List, Iterator, \
     Optional, Union, Tuple, Type, MutableMapping, MutableSequence
@@ -21,6 +16,7 @@ from elementpath import XPathContext, XPath2Parser
 from .exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, XMLSchemaValueError
 from .etree import ElementData, etree_tostring
 from .aliases import ElementType, XMLSourceType, NamespacesType, BaseXsdType, DecodeType
+from .translation import gettext as _
 from .helpers import get_namespace, get_prefixed_qname, local_name, raw_xml_encode
 from .converters import XMLSchemaConverter
 from .resources import XMLResource
@@ -113,19 +109,19 @@ class DataElement(MutableSequence['DataElement']):
     def __setattr__(self, key: str, value: Any) -> None:
         if key == 'xsd_element':
             if not isinstance(value, validators.XsdElement):
-                raise XMLSchemaTypeError("invalid type for attribute 'xsd_element'")
+                raise XMLSchemaTypeError(_("invalid type for attribute 'xsd_element'"))
             elif self.xsd_element is value:
                 pass
             elif self.xsd_element is not None:
-                raise XMLSchemaValueError("the instance is already bound to another XSD element")
+                raise XMLSchemaValueError(_("the instance is already bound to another XSD element"))
             elif self.xsd_type is not None and self.xsd_type is not value.type:
-                raise XMLSchemaValueError("the instance is already bound to another XSD type")
+                raise XMLSchemaValueError(_("the instance is already bound to another XSD type"))
 
         elif key == 'xsd_type':
             if not isinstance(value, (validators.XsdSimpleType, validators.XsdComplexType)):
-                raise XMLSchemaTypeError("invalid type for attribute 'xsd_type'")
+                raise XMLSchemaTypeError(_("invalid type for attribute 'xsd_type'"))
             elif self.xsd_type is not None and self.xsd_type is not value:
-                raise XMLSchemaValueError("the instance is already bound to another XSD type")
+                raise XMLSchemaValueError(_("the instance is already bound to another XSD type"))
             elif self.xsd_element is None or value is not self.xsd_element.type:
                 self._encoder = value.schema.create_element(
                     self.tag, parent=value, form='unqualified'
@@ -212,7 +208,7 @@ class DataElement(MutableSequence['DataElement']):
         Accepts the same arguments of :meth:`validate`.
         """
         if self._encoder is None:
-            raise XMLSchemaValueError("{!r} has no schema bindings".format(self))
+            raise XMLSchemaValueError(_("%r has no schema bindings") % self)
 
         kwargs: Dict[str, Any] = {
             'converter': DataElementConverter,
@@ -252,7 +248,7 @@ class DataElement(MutableSequence['DataElement']):
         elif validation == 'skip':
             encoder = validators.XMLSchema.builtin_types()['anyType']
         else:
-            raise XMLSchemaValueError("{!r} has no schema bindings".format(self))
+            raise XMLSchemaValueError(_("%r has no schema bindings") % self)
 
         return encoder.encode(self, validation=validation, **kwargs)
 
@@ -344,11 +340,11 @@ class DataBindingMeta(ABCMeta):
         try:
             xsd_element = attrs['xsd_element']
         except KeyError:
-            msg = "attribute 'xsd_element' is required for an XSD data binding class"
+            msg = _("attribute 'xsd_element' is required for an XSD data binding class")
             raise XMLSchemaAttributeError(msg) from None
 
         if not isinstance(xsd_element, validators.XsdElement):
-            raise XMLSchemaTypeError("{!r} is not an XSD element".format(xsd_element))
+            raise XMLSchemaTypeError(_("{!r} is not an XSD element").format(xsd_element))
 
         attrs['__module__'] = None
         return super(DataBindingMeta, mcs).__new__(mcs, name, bases, attrs)
@@ -428,7 +424,7 @@ class DataElementConverter(XMLSchemaConverter):
                        level: int = 0) -> ElementData:
         self.namespaces.update(data_element.nsmap)
         if not xsd_element.is_matching(data_element.tag, self._namespaces.get('')):
-            raise XMLSchemaValueError("Unmatched tag")
+            raise XMLSchemaValueError(_("Unmatched tag"))
 
         attributes = {self.unmap_qname(k, xsd_element.attributes): v
                       for k, v in data_element.attrib.items()}

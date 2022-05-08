@@ -15,6 +15,7 @@ from typing import Any, Callable, Iterator, List, MutableMapping, \
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from .names import XSI_SCHEMA_LOCATION, XSI_NONS_SCHEMA_LOCATION
 from .aliases import ElementType, NamespacesType, AtomicValueType, NumericValueType
+from .translation import gettext as _
 
 ###
 # Helper functions for QNames
@@ -67,15 +68,15 @@ def local_name(qname: str) -> str:
     """
     try:
         if qname[0] == '{':
-            _, qname = qname.split('}')
+            _namespace, qname = qname.split('}')
         elif ':' in qname:
-            _, qname = qname.split(':')
+            _prefix, qname = qname.split(':')
     except IndexError:
         return ''
     except ValueError:
-        raise XMLSchemaValueError("the argument 'qname' has a wrong format: %r" % qname)
+        raise XMLSchemaValueError(_("the argument 'qname' has an invalid value %r") % qname)
     except TypeError:
-        raise XMLSchemaTypeError("the argument 'qname' must be a string")
+        raise XMLSchemaTypeError(_("the argument 'qname' must be a string-like object"))
     else:
         return qname
 

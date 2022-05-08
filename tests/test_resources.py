@@ -399,7 +399,7 @@ class TestResources(unittest.TestCase):
     def test_fetch_resource_function(self):
         with self.assertRaises(ValueError) as ctx:
             fetch_resource('')
-        self.assertIn('argument must contain a not empty string', str(ctx.exception))
+        self.assertIn('argument should contain a not empty string', str(ctx.exception))
 
         wrong_path = casepath('resources/dummy_file.txt')
         self.assertRaises(XMLResourceError, fetch_resource, wrong_path)

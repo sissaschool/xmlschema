@@ -126,11 +126,11 @@ class TestNamespaceMapper(unittest.TestCase):
 
         with self.assertRaises(ValueError) as ctx:
             mapper.map_qname('{%selement' % XSD_NAMESPACE)
-        self.assertIn("wrong format", str(ctx.exception))
+        self.assertIn("invalid value", str(ctx.exception))
 
         with self.assertRaises(ValueError) as ctx:
             mapper.map_qname('{%s}element}' % XSD_NAMESPACE)
-        self.assertIn("wrong format", str(ctx.exception))
+        self.assertIn("invalid value", str(ctx.exception))
 
         with self.assertRaises(TypeError) as ctx:
             mapper.map_qname(None)
@@ -151,7 +151,7 @@ class TestNamespaceMapper(unittest.TestCase):
 
         with self.assertRaises(ValueError) as ctx:
             mapper.unmap_qname('xs::element')
-        self.assertIn("wrong format", str(ctx.exception))
+        self.assertIn("invalid value", str(ctx.exception))
 
         with self.assertRaises(TypeError) as ctx:
             mapper.unmap_qname(None)

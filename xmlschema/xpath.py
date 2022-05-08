@@ -22,6 +22,7 @@ from elementpath import TypedElement, XPath2Parser, \
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from .names import XSD_NAMESPACE
 from .aliases import NamespacesType, SchemaType, BaseXsdType, XPathElementType
+from .translation import gettext as _
 from .helpers import get_qname, local_name, get_prefixed_qname
 
 if sys.version_info < (3, 8):
@@ -112,9 +113,10 @@ class XMLSchemaProxy(AbstractSchemaProxy):
         if base_element is not None:
             try:
                 if base_element.schema is not schema:
-                    raise XMLSchemaValueError("%r is not an element of %r" % (base_element, schema))
+                    msg = _("{0} is not an element of {1}")
+                    raise XMLSchemaValueError(msg.format(base_element, schema))
             except AttributeError:
-                raise XMLSchemaTypeError("%r is not an XsdElement" % base_element)
+                raise XMLSchemaTypeError(_("%r is not an XsdElement") % base_element)
 
     def bind_parser(self, parser: XPath2Parser) -> None:
         parser.schema = self
@@ -141,7 +143,8 @@ class XMLSchemaProxy(AbstractSchemaProxy):
         xsd_type = self._schema.maps.types[type_qname]
         if isinstance(xsd_type, tuple):
             from .validators import XMLSchemaNotBuiltError
-            raise XMLSchemaNotBuiltError(xsd_type[1], f"XSD type {type_qname} is not built")
+            msg = _("XSD type %r is not built")
+            raise XMLSchemaNotBuiltError(xsd_type[1], msg % type_qname)
 
         try:
             xsd_type.encode(obj)
@@ -154,7 +157,8 @@ class XMLSchemaProxy(AbstractSchemaProxy):
         xsd_type = self._schema.maps.types[type_qname]
         if isinstance(xsd_type, tuple):
             from .validators import XMLSchemaNotBuiltError
-            raise XMLSchemaNotBuiltError(xsd_type[1], f"XSD type {type_qname} is not built")
+            msg = _("XSD type %r is not built")
+            raise XMLSchemaNotBuiltError(xsd_type[1], msg % type_qname)
         return xsd_type.decode(obj)
 
     def iter_atomic_types(self) -> Iterator[XsdTypeProtocol]:
@@ -200,7 +204,7 @@ class ElementPathMixin(Sequence[E]):
         try:
             return [e for e in self][i]
         except IndexError:
-            raise IndexError('child index out of range')
+            raise IndexError(_('child index out of range'))
 
     def __reversed__(self) -> Iterator[E]:
         return reversed([e for e in self])

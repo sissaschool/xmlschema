@@ -26,15 +26,13 @@ def use_translation(localedir: Union[None, str, Path] = None,
     :param localedir: a string or Path-like object to locale directory
     :param languages: list of language codes
     :param class_: translation class to use
-    :param fallback: if `True` activate fallback mode
-    :param install: if `True` install function _() in Python’s builtins namespace
+    :param fallback: if `True` activates fallback mode
+    :param install: if `True` installs function _() in Python’s builtins namespace
     """
     global _translation
 
     if localedir is None:
         localedir = Path(__file__).parent.joinpath('locale').resolve()
-    if languages is None:
-        languages = ['en', 'it']
 
     _translation = _gettext.translation(
         domain='xmlschema',
@@ -43,6 +41,7 @@ def use_translation(localedir: Union[None, str, Path] = None,
         class_=class_,
         fallback=fallback,
     )
+
     if install:
         _translation.install()
 

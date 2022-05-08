@@ -28,6 +28,7 @@ from .names import XML_NAMESPACE
 from .etree import ElementTree, PyElementTree, SafeXMLParser, etree_tostring
 from .aliases import ElementType, ElementTreeType, NamespacesType, XMLSourceType, \
     NormalizedLocationsType, LocationsType, NsmapType, ParentMapType
+from .translation import gettext as _
 from .helpers import get_namespace, is_etree_element, is_etree_document, \
     etree_iter_location_hints
 
@@ -69,7 +70,7 @@ class LazySelector:
         context = XPathContext(root, **kwargs)
         results = self.root_token.get_results(context)
         if not isinstance(results, list) or any(not is_etree_element(x) for x in results):
-            msg = "XPath expressions on lazy resources can select only elements"
+            msg = _("XPath expressions on lazy resources can select only elements")
             raise XMLResourceError(msg)
         return results
 
@@ -77,7 +78,7 @@ class LazySelector:
         context = XPathContext(root, **kwargs)
         for elem in self.root_token.select_results(context):
             if not is_etree_element(elem):
-                msg = "XPath expressions on lazy resources can select only elements"
+                msg = _("XPath expressions on lazy resources can select only elements")
                 raise XMLResourceError(msg)
             yield cast(ElementProtocol, elem)
 
@@ -101,7 +102,7 @@ class _PurePath(PurePath):
     def from_uri(cls, uri: str) -> '_PurePath':
         uri = uri.strip()
         if not uri:
-            raise XMLSchemaValueError("Empty URI provided!")
+            raise XMLSchemaValueError(_("Empty URI provided!"))
 
         if uri.startswith(r'\\'):
             return _PureWindowsPath(uri)  # UNC path
@@ -133,7 +134,7 @@ class _PurePath(PurePath):
 
             obj = _PureWindowsPath(unquote(path))
             if len(obj.drive) != 2 or obj.drive[1] != ':':
-                raise XMLSchemaValueError("Invalid URI {!r}".format(uri))
+                raise XMLSchemaValueError(_("Invalid URI %r") % uri)
             return obj
 
         if '\\' in path:
@@ -334,7 +335,7 @@ def fetch_resource(location: str, base_url: Optional[str] = None, timeout: int =
     :return: a normalized URL.
     """
     if not location:
-        raise XMLSchemaValueError("'location' argument must contain a not empty string")
+        raise XMLSchemaValueError(_("'location' argument should contain a not empty string"))
 
     url = normalize_url(location, base_url)
     try:
@@ -344,13 +345,15 @@ def fetch_resource(location: str, base_url: Optional[str] = None, timeout: int =
         # fallback joining the path without a base URL
         alt_url = normalize_url(location)
         if url == alt_url:
-            raise XMLResourceError("cannot access to resource %r: %s" % (url, err.reason))
+            msg = _("cannot access to resource %(url)r: %(reason)s")
+            raise XMLResourceError(msg % {'url': url, 'reason': err.reason})
 
         try:
             with urlopen(alt_url, timeout=timeout):
                 return alt_url
         except URLError:
-            raise XMLResourceError("cannot access to resource %r: %s" % (url, err.reason))
+            msg = _("cannot access to resource %(url)r: %(reason)s")
+            raise XMLResourceError(msg % {'url': url, 'reason': err.reason})
 
 
 def fetch_schema_locations(source: Union['XMLResource', XMLSourceType],
@@ -384,8 +387,8 @@ def fetch_schema_locations(source: Union['XMLResource', XMLSourceType],
     namespace = resource.namespace
     locations = resource.get_locations(locations, root_only=False)
     if not locations:
-        msg = "{!r} does not contain any schema location hint"
-        raise XMLSchemaValueError(msg.format(source))
+        msg = _("%r does not contain any schema location hint")
+        raise XMLSchemaValueError(msg % source)
 
     for ns, url in sorted(locations, key=lambda x: x[0] != namespace):
         try:
@@ -393,7 +396,7 @@ def fetch_schema_locations(source: Union['XMLResource', XMLSourceType],
         except XMLResourceError:
             pass
 
-    raise XMLSchemaValueError("not found a schema for XML data resource {!r}.".format(source))
+    raise XMLSchemaValueError(_("not found a schema for XML data resource %r") % source)
 
 
 def fetch_schema(source: Union['XMLResource', XMLSourceType],
@@ -469,42 +472,42 @@ class XMLResource:
 
         if isinstance(base_url, str):
             if not is_url(base_url):
-                raise XMLSchemaValueError("'base_url' argument is not an URL")
+                raise XMLSchemaValueError(_("'base_url' argument is not an URL"))
             self._base_url = base_url
         elif isinstance(base_url, Path):
             self._base_url = str(base_url)
         elif isinstance(base_url, bytes):
             if not is_url(base_url):
-                raise XMLSchemaValueError("'base_url' argument is not an URL")
+                raise XMLSchemaValueError(_("'base_url' argument is not an URL"))
             self._base_url = base_url.decode()
         elif base_url is not None:
-            msg = "invalid type {!r} for argument 'base_url'"
-            raise XMLSchemaTypeError(msg.format(type(base_url)))
+            msg = _("invalid type %r for argument 'base_url'")
+            raise XMLSchemaTypeError(msg % type(base_url))
 
         if not isinstance(allow, str):
-            msg = "invalid type {!r} for argument 'allow'"
-            raise XMLSchemaTypeError(msg.format(type(allow)))
+            msg = _("invalid type %r for argument 'allow'")
+            raise XMLSchemaTypeError(msg % type(allow))
         elif allow not in SECURITY_MODES:
-            msg = "'allow' argument: {!r} is not a security mode"
-            raise XMLSchemaValueError(msg.format(allow))
+            msg = _("'allow' argument: %r is not a security mode")
+            raise XMLSchemaValueError(msg % allow)
         elif allow == 'sandbox' and self._base_url is None:
-            msg = "block access to files out of sandbox requires 'base_url' to be set"
+            msg = _("block access to files out of sandbox requires 'base_url' to be set")
             raise XMLResourceError(msg)
         self._allow = allow
 
         if not isinstance(defuse, str):
-            msg = "invalid type {!r} for argument 'defuse'"
-            raise XMLSchemaTypeError(msg.format(type(defuse)))
+            msg = _("invalid type %r for argument 'defuse'")
+            raise XMLSchemaTypeError(msg % type(defuse))
         elif defuse not in DEFUSE_MODES:
-            msg = "'defuse' argument: {!r} is not a defuse mode"
-            raise XMLSchemaValueError(msg.format(defuse))
+            msg = _("'defuse' argument: %r is not a defuse mode")
+            raise XMLSchemaValueError(msg % defuse)
         self._defuse = defuse
 
         if not isinstance(timeout, int):
-            msg = "invalid type {!r} for argument 'timeout'"
-            raise XMLSchemaTypeError(msg.format(type(timeout)))
+            msg = _("invalid type %r for argument 'timeout'")
+            raise XMLSchemaTypeError(msg % type(timeout))
         elif timeout <= 0:
-            msg = "the argument 'timeout' must be a positive integer"
+            msg = _("the argument 'timeout' must be a positive integer")
             raise XMLSchemaValueError(msg)
         self._timeout = timeout
 
@@ -577,15 +580,15 @@ class XMLResource:
         if self._allow == 'all':
             return
         elif self._allow == 'none':
-            raise XMLResourceError("block access to resource {}".format(url))
+            raise XMLResourceError(_("block access to resource {}").format(url))
         elif self._allow == 'remote':
             if is_local_url(url):
-                raise XMLResourceError("block access to local resource {}".format(url))
+                raise XMLResourceError(_("block access to local resource {}").format(url))
         elif is_remote_url(url):
-            raise XMLResourceError("block access to remote resource {}".format(url))
+            raise XMLResourceError(_("block access to remote resource {}").format(url))
         elif self._allow == 'sandbox' and self._base_url is not None:
             if not url.startswith(normalize_url(self._base_url)):
-                raise XMLResourceError("block access to out of sandbox file {}".format(url))
+                raise XMLResourceError(_("block access to out of sandbox file {}").format(url))
 
     def _update_nsmap(self, nsmap: MutableMapping[str, str], prefix: str, uri: str) -> None:
         if not prefix:
@@ -733,11 +736,11 @@ class XMLResource:
         if isinstance(lazy, bool):
             pass
         elif not isinstance(lazy, int):
-            msg = "invalid type {!r} for the attribute 'lazy'"
-            raise XMLSchemaTypeError(msg.format(type(lazy)))
+            msg = _("invalid type %r for the attribute 'lazy'")
+            raise XMLSchemaTypeError(msg % type(lazy))
         elif lazy < 0:
-            msg = "invalid value {!r} for the attribute 'lazy'"
-            raise XMLSchemaValueError(msg.format(lazy))
+            msg = _("invalid value %r for the attribute 'lazy'")
+            raise XMLSchemaValueError(msg % lazy)
 
         url: Optional[str]
         if isinstance(source, str):
@@ -814,9 +817,9 @@ class XMLResource:
                 self._root = cast(ElementTreeType, source).getroot()
             else:
                 raise XMLSchemaTypeError(
-                    "wrong type %r for 'source' attribute: an ElementTree object or "
-                    "an Element instance or a string containing XML data or an URL "
-                    "or a file-like object is required." % type(source)
+                    _("wrong type %r for 'source' attribute: an ElementTree object or "
+                      "an Element instance or a string containing XML data or an URL "
+                      "or a file-like object is required.") % type(source)
                 )
 
             self._text = self._url = None
@@ -844,7 +847,7 @@ class XMLResource:
     @property
     def parent_map(self) -> Dict[ElementType, Optional[ElementType]]:
         if self._lazy:
-            raise XMLResourceError("cannot create the parent map of a lazy resource")
+            raise XMLResourceError(_("cannot create the parent map of a lazy resource"))
         if self._parent_map is None:
             assert self._root is not None
             self._parent_map = {child: elem for elem in self._root.iter() for child in elem}
@@ -891,7 +894,7 @@ class XMLResource:
                  spaces_for_tab: int = 4, xml_declaration: bool = False) -> str:
         """Generates a string representation of the XML resource."""
         if self._lazy:
-            raise XMLResourceError("cannot serialize a lazy resource")
+            raise XMLResourceError(_("cannot serialize a lazy resource"))
 
         elem = self._root
         namespaces = self.get_namespaces(root_only=False)
@@ -903,13 +906,13 @@ class XMLResource:
     def subresource(self, elem: ElementType) -> 'XMLResource':
         """Create an XMLResource instance from a subelement of a non-lazy XML tree."""
         if self._lazy:
-            raise XMLResourceError("cannot create a subresource from a lazy resource")
+            raise XMLResourceError(_("cannot create a subresource from a lazy resource"))
 
         for e in self._root.iter():  # pragma: no cover
             if e is elem:
                 break
         else:
-            msg = "{!r} is not an element or the XML resource tree"
+            msg = _("{!r} is not an element or the XML resource tree")
             raise XMLResourceError(msg.format(elem))
 
         resource = XMLResource(elem, self.base_url, self._allow, self._defuse, self._timeout)
@@ -939,14 +942,13 @@ class XMLResource:
         if self.seek(0) == 0:
             return cast(IO[AnyStr], self._source)
         elif self._url is None:
-            raise XMLResourceError("can't open, the resource has no URL associated.")
+            raise XMLResourceError(_("can't open, the resource has no URL associated."))
 
         try:
             return cast(IO[AnyStr], urlopen(self._url, timeout=self._timeout))
         except URLError as err:
-            raise XMLResourceError(
-                "cannot access to resource %r: %s" % (self._url, err.reason)
-            )
+            msg = _("cannot access to resource %(url)r: %(reason)s")
+            raise XMLResourceError(msg % {'url': self._url, 'reason': err.reason})
 
     def seek(self, position: int) -> Optional[int]:
         """
@@ -984,7 +986,7 @@ class XMLResource:
         if self._url is None and not hasattr(self._source, 'read'):
             return  # Created from Element or text source --> already loaded
         elif self._lazy:
-            raise XMLResourceError("cannot load a lazy resource")
+            raise XMLResourceError(_("cannot load a lazy resource"))
 
         resource = self.open()
         try:
@@ -1118,7 +1120,7 @@ class XMLResource:
             return
 
         if mode not in (1, 2, 3, 4):
-            raise XMLSchemaValueError("invalid argument mode={!r}".format(mode))
+            raise XMLSchemaValueError(_("invalid argument mode={!r}").format(mode))
 
         resource = self.open()
         level = 0
@@ -1283,17 +1285,17 @@ class XMLResource:
         if namespaces is None:
             namespaces = {}
         elif namespaces.get('xml', XML_NAMESPACE) != XML_NAMESPACE:
-            msg = "reserved prefix (xml) must not be bound to another namespace name"
+            msg = _("reserved prefix (xml) must not be bound to another namespace name")
             raise XMLSchemaValueError(msg)
         else:
             namespaces = copy.copy(namespaces)
 
         try:
             if root_only or root_only is None and self._lazy:
-                for _ in self.iter(nsmap=namespaces):
+                for _elem in self.iter(nsmap=namespaces):
                     break
             else:
-                for _ in self.iter(nsmap=namespaces):
+                for _elem in self.iter(nsmap=namespaces):
                     pass
         except (ElementTree.ParseError, PyElementTree.ParseError, UnicodeEncodeError):
             pass
