@@ -823,7 +823,7 @@ class TestXsdFacets(unittest.TestCase):
                     </xs:simpleType>
                 </xs:schema>"""))
 
-        self.assertIn("value has to be 0 for types derived from xs:integer", str(ec.exception))
+        self.assertIn("value must be 0 for types derived from xs:integer", str(ec.exception))
 
         with self.assertRaises(XMLSchemaParseError) as ec:
             self.schema_class(dedent("""\

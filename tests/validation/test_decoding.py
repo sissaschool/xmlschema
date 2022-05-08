@@ -757,7 +757,7 @@ class TestDecoding(XsdValidatorTestCase):
                 self.col_xml_file, converter=ColumnarConverter, attr_prefix='-',
             )
         self.assertEqual(str(ctx.exception),
-                         "attr_prefix can be the empty string or a single/double underscore")
+                         "'attr_prefix' can be the empty string or a single/double underscore")
 
     def test_dict_granularity(self):
         """Based on Issue #22, test to make sure an xsd indicating list with

@@ -18,7 +18,6 @@ from .etree import ElementTree, etree_tostring
 from .aliases import ElementType, XMLSourceType, NamespacesType, LocationsType, \
     LazyType, SchemaSourceType, ConverterType, DecodeType, EncodeType, \
     JsonDecodeType
-from .translation import gettext as _
 from .helpers import is_etree_document
 from .resources import fetch_schema_locations, XMLResource
 from .validators import XMLSchema10, XMLSchemaBase, XMLSchemaValidationError
@@ -44,7 +43,7 @@ def get_context(xml_document: Union[XMLSourceType, XMLResource],
     if cls is None:
         cls = XMLSchema10
     elif not issubclass(cls, XMLSchemaBase):
-        raise XMLSchemaTypeError(_("invalid schema class %r") % cls)
+        raise XMLSchemaTypeError("invalid schema class %r" % cls)
 
     if isinstance(xml_document, XMLResource):
         resource = xml_document
@@ -66,7 +65,7 @@ def get_context(xml_document: Union[XMLSourceType, XMLResource],
             elif dummy_schema:
                 return resource, get_dummy_schema(resource, cls)
             else:
-                msg = _("no schema can be retrieved for the provided XML data")
+                msg = "no schema can be retrieved for the provided XML data"
                 raise XMLSchemaValueError(msg) from None
 
         elif isinstance(schema, XMLSchemaBase):
@@ -402,7 +401,7 @@ def from_json(source: Union[str, bytes, IO[str]],
     or also if it's invalid when ``validation='strict'`` is provided.
     """
     if not isinstance(schema, XMLSchemaBase):
-        raise XMLSchemaTypeError(_("invalid type %r for argument 'schema'") % type(schema))
+        raise XMLSchemaTypeError("invalid type %r for argument 'schema'" % type(schema))
     elif json_options is None:
         json_options = {}
 
@@ -478,7 +477,7 @@ class XmlDocument(XMLResource):
                 if XSI_TYPE in self._root.attrib:
                     self.schema = cls.meta_schema
                 elif validation != 'skip':
-                    msg = _("no schema can be retrieved for the XML resource")
+                    msg = "no schema can be retrieved for the XML resource"
                     raise XMLSchemaValueError(msg) from None
                 else:
                     self._fallback_schema = get_dummy_schema(self, cls)
@@ -499,7 +498,7 @@ class XmlDocument(XMLResource):
         elif validation == 'lax':
             self.errors = [e for e in self.schema.iter_errors(self, namespaces=self.namespaces)]
         elif validation != 'skip':
-            raise XMLSchemaValueError(_("%r is not a validation mode") % validation)
+            raise XMLSchemaValueError("%r is not a validation mode" % validation)
 
     def parse(self, source: XMLSourceType, lazy: LazyType = False) -> None:
         super(XmlDocument, self).parse(source, lazy)
@@ -523,8 +522,7 @@ class XmlDocument(XMLResource):
         if is_etree_document(self._source):
             return self._source
         elif self._lazy:
-            msg = _("cannot create an ElementTree from a lazy resource")
-            raise XMLResourceError(msg)
+            raise XMLResourceError("cannot create an ElementTree from a lazy resource")
         elif hasattr(self._root, 'nsmap'):
             return self._root.getroottree()  # type: ignore[attr-defined]
         else:
@@ -534,7 +532,7 @@ class XmlDocument(XMLResource):
                  spaces_for_tab: int = 4, xml_declaration: bool = False,
                  encoding: str = 'unicode', method: str = 'xml') -> str:
         if self._lazy:
-            raise XMLResourceError(_("cannot serialize a lazy XML document"))
+            raise XMLResourceError("cannot serialize a lazy XML document")
 
         _string = etree_tostring(
             elem=self._root,
@@ -619,7 +617,7 @@ class XmlDocument(XMLResource):
               default_namespace: Optional[str] = None, method: str = "xml") -> None:
         """Serialize an XML resource to a file. Cannot be used with lazy resources."""
         if self._lazy:
-            raise XMLResourceError(_("cannot serialize a lazy XML document"))
+            raise XMLResourceError("cannot serialize a lazy XML document")
 
         kwargs: Dict[str, Any] = {
             'xml_declaration': xml_declaration,
@@ -664,5 +662,5 @@ class XmlDocument(XMLResource):
             else:
                 file.write(_string)
         else:
-            msg = _("unexpected type %r for 'file' argument")
+            msg = "unexpected type %r for 'file' argument"
             raise XMLSchemaTypeError(msg % type(file))

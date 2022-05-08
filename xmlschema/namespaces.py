@@ -15,7 +15,6 @@ from typing import Any, Container, Dict, Iterator, List, Optional, MutableMappin
     Mapping, TypeVar
 
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
-from .translation import gettext as _
 from .helpers import local_name
 from .aliases import NamespacesType
 
@@ -160,9 +159,9 @@ class NamespaceMapper(MutableMapping[str, str]):
         except IndexError:
             return qname
         except ValueError:
-            raise XMLSchemaValueError(_("the argument 'qname' has an invalid value %r") % qname)
+            raise XMLSchemaValueError("the argument 'qname' has an invalid value %r" % qname)
         except TypeError:
-            raise XMLSchemaTypeError(_("the argument 'qname' must be a string-like object"))
+            raise XMLSchemaTypeError("the argument 'qname' must be a string-like object")
 
         for prefix, uri in sorted(self._namespaces.items(), reverse=True):
             if uri == namespace:
@@ -192,7 +191,7 @@ class NamespaceMapper(MutableMapping[str, str]):
             return qname
         except ValueError:
             if ':' in qname:
-                raise XMLSchemaValueError(_("the argument 'qname' has an invalid value %r") % qname)
+                raise XMLSchemaValueError("the argument 'qname' has an invalid value %r" % qname)
             if not self._namespaces.get(''):
                 return qname
             elif name_table is None or qname not in name_table:
@@ -200,7 +199,7 @@ class NamespaceMapper(MutableMapping[str, str]):
             else:
                 return qname
         except (TypeError, AttributeError):
-            raise XMLSchemaTypeError(_("the argument 'qname' must be a string-like object"))
+            raise XMLSchemaTypeError("the argument 'qname' must be a string-like object")
         else:
             try:
                 uri = self._namespaces[prefix]

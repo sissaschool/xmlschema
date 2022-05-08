@@ -48,11 +48,11 @@ class ColumnarConverter(XMLSchemaConverter):
         if name != 'attr_prefix':
             super(ColumnarConverter, self).__setattr__(name, value)
         elif not isinstance(value, str):
-            msg = '{} must be a str, not {}'
-            raise XMLSchemaTypeError(msg.format(name, type(value).__name__))
+            msg = "%(name)r must be a <class 'str'> instance, not %(type)r"
+            raise XMLSchemaTypeError(msg % {'name': name, 'type': type(value)})
         elif value not in {'', '_', '__'}:
-            msg = '{} can be the empty string or a single/double underscore'
-            raise XMLSchemaValueError(msg.format(name))
+            msg = '%r can be the empty string or a single/double underscore'
+            raise XMLSchemaValueError(msg % name)
         else:
             super(XMLSchemaConverter, self).__setattr__(name, value)
 

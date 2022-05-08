@@ -113,28 +113,28 @@ class XMLSchemaConverter(NamespaceMapper):
     def __setattr__(self, name: str, value: Any) -> None:
         if name in {'attr_prefix', 'text_key', 'cdata_prefix'}:
             if value is not None and not isinstance(value, str):
-                msg = '{} must be a str or None, not {}'
-                raise XMLSchemaTypeError(msg.format(name, type(value).__name__))
+                msg = "%(name)r must be a <class 'str'> instance or None, not %(type)r"
+                raise XMLSchemaTypeError(msg % {'name': name, 'type': type(value)})
 
         elif name in {'strip_namespaces', 'preserve_root', 'force_dict', 'force_list'}:
             if not isinstance(value, bool):
-                msg = '{} must be a bool, not {}'
-                raise XMLSchemaTypeError(msg.format(name, type(value).__name__))
+                msg = "%(name)r must be a <class 'bool'> instance, not %(type)r"
+                raise XMLSchemaTypeError(msg % {'name': name, 'type': type(value)})
 
         elif name == 'indent':
             if isinstance(value, bool) or not isinstance(value, int):
-                msg = '{} must be an int, not {}'
-                raise XMLSchemaTypeError(msg.format(name, type(value).__name__))
+                msg = "%(name)r must be a <class 'int'> instance, not %(type)r"
+                raise XMLSchemaTypeError(msg % {'name': name, 'type': type(value)})
 
         elif name == 'dict':
             if not issubclass(value, MutableMapping):
-                msg = '{!r} must be a MutableMapping subclass, not {}'
-                raise XMLSchemaTypeError(msg.format(name, value))
+                msg = "%(name)r must be a MutableMapping object, not %(type)r"
+                raise XMLSchemaTypeError(msg % {'name': name, 'type': type(value)})
 
         elif name == 'list':
             if not issubclass(value, MutableSequence):
-                msg = '{!r} must be a MutableSequence subclass, not {}'
-                raise XMLSchemaTypeError(msg.format(name, value))
+                msg = "%(name)r must be a MutableSequence object, not %(type)r"
+                raise XMLSchemaTypeError(msg % {'name': name, 'type': type(value)})
 
         super(XMLSchemaConverter, self).__setattr__(name, value)
 

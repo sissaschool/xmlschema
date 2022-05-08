@@ -19,6 +19,7 @@ from elementpath import XPath2Parser, ElementPathError, XPathToken, XPathContext
 
 from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from ..names import XSD_QNAME, XSD_UNIQUE, XSD_KEY, XSD_KEYREF, XSD_SELECTOR, XSD_FIELD
+from ..translation import gettext as _
 from ..helpers import get_qname, get_extended_qname
 from ..aliases import ElementType, SchemaType, NamespacesType, AtomicValueType
 from ..xpath import iter_schema_nodes
@@ -82,7 +83,7 @@ class XsdSelector(XsdComponent):
         try:
             self.path = self.elem.attrib['xpath']
         except KeyError:
-            self.parse_error("'xpath' attribute required")
+            self.parse_error(_("'xpath' attribute required"))
             self.path = '*'
         else:
             path = self.path.replace(' ', '')
@@ -94,7 +95,7 @@ class XsdSelector(XsdComponent):
                 _match = self.pattern.match(path)  # type: ignore[union-attr]
 
             if not _match:
-                msg = "invalid XPath expression for an {}"
+                msg = _("invalid XPath expression for an {}")
                 self.parse_error(msg.format(self.__class__.__name__))
 
         # XSD 1.1 xpathDefaultNamespace attribute
@@ -178,7 +179,7 @@ class XsdIdentity(XsdComponent):
         try:
             self.name = get_qname(self.target_namespace, self.elem.attrib['name'])
         except KeyError:
-            self.parse_error("missing required attribute 'name'")
+            self.parse_error(_("missing required attribute 'name'"))
             self.name = ''
 
         for child in self.elem:
@@ -186,7 +187,7 @@ class XsdIdentity(XsdComponent):
                 self.selector = XsdSelector(child, self.schema, self)
                 break
         else:
-            self.parse_error("missing 'selector' declaration.")
+            self.parse_error(_("missing 'selector' declaration"))
 
         self.fields = []
         for child in self.elem:
@@ -198,11 +199,13 @@ class XsdIdentity(XsdComponent):
             try:
                 ref = self.maps.identities[self.name]
             except KeyError:
-                self.parse_error("unknown identity constraint {!r}".format(self.name))
+                msg = _("unknown identity constraint {!r}")
+                self.parse_error(msg.format(self.name))
                 return
             else:
                 if not isinstance(ref, self.__class__):
-                    self.parse_error("attribute 'ref' points to a different kind constraint")
+                    msg = _("attribute 'ref' points to a different kind constraint")
+                    self.parse_error(msg)
                 self.selector = ref.selector
                 self.fields = ref.fields
                 self.ref = ref
@@ -213,7 +216,8 @@ class XsdIdentity(XsdComponent):
         try:
             for e in self.selector.token.select_results(context):
                 if not isinstance(e, XsdComponent) or isinstance(e, XsdAttribute):
-                    self.parse_error("selector xpath expression can only select elements")
+                    msg = _("selector xpath expression can only select elements")
+                    self.parse_error(msg)
                 elif e.name is not None:
                     if TYPE_CHECKING:
                         assert isinstance(e, XsdElement)  # for mypy checks with Python 3.7
@@ -289,7 +293,7 @@ class XsdIdentity(XsdComponent):
                 elif field.target_namespace not in self.maps.namespaces:
                     fields.append(None)
                 else:
-                    msg = "missing key field {!r} for {!r}"
+                    msg = _("missing key field {0!r} for {1!r}")
                     raise XMLSchemaValueError(msg.format(field.path, self))
 
             elif len(result) == 1:
@@ -297,7 +301,8 @@ class XsdIdentity(XsdComponent):
                     fields.append(result[0])
                 else:
                     if decoders[k].type.content_type_label not in ('simple', 'mixed'):
-                        raise XMLSchemaTypeError("%r field doesn't have a simple type!" % field)
+                        msg = _("%r field doesn't have a simple type!")
+                        raise XMLSchemaTypeError(msg % field)
 
                     value = decoders[k].data_value(result[0])
                     if decoders[k].type.root_type.name == XSD_QNAME:
@@ -317,7 +322,8 @@ class XsdIdentity(XsdComponent):
                     else:
                         fields.append((value, float))
             else:
-                raise XMLSchemaValueError("%r field selects multiple values!" % field)
+                msg = _("%r field selects multiple values!")
+                raise XMLSchemaValueError(msg % field)
 
         return tuple(fields)
 
@@ -350,7 +356,7 @@ class XsdKeyref(XsdIdentity):
             self.refer = self.schema.resolve_qname(self.elem.attrib['refer'])
         except (KeyError, ValueError, RuntimeError) as err:
             if 'refer' not in self.elem.attrib:
-                self.parse_error("missing required attribute 'refer'")
+                self.parse_error(_("missing required attribute 'refer'"))
             else:
                 self.parse_error(err)
 
@@ -372,13 +378,16 @@ class XsdKeyref(XsdIdentity):
                 try:
                     self.refer = self.maps.identities[self.refer]  # type: ignore[assignment]
                 except KeyError:
-                    self.parse_error("key/unique identity constraint %r is missing" % self.refer)
+                    msg = _("key/unique identity constraint %r is missing")
+                    self.parse_error(msg % self.refer)
                     return
 
         if not isinstance(self.refer, (XsdKey, XsdUnique)):
-            self.parse_error("reference to a non key/unique identity constraint %r" % self.refer)
+            msg = _("reference to a non key/unique identity constraint %r")
+            self.parse_error(msg % self.refer)
         elif len(self.refer.fields) != len(self.fields):
-            self.parse_error("field cardinality mismatch between %r and %r" % (self, self.refer))
+            msg = _("field cardinality mismatch between {0!r} and {1!r}")
+            self.parse_error(msg.format(self, self.refer))
         elif self.parent is not self.refer.parent:
             refer_path = self.refer.parent.get_path(ancestor=self.parent)
             if refer_path is None:
@@ -447,7 +456,7 @@ class IdentityCounter:
     def increase(self, fields: IdentityCounterType) -> None:
         self.counter[fields] += 1
         if self.counter[fields] == 2:
-            msg = "duplicated value {!r} for {!r}"
+            msg = _("duplicated value {0!r} for {1!r}")
             raise XMLSchemaValueError(msg.format(fields, self.identity))
 
 

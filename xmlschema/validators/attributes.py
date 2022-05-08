@@ -22,6 +22,7 @@ from ..names import XSI_NAMESPACE, XSD_ANY_SIMPLE_TYPE, XSD_SIMPLE_TYPE, \
     XSD_ASSERT, XSD_NOTATION_TYPE, XSD_ANNOTATION
 from ..aliases import ComponentClassType, ElementType, IterDecodeType, \
     IterEncodeType, AtomicValueType, SchemaType, DecodedValueType, EncodedValueType
+from ..translation import gettext as _
 from ..helpers import get_namespace, get_qname
 
 from .exceptions import XMLSchemaValidationError
@@ -78,7 +79,8 @@ class XsdAttribute(XsdComponent, ValidationMixin[str, DecodedValueType]):
                 xsd_attribute = self.maps.lookup_attribute(self.name)
             except LookupError:
                 self.type = self.any_simple_type
-                self.parse_error("unknown attribute {!r}".format(self.name))
+                msg = _("unknown attribute {!r}")
+                self.parse_error(msg.format(self.name))
             else:
                 self.ref = xsd_attribute
                 self.type = xsd_attribute.type
@@ -92,13 +94,13 @@ class XsdAttribute(XsdComponent, ValidationMixin[str, DecodedValueType]):
                     if 'fixed' not in attrib:
                         self.fixed = xsd_attribute.fixed
                     elif xsd_attribute.fixed != attrib['fixed']:
-                        msg = "referenced attribute has a different fixed value {!r}"
+                        msg = _("referenced attribute has a different fixed value {!r}")
                         self.parse_error(msg.format(xsd_attribute.fixed))
 
             for attribute in ('form', 'type'):
                 if attribute in self.elem.attrib:
-                    self.parse_error("attribute {!r} is not allowed when "
-                                     "attribute reference is used".format(attribute))
+                    msg = _("attribute {!r} is not allowed when attribute reference is used")
+                    self.parse_error(msg.format(attribute))
         else:
             if 'form' in attrib:
                 self.form = attrib['form']
@@ -113,13 +115,15 @@ class XsdAttribute(XsdComponent, ValidationMixin[str, DecodedValueType]):
                 pass
             else:
                 if name == 'xmlns':
-                    self.parse_error("an attribute name must be different from 'xmlns'")
+                    msg = _("an attribute name must be different from 'xmlns'")
+                    self.parse_error(msg)
 
                 if self.parent is None or self.qualified:
                     if self.target_namespace == XSI_NAMESPACE and \
                             name not in {'nil', 'type', 'schemaLocation',
                                          'noNamespaceSchemaLocation'}:
-                        self.parse_error("cannot add attributes in %r namespace" % XSI_NAMESPACE)
+                        msg = _("cannot add attributes in %r namespace")
+                        self.parse_error(msg % XSI_NAMESPACE)
                     self.name = get_qname(self.target_namespace, name)
                 else:
                     self.name = name
@@ -139,7 +143,8 @@ class XsdAttribute(XsdComponent, ValidationMixin[str, DecodedValueType]):
                         self.parse_error(err)
 
                     if child is not None and child.tag == XSD_SIMPLE_TYPE:
-                        self.parse_error("ambiguous type definition for XSD attribute")
+                        msg = _("ambiguous type definition for XSD attribute")
+                        self.parse_error(msg)
 
             elif child is not None:
                 # No 'type' attribute in declaration, parse for child local simpleType
@@ -150,31 +155,36 @@ class XsdAttribute(XsdComponent, ValidationMixin[str, DecodedValueType]):
 
             if not isinstance(self.type, XsdSimpleType):
                 self.type = self.any_simple_type
-                self.parse_error("XSD attribute's type must be a simpleType")
+                msg = _("XSD attribute's type must be a simpleType")
+                self.parse_error(msg)
 
         # Check value constraints
         if 'default' in attrib:
             self.default = attrib['default']
             if 'fixed' in attrib:
-                self.parse_error("'default' and 'fixed' attributes are mutually exclusive")
+                msg = _("'default' and 'fixed' attributes are mutually exclusive")
+                self.parse_error(msg)
 
             if self.use != 'optional':
-                self.parse_error("the attribute 'use' must be 'optional' "
-                                 "if the attribute 'default' is present")
+                msg = _("the attribute 'use' must be 'optional' "
+                        "if the attribute 'default' is present")
+                self.parse_error(msg)
 
             if not self.type.is_valid(self.default):
-                msg = "default value {!r} is not compatible with attribute's type"
+                msg = _("default value {!r} is not compatible with attribute's type")
                 self.parse_error(msg.format(self.default))
             elif self.type.is_key() and self.xsd_version == '1.0':
-                self.parse_error("xs:ID key attributes cannot have a default value")
+                msg = _("xs:ID key attributes cannot have a default value")
+                self.parse_error(msg)
 
         elif 'fixed' in attrib:
             self.fixed = attrib['fixed']
             if not self.type.is_valid(self.fixed):
-                msg = "fixed value {!r} is not compatible with attribute's type"
+                msg = _("fixed value {!r} is not compatible with attribute's type")
                 self.parse_error(msg.format(self.fixed))
             elif self.type.is_key() and self.xsd_version == '1.0':
-                self.parse_error("xs:ID key attributes cannot have a fixed value")
+                msg = _("xs:ID key attributes cannot have a fixed value")
+                self.parse_error(msg)
 
     @property
     def built(self) -> bool:
@@ -224,11 +234,11 @@ class XsdAttribute(XsdComponent, ValidationMixin[str, DecodedValueType]):
 
         if self.type.is_notation():
             if self.type.name == XSD_NOTATION_TYPE:
-                msg = "cannot validate against xs:NOTATION directly, " \
-                      "only against a subtype with an enumeration facet"
+                msg = _("cannot validate against xs:NOTATION directly, "
+                        "only against a subtype with an enumeration facet")
                 yield self.validation_error(validation, msg, obj, **kwargs)
             elif not self.type.enumeration:
-                msg = "missing enumeration facet in xs:NOTATION subtype"
+                msg = _("missing enumeration facet in xs:NOTATION subtype")
                 yield self.validation_error(validation, msg, obj, **kwargs)
 
         if self.fixed is not None:
@@ -236,12 +246,12 @@ class XsdAttribute(XsdComponent, ValidationMixin[str, DecodedValueType]):
                 obj = self.fixed
             elif obj != self.fixed and \
                     self.type.text_decode(obj) != self.type.text_decode(self.fixed):
-                msg = "attribute {!r} has a fixed value {!r}".format(self.name, self.fixed)
+                msg = _("attribute {0!r} has a fixed value {1!r}").format(self.name, self.fixed)
                 yield self.validation_error(validation, msg, obj, **kwargs)
 
         for value in self.type.iter_decode(obj, validation, **kwargs):
             if isinstance(value, XMLSchemaValidationError):
-                value.reason = 'attribute {}={!r}: {}'.format(
+                value.reason = _('attribute {0}={1!r}: {2}').format(
                     self.prefixed_name, obj, value.reason
                 )
                 yield value
@@ -306,7 +316,8 @@ class Xsd11Attribute(XsdAttribute):
     def _parse(self) -> None:
         super()._parse()
         if self.use == 'prohibited' and 'fixed' in self.elem.attrib:
-            self.parse_error("attribute 'fixed' with use=prohibited is not allowed in XSD 1.1")
+            msg = _("attribute 'fixed' with use=prohibited is not allowed in XSD 1.1")
+            self.parse_error(msg)
         if 'inheritable' in self.elem.attrib:
             if self.elem.attrib['inheritable'].strip() in {'true', '1'}:
                 self.inheritable = True
@@ -361,7 +372,8 @@ class XsdAttributeGroup(
     def __setitem__(self, key: Optional[str],
                     value: Union[XsdAttribute, XsdAnyAttribute]) -> None:
         if value.name != key:
-            raise XMLSchemaValueError("%r name and key %r mismatch" % (value.name, key))
+            msg = "mismatch between %(attr)r name and item key %(key)r"
+            raise XMLSchemaValueError(msg % {'attr': value, 'key': key})
         self._attribute_group[key] = value
 
     def __delitem__(self, key: Optional[str]) -> None:
@@ -398,9 +410,11 @@ class XsdAttributeGroup(
                 continue  # pragma: no cover
             elif any_attribute is not None:
                 if child.tag == XSD_ANY_ATTRIBUTE:
-                    self.parse_error("more anyAttribute declarations in the same attribute group")
+                    msg = _("more anyAttribute declarations in the same attribute group")
+                    self.parse_error(msg)
                 elif child.tag != XSD_ASSERT:
-                    self.parse_error("another declaration after anyAttribute")
+                    msg = _("another declaration after anyAttribute")
+                    self.parse_error(msg)
 
             elif child.tag == XSD_ANY_ATTRIBUTE:
                 any_attribute = self.schema.xsd_any_attribute_class(child, self.schema, self)
@@ -414,8 +428,8 @@ class XsdAttributeGroup(
             elif child.tag == XSD_ATTRIBUTE:
                 attribute = self.schema.xsd_attribute_class(child, self.schema, self)
                 if attribute.name in attributes:
-                    self.parse_error("multiple declaration for attribute "
-                                     "{!r}".format(attribute.name))
+                    msg = _("multiple declaration for attribute {!r}")
+                    self.parse_error(msg.format(attribute.name))
                 elif attribute.use != 'prohibited' or self.elem.tag != XSD_ATTRIBUTE_GROUP:
                     attributes[attribute.name] = attribute
 
@@ -423,8 +437,8 @@ class XsdAttributeGroup(
                 try:
                     ref = child.attrib['ref']
                 except KeyError:
-                    self.parse_error("the attribute 'ref' is required "
-                                     "in a local attributeGroup")
+                    msg = _("the attribute 'ref' is required in a local attributeGroup")
+                    self.parse_error(msg)
                     continue
 
                 try:
@@ -433,29 +447,37 @@ class XsdAttributeGroup(
                     self.parse_error(err)
                 else:
                     if attribute_group_qname in attribute_group_refs:
-                        self.parse_error("duplicated attributeGroup %r" % ref)
+                        msg = _("duplicated attributeGroup {!r}")
+                        self.parse_error(msg.format(ref))
+
                     elif self.redefine is not None:
                         if attribute_group_qname == self.name:
                             if attribute_group_refs:
-                                self.parse_error("in a redefinition the reference "
-                                                 "to itself must be the first")
+                                msg = _("in a redefinition the reference to "
+                                        "itself must be the first")
+                                self.parse_error(msg)
+
                             attribute_group_refs.append(attribute_group_qname)
                             attributes.update(self._attribute_group)
                             continue
                         elif not attribute_group_refs:
-                            # May be an attributeGroup restriction with a ref to another group
+                            # Maybe an attributeGroup restriction with a ref to another group
                             if not any(e.tag == XSD_ATTRIBUTE_GROUP and ref == e.get('ref')
                                        for e in self.redefine.elem):
-                                self.parse_error("attributeGroup ref=%r is not "
-                                                 "in the redefined group" % ref)
+                                msg = _("attributeGroup ref={!r} is not in the redefined group")
+                                self.parse_error(msg.format(ref))
+
                     elif attribute_group_qname == self.name and self.xsd_version == '1.0':
-                        self.parse_error("Circular attribute groups not allowed in XSD 1.0")
+                        msg = _("Circular attribute groups not allowed in XSD 1.0")
+                        self.parse_error(msg)
+
                     attribute_group_refs.append(attribute_group_qname)
 
                     try:
                         ref_attributes = self.maps.lookup_attribute_group(attribute_group_qname)
                     except LookupError:
-                        self.parse_error("unknown attribute group %r" % child.attrib['ref'])
+                        msg = _("unknown attribute group {!r}")
+                        self.parse_error(msg.format(child.attrib['ref']))
                     else:
                         if not isinstance(ref_attributes, tuple):
                             for name, base_attr in ref_attributes.items():
@@ -463,9 +485,8 @@ class XsdAttributeGroup(
                                     attributes[name] = base_attr
                                 elif name is not None:
                                     if base_attr is not attributes[name]:
-                                        self.parse_error(
-                                            f"multiple declaration of attribute {name!r}"
-                                        )
+                                        msg = _("multiple declaration of attribute {!r}")
+                                        self.parse_error(msg.format(name))
                                 else:
                                     assert isinstance(base_attr, XsdAnyAttribute)
                                     attributes[None] = attr = attributes[None].copy()
@@ -473,13 +494,13 @@ class XsdAttributeGroup(
                                     attr.intersection(base_attr)
 
                         elif self.xsd_version == '1.0':
-                            self.parse_error(
-                                "Circular reference found between attribute groups "
-                                "{!r} and {!r}".format(self.name, attribute_group_qname)
-                            )
+                            msg = _("Circular reference found between "
+                                    "attribute groups {0!r} and {1!r}")
+                            self.parse_error(msg.format(self.name, attribute_group_qname))
 
             elif self.name is not None:
-                self.parse_error("(attribute | attributeGroup) expected, found %r." % child)
+                msg = _("(attribute | attributeGroup) expected, found {!r}.")
+                self.parse_error(msg.format(child))
 
         # Check and copy base attributes
         if self.base_attributes is not None:
@@ -489,7 +510,8 @@ class XsdAttributeGroup(
                     if self.derivation != 'restriction':
                         continue
                     elif wildcard is None or not wildcard.is_matching(name, self.default_namespace):
-                        self.parse_error("Unexpected attribute %r in restriction" % name)
+                        msg = _("Unexpected attribute {!r} in restriction")
+                        self.parse_error(msg.format(name))
                     continue
 
                 base_attr = self.base_attributes[name]
@@ -504,8 +526,9 @@ class XsdAttributeGroup(
                         except ValueError as err:
                             self.parse_error(err)
                     elif not attr.is_restriction(base_attr):
-                        self.parse_error("Attribute wildcard is not a restriction "
-                                         "of the base wildcard")
+                        msg = _("Attribute wildcard is not a restriction of the base wildcard")
+                        self.parse_error(msg)
+
                     continue
 
                 assert name is not None, "None key resolves to an xs:attribute"
@@ -513,19 +536,23 @@ class XsdAttributeGroup(
 
                 if self.derivation == 'restriction' and attr.type.name != XSD_ANY_SIMPLE_TYPE and \
                         not attr.type.is_derived(base_attr.type, 'restriction'):
-                    self.parse_error("Attribute type is not a restriction "
-                                     "of the base attribute type")
+                    msg = _("Attribute type is not a restriction of the base attribute type")
+                    self.parse_error(msg)
+
                 if base_attr.use != 'optional' and attr.use == 'optional' or \
                         base_attr.use == 'required' and attr.use != 'required':
-                    self.parse_error("Attribute %r: unmatched attribute use in restriction" % name)
+                    msg = _("Attribute {!r}: unmatched attribute use in restriction")
+                    self.parse_error(msg.format(name))
+
                 if base_attr.fixed is not None:
                     if attr.fixed is None or attr.type.normalize(attr.fixed) != \
                             base_attr.type.normalize(base_attr.fixed):
-                        self.parse_error("Attribute %r: derived attribute "
-                                         "has a different fixed value" % name)
+                        msg = _("Attribute {!r}: derived attribute has a different fixed value")
+                        self.parse_error(msg.format(name))
+
                 if base_attr.inheritable is not attr.inheritable:
-                    msg = "Attribute %r: attribute 'inheritable' value change in restriction"
-                    self.parse_error(msg % name)
+                    msg = _("Attribute {!r}: 'inheritable' property change in restriction")
+                    self.parse_error(msg.format(name))
 
             if self.redefine is not None:
                 pass  # In case of redefinition do not copy base attributes
@@ -538,13 +565,16 @@ class XsdAttributeGroup(
                     continue
                 elif name not in attributes:
                     if attr.use == 'required':
-                        self.parse_error("Missing required attribute %r in "
-                                         "redefinition restriction" % name)
+                        msg = _("Missing required attribute {!r} in redefinition restriction")
+                        self.parse_error(msg.format(name))
                     continue
+
                 if attr.use != 'optional' and attributes[name].use != attr.use:
-                    self.parse_error("Attribute %r: unmatched attribute use in redefinition" % name)
+                    msg = _("Attribute {!r}: unmatched attribute use in redefinition")
+                    self.parse_error(msg.format(name))
                 if attr.fixed is not None and attributes[name].fixed is None:
-                    self.parse_error("Attribute %r: redefinition remove fixed constraint" % name)
+                    msg = _("Attribute {!r}: redefinition remove fixed constraint")
+                    self.parse_error(msg.format(name))
 
             pos = 0
             keys = list(self._attribute_group.keys())
@@ -552,11 +582,12 @@ class XsdAttributeGroup(
                 try:
                     next_pos = keys.index(name)
                 except ValueError:
-                    self.parse_error("Redefinition restriction contains "
-                                     "additional attribute %r" % name)
+                    msg = _("Redefinition restriction contains additional attribute {!r}")
+                    self.parse_error(msg.format(name))
                 else:
                     if next_pos < pos:
-                        self.parse_error("Wrong attribute order in redefinition restriction")
+                        msg = _("Wrong attribute order in redefinition restriction")
+                        self.parse_error(msg)
                         break
                     pos = next_pos
             self.clear()
@@ -573,7 +604,8 @@ class XsdAttributeGroup(
             for attr in self._attribute_group.values():
                 if attr.type is not None and attr.type.is_key():
                     if has_key:
-                        self.parse_error("multiple ID attributes not allowed for XSD 1.0")
+                        msg = _("multiple ID attributes not allowed for XSD 1.0")
+                        self.parse_error(msg)
                         break
                     has_key = True
 
@@ -625,7 +657,7 @@ class XsdAttributeGroup(
             return
 
         for name in filter(lambda x: x not in obj, self.iter_required()):
-            reason = "missing required attribute {!r}".format(name)
+            reason = _("missing required attribute {!r}").format(name)
             yield self.validation_error(validation, reason, obj, **kwargs)
 
         kwargs['level'] = kwargs.get('level', 0) + 1
@@ -660,7 +692,7 @@ class XsdAttributeGroup(
                             xsd_attribute = self._attribute_group[None]  # None == anyAttribute
                             value = (name, value)
                         except KeyError:
-                            reason = "%r is not an attribute of the XSI namespace." % name
+                            reason = _("%r is not an attribute of the XSI namespace") % name
                             yield self.validation_error(validation, reason, obj, **kwargs)
                             continue
                 else:
@@ -668,13 +700,13 @@ class XsdAttributeGroup(
                         xsd_attribute = self._attribute_group[None]  # None == anyAttribute
                         value = (name, value)
                     except KeyError:
-                        reason = "%r attribute not allowed for element." % name
+                        reason = _("%r attribute not allowed for element") % name
                         yield self.validation_error(validation, reason, obj, **kwargs)
                         continue
             else:
                 if xsd_attribute.use == 'prohibited' and \
                         (None not in self or not self._attribute_group[None].is_matching(name)):
-                    reason = "use of attribute %r is prohibited" % name
+                    reason = _("use of attribute %r is prohibited") % name
                     yield self.validation_error(validation, reason, obj, **kwargs)
 
             for result in xsd_attribute.iter_decode(value, validation, **kwargs):
@@ -703,7 +735,7 @@ class XsdAttributeGroup(
             return
 
         for name in filter(lambda x: x not in obj, self.iter_required()):
-            reason = "missing required attribute {!r}".format(name)
+            reason = _("missing required attribute {!r}").format(name)
             yield self.validation_error(validation, reason, obj, **kwargs)
 
         try:
@@ -725,7 +757,7 @@ class XsdAttributeGroup(
                             xsd_attribute = self._attribute_group[None]  # None == anyAttribute
                             value = (name, value)
                         except KeyError:
-                            reason = "%r is not an attribute of the XSI namespace." % name
+                            reason = _("%r is not an attribute of the XSI namespace") % name
                             yield self.validation_error(validation, reason, obj, **kwargs)
                             continue
                 else:
@@ -733,7 +765,7 @@ class XsdAttributeGroup(
                         xsd_attribute = self._attribute_group[None]  # None == anyAttribute
                         value = (name, value)
                     except KeyError:
-                        reason = "%r attribute not allowed for element." % name
+                        reason = _("%r attribute not allowed for element") % name
                         yield self.validation_error(validation, reason, obj, **kwargs)
                         continue
 

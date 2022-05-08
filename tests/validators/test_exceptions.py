@@ -81,12 +81,12 @@ class TestValidatorExceptions(unittest.TestCase):
 
         lines = str(ctx.exception).split('\n')
         self.assertEqual(lines[0], "failed validating {'a': '10'} with XsdAttributeGroup():")
-        self.assertEqual(lines[2], "Reason: 'a' attribute not allowed for element.")
+        self.assertEqual(lines[2], "Reason: 'a' attribute not allowed for element")
         self.assertEqual(lines[8], "Instance (line 1):")
         self.assertEqual(lines[12], "Path: /root")
 
         self.assertEqual(repr(ctx.exception), "XMLSchemaValidationError(reason=\"'a' "
-                                              "attribute not allowed for element.\")")
+                                              "attribute not allowed for element\")")
 
         error = XMLSchemaValidationError(schema.elements['root'], root)
         self.assertIsNone(error.reason)

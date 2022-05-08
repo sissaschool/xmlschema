@@ -10,7 +10,7 @@
 from collections.abc import MutableSequence
 from typing import TYPE_CHECKING, Any, Optional, List, Dict, Type
 
-from ..exceptions import XMLSchemaValueError
+from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from ..etree import ElementData
 from ..aliases import NamespacesType, BaseXsdType
 from .default import XMLSchemaConverter
@@ -76,8 +76,11 @@ class JsonMLConverter(XMLSchemaConverter):
     def element_encode(self, obj: Any, xsd_element: 'XsdElement', level: int = 0) -> ElementData:
         attributes: Dict[str, Any] = {}
 
-        if not isinstance(obj, MutableSequence) or not obj:
-            raise XMLSchemaValueError("Wrong data format, a not empty list required: %r." % obj)
+        if not isinstance(obj, MutableSequence):
+            msg = "The first argument must be a sequence, {} provided"
+            raise XMLSchemaTypeError(msg.format(type(obj)))
+        elif not obj:
+            raise XMLSchemaValueError("The first argument is an empty sequence")
 
         data_len = len(obj)
         if data_len == 1:

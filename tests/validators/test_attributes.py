@@ -314,7 +314,7 @@ class TestXsdAttributes(XsdValidatorTestCase):
 
         with self.assertRaises(ValueError) as ec:
             attribute_group['a3'] = attribute_group['a2']
-        self.assertEqual("'a2' name and key 'a3' mismatch", str(ec.exception))
+        self.assertIn("mismatch", str(ec.exception))
 
         xsd_attribute = attribute_group['a2']
         del attribute_group['a2']

@@ -15,7 +15,6 @@ from typing import Any, Callable, Iterator, List, MutableMapping, \
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from .names import XSI_SCHEMA_LOCATION, XSI_NONS_SCHEMA_LOCATION
 from .aliases import ElementType, NamespacesType, AtomicValueType, NumericValueType
-from .translation import gettext as _
 
 ###
 # Helper functions for QNames
@@ -74,9 +73,9 @@ def local_name(qname: str) -> str:
     except IndexError:
         return ''
     except ValueError:
-        raise XMLSchemaValueError(_("the argument 'qname' has an invalid value %r") % qname)
+        raise XMLSchemaValueError("the argument 'qname' has an invalid value %r" % qname)
     except TypeError:
-        raise XMLSchemaTypeError(_("the argument 'qname' must be a string-like object"))
+        raise XMLSchemaTypeError("the argument 'qname' must be a string-like object")
     else:
         return qname
 

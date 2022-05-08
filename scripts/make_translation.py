@@ -46,7 +46,7 @@ if __name__ == '__main__':
         locale_dir = Path(__file__).parent.parent.joinpath('xmlschema/locale').resolve()
     assert locale_dir.is_dir(), 'locale directory not found!'
 
-    package_dir = Path(__file__).parent.parent.resolve()
+    package_dir = Path(__file__).parent.parent.joinpath('xmlschema').resolve()
     assert locale_dir.is_dir(), 'xmlschema/ package directory not found!'
 
     template_file = locale_dir.joinpath('xmlschema.pot')
