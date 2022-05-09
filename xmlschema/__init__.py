@@ -8,6 +8,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from . import limits
+from . import translation
 from .exceptions import XMLSchemaException, XMLResourceError, XMLSchemaNamespaceError
 from .etree import ElementData, etree_tostring
 from .resources import normalize_url, normalize_locations, fetch_resource, \
@@ -19,7 +20,6 @@ from .converters import XMLSchemaConverter, \
 from .dataobjects import DataElement, DataElementConverter, DataBindingConverter
 from .documents import validate, is_valid, iter_errors, iter_decode, \
     to_dict, to_json, from_json, XmlDocument
-from .translation import use_translation
 
 from .validators import (
     XMLSchemaValidatorError, XMLSchemaParseError, XMLSchemaNotBuiltError,
@@ -38,14 +38,14 @@ __license__ = "MIT"
 __status__ = "Production/Stable"
 
 __all__ = [
-    'limits', 'XMLSchemaException', 'XMLResourceError', 'XMLSchemaNamespaceError',
-    'etree_tostring', 'normalize_url', 'normalize_locations', 'fetch_resource',
-    'fetch_namespaces', 'fetch_schema_locations', 'fetch_schema', 'XMLResource',
-    'ElementPathMixin', 'ElementData', 'XMLSchemaConverter', 'UnorderedConverter',
-    'ParkerConverter', 'BadgerFishConverter', 'AbderaConverter', 'JsonMLConverter',
-    'ColumnarConverter', 'DataElement', 'DataElementConverter', 'DataBindingConverter',
-    'validate', 'is_valid', 'iter_errors', 'iter_decode', 'to_dict', 'to_json',
-    'from_json', 'XmlDocument', 'use_translation', 'XMLSchemaValidatorError',
+    'limits', 'translation', 'XMLSchemaException', 'XMLResourceError',
+    'XMLSchemaNamespaceError', 'etree_tostring', 'normalize_url', 'normalize_locations',
+    'fetch_resource', 'fetch_namespaces', 'fetch_schema_locations', 'fetch_schema',
+    'XMLResource', 'ElementPathMixin', 'ElementData', 'XMLSchemaConverter',
+    'UnorderedConverter', 'ParkerConverter', 'BadgerFishConverter', 'AbderaConverter',
+    'JsonMLConverter', 'ColumnarConverter', 'DataElement', 'DataElementConverter',
+    'DataBindingConverter', 'validate', 'is_valid', 'iter_errors', 'iter_decode',
+    'to_dict', 'to_json', 'from_json', 'XmlDocument', 'XMLSchemaValidatorError',
     'XMLSchemaParseError', 'XMLSchemaNotBuiltError', 'XMLSchemaModelError',
     'XMLSchemaModelDepthError', 'XMLSchemaValidationError', 'XMLSchemaDecodeError',
     'XMLSchemaEncodeError', 'XMLSchemaChildrenValidationError', 'XMLSchemaIncludeWarning',

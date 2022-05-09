@@ -12,7 +12,7 @@
 import unittest
 import gettext
 
-from xmlschema import XMLSchema, use_translation, translation
+from xmlschema import XMLSchema, translation
 
 
 class TestTranslations(unittest.TestCase):
@@ -25,29 +25,60 @@ class TestTranslations(unittest.TestCase):
     def tearDownClass(cls):
         XMLSchema.meta_schema.clear()
 
-    def test_use_translation(self):
+    def test_activation(self):
         self.assertIsNone(translation._translation)
         try:
-            use_translation()
+            translation.activate()
             self.assertIsInstance(translation._translation, gettext.GNUTranslations)
         finally:
             translation._translation = None
 
+    def test_deactivation(self):
+        self.assertIsNone(translation._translation)
+        try:
+            translation.activate()
+            self.assertIsInstance(translation._translation, gettext.GNUTranslations)
+            translation.deactivate()
+            self.assertIsNone(translation._translation)
+        finally:
+            translation._translation = None
+
+    def test_install(self):
+        import builtins
+
+        self.assertIsNone(translation._translation)
+        self.assertFalse(translation._installed)
+
+        try:
+            translation.activate(install=True)
+            self.assertIsInstance(translation._translation, gettext.GNUTranslations)
+            self.assertTrue(translation._installed)
+            self.assertEqual(builtins.__dict__['_'], translation._translation.gettext)
+
+            translation.deactivate()
+            self.assertIsNone(translation._translation)
+            self.assertFalse(translation._installed)
+            self.assertNotIn('_', builtins.__dict__)
+        finally:
+            translation._translation = None
+            translation._installed = False
+            builtins.__dict__.pop('_', None)
+
     def test_it_translation(self):
         self.assertIsNone(translation._translation)
         try:
-            use_translation(languages=['it'])
+            translation.activate(languages=['it'])
             result = translation.gettext("not a redefinition!")
             self.assertEqual(result, "non è una ridefinizione!")
         finally:
             translation._translation = None
 
         try:
-            use_translation(languages=['it', 'en'])
+            translation.activate(languages=['it', 'en'])
             result = translation.gettext("not a redefinition!")
             self.assertEqual(result, "non è una ridefinizione!")
 
-            use_translation(languages=['en', 'it'])
+            translation.activate(languages=['en', 'it'])
             result = translation.gettext("not a redefinition!")
             self.assertEqual(result, "not a redefinition!")
         finally:
