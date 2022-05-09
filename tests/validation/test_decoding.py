@@ -11,10 +11,11 @@
 #
 import unittest
 import os
+import base64
 import json
+import math
 from decimal import Decimal
 from collections.abc import MutableMapping, MutableSequence, Set
-import base64
 
 try:
     import lxml.etree as lxml_etree
@@ -327,6 +328,7 @@ DATA_DICT = {
     ],
     'simple_boolean': [True, False],
     'date_and_time': '2020-03-05T23:04:10.047',  # xs:dateTime is not decoded for default
+    'list_of_floats': [float('inf'), float('-inf')],
 }
 
 
@@ -1201,6 +1203,16 @@ class TestDecoding(XsdValidatorTestCase):
         self.assertEqual(obj, 'øæå')
         self.assertIsInstance(obj, str)
         self.assertEqual(json_data.encode("utf-8"), b'"\\u00f8\\u00e6\\u00e5"')
+
+    def test_float_decoding(self):
+        for float_type in [self.schema_class.meta_schema.types['float'],
+                           self.schema_class.meta_schema.types['double']]:
+            self.assertAlmostEqual(float_type.decode('-1'), -1.0)
+            self.assertAlmostEqual(float_type.decode('19.7'), 19.7)
+            self.assertAlmostEqual(float_type.decode('INF'), float('inf'))
+            self.assertAlmostEqual(float_type.decode('-INF'), float('-inf'))
+            self.assertNotAlmostEqual(float_type.decode('INF'), float('-inf'))
+            self.assertTrue(math.isnan(float_type.decode('NaN')))
 
 
 class TestDecoding11(TestDecoding):

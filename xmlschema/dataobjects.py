@@ -302,7 +302,7 @@ class DataElement(MutableSequence['DataElement']):
         parser = XPath2Parser(namespaces, strict=False)
         context = XPathContext(cast(Any, self))
         results = parser.parse(path).select_results(context)
-        yield from filter(lambda x: isinstance(x, DataElement), results)  # type: ignore[misc]
+        yield from filter(lambda x: isinstance(x, DataElement), results)
 
     def iter(self, tag: Optional[str] = None) -> Iterator['DataElement']:
         """

@@ -212,7 +212,7 @@ class TestModelValidation(XsdValidatorTestCase):
           </xs:choice>
         </xs:group>
         """
-        group = XMLSchema10.meta_schema.groups['simpleDerivation']
+        group = self.schema_class.meta_schema.groups['simpleDerivation']
 
         model = ModelVisitor(group)
         self.check_advance_true(model)     # <restriction> matches

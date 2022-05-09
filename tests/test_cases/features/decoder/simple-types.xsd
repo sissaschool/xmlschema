@@ -16,6 +16,7 @@
                 <xs:element name="duration" type="xs:duration" minOccurs="0"/>
                 <xs:element name="hexbin" type="hexCode" minOccurs="0" />
                 <xs:element name="base64bin" type="base64Code" minOccurs="0" />
+                <xs:element name="list_of_floats" type="list_of_floats" minOccurs="0" />
             </xs:sequence>
         </xs:complexType>
     </xs:element>
