@@ -410,7 +410,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         if self.elem.tag != XSD_GROUP:
             # Local group (sequence|all|choice)
             if 'name' in self.elem.attrib:
-                msg = _("attribute 'name' not allowed for a local group")
+                msg = _("attribute 'name' not allowed in a local group")
                 self.parse_error(msg)
             self._parse_content_model(self.elem)
 
@@ -432,7 +432,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                         msg = _("minOccurs must be (0 | 1) for 'all' model groups")
                         self.parse_error(msg)
                     if self.xsd_version == '1.0' and isinstance(self.parent, XsdGroup):
-                        msg = _("in XSD 1.0 the 'all' model group cannot be nested")
+                        msg = _("in XSD 1.0 an 'all' model group cannot be nested")
                         self.parse_error(msg)
                 self._group.append(xsd_group)
                 self.ref = xsd_group
@@ -452,26 +452,24 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                 pass
             else:
                 if self.parent is not None:
-                    msg = _("attribute 'name' not allowed for a local group")
+                    msg = _("attribute 'name' not allowed in a local group")
                     self.parse_error(msg)
                 else:
                     if 'minOccurs' in attrib:
-                        msg = _("attribute 'minOccurs' not allowed for a global group")
+                        msg = _("attribute 'minOccurs' not allowed in a global group")
                         self.parse_error(msg)
                     if 'maxOccurs' in attrib:
-                        msg = _("attribute 'maxOccurs' not allowed for a global group")
+                        msg = _("attribute 'maxOccurs' not allowed in a global group")
                         self.parse_error(msg)
 
                 content_model = self._parse_child_component(self.elem, strict=True)
                 if content_model is not None:
                     if self.parent is None:
                         if 'minOccurs' in content_model.attrib:
-                            msg = _("attribute 'minOccurs' not allowed "
-                                    "for the model of a global group")
+                            msg = _("attribute 'minOccurs' not allowed in a global group")
                             self.parse_error(msg, content_model)
                         if 'maxOccurs' in content_model.attrib:
-                            msg = _("attribute 'maxOccurs' not allowed "
-                                    "for the model of a global group")
+                            msg = _("attribute 'maxOccurs' not allowed in a global group")
                             self.parse_error(msg, content_model)
 
                     if content_model.tag in {XSD_SEQUENCE, XSD_ALL, XSD_CHOICE}:
@@ -1202,7 +1200,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                         elif xsd_element is None:
                             if name.startswith('{') or ':' not in name:
                                 reason = _('{!r} does not match any declared element '
-                                           'of the model group.').format(name)
+                                           'of the model group').format(name)
                             else:
                                 reason = _('{0} has an unknown prefix {1!r}').format(
                                     name, name.split(':')[0]

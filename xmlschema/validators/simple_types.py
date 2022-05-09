@@ -146,7 +146,7 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
         # Check group base_type
         base_type = {t.base_type for t in facets.values() if isinstance(t, XsdFacet)}
         if len(base_type) > 1:
-            msg = _("facet group must have the same base_type: %r")
+            msg = _("facet group must have the same base type: %r")
             self.parse_error(msg % base_type)
         base_type = base_type.pop() if base_type else None
 
@@ -156,11 +156,11 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
         max_length = getattr(facets.get(XSD_MAX_LENGTH), 'value', None)
         if length is not None:
             if length < 0:
-                self.parse_error(_("'length' value must be non negative integer"))
+                self.parse_error(_("'length' value must be non a negative integer"))
 
             if min_length is not None:
                 if min_length > length:
-                    msg = _("'minLength' value must be less or equal to 'length'")
+                    msg = _("'minLength' value must be less than or equal to 'length'")
                     self.parse_error(msg)
                 min_length_facet = base_type.get_facet(XSD_MIN_LENGTH)
                 length_facet = base_type.get_facet(XSD_LENGTH)
@@ -189,10 +189,10 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
             max_length_facet = base_type.get_facet(XSD_MAX_LENGTH)
             if min_length is not None:
                 if min_length < 0:
-                    msg = _("'minLength' value must be non negative integer")
+                    msg = _("'minLength' value must be a non negative integer")
                     self.parse_error(msg)
                 if max_length is not None and max_length < min_length:
-                    msg = _("'maxLength' value is lesser than 'minLength'")
+                    msg = _("'maxLength' value is less than 'minLength'")
                     self.parse_error(msg)
                 if min_length_facet is not None and min_length_facet.value > min_length:
                     msg = _("'minLength' has a lesser value than parent")
@@ -203,7 +203,7 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
 
             if max_length is not None:
                 if max_length < 0:
-                    msg = _("'maxLength' value mu  st be non negative integer")
+                    msg = _("'maxLength' value must be a non negative integer")
                     self.parse_error(msg)
                 if min_length_facet is not None and min_length_facet.value > max_length:
                     msg = _("'maxLength' has a lesser value than parent 'minLength'")
@@ -220,7 +220,7 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
 
         if min_inclusive is not None:
             if min_exclusive is not None:
-                msg = _("cannot specify both 'minInclusive' and 'minExclusive")
+                msg = _("cannot specify both 'minInclusive' and 'minExclusive'")
                 self.parse_error(msg)
             if max_inclusive is not None and min_inclusive > max_inclusive:
                 msg = _("'minInclusive' must be less or equal to 'maxInclusive'")
@@ -238,7 +238,7 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
                 self.parse_error(msg)
 
         if max_inclusive is not None and max_exclusive is not None:
-            self.parse_error(_("cannot specify both 'maxInclusive' and 'maxExclusive"))
+            self.parse_error(_("cannot specify both 'maxInclusive' and 'maxExclusive'"))
 
         # Checks fraction digits
         if XSD_TOTAL_DIGITS in facets:
@@ -662,7 +662,7 @@ class XsdAtomicBuiltin(XsdAtomic):
                     except (TypeError, KeyError):
                         try:
                             if kwargs['source'].namespace != XSD_NAMESPACE:
-                                reason = _("unmapped prefix %r on QName") % prefix
+                                reason = _("unmapped prefix %r in a QName") % prefix
                                 yield self.validation_error(validation, error=reason, obj=obj)
                         except KeyError:
                             pass
@@ -750,7 +750,7 @@ class XsdAtomicBuiltin(XsdAtomic):
                 if value == obj or str(value) == str(obj):
                     obj = value
                 else:
-                    reason = _("Invalid value {!r}").format(obj)
+                    reason = _("invalid value {!r}").format(obj)
                     yield XMLSchemaEncodeError(self, obj, self.from_python, reason)
                     yield None
                     return
@@ -856,8 +856,8 @@ class XsdList(XsdSimpleType):
                 try:
                     base_type = self.maps.lookup_type(item_qname)
                 except KeyError:
-                    msg = _("unknown itemType %r")
-                    self.parse_error(msg % self.elem.attrib['itemType'])
+                    msg = _("unknown type {!r}")
+                    self.parse_error(msg.format(self.elem.attrib['itemType']))
                     base_type = self.any_atomic_type
                 else:
                     if isinstance(base_type, tuple):
@@ -870,7 +870,7 @@ class XsdList(XsdSimpleType):
             self.parse_error(msg % base_type)
 
         if base_type.name == XSD_ANY_ATOMIC_TYPE:
-            msg = _("Cannot use xs:anyAtomicType as base type of a user-defined type")
+            msg = _("cannot use xs:anyAtomicType as base type of a user-defined type")
             self.parse_error(msg)
 
         try:
@@ -993,7 +993,7 @@ class XsdUnion(XsdSimpleType):
 
         elif name == 'white_space':
             if not (value is None or value == 'collapse'):
-                msg = _("Wrong value %r for attribute 'white_space'")
+                msg = _("wrong value %r for attribute 'white_space'")
                 raise XMLSchemaValueError(msg % value)
             value = 'collapse'
         super(XsdUnion, self).__setattr__(name, value)
@@ -1021,7 +1021,7 @@ class XsdUnion(XsdSimpleType):
                 try:
                     mt = self.maps.lookup_type(type_qname)
                 except KeyError:
-                    self.parse_error(_("unknown member type %r") % type_qname)
+                    self.parse_error(_("unknown type {!r}").format(type_qname))
                     mt = self.any_atomic_type
                 except XMLSchemaParseError as err:
                     self.parse_error(err)
@@ -1045,7 +1045,7 @@ class XsdUnion(XsdSimpleType):
             self.parse_error(_("missing xs:union type declarations"))
             self.member_types = [self.any_atomic_type]
         elif any(mt.name == XSD_ANY_ATOMIC_TYPE for mt in member_types):
-            msg = _("Cannot use xs:anyAtomicType as base type of a user-defined type")
+            msg = _("cannot use xs:anyAtomicType as base type of a user-defined type")
             self.parse_error(msg)
         else:
             self.member_types = member_types
@@ -1104,7 +1104,7 @@ class XsdUnion(XsdSimpleType):
                 break
 
         if ' ' not in obj.strip():
-            reason = _("invalid value %r") % obj
+            reason = _("invalid value {!r}").format(obj)
             yield XMLSchemaDecodeError(self, obj, self.member_types, reason)
 
         items = []
@@ -1237,14 +1237,14 @@ class XsdAtomicRestriction(XsdAtomic):
                     try:
                         base_type = self.maps.lookup_type(base_qname)
                     except KeyError:
-                        self.parse_error(_("unknown type %r") % elem.attrib['base'])
+                        self.parse_error(_("unknown type {!r}").format(elem.attrib['base']))
                         base_type = self.any_atomic_type
                     except XMLSchemaParseError as err:
                         self.parse_error(err)
                         base_type = self.any_atomic_type
                     else:
                         if isinstance(base_type, tuple):
-                            msg = _("circularity definition between {0!r} and {1!r}")
+                            msg = _("circular definition found between {0!r} and {1!r}")
                             self.parse_error(msg.format(self, base_qname))
                             base_type = self.any_atomic_type
 
@@ -1262,7 +1262,7 @@ class XsdAtomicRestriction(XsdAtomic):
                         self.parse_error(_(
                             "when a complexType with simpleContent restricts a complexType "
                             "with mixed and with emptiable content then a simpleType child "
-                            "declaration is required."
+                            "declaration is required"
                         ))
                 elif self.parent is None or self.parent.is_simple():
                     msg = _("simpleType restriction of %r is not allowed")
@@ -1332,7 +1332,7 @@ class XsdAtomicRestriction(XsdAtomic):
             msg = _("'final' value of the baseType %r forbids derivation by restriction")
             self.parse_error(msg % base_type)
         if base_type is self.any_atomic_type:
-            msg = _("Cannot use xs:anyAtomicType as base type of a user-defined type")
+            msg = _("cannot use xs:anyAtomicType as base type of a user-defined type")
             self.parse_error(msg)
 
         self.base_type = base_type
@@ -1379,7 +1379,7 @@ class XsdAtomicRestriction(XsdAtomic):
             return
         else:
             msg = _("wrong base type %r: a simpleType or a complexType "
-                    "with simple or mixed content required.")
+                    "with simple or mixed content required")
             raise XMLSchemaValueError(msg % self.base_type)
 
         if self.patterns:

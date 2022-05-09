@@ -470,7 +470,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
             -> IterDecodeType[Any]:
 
         if not self.is_matching(obj.tag):
-            reason = _("{!r} is not allowed here").format(obj)
+            reason = _("element {!r} is not allowed here").format(obj)
             yield self.validation_error(validation, reason, obj, **kwargs)
 
         if self.process_contents == 'skip':
@@ -648,7 +648,7 @@ class XsdAnyAttribute(XsdWildcard, ValidationMixin[Tuple[str, str], DecodedValue
         name, value = obj
 
         if not self.is_matching(name):
-            reason = _("attribute %r not allowed.") % name
+            reason = _("attribute %r not allowed") % name
             yield self.validation_error(validation, reason, obj, **kwargs)
 
         if self.process_contents == 'skip':
@@ -660,7 +660,7 @@ class XsdAnyAttribute(XsdWildcard, ValidationMixin[Tuple[str, str], DecodedValue
                 xsd_attribute = self.maps.lookup_attribute(name)
             except LookupError:
                 if validation != 'skip' and self.process_contents == 'strict':
-                    reason = _("attribute %r not found.") % name
+                    reason = _("attribute %r not found") % name
                     yield self.validation_error(validation, reason, obj, **kwargs)
             else:
                 yield from xsd_attribute.iter_decode(value, validation, **kwargs)
@@ -678,7 +678,7 @@ class XsdAnyAttribute(XsdWildcard, ValidationMixin[Tuple[str, str], DecodedValue
         namespace = get_namespace(name)
 
         if not self.is_namespace_allowed(namespace):
-            reason = _("attribute %r not allowed.") % name
+            reason = _("attribute %r not allowed") % name
             yield self.validation_error(validation, reason, obj, **kwargs)
 
         if self.process_contents == 'skip':

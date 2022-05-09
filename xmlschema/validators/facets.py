@@ -344,7 +344,7 @@ class XsdMaxInclusiveFacet(XsdFacet):
     def __call__(self, value: Any) -> None:
         try:
             if value > self.value:
-                reason = _("value has to be lesser or equal than {!r}").format(self.value)
+                reason = _("value has to be less than or equal than {!r}").format(self.value)
                 raise XMLSchemaValidationError(self, value, reason)
         except TypeError as err:
             raise XMLSchemaValidationError(self, value, str(err)) from None

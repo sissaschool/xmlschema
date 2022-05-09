@@ -290,7 +290,7 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
                 return self.any_simple_type
         else:
             if isinstance(base_type, tuple):
-                msg = _("circularity definition found between {0!r} and {1!r}")
+                msg = _("circular definition found between {0!r} and {1!r}")
                 self.parse_error(msg.format(self, base_qname), elem)
                 return self.any_type
             elif complex_content and base_type.is_simple():

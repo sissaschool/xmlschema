@@ -13,6 +13,7 @@
 
 if __name__ == '__main__':
     import argparse
+    import os
     import sys
     import subprocess
     from pathlib import Path
@@ -42,12 +43,18 @@ if __name__ == '__main__':
 
     if args.directory is not None:
         locale_dir = Path(args.directory).resolve()
+        os.chdir(Path(__file__).parent.parent)
+        try:
+            locale_dir = locale_dir.relative_to(os.getcwd())
+        except ValueError:
+            pass  # Not a subdir, use the absolute path.
     else:
-        locale_dir = Path(__file__).parent.parent.joinpath('xmlschema/locale').resolve()
+        os.chdir(Path(__file__).parent.parent)
+        locale_dir = Path('xmlschema/locale')
     assert locale_dir.is_dir(), 'locale directory not found!'
 
-    package_dir = Path(__file__).parent.parent.joinpath('xmlschema').resolve()
-    assert locale_dir.is_dir(), 'xmlschema/ package directory not found!'
+    package_dir = Path('xmlschema')
+    assert package_dir.is_dir(), 'xmlschema/ package directory not found!'
 
     template_file = locale_dir.joinpath('xmlschema.pot')
     if args.template:

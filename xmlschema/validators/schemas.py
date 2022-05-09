@@ -764,7 +764,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 _base_schemas = [(n, l) for n, l in base_schemas]
             except ValueError:
                 msg = _("The argument 'base_schemas' must be a "
-                        "dictionary or a sequence of items")
+                        "dictionary or a sequence of couples")
                 raise XMLSchemaValueError(msg) from None
 
         meta_schema: SchemaType
@@ -1267,7 +1267,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 namespace = ''
                 if namespace == self.target_namespace:
                     msg = _("if the 'namespace' attribute is not present on "
-                            "the import statement then the importing schema "
+                            "the import statement then the imported schema "
                             "must have a 'targetNamespace'")
                     self.parse_error(msg)
                     continue
@@ -1432,7 +1432,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         target_path = pathlib.Path(target)
         if target_path.is_dir():
             if list(target_path.iterdir()):
-                msg = _("target directory {!r} is not empty")
+                msg = _("target directory {} is not empty")
                 raise XMLSchemaValueError(msg.format(target))
         elif target_path.exists():
             msg = _("target {} is not a directory")

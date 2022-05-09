@@ -1242,7 +1242,7 @@ class Xsd11Element(XsdElement):
             if child.tag == XSD_ALTERNATIVE:
                 alternatives.append(XsdAlternative(child, self.schema, self))
                 if not has_test:
-                    msg = _("test attribute missing on non-final alternative")
+                    msg = _("test attribute missing in non-final alternative")
                     self.parse_error(msg)
                 has_test = 'test' in child.attrib
 
@@ -1457,7 +1457,7 @@ class XsdAlternative(XsdComponent):
             try:
                 self.type = self.maps.lookup_type(type_qname)
             except KeyError:
-                self.parse_error(_("unknown type %r") % attrib['type'])
+                self.parse_error(_("unknown type {!r}").format(attrib['type']))
                 self.type = self.any_type
             else:
                 if self.type.name != XSD_ERROR and not self.type.is_derived(self.parent.type):
