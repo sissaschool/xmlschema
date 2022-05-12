@@ -20,14 +20,14 @@ _installed: bool = False
 
 def activate(localedir: Union[None, str, Path] = None,
              languages: Optional[Iterable[str]] = None,
-             fallback: bool = False,
+             fallback: bool = True,
              install: bool = False) -> None:
     """
     Activate translation of xmlschema parsing/validation error messages.
 
     :param localedir: a string or Path-like object to locale directory
     :param languages: list of language codes
-    :param fallback: if `True` activates fallback mode
+    :param fallback: for default fallback mode is activated
     :param install: if `True` installs function _() in Python’s builtins namespace
     """
     global _translation

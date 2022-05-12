@@ -478,7 +478,7 @@ class TestDecoding(XsdValidatorTestCase):
         with self.assertRaises(XMLSchemaValidationError) as ctx:
             schema.decode('<root>ns0:foo</root>')
         self.assertIn("failed validating 'ns0:foo'", str(ctx.exception))
-        self.assertIn("Reason: unmapped prefix 'ns0' on QName", str(ctx.exception))
+        self.assertIn("Reason: unmapped prefix 'ns0' in a QName", str(ctx.exception))
         self.assertIn("Path: /root", str(ctx.exception))
 
         xml_data = '<root name="ns0:bar" xmlns:ns0="http://xmlschema.test/0">ns0:foo</root>'
@@ -492,7 +492,7 @@ class TestDecoding(XsdValidatorTestCase):
         with self.assertRaises(XMLSchemaValidationError) as ctx:
             schema.decode('<root name="ns0:bar">foo</root>')
         self.assertIn("failed validating 'ns0:bar'", str(ctx.exception))
-        self.assertIn("unmapped prefix 'ns0' on QName", str(ctx.exception))
+        self.assertIn("unmapped prefix 'ns0' in a QName", str(ctx.exception))
         self.assertIn("Path: /root", str(ctx.exception))
 
     def test_json_dump_and_load(self):

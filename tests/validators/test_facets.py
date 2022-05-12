@@ -536,7 +536,7 @@ class TestXsdFacets(unittest.TestCase):
 
         with self.assertRaises(XMLSchemaValidationError) as ec:
             facet(1)
-        self.assertIn('value has to be lesser or equal than 0', str(ec.exception))
+        self.assertIn('value has to be less than or equal than 0', str(ec.exception))
 
         with self.assertRaises(XMLSchemaValidationError):
             facet('')

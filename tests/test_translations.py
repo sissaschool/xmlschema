@@ -20,6 +20,8 @@ class TestTranslations(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         XMLSchema.meta_schema.build()
+        cls.translation_classes = (gettext.NullTranslations,  # in case of fallback
+                                   gettext.GNUTranslations)
 
     @classmethod
     def tearDownClass(cls):
@@ -29,7 +31,7 @@ class TestTranslations(unittest.TestCase):
         self.assertIsNone(translation._translation)
         try:
             translation.activate()
-            self.assertIsInstance(translation._translation, gettext.GNUTranslations)
+            self.assertIsInstance(translation._translation, self.translation_classes)
         finally:
             translation._translation = None
 
@@ -37,7 +39,7 @@ class TestTranslations(unittest.TestCase):
         self.assertIsNone(translation._translation)
         try:
             translation.activate()
-            self.assertIsInstance(translation._translation, gettext.GNUTranslations)
+            self.assertIsInstance(translation._translation, self.translation_classes)
             translation.deactivate()
             self.assertIsNone(translation._translation)
         finally:
@@ -51,7 +53,7 @@ class TestTranslations(unittest.TestCase):
 
         try:
             translation.activate(install=True)
-            self.assertIsInstance(translation._translation, gettext.GNUTranslations)
+            self.assertIsInstance(translation._translation, self.translation_classes)
             self.assertTrue(translation._installed)
             self.assertEqual(builtins.__dict__['_'], translation._translation.gettext)
 
@@ -68,6 +70,7 @@ class TestTranslations(unittest.TestCase):
         self.assertIsNone(translation._translation)
         try:
             translation.activate(languages=['it'])
+            self.assertIsInstance(translation._translation, gettext.GNUTranslations)
             result = translation.gettext("not a redefinition!")
             self.assertEqual(result, "non è una ridefinizione!")
         finally:
@@ -75,10 +78,12 @@ class TestTranslations(unittest.TestCase):
 
         try:
             translation.activate(languages=['it', 'en'])
+            self.assertIsInstance(translation._translation, gettext.GNUTranslations)
             result = translation.gettext("not a redefinition!")
             self.assertEqual(result, "non è una ridefinizione!")
 
             translation.activate(languages=['en', 'it'])
+            self.assertIsInstance(translation._translation, gettext.GNUTranslations)
             result = translation.gettext("not a redefinition!")
             self.assertEqual(result, "not a redefinition!")
         finally:
@@ -87,6 +92,7 @@ class TestTranslations(unittest.TestCase):
 
 if __name__ == '__main__':
     import platform
+
     header_template = "Test xmlschema translations with Python {} on {}"
     header = header_template.format(platform.python_version(), platform.platform())
     print('{0}\n{1}\n{0}'.format("*" * len(header), header))
