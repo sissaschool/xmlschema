@@ -84,7 +84,7 @@ if TYPE_CHECKING:
     ##
     # Type aliases for validation/decoding/encoding
     ConverterType = Union[Type[XMLSchemaConverter], XMLSchemaConverter]
-    ExtraValidatorType = Callable[[ElementType, SchemaType],
+    ExtraValidatorType = Callable[[ElementType, XsdElement],
                                   Optional[Iterator[XMLSchemaValidationError]]]
 
     D = TypeVar('D')

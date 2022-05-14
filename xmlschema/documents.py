@@ -43,7 +43,7 @@ def get_context(xml_document: Union[XMLSourceType, XMLResource],
     if cls is None:
         cls = XMLSchema10
     elif not issubclass(cls, XMLSchemaBase):
-        raise XMLSchemaTypeError(f"invalid schema class {cls}")
+        raise XMLSchemaTypeError("invalid schema class %r" % cls)
 
     if isinstance(xml_document, XMLResource):
         resource = xml_document
@@ -498,7 +498,7 @@ class XmlDocument(XMLResource):
         elif validation == 'lax':
             self.errors = [e for e in self.schema.iter_errors(self, namespaces=self.namespaces)]
         elif validation != 'skip':
-            raise XMLSchemaValueError("{!r}: not a validation mode".format(validation))
+            raise XMLSchemaValueError("%r is not a validation mode" % validation)
 
     def parse(self, source: XMLSourceType, lazy: LazyType = False) -> None:
         super(XmlDocument, self).parse(source, lazy)
@@ -522,8 +522,7 @@ class XmlDocument(XMLResource):
         if is_etree_document(self._source):
             return self._source
         elif self._lazy:
-            msg = "cannot create an ElementTree from a lazy resource"
-            raise XMLResourceError(msg)
+            raise XMLResourceError("cannot create an ElementTree from a lazy resource")
         elif hasattr(self._root, 'nsmap'):
             return self._root.getroottree()  # type: ignore[attr-defined]
         else:
@@ -663,4 +662,5 @@ class XmlDocument(XMLResource):
             else:
                 file.write(_string)
         else:
-            raise XMLSchemaTypeError(f"unexpected type {type(file)} for 'file' argument")
+            msg = "unexpected type %r for 'file' argument"
+            raise XMLSchemaTypeError(msg % type(file))

@@ -44,9 +44,19 @@ class TestTyping(unittest.TestCase):
         self.assertNotRegex(output_lines[-1], self.error_pattern, msg=output)
         return output_lines
 
+    def test_schema_source(self):
+        case_path = self.cases_dir.joinpath('schema_source.py')
+        output_lines = self.check_mypy_output(case_path, '--strict', '--no-warn-unused-ignores')
+        self.assertTrue(output_lines[0].startswith('Success:'), msg='\n'.join(output_lines))
+
     def test_simple_types(self):
         case_path = self.cases_dir.joinpath('simple_types.py')
         output_lines = self.check_mypy_output(case_path, '--strict', '--no-warn-unused-ignores')
+        self.assertTrue(output_lines[0].startswith('Success:'), msg='\n'.join(output_lines))
+
+    def test_extra_validator__issue_291(self):
+        case_path = self.cases_dir.joinpath('extra_validator.py')
+        output_lines = self.check_mypy_output(case_path, '--strict')
         self.assertTrue(output_lines[0].startswith('Success:'), msg='\n'.join(output_lines))
 
 

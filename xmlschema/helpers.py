@@ -67,15 +67,15 @@ def local_name(qname: str) -> str:
     """
     try:
         if qname[0] == '{':
-            _, qname = qname.split('}')
+            _namespace, qname = qname.split('}')
         elif ':' in qname:
-            _, qname = qname.split(':')
+            _prefix, qname = qname.split(':')
     except IndexError:
         return ''
     except ValueError:
-        raise XMLSchemaValueError("the argument 'qname' has a wrong format: %r" % qname)
+        raise XMLSchemaValueError("the argument 'qname' has an invalid value %r" % qname)
     except TypeError:
-        raise XMLSchemaTypeError("the argument 'qname' must be a string")
+        raise XMLSchemaTypeError("the argument 'qname' must be a string-like object")
     else:
         return qname
 

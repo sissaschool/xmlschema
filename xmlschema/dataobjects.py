@@ -7,12 +7,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-import sys
-if sys.version_info < (3, 7):
-    from typing import GenericMeta as ABCMeta
-else:
-    from abc import ABCMeta
-
+from abc import ABCMeta
 from itertools import count
 from typing import TYPE_CHECKING, cast, overload, Any, Dict, List, Iterator, \
     Optional, Union, Tuple, Type, MutableMapping, MutableSequence
@@ -212,7 +207,7 @@ class DataElement(MutableSequence['DataElement']):
         Accepts the same arguments of :meth:`validate`.
         """
         if self._encoder is None:
-            raise XMLSchemaValueError("{!r} has no schema bindings".format(self))
+            raise XMLSchemaValueError("%r has no schema bindings" % self)
 
         kwargs: Dict[str, Any] = {
             'converter': DataElementConverter,
@@ -252,7 +247,7 @@ class DataElement(MutableSequence['DataElement']):
         elif validation == 'skip':
             encoder = validators.XMLSchema.builtin_types()['anyType']
         else:
-            raise XMLSchemaValueError("{!r} has no schema bindings".format(self))
+            raise XMLSchemaValueError("%r has no schema bindings" % self)
 
         return encoder.encode(self, validation=validation, **kwargs)
 
@@ -307,7 +302,7 @@ class DataElement(MutableSequence['DataElement']):
         parser = XPath2Parser(namespaces, strict=False)
         context = XPathContext(cast(Any, self))
         results = parser.parse(path).select_results(context)
-        yield from filter(lambda x: isinstance(x, DataElement), results)  # type: ignore[misc]
+        yield from filter(lambda x: isinstance(x, DataElement), results)
 
     def iter(self, tag: Optional[str] = None) -> Iterator['DataElement']:
         """

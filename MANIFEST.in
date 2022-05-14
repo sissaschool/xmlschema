@@ -11,4 +11,5 @@ include doc/*
 recursive-include xmlschema *
 recursive-include tests *
 
+exclude xmlschema/locale/xmlschema.pot
 global-exclude *.py[cod]

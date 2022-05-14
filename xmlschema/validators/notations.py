@@ -10,6 +10,7 @@
 from typing import Optional
 
 from ..names import XSD_NOTATION
+from ..translation import gettext as _
 from ..helpers import get_qname
 from .xsdbase import XsdComponent
 
@@ -35,14 +36,14 @@ class XsdNotation(XsdComponent):
 
     def _parse(self) -> None:
         if self.parent is not None:
-            self.parse_error("a notation declaration must be global")
+            self.parse_error(_("a notation declaration must be global"))
         try:
             self.name = get_qname(self.target_namespace, self.elem.attrib['name'])
         except KeyError:
-            self.parse_error("a notation must have a 'name' attribute")
+            self.parse_error(_("a notation must have a 'name' attribute"))
 
         if 'public' not in self.elem.attrib and 'system' not in self.elem.attrib:
-            self.parse_error("a notation must have a 'public' or a 'system' attribute")
+            self.parse_error(_("a notation must have a 'public' or a 'system' attribute"))
 
     @property
     def public(self) -> Optional[str]:

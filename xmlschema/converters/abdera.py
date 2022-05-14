@@ -107,7 +107,7 @@ class AbderaConverter(XMLSchemaConverter):
                 children = [children]
             elif children and not isinstance(children[0], MutableMapping):
                 if len(children) > 1:
-                    raise XMLSchemaValueError("Wrong format")
+                    raise XMLSchemaValueError("Element %r should have only one child" % tag)
                 else:
                     return ElementData(tag, children[0], None, attributes)
 

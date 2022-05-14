@@ -13,6 +13,7 @@ from elementpath import XPath2Parser, XPathContext, XPathToken, ElementPathError
 
 from ..names import XSD_ASSERT
 from ..aliases import ElementType, SchemaType, SchemaElementType, NamespacesType
+from ..translation import gettext as _
 from ..xpath import XMLSchemaProtocol, ElementProtocol, ElementPathMixin, XMLSchemaProxy
 
 from .exceptions import XMLSchemaNotBuiltError, XMLSchemaValidationError
@@ -72,7 +73,8 @@ class XsdAssert(XsdComponent, ElementPathMixin[Union['XsdAssert', SchemaElementT
 
     def _parse(self) -> None:
         if self.base_type.is_simple():
-            self.parse_error("base_type=%r is not a complexType definition" % self.base_type)
+            msg = _("base_type={!r} is not a complexType definition")
+            self.parse_error(msg.format(self.base_type))
         else:
             try:
                 self.path = self.elem.attrib['test'].strip()
@@ -115,7 +117,7 @@ class XsdAssert(XsdComponent, ElementPathMixin[Union['XsdAssert', SchemaElementT
                  **kwargs: Any) -> Iterator[XMLSchemaValidationError]:
 
         if self.parser is None or self.token is None:
-            raise XMLSchemaNotBuiltError(self, "schema bound parser not set")
+            raise XMLSchemaNotBuiltError(self, 'schema bound parser not set')
 
         with self._xpath_lock:
             if not self.parser.is_schema_bound() and self.parser.schema:

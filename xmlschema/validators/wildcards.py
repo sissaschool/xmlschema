@@ -19,6 +19,7 @@ from ..names import XSI_NAMESPACE, XSD_ANY, XSD_ANY_ATTRIBUTE, \
 from ..aliases import ElementType, SchemaType, SchemaElementType, SchemaAttributeType, \
     ModelGroupType, ModelParticleType, AtomicValueType, IterDecodeType, IterEncodeType, \
     DecodedValueType, EncodedValueType
+from ..translation import gettext as _
 from ..helpers import get_namespace, raw_xml_encode
 from ..xpath import XMLSchemaProtocol, ElementProtocol, XMLSchemaProxy, ElementPathMixin
 from .xsdbase import ValidationMixin, XsdComponent
@@ -72,7 +73,8 @@ class XsdWildcard(XsdComponent):
                 elif ns == '##targetNamespace':
                     self.namespace.append(self.target_namespace)
                 elif ns.startswith('##'):
-                    self.parse_error("wrong value %r in 'namespace' attribute" % ns)
+                    msg = _("wrong value %r in 'namespace' attribute")
+                    self.parse_error(msg % ns)
                 else:
                     self.namespace.append(ns)
 
@@ -80,8 +82,8 @@ class XsdWildcard(XsdComponent):
         if process_contents == 'strict':
             pass
         elif process_contents not in ('lax', 'skip'):
-            self.parse_error("wrong value %r for 'processContents' "
-                             "attribute" % self.process_contents)
+            msg = _("wrong value %r for 'processContents' attribute")
+            self.parse_error(msg % self.process_contents)
         else:
             self.process_contents = process_contents
 
@@ -89,7 +91,8 @@ class XsdWildcard(XsdComponent):
         if 'notNamespace' not in self.elem.attrib:
             pass
         elif 'namespace' in self.elem.attrib:
-            self.parse_error("'namespace' and 'notNamespace' attributes are mutually exclusive")
+            msg = _("'namespace' and 'notNamespace' attributes are mutually exclusive")
+            self.parse_error(msg)
         else:
             self.namespace = []
             self.not_namespace = []
@@ -99,7 +102,8 @@ class XsdWildcard(XsdComponent):
                 elif ns == '##targetNamespace':
                     self.not_namespace.append(self.target_namespace)
                 elif ns.startswith('##'):
-                    self.parse_error("wrong value %r in 'notNamespace' attribute" % ns)
+                    msg = _("wrong value %r in 'notNamespace' attribute")
+                    self.parse_error(msg % ns)
                 else:
                     self.not_namespace.append(ns)
 
@@ -114,28 +118,31 @@ class XsdWildcard(XsdComponent):
                         for s in not_qname) or \
                 not all(not s.startswith('##') or s in {'##defined', '##definedSibling'}
                         for s in not_qname):
-            self.parse_error("wrong value for 'notQName' attribute")
+            self.parse_error(_("wrong value for 'notQName' attribute"))
             return
 
         try:
             names = [x if x.startswith('##') else self.schema.resolve_qname(x, False)
                      for x in not_qname]
         except KeyError as err:
-            self.parse_error("unmapped QName in 'notQName' attribute: %s" % str(err))
+            msg = _("unmapped QName in 'notQName' attribute: %s")
+            self.parse_error(msg % str(err))
             return
         except ValueError as err:
-            self.parse_error("wrong QName format in 'notQName' attribute: %s" % str(err))
+            msg = _("wrong QName format in 'notQName' attribute: %s")
+            self.parse_error(msg % str(err))
             return
 
         if self.not_namespace:
             if any(not x.startswith('##') for x in names) and \
                     all(get_namespace(x) in self.not_namespace
                         for x in names if not x.startswith('##')):
-                self.parse_error("the namespace of each QName in notQName "
-                                 "is allowed by notNamespace")
+                msg = _("the namespace of each QName in notQName is allowed by notNamespace")
+                self.parse_error(msg)
         elif any(not self.is_namespace_allowed(get_namespace(x))
                  for x in names if not x.startswith('##')):
-            self.parse_error("names in notQName must be in namespaces that are allowed")
+            msg = _("names in notQName must be in namespaces that are allowed")
+            self.parse_error(msg)
 
         self.not_qname = names
 
@@ -309,7 +316,7 @@ class XsdWildcard(XsdComponent):
         elif '' not in w2.namespace and w1.target_namespace == w2.target_namespace:
             self.namespace = ['##other']
         elif self.xsd_version == '1.0':
-            msg = "not expressible wildcard namespace union: {!r} V {!r}:"
+            msg = _("not expressible wildcard namespace union: {0!r} V {1!r}:")
             raise XMLSchemaValueError(msg.format(other.namespace, self.namespace))
         else:
             self.namespace = []
@@ -463,7 +470,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
             -> IterDecodeType[Any]:
 
         if not self.is_matching(obj.tag):
-            reason = "{!r} is not allowed here".format(obj)
+            reason = _("element {!r} is not allowed here").format(obj)
             yield self.validation_error(validation, reason, obj, **kwargs)
 
         if self.process_contents == 'skip':
@@ -505,7 +512,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
         namespace = get_namespace(name)
 
         if not self.is_namespace_allowed(namespace):
-            reason = "element {!r} is not allowed here".format(name)
+            reason = _("element {!r} is not allowed here").format(name)
             yield self.validation_error(validation, reason, value, **kwargs)
 
         if self.process_contents == 'skip':
@@ -641,7 +648,7 @@ class XsdAnyAttribute(XsdWildcard, ValidationMixin[Tuple[str, str], DecodedValue
         name, value = obj
 
         if not self.is_matching(name):
-            reason = "attribute %r not allowed." % name
+            reason = _("attribute %r not allowed") % name
             yield self.validation_error(validation, reason, obj, **kwargs)
 
         if self.process_contents == 'skip':
@@ -653,14 +660,14 @@ class XsdAnyAttribute(XsdWildcard, ValidationMixin[Tuple[str, str], DecodedValue
                 xsd_attribute = self.maps.lookup_attribute(name)
             except LookupError:
                 if validation != 'skip' and self.process_contents == 'strict':
-                    reason = "attribute %r not found." % name
+                    reason = _("attribute %r not found") % name
                     yield self.validation_error(validation, reason, obj, **kwargs)
             else:
                 yield from xsd_attribute.iter_decode(value, validation, **kwargs)
                 return
 
         elif validation != 'skip' and self.process_contents == 'strict':
-            reason = "unavailable namespace {!r}".format(get_namespace(name))
+            reason = _("unavailable namespace {!r}").format(get_namespace(name))
             yield self.validation_error(validation, reason, **kwargs)
 
         yield value
@@ -671,7 +678,7 @@ class XsdAnyAttribute(XsdWildcard, ValidationMixin[Tuple[str, str], DecodedValue
         namespace = get_namespace(name)
 
         if not self.is_namespace_allowed(namespace):
-            reason = "attribute %r not allowed." % name
+            reason = _("attribute %r not allowed") % name
             yield self.validation_error(validation, reason, obj, **kwargs)
 
         if self.process_contents == 'skip':
@@ -683,14 +690,14 @@ class XsdAnyAttribute(XsdWildcard, ValidationMixin[Tuple[str, str], DecodedValue
                 xsd_attribute = self.maps.lookup_attribute(name)
             except LookupError:
                 if validation != 'skip' and self.process_contents == 'strict':
-                    reason = "attribute %r not found." % name
+                    reason = _("attribute %r not found") % name
                     yield self.validation_error(validation, reason, obj, **kwargs)
             else:
                 yield from xsd_attribute.iter_encode(value, validation, **kwargs)
                 return
 
         elif validation != 'skip' and self.process_contents == 'strict':
-            reason = "unavailable namespace {!r}".format(get_namespace(name))
+            reason = _("unavailable namespace {!r}").format(get_namespace(name))
             yield self.validation_error(validation, reason, **kwargs)
 
         yield raw_xml_encode(value)
@@ -847,15 +854,17 @@ class XsdOpenContent(XsdComponent):
             pass
         else:
             if self.mode not in {'none', 'interleave', 'suffix'}:
-                self.parse_error("wrong value %r for 'mode' attribute." % self.mode)
+                msg = _("wrong value %r for 'mode' attribute")
+                self.parse_error(msg % self.mode)
 
         child = self._parse_child_component(self.elem)
         if self.mode == 'none':
             if child is not None and child.tag == XSD_ANY:
-                self.parse_error("an openContent with mode='none' must not "
-                                 "have an <xs:any> child declaration")
+                msg = _("an openContent with mode='none' cannot "
+                        "have an <xs:any> child declaration")
+                self.parse_error(msg)
         elif child is None or child.tag != XSD_ANY:
-            self.parse_error("an <xs:any> child declaration is required")
+            self.parse_error(_("an <xs:any> child declaration is required"))
         else:
             any_element = Xsd11AnyElement(child, self.schema, self)
             any_element.min_occurs = 0
@@ -896,11 +905,14 @@ class XsdDefaultOpenContent(XsdOpenContent):
     def _parse(self) -> None:
         super(XsdDefaultOpenContent, self)._parse()
         if self.parent is not None:
-            self.parse_error("defaultOpenContent must be a child of the schema")
+            msg = _("defaultOpenContent must be a child of the schema")
+            self.parse_error(msg)
         if self.mode == 'none':
-            self.parse_error("the attribute 'mode' of a defaultOpenContent cannot be 'none'")
+            msg = _("the attribute 'mode' of a defaultOpenContent cannot be 'none'")
+            self.parse_error(msg)
         if self._parse_child_component(self.elem) is None:
-            self.parse_error("a defaultOpenContent declaration cannot be empty")
+            msg = _("a defaultOpenContent declaration cannot be empty")
+            self.parse_error(msg)
 
         if 'appliesToEmpty' in self.elem.attrib:
             if self.elem.attrib['appliesToEmpty'].strip() in {'true', '1'}:

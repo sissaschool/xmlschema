@@ -660,6 +660,15 @@ class TestEncoding(XsdValidatorTestCase):
             )
         )
 
+    def test_float_encoding(self):
+        for float_type in [self.schema_class.meta_schema.types['float'],
+                           self.schema_class.meta_schema.types['double']]:
+            self.assertEqual(float_type.encode(-1.0), '-1.0')
+            self.assertEqual(float_type.encode(19.7), '19.7')
+            self.assertEqual(float_type.encode(float('inf')), 'INF')
+            self.assertEqual(float_type.encode(float('-inf')), '-INF')
+            self.assertEqual(float_type.encode(float('nan')), 'NaN')
+
 
 class TestEncoding11(TestEncoding):
     schema_class = XMLSchema11

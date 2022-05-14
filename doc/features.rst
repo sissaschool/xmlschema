@@ -170,3 +170,29 @@ value of ``MAX_XML_DEPTH`` in the module *limits* after the import of the packag
     >>> import xmlschema
     >>> xmlschema.limits.MAX_XML_DEPTH = 1000
 
+
+Translations of parsing/validation error messages
+=================================================
+
+From release v1.11.0 translation of parsing/validation error messages can
+be activated:
+
+.. doctest::
+
+    >>> import xmlschema
+    >>> xmlschema.translation.activate()
+
+.. note::
+    Activation depends by the default language in your environment and if it matches
+    translations provided with the library. You can build your custom translation from
+    the template included in the repository (`xmlschema/locale/xmlschema.pot`) and then
+    use it in your runs providing *localedir* and *languages* arguments to activation call.
+    See :ref:`translation-api` for information.
+
+Translations for default do not interfere with other translations installed
+at runtime and can be deactivated after:
+
+.. doctest::
+
+    >>> xmlschema.translation.deactivate()
+

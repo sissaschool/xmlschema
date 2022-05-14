@@ -2,8 +2,14 @@
 CHANGELOG
 *********
 
+`v1.11.0`_ (2022-05-14)
+=======================
+* Add localization for validation related error messages
+* Add Italian translation
+* Add Russian partial translation (from PR #293)
+
 `v1.10.0`_ (2022-03-07)
-======================
+=======================
 * Add 'nonlocal' option to *defuse* argument of `XMLResource` (also for schema classes)
 * Add 'none' option to *allow* argument of `XMLResource`
 * Fix too strict parsing on XSD annotations (issue #287)
@@ -518,3 +524,4 @@ v0.9.6 (2017-05-05)
 .. _v1.9.1: https://github.com/brunato/xmlschema/compare/v1.9.0...v1.9.1
 .. _v1.9.2: https://github.com/brunato/xmlschema/compare/v1.9.1...v1.9.2
 .. _v1.10.0: https://github.com/brunato/xmlschema/compare/v1.9.2...v1.10.0
+.. _v1.11.0: https://github.com/brunato/xmlschema/compare/v1.10.0...v1.11.0

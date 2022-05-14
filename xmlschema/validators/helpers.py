@@ -14,8 +14,8 @@ from xml.etree.ElementTree import Element
 from elementpath import datatypes
 
 from ..exceptions import XMLSchemaValueError
+from ..translation import gettext as _
 from .exceptions import XMLSchemaValidationError
-from ..locale import _
 
 XSD_FINAL_ATTRIBUTE_VALUES = {'restriction', 'extension', 'list', 'union'}
 

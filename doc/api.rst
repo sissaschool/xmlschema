@@ -215,6 +215,15 @@ XML resources API
 .. autoclass:: xmlschema.XmlDocument
 
 
+.. _translation-api:
+
+Translation API
+===============
+
+.. autofunction:: xmlschema.translation.activate
+.. autofunction:: xmlschema.translation.deactivate
+
+
 .. _xpath-api:
 
 XPath API

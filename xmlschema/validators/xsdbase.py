@@ -24,6 +24,7 @@ from ..etree import is_etree_element, etree_tostring, etree_element
 from ..aliases import ElementType, NamespacesType, SchemaType, BaseXsdType, \
     ComponentClassType, ExtraValidatorType, DecodeType, IterDecodeType, \
     EncodeType, IterEncodeType
+from ..translation import gettext as _
 from ..helpers import get_qname, local_name, get_prefixed_qname
 from ..resources import XMLResource
 from .exceptions import XMLSchemaParseError, XMLSchemaValidationError
@@ -47,8 +48,8 @@ Ref.: https://www.w3.org/TR/xmlschema11-1/#key-va
 
 def check_validation_mode(validation: str) -> None:
     if validation not in XSD_VALIDATION_MODES:
-        raise XMLSchemaValueError("validation mode can be 'strict', "
-                                  "'lax' or 'skip': %r" % validation)
+        raise XMLSchemaValueError(_("validation mode can be 'strict', "
+                                    "'lax' or 'skip': %r") % validation)
 
 
 class XsdValidator:
@@ -250,8 +251,9 @@ class XsdValidator:
             return value
         else:
             admitted_values = ('##defaultNamespace', '##targetNamespace', '##local')
-            msg = "wrong value %r for 'xpathDefaultNamespace' attribute, can be (anyURI | %s)."
-            self.parse_error(msg % (value, ' | '.join(admitted_values)), elem)
+            msg = _("wrong value {0!r} for 'xpathDefaultNamespace' "
+                    "attribute, can be (anyURI | {1}).")
+            self.parse_error(msg.format(value, ' | '.join(admitted_values)), elem)
             return ''
 
 
@@ -400,15 +402,17 @@ class XsdComponent(XsdValidator):
             if 'name' in self.elem.attrib:
                 return None
             elif self.parent is None:
-                self.parse_error("missing attribute 'name' in a global %r" % type(self))
+                msg = _("missing attribute 'name' in a global %r")
+                self.parse_error(msg % type(self))
             else:
-                self.parse_error(
-                    "missing both attributes 'name' and 'ref' in local %r" % type(self)
-                )
+                msg = _("missing both attributes 'name' and 'ref' in local %r")
+                self.parse_error(msg % type(self))
         elif 'name' in self.elem.attrib:
-            self.parse_error("attributes 'name' and 'ref' are mutually exclusive")
+            msg = _("attributes 'name' and 'ref' are mutually exclusive")
+            self.parse_error(msg)
         elif self.parent is None:
-            self.parse_error("attribute 'ref' not allowed in a global %r" % type(self))
+            msg = _("attribute 'ref' not allowed in a global %r")
+            self.parse_error(msg % type(self))
         else:
             try:
                 self.name = self.schema.resolve_qname(ref)
@@ -416,8 +420,8 @@ class XsdComponent(XsdValidator):
                 self.parse_error(err)
             else:
                 if self._parse_child_component(self.elem, strict=False) is not None:
-                    self.parse_error("a reference component cannot have "
-                                     "child definitions/declarations")
+                    msg = _("a reference component cannot have child definitions/declarations")
+                    self.parse_error(msg)
                 return True
 
         return None
@@ -431,7 +435,7 @@ class XsdComponent(XsdValidator):
             elif not strict:
                 return e
             elif child is not None:
-                msg = "too many XSD components, unexpected {!r} found at position {}"
+                msg = _("too many XSD components, unexpected {0!r} found at position {1}")
                 self.parse_error(msg.format(child, elem[:].index(e)), elem)
                 break
             else:
@@ -447,23 +451,26 @@ class XsdComponent(XsdValidator):
 
         self._target_namespace = self.elem.attrib['targetNamespace'].strip()
         if 'name' not in self.elem.attrib:
-            self.parse_error("attribute 'name' must be present when "
-                             "'targetNamespace' attribute is provided")
+            msg = _("attribute 'name' must be present when "
+                    "'targetNamespace' attribute is provided")
+            self.parse_error(msg)
         if 'form' in self.elem.attrib:
-            self.parse_error("attribute 'form' must be absent when "
-                             "'targetNamespace' attribute is provided")
+            msg = _("attribute 'form' must be absent when "
+                    "'targetNamespace' attribute is provided")
+            self.parse_error(msg)
         if self._target_namespace != self.schema.target_namespace:
             if self.parent is None:
-                self.parse_error("a global %s must have the same namespace as "
-                                 "its parent schema" % self.__class__.__name__)
+                msg = _("a global %s must have the same namespace as its parent schema")
+                self.parse_error(msg % self.__class__.__name__)
 
             xsd_type = self.get_parent_type()
             if xsd_type is None or xsd_type.parent is not None:
                 pass
             elif xsd_type.derivation != 'restriction' or \
                     getattr(xsd_type.base_type, 'name', None) == XSD_ANY_TYPE:
-                self.parse_error("a declaration contained in a global complexType "
-                                 "must have the same namespace as its parent schema")
+                msg = _("a declaration contained in a global complexType "
+                        "must have the same namespace as its parent schema")
+                self.parse_error(msg)
 
         if self.name is None:
             pass  # pragma: no cover
@@ -581,7 +588,8 @@ class XsdComponent(XsdValidator):
                 return component
             component = component.parent
         else:
-            raise XMLSchemaValueError(f"parent circularity from {self}")  # pragma: no cover
+            msg = _("parent circularity from {}")
+            raise XMLSchemaValueError(msg.format(self))  # pragma: no cover
 
     def get_parent_type(self) -> Optional['XsdType']:
         """

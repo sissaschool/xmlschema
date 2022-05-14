@@ -22,6 +22,7 @@ from ..names import XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ELEMENT, \
 from ..etree import etree_element, ElementData
 from ..aliases import ElementType, NamespacesType, SchemaType, IterDecodeType, \
     IterEncodeType, ModelParticleType, SchemaElementType, ComponentClassType
+from ..translation import gettext as _
 from ..helpers import get_qname, local_name, raw_xml_encode
 
 from .exceptions import XMLSchemaModelError, XMLSchemaModelDepthError, \
@@ -351,7 +352,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                 try:
                     group, children = subgroups.pop()
                 except IndexError:
-                    msg = '{!r} is not a particle of the model group'
+                    msg = _('{!r} is not a particle of the model group')
                     raise XMLSchemaModelError(self, msg.format(item)) from None
                 else:
                     continue
@@ -409,7 +410,8 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         if self.elem.tag != XSD_GROUP:
             # Local group (sequence|all|choice)
             if 'name' in self.elem.attrib:
-                self.parse_error("attribute 'name' not allowed for a local group")
+                msg = _("attribute 'name' not allowed in a local group")
+                self.parse_error(msg)
             self._parse_content_model(self.elem)
 
         elif self._parse_reference():
@@ -417,24 +419,27 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
             try:
                 xsd_group = self.maps.lookup_group(self.name)
             except KeyError:
-                self.parse_error("missing group %r" % self.prefixed_name)
+                self.parse_error(_("missing group %r") % self.prefixed_name)
                 xsd_group = self.schema.create_any_content_group(parent=self)
 
             if isinstance(xsd_group, XsdGroup):
                 self.model = xsd_group.model
                 if self.model == 'all':
                     if self.max_occurs != 1:
-                        self.parse_error("maxOccurs must be 1 for 'all' model groups")
+                        msg = _("maxOccurs must be 1 for 'all' model groups")
+                        self.parse_error(msg)
                     if self.min_occurs not in (0, 1):
-                        self.parse_error("minOccurs must be (0 | 1) for 'all' model groups")
+                        msg = _("minOccurs must be (0 | 1) for 'all' model groups")
+                        self.parse_error(msg)
                     if self.xsd_version == '1.0' and isinstance(self.parent, XsdGroup):
-                        self.parse_error("in XSD 1.0 the 'all' model group cannot be nested")
+                        msg = _("in XSD 1.0 an 'all' model group cannot be nested")
+                        self.parse_error(msg)
                 self._group.append(xsd_group)
                 self.ref = xsd_group
             else:
                 # Disallowed circular definition, substitute with any content group.
-                self.parse_error("Circular definitions detected for group %r:" % self.name,
-                                 xsd_group[0])
+                msg = _("Circular definition detected for group %r")
+                self.parse_error(msg % self.name, xsd_group[0])
                 self.model = 'sequence'
                 self.mixed = True
                 self._group.append(self.schema.xsd_any_class(ANY_ELEMENT, self.schema, self))
@@ -447,35 +452,41 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                 pass
             else:
                 if self.parent is not None:
-                    self.parse_error("attribute 'name' not allowed for a local group")
+                    msg = _("attribute 'name' not allowed in a local group")
+                    self.parse_error(msg)
                 else:
                     if 'minOccurs' in attrib:
-                        self.parse_error("attribute 'minOccurs' not allowed for a global group")
+                        msg = _("attribute 'minOccurs' not allowed in a global group")
+                        self.parse_error(msg)
                     if 'maxOccurs' in attrib:
-                        self.parse_error("attribute 'maxOccurs' not allowed for a global group")
+                        msg = _("attribute 'maxOccurs' not allowed in a global group")
+                        self.parse_error(msg)
 
                 content_model = self._parse_child_component(self.elem, strict=True)
                 if content_model is not None:
                     if self.parent is None:
                         if 'minOccurs' in content_model.attrib:
-                            self.parse_error("attribute 'minOccurs' not allowed for the model "
-                                             "of a global group", content_model)
+                            msg = _("attribute 'minOccurs' not allowed in a global group")
+                            self.parse_error(msg, content_model)
                         if 'maxOccurs' in content_model.attrib:
-                            self.parse_error("attribute 'maxOccurs' not allowed for the model "
-                                             "of a global group", content_model)
+                            msg = _("attribute 'maxOccurs' not allowed in a global group")
+                            self.parse_error(msg, content_model)
 
                     if content_model.tag in {XSD_SEQUENCE, XSD_ALL, XSD_CHOICE}:
                         self._parse_content_model(content_model)
                     else:
-                        self.parse_error('unexpected tag %r' % content_model.tag, content_model)
+                        msg = _('unexpected tag %r')
+                        self.parse_error(msg % content_model.tag, content_model)
 
     def _parse_content_model(self, content_model: ElementType) -> None:
         self.model = local_name(content_model.tag)
         if self.model == 'all':
             if self.max_occurs != 1:
-                self.parse_error("maxOccurs must be 1 for 'all' model groups")
+                msg = _("maxOccurs must be 1 for 'all' model groups")
+                self.parse_error(msg)
             if self.min_occurs not in (0, 1):
-                self.parse_error("minOccurs must be (0 | 1) for 'all' model groups")
+                msg = _("minOccurs must be (0 | 1) for 'all' model groups")
+                self.parse_error(msg)
 
         child: ElementType
         for child in content_model:
@@ -485,7 +496,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                 # Builds inner elements later, for avoid circularity.
                 self.append(self.schema.xsd_element_class(child, self.schema, self, False))
             elif content_model.tag == XSD_ALL:
-                self.parse_error("'all' model can contains only elements.")
+                self.parse_error(_("'all' model can contain only elements"))
             elif child.tag == XSD_ANY:
                 self._group.append(XsdAnyElement(child, self.schema, self))
             elif child.tag in (XSD_SEQUENCE, XSD_CHOICE):
@@ -495,7 +506,8 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                     ref = self.schema.resolve_qname(child.attrib['ref'])
                 except (KeyError, ValueError, RuntimeError) as err:
                     if 'ref' not in child.attrib:
-                        self.parse_error("missing attribute 'ref' in local group", child)
+                        msg = _("missing attribute 'ref' in local group")
+                        self.parse_error(msg, child)
                     else:
                         self.parse_error(err, child)
                     continue
@@ -503,16 +515,18 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                 if ref != self.name:
                     xsd_group = XsdGroup(child, self.schema, self)
                     if xsd_group.model == 'all':
-                        self.parse_error("'all' model can appears only at 1st level "
-                                         "of a model group")
+                        msg = _("'all' model can appears only at 1st level of a model group")
+                        self.parse_error(msg)
                     else:
                         self._group.append(xsd_group)
                 elif self.redefine is None:
-                    self.parse_error("Circular definition detected for group %r:" % self.name)
+                    msg = _("Circular definition detected for group %r")
+                    self.parse_error(msg % self.name)
                 else:
                     if child.get('minOccurs', '1') != '1' or child.get('maxOccurs', '1') != '1':
-                        self.parse_error("Redefined group reference cannot have "
-                                         "minOccurs/maxOccurs other than 1:")
+                        msg = _("Redefined group reference cannot have "
+                                "minOccurs/maxOccurs other than 1")
+                        self.parse_error(msg)
                     self._group.append(self.redefine)
 
     def build(self) -> None:
@@ -804,8 +818,8 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
             for pe, previous_path in paths.values():
                 # EDC check
                 if not e.is_consistent(pe) or any_element and not any_element.is_consistent(pe):
-                    msg = "Element Declarations Consistent violation between %r and %r: " \
-                          "match the same name but with different types" % (e, pe)
+                    msg = _("Element Declarations Consistent violation between {0!r} and {1!r}"
+                            ": match the same name but with different types").format(e, pe)
                     raise XMLSchemaModelError(self, msg)
 
                 # UPA check
@@ -818,7 +832,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                         elif isinstance(e, Xsd11AnyElement) and not isinstance(pe, XsdAnyElement):
                             e.add_precedence(pe, self)
                         else:
-                            msg = "{!r} and {!r} overlap and are in the same {!r} group"
+                            msg = _("{0!r} and {1!r} overlap and are in the same {2!r} group")
                             raise XMLSchemaModelError(self, msg.format(pe, e, pe.parent.model))
                     elif pe.min_occurs == pe.max_occurs:
                         continue
@@ -830,7 +844,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                 elif isinstance(e, Xsd11AnyElement) and not isinstance(pe, XsdAnyElement):
                     e.add_precedence(pe, self)
                 else:
-                    msg = "Unique Particle Attribution violation between {!r} and {!r}"
+                    msg = _("Unique Particle Attribution violation between {0!r} and {1!r}")
                     raise XMLSchemaModelError(self, msg.format(pe, e))
 
             paths[e.name] = e, current_path[:]
@@ -843,9 +857,8 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         if model_element is not xsd_element and isinstance(model_element, XsdElement):
             if 'substitution' in model_element.block \
                     or xsd_element.type and xsd_element.type.is_blocked(model_element):
-                raise XMLSchemaValidationError(
-                    model_element, elem, "substitution of %r is blocked" % model_element
-                )
+                reason = _("substitution of %r is blocked") % model_element
+                raise XMLSchemaValidationError(model_element, elem, reason)
 
         alternatives: Union[Tuple[()], List[XsdAlternative]] = []
         if isinstance(xsd_element, XsdAnyElement):
@@ -893,10 +906,9 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                 for derivation in model_element.block.split():
                     if xsd_type is not model_element.type and \
                             xsd_type.is_derived(model_element.type, derivation):
-                        reason = "usage of %r with type %s is blocked by head element"
-                        raise XMLSchemaValidationError(
-                            self, elem, reason % (xsd_element, derivation)
-                        )
+                        reason = _("usage of {0!r} with type {1} is blocked by "
+                                   "head element").format(xsd_element, derivation)
+                        raise XMLSchemaValidationError(self, elem, reason)
 
             if XSI_TYPE not in elem.attrib:
                 return
@@ -919,13 +931,15 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
 
             if len(other.alternatives) != len(alternatives) or \
                     not xsd_type.is_dynamic_consistent(other.type):
-                reason = "%r that matches %r is not consistent with local declaration %r"
-                raise XMLSchemaValidationError(self, reason % (elem, xsd_element, other))
+                reason = _("{0!r} that matches {1!r} is not consistent with local "
+                           "declaration {2!r}").format(elem, xsd_element, other)
+                raise XMLSchemaValidationError(self, reason)
 
             if not all(any(a == x for x in alternatives) for a in other.alternatives) or \
                     not all(any(a == x for x in other.alternatives) for a in alternatives):
-                msg = "Maybe a not equivalent type table between elements %r and %r."
-                warnings.warn(msg % (self, xsd_element), XMLSchemaTypeTableWarning, stacklevel=3)
+                msg = _("Maybe a not equivalent type table between elements "
+                        "{0!r} and {1!r}.").format(self, xsd_element)
+                warnings.warn(msg, XMLSchemaTypeTableWarning, stacklevel=3)
 
     def match_element(self, name: str, default_namespace: Optional[str] = None) \
             -> Optional[SchemaElementType]:
@@ -953,7 +967,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         cdata_index = 1  # keys for CDATA sections are positive integers
 
         if not self._group and self.model == 'choice' and self.min_occurs:
-            reason = "an empty 'choice' group with minOccurs > 0 cannot validate any content"
+            reason = _("an empty 'choice' group with minOccurs > 0 cannot validate any content")
             yield self.validation_error(validation, reason, obj, **kwargs)
             yield result_list
             return
@@ -965,7 +979,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                 if len(self) == 1 and isinstance(self[0], XsdAnyElement):
                     pass  # [XsdAnyElement()] equals to an empty complexType declaration
                 else:
-                    reason = "character data between child elements not allowed"
+                    reason = _("character data between child elements not allowed")
                     yield self.validation_error(validation, reason, obj, **kwargs)
                     cdata_index = 0  # Do not decode CDATA
 
@@ -978,7 +992,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         level = kwargs['level'] = kwargs.pop('level', 0) + 1
         over_max_depth = 'max_depth' in kwargs and kwargs['max_depth'] <= level
         if level > limits.MAX_XML_DEPTH:
-            reason = "XML data depth exceeded (MAX_XML_DEPTH=%r)" % limits.MAX_XML_DEPTH
+            reason = _("XML data depth exceeded (MAX_XML_DEPTH=%r)") % limits.MAX_XML_DEPTH
             self.validation_error('strict', reason, obj, **kwargs)
 
         try:
@@ -1185,10 +1199,10 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                             value = get_qname(default_namespace, name), value
                         elif xsd_element is None:
                             if name.startswith('{') or ':' not in name:
-                                reason = '{!r} does not match any declared element ' \
-                                         'of the model group.'.format(name)
+                                reason = _('{!r} does not match any declared element '
+                                           'of the model group').format(name)
                             else:
-                                reason = '{} has an unknown prefix {!r}'.format(
+                                reason = _('{0} has an unknown prefix {1!r}').format(
                                     name, name.split(':')[0]
                                 )
                             yield self.validation_error(validation, reason, value, **kwargs)
@@ -1221,11 +1235,11 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
             elem = converter.etree_element(obj.tag, text, children, attrib)
 
             if wrong_content_type:
-                reason = "wrong content type {!r}".format(type(obj.content))
+                reason = _("wrong content type {!r}").format(type(obj.content))
                 yield self.validation_error(validation, reason, elem, **kwargs)
 
             if cdata_not_allowed:
-                reason = "character data between child elements not allowed"
+                reason = _("character data between child elements not allowed")
                 yield self.validation_error(validation, reason, elem, **kwargs)
 
             for index, particle, occurs, expected in errors:
@@ -1265,9 +1279,11 @@ class Xsd11Group(XsdGroup):
         self.model = local_name(content_model.tag)
         if self.model == 'all':
             if self.max_occurs not in (0, 1):
-                self.parse_error("maxOccurs must be (0 | 1) for 'all' model groups")
+                msg = _("maxOccurs must be (0 | 1) for 'all' model groups")
+                self.parse_error(msg)
             if self.min_occurs not in (0, 1):
-                self.parse_error("minOccurs must be (0 | 1) for 'all' model groups")
+                msg = _("minOccurs must be (0 | 1) for 'all' model groups")
+                self.parse_error(msg)
 
         for child in content_model:
             if child.tag == XSD_ELEMENT:
@@ -1282,7 +1298,8 @@ class Xsd11Group(XsdGroup):
                     ref = self.schema.resolve_qname(child.attrib['ref'])
                 except (KeyError, ValueError, RuntimeError) as err:
                     if 'ref' not in child.attrib:
-                        self.parse_error("missing attribute 'ref' in local group", child)
+                        msg = _("missing attribute 'ref' in local group")
+                        self.parse_error(msg, child)
                     else:
                         self.parse_error(err, child)
                     continue
@@ -1291,16 +1308,19 @@ class Xsd11Group(XsdGroup):
                     xsd_group = Xsd11Group(child, self.schema, self)
                     self._group.append(xsd_group)
                     if (self.model != 'all') ^ (xsd_group.model != 'all'):
-                        msg = "an xs:%s group cannot include a reference to an xs:%s group"
-                        self.parse_error(msg % (self.model, xsd_group.model))
+                        msg = _("an xs:{0} group cannot include a reference to an "
+                                "xs:{1} group").format(self.model, xsd_group.model)
+                        self.parse_error(msg)
                         self.pop()
 
                 elif self.redefine is None:
-                    self.parse_error("Circular definition detected for group %r:" % self.name)
+                    msg = _("Circular definition detected for group %r")
+                    self.parse_error(msg % self.name)
                 else:
                     if child.get('minOccurs', '1') != '1' or child.get('maxOccurs', '1') != '1':
-                        self.parse_error("Redefined group reference cannot have "
-                                         "minOccurs/maxOccurs other than 1:")
+                        msg = _("Redefined group reference cannot have "
+                                "minOccurs/maxOccurs other than 1")
+                        self.parse_error(msg)
                     self._group.append(self.redefine)
 
     def admits_restriction(self, model: str) -> bool:

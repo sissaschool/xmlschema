@@ -133,7 +133,7 @@ class _PurePath(PurePath):
 
             obj = _PureWindowsPath(unquote(path))
             if len(obj.drive) != 2 or obj.drive[1] != ':':
-                raise XMLSchemaValueError("Invalid URI {!r}".format(uri))
+                raise XMLSchemaValueError("Invalid URI %r" % uri)
             return obj
 
         if '\\' in path:
@@ -334,7 +334,7 @@ def fetch_resource(location: str, base_url: Optional[str] = None, timeout: int =
     :return: a normalized URL.
     """
     if not location:
-        raise XMLSchemaValueError("'location' argument must contain a not empty string")
+        raise XMLSchemaValueError("'location' argument should contain a not empty string")
 
     url = normalize_url(location, base_url)
     try:
@@ -344,13 +344,15 @@ def fetch_resource(location: str, base_url: Optional[str] = None, timeout: int =
         # fallback joining the path without a base URL
         alt_url = normalize_url(location)
         if url == alt_url:
-            raise XMLResourceError("cannot access to resource %r: %s" % (url, err.reason))
+            msg = "cannot access to resource %(url)r: %(reason)s"
+            raise XMLResourceError(msg % {'url': url, 'reason': err.reason})
 
         try:
             with urlopen(alt_url, timeout=timeout):
                 return alt_url
         except URLError:
-            raise XMLResourceError("cannot access to resource %r: %s" % (url, err.reason))
+            msg = "cannot access to resource %(url)r: %(reason)s"
+            raise XMLResourceError(msg % {'url': url, 'reason': err.reason})
 
 
 def fetch_schema_locations(source: Union['XMLResource', XMLSourceType],
@@ -384,8 +386,8 @@ def fetch_schema_locations(source: Union['XMLResource', XMLSourceType],
     namespace = resource.namespace
     locations = resource.get_locations(locations, root_only=False)
     if not locations:
-        msg = "{!r} does not contain any schema location hint"
-        raise XMLSchemaValueError(msg.format(source))
+        msg = "%r does not contain any schema location hint"
+        raise XMLSchemaValueError(msg % source)
 
     for ns, url in sorted(locations, key=lambda x: x[0] != namespace):
         try:
@@ -393,7 +395,7 @@ def fetch_schema_locations(source: Union['XMLResource', XMLSourceType],
         except XMLResourceError:
             pass
 
-    raise XMLSchemaValueError("not found a schema for XML data resource {!r}.".format(source))
+    raise XMLSchemaValueError("not found a schema for XML data resource %r" % source)
 
 
 def fetch_schema(source: Union['XMLResource', XMLSourceType],
@@ -478,31 +480,31 @@ class XMLResource:
                 raise XMLSchemaValueError("'base_url' argument is not an URL")
             self._base_url = base_url.decode()
         elif base_url is not None:
-            msg = "invalid type {!r} for argument 'base_url'"
-            raise XMLSchemaTypeError(msg.format(type(base_url)))
+            msg = "invalid type %r for argument 'base_url'"
+            raise XMLSchemaTypeError(msg % type(base_url))
 
         if not isinstance(allow, str):
-            msg = "invalid type {!r} for argument 'allow'"
-            raise XMLSchemaTypeError(msg.format(type(allow)))
+            msg = "invalid type %r for argument 'allow'"
+            raise XMLSchemaTypeError(msg % type(allow))
         elif allow not in SECURITY_MODES:
-            msg = "'allow' argument: {!r} is not a security mode"
-            raise XMLSchemaValueError(msg.format(allow))
+            msg = "'allow' argument: %r is not a security mode"
+            raise XMLSchemaValueError(msg % allow)
         elif allow == 'sandbox' and self._base_url is None:
             msg = "block access to files out of sandbox requires 'base_url' to be set"
             raise XMLResourceError(msg)
         self._allow = allow
 
         if not isinstance(defuse, str):
-            msg = "invalid type {!r} for argument 'defuse'"
-            raise XMLSchemaTypeError(msg.format(type(defuse)))
+            msg = "invalid type %r for argument 'defuse'"
+            raise XMLSchemaTypeError(msg % type(defuse))
         elif defuse not in DEFUSE_MODES:
-            msg = "'defuse' argument: {!r} is not a defuse mode"
-            raise XMLSchemaValueError(msg.format(defuse))
+            msg = "'defuse' argument: %r is not a defuse mode"
+            raise XMLSchemaValueError(msg % defuse)
         self._defuse = defuse
 
         if not isinstance(timeout, int):
-            msg = "invalid type {!r} for argument 'timeout'"
-            raise XMLSchemaTypeError(msg.format(type(timeout)))
+            msg = "invalid type %r for argument 'timeout'"
+            raise XMLSchemaTypeError(msg % type(timeout))
         elif timeout <= 0:
             msg = "the argument 'timeout' must be a positive integer"
             raise XMLSchemaValueError(msg)
@@ -733,11 +735,11 @@ class XMLResource:
         if isinstance(lazy, bool):
             pass
         elif not isinstance(lazy, int):
-            msg = "invalid type {!r} for the attribute 'lazy'"
-            raise XMLSchemaTypeError(msg.format(type(lazy)))
+            msg = "invalid type %r for the attribute 'lazy'"
+            raise XMLSchemaTypeError(msg % type(lazy))
         elif lazy < 0:
-            msg = "invalid value {!r} for the attribute 'lazy'"
-            raise XMLSchemaValueError(msg.format(lazy))
+            msg = "invalid value %r for the attribute 'lazy'"
+            raise XMLSchemaValueError(msg % lazy)
 
         url: Optional[str]
         if isinstance(source, str):
@@ -944,9 +946,8 @@ class XMLResource:
         try:
             return cast(IO[AnyStr], urlopen(self._url, timeout=self._timeout))
         except URLError as err:
-            raise XMLResourceError(
-                "cannot access to resource %r: %s" % (self._url, err.reason)
-            )
+            msg = "cannot access to resource %(url)r: %(reason)s"
+            raise XMLResourceError(msg % {'url': self._url, 'reason': err.reason})
 
     def seek(self, position: int) -> Optional[int]:
         """
@@ -1290,10 +1291,10 @@ class XMLResource:
 
         try:
             if root_only or root_only is None and self._lazy:
-                for _ in self.iter(nsmap=namespaces):
+                for _elem in self.iter(nsmap=namespaces):
                     break
             else:
-                for _ in self.iter(nsmap=namespaces):
+                for _elem in self.iter(nsmap=namespaces):
                     pass
         except (ElementTree.ParseError, PyElementTree.ParseError, UnicodeEncodeError):
             pass

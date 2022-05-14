@@ -159,7 +159,7 @@ class NamespaceMapper(MutableMapping[str, str]):
         except IndexError:
             return qname
         except ValueError:
-            raise XMLSchemaValueError("the argument 'qname' has a wrong format: %r" % qname)
+            raise XMLSchemaValueError("the argument 'qname' has an invalid value %r" % qname)
         except TypeError:
             raise XMLSchemaTypeError("the argument 'qname' must be a string-like object")
 
@@ -191,7 +191,7 @@ class NamespaceMapper(MutableMapping[str, str]):
             return qname
         except ValueError:
             if ':' in qname:
-                raise XMLSchemaValueError("the argument 'qname' has a wrong format: %r" % qname)
+                raise XMLSchemaValueError("the argument 'qname' has an invalid value %r" % qname)
             if not self._namespaces.get(''):
                 return qname
             elif name_table is None or qname not in name_table:

@@ -112,7 +112,8 @@ class XMLSchemaProxy(AbstractSchemaProxy):
         if base_element is not None:
             try:
                 if base_element.schema is not schema:
-                    raise XMLSchemaValueError("%r is not an element of %r" % (base_element, schema))
+                    msg = "{} is not an element of {}"
+                    raise XMLSchemaValueError(msg.format(base_element, schema))
             except AttributeError:
                 raise XMLSchemaTypeError("%r is not an XsdElement" % base_element)
 
@@ -141,7 +142,8 @@ class XMLSchemaProxy(AbstractSchemaProxy):
         xsd_type = self._schema.maps.types[type_qname]
         if isinstance(xsd_type, tuple):
             from .validators import XMLSchemaNotBuiltError
-            raise XMLSchemaNotBuiltError(xsd_type[1], f"XSD type {type_qname} is not built")
+            msg = "XSD type %r is not built"
+            raise XMLSchemaNotBuiltError(xsd_type[1], msg % type_qname)
 
         try:
             xsd_type.encode(obj)
@@ -154,7 +156,8 @@ class XMLSchemaProxy(AbstractSchemaProxy):
         xsd_type = self._schema.maps.types[type_qname]
         if isinstance(xsd_type, tuple):
             from .validators import XMLSchemaNotBuiltError
-            raise XMLSchemaNotBuiltError(xsd_type[1], f"XSD type {type_qname} is not built")
+            msg = "XSD type %r is not built"
+            raise XMLSchemaNotBuiltError(xsd_type[1], msg % type_qname)
         return xsd_type.decode(obj)
 
     def iter_atomic_types(self) -> Iterator[XsdTypeProtocol]:
