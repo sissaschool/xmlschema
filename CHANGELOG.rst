@@ -2,10 +2,11 @@
 CHANGELOG
 *********
 
-`v1.11.0`_ (2022-xx-xx)
+`v1.11.0`_ (2022-05-14)
 =======================
-* Add localization for error messages (derived from PR #293)
-
+* Add localization for validation related error messages
+* Add Italian translation
+* Add Russian partial translation (from PR #293)
 
 `v1.10.0`_ (2022-03-07)
 =======================
