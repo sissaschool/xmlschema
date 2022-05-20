@@ -28,7 +28,7 @@ Code generation with Jinja2 templates
 
 The module *xmlschema.extras.codegen* provides an abstract base class
 :class:`AbstractGenerator` for generate source code from parsed XSD
-schemas. The Jinja2 engine is embedded in that class and empowered
+schemas. The Jinja2 engine is embedded in that class and is empowered
 with a set of custom filters and tests for accessing to defined XSD
 schema components.
 
@@ -36,7 +36,7 @@ schema components.
 Schema based filters
 --------------------
 
-Within templates you can use a set of addional filters, available for all
+Within templates you can use a set of additional filters, available for all
 generator subclasses:
 
 name
@@ -63,6 +63,27 @@ type_qname
 sort_types
     Sort a sequence or a map of XSD types, in reverse
     dependency order, detecting circularities.
+
+Schema based tests
+------------------
+
+Within templates you can also use a set of tests, available for all generator classes:
+
+derivation
+    Test if an XSD type instance is a derivation of any of a list of
+    other types. Other types are provided by qualified names.
+
+extension
+    Test if an XSD type instance is an extension of any of a list of
+    other types. Other types are provided by qualified names.
+
+restriction
+    Test if an XSD type instance is a restriction of any of a list of
+    other types. Other types are provided by qualified names.
+
+multi_sequence
+    Test if an XSD type is a complex type with complex content that at
+    least one child can have multiple occurrences.
 
 
 Type mapping
