@@ -525,17 +525,20 @@ class AbstractGenerator(ABC, metaclass=GeneratorMeta):
         for type_name in names:
             if not isinstance(type_name, str) or not type_name:
                 continue  # pragma: no cover
-            elif type_name[0] != '{' and ':' in type_name:
+            elif type_name[0] == '{':
+                other = self.schema.maps.types.get(type_name)
+            else:
                 try:
-                    type_name = self.schema.resolve_qname(type_name)
+                    expanded_name = self.schema.resolve_qname(type_name)
                 except xmlschema.XMLSchemaException:
-                    continue
+                    other = self.schema.types.get(type_name)
+                else:
+                    other = self.schema.maps.types.get(expanded_name)
+                    if other is None:
+                        other = self.schema.types.get(type_name)
 
-            try:
-                if xsd_type.is_derived(self.schema.maps.types[type_name], derivation):
-                    return True
-            except KeyError:
-                pass
+            if other is not None and xsd_type.is_derived(other, derivation):
+                return True
 
         return False
 

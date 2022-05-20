@@ -529,7 +529,7 @@ class TestAbstractGenerator(unittest.TestCase):
         self.assertFalse(self.generator.extension(self.schema.types['type1']))
         self.assertFalse(self.generator.extension(self.schema.types['type1'], 'tns:type1'))
         self.assertFalse(self.generator.restriction(self.schema.types['type1'], 'tns:type1'))
-        self.assertFalse(self.generator.derivation(self.schema.types['type1'], 'type1'))
+        self.assertTrue(self.generator.derivation(self.schema.types['type1'], 'type1'))
         self.assertFalse(self.generator.restriction(self.schema.types['type6'], 'xs:decimal'))
         self.assertFalse(self.generator.restriction(self.schema.types['type6'], None))
         self.assertFalse(self.generator.derivation(self.schema.types['type1'], 'tns0:type1'))
