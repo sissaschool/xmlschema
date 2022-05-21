@@ -1142,7 +1142,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         over_max_depth = 'max_depth' in kwargs and kwargs['max_depth'] <= level
 
         content: Iterable[Any]
-        if obj.content is None:
+        if not obj.content:
             content = []
         elif isinstance(obj.content, MutableMapping) or kwargs.get('unordered'):
             content = ModelVisitor(self).iter_unordered_content(
@@ -1150,6 +1150,12 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
             )
         elif not isinstance(obj.content, MutableSequence):
             wrong_content_type = True
+            content = []
+        elif not isinstance(obj.content[0], tuple):
+            if len(obj.content) > 1 or text is not None:
+                wrong_content_type = True
+            else:
+                text = raw_xml_encode(obj.content[0])
             content = []
         elif converter.losslessly:
             content = obj.content
