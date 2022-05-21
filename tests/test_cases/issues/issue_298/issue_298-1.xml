@@ -1,0 +1,5 @@
+<tns:Root xmlns:tns="http://xmlschema.test/ns">
+    <Container>
+        <Freeform />
+    </Container>
+</tns:Root>

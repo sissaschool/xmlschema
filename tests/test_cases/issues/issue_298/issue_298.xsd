@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:tns="http://xmlschema.test/ns"
+           targetNamespace="http://xmlschema.test/ns">
+    <xs:element name="Root">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="Container" type="tns:container"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+    <xs:complexType name="container">
+        <xs:sequence>
+            <xs:element name="Freeform" type="tns:freeform"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="freeform" mixed="true">
+        <xs:sequence minOccurs="0" maxOccurs="unbounded">
+            <xs:any processContents="lax"/>
+        </xs:sequence>
+    </xs:complexType>
+</xs:schema>

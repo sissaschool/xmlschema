@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<tns:Root xmlns:tns="http://xmlschema.test/ns" xmlns:zz="http://xmlschema.test/ns2">
+    <Container>
+        <Freeform>
+            <zz:ForeignSchema/>
+        </Freeform>
+    </Container>
+</tns:Root>

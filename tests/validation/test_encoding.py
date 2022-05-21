@@ -21,13 +21,13 @@ except ImportError:
 from elementpath import datatypes
 
 from xmlschema import XMLSchemaEncodeError, XMLSchemaValidationError
-from xmlschema.converters import UnorderedConverter
+from xmlschema.converters import UnorderedConverter, JsonMLConverter
 from xmlschema.etree import etree_element, etree_tostring, ElementTree
 from xmlschema.helpers import local_name, is_etree_element
 from xmlschema.resources import XMLResource
 from xmlschema.validators.exceptions import XMLSchemaChildrenValidationError
 from xmlschema.validators import XMLSchema11
-from xmlschema.testing import XsdValidatorTestCase
+from xmlschema.testing import XsdValidatorTestCase, etree_elements_assert_equal
 
 
 class TestEncoding(XsdValidatorTestCase):
@@ -53,7 +53,7 @@ class TestEncoding(XsdValidatorTestCase):
                 self.assertTrue(isinstance(obj, type(expected)))
 
     def test_decode_encode(self):
-        """Test encode after a decode, checking the re-encoded tree."""
+        """Test encode after decode, checking the re-encoded tree."""
         filename = self.casepath('examples/collection/collection.xml')
         xt = ElementTree.parse(filename)
         xd = self.col_schema.to_dict(filename)
@@ -668,6 +668,33 @@ class TestEncoding(XsdValidatorTestCase):
             self.assertEqual(float_type.encode(float('inf')), 'INF')
             self.assertEqual(float_type.encode(float('-inf')), '-INF')
             self.assertEqual(float_type.encode(float('nan')), 'NaN')
+
+    def test_wildcard_with_foreign_and_jsonml__issue_298(self):
+        schema = self.schema_class(self.casepath('issues/issue_298/issue_298.xsd'))
+        xml_data = self.casepath('issues/issue_298/issue_298-2.xml')
+
+        instance = [
+            'tns:Root',
+            {'xmlns:tns': 'http://xmlschema.test/ns',
+             'xmlns:zz': 'http://xmlschema.test/ns2'},
+            ['Container', ['Freeform', ['zz:ForeignSchema']]]
+        ]
+        result = schema.decode(xml_data, converter=JsonMLConverter)
+        self.assertListEqual(result, instance)
+
+        root, errors = schema.encode(instance, validation='lax', converter=JsonMLConverter)
+        self.assertListEqual(errors, [])
+        self.assertIsNone(etree_elements_assert_equal(root, ElementTree.parse(xml_data).getroot()))
+
+        instance = ['tns:Root', ['Container', ['Freeform', ['zz:ForeignSchema']]]]
+        namespaces = {'tns': 'http://xmlschema.test/ns',
+                      'zz': 'http://xmlschema.test/ns2'}
+        root, errors = schema.encode(instance, validation='lax',
+                                     namespaces=namespaces,
+                                     use_defaults=False,
+                                     converter=JsonMLConverter)
+        self.assertListEqual(errors, [])
+        self.assertIsNone(etree_elements_assert_equal(root, ElementTree.parse(xml_data).getroot()))
 
 
 class TestEncoding11(TestEncoding):
