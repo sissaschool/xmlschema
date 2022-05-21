@@ -769,18 +769,6 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
 
         xsd_element = self.schema.create_element(name, parent=self, form='unqualified')
         xsd_element.type = self
-
-        if isinstance(value, MutableSequence) and not isinstance(value, dataobjects.DataElement):
-            try:
-                results = [x for item in value for x in xsd_element.iter_encode(
-                    item, validation, **kwargs
-                )]
-            except XMLSchemaValueError:
-                pass
-            else:
-                yield from results
-                return
-
         yield from xsd_element.iter_encode(value, validation, **kwargs)
 
 

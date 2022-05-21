@@ -818,7 +818,10 @@ class XsdElement(XsdComponent, ParticleMixin,
 
         if converter is not None:
             element_data = ElementData(obj.tag, value, content, attributes)
-            yield converter.element_decode(element_data, self, xsd_type, level)
+            try:
+                yield converter.element_decode(element_data, self, xsd_type, level)
+            except (ValueError, TypeError) as err:
+                yield self.validation_error(validation, err, obj, **kwargs)
         elif not level:
             yield ElementData(obj.tag, value, None, attributes)
 
@@ -925,16 +928,21 @@ class XsdElement(XsdComponent, ParticleMixin,
             level = kwargs['level']
         except KeyError:
             level = 0
-            element_data = converter.element_encode(obj, self, level)
-            if not self.is_matching(element_data.tag, self.default_namespace):
-                errors.append("data tag does not match XSD element name")
 
-            if 'max_depth' in kwargs and kwargs['max_depth'] == 0:
-                for e in errors:
-                    yield self.validation_error(validation, e, **kwargs)
-                return
-        else:
+        try:
             element_data = converter.element_encode(obj, self, level)
+        except (ValueError, TypeError) as err:
+            yield self.validation_error(validation, err, obj, **kwargs)
+            return
+        else:
+            if not level:
+                if not self.is_matching(element_data.tag, self.default_namespace):
+                    errors.append("data tag does not match XSD element name")
+
+                if 'max_depth' in kwargs and kwargs['max_depth'] == 0:
+                    for e in errors:
+                        yield self.validation_error(validation, e, **kwargs)
+                    return
 
         text = None
         children = element_data.content

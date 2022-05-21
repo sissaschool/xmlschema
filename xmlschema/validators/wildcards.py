@@ -549,13 +549,17 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
         try:
             level = kwargs['level']
         except KeyError:
-            element_data = converter.element_encode(value, xsd_element)
-        else:
-            element_data = converter.element_encode(value, xsd_element, level)
+            level = 0
 
-        if XSI_TYPE in element_data.attributes:
-            yield from xsd_element.iter_encode(value, validation, **kwargs)
-            return
+        try:
+            element_data = converter.element_encode(value, xsd_element, level)
+        except (ValueError, TypeError) as err:
+            if validation != 'skip' and self.process_contents == 'strict':
+                yield self.validation_error(validation, err, value, **kwargs)
+        else:
+            if XSI_TYPE in element_data.attributes:
+                yield from xsd_element.iter_encode(value, validation, **kwargs)
+                return
 
         if validation != 'skip' and self.process_contents == 'strict':
             yield self.validation_error(validation, reason, **kwargs)
