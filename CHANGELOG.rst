@@ -2,6 +2,11 @@
 CHANGELOG
 *********
 
+`v1.11.1`_ (2022-05-22)
+=======================
+* Protect converter calls in iter_decode()/iter_encode()
+* Extend XSD type matching for code generators (fallback to schema types with a local name)
+
 `v1.11.0`_ (2022-05-14)
 =======================
 * Add localization for validation related error messages
@@ -525,3 +530,4 @@ v0.9.6 (2017-05-05)
 .. _v1.9.2: https://github.com/brunato/xmlschema/compare/v1.9.1...v1.9.2
 .. _v1.10.0: https://github.com/brunato/xmlschema/compare/v1.9.2...v1.10.0
 .. _v1.11.0: https://github.com/brunato/xmlschema/compare/v1.10.0...v1.11.0
+.. _v1.11.1: https://github.com/brunato/xmlschema/compare/v1.11.0...v1.11.1

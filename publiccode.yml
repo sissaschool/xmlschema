@@ -1,4 +1,4 @@
-    # This repository adheres to the publiccode.yml standard by including this
+# This repository adheres to the publiccode.yml standard by including this
 # metadata file that makes public software easily discoverable.
 # More info at https://github.com/italia/publiccode.yml
 
@@ -6,8 +6,8 @@ publiccodeYmlVersion: '0.2'
 name: xmlschema
 url: 'https://github.com/sissaschool/xmlschema'
 landingURL: 'https://github.com/sissaschool/xmlschema'
-releaseDate: '2022-05-14'
-softwareVersion: v1.11.0
+releaseDate: '2022-05-22'
+softwareVersion: v1.11.1
 developmentStatus: stable
 platforms:
   - linux

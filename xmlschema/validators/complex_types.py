@@ -7,7 +7,6 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from collections.abc import MutableSequence
 from typing import cast, Any, Callable, Iterator, List, Optional, Tuple, Union
 
 from ..exceptions import XMLSchemaValueError
@@ -20,7 +19,6 @@ from ..aliases import ElementType, NamespacesType, SchemaType, ComponentClassTyp
     ExtraValidatorType
 from ..translation import gettext as _
 from ..helpers import get_prefixed_qname, get_qname, local_name
-from .. import dataobjects
 
 from .exceptions import XMLSchemaDecodeError
 from .helpers import get_xsd_derivation_attribute
