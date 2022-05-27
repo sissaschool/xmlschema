@@ -387,6 +387,10 @@ class TestDataBindings(TestDataObjects):
             self.assertTrue(issubclass(xsd_element.binding, DataElement))
             self.assertIsInstance(xsd_element.binding, DataBindingMeta)
             self.assertIs(binding_class, xsd_element.binding)
+
+            # regression tests for issue 300
+            self.assertIs(binding_class, xsd_element.get_binding())
+            self.assertIsNot(binding_class, xsd_element.get_binding(replace_existing=True))
         finally:
             xsd_element.binding = None
 

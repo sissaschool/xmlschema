@@ -446,7 +446,7 @@ class XsdElement(XsdComponent, ParticleMixin,
         :param replace_existing: provide `True` to replace an existing binding class.
         :param attrs: attribute and method definitions for the binding class body.
         """
-        if self.binding is None or not replace_existing:
+        if self.binding is None or replace_existing:
             if not bases:
                 bases = (dataobjects.DataElement,)
             attrs['xsd_element'] = self
