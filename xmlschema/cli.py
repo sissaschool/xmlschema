@@ -24,12 +24,12 @@ from xmlschema.etree import etree_tostring
 PROGRAM_NAME = os.path.basename(sys.argv[0])
 
 CONVERTERS_MAP = {
-    'Unordered': xmlschema.UnorderedConverter,
-    'Parker': xmlschema.ParkerConverter,
-    'BadgerFish': xmlschema.BadgerFishConverter,
-    'Abdera': xmlschema.AbderaConverter,
-    'JsonML': xmlschema.JsonMLConverter,
-    'Columnar': xmlschema.ColumnarConverter,
+    'unordered': xmlschema.UnorderedConverter,
+    'parker': xmlschema.ParkerConverter,
+    'badgerfish': xmlschema.BadgerFishConverter,
+    'abdera': xmlschema.AbderaConverter,
+    'jsonml': xmlschema.JsonMLConverter,
+    'columnar': xmlschema.ColumnarConverter,
 }
 
 
@@ -57,11 +57,11 @@ def get_loglevel(verbosity):
 
 
 def get_converter(name):
-    if name is None:
-        return
+    if not isinstance(name, str):
+        return None
 
     try:
-        return CONVERTERS_MAP[name]
+        return CONVERTERS_MAP[name.lower()]
     except KeyError:
         raise ValueError("--converter must be in {!r}".format(tuple(CONVERTERS_MAP)))
 
@@ -84,6 +84,9 @@ def xml2json():
                         help="use a different XML to JSON convention instead of "
                              "the default converter. Option value can be one of "
                              "{!r}.".format(tuple(CONVERTERS_MAP)))
+    parser.add_argument('--indent', type=int, default=None,
+                        help="indentation for a pretty-printed JSON output "
+                             "(default is the most compact representation)")
     parser.add_argument('--lazy', action='store_true', default=False,
                         help="use lazy decoding mode (slower but use less memory).")
     parser.add_argument('--defuse', metavar='(always, remote, never)',
@@ -105,6 +108,10 @@ def xml2json():
         schema = schema_class(args.schema, locations=args.locations, loglevel=loglevel)
     else:
         schema = None
+
+    json_options = {}
+    if args.indent is not None and args.indent >= 0:
+        json_options['indent'] = args.indent
 
     base_path = pathlib.Path(args.output)
     if not base_path.exists():
@@ -130,6 +137,7 @@ def xml2json():
                     lazy=args.lazy,
                     defuse=args.defuse,
                     validation='lax',
+                    json_options=json_options,
                 )
             except (xmlschema.XMLSchemaException, URLError) as err:
                 tot_errors += 1
@@ -165,6 +173,8 @@ def json2xml():
                         help="use a different XML to JSON convention instead of "
                              "the default converter. Option value can be one of "
                              "{!r}.".format(tuple(CONVERTERS_MAP)))
+    parser.add_argument('--indent', type=int, default=4,
+                        help="indentation for XML output (default is 4 spaces)")
     parser.add_argument('-o', '--output', type=str, default='.',
                         help="where to write the encoded XML files, current dir by default.")
     parser.add_argument('-f', '--force', action="store_true", default=False,
@@ -199,6 +209,7 @@ def json2xml():
                     schema=schema,
                     converter=converter,
                     validation='lax',
+                    indent=args.indent,
                 )
             except (xmlschema.XMLSchemaException, URLError) as err:
                 tot_errors += 1
