@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: \n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2022-05-12 17:25+0200\n"
-"PO-Revision-Date: 2022-06-07 17:50+0300\n"
+"PO-Revision-Date: 2022-06-08 17:03+0300\n"
 "Last-Translator: \n"
 "Language-Team: \n"
 "Language: ru\n"
@@ -18,6 +18,7 @@ msgstr ""
 "Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && "
 "(n%100<12 || n%100>14) ? 1 : 2);\n"
 "X-Generator: Poedit 3.0.1\n"
+"X-Poedit-Bookmarks: -1,133,-1,-1,-1,-1,-1,-1,-1,-1\n"
 
 #: xmlschema/validators/complex_types.py:134
 msgid "missing attribute 'name' in a global complexType"
@@ -421,433 +422,411 @@ msgstr "тестовый атрибут отсутствует в не окон�
 
 #: xmlschema/validators/elements.py:1370
 msgid "Maybe a not equivalent type table between elements {0!r} and {1!r}"
-msgstr ""
+msgstr "Возможно, таблица неэквивалентного типа между элементами {0!r} и {1!r}"
 
 #: xmlschema/validators/elements.py:1446
 msgid "missing 'type' attribute"
-msgstr ""
+msgstr "отсутствует атрибут 'type'"
 
 #: xmlschema/validators/elements.py:1454
-#, fuzzy
 msgid "declared type is not derived from {!r}"
-msgstr "атрибут по умолчанию {!r} уже определён в сложном типе"
+msgstr "объявленный тип не является производным от {!r}"
 
 #: xmlschema/validators/elements.py:1464
-#, fuzzy
 msgid "type {0!r} is not derived from {1!r}"
-msgstr "{0!r} не является ограничением базового типа {1!r}"
+msgstr "тип {0!r} не является производным от {1!r}"
 
 #: xmlschema/validators/elements.py:1469
 #, python-format
 msgid "the attribute 'type' and the xs:%s local declaration are mutually exclusive"
-msgstr ""
+msgstr "атрибут 'type' и xs:%s являются взаимоисключающими"
 
 #: xmlschema/validators/global_maps.py:77
 msgid "global {0} with name={1!r} is already defined"
-msgstr ""
+msgstr "глобальный {0} с name={1!r} уже определен"
 
 #: xmlschema/validators/global_maps.py:90
-#, fuzzy
 msgid "multiple redefinition for {0} {1!r}"
-msgstr "{0!r} не разрешено для {1!r}"
+msgstr "множественное переопределение для {0} {1!r}"
 
 #: xmlschema/validators/global_maps.py:102
 msgid "circular redefinition for {0} {1!r}"
-msgstr ""
+msgstr "циклическое переопределение для {0} {1!r}"
 
 #: xmlschema/validators/global_maps.py:117
-#, fuzzy
 msgid "not a redefinition!"
-msgstr "неправильное переопределение без ссылки на себя"
+msgstr "не переопределение!"
 
 #: xmlschema/validators/global_maps.py:234
 msgid "wrong tag {!r} for an XSD global definition/declaration"
-msgstr ""
+msgstr "неверный тег {!r} для глобального определения XSD"
 
 #: xmlschema/validators/global_maps.py:313 xmlschema/validators/global_maps.py:330
 msgid "wrong element {0!r} for map {1!r}"
-msgstr ""
+msgstr "неверный элемент {0!r} для карты {1!r}"
 
 #: xmlschema/validators/global_maps.py:339
 msgid "redefined schema {!r} has a different targetNamespace"
-msgstr ""
+msgstr "переопределенная схема {!r} имеет другое целевое пространство имен"
 
 #: xmlschema/validators/global_maps.py:350
 msgid "unexpected instance {!r} in global map"
-msgstr ""
+msgstr "неожиданный экземпляр {!r} в глобальной карте"
 
 #: xmlschema/validators/global_maps.py:382
-#, fuzzy
 msgid "{0!r} cannot substitute {1!r}"
-msgstr "{0!r} не является ограничением базового типа {1!r}"
+msgstr "{0!r} не может заменить {1!r}"
 
 #: xmlschema/validators/global_maps.py:578
 msgid "missing XSD namespace in meta-schema instance {!r}"
-msgstr ""
+msgstr "отсутствует пространство имен XSD в экземпляре метасхемы {!r}"
 
 #: xmlschema/validators/global_maps.py:587
 msgid "missing default meta-schema instance {!r}"
-msgstr ""
+msgstr "отсутствует экземпляр метасхемы по умолчанию {!r}"
 
 #: xmlschema/validators/global_maps.py:639
 msgid "defaultAttributes={0!r} doesn't match any attribute group of {1!r}"
-msgstr ""
+msgstr "defaultAttributes={0!r} не соответствуют атрибутам группы {1!r}"
 
 #: xmlschema/validators/global_maps.py:682
-#, fuzzy
 msgid "global element not built!"
-msgstr "глобальный тип {!r} не создается"
+msgstr "глобальный элемент не создается!"
 
 #: xmlschema/validators/global_maps.py:684
 msgid "circularity found for substitution group with head element {}"
-msgstr ""
+msgstr "Обнаружена цикличность для группы замещения с головным элементом {}"
 
 #: xmlschema/validators/global_maps.py:689
 #, python-format
 msgid "global map has unbuilt components: %r"
-msgstr ""
+msgstr "глобальная карта имеет несобранные компоненты: %r"
 
 #: xmlschema/validators/global_maps.py:694
-#, fuzzy
 msgid "global group not built!"
-msgstr "глобальный тип {!r} не создается"
+msgstr "глобальная группа не создается!"
 
 #: xmlschema/validators/global_maps.py:701
 msgid "the redefined group is an illegal restriction"
-msgstr ""
+msgstr "переопределенная группа является недопустимым ограничением"
 
 #: xmlschema/validators/global_maps.py:717
 msgid "the derived group is an illegal restriction"
-msgstr ""
+msgstr "производная группа является недопустимым ограничением"
 
 #: xmlschema/validators/global_maps.py:727
-#, fuzzy
 msgid "restriction has an open content but base type has not"
-msgstr "получение пустого содержимого из базового типа, который не имеет пустого содержимого"
+msgstr "ограничение имеет открытый контент, но базовый тип не имеет"
 
 #: xmlschema/validators/global_maps.py:733
 msgid "can't verify the content model of {!r} due to exceeding of maximum recursion depth"
 msgstr ""
+"не удается проверить модель содержимого {!r} из-за превышения максимальной глубины рекурсии"
 
 #: xmlschema/validators/facets.py:63
-#, fuzzy
 msgid "invalid type {!r} provided"
-msgstr "глобальный тип {!r} не создается"
+msgstr "неверный тип {!r}"
 
 #: xmlschema/validators/facets.py:84
 msgid "{0!r} facet value is fixed to {1!r}"
-msgstr ""
+msgstr "{0!r} значение набора фиксировано {1!r}"
 
 #: xmlschema/validators/facets.py:135 xmlschema/validators/facets.py:138
 msgid "facet value can be only 'collapse'"
-msgstr ""
+msgstr "значение набора может быть только 'collapse'"
 
 #: xmlschema/validators/facets.py:140
 msgid "facet value can be only 'replace' or 'collapse'"
-msgstr ""
+msgstr "значение набора может быть только 'replace' или 'collapse'"
 
 #: xmlschema/validators/facets.py:145
 msgid "value contains tabs or newlines"
-msgstr ""
+msgstr "значение содержит табуляцию или переносы строк"
 
 #: xmlschema/validators/facets.py:151
 msgid "value contains non collapsed white spaces"
-msgstr ""
+msgstr "значение содержит лишние пробелы"
 
 #: xmlschema/validators/facets.py:175
 msgid "base facet has a different length ({})"
-msgstr ""
+msgstr "базовый набор имеет отличающуюся длину ({})"
 
 #: xmlschema/validators/facets.py:185
 msgid "length has to be {!r}"
-msgstr ""
+msgstr "длина должна быть {!r}"
 
 #: xmlschema/validators/facets.py:209
 msgid "base facet has a greater min length ({})"
-msgstr ""
+msgstr "базовый набор имеет большую минимальную длину ({})"
 
 #: xmlschema/validators/facets.py:219
 msgid "value length cannot be lesser than {!r}"
-msgstr ""
+msgstr "длина значения не может быть меньше чем {!r}"
 
 #: xmlschema/validators/facets.py:243
 msgid "base type has a lesser max length ({})"
-msgstr ""
+msgstr "базовый тип имеет меньшую максимальную длину ({})"
 
 #: xmlschema/validators/facets.py:253
 msgid "value length cannot be greater than {!r}"
-msgstr ""
+msgstr "длина значения не может быть больше чем {!r}"
 
 #: xmlschema/validators/facets.py:276 xmlschema/validators/facets.py:307
 #: xmlschema/validators/facets.py:342 xmlschema/validators/facets.py:373
-#, fuzzy
 msgid "invalid restriction: {}"
-msgstr "ожидается тег 'restriction' или 'extension'"
+msgstr "неверное ограничение: {}"
 
 #: xmlschema/validators/facets.py:281
 msgid "value has to be greater or equal than {!r}"
-msgstr ""
+msgstr "значение должно быть больше или равно {!r}"
 
 #: xmlschema/validators/facets.py:311
 msgid "invalid restriction: {} is also the maximum"
-msgstr ""
+msgstr "недопустимое ограничение: {} также является максимальным"
 
 #: xmlschema/validators/facets.py:317
 msgid "value has to be greater than {!r}"
-msgstr ""
+msgstr "значение должно быть больше {!r}"
 
 #: xmlschema/validators/facets.py:347
 msgid "value has to be less than or equal than {!r}"
-msgstr ""
+msgstr "значение должно быть меньше или равно {!r}"
 
 #: xmlschema/validators/facets.py:377
 msgid "invalid restriction: {} is also the minimum"
-msgstr ""
+msgstr "недопустимое ограничение: {} также является минимальным"
 
 #: xmlschema/validators/facets.py:383
 msgid "value has to be lesser than {!r}"
-msgstr ""
+msgstr "значение должно быть меньше {!r}"
 
 #: xmlschema/validators/facets.py:418 xmlschema/validators/facets.py:475
 msgid "invalid restriction: base value is lower ({})"
-msgstr ""
+msgstr "недопустимое ограничение: базовое значение меньше ({})"
 
 #: xmlschema/validators/facets.py:428
 msgid "the number of digits has to be lesser or equal than {!r}"
-msgstr ""
+msgstr "количество цифр должно быть меньше или равно {!r}"
 
 #: xmlschema/validators/facets.py:456
 msgid "fractionDigits facet can be applied only to types derived from xs:decimal"
-msgstr ""
+msgstr "набор fractionDigits можно применять только к типам, производным от xs:decimal"
 
 #: xmlschema/validators/facets.py:470
 msgid "fractionDigits facet value must be 0 for types derived from xs:integer"
-msgstr ""
+msgstr "значение набора fractionDigits должно быть 0 для типов, производных от xs:integer"
 
 #: xmlschema/validators/facets.py:485
 msgid "the number of fraction digits has to be lesser or equal than {!r}"
-msgstr ""
+msgstr "количество цифр после запятой должно быть меньше или равно {!r}"
 
 #: xmlschema/validators/facets.py:517
 msgid "invalid restriction from {!r}"
-msgstr ""
+msgstr "недопустимое ограничение от {!r}"
 
 #: xmlschema/validators/facets.py:522
 msgid "time zone required for value {!r}"
-msgstr ""
+msgstr "таймзона обязательна для {!r}"
 
 #: xmlschema/validators/facets.py:527
 msgid "time zone prohibited for value {!r}"
-msgstr ""
+msgstr "таймзона запрещена для {!r}"
 
 #: xmlschema/validators/facets.py:571
 msgid "value {!r} must match a notation declaration"
-msgstr ""
+msgstr "значение {!r} должно соответствовать объявлению нотации"
 
 #: xmlschema/validators/facets.py:629
-#, fuzzy
 msgid "value must be one of {!r}"
-msgstr "значение не должно быть положительным"
+msgstr "значение должно быть одним из {!r}"
 
 #: xmlschema/validators/facets.py:725
 msgid "value doesn't match any pattern of {!r}"
-msgstr ""
+msgstr "значение не соответствует ни одному шаблону {!r}"
 
 #: xmlschema/validators/facets.py:789
-#, fuzzy
 msgid "missing attribute 'test'"
-msgstr "в complexType отсутствует атрибут 'name'"
+msgstr "отсутствует атрибут 'test'"
 
 #: xmlschema/validators/facets.py:819
 msgid "value is not true with test path {!r}"
-msgstr ""
+msgstr "значение неверно с тестовым путем {!r}"
 
 #: xmlschema/validators/attributes.py:82
-#, fuzzy
 msgid "unknown attribute {!r}"
-msgstr "неверное значение %r для атрибута %r"
+msgstr "неизвестный атрибут {!r}"
 
 #: xmlschema/validators/attributes.py:97
 msgid "referenced attribute has a different fixed value {!r}"
-msgstr ""
+msgstr "ссылочный атрибут имеет другое фиксированное значение {!r}"
 
 #: xmlschema/validators/attributes.py:102
 msgid "attribute {!r} is not allowed when attribute reference is used"
-msgstr ""
+msgstr "атрибут {!r} не разрешен, когда используется ссылка на атрибут"
 
 #: xmlschema/validators/attributes.py:118
 msgid "an attribute name must be different from 'xmlns'"
-msgstr ""
+msgstr "имя атрибута должно отличаться от 'xmlns'"
 
 #: xmlschema/validators/attributes.py:125
 #, python-format
 msgid "cannot add attributes in %r namespace"
-msgstr ""
+msgstr "невозможно добавить атрибуты в пространство имен %r"
 
 #: xmlschema/validators/attributes.py:146
 msgid "ambiguous type definition for XSD attribute"
-msgstr ""
+msgstr "неоднозначное определение типа для атрибута XSD"
 
 #: xmlschema/validators/attributes.py:158
 msgid "XSD attribute's type must be a simpleType"
-msgstr ""
+msgstr "Тип атрибута XSD должен быть simpleType"
 
 #: xmlschema/validators/attributes.py:169
 msgid "the attribute 'use' must be 'optional' if the attribute 'default' is present"
-msgstr ""
+msgstr "атрибут 'use' должен быть 'optional' , если присутствует атрибут 'default'"
 
 #: xmlschema/validators/attributes.py:174
-#, fuzzy
 msgid "default value {!r} is not compatible with attribute's type"
-msgstr "атрибут по умолчанию {!r} уже определён в сложном типе"
+msgstr "значение по умолчанию {!r} несовместимо с типом атрибута"
 
 #: xmlschema/validators/attributes.py:177
 msgid "xs:ID key attributes cannot have a default value"
-msgstr ""
+msgstr "атрибуты ключа xs:ID не могут иметь значения по умолчанию"
 
 #: xmlschema/validators/attributes.py:183
 msgid "fixed value {!r} is not compatible with attribute's type"
-msgstr ""
+msgstr "фиксированное значение {!r} несовместимо с типом атрибута"
 
 #: xmlschema/validators/attributes.py:186
 msgid "xs:ID key attributes cannot have a fixed value"
-msgstr ""
+msgstr "атрибуты ключа xs:ID не могут иметь фиксированное значение"
 
 #: xmlschema/validators/attributes.py:249
 msgid "attribute {0!r} has a fixed value {1!r}"
-msgstr ""
+msgstr "атрибут {0!r} имеет фиксированное значение {1!r}"
 
 #: xmlschema/validators/attributes.py:254
-#, fuzzy
 msgid "attribute {0}={1!r}: {2}"
-msgstr "{0!r} не разрешено для {1!r}"
+msgstr "атрибут {0}={1!r}: {2}"
 
 #: xmlschema/validators/attributes.py:319
 msgid "attribute 'fixed' with use=prohibited is not allowed in XSD 1.1"
-msgstr ""
+msgstr "атрибут 'fixed' с use=prohibited не допускается в XSD 1.1"
 
 #: xmlschema/validators/attributes.py:413
 msgid "more anyAttribute declarations in the same attribute group"
-msgstr ""
+msgstr "больше объявлений anyAttribute в той же группе атрибутов"
 
 #: xmlschema/validators/attributes.py:416
-#, fuzzy
 msgid "another declaration after anyAttribute"
-msgstr "неожиданный тег %r после объявления simpleContent"
+msgstr "другое объявление после anyAttribute"
 
 #: xmlschema/validators/attributes.py:431
-#, fuzzy
 msgid "multiple declaration for attribute {!r}"
-msgstr "неожиданный тег %r после объявления simpleContent"
+msgstr "множественное объявление для атрибута {!r}"
 
 #: xmlschema/validators/attributes.py:440
 msgid "the attribute 'ref' is required in a local attributeGroup"
-msgstr ""
+msgstr "атрибут 'ref' требуется в локальной attributeGroup"
 
 #: xmlschema/validators/attributes.py:450
-#, fuzzy
 msgid "duplicated attributeGroup {!r}"
-msgstr "неверное значение %r для атрибута %r"
+msgstr "дублированная attributeGroup {!r}"
 
 #: xmlschema/validators/attributes.py:456
 msgid "in a redefinition the reference to itself must be the first"
-msgstr ""
+msgstr "в переопределении ссылка на себя должна быть первой"
 
 #: xmlschema/validators/attributes.py:467
 msgid "attributeGroup ref={!r} is not in the redefined group"
-msgstr ""
+msgstr "attributeGroup ref={!r} не входит в переопределенную группу"
 
 #: xmlschema/validators/attributes.py:471
 msgid "Circular attribute groups not allowed in XSD 1.0"
-msgstr ""
+msgstr "Циклические группы атрибутов не разрешены в XSD 1.0"
 
 #: xmlschema/validators/attributes.py:479
-#, fuzzy
 msgid "unknown attribute group {!r}"
-msgstr "неверное значение %r для атрибута %r"
+msgstr "неизвестная группа атрибутов {!r}"
 
 #: xmlschema/validators/attributes.py:488
-#, fuzzy
 msgid "multiple declaration of attribute {!r}"
-msgstr "неожиданный тег %r после объявления simpleContent"
+msgstr "множественное объявление атрибута {!r}"
 
 #: xmlschema/validators/attributes.py:497
 msgid "Circular reference found between attribute groups {0!r} and {1!r}"
-msgstr ""
+msgstr "Обнаружена циклическая ссылка между группами атрибутов {0!r} и {1!r}"
 
 #: xmlschema/validators/attributes.py:502
 msgid "(attribute | attributeGroup) expected, found {!r}."
-msgstr ""
+msgstr "(атрибут | группа атрибутов) ожидается, найдено {!r}."
 
 #: xmlschema/validators/attributes.py:513
-#, fuzzy
 msgid "Unexpected attribute {!r} in restriction"
-msgstr "неожиданный тег %r в контенте complexContent"
+msgstr "Неожиданный атрибут {!r} в ограничении"
 
 #: xmlschema/validators/attributes.py:529
 msgid "Attribute wildcard is not a restriction of the base wildcard"
-msgstr ""
+msgstr "Подстановочный знак атрибута не является ограничением базового подстановочного знака"
 
 #: xmlschema/validators/attributes.py:539
-#, fuzzy
 msgid "Attribute type is not a restriction of the base attribute type"
-msgstr "получение %r заблокировано тегом 'final' в базовом типе"
+msgstr "Тип атрибута не является ограничением базового типа атрибута"
 
 #: xmlschema/validators/attributes.py:544
 msgid "Attribute {!r}: unmatched attribute use in restriction"
-msgstr ""
+msgstr "Атрибут {!r}: несовпадение атрибута в ограничении"
 
 #: xmlschema/validators/attributes.py:550
 msgid "Attribute {!r}: derived attribute has a different fixed value"
-msgstr ""
+msgstr "Атрибут {!r}: производный атрибут имеет другое фиксированное значение"
 
 #: xmlschema/validators/attributes.py:554
 msgid "Attribute {!r}: 'inheritable' property change in restriction"
-msgstr ""
+msgstr "Атрибут {!r}: 'inheritable' свойство изменено в ограничении"
 
 #: xmlschema/validators/attributes.py:568
 msgid "Missing required attribute {!r} in redefinition restriction"
-msgstr ""
+msgstr "Отсутствует обязательный атрибут {!r} в ограничении переопределения"
 
 #: xmlschema/validators/attributes.py:573
 msgid "Attribute {!r}: unmatched attribute use in redefinition"
-msgstr ""
+msgstr "Атрибут {!r}: несоответствующее использование атрибута в переопределении"
 
 #: xmlschema/validators/attributes.py:576
 msgid "Attribute {!r}: redefinition remove fixed constraint"
-msgstr ""
+msgstr "Атрибут {!r}: переопределение удаляет фиксированное ограничение"
 
 #: xmlschema/validators/attributes.py:585
 msgid "Redefinition restriction contains additional attribute {!r}"
-msgstr ""
+msgstr "Ограничение переопределения содержит дополнительный атрибут {!r}"
 
 #: xmlschema/validators/attributes.py:589
 msgid "Wrong attribute order in redefinition restriction"
-msgstr ""
+msgstr "Неправильный порядок атрибутов в ограничении переопределения"
 
 #: xmlschema/validators/attributes.py:607
 msgid "multiple ID attributes not allowed for XSD 1.0"
-msgstr ""
+msgstr "несколько атрибутов ID не разрешены в XSD 1.0"
 
 #: xmlschema/validators/attributes.py:660 xmlschema/validators/attributes.py:738
-#, fuzzy
 msgid "missing required attribute {!r}"
-msgstr "в complexType отсутствует атрибут 'name'"
+msgstr "отсутствует обязательный атрибут {!r}"
 
 #: xmlschema/validators/attributes.py:695 xmlschema/validators/attributes.py:760
-#, fuzzy, python-format
+#, python-format
 msgid "%r is not an attribute of the XSI namespace"
-msgstr "неверное значение %r для атрибута %r"
+msgstr "%r не является атрибутом пространства имен XSI"
 
 #: xmlschema/validators/attributes.py:703 xmlschema/validators/attributes.py:768
-#, fuzzy, python-format
+#, python-format
 msgid "%r attribute not allowed for element"
-msgstr "атрибут 'name' не разрешен в локальном complexType"
+msgstr "атрибут %r не разрешен для элемента"
 
 #: xmlschema/validators/attributes.py:709
-#, fuzzy, python-format
+#, python-format
 msgid "use of attribute %r is prohibited"
-msgstr "неверное значение %r для атрибута %r"
+msgstr "использование атрибута %r запрещено"
 
 #: xmlschema/validators/exceptions.py:345
 #, python-format
@@ -870,28 +849,26 @@ msgid " Tag %r expected."
 msgstr " Ожидается тег (%r)"
 
 #: xmlschema/validators/groups.py:355
-#, fuzzy
 msgid "{!r} is not a particle of the model group"
-msgstr "несоответствие openContent между типом и группой модели"
+msgstr "{!r} не является частицей группы моделей"
 
 #: xmlschema/validators/groups.py:413 xmlschema/validators/groups.py:455
-#, fuzzy
 msgid "attribute 'name' not allowed in a local group"
-msgstr "атрибут 'name' не разрешен в локальном complexType"
+msgstr "атрибут 'name' не разрешен в локальной группе"
 
 #: xmlschema/validators/groups.py:422
-#, fuzzy, python-format
+#, python-format
 msgid "missing group %r"
-msgstr "отсутствует базовый тип %r"
+msgstr "отсутствует группа %r"
 
 #: xmlschema/validators/groups.py:429 xmlschema/validators/groups.py:485
 msgid "maxOccurs must be 1 for 'all' model groups"
-msgstr ""
+msgstr "maxOccurs должен быть равен 1 для групп моделей 'all'"
 
 #: xmlschema/validators/groups.py:432 xmlschema/validators/groups.py:488
 #: xmlschema/validators/groups.py:1285
 msgid "minOccurs must be (0 | 1) for 'all' model groups"
-msgstr ""
+msgstr "minOccurs должен быть (0 | 1) для групп моделей 'all'"
 
 #: xmlschema/validators/groups.py:435
 msgid "in XSD 1.0 an 'all' model group cannot be nested"
@@ -901,102 +878,105 @@ msgstr "XSD 1.0 не позволяет расширения не пустой '
 #: xmlschema/validators/groups.py:1317
 #, python-format
 msgid "Circular definition detected for group %r"
-msgstr ""
+msgstr "Обнаружено круговое определение для группы %r"
 
 #: xmlschema/validators/groups.py:459 xmlschema/validators/groups.py:469
 msgid "attribute 'minOccurs' not allowed in a global group"
-msgstr ""
+msgstr "атрибут 'minOccurs' не разрешен в глобальной группе"
 
 #: xmlschema/validators/groups.py:462 xmlschema/validators/groups.py:472
 msgid "attribute 'maxOccurs' not allowed in a global group"
-msgstr ""
+msgstr "атрибут 'maxOccurs' не разрешен в глобальной группе"
 
 #: xmlschema/validators/groups.py:499
 msgid "'all' model can contain only elements"
-msgstr ""
+msgstr "модель 'all' может содержать только элементы"
 
 #: xmlschema/validators/groups.py:509 xmlschema/validators/groups.py:1301
 msgid "missing attribute 'ref' in local group"
-msgstr ""
+msgstr "отсутствует атрибут 'ref' в локальной группе"
 
 #: xmlschema/validators/groups.py:518
 msgid "'all' model can appears only at 1st level of a model group"
-msgstr ""
+msgstr "Модель 'all' может отображаться только на 1-м уровне группы моделей"
 
 #: xmlschema/validators/groups.py:527 xmlschema/validators/groups.py:1321
 msgid "Redefined group reference cannot have minOccurs/maxOccurs other than 1"
 msgstr ""
+"Переопределенная ссылка на группу не может иметь значение minOccurs/maxOccurs, отличное от "
+"1"
 
 #: xmlschema/validators/groups.py:821
 msgid ""
 "Element Declarations Consistent violation between {0!r} and {1!r}: match the same name but "
 "with different types"
 msgstr ""
+"Element Declarations Consistent нарушение между {0!r} и {1!r}: соответствие одному и тому "
+"же имени, но с разными типами"
 
 #: xmlschema/validators/groups.py:835
 msgid "{0!r} and {1!r} overlap and are in the same {2!r} group"
-msgstr ""
+msgstr "{0!r} и {1!r} перекрываются и находятся в одной группе {2!r}"
 
 #: xmlschema/validators/groups.py:847
 msgid "Unique Particle Attribution violation between {0!r} and {1!r}"
-msgstr ""
+msgstr "Unique Particle Attribution нарушение между {0!r} и {1!r}"
 
 #: xmlschema/validators/groups.py:860
 #, python-format
 msgid "substitution of %r is blocked"
-msgstr ""
+msgstr "замена %r заблокирована"
 
 #: xmlschema/validators/groups.py:909
 msgid "usage of {0!r} with type {1} is blocked by head element"
-msgstr ""
+msgstr "использование {0!r} с типом {1} заблокировано элементом заголовка"
 
 #: xmlschema/validators/groups.py:934
 msgid "{0!r} that matches {1!r} is not consistent with local declaration {2!r}"
-msgstr ""
+msgstr "{0!r}, соответствующее {1!r}, не соответствует локальному объявлению {2!r}"
 
 #: xmlschema/validators/groups.py:940
 msgid "Maybe a not equivalent type table between elements {0!r} and {1!r}."
-msgstr ""
+msgstr "Возможно, таблица неэквивалентного типа между элементами {0!r} и {1!r}."
 
 #: xmlschema/validators/groups.py:970
 msgid "an empty 'choice' group with minOccurs > 0 cannot validate any content"
-msgstr ""
+msgstr "пустая группа 'choice' с minOccurs > 0 не может проверить содержимое"
 
 #: xmlschema/validators/groups.py:982 xmlschema/validators/groups.py:1242
 msgid "character data between child elements not allowed"
-msgstr ""
+msgstr "символьные данные между дочерними элементами не допускаются"
 
 #: xmlschema/validators/groups.py:995
 #, python-format
 msgid "XML data depth exceeded (MAX_XML_DEPTH=%r)"
-msgstr ""
+msgstr "Превышена глубина данных XML (MAX_XML_DEPTH=%r)"
 
 #: xmlschema/validators/groups.py:1202
 msgid "{!r} does not match any declared element of the model group"
-msgstr ""
+msgstr "{!r} не соответствует ни одному объявленному элементу группы моделей"
 
 #: xmlschema/validators/groups.py:1205
 msgid "{0} has an unknown prefix {1!r}"
-msgstr ""
+msgstr "{0} имеет неизвестный префикс {1!r}"
 
 #: xmlschema/validators/groups.py:1238
-#, fuzzy
 msgid "wrong content type {!r}"
-msgstr "базовый тип %r не содержит простой контент"
+msgstr "неправильный тип контента {!r}"
 
 #: xmlschema/validators/groups.py:1282
 msgid "maxOccurs must be (0 | 1) for 'all' model groups"
-msgstr ""
+msgstr "maxOccurs должен быть равен (0 | 1) для групп моделей 'all'"
 
 #: xmlschema/validators/groups.py:1311
 #, python-brace-format
 msgid "an xs:{0} group cannot include a reference to an xs:{1} group"
-msgstr ""
+msgstr "группа xs:{0} не может включать ссылку на группу xs:{1}"
 
 #: xmlschema/validators/wildcards.py:76
-#, fuzzy, python-format
+#, python-format
 msgid "wrong value %r in 'namespace' attribute"
-msgstr "неверное значение %r для атрибута %r"
+msgstr "неверное значение %r в атрибуте 'namespace'"
 
 #: xmlschema/validators/wildcards.py:85
 #, fuzzy, python-format
@@ -1004,8 +984,9 @@ msgid "wrong value %r for 'processContents' attribute"
 msgstr "неверное значение %r для атрибута %r"
 
 #: xmlschema/validators/wildcards.py:94
+#, fuzzy
 msgid "'namespace' and 'notNamespace' attributes are mutually exclusive"
-msgstr ""
+msgstr "атрибуты 'default' и 'fixed' являются взаимоисключающими"
 
 #: xmlschema/validators/wildcards.py:105
 #, fuzzy, python-format
@@ -1042,22 +1023,22 @@ msgstr ""
 #: xmlschema/validators/wildcards.py:473 xmlschema/validators/wildcards.py:515
 #, fuzzy
 msgid "element {!r} is not allowed here"
-msgstr "{0!r} не разрешено для {1!r}"
+msgstr "атрибут %r не разрешен для элемента"
 
 #: xmlschema/validators/wildcards.py:651 xmlschema/validators/wildcards.py:681
 #, fuzzy, python-format
 msgid "attribute %r not allowed"
-msgstr "атрибут 'name' не разрешен в локальном complexType"
+msgstr "атрибут {!r} недоступен в определении локального элемента"
 
 #: xmlschema/validators/wildcards.py:663 xmlschema/validators/wildcards.py:693
 #, fuzzy, python-format
 msgid "attribute %r not found"
-msgstr "атрибут %r должен быть унаследован"
+msgstr "(атрибут | группа атрибутов) ожидается, найдено {!r}."
 
 #: xmlschema/validators/wildcards.py:670 xmlschema/validators/wildcards.py:700
 #, fuzzy
 msgid "unavailable namespace {!r}"
-msgstr "отсутствует базовый тип %r"
+msgstr "невозможно добавить атрибуты в пространство имен %r"
 
 #: xmlschema/validators/wildcards.py:857
 #, fuzzy, python-format
@@ -1094,8 +1075,9 @@ msgid "{!r} is not a valid loglevel"
 msgstr "значение неверно для типа xs:decimal"
 
 #: xmlschema/validators/schemas.py:352
+#, fuzzy
 msgid "no XSD source provided!"
-msgstr ""
+msgstr "неверный тип {!r}"
 
 #: xmlschema/validators/schemas.py:380
 msgid "the attribute 'targetNamespace' cannot be an empty string"
@@ -1115,17 +1097,19 @@ msgid "cannot change the global maps instance of a meta-schema"
 msgstr ""
 
 #: xmlschema/validators/schemas.py:675 xmlschema/validators/schemas.py:970
-#, python-format
+#, fuzzy, python-format
 msgid "meta-schema unavailable for %r"
-msgstr ""
+msgstr "отсутствует экземпляр метасхемы по умолчанию {!r}"
 
 #: xmlschema/validators/schemas.py:682
+#, fuzzy
 msgid "missing XSD namespace in meta-schema"
-msgstr ""
+msgstr "отсутствует пространство имен XSD в экземпляре метасхемы {!r}"
 
 #: xmlschema/validators/schemas.py:754
+#, fuzzy
 msgid "Missing meta-schema source URL"
-msgstr ""
+msgstr "отсутствует экземпляр метасхемы по умолчанию {!r}"
 
 #: xmlschema/validators/schemas.py:766
 msgid "The argument 'base_schemas' must be a dictionary or a sequence of couples"
@@ -1158,29 +1142,31 @@ msgstr "глобальный тип {!r} не создается"
 #: xmlschema/validators/schemas.py:1095
 #, fuzzy
 msgid "the namespace {!r} is not loaded"
-msgstr "неверное значение %r для атрибута %r"
+msgstr "невозможно добавить атрибуты в пространство имен %r"
 
 #: xmlschema/validators/schemas.py:1117
 msgid "'converter' argument must be a {0!r} subclass or instance: {1!r}"
 msgstr ""
 
 #: xmlschema/validators/schemas.py:1172
+#, fuzzy
 msgid "cannot include schema {0!r}: {1}"
-msgstr ""
+msgstr "{0!r} не может заменить {1!r}"
 
 #: xmlschema/validators/schemas.py:1186
-#, python-format
+#, fuzzy, python-format
 msgid "Redefine schema failed: %s"
-msgstr ""
+msgstr "отсутствует динамическая загруженная схема из %s"
 
 #: xmlschema/validators/schemas.py:1191
+#, fuzzy
 msgid "cannot redefine schema {0!r}: {1}"
-msgstr ""
+msgstr "{0!r} не может заменить {1!r}"
 
 #: xmlschema/validators/schemas.py:1207
-#, python-format
+#, fuzzy, python-format
 msgid "Override schema failed: %s"
-msgstr ""
+msgstr "отсутствует динамическая загруженная схема из %s"
 
 #: xmlschema/validators/schemas.py:1269
 msgid ""
@@ -1193,8 +1179,9 @@ msgid "the attribute 'namespace' must be different from schema's 'targetNamespac
 msgstr ""
 
 #: xmlschema/validators/schemas.py:1322
+#, fuzzy
 msgid "cannot import namespace {0!r}: {1}"
-msgstr ""
+msgstr "{0!r} не может заменить {1!r}"
 
 #: xmlschema/validators/schemas.py:1324
 #, python-format
@@ -1206,8 +1193,9 @@ msgid "imported schema {0!r} has an unmatched namespace {1!r}"
 msgstr ""
 
 #: xmlschema/validators/schemas.py:1435
+#, fuzzy
 msgid "target directory {} is not empty"
-msgstr ""
+msgstr "xsi:nil='true', но элемент не пустой"
 
 #: xmlschema/validators/schemas.py:1438
 msgid "target {} is not a directory"
@@ -1255,7 +1243,7 @@ msgstr ""
 #: xmlschema/validators/schemas.py:1997
 #, fuzzy
 msgid "{!r} is not an element of the schema"
-msgstr "неверное значение %r для атрибута %r"
+msgstr "неизвестный элемент %r"
 
 #: xmlschema/validators/schemas.py:1826
 #, python-format
@@ -1319,12 +1307,14 @@ msgid "'minLength' value must be a non negative integer"
 msgstr "minOccurs значение не должно быть отрицательным"
 
 #: xmlschema/validators/simple_types.py:195
+#, fuzzy
 msgid "'maxLength' value is less than 'minLength'"
-msgstr ""
+msgstr "значение должно быть меньше или равно {!r}"
 
 #: xmlschema/validators/simple_types.py:198
+#, fuzzy
 msgid "'minLength' has a lesser value than parent"
-msgstr ""
+msgstr "значение должно быть меньше {!r}"
 
 #: xmlschema/validators/simple_types.py:201
 msgid "'minLength' has a greater value than parent 'maxLength'"
@@ -1340,8 +1330,9 @@ msgid "'maxLength' has a lesser value than parent 'minLength'"
 msgstr ""
 
 #: xmlschema/validators/simple_types.py:212
+#, fuzzy
 msgid "'maxLength' has a greater value than parent"
-msgstr ""
+msgstr "значение должно быть больше или равно {!r}"
 
 #: xmlschema/validators/simple_types.py:223
 msgid "cannot specify both 'minInclusive' and 'minExclusive'"
@@ -1352,12 +1343,14 @@ msgid "'minInclusive' must be less or equal to 'maxInclusive'"
 msgstr ""
 
 #: xmlschema/validators/simple_types.py:229
+#, fuzzy
 msgid "'minInclusive' must be lesser than 'maxExclusive'"
-msgstr ""
+msgstr "minOccurs должно быть меньше или равно maxOccurs"
 
 #: xmlschema/validators/simple_types.py:234
+#, fuzzy
 msgid "'minExclusive' must be lesser than 'maxInclusive'"
-msgstr ""
+msgstr "minOccurs должно быть меньше или равно maxOccurs"
 
 #: xmlschema/validators/simple_types.py:237
 msgid "'minExclusive' must be less or equal to 'maxExclusive'"
@@ -1386,23 +1379,23 @@ msgstr ""
 #: xmlschema/validators/simple_types.py:460
 #, fuzzy
 msgid "a {0!r} or {1!r} object required"
-msgstr "{0!r} не разрешено для {1!r}"
+msgstr "циклическое переопределение для {0} {1!r}"
 
 #: xmlschema/validators/simple_types.py:615
 #, fuzzy
 msgid "value is not an instance of {!r}"
-msgstr "{!r} не булево значение"
+msgstr "неожиданный экземпляр {!r} в глобальной карте"
 
 #: xmlschema/validators/simple_types.py:640 xmlschema/validators/simple_types.py:753
 #: xmlschema/validators/simple_types.py:1107
 #, fuzzy
 msgid "invalid value {!r}"
-msgstr "{!r} не булево значение"
+msgstr "неверный тип {!r}"
 
 #: xmlschema/validators/simple_types.py:665
-#, python-format
+#, fuzzy, python-format
 msgid "unmapped prefix %r in a QName"
-msgstr ""
+msgstr "{0} имеет неизвестный префикс {1!r}"
 
 #: xmlschema/validators/simple_types.py:699 xmlschema/validators/simple_types.py:711
 msgid "duplicated xs:ID value {!r}"
@@ -1419,7 +1412,7 @@ msgstr ""
 #: xmlschema/validators/simple_types.py:736
 #, fuzzy
 msgid "{0!r} is not an instance of {1!r}"
-msgstr "{0!r} не разрешено для {1!r}"
+msgstr "неожиданный экземпляр {!r} в глобальной карте"
 
 #: xmlschema/validators/simple_types.py:824
 #, python-format
@@ -1427,17 +1420,19 @@ msgid "%r: a list must be based on atomic data types"
 msgstr ""
 
 #: xmlschema/validators/simple_types.py:843
+#, fuzzy
 msgid "ambiguous list type declaration"
-msgstr ""
+msgstr "неоднозначное определение типа для атрибута XSD"
 
 #: xmlschema/validators/simple_types.py:851
 #, fuzzy
 msgid "missing list type declaration"
-msgstr "отсутствует базовый тип %r"
+msgstr "отсутствует атрибут 'type'"
 
 #: xmlschema/validators/simple_types.py:864
+#, fuzzy
 msgid "circular definition found for type {!r}"
-msgstr ""
+msgstr "Обнаружено круговое определение для группы %r"
 
 #: xmlschema/validators/simple_types.py:869
 #, python-format
@@ -1461,7 +1456,7 @@ msgstr ""
 #: xmlschema/validators/simple_types.py:1035
 #, fuzzy
 msgid "a {0!r} required, not {1!r}"
-msgstr "{0!r} не разрешено для {1!r}"
+msgstr "атрибут {0}={1!r}: {2}"
 
 #: xmlschema/validators/simple_types.py:1039
 #, python-format
@@ -1504,20 +1499,22 @@ msgstr ""
 #: xmlschema/validators/simple_types.py:1268
 #, fuzzy, python-format
 msgid "simpleType restriction of %r is not allowed"
-msgstr "{0!r} не разрешено для {1!r}"
+msgstr "недопустимое ограничение от {!r}"
 
 #: xmlschema/validators/simple_types.py:1277
 #, fuzzy
 msgid "unexpected tag after attribute declarations"
-msgstr "неожиданный тег %r после объявления simpleContent"
+msgstr "неожиданный тег %r после объявления simpleContent:"
 
 #: xmlschema/validators/simple_types.py:1282
+#, fuzzy
 msgid "duplicated simpleType declaration"
-msgstr ""
+msgstr "дублированное ограничение идентификации %r:"
 
 #: xmlschema/validators/simple_types.py:1304
+#, fuzzy
 msgid "restriction with 'base' attribute and simpleType declaration"
-msgstr ""
+msgstr "Подстановочный знак атрибута не является ограничением базового подстановочного знака"
 
 #: xmlschema/validators/simple_types.py:1312
 #, fuzzy, python-format
@@ -1525,9 +1522,9 @@ msgid "unexpected tag %r in restriction"
 msgstr "неожиданный тег %r в контенте complexContent"
 
 #: xmlschema/validators/simple_types.py:1318
-#, python-format
+#, fuzzy, python-format
 msgid "multiple %r constraint facet"
-msgstr ""
+msgstr "дублированное ограничение идентификации %r:"
 
 #: xmlschema/validators/simple_types.py:1330
 #, fuzzy
@@ -1557,16 +1554,17 @@ msgstr ""
 #: xmlschema/validators/identities.py:182
 #, fuzzy
 msgid "missing required attribute 'name'"
-msgstr "в complexType отсутствует атрибут 'name'"
+msgstr "отсутствует обязательный атрибут {!r}"
 
 #: xmlschema/validators/identities.py:190
 #, fuzzy
 msgid "missing 'selector' declaration"
-msgstr "в complexType отсутствует атрибут 'name'"
+msgstr "отсутствует базовый тип %r"
 
 #: xmlschema/validators/identities.py:202
+#, fuzzy
 msgid "unknown identity constraint {!r}"
-msgstr ""
+msgstr "дублированное ограничение идентификации %r:"
 
 #: xmlschema/validators/identities.py:207
 msgid "attribute 'ref' points to a different kind constraint"
@@ -1589,7 +1587,7 @@ msgstr ""
 #: xmlschema/validators/identities.py:359
 #, fuzzy
 msgid "missing required attribute 'refer'"
-msgstr "в complexType отсутствует атрибут 'name'"
+msgstr "отсутствует обязательный атрибут {!r}"
 
 #: xmlschema/validators/identities.py:381
 #, python-format
@@ -1608,7 +1606,7 @@ msgstr ""
 #: xmlschema/validators/identities.py:459
 #, fuzzy
 msgid "duplicated value {0!r} for {1!r}"
-msgstr "{0!r} не разрешено для {1!r}"
+msgstr "{0!r} значение набора фиксировано {1!r}"
 
 #: xmlschema/validators/xsdbase.py:51
 #, python-format
@@ -1630,13 +1628,14 @@ msgid "missing both attributes 'name' and 'ref' in local %r"
 msgstr ""
 
 #: xmlschema/validators/xsdbase.py:411
+#, fuzzy
 msgid "attributes 'name' and 'ref' are mutually exclusive"
-msgstr ""
+msgstr "атрибуты 'default' и 'fixed' являются взаимоисключающими"
 
 #: xmlschema/validators/xsdbase.py:414
-#, python-format
+#, fuzzy, python-format
 msgid "attribute 'ref' not allowed in a global %r"
-msgstr ""
+msgstr "атрибут {!r} недоступен в определении глобального элемента"
 
 #: xmlschema/validators/xsdbase.py:423
 msgid "a reference component cannot have child definitions/declarations"
@@ -1666,8 +1665,9 @@ msgid ""
 msgstr ""
 
 #: xmlschema/validators/xsdbase.py:591
+#, fuzzy
 msgid "parent circularity from {}"
-msgstr ""
+msgstr "обнаружена зацикленность substitutionGroup %r"
 
 #: xmlschema/validators/helpers.py:44
 #, python-format
