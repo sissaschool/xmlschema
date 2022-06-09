@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: \n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2022-05-12 17:25+0200\n"
-"PO-Revision-Date: 2022-06-08 17:03+0300\n"
+"PO-Revision-Date: 2022-06-09 18:01+0300\n"
 "Last-Translator: \n"
 "Language-Team: \n"
 "Language: ru\n"
@@ -495,7 +495,7 @@ msgstr "глобальный элемент не создается!"
 
 #: xmlschema/validators/global_maps.py:684
 msgid "circularity found for substitution group with head element {}"
-msgstr "Обнаружена цикличность для группы замещения с головным элементом {}"
+msgstr "обнаружена цикличность для группы замещения с головным элементом {}"
 
 #: xmlschema/validators/global_maps.py:689
 #, python-format
@@ -979,395 +979,377 @@ msgid "wrong value %r in 'namespace' attribute"
 msgstr "неверное значение %r в атрибуте 'namespace'"
 
 #: xmlschema/validators/wildcards.py:85
-#, fuzzy, python-format
+#, python-format
 msgid "wrong value %r for 'processContents' attribute"
-msgstr "неверное значение %r для атрибута %r"
+msgstr "неправильное значение %r для атрибута 'processContents'"
 
 #: xmlschema/validators/wildcards.py:94
-#, fuzzy
 msgid "'namespace' and 'notNamespace' attributes are mutually exclusive"
-msgstr "атрибуты 'default' и 'fixed' являются взаимоисключающими"
+msgstr "атрибуты 'namespace' и 'notNamespace' являются взаимоисключающими"
 
 #: xmlschema/validators/wildcards.py:105
-#, fuzzy, python-format
+#, python-format
 msgid "wrong value %r in 'notNamespace' attribute"
-msgstr "неверное значение %r для атрибута %r"
+msgstr "неправильное значение %r в атрибуте 'notNamespace'"
 
 #: xmlschema/validators/wildcards.py:121
-#, fuzzy
 msgid "wrong value for 'notQName' attribute"
-msgstr "неверное значение %r для атрибута %r"
+msgstr "неправильное значение атрибута 'notQName'"
 
 #: xmlschema/validators/wildcards.py:128
 #, python-format
 msgid "unmapped QName in 'notQName' attribute: %s"
-msgstr ""
+msgstr "несопоставленное QName в атрибуте 'notQName': %s"
 
 #: xmlschema/validators/wildcards.py:132
-#, fuzzy, python-format
+#, python-format
 msgid "wrong QName format in 'notQName' attribute: %s"
-msgstr "неверное значение %r для атрибута %r"
+msgstr "неверный формат QName в атрибуте 'notQName': %s"
 
 #: xmlschema/validators/wildcards.py:140
 msgid "the namespace of each QName in notQName is allowed by notNamespace"
-msgstr ""
+msgstr "пространство имен каждого QName в notQName разрешено notNamespace"
 
 #: xmlschema/validators/wildcards.py:144
 msgid "names in notQName must be in namespaces that are allowed"
-msgstr ""
+msgstr "имена в notQName должны находиться в разрешенных пространствах имен"
 
 #: xmlschema/validators/wildcards.py:319
 msgid "not expressible wildcard namespace union: {0!r} V {1!r}:"
-msgstr ""
+msgstr "невыразимое объединение пространств имен с подстановочными знаками: {0!r} V {1!r}:"
 
 #: xmlschema/validators/wildcards.py:473 xmlschema/validators/wildcards.py:515
-#, fuzzy
 msgid "element {!r} is not allowed here"
-msgstr "атрибут %r не разрешен для элемента"
+msgstr "элемент {!r} здесь запрещен"
 
 #: xmlschema/validators/wildcards.py:651 xmlschema/validators/wildcards.py:681
-#, fuzzy, python-format
+#, python-format
 msgid "attribute %r not allowed"
-msgstr "атрибут {!r} недоступен в определении локального элемента"
+msgstr "атрибут %r не разрешен"
 
 #: xmlschema/validators/wildcards.py:663 xmlschema/validators/wildcards.py:693
-#, fuzzy, python-format
+#, python-format
 msgid "attribute %r not found"
-msgstr "(атрибут | группа атрибутов) ожидается, найдено {!r}."
+msgstr "атрибут %r не найден"
 
 #: xmlschema/validators/wildcards.py:670 xmlschema/validators/wildcards.py:700
-#, fuzzy
 msgid "unavailable namespace {!r}"
-msgstr "невозможно добавить атрибуты в пространство имен %r"
+msgstr "недоступное пространство имен {!r}"
 
 #: xmlschema/validators/wildcards.py:857
-#, fuzzy, python-format
+#, python-format
 msgid "wrong value %r for 'mode' attribute"
-msgstr "неверное значение %r для атрибута %r"
+msgstr "неправильное значение %r для атрибута \"режим\""
 
 #: xmlschema/validators/wildcards.py:863
 msgid "an openContent with mode='none' cannot have an <xs:any> child declaration"
-msgstr ""
+msgstr "openContent с mode='none' не может иметь дочернее объявление <xs:any>"
 
 #: xmlschema/validators/wildcards.py:867
 msgid "an <xs:any> child declaration is required"
-msgstr ""
+msgstr "требуется дочернее объявление <xs:any>"
 
 #: xmlschema/validators/wildcards.py:908
 msgid "defaultOpenContent must be a child of the schema"
-msgstr ""
+msgstr "defaultOpenContent должен быть дочерним элементом схемы"
 
 #: xmlschema/validators/wildcards.py:911
 msgid "the attribute 'mode' of a defaultOpenContent cannot be 'none'"
-msgstr ""
+msgstr "атрибут 'mode' defaultOpenContent не может быть 'none'"
 
 #: xmlschema/validators/wildcards.py:914
 msgid "a defaultOpenContent declaration cannot be empty"
-msgstr ""
+msgstr "объявление defaultOpenContent не может быть пустым"
 
 #: xmlschema/validators/schemas.py:156
 msgid "XSD_VERSION must be '1.0' or '1.1'"
-msgstr ""
+msgstr "XSD_VERSION должна быть '1.0' или '1.1'"
 
 #: xmlschema/validators/schemas.py:336
-#, fuzzy
 msgid "{!r} is not a valid loglevel"
-msgstr "значение неверно для типа xs:decimal"
+msgstr "{!r} не является допустимым уровнем ведения журнала"
 
 #: xmlschema/validators/schemas.py:352
-#, fuzzy
 msgid "no XSD source provided!"
-msgstr "неверный тип {!r}"
+msgstr "источник XSD не указан!"
 
 #: xmlschema/validators/schemas.py:380
 msgid "the attribute 'targetNamespace' cannot be an empty string"
-msgstr ""
+msgstr "атрибут targetNamespace не может быть пустой строкой"
 
 #: xmlschema/validators/schemas.py:383
 msgid "wrong namespace ({0!r} instead of {1!r}) for XSD resource {2}"
-msgstr ""
+msgstr "неправильное пространство имен ({0!r} вместо {1!r}) для ресурса XSD {2}"
 
 #: xmlschema/validators/schemas.py:460
 #, python-format
 msgid "'global_maps' argument must be an %r instance"
-msgstr ""
+msgstr "аргумент 'global_maps' должен быть экземпляром %r"
 
 #: xmlschema/validators/schemas.py:542
 msgid "cannot change the global maps instance of a meta-schema"
-msgstr ""
+msgstr "невозможно изменить экземпляр глобальных карт метасхемы"
 
 #: xmlschema/validators/schemas.py:675 xmlschema/validators/schemas.py:970
-#, fuzzy, python-format
+#, python-format
 msgid "meta-schema unavailable for %r"
-msgstr "отсутствует экземпляр метасхемы по умолчанию {!r}"
+msgstr "метасхема недоступна для %r"
 
 #: xmlschema/validators/schemas.py:682
-#, fuzzy
 msgid "missing XSD namespace in meta-schema"
-msgstr "отсутствует пространство имен XSD в экземпляре метасхемы {!r}"
+msgstr "отсутствует пространство имен XSD в метасхеме"
 
 #: xmlschema/validators/schemas.py:754
-#, fuzzy
 msgid "Missing meta-schema source URL"
-msgstr "отсутствует экземпляр метасхемы по умолчанию {!r}"
+msgstr "Отсутствует URL-адрес источника мета-схемы"
 
 #: xmlschema/validators/schemas.py:766
 msgid "The argument 'base_schemas' must be a dictionary or a sequence of couples"
-msgstr ""
+msgstr "Аргумент 'base_schemas' должен быть словарем или последовательностью пар"
 
 #: xmlschema/validators/schemas.py:803 xmlschema/validators/schemas.py:815
-#, fuzzy
 msgid "(restriction | list | union) expected"
-msgstr "ожидается тег 'restriction' или 'extension'"
+msgstr "ожидается (restriction | list | union)"
 
 #: xmlschema/validators/schemas.py:826
-#, fuzzy
 msgid "missing attribute 'name' in a global simpleType"
-msgstr "в complexType отсутствует атрибут 'name'"
+msgstr "отсутствует атрибут 'name' в глобальном simpleType"
 
 #: xmlschema/validators/schemas.py:831
-#, fuzzy
 msgid "attribute 'name' not allowed for a local simpleType"
-msgstr "атрибут 'name' не разрешен в локальном complexType"
+msgstr "атрибут 'name' не разрешен в локальном simpleType"
 
 #: xmlschema/validators/schemas.py:875
 msgid "'model' argument must be (sequence | choice | all)"
-msgstr ""
+msgstr "аргумент 'model' должен быть (sequence | choice | all)"
 
 #: xmlschema/validators/schemas.py:990
-#, fuzzy, python-format
+#, python-format
 msgid "schema %r is not built"
-msgstr "глобальный тип {!r} не создается"
+msgstr "схема %r не создается"
 
 #: xmlschema/validators/schemas.py:1095
-#, fuzzy
 msgid "the namespace {!r} is not loaded"
-msgstr "невозможно добавить атрибуты в пространство имен %r"
+msgstr "пространство имен {!r} не загружено"
 
 #: xmlschema/validators/schemas.py:1117
 msgid "'converter' argument must be a {0!r} subclass or instance: {1!r}"
-msgstr ""
+msgstr "аргумент 'converter' должен быть подклассом {0!r} или экземпляром: {1!r}"
 
 #: xmlschema/validators/schemas.py:1172
-#, fuzzy
 msgid "cannot include schema {0!r}: {1}"
-msgstr "{0!r} не может заменить {1!r}"
+msgstr "не может включать схему {0!r}: {1}"
 
 #: xmlschema/validators/schemas.py:1186
-#, fuzzy, python-format
+#, python-format
 msgid "Redefine schema failed: %s"
-msgstr "отсутствует динамическая загруженная схема из %s"
+msgstr "Не удалось переопределить схему: %s"
 
 #: xmlschema/validators/schemas.py:1191
-#, fuzzy
 msgid "cannot redefine schema {0!r}: {1}"
-msgstr "{0!r} не может заменить {1!r}"
+msgstr "невозможно переопределить схему {0!r}: {1}"
 
 #: xmlschema/validators/schemas.py:1207
-#, fuzzy, python-format
+#, python-format
 msgid "Override schema failed: %s"
-msgstr "отсутствует динамическая загруженная схема из %s"
+msgstr "Ошибка переопределения схемы: %s"
 
 #: xmlschema/validators/schemas.py:1269
 msgid ""
 "if the 'namespace' attribute is not present on the import statement then the imported "
 "schema must have a 'targetNamespace'"
 msgstr ""
+"если атрибут 'namespace' отсутствует в операторе импорта, то импортированная схема должна "
+"иметь 'targetNamespace'"
 
 #: xmlschema/validators/schemas.py:1275
 msgid "the attribute 'namespace' must be different from schema's 'targetNamespace'"
-msgstr ""
+msgstr "атрибут 'namespace' должен отличаться от 'targetNamespace' схемы"
 
 #: xmlschema/validators/schemas.py:1322
-#, fuzzy
 msgid "cannot import namespace {0!r}: {1}"
-msgstr "{0!r} не может заменить {1!r}"
+msgstr "невозможно импортировать пространство имен {0!r}: {1}"
 
 #: xmlschema/validators/schemas.py:1324
 #, python-format
 msgid "cannot import chameleon schema: %s"
-msgstr ""
+msgstr "невозможно импортировать схему-хамелеон: %s"
 
 #: xmlschema/validators/schemas.py:1388
 msgid "imported schema {0!r} has an unmatched namespace {1!r}"
-msgstr ""
+msgstr "импортированная схема {0!r} имеет неопознанное пространство имен {1!r}"
 
 #: xmlschema/validators/schemas.py:1435
-#, fuzzy
 msgid "target directory {} is not empty"
-msgstr "xsi:nil='true', но элемент не пустой"
+msgstr "целевой каталог {} не пуст"
 
 #: xmlschema/validators/schemas.py:1438
 msgid "target {} is not a directory"
-msgstr ""
+msgstr "целевой {} не является каталогом"
 
 #: xmlschema/validators/schemas.py:1441
 msgid "target parent directory {} does not exist"
-msgstr ""
+msgstr "целевой родительский каталог {} не существует"
 
 #: xmlschema/validators/schemas.py:1444
 msgid "target parent {} is not a directory"
-msgstr ""
+msgstr "целевой родитель {} не является каталогом"
 
 #: xmlschema/validators/schemas.py:1537
 msgid "invalid attribute vc:minVersion value"
-msgstr ""
+msgstr "недопустимое значение атрибута vc:minVersion"
 
 #: xmlschema/validators/schemas.py:1546
 msgid "invalid attribute vc:maxVersion value"
-msgstr ""
+msgstr "недопустимое значение атрибута vc:maxVersion"
 
 #: xmlschema/validators/schemas.py:1622 xmlschema/validators/schemas.py:1629
 #: xmlschema/validators/schemas.py:1635
-#, fuzzy
 msgid "{!r} is not a valid value for xs:QName"
-msgstr "значение неверно для типа xs:decimal"
+msgstr "{!r} не является допустимым значением для xs:QName"
 
 #: xmlschema/validators/schemas.py:1641
 msgid "prefix {!r} not found in namespace map"
-msgstr ""
+msgstr "префикс {!r} не найден в карте пространства имен"
 
 #: xmlschema/validators/schemas.py:1648
 msgid ""
 "the QName {!r} is mapped to no namespace, but this requires that there is an xs:import "
 "statement in the schema without the 'namespace' attribute."
 msgstr ""
+"QName {!r} не отображается ни в какое пространство имен, но для этого требуется, чтобы в "
+"схеме был оператор xs:import без атрибута 'namespace'"
 
 #: xmlschema/validators/schemas.py:1657
 msgid ""
 "the QName {0!r} is mapped to the namespace {1!r}, but this namespace has not an xs:import "
 "statement in the schema."
 msgstr ""
+"QName {0!r} сопоставляется с пространством имен {1!r}, но это пространство имен не имеет "
+"оператора xs:import в схеме."
 
 #: xmlschema/validators/schemas.py:1798 xmlschema/validators/schemas.py:1852
 #: xmlschema/validators/schemas.py:1997
-#, fuzzy
 msgid "{!r} is not an element of the schema"
-msgstr "неизвестный элемент %r"
+msgstr "{!r} не является элементом схемы"
 
 #: xmlschema/validators/schemas.py:1826
 #, python-format
 msgid "IDREF %r not found in XML document"
-msgstr ""
+msgstr "IDREF %r не найден в XML-документе"
 
 #: xmlschema/validators/schemas.py:2076
 msgid "encoding needs at least one XSD element declaration"
-msgstr ""
+msgstr "для кодирования требуется хотя бы одно объявление элемента XSD"
 
 #: xmlschema/validators/schemas.py:2110
 #, python-format
 msgid "the path %r doesn't match any element of the schema!"
-msgstr ""
+msgstr "путь %r не соответствует ни одному элементу схемы!"
 
 #: xmlschema/validators/schemas.py:2112
 msgid "unable to select an element for decoding data, provide a valid 'path' argument."
 msgstr ""
+"невозможно выбрать элемент для декодирования данных, укажите допустимый аргумент 'path'."
 
 #: xmlschema/validators/simple_types.py:133
 msgid "facets not allowed for a direct derivation of xs:anySimpleType"
-msgstr ""
+msgstr "наборы не разрешены для прямого наследования от xs:anySimpleType"
 
 #: xmlschema/validators/simple_types.py:137
 msgid "facets not allowed for a direct content derivation of xs:anySimpleType"
-msgstr ""
+msgstr "наборы не разрешены для прямого наследования контента от xs:anySimpleType"
 
 #: xmlschema/validators/simple_types.py:143
 msgid "one or more facets are not applicable, admitted set is {!r}"
-msgstr ""
+msgstr "один или несколько наборов неприменимы, допустимый набор {!r}"
 
 #: xmlschema/validators/simple_types.py:149
 #, python-format
 msgid "facet group must have the same base type: %r"
-msgstr ""
+msgstr "группа наборов должна иметь один и тот же базовый тип: %r"
 
 #: xmlschema/validators/simple_types.py:159
-#, fuzzy
 msgid "'length' value must be non a negative integer"
-msgstr "minOccurs значение не должно быть отрицательным"
+msgstr "Значение 'length' должно быть положительным целым числом"
 
 #: xmlschema/validators/simple_types.py:163
 msgid "'minLength' value must be less than or equal to 'length'"
-msgstr ""
+msgstr "значение 'minLength' должно быть меньше или равно 'length'"
 
 #: xmlschema/validators/simple_types.py:170
 msgid "cannot specify both 'length' and 'minLength'"
-msgstr ""
+msgstr "нельзя указывать одновременно 'length' и 'minLength'"
 
 #: xmlschema/validators/simple_types.py:175
 msgid "'maxLength' value must be greater or equal to 'length'"
-msgstr ""
+msgstr "значение 'maxLength' должно быть больше или равно 'length'"
 
 #: xmlschema/validators/simple_types.py:183
 msgid "cannot specify both 'length' and 'maxLength'"
-msgstr ""
+msgstr "нельзя указывать одновременно 'length' и 'maxLength'"
 
 #: xmlschema/validators/simple_types.py:192
-#, fuzzy
 msgid "'minLength' value must be a non negative integer"
-msgstr "minOccurs значение не должно быть отрицательным"
+msgstr "значение 'minLength' должно быть положительным целым числом"
 
 #: xmlschema/validators/simple_types.py:195
-#, fuzzy
 msgid "'maxLength' value is less than 'minLength'"
-msgstr "значение должно быть меньше или равно {!r}"
+msgstr "значение 'maxLength' меньше чем 'maxLength'"
 
 #: xmlschema/validators/simple_types.py:198
-#, fuzzy
 msgid "'minLength' has a lesser value than parent"
-msgstr "значение должно быть меньше {!r}"
+msgstr "'minLength' имеет меньшее значение, чем у родителя"
 
 #: xmlschema/validators/simple_types.py:201
 msgid "'minLength' has a greater value than parent 'maxLength'"
-msgstr ""
+msgstr "'minLength' имеет большее значение, чем родительский 'maxLength'"
 
 #: xmlschema/validators/simple_types.py:206
-#, fuzzy
 msgid "'maxLength' value must be a non negative integer"
-msgstr "minOccurs значение не должно быть отрицательным"
+msgstr "значение 'maxLength' должно быть не отрицательным целым числом"
 
 #: xmlschema/validators/simple_types.py:209
 msgid "'maxLength' has a lesser value than parent 'minLength'"
-msgstr ""
+msgstr "'maxLength' имеет меньшее значение, чем родительский 'minLength'"
 
 #: xmlschema/validators/simple_types.py:212
-#, fuzzy
 msgid "'maxLength' has a greater value than parent"
-msgstr "значение должно быть больше или равно {!r}"
+msgstr "'maxLength' имеет большее значение, чем у родителя"
 
 #: xmlschema/validators/simple_types.py:223
 msgid "cannot specify both 'minInclusive' and 'minExclusive'"
-msgstr ""
+msgstr "нельзя указывать одновременно 'minInclusive' и 'minExclusive'"
 
 #: xmlschema/validators/simple_types.py:226
 msgid "'minInclusive' must be less or equal to 'maxInclusive'"
-msgstr ""
+msgstr "'minInclusive' должен быть меньше или равен 'maxInclusive'"
 
 #: xmlschema/validators/simple_types.py:229
-#, fuzzy
 msgid "'minInclusive' must be lesser than 'maxExclusive'"
-msgstr "minOccurs должно быть меньше или равно maxOccurs"
+msgstr "'minInclusive' должен быть меньше, чем 'maxExclusive'"
 
 #: xmlschema/validators/simple_types.py:234
-#, fuzzy
 msgid "'minExclusive' must be lesser than 'maxInclusive'"
-msgstr "minOccurs должно быть меньше или равно maxOccurs"
+msgstr "'minExclusive' должен быть меньше, чем 'maxInclusive'"
 
 #: xmlschema/validators/simple_types.py:237
 msgid "'minExclusive' must be less or equal to 'maxExclusive'"
-msgstr ""
+msgstr "'minExclusive' должен быть меньше или равен 'maxExclusive'"
 
 #: xmlschema/validators/simple_types.py:241
 msgid "cannot specify both 'maxInclusive' and 'maxExclusive'"
-msgstr ""
+msgstr "нельзя указывать одновременно 'maxInclusive' и 'maxExclusive'"
 
 #: xmlschema/validators/simple_types.py:247
 msgid "fractionDigits facet value cannot be lesser than the value of totalDigits facet"
-msgstr ""
+msgstr "значение набора FractionDigits не может быть меньше значения набора totalDigits"
 
 #: xmlschema/validators/simple_types.py:253
 msgid ""
 "totalDigits facet value cannot be greater than the value of the same facet in the base type"
 msgstr ""
+"значение набора totalDigits не может быть больше значения того же набора в базовом типе"
 
 #: xmlschema/validators/simple_types.py:262
 #, python-format
@@ -1375,116 +1357,111 @@ msgid ""
 "the explicitTimezone facet value cannot be changed if the base type has the same facet "
 "with value %r"
 msgstr ""
+"значение набора absoluteTimezone не может быть изменено, если базовый тип имеет тот же "
+"набор со значением %r"
 
 #: xmlschema/validators/simple_types.py:460
-#, fuzzy
 msgid "a {0!r} or {1!r} object required"
-msgstr "циклическое переопределение для {0} {1!r}"
+msgstr "требуется объект {0!r} или {1!r}"
 
 #: xmlschema/validators/simple_types.py:615
-#, fuzzy
 msgid "value is not an instance of {!r}"
-msgstr "неожиданный экземпляр {!r} в глобальной карте"
+msgstr "значение не является экземпляром {!r}"
 
 #: xmlschema/validators/simple_types.py:640 xmlschema/validators/simple_types.py:753
 #: xmlschema/validators/simple_types.py:1107
-#, fuzzy
 msgid "invalid value {!r}"
-msgstr "неверный тип {!r}"
+msgstr "неверное значение {!r}"
 
 #: xmlschema/validators/simple_types.py:665
-#, fuzzy, python-format
+#, python-format
 msgid "unmapped prefix %r in a QName"
-msgstr "{0} имеет неизвестный префикс {1!r}"
+msgstr "несопоставленный префикс %r в QName"
 
 #: xmlschema/validators/simple_types.py:699 xmlschema/validators/simple_types.py:711
 msgid "duplicated xs:ID value {!r}"
-msgstr ""
+msgstr "дублированное значение xs:ID {!r}"
 
 #: xmlschema/validators/simple_types.py:706
 msgid "no more than one attribute of type ID should be present in an element"
-msgstr ""
+msgstr "в элементе должно присутствовать не более одного атрибута типа ID"
 
 #: xmlschema/validators/simple_types.py:731
 msgid "boolean value {0!r} requires a {1!r} decoder"
-msgstr ""
+msgstr "логическое значение {0!r} требует декодера {1!r}"
 
 #: xmlschema/validators/simple_types.py:736
-#, fuzzy
 msgid "{0!r} is not an instance of {1!r}"
-msgstr "неожиданный экземпляр {!r} в глобальной карте"
+msgstr "{0!r} не является экземпляром {1!r}"
 
 #: xmlschema/validators/simple_types.py:824
 #, python-format
 msgid "%r: a list must be based on atomic data types"
-msgstr ""
+msgstr "%r: список должен быть основан на атомарных типах данных"
 
 #: xmlschema/validators/simple_types.py:843
-#, fuzzy
 msgid "ambiguous list type declaration"
-msgstr "неоднозначное определение типа для атрибута XSD"
+msgstr "неоднозначное объявление типа списка"
 
 #: xmlschema/validators/simple_types.py:851
-#, fuzzy
 msgid "missing list type declaration"
-msgstr "отсутствует атрибут 'type'"
+msgstr "отсутствующее объявление типа списка"
 
 #: xmlschema/validators/simple_types.py:864
-#, fuzzy
 msgid "circular definition found for type {!r}"
-msgstr "Обнаружено круговое определение для группы %r"
+msgstr "циклическое определение найдено для типа {!r}"
 
 #: xmlschema/validators/simple_types.py:869
 #, python-format
 msgid "'final' value of the itemType %r forbids derivation by list"
-msgstr ""
+msgstr "'final' значение itemType %r запрещает вывод по списку"
 
 #: xmlschema/validators/simple_types.py:873 xmlschema/validators/simple_types.py:1048
 #: xmlschema/validators/simple_types.py:1335
 msgid "cannot use xs:anyAtomicType as base type of a user-defined type"
 msgstr ""
+"нельзя использовать xs:anyAtomicType в качестве базового типа определяемого пользователем "
+"типа"
 
 #: xmlschema/validators/simple_types.py:996
-#, fuzzy, python-format
+#, python-format
 msgid "wrong value %r for attribute 'white_space'"
-msgstr "неверное значение %r для атрибута %r"
+msgstr "неправильное значение %r для атрибута 'white_space'"
 
 #: xmlschema/validators/simple_types.py:1031
 msgid "circular definition found on xs:union type {!r}"
-msgstr ""
+msgstr "циклическое определение найдено в xs:union type {!r}"
 
 #: xmlschema/validators/simple_types.py:1035
-#, fuzzy
 msgid "a {0!r} required, not {1!r}"
-msgstr "атрибут {0}={1!r}: {2}"
+msgstr "требуется {0!r}, а не {1!r}"
 
 #: xmlschema/validators/simple_types.py:1039
 #, python-format
 msgid "'final' value of the memberTypes %r forbids derivation by union"
-msgstr ""
+msgstr "'final' значение memberTypes %r запрещает наследование объединением"
 
 #: xmlschema/validators/simple_types.py:1045
 msgid "missing xs:union type declarations"
-msgstr ""
+msgstr "отсутствуют объявления типа xs:union"
 
 #: xmlschema/validators/simple_types.py:1128
 #, python-format
 msgid "no type suitable for decoding the values %r"
-msgstr ""
+msgstr "нет типа, подходящего для декодирования значений %r"
 
 #: xmlschema/validators/simple_types.py:1162
 msgid "no type suitable for encoding the object"
-msgstr ""
+msgstr "нет типа, подходящего для кодирования объекта"
 
 #: xmlschema/validators/simple_types.py:1210
-#, fuzzy
 msgid "'name' attribute in a local simpleType definition"
-msgstr "атрибут 'name' не разрешен в локальном complexType"
+msgstr "атрибут 'name' в локальном определении simpleType"
 
 #: xmlschema/validators/simple_types.py:1252
 #, python-format
 msgid "wrong base type %r, an atomic type required"
-msgstr ""
+msgstr "неправильный базовый тип %r, требуется атомарный тип"
 
 #: xmlschema/validators/simple_types.py:1258
 msgid "an xs:simpleType definition expected"
