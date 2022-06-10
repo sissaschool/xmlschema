@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: \n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2022-05-12 17:25+0200\n"
-"PO-Revision-Date: 2022-06-09 18:01+0300\n"
+"PO-Revision-Date: 2022-06-10 14:09+0300\n"
 "Last-Translator: \n"
 "Language-Team: \n"
 "Language: ru\n"
@@ -1218,7 +1218,7 @@ msgid ""
 "statement in the schema without the 'namespace' attribute."
 msgstr ""
 "QName {!r} не отображается ни в какое пространство имен, но для этого требуется, чтобы в "
-"схеме был оператор xs:import без атрибута 'namespace'"
+"схеме был оператор xs:import без атрибута 'namespace'."
 
 #: xmlschema/validators/schemas.py:1657
 msgid ""
@@ -1465,186 +1465,183 @@ msgstr "неправильный базовый тип %r, требуется а
 
 #: xmlschema/validators/simple_types.py:1258
 msgid "an xs:simpleType definition expected"
-msgstr ""
+msgstr "ожидается определение xs:simpleType"
 
 #: xmlschema/validators/simple_types.py:1263
 msgid ""
 "when a complexType with simpleContent restricts a complexType with mixed and with "
 "emptiable content then a simpleType child declaration is required"
 msgstr ""
+"когда комплексный тип с простым контентом ограничивает сложный тип со смешанным и с "
+"очищаемым содержимым, тогда требуется объявление дочернего элемента простого типа"
 
 #: xmlschema/validators/simple_types.py:1268
-#, fuzzy, python-format
+#, python-format
 msgid "simpleType restriction of %r is not allowed"
-msgstr "недопустимое ограничение от {!r}"
+msgstr "Ограничение simpleType %r не разрешено"
 
 #: xmlschema/validators/simple_types.py:1277
-#, fuzzy
 msgid "unexpected tag after attribute declarations"
-msgstr "неожиданный тег %r после объявления simpleContent:"
+msgstr "неожиданный тег после объявлений атрибутов"
 
 #: xmlschema/validators/simple_types.py:1282
-#, fuzzy
 msgid "duplicated simpleType declaration"
-msgstr "дублированное ограничение идентификации %r:"
+msgstr "дублированное объявление simpleType"
 
 #: xmlschema/validators/simple_types.py:1304
-#, fuzzy
 msgid "restriction with 'base' attribute and simpleType declaration"
-msgstr "Подстановочный знак атрибута не является ограничением базового подстановочного знака"
+msgstr "ограничение с атрибутом base и объявлением simpleType"
 
 #: xmlschema/validators/simple_types.py:1312
-#, fuzzy, python-format
+#, python-format
 msgid "unexpected tag %r in restriction"
-msgstr "неожиданный тег %r в контенте complexContent"
+msgstr "неожиданный тег %r в ограничении"
 
 #: xmlschema/validators/simple_types.py:1318
-#, fuzzy, python-format
+#, python-format
 msgid "multiple %r constraint facet"
-msgstr "дублированное ограничение идентификации %r:"
+msgstr "несколько %r ограничений набора"
 
 #: xmlschema/validators/simple_types.py:1330
-#, fuzzy
 msgid "missing base type in restriction"
-msgstr "базовый тип нельзя получить из-за ограничений"
+msgstr "отсутствует базовый тип в ограничении"
 
 #: xmlschema/validators/simple_types.py:1332
 #, python-format
 msgid "'final' value of the baseType %r forbids derivation by restriction"
-msgstr ""
+msgstr "'final' значение baseType %r запрещает вывод по ограничению"
 
 #: xmlschema/validators/simple_types.py:1381 xmlschema/validators/simple_types.py:1430
 #, python-format
 msgid ""
 "wrong base type %r: a simpleType or a complexType with simple or mixed content required"
 msgstr ""
+"неправильный базовый тип %r: требуется simpleType или complexType с простым или смешанным "
+"содержимым"
 
 #: xmlschema/validators/identities.py:86
-#, fuzzy
 msgid "'xpath' attribute required"
-msgstr "атрибут 'base' обязателен"
+msgstr "обязательный атрибут 'xpath'"
 
 #: xmlschema/validators/identities.py:98
 msgid "invalid XPath expression for an {}"
-msgstr ""
+msgstr "недопустимое выражение XPath для {}"
 
 #: xmlschema/validators/identities.py:182
-#, fuzzy
 msgid "missing required attribute 'name'"
-msgstr "отсутствует обязательный атрибут {!r}"
+msgstr "отсутствует обязательный атрибут 'name'"
 
 #: xmlschema/validators/identities.py:190
-#, fuzzy
 msgid "missing 'selector' declaration"
-msgstr "отсутствует базовый тип %r"
+msgstr "отсутствует объявление 'selector'"
 
 #: xmlschema/validators/identities.py:202
-#, fuzzy
 msgid "unknown identity constraint {!r}"
-msgstr "дублированное ограничение идентификации %r:"
+msgstr "неизвестное ограничение идентификации {!r}"
 
 #: xmlschema/validators/identities.py:207
 msgid "attribute 'ref' points to a different kind constraint"
-msgstr ""
+msgstr "атрибут 'ref' указывает на ограничение другого вида"
 
 #: xmlschema/validators/identities.py:296
 msgid "missing key field {0!r} for {1!r}"
-msgstr ""
+msgstr "отсутствует ключевое поле {0!r} для {1!r}"
 
 #: xmlschema/validators/identities.py:304
 #, python-format
 msgid "%r field doesn't have a simple type!"
-msgstr ""
+msgstr "поле %r не имеет простого типа!"
 
 #: xmlschema/validators/identities.py:325
 #, python-format
 msgid "%r field selects multiple values!"
-msgstr ""
+msgstr "поле %r выбирает несколько значений!"
 
 #: xmlschema/validators/identities.py:359
-#, fuzzy
 msgid "missing required attribute 'refer'"
-msgstr "отсутствует обязательный атрибут {!r}"
+msgstr "отсутствует обязательный атрибут 'refer'"
 
 #: xmlschema/validators/identities.py:381
 #, python-format
 msgid "key/unique identity constraint %r is missing"
-msgstr ""
+msgstr "ограничение ключа/уникального удостоверения %r отсутствует"
 
 #: xmlschema/validators/identities.py:386
 #, python-format
 msgid "reference to a non key/unique identity constraint %r"
-msgstr ""
+msgstr "ссылка на не ключевое/уникальное ограничение идентификации %r"
 
 #: xmlschema/validators/identities.py:389
 msgid "field cardinality mismatch between {0!r} and {1!r}"
-msgstr ""
+msgstr "несоответствие поля между {0!r} и {1!r}"
 
 #: xmlschema/validators/identities.py:459
-#, fuzzy
 msgid "duplicated value {0!r} for {1!r}"
-msgstr "{0!r} значение набора фиксировано {1!r}"
+msgstr "дублированное значение {0!r} для {1!r}"
 
 #: xmlschema/validators/xsdbase.py:51
 #, python-format
 msgid "validation mode can be 'strict', 'lax' or 'skip': %r"
-msgstr ""
+msgstr "режим проверки может быть 'strict', 'lax' или 'skip': %r"
 
 #: xmlschema/validators/xsdbase.py:254
 msgid "wrong value {0!r} for 'xpathDefaultNamespace' attribute, can be (anyURI | {1})."
 msgstr ""
+"неправильное значение {0!r} для атрибута 'xpathDefaultNamespace', может быть (anyURI | "
+"{1})."
 
 #: xmlschema/validators/xsdbase.py:405
-#, fuzzy, python-format
+#, python-format
 msgid "missing attribute 'name' in a global %r"
-msgstr "в complexType отсутствует атрибут 'name'"
+msgstr "отсутствует атрибут 'name' в глобальном %r"
 
 #: xmlschema/validators/xsdbase.py:408
 #, python-format
 msgid "missing both attributes 'name' and 'ref' in local %r"
-msgstr ""
+msgstr "отсутствуют оба атрибута 'name' и 'ref' в локальном %r"
 
 #: xmlschema/validators/xsdbase.py:411
-#, fuzzy
 msgid "attributes 'name' and 'ref' are mutually exclusive"
-msgstr "атрибуты 'default' и 'fixed' являются взаимоисключающими"
+msgstr "атрибуты 'name' и 'ref' являются взаимоисключающими"
 
 #: xmlschema/validators/xsdbase.py:414
-#, fuzzy, python-format
+#, python-format
 msgid "attribute 'ref' not allowed in a global %r"
-msgstr "атрибут {!r} недоступен в определении глобального элемента"
+msgstr "атрибут 'ref' не разрешен в глобальном %r"
 
 #: xmlschema/validators/xsdbase.py:423
 msgid "a reference component cannot have child definitions/declarations"
-msgstr ""
+msgstr "ссылочный компонент не может иметь дочерних определений/объявлений"
 
 #: xmlschema/validators/xsdbase.py:438
 msgid "too many XSD components, unexpected {0!r} found at position {1}"
-msgstr ""
+msgstr "слишком много компонентов XSD, неожиданный {0!r} найден в позиции {1}"
 
 #: xmlschema/validators/xsdbase.py:454
 msgid "attribute 'name' must be present when 'targetNamespace' attribute is provided"
 msgstr ""
+"атрибут 'name' должен присутствовать, когда предоставляется атрибут 'targetNamespace'"
 
 #: xmlschema/validators/xsdbase.py:458
 msgid "attribute 'form' must be absent when 'targetNamespace' attribute is provided"
-msgstr ""
+msgstr "атрибут 'form' должен отсутствовать, если указан атрибут 'targetNamespace'"
 
 #: xmlschema/validators/xsdbase.py:463
 #, python-format
 msgid "a global %s must have the same namespace as its parent schema"
-msgstr ""
+msgstr "глобальный %s должен иметь то же пространство имен, что и его родительская схема"
 
 #: xmlschema/validators/xsdbase.py:471
 msgid ""
 "a declaration contained in a global complexType must have the same namespace as its parent "
 "schema"
 msgstr ""
+"объявление, содержащееся в глобальном комплексном типе, должно иметь то же пространство "
+"имен, что и его родительская схема"
 
 #: xmlschema/validators/xsdbase.py:591
-#, fuzzy
 msgid "parent circularity from {}"
-msgstr "обнаружена зацикленность substitutionGroup %r"
+msgstr "родитель зациклен из {}"
 
 #: xmlschema/validators/helpers.py:44
 #, python-format
