@@ -2,6 +2,11 @@
 CHANGELOG
 *********
 
+`v1.11.2`_ (2022-06-11)
+=======================
+* Fix 'replace_existing' argument usage in `XsdElement.get_binding` method (issue #300)
+* Add Russian full translation (from PR #303 and #304)
+
 `v1.11.1`_ (2022-05-22)
 =======================
 * Protect converter calls in iter_decode()/iter_encode()
@@ -531,3 +536,4 @@ v0.9.6 (2017-05-05)
 .. _v1.10.0: https://github.com/brunato/xmlschema/compare/v1.9.2...v1.10.0
 .. _v1.11.0: https://github.com/brunato/xmlschema/compare/v1.10.0...v1.11.0
 .. _v1.11.1: https://github.com/brunato/xmlschema/compare/v1.11.0...v1.11.1
+.. _v1.11.2: https://github.com/brunato/xmlschema/compare/v1.11.1...v1.11.2
