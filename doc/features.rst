@@ -11,8 +11,8 @@ XSD 1.0 and 1.1 support
 =======================
 
 From release v1.0.14 XSD 1.1 support has been added to the library through the class
-:class:`XMLSchema11`. You have to use this class for XSD 1.1 schemas instead the default
-class :class:`XMLSchema`, that is linked to XSD 1.0 validator :class:`XMLSchema10`.
+:class:`xmlschema.XMLSchema11`. You have to use this class for XSD 1.1 schemas instead the default
+class :class:`xmlschema.XMLSchema`, that is linked to XSD 1.0 validator :class:`xmlschema.XMLSchema10`.
 
 The XSD 1.1 validator can be used also for validating XSD 1.0 schemas, except for a
 restricted set of cases related to content extension in a complexType (the extension
@@ -69,7 +69,7 @@ Lazy validation
 ===============
 
 From release v1.0.12 the document validation and the decoding API have an optional argument
-`lazy=False`, that can be changed to `True` for operating with a lazy :class:`XMLResource`.
+`lazy=False`, that can be changed to `True` for operating with a lazy :class:`xmlschema.XMLResource`.
 The lazy mode can be useful for validating and decoding big XML data files, consuming
 less memory.
 

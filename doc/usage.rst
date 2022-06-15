@@ -105,7 +105,7 @@ particurlaly useful when sources have no locations associated:
     ...            open('tests/test_cases/examples/vehicles/types.xsd')]
     >>> schema = xmlschema.XMLSchema(sources)
 
-or similarly to the previous example one can use the method :meth:`add_schema()`:
+or similarly to the previous example one can use the method :meth:`xmlschema.XMLSchemaBase.add_schema`:
 
 .. doctest::
 
@@ -129,7 +129,7 @@ Validation
 
 A schema instance has methods to validate an XML document against the schema.
 
-The first method is :meth:`XMLSchema.is_valid`, that returns ``True``
+The first method is :meth:`xmlschema.XMLSchemaBase.is_valid`, that returns ``True``
 if the XML argument is validated by the schema loaded in the instance,
 and returns ``False`` if the document is invalid.
 
@@ -145,8 +145,8 @@ and returns ``False`` if the document is invalid.
     False
 
 An alternative mode for validating an XML document is implemented by the method
-:meth:`XMLSchema.validate`, that raises an error when the XML doesn't conforms
-to the schema:
+:meth:`xmlschema.XMLSchemaBase.validate`, that raises an error when the XML doesn't
+conform to the schema:
 
 .. doctest::
 
@@ -497,9 +497,9 @@ See the :meth:`xmlschema.to_json` and :meth:`xmlschema.from_json` in the
 XML resources and documents
 ===========================
 
-Schemas and XML instances processing are based on the class :class:`XMLResource`,
+Schemas and XML instances processing are based on the class :class:`xmlschema.XMLResource`,
 that handles the loading and the iteration of XSD/XML data.
-Starting from v1.3.0 :class:`XMLResource` has been empowered with ElementTree-like
+Starting from v1.3.0 :class:`xmlschema.XMLResource` has been empowered with ElementTree-like
 XPath API. From the same release a new class :class:`xmlschema.XmlDocument` is
 available for representing XML resources with a related schema:
 

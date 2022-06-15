@@ -896,8 +896,8 @@ class ValidationMixin(Generic[ST, DT]):
         validations on XML data. The provided function is called for each traversed \
         element, with the XML element as 1st argument and the corresponding XSD \
         element as 2nd argument. It can be also a generator function and has to \
-        raise/yield :exc:`XMLSchemaValidationError` exceptions.
-        :raises: :exc:`XMLSchemaValidationError` if the XML data instance is invalid.
+        raise/yield :exc:`xmlschema.XMLSchemaValidationError` exceptions.
+        :raises: :exc:`xmlschema.XMLSchemaValidationError` if the XML data instance is invalid.
         """
         for error in self.iter_errors(obj, use_defaults, namespaces,
                                       max_depth, extra_validator):
@@ -955,7 +955,7 @@ class ValidationMixin(Generic[ST, DT]):
         a simple data type object otherwise. If *validation* argument is 'lax' a 2-items \
         tuple is returned, where the first item is the decoded object and the second item \
         is a list containing the errors.
-        :raises: :exc:`XMLSchemaValidationError` if the object is not decodable by \
+        :raises: :exc:`xmlschema.XMLSchemaValidationError` if the object is not decodable by \
         the XSD component, or also if it's invalid when ``validation='strict'`` is provided.
         """
         check_validation_mode(validation)
@@ -983,8 +983,8 @@ class ValidationMixin(Generic[ST, DT]):
         a string if it's simple type datum. If *validation* argument is 'lax' a 2-items \
         tuple is returned, where the first item is the encoded object and the second item \
         is a list containing the errors.
-        :raises: :exc:`XMLSchemaValidationError` if the object is not encodable by the XSD \
-        component, or also if it's invalid when ``validation='strict'`` is provided.
+        :raises: :exc:`xmlschema.XMLSchemaValidationError` if the object is not encodable by \
+        the XSD component, or also if it's invalid when ``validation='strict'`` is provided.
         """
         check_validation_mode(validation)
         result, errors = None, []

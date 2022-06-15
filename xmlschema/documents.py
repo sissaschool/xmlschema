@@ -251,7 +251,7 @@ def iter_decode(xml_document: Union[XMLSourceType, XMLResource],
     :param timeout: optional argument to pass for construct schema and \
     :class:`XMLResource` instances.
     :param lazy: optional argument for construct the :class:`XMLResource` instance.
-    :param kwargs: other optional arguments of :meth:`XMLSchema.iter_decode` \
+    :param kwargs: other optional arguments of :meth:`XMLSchemaBase.iter_decode` \
     as keyword arguments.
     :raises: :exc:`XMLSchemaValidationError` if the XML document is invalid and \
     ``validation='strict'`` is provided.
@@ -334,7 +334,7 @@ def to_json(xml_document: Union[XMLSourceType, XMLResource],
     :class:`XMLResource` instances.
     :param lazy: optional argument for construct the :class:`XMLResource` instance.
     :param json_options: a dictionary with options for the JSON serializer.
-    :param kwargs: optional arguments of :meth:`XMLSchema.iter_decode` as keyword arguments \
+    :param kwargs: optional arguments of :meth:`XMLSchemaBase.iter_decode` as keyword arguments \
     to variate the decoding process.
     :return: a string containing the JSON data if *fp* is `None`, otherwise doesn't \
     return anything. If ``validation='lax'`` keyword argument is provided the validation \
@@ -392,7 +392,7 @@ def from_json(source: Union[str, bytes, IO[str]],
     :param converter: an :class:`XMLSchemaConverter` subclass or instance to use \
     for the encoding.
     :param json_options: a dictionary with options for the JSON deserializer.
-    :param kwargs: other optional arguments of :meth:`XMLSchema.iter_encode` and \
+    :param kwargs: other optional arguments of :meth:`XMLSchemaBase.iter_encode` and \
     options for converter.
     :return: An element tree's Element instance. If ``validation='lax'`` keyword argument is \
     provided the validation errors are collected and returned coupled in a tuple with the \

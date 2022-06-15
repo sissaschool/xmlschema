@@ -464,7 +464,7 @@ class Wsdl11Document(XmlDocument):
     :param source: a string containing XML data or a file path or an URL or a \
     file like object or an ElementTree or an Element.
     :param cls: class to use for building the schema instance (for default \
-    :class:`XMLSchema10` is used).
+    :class:`xmlschema.XMLSchema10` is used).
     :param validation: the XSD validation mode to use for validating the XML document, \
     that can be 'strict' (default), 'lax' or 'skip'.
     :param maps: WSDL definitions shared maps.

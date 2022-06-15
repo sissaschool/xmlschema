@@ -27,10 +27,10 @@ Code generation with Jinja2 templates
 =====================================
 
 The module *xmlschema.extras.codegen* provides an abstract base class
-:class:`AbstractGenerator` for generate source code from parsed XSD
-schemas. The Jinja2 engine is embedded in that class and is empowered
-with a set of custom filters and tests for accessing to defined XSD
-schema components.
+:class:`xmlschema.extras.codegen.AbstractGenerator` for generate source
+code from parsed XSD schemas. The Jinja2 engine is embedded in that class
+and is empowered with a set of custom filters and tests for accessing to
+defined XSD schema components.
 
 
 Schema based filters
@@ -90,8 +90,8 @@ Type mapping
 ------------
 
 Each implementation of a generator class has an additional filter for translating
-types using the types map of the instance. For example a :class:`PythonGenerator`
-has the filter *python_type*.
+types using the types map of the instance.
+For example :class:`xmlschema.extras.codegen.PythonGenerator` has the filter *python_type*.
 
 These filters are based on a common method *map_type* that uses an instance
 dictionary built at initialization time from a class maps for builtin types
@@ -131,9 +131,9 @@ The module *xmlschema.extras.wsdl* provides a specialized schema-related
 XML document for WSDL 1.1.
 
 An example of
-specialization is the class :class:`Wsdl11Document`, usable for validating and
-parsing WSDL 1.1 documents, that can be imported from *wsdl* module of the *extra*
-subpackage:
+specialization is the class :class:`xmlschema.extras.wsdl.Wsdl11Document`, usable
+for validating and parsing WSDL 1.1 documents, that can be imported from *wsdl*
+module of the *extra* subpackage:
 
 .. doctest::
 

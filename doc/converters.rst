@@ -26,14 +26,14 @@ like JSON, because prefixed name is more manageable and readable than expanded f
 Available converters
 ====================
 
-The library includes some converters. The default converter :class:`XMLSchemaConverter`
+The library includes some converters. The default converter :class:`xmlschema.XMLSchemaConverter`
 is the base class of other converter types. Each derived converter type implements a
 well know convention, related to the conversion from XML to JSON data format:
 
-  * :class:`ParkerConverter`: `Parker convention <https://developer.mozilla.org/en-US/docs/Archive/JXON#The_Parker_Convention>`_
-  * :class:`BadgerFishConverter`: `BadgerFish convention <http://www.sklar.com/badgerfish/>`_
-  * :class:`AbderaConverter`: `Apache Abdera project convention <https://cwiki.apache.org/confluence/display/ABDERA/JSON+Serialization>`_
-  * :class:`JsonMLConverter`: `JsonML (JSON Mark-up Language) convention <http://www.jsonml.org/>`_
+  * :class:`xmlschema.ParkerConverter`: `Parker convention <https://developer.mozilla.org/en-US/docs/Archive/JXON#The_Parker_Convention>`_
+  * :class:`xmlschema.BadgerFishConverter`: `BadgerFish convention <http://www.sklar.com/badgerfish/>`_
+  * :class:`xmlschema.AbderaConverter`: `Apache Abdera project convention <https://cwiki.apache.org/confluence/display/ABDERA/JSON+Serialization>`_
+  * :class:`xmlschema.JsonMLConverter`: `JsonML (JSON Mark-up Language) convention <http://www.jsonml.org/>`_
 
 A summary of these and other conventions can be found on the wiki page
 `JSON and XML Conversion <http://wiki.open311.org/JSON_and_XML_Conversion/>`_.
@@ -46,18 +46,18 @@ base class options and attributes.
 
 Moreover there are also other two converters useful for specific cases:
 
-  * :class:`UnorderedConverter`: like default converter but with unordered decoding and encoding.
-  * :class:`ColumnarConverter`: a converter that remaps attributes as child elements in a
+  * :class:`xmlschema.UnorderedConverter`: like default converter but with unordered decoding and encoding.
+  * :class:`xmlschema.ColumnarConverter`: a converter that remaps attributes as child elements in a
     columnar shape (available since release v1.2.0).
-  * :class:`DataElementConverter`: a converter that converts XML to a tree of
-    :class:`DataElement` intances, Element-like objects with decoded values and
+  * :class:`xmlschema.DataElementConverter`: a converter that converts XML to a tree of
+    :class:`xmlschema.DataElement` instances, Element-like objects with decoded values and
     schema bindings (available since release v1.5.0).
 
 
 Create a custom converter
 =========================
 
-To create a new customized converter you have to subclass the :class:`XMLSchemaConverter`
+To create a new customized converter you have to subclass the :class:`xmlschema.XMLSchemaConverter`
 and redefine the two methods *element_decode* and *element_encode*. These methods are based
 on the namedtuple `ElementData`, an Element-like data structure that stores the decoded
 Element parts. This namedtuple is used by decoding and encoding methods as an intermediate

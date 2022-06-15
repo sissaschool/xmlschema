@@ -19,8 +19,8 @@ if TYPE_CHECKING:
 
 class UnorderedConverter(XMLSchemaConverter):
     """
-    Same as :class:`XMLSchemaConverter` but :meth:`element_encode` returns
-    a dictionary for the content of the element, that can be used directly
+    Same as :class:`XMLSchemaConverter` but :meth:`XMLSchemaConverter.element_encode`
+    returns a dictionary for the content of the element, that can be used directly
     for unordered encoding mode. In this mode the order of the elements in
     the encoded output is based on the model visitor pattern rather than
     the order in which the elements were added to the input dictionary.

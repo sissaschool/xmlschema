@@ -226,7 +226,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     *chameleon* definitions.
     :ivar validation: validation mode, can be 'strict', 'lax' or 'skip'.
     :ivar maps: XSD global declarations/definitions maps. This is an instance of \
-    :class:`XsdGlobal`, that stores the *global_maps* argument or a new object \
+    :class:`XsdGlobals`, that stores the *global_maps* argument or a new object \
     when this argument is not provided.
     :ivar converter: the default converter used for XML data decoding/encoding.
     :ivar locations: schema location hints.
@@ -2009,7 +2009,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                validation: str = 'strict',
                *args: Any, **kwargs: Any) -> DecodeType[Any]:
         """
-        Decodes XML data. Takes the same arguments of the method :func:`XMLSchema.iter_decode`.
+        Decodes XML data. Takes the same arguments of the method :meth:`iter_decode`.
         """
         data, errors = [], []
         for result in self.iter_decode(source, path, schema_path, validation, *args, **kwargs):
@@ -2119,7 +2119,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     def encode(self, obj: Any, path: Optional[str] = None, validation: str = 'strict',
                *args: Any, **kwargs: Any) -> EncodeType[Any]:
         """
-        Encodes to XML data. Takes the same arguments of the method :func:`XMLSchema.iter_encode`.
+        Encodes to XML data. Takes the same arguments of the method :meth:`iter_encode`.
 
         :return: An ElementTree's Element or a list containing a sequence of ElementTree's \
         elements if the argument *path* matches multiple XML data chunks. If *validation* \
