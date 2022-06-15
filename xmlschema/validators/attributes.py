@@ -213,9 +213,6 @@ class XsdAttribute(XsdComponent, ValidationMixin[str, DecodedValueType]):
     def is_prohibited(self) -> bool:
         return self.use == 'prohibited'
 
-    def is_empty(self) -> bool:
-        return self.fixed == '' or self.type.is_empty()
-
     def iter_components(self, xsd_classes: ComponentClassType = None) \
             -> Iterator[XsdComponent]:
         if xsd_classes is None or isinstance(self, xsd_classes):

@@ -1187,9 +1187,6 @@ class XsdElement(XsdComponent, ParticleMixin,
         else:
             return self.parent.model != 'choice' and len(self.parent) > 1
 
-    def is_empty(self) -> bool:
-        return self.fixed == '' or self.type.is_empty()
-
 
 class Xsd11Element(XsdElement):
     """
