@@ -2,6 +2,11 @@
 CHANGELOG
 *********
 
+`v1.11.3`_ (2022-06-24)
+=======================
+* Fix invalid element not detected with empty particle (issue #306)
+* Fix Sphinx warnings (issue #305)
+
 `v1.11.2`_ (2022-06-11)
 =======================
 * Fix 'replace_existing' argument usage in `XsdElement.get_binding` method (issue #300)
@@ -537,3 +542,4 @@ v0.9.6 (2017-05-05)
 .. _v1.11.0: https://github.com/brunato/xmlschema/compare/v1.10.0...v1.11.0
 .. _v1.11.1: https://github.com/brunato/xmlschema/compare/v1.11.0...v1.11.1
 .. _v1.11.2: https://github.com/brunato/xmlschema/compare/v1.11.1...v1.11.2
+.. _v1.11.3: https://github.com/brunato/xmlschema/compare/v1.11.2...v1.11.3
