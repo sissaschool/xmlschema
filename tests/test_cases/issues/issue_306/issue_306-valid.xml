@@ -1,0 +1,6 @@
+<Document xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="issue_306.xsd">
+  <shipto>
+    <address>Bob</address>
+  </shipto>
+</Document>

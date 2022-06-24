@@ -137,3 +137,7 @@ issues/issue_276/schema.xsd
 issues/issue_276/dummy.xml
 issues/issue_298/issue_298-1.xml -L 'http://xmlschema.test/ns' issue_298.xsd
 issues/issue_298/issue_298-2.xml -L 'http://xmlschema.test/ns' issue_298.xsd
+issues/issue_306/issue_306.xsd
+issues/issue_306/issue_306-alt.xsd
+issues/issue_306/issue_306-valid.xml
+issues/issue_306/issue_306-invalid.xml --errors=1

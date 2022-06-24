@@ -825,7 +825,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                         else:
                             msg = _("{0!r} and {1!r} overlap and are in the same {2!r} group")
                             raise XMLSchemaModelError(self, msg.format(pe, e, pe.parent.model))
-                    elif pe.min_occurs == pe.max_occurs:
+                    elif pe.is_univocal():
                         continue
 
                 if distinguishable_paths(previous_path + [pe], current_path + [e]):
@@ -1009,9 +1009,13 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                 continue  # child is a <class 'lxml.etree._Comment'>
 
             while model.element is not None:
-                xsd_element = model.element.match(
-                    child.tag, default_namespace, group=self, occurs=model.occurs
-                )
+                if model.element.max_occurs == 0:
+                    xsd_element = None
+                else:
+                    xsd_element = model.element.match(
+                        child.tag, default_namespace, group=self, occurs=model.occurs
+                    )
+
                 if xsd_element is None:
                     if self.interleave is not None and self.interleave.is_matching(
                             child.tag, default_namespace, self, model.occurs):
@@ -1172,9 +1176,13 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                 value = get_qname(default_namespace, name), value
             else:
                 while model.element is not None:
-                    xsd_element = model.element.match(
-                        name, default_namespace, group=self, occurs=model.occurs
-                    )
+                    if model.element.max_occurs == 0:
+                        xsd_element = None
+                    else:
+                        xsd_element = model.element.match(
+                            name, default_namespace, group=self, occurs=model.occurs
+                        )
+
                     if xsd_element is None:
                         for particle, occurs, expected in model.advance():
                             errors.append((index - cdata_index, particle, occurs, expected))
