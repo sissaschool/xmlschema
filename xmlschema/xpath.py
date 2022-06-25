@@ -16,8 +16,8 @@ from typing import cast, overload, Any, Dict, Iterator, List, Optional, \
     Sequence, Set, TypeVar, Union
 import re
 
-from elementpath import TypedElement, XPath2Parser, \
-    XPathSchemaContext, AbstractSchemaProxy, protocols
+from elementpath import XPath2Parser, XPathSchemaContext, \
+    AbstractSchemaProxy, protocols
 
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from .names import XSD_NAMESPACE
@@ -45,55 +45,8 @@ else:
 _REGEX_TAG_POSITION = re.compile(r'\b\[\d+]')
 
 
-def iter_schema_nodes(root: Union[XMLSchemaProtocol, ElementProtocol], with_root: bool = True) \
-        -> Iterator[Union[XMLSchemaProtocol, ElementProtocol]]:
-    """
-    Iteration function for schema nodes. It doesn't yield text nodes,
-    that are always `None` for schema elements, and detects visited
-    element in order to skip already visited nodes.
-
-    :param root: schema or schema element.
-    :param with_root: if `True` yields initial element.
-    """
-    if isinstance(root, TypedElement):
-        root = cast(ElementProtocol, root.elem)
-
-    nodes = {root}
-    if with_root:
-        yield root
-
-    iterators: List[Any] = []
-    children: Iterator[Any] = iter(root)
-
-    while True:
-        try:
-            child = next(children)
-        except StopIteration:
-            try:
-                children = iterators.pop()
-            except IndexError:
-                return
-        else:
-            if child in nodes:
-                continue
-            elif child.ref is not None:
-                nodes.add(child)
-                yield child
-                if child.ref not in nodes:
-                    nodes.add(child.ref)
-                    yield child.ref
-                    iterators.append(children)
-                    children = iter(child.ref)
-            else:
-                nodes.add(child)
-                yield child
-                iterators.append(children)
-                children = iter(child)
-
-
 class XMLSchemaContext(XPathSchemaContext):
     """XPath dynamic schema context for the *xmlschema* library."""
-    _iter_nodes = staticmethod(iter_schema_nodes)
 
 
 class XMLSchemaProxy(AbstractSchemaProxy):
@@ -293,7 +246,7 @@ class ElementPathMixin(Sequence[E]):
         :param namespaces: is an optional mapping from namespace prefix to full name.
         :return: an iterable yielding all matching XSD subelements in document order.
         """
-        path = _REGEX_TAG_POSITION.sub('', path.strip())  # Strips tags positions from path
+        path = _REGEX_TAG_POSITION.sub('', path.strip())  # Strip tags positions from path
         namespaces = self._get_xpath_namespaces(namespaces)
         parser = XPath2Parser(namespaces, strict=False)
         context = XMLSchemaContext(self)  # type: ignore[arg-type]

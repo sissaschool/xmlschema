@@ -38,7 +38,7 @@ from .helpers import get_xsd_derivation_attribute
 from .xsdbase import XSD_TYPE_DERIVATIONS, XSD_ELEMENT_DERIVATIONS, \
     XsdComponent, ValidationMixin
 from .particles import ParticleMixin, OccursCalculator
-from .identities import IdentityXPathContext, XsdIdentity, XsdKey, XsdUnique, \
+from .identities import XsdIdentity, XsdKey, XsdUnique, \
     XsdKeyref, IdentityCounter, IdentityCounterType
 from .simple_types import XsdSimpleType
 from .attributes import XsdAttribute
@@ -659,9 +659,8 @@ class XsdElement(XsdComponent, ParticleMixin,
                         if isinstance(identity.elements, tuple):
                             continue  # Skip unbuilt identities
 
-                        context = IdentityXPathContext(
-                            self.schema, item=xpath_element  # type: ignore[arg-type]
-                        )
+                        context = XPathContext(self.schema, item=xpath_element)
+
                         for e in identity.selector.token.select_results(context):
                             if not isinstance(e, XsdElement):
                                 reason = _("selector xpath expression can only select elements")
@@ -828,7 +827,7 @@ class XsdElement(XsdComponent, ParticleMixin,
         if content is not None:
             del content
 
-        # Collects fields values for identities that refer to this element.
+        # Collect field values for identities that refer to this element.
         for identity, counter in identities.items():
             if not counter.enabled or not identity.elements:
                 continue

@@ -22,7 +22,6 @@ from ..names import XSD_QNAME, XSD_UNIQUE, XSD_KEY, XSD_KEYREF, XSD_SELECTOR, XS
 from ..translation import gettext as _
 from ..helpers import get_qname, get_extended_qname
 from ..aliases import ElementType, SchemaType, NamespacesType, AtomicValueType
-from ..xpath import iter_schema_nodes
 from .xsdbase import XsdComponent
 from .attributes import XsdAttribute
 
@@ -45,12 +44,9 @@ XSD_IDENTITY_XPATH_SYMBOLS = frozenset((
 ))
 
 
-# XSD identities use a restricted parser and a context for iterate element
-# references. The XMLSchemaProxy is not used for the specific selection of
-# fields and elements and the XSD fields are got at first validation run.
-class IdentityXPathContext(XPathContext):
-    _iter_nodes = staticmethod(iter_schema_nodes)
-
+# XSD identities use a restricted XPath 2.0 parser. The XMLSchemaProxy is
+# not used for the specific selection of fields and elements and the XSD
+# fields are collected at first validation run.
 
 class IdentityXPathParser(XPath2Parser):
     symbol_table = {
@@ -210,7 +206,7 @@ class XsdIdentity(XsdComponent):
                 self.fields = ref.fields
                 self.ref = ref
 
-        context = IdentityXPathContext(self.schema, item=self.parent)  # type: ignore
+        context = XPathContext(self.schema, item=self.parent)  # type: ignore
 
         self.elements = {}
         try:
@@ -257,15 +253,11 @@ class XsdIdentity(XsdComponent):
         """
         fields: List[IdentityFieldItemType] = []
 
-        if not isinstance(elem, XsdComponent):
-            context_class = XPathContext
-        else:
-            context_class = IdentityXPathContext
-
         result: Any
         value: Union[AtomicValueType, None]
         for k, field in enumerate(self.fields):
-            result = field.token.get_results(context_class(elem))  # type: ignore
+            context = XPathContext(elem)
+            result = field.token.get_results(context)
 
             if not result:
                 if decoders is not None and decoders[k] is not None:

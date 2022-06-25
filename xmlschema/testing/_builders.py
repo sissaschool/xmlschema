@@ -124,13 +124,14 @@ def make_schema_test_class(test_file, test_args, test_num, schema_class, check_w
             # XPath API tests
             if not inspect and not self.errors:
                 context = XMLSchemaContext(schema)
-                elements = [x for x in schema.iter()]  # Contains schema elements only
-                xpath_context_elements = [x for x in context.iter() if isinstance(x, XsdValidator)]
+                element_nodes = [x for x in context.root.iter() if hasattr(x, 'elem')]
                 descendants = [x for x in context.iter_descendants('descendant-or-self')]
-                self.assertTrue(x in descendants for x in xpath_context_elements)
-                for e in elements:
+                self.assertTrue(x in descendants for x in element_nodes)
+
+                context_xsd_elements = [e.value for e in element_nodes]
+                for xsd_element in schema.iter():
                     # Context elements can include elements of other schemas (by element ref)
-                    self.assertIn(e, xpath_context_elements, msg=xsd_file)
+                    self.assertIn(xsd_element, context_xsd_elements, msg=xsd_file)
 
             # Checks on XSD types
             for xsd_type in schema.maps.iter_components(xsd_classes=XsdType):
