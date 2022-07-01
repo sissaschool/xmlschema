@@ -150,6 +150,10 @@ class XsdWildcard(XsdComponent):
     def built(self) -> bool:
         return True
 
+    @property
+    def value_constraint(self) -> Optional[str]:
+        return None
+
     def is_matching(self, name: Optional[str],
                     default_namespace: Optional[str] = None,
                     **kwargs: Any) -> bool:
