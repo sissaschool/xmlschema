@@ -45,10 +45,6 @@ else:
 _REGEX_TAG_POSITION = re.compile(r'\b\[\d+]')
 
 
-class XMLSchemaContext(XPathSchemaContext):
-    """XPath dynamic schema context for the *xmlschema* library."""
-
-
 class XMLSchemaProxy(AbstractSchemaProxy):
     """XPath schema proxy for the *xmlschema* library."""
     _schema: SchemaType  # type: ignore[assignment]
@@ -83,8 +79,8 @@ class XMLSchemaProxy(AbstractSchemaProxy):
 
         parser.symbol_table.update(self._schema.xpath_tokens)
 
-    def get_context(self) -> XMLSchemaContext:
-        return XMLSchemaContext(
+    def get_context(self) -> XPathSchemaContext:
+        return XPathSchemaContext(
             root=self._schema,  # type: ignore[arg-type]
             namespaces=dict(self._schema.namespaces),
             item=self._base_element
@@ -218,7 +214,7 @@ class ElementPathMixin(Sequence[E]):
         path = _REGEX_TAG_POSITION.sub('', path.strip())  # Strips tags positions from path
         namespaces = self._get_xpath_namespaces(namespaces)
         parser = XPath2Parser(namespaces, strict=False)
-        context = XMLSchemaContext(self)  # type: ignore[arg-type]
+        context = XPathSchemaContext(self)  # type: ignore[arg-type]
 
         return cast(Optional[E], next(parser.parse(path).select_results(context), None))
 
@@ -234,7 +230,7 @@ class ElementPathMixin(Sequence[E]):
         path = _REGEX_TAG_POSITION.sub('', path.strip())  # Strips tags positions from path
         namespaces = self._get_xpath_namespaces(namespaces)
         parser = XPath2Parser(namespaces, strict=False)
-        context = XMLSchemaContext(self)  # type: ignore[arg-type]
+        context = XPathSchemaContext(self)  # type: ignore[arg-type]
 
         return cast(List[E], parser.parse(path).get_results(context))
 
@@ -249,7 +245,7 @@ class ElementPathMixin(Sequence[E]):
         path = _REGEX_TAG_POSITION.sub('', path.strip())  # Strip tags positions from path
         namespaces = self._get_xpath_namespaces(namespaces)
         parser = XPath2Parser(namespaces, strict=False)
-        context = XMLSchemaContext(self)  # type: ignore[arg-type]
+        context = XPathSchemaContext(self)  # type: ignore[arg-type]
 
         return cast(Iterator[E], parser.parse(path).select_results(context))
 

@@ -26,6 +26,8 @@ except ImportError:
 else:
     lxml_etree_element = lxml_etree.Element
 
+from elementpath import XPathSchemaContext
+
 import xmlschema
 from xmlschema import XMLSchemaBase, XMLSchema11, XMLSchemaValidationError, \
     XMLSchemaParseError, UnorderedConverter, ParkerConverter, BadgerFishConverter, \
@@ -35,8 +37,7 @@ from xmlschema.helpers import local_name
 from xmlschema.etree import etree_tostring, ElementTree, \
     py_etree_element
 from xmlschema.resources import fetch_namespaces
-from xmlschema.xpath import XMLSchemaContext
-from xmlschema.validators import XsdValidator, XsdType, Xsd11ComplexType
+from xmlschema.validators import XsdType, Xsd11ComplexType
 from xmlschema.dataobjects import DataElementConverter, DataBindingConverter, DataElement
 
 try:
@@ -123,7 +124,7 @@ def make_schema_test_class(test_file, test_args, test_num, schema_class, check_w
 
             # XPath API tests
             if not inspect and not self.errors:
-                context = XMLSchemaContext(schema)
+                context = XPathSchemaContext(schema)
                 element_nodes = [x for x in context.root.iter() if hasattr(x, 'elem')]
                 descendants = [x for x in context.iter_descendants('descendant-or-self')]
                 self.assertTrue(x in descendants for x in element_nodes)
