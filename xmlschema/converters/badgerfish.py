@@ -61,40 +61,42 @@ class BadgerFishConverter(XMLSchemaConverter):
                 result_dict['$'] = data.text
         else:
             has_single_group = xsd_group.is_single()
-            for name, value, xsd_child in self.map_content(data.content):
-                try:
-                    if '@xmlns' in value:
-                        self.transfer(value['@xmlns'])
-                        if not value['@xmlns']:
-                            del value['@xmlns']
-                    elif '@xmlns' in value[name]:
-                        self.transfer(value[name]['@xmlns'])
-                        if not value[name]['@xmlns']:
-                            del value[name]['@xmlns']
-                    if len(value) == 1:
-                        value = value[name]
-                except (TypeError, KeyError):
-                    pass
+            if data.content:
+                for name, value, xsd_child in self.map_content(data.content):
+                    try:
+                        if '@xmlns' in value:
+                            self.transfer(value['@xmlns'])
+                            if not value['@xmlns']:
+                                del value['@xmlns']
+                        elif '@xmlns' in value[name]:
+                            self.transfer(value[name]['@xmlns'])
+                            if not value[name]['@xmlns']:
+                                del value[name]['@xmlns']
+                        if len(value) == 1:
+                            value = value[name]
+                    except (TypeError, KeyError):
+                        pass
 
-                if value is None:
-                    value = self.dict()
+                    if value is None:
+                        value = self.dict()
 
-                try:
-                    result = result_dict[name]
-                except KeyError:
-                    if xsd_child is None or has_single_group and xsd_child.is_single():
-                        result_dict[name] = value
+                    try:
+                        result = result_dict[name]
+                    except KeyError:
+                        if xsd_child is None or has_single_group and xsd_child.is_single():
+                            result_dict[name] = value
+                        else:
+                            result_dict[name] = self.list([value])
                     else:
-                        result_dict[name] = self.list([value])
-                else:
-                    if not isinstance(result, MutableSequence) or not result:
-                        result_dict[name] = self.list([result, value])
-                    elif isinstance(result[0], MutableSequence) or \
-                            not isinstance(value, MutableSequence):
-                        result.append(value)
-                    else:
-                        result_dict[name] = self.list([result, value])
-
+                        if not isinstance(result, MutableSequence) or not result:
+                            result_dict[name] = self.list([result, value])
+                        elif isinstance(result[0], MutableSequence) or \
+                                not isinstance(value, MutableSequence):
+                            result.append(value)
+                        else:
+                            result_dict[name] = self.list([result, value])
+            elif data.text is not None and data.text != '' and self.text_key is not None:
+                result_dict[self.text_key] = data.text
         if has_local_root:
             if self:
                 result_dict['@xmlns'].update(self)
@@ -106,7 +108,6 @@ class BadgerFishConverter(XMLSchemaConverter):
 
     def element_encode(self, obj: Any, xsd_element: 'XsdElement', level: int = 0) -> ElementData:
         tag = xsd_element.qualified_name if level == 0 else xsd_element.name
-
         if not self.strip_namespaces:
             try:
                 self.update(obj['@xmlns'])
@@ -125,9 +126,13 @@ class BadgerFishConverter(XMLSchemaConverter):
         content: List[Tuple[Union[str, int], Any]] = []
         attributes = {}
 
+        if type(element_data) == list:
+            element_data = element_data[0]
         for name, value in element_data.items():
+
             if name == '@xmlns':
                 continue
+
             elif name == '$':
                 text = value
             elif name[0] == '$' and name[1:].isdigit():
