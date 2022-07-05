@@ -20,7 +20,8 @@ from urllib.request import urlopen
 from urllib.parse import urlsplit, urlunsplit, unquote, quote_from_bytes
 from urllib.error import URLError
 
-from elementpath import iter_select, XPathContext, XPath2Parser
+from elementpath import iter_select, XPathContext, XPath2Parser, get_node_tree, \
+    ElementNode, DocumentNode
 from elementpath.protocols import ElementProtocol
 
 from .exceptions import XMLSchemaTypeError, XMLSchemaValueError, XMLResourceError
@@ -455,6 +456,7 @@ class XMLResource:
     # Protected attributes for data and resource location
     _source: XMLSourceType
     _root: ElementType
+    _xpath_root: Union[None, ElementNode, DocumentNode] = None
     _nsmap: Dict[ElementType, List[Tuple[str, str]]]
     _text: Optional[str] = None
     _url: Optional[str] = None
@@ -524,6 +526,13 @@ class XMLResource:
     def root(self) -> ElementType:
         """The XML tree root Element."""
         return self._root
+
+    @property
+    def xpath_root(self) -> ElementType:
+        """The XPath tree root node."""
+        if self._xpath_root is None:
+            self._xpath_root = get_node_tree(self._root)
+        return self._xpath_root
 
     @property
     def text(self) -> Optional[str]:

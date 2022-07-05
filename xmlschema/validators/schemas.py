@@ -54,7 +54,7 @@ from ..namespaces import NamespaceResourcesMap, NamespaceView
 from ..resources import is_local_url, is_remote_url, url_path_is_file, \
     normalize_locations, fetch_resource, normalize_url, XMLResource
 from ..converters import XMLSchemaConverter
-from ..xpath import XMLSchemaProtocol, XMLSchemaProxy, ElementPathMixin
+from ..xpath import XsdSchemaProtocol, XMLSchemaProxy, ElementPathMixin
 from .. import dataobjects
 
 from .exceptions import XMLSchemaParseError, XMLSchemaValidationError, XMLSchemaEncodeError, \
@@ -570,7 +570,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
     @property
     def xpath_proxy(self) -> XMLSchemaProxy:
-        return XMLSchemaProxy(cast(XMLSchemaProtocol, self))
+        return XMLSchemaProxy(cast(XsdSchemaProtocol, self))
 
     @property
     def xsd_version(self) -> str:
@@ -996,6 +996,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     def clear(self) -> None:
         """Clears the schema's XSD global maps."""
         self.maps.clear()
+        self._xpath_node = None
 
     @property
     def built(self) -> bool:

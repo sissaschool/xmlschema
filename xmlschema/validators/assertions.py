@@ -14,7 +14,7 @@ from elementpath import XPath2Parser, XPathContext, XPathToken, ElementPathError
 from ..names import XSD_ASSERT
 from ..aliases import ElementType, SchemaType, SchemaElementType, NamespacesType
 from ..translation import gettext as _
-from ..xpath import XMLSchemaProtocol, ElementProtocol, ElementPathMixin, XMLSchemaProxy
+from ..xpath import XsdSchemaProtocol, XsdElementProtocol, ElementPathMixin, XMLSchemaProxy
 
 from .exceptions import XMLSchemaNotBuiltError, XMLSchemaValidationError
 from .xsdbase import XsdComponent
@@ -158,6 +158,6 @@ class XsdAssert(XsdComponent, ElementPathMixin[Union['XsdAssert', SchemaElementT
     @property
     def xpath_proxy(self) -> 'XMLSchemaProxy':
         return XMLSchemaProxy(
-            schema=cast(XMLSchemaProtocol, self.schema),
-            base_element=cast(ElementProtocol, self)
+            schema=cast(XsdSchemaProtocol, self.schema),
+            base_element=cast(XsdElementProtocol, self)
         )

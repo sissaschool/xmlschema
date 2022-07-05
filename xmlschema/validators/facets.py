@@ -17,7 +17,7 @@ from abc import abstractmethod
 from typing import TYPE_CHECKING, cast, Any, List, Optional, Pattern, Union, \
     MutableSequence, overload, Tuple
 from elementpath import XPath2Parser, XPathContext, ElementPathError, \
-    translate_pattern, RegexError
+    translate_pattern, RegexError, ElementNode
 
 from ..names import XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_ENUMERATION, \
     XSD_INTEGER, XSD_WHITE_SPACE, XSD_PATTERN, XSD_MAX_INCLUSIVE, XSD_MAX_EXCLUSIVE, \
@@ -777,7 +777,7 @@ class XsdAssertionFacet(XsdFacet):
         </assertion>
     """
     _ADMITTED_TAGS = {XSD_ASSERTION}
-    _root = etree_element('root')
+    _root = ElementNode(elem=etree_element('root'))
 
     def __repr__(self) -> str:
         return '%s(test=%r)' % (self.__class__.__name__, self.path)

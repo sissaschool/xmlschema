@@ -21,7 +21,7 @@ from ..aliases import ElementType, SchemaType, SchemaElementType, SchemaAttribut
     DecodedValueType, EncodedValueType
 from ..translation import gettext as _
 from ..helpers import get_namespace, raw_xml_encode
-from ..xpath import XMLSchemaProtocol, ElementProtocol, XMLSchemaProxy, ElementPathMixin
+from ..xpath import XsdSchemaProtocol, XsdElementProtocol, XMLSchemaProxy, ElementPathMixin
 from .xsdbase import ValidationMixin, XsdComponent
 from .particles import ParticleMixin
 from . import elements
@@ -423,8 +423,8 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
     @property
     def xpath_proxy(self) -> XMLSchemaProxy:
         return XMLSchemaProxy(
-            schema=cast(XMLSchemaProtocol, self.schema),
-            base_element=cast(ElementProtocol, self)
+            schema=cast(XsdSchemaProtocol, self.schema),
+            base_element=cast(XsdElementProtocol, self)
         )
 
     def _parse(self) -> None:

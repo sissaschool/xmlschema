@@ -15,7 +15,7 @@ import math
 from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Pattern, \
     Tuple, Union, Counter
 from elementpath import XPath2Parser, ElementPathError, XPathToken, XPathContext, \
-    translate_pattern, datatypes
+    translate_pattern, datatypes, get_node_tree
 
 from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from ..names import XSD_QNAME, XSD_UNIQUE, XSD_KEY, XSD_KEYREF, XSD_SELECTOR, XSD_FIELD
@@ -206,7 +206,13 @@ class XsdIdentity(XsdComponent):
                 self.fields = ref.fields
                 self.ref = ref
 
-        context = XPathContext(self.schema, item=self.parent)  # type: ignore
+        xpath_root = self.schema.xpath_node
+        try:
+            xpath_item = xpath_root.elements[self.parent]
+        except KeyError:
+            context = XPathContext(xpath_root, item=self.parent.xpath_node)  # type: ignore
+        else:
+            context = XPathContext(xpath_root, item=xpath_item)  # type: ignore
 
         self.elements = {}
         try:
@@ -255,8 +261,10 @@ class XsdIdentity(XsdComponent):
 
         result: Any
         value: Union[AtomicValueType, None]
+        root_node = get_node_tree(elem)
+
         for k, field in enumerate(self.fields):
-            context = XPathContext(elem)
+            context = XPathContext(root_node)
             result = field.token.get_results(context)
 
             if not result:

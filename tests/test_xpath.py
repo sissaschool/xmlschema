@@ -13,10 +13,9 @@
 import unittest
 import os
 import pathlib
-from elementpath import XPath1Parser, XPath2Parser, Selector, \
-    AttributeNode, TypedElement, ElementPathSyntaxError
+from elementpath import XPath1Parser, XPath2Parser, Selector
 
-from xmlschema import XMLSchema10, XMLSchema11, XsdElement, XsdAttribute
+from xmlschema import XMLSchema10, XMLSchema11
 from xmlschema.names import XSD_NAMESPACE
 from xmlschema.etree import ElementTree
 from xmlschema.xpath import XMLSchemaProxy, XPathElement
@@ -118,41 +117,6 @@ class XMLSchemaProxyTest(unittest.TestCase):
             self.assertIsInstance(xsd_type, (XsdAtomic, XsdAtomicRestriction))
         self.assertGreater(k, 10)
 
-    def test_get_primitive_type_method(self):
-        schema_proxy = XMLSchemaProxy(self.xs3)
-
-        string_type = self.xs3.meta_schema.types['string']
-        xsd_type = self.xs3.types['list_of_strings']
-        self.assertIs(schema_proxy.get_primitive_type(xsd_type), string_type)
-
-        xsd_type = self.xs3.types['integer_or_float']
-        self.assertIs(schema_proxy.get_primitive_type(xsd_type), xsd_type)
-
-    @unittest.skip
-    def test_iter_schema_nodes_function(self):
-        vh_elements = set(e for e in self.xs1.maps.iter_components(XsdElement)
-                          if e.target_namespace == self.xs1.target_namespace)
-
-        self.assertEqual(set(iter_schema_nodes(self.xs1)), vh_elements | {self.xs1})
-        self.assertEqual(set(iter_schema_nodes(self.xs1, with_root=False)), vh_elements)
-
-        vh_nodes = set()
-        for node in self.xs1.maps.iter_components((XsdElement, XsdAttribute)):
-            if node.target_namespace != self.xs1.target_namespace:
-                continue
-            elif isinstance(node, XsdAttribute):
-                vh_nodes.add(AttributeNode(node.local_name, node))
-            else:
-                vh_nodes.add(node)
-
-        cars = self.xs1.elements['cars']
-        car = self.xs1.find('//vh:car')
-        typed_cars = TypedElement(cars, cars.type, None)
-        self.assertListEqual(list(iter_schema_nodes(cars)), [cars, car])
-        self.assertListEqual(list(iter_schema_nodes(typed_cars)), [cars, car])
-        self.assertListEqual(list(iter_schema_nodes(cars, with_root=False)), [car])
-        self.assertListEqual(list(iter_schema_nodes(typed_cars, with_root=False)), [car])
-
 
 class XPathElementTest(unittest.TestCase):
 
@@ -221,6 +185,7 @@ class XPathElementTest(unittest.TestCase):
 class XMLSchemaXPathTest(unittest.TestCase):
 
     schema_class = XMLSchema10
+    xs1: XMLSchema10
 
     @classmethod
     def setUpClass(cls):
@@ -230,10 +195,10 @@ class XMLSchemaXPathTest(unittest.TestCase):
         cls.bikes = cls.xs1.elements['vehicles'].type.content[1]
 
     def test_xpath_wrong_syntax(self):
-        self.assertRaises(ElementPathSyntaxError, self.xs1.find, './*[')
-        self.assertRaises(ElementPathSyntaxError, self.xs1.find, './*)')
-        self.assertRaises(ElementPathSyntaxError, self.xs1.find, './*3')
-        self.assertRaises(ElementPathSyntaxError, self.xs1.find, './@3')
+        self.assertRaises(SyntaxError, self.xs1.find, './*[')
+        self.assertRaises(SyntaxError, self.xs1.find, './*)')
+        self.assertRaises(SyntaxError, self.xs1.find, './*3')
+        self.assertRaises(SyntaxError, self.xs1.find, './@3')
 
     def test_xpath_extra_spaces(self):
         self.assertTrue(self.xs1.find('./ *') is not None)

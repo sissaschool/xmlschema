@@ -30,7 +30,7 @@ from ..helpers import get_qname, get_namespace, etree_iter_location_hints, \
     raw_xml_encode, strictly_equal
 from .. import dataobjects
 from ..converters import XMLSchemaConverter
-from ..xpath import XMLSchemaProtocol, ElementProtocol, XMLSchemaProxy, \
+from ..xpath import XsdSchemaProtocol, XsdElementProtocol, XMLSchemaProxy, \
     ElementPathMixin, XPathElement
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaTypeTableWarning
@@ -384,8 +384,8 @@ class XsdElement(XsdComponent, ParticleMixin,
     @property
     def xpath_proxy(self) -> XMLSchemaProxy:
         return XMLSchemaProxy(
-            schema=cast(XMLSchemaProtocol, self.schema),
-            base_element=cast(ElementProtocol, self)
+            schema=cast(XsdSchemaProtocol, self.schema),
+            base_element=cast(XsdElementProtocol, self)
         )
 
     def build(self) -> None:
@@ -659,7 +659,7 @@ class XsdElement(XsdComponent, ParticleMixin,
                         if isinstance(identity.elements, tuple):
                             continue  # Skip unbuilt identities
 
-                        context = XPathContext(self.schema, item=xpath_element)
+                        context = XPathContext(self.schema.xpath_node, item=xpath_element)
 
                         for e in identity.selector.token.select_results(context):
                             if not isinstance(e, XsdElement):

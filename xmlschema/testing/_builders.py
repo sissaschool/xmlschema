@@ -122,11 +122,11 @@ def make_schema_test_class(test_file, test_args, test_num, schema_class, check_w
                     self.assertTrue(isinstance(deserialized_schema, XMLSchemaBase), msg=xsd_file)
                     self.assertEqual(schema.built, deserialized_schema.built, msg=xsd_file)
 
-            # XPath API tests
+            # XPath node tree tests
             if not inspect and not self.errors:
-                context = XPathSchemaContext(schema)
-                element_nodes = [x for x in context.root.iter() if hasattr(x, 'elem')]
-                descendants = [x for x in context.iter_descendants('descendant-or-self')]
+                xpath_root = schema.xpath_node
+                element_nodes = [x for x in xpath_root.iter() if hasattr(x, 'elem')]
+                descendants = [x for x in xpath_root.iter_descendants('descendant-or-self')]
                 self.assertTrue(x in descendants for x in element_nodes)
 
                 context_xsd_elements = [e.value for e in element_nodes]
