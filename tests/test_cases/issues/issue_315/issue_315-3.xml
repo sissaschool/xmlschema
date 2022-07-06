@@ -1,0 +1,1 @@
+<tst:e1 xmlns:tst="http://xmlschema.test/ns" a1="foo">bar<e2/></tst:e1>

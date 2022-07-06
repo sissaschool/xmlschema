@@ -18,7 +18,7 @@ except ImportError:
     lxml_etree = None
 
 from xmlschema import XMLSchema, XMLSchemaValidationError, fetch_namespaces
-from xmlschema.etree import etree_element
+from xmlschema.etree import etree_element, etree_tostring
 from xmlschema.dataobjects import DataElement
 from xmlschema.testing import etree_elements_assert_equal
 
@@ -29,6 +29,10 @@ from xmlschema.dataobjects import DataElementConverter
 
 
 class TestConverters(unittest.TestCase):
+
+    col_xsd_filename: str
+    col_xml_filename: str
+    col_nsmap: dict
 
     @classmethod
     def setUpClass(cls):
@@ -482,9 +486,10 @@ class TestConverters(unittest.TestCase):
 
         # With ElementTree namespaces are not mapped
         obj2 = col_schema.decode(self.col_xml_root)
-
-        # Equivalent if compared as Element trees (tag, text, attrib, tail)
-        self.assertIsNone(etree_elements_assert_equal(obj1, obj2))
+        with self.assertRaises(AssertionError) as ctx:
+            # Equivalent if compared as Element trees (tag, text, attrib, tail)
+            etree_elements_assert_equal(obj1, obj2)
+        self.assertIn("attributes differ: {'xsi:schemaLocation'", str(ctx.exception))
 
         self.assertIsNone(etree_elements_assert_equal(
             obj1, col_schema.decode(self.col_xml_root, namespaces=self.col_nsmap)
@@ -501,6 +506,90 @@ class TestConverters(unittest.TestCase):
 
         root = col_schema.encode(obj2)  # No namespace unmap is required
         self.assertIsNone(etree_elements_assert_equal(self.col_xml_root, root, strict=False))
+
+    def test_simple_content__issue_315(self):
+        schema = XMLSchema(self.casepath('issues/issue_315/issue_315_simple.xsd'))
+        converters = (
+            XMLSchemaConverter, XMLSchemaConverter(preserve_root=True),
+            BadgerFishConverter, AbderaConverter, JsonMLConverter,
+            UnorderedConverter, ColumnarConverter, DataElementConverter
+        )
+
+        for k in range(1, 6):
+            xml_filename = self.casepath(f'issues/issue_315/issue_315-{k}.xml')
+            if k < 3:
+                self.assertIsNone(schema.validate(xml_filename), xml_filename)
+            else:
+                self.assertFalse(schema.is_valid(xml_filename), xml_filename)
+
+        for k in (1, 2):
+            xml_filename = self.casepath(f'issues/issue_315/issue_315-{k}.xml')
+            xml_tree = ElementTree.parse(xml_filename).getroot()
+            for converter in converters:
+                obj = schema.decode(xml_filename, converter=converter)
+                root = schema.encode(obj, converter=converter)
+                self.assertIsNone(etree_elements_assert_equal(xml_tree, root))
+
+    def test_mixed_content__issue_315(self):
+        schema = XMLSchema(self.casepath('issues/issue_315/issue_315_mixed.xsd'))
+        losslessly_converters = (JsonMLConverter, DataElementConverter)
+        default_converters = (
+            XMLSchemaConverter(cdata_prefix='#'),
+            UnorderedConverter(cdata_prefix='#'),  # BadgerFishConverter, ColumnarConverter,
+        )
+
+        for k in range(1, 6):
+            xml_filename = self.casepath(f'issues/issue_315/issue_315-{k}.xml')
+            self.assertIsNone(schema.validate(xml_filename), xml_filename)
+
+        for k in range(1, 6):
+            xml_filename = self.casepath(f'issues/issue_315/issue_315-{k}.xml')
+            xml_tree = ElementTree.parse(xml_filename).getroot()
+            for converter in losslessly_converters:
+                obj = schema.decode(xml_filename, converter=converter)
+                root = schema.encode(obj, converter=converter)
+                self.assertIsNone(etree_elements_assert_equal(xml_tree, root, strict=False))
+
+        for k in range(1, 6):
+            xml_filename = self.casepath(f'issues/issue_315/issue_315-{k}.xml')
+            xml_tree = ElementTree.parse(xml_filename).getroot()
+            for converter in default_converters:
+                obj = schema.decode(xml_filename, converter=converter)
+                root = schema.encode(obj, converter=converter, indent=0)
+                if k < 4:
+                    self.assertIsNone(etree_elements_assert_equal(xml_tree, root, strict=False))
+                    continue
+
+                if k == 4:
+                    self.assertEqual(obj, {'@xmlns:tst': 'http://xmlschema.test/ns',
+                                           '@a1': 'foo', 'e2': [None, None], '#1': 'bar'})
+                    self.assertEqual(len(root), 2)
+                else:
+                    self.assertEqual(obj, {'@xmlns:tst': 'http://xmlschema.test/ns',
+                                           '@a1': 'foo', 'e2': [None], '#1': 'bar'})
+                    self.assertEqual(len(root), 1)
+
+                text = etree_tostring(root, namespaces={'tst': 'http://xmlschema.test/ns'})
+                self.assertEqual(len(text.split('bar')), 2)
+
+        for k in range(1, 6):
+            xml_filename = self.casepath(f'issues/issue_315/issue_315-{k}.xml')
+            xml_tree = ElementTree.parse(xml_filename).getroot()
+            obj = schema.decode(xml_filename, converter=BadgerFishConverter)
+            root = schema.encode(obj, converter=BadgerFishConverter, indent=0)
+            if k < 4:
+                self.assertIsNone(etree_elements_assert_equal(xml_tree, root, strict=False))
+                continue
+
+            if k == 4:
+                self.assertEqual(obj, {'@xmlns': {'tst': 'http://xmlschema.test/ns'},
+                                       'tst:e1': {'@a1': 'foo', 'e2': [{}, {}], '$1': 'bar'}})
+            else:
+                self.assertEqual(obj, {'@xmlns': {'tst': 'http://xmlschema.test/ns'},
+                                       'tst:e1': {'@a1': 'foo', 'e2': [{}], '$1': 'bar'}})
+
+            text = etree_tostring(root, namespaces={'tst': 'http://xmlschema.test/ns'})
+            self.assertEqual(len(text.split('bar')), 2)
 
 
 if __name__ == '__main__':

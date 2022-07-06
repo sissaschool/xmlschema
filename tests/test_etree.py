@@ -232,7 +232,7 @@ class TestElementTree(unittest.TestCase):
         e2 = ElementTree.XML('<a><b1>text<c1 a="1"/></b1>\n<b2/><b3/><b4/></a>\n')
         with self.assertRaises(AssertionError) as ctx:
             etree_elements_assert_equal(e1, e2)
-        self.assertIn("has lesser children than <Element 'a'", str(ctx.exception))
+        self.assertIn("children number differ", str(ctx.exception))
 
         e2 = ElementTree.XML('<a><b1>text  <c1 a="1"/></b1>\n<b2/><b3/></a>\n')
         self.assertIsNone(etree_elements_assert_equal(e1, e2, strict=False))
