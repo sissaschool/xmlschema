@@ -9,7 +9,8 @@
 #
 import threading
 from typing import TYPE_CHECKING, cast, Any, Dict, Iterator, Optional, Union
-from elementpath import XPath2Parser, XPathContext, XPathToken, ElementPathError
+from elementpath import ElementPathError, XPath2Parser, XPathContext, XPathToken, \
+    SchemaElementNode, build_schema_node_tree
 
 from ..names import XSD_ASSERT
 from ..aliases import ElementType, SchemaType, SchemaElementType, NamespacesType
@@ -161,3 +162,15 @@ class XsdAssert(XsdComponent, ElementPathMixin[Union['XsdAssert', SchemaElementT
             schema=cast(XsdSchemaProtocol, self.schema),
             base_element=cast(XsdElementProtocol, self)
         )
+
+    @property
+    def xpath_node(self) -> SchemaElementNode:
+        schema_node = self.schema.xpath_node
+        try:
+            return cast(SchemaElementNode, schema_node.elements[self])
+        except KeyError:
+            return build_schema_node_tree(
+                root=cast(XsdElementProtocol, self),
+                elements=schema_node.elements,
+                global_elements=schema_node.children,
+            )

@@ -184,7 +184,7 @@ def etree_iterpath(elem: ElementType,
 
     for child in elem:
         if callable(child.tag):
-            continue  # Skip lxml comments
+            continue  # Skip comments and PIs
 
         child_name = child.tag if namespaces is None else get_prefixed_qname(child.tag, namespaces)
         if path == '/':

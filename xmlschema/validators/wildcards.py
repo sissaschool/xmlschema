@@ -13,6 +13,8 @@ This module contains classes for XML Schema wildcards.
 from typing import cast, Any, Callable, Dict, Iterable, Iterator, List, Optional, \
     Tuple, Union, Counter
 
+from elementpath import SchemaElementNode, build_schema_node_tree
+
 from ..exceptions import XMLSchemaValueError
 from ..names import XSI_NAMESPACE, XSD_ANY, XSD_ANY_ATTRIBUTE, \
     XSD_OPEN_CONTENT, XSD_DEFAULT_OPEN_CONTENT, XSI_TYPE
@@ -426,6 +428,18 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
             schema=cast(XsdSchemaProtocol, self.schema),
             base_element=cast(XsdElementProtocol, self)
         )
+
+    @property
+    def xpath_node(self) -> SchemaElementNode:
+        schema_node = self.schema.xpath_node
+        try:
+            return cast(SchemaElementNode, schema_node.elements[self])
+        except KeyError:
+            return build_schema_node_tree(
+                root=cast(XsdElementProtocol, self),
+                elements=schema_node.elements,
+                global_elements=schema_node.children,
+            )
 
     def _parse(self) -> None:
         super(XsdAnyElement, self)._parse()

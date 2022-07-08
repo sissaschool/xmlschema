@@ -17,7 +17,7 @@ from typing import cast, overload, Any, Dict, Iterator, List, Optional, \
 import re
 
 from elementpath import XPath2Parser, XPathSchemaContext, \
-    AbstractSchemaProxy, protocols, SchemaNode, build_schema_node_tree
+    AbstractSchemaProxy, protocols, LazyElementNode, SchemaElementNode
 
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from .names import XSD_NAMESPACE
@@ -131,7 +131,7 @@ class ElementPathMixin(Sequence[E]):
     attributes: Any = {}
     namespaces: Any = {}
     xpath_default_namespace = ''
-    _xpath_node: Optional[SchemaNode] = None
+    _xpath_node: Optional[SchemaElementNode] = None
 
     @abstractmethod
     def __iter__(self) -> Iterator[E]:
@@ -175,12 +175,9 @@ class ElementPathMixin(Sequence[E]):
         raise NotImplementedError
 
     @property
-    def xpath_node(self) -> SchemaNode:
-        if self._xpath_node is None:
-            self._xpath_node = build_schema_node_tree(
-                cast(Union[XsdSchemaProtocol], self)
-            )
-        return self._xpath_node
+    def xpath_node(self) -> SchemaElementNode:
+        """Returns an XPath node for applying selectors on XSD schema/component."""
+        raise NotImplementedError
 
     def _get_xpath_namespaces(self, namespaces: Optional[NamespacesType] = None) \
             -> Dict[str, str]:
@@ -293,6 +290,7 @@ class XPathElement(ElementPathMixin['XPathElement']):
     """An element node for making XPath operations on schema types."""
     name: str
     parent = None
+    _xpath_node: Optional[LazyElementNode]
 
     def __init__(self, name: str, xsd_type: BaseXsdType) -> None:
         self.name = name
@@ -309,6 +307,12 @@ class XPathElement(ElementPathMixin['XPathElement']):
             cast(XsdSchemaProtocol, self.schema),
             cast(XsdElementProtocol, self)
         )
+
+    @property
+    def xpath_node(self) -> LazyElementNode:
+        if self._xpath_node is None:
+            self._xpath_node = LazyElementNode(self)
+        return self._xpath_node
 
     @property
     def schema(self) -> SchemaType:

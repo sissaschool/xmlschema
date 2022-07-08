@@ -33,7 +33,7 @@ from xmlschema.etree import ElementTree, etree_element, py_etree_element, is_etr
 from xmlschema.names import XSD_NAMESPACE
 import xmlschema.resources
 from xmlschema.resources import is_url, is_local_url, is_remote_url, \
-    url_path_is_file, normalize_locations, LazySelector
+    url_path_is_file, normalize_locations
 from xmlschema.testing import SKIP_REMOTE_TESTS
 
 
@@ -1135,21 +1135,11 @@ class TestResources(unittest.TestCase):
         self.assertListEqual(nsmap, [('tns2', 'http://example.com/ns2')])
 
         nsmap = []
-        self.assertEqual(resource.find('*/c2/@x', nsmap=nsmap), '2')
-        self.assertListEqual(nsmap, [])
-
-        nsmap = []
         ancestors = []
         self.assertIs(resource.find('*/c2', nsmap=nsmap, ancestors=ancestors),
                       resource.root[0][1])
         self.assertListEqual(nsmap, [('tns2', 'http://example.com/ns2')])
         self.assertListEqual(ancestors, [resource.root, resource.root[0]])
-
-        nsmap = []
-        ancestors = []
-        self.assertEqual(resource.find('*/c2/@x', nsmap=nsmap, ancestors=ancestors), '2')
-        self.assertListEqual(nsmap, [])
-        self.assertListEqual(ancestors, [])
 
         nsmap = []
         ancestors = []
@@ -1452,29 +1442,6 @@ class TestResources(unittest.TestCase):
             self.assertIsNone(resource.url)
             self.assertEqual(set(resource.get_namespaces().keys()), {'vh', 'xsi'})
             self.assertFalse(xml_file.closed)
-
-    def test_lazy_selector(self):
-        selector = LazySelector('./*')
-        self.assertEqual(repr(selector), "LazySelector(path='./*')")
-
-        with self.assertRaises(SyntaxError):
-            LazySelector('self::*')
-
-        root = ElementTree.XML('<a><b1 c="10"/><b2/></a>')
-        self.assertListEqual(selector.select(root), root[:])
-        self.assertListEqual(list(selector.iter_select(root)), root[:])
-
-        selector = LazySelector('./b1/@c')
-
-        with self.assertRaises(XMLResourceError) as ctx:
-            selector.select(root)
-        self.assertEqual("XPath expressions on lazy resources can "
-                         "select only elements", str(ctx.exception))
-
-        with self.assertRaises(XMLResourceError) as ctx:
-            list(selector.iter_select(root))
-        self.assertEqual("XPath expressions on lazy resources can "
-                         "select only elements", str(ctx.exception))
 
     def test_parent_map(self):
         root = ElementTree.XML('<a><b1><c1/><c2/></b1><b2/></a>')

@@ -11,10 +11,13 @@
 This module contains classes for XML Schema elements, complex types and model groups.
 """
 import warnings
+from copy import copy
 from decimal import Decimal
 from types import GeneratorType
 from typing import TYPE_CHECKING, cast, Any, Dict, Iterator, List, Optional, Tuple, Type, Union
-from elementpath import XPath2Parser, ElementPathError, XPathContext, XPathToken
+
+from elementpath import XPath2Parser, ElementPathError, XPathContext, XPathToken, \
+    LazyElementNode, SchemaElementNode, build_schema_node_tree
 from elementpath.datatypes import AbstractDateTime, Duration, AbstractBinary
 
 from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
@@ -32,6 +35,7 @@ from .. import dataobjects
 from ..converters import XMLSchemaConverter
 from ..xpath import XsdSchemaProtocol, XsdElementProtocol, XMLSchemaProxy, \
     ElementPathMixin, XPathElement
+from ..resources import XMLResource
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaTypeTableWarning
 from .helpers import get_xsd_derivation_attribute
@@ -388,9 +392,21 @@ class XsdElement(XsdComponent, ParticleMixin,
             base_element=cast(XsdElementProtocol, self)
         )
 
+    @property
+    def xpath_node(self) -> SchemaElementNode:
+        schema_node = self.schema.xpath_node
+        try:
+            return cast(SchemaElementNode, schema_node.elements[self])
+        except KeyError:
+            return build_schema_node_tree(
+                root=cast(XsdElementProtocol, self),
+                elements=schema_node.elements,
+                global_elements=schema_node.children,
+            )
+
     def build(self) -> None:
         if self._build:
-            return
+            return None
         self._build = True
         self._parse()
 
@@ -827,6 +843,8 @@ class XsdElement(XsdComponent, ParticleMixin,
         if content is not None:
             del content
 
+        element_node = None
+
         # Collect field values for identities that refer to this element.
         for identity, counter in identities.items():
             if not counter.enabled or not identity.elements:
@@ -843,17 +861,26 @@ class XsdElement(XsdComponent, ParticleMixin,
                 if xsd_type is self.type:
                     xsd_fields = identity.elements[xsd_element]
                     if xsd_fields is None:
-                        xsd_fields = identity.get_fields(xsd_element)
+                        xsd_fields = identity.get_fields(xsd_element.xpath_node)
                         identity.elements[xsd_element] = xsd_fields
                 else:
                     xsd_element = cast(XsdElement, self.copy())
                     xsd_element.type = xsd_type
-                    xsd_fields = identity.get_fields(xsd_element)
+                    xsd_fields = identity.get_fields(xsd_element.xpath_node)
 
                 if all(x is None for x in xsd_fields):
                     continue
                 decoders = cast(Tuple[XsdAttribute, ...], xsd_fields)
-                fields = identity.get_fields(obj, namespaces, decoders=decoders)
+
+                if element_node is None:
+                    try:
+                        resource = cast(XMLResource, kwargs['source'])
+                    except KeyError:
+                        element_node = LazyElementNode(obj, nsmap=copy(namespaces))
+                    else:
+                        element_node = resource.get_xpath_node(obj, identity.fields)
+
+                fields = identity.get_fields(element_node, namespaces, decoders=decoders)
             except (XMLSchemaValueError, XMLSchemaTypeError) as err:
                 yield self.validation_error(validation, err, obj, **kwargs)
             else:

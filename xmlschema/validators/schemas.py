@@ -32,7 +32,7 @@ from itertools import chain
 from typing import cast, Callable, ItemsView, List, Optional, Dict, Any, \
     Set, Union, Tuple, Type, Iterator, Counter
 
-from elementpath import XPathToken
+from elementpath import XPathToken, SchemaElementNode, build_schema_node_tree
 
 from ..exceptions import XMLSchemaTypeError, XMLSchemaKeyError, XMLSchemaRuntimeError, \
     XMLSchemaValueError, XMLSchemaNamespaceError
@@ -571,6 +571,14 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     @property
     def xpath_proxy(self) -> XMLSchemaProxy:
         return XMLSchemaProxy(cast(XsdSchemaProtocol, self))
+
+    @property
+    def xpath_node(self) -> SchemaElementNode:
+        if self._xpath_node is None:
+            self._xpath_node = build_schema_node_tree(
+                cast(Union[XsdSchemaProtocol], self)
+            )
+        return self._xpath_node
 
     @property
     def xsd_version(self) -> str:
