@@ -1785,7 +1785,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                         if ancestors[k] is not prev_ancestors[k]:
                             break
 
-                    path_ = '/'.join(e.tag for e in ancestors) + '/ancestor-or-self::node()'
+                    path_ = f"{'/'.join(e.tag for e in ancestors)}/ancestor-or-self::node()"
                     xsd_ancestors = cast(List[XsdElement], schema.findall(path_, namespaces)[1:])
 
                     for e in xsd_ancestors[k:]:

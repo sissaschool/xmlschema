@@ -10,7 +10,7 @@
 import threading
 from typing import TYPE_CHECKING, cast, Any, Dict, Iterator, Optional, Union
 from elementpath import ElementPathError, XPath2Parser, XPathContext, XPathToken, \
-    SchemaElementNode, build_schema_node_tree
+    LazyElementNode, SchemaElementNode, build_schema_node_tree
 
 from ..names import XSD_ASSERT
 from ..aliases import ElementType, SchemaType, SchemaElementType, NamespacesType
@@ -131,11 +131,15 @@ class XsdAssert(XsdComponent, ElementPathMixin[Union['XsdAssert', SchemaElementT
 
         variables = {'value': None if value is None else self.base_type.text_decode(value)}
         if source is not None:
-            context = XPathContext(source.root, namespaces=_namespaces,
-                                   item=elem, variables=variables)
+            context = XPathContext(
+                root=source.xpath_root,
+                namespaces=_namespaces,
+                item=source.get_xpath_node(elem),
+                variables=variables
+            )
         else:
             # If validated from a component (could not work with rooted XPath expressions)
-            context = XPathContext(elem, variables=variables)
+            context = XPathContext(LazyElementNode(elem), variables=variables)
 
         try:
             if not self.token.evaluate(context):

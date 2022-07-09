@@ -878,7 +878,7 @@ class XsdElement(XsdComponent, ParticleMixin,
                     except KeyError:
                         element_node = LazyElementNode(obj, nsmap=copy(namespaces))
                     else:
-                        element_node = resource.get_xpath_node(obj, identity.fields)
+                        element_node = resource.get_xpath_node(obj)
 
                 fields = identity.get_fields(element_node, namespaces, decoders=decoders)
             except (XMLSchemaValueError, XMLSchemaTypeError) as err:
