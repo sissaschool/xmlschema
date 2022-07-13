@@ -619,7 +619,9 @@ class XMLResource:
                 if event == 'start':
                     if not root_started:
                         self._root = node
-                        self._xpath_root = LazyElementNode(self._root)
+                        self._xpath_root = LazyElementNode(
+                            self._root, nsmap={k: v for k, v in _nsmap}
+                        )
                         root_started = True
                     if nsmap_update and isinstance(nsmap, dict):
                         for prefix, uri in _nsmap:
@@ -865,13 +867,15 @@ class XMLResource:
 
     def get_xpath_node(self, elem: ElementType) -> ElementNode:
         """
-        Returns an XPath node for the element. If the element does not belong to
-        the XML tree or if the resource is lazy, it returns a lazy element node.
+        Returns an XPath node for the element, fetching it from the XPath root node.
+        Returns a new lazy element node if the matching element node is not found.
         """
-        if self._lazy:
-            return LazyElementNode(elem)
+        xpath_node = self.xpath_root.get_element_node(elem)
+        if xpath_node is not None:
+            return xpath_node
+
         try:
-            return self.xpath_root.elements[elem]
+            return LazyElementNode(elem, nsmap=dict(self._nsmap[elem]))
         except KeyError:
             return LazyElementNode(elem)
 
@@ -1155,6 +1159,10 @@ class XMLResource:
                         yield node
 
                     del node[:]  # delete children, keep attributes, text and tail.
+
+                    # reset the whole XPath tree to let it still usable if other
+                    # children are added to the root by ElementTree.iterparse().
+                    self._xpath_root.children.clear()
         finally:
             if self._source is not resource:
                 resource.close()
@@ -1248,7 +1256,7 @@ class XMLResource:
                             yield node
 
                         del node[:]  # delete children, keep attributes, text and tail.
-                        self._xpath_root = LazyElementNode(self._root)  # reset XPath tree
+                        self._xpath_root.children.clear()  # reset XPath tree
 
             finally:
                 if self._source is not resource:
