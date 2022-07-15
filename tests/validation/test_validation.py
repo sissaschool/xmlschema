@@ -13,6 +13,7 @@ import os
 import sys
 import decimal
 from textwrap import dedent
+from xml.etree import ElementTree
 
 try:
     import lxml.etree as lxml_etree
@@ -22,7 +23,6 @@ except ImportError:
 import xmlschema
 from xmlschema import XMLSchemaValidationError
 
-from xmlschema.etree import ElementTree
 from xmlschema.validators import XMLSchema11
 from xmlschema.testing import XsdValidatorTestCase
 

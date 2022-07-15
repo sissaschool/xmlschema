@@ -13,6 +13,7 @@ import os
 import platform
 import re
 from textwrap import dedent
+from xml.etree import ElementTree
 
 try:
     import lxml.etree as lxml_etree
@@ -22,7 +23,6 @@ except ImportError:
 from xmlschema.validators import XsdValidator, XsdComponent, XMLSchema10, XMLSchema11, \
     XMLSchemaParseError, XMLSchemaValidationError, XsdAnnotation, XsdGroup, XsdSimpleType
 from xmlschema.names import XSD_NAMESPACE, XSD_ELEMENT, XSD_ANNOTATION, XSD_ANY_TYPE
-from xmlschema.etree import ElementTree
 from xmlschema.dataobjects import DataElement
 
 CASES_DIR = os.path.join(os.path.dirname(__file__), '../test_cases')

@@ -21,15 +21,17 @@ from urllib.request import urlopen
 from urllib.parse import urlsplit, uses_relative
 from pathlib import Path, PurePath, PureWindowsPath, PurePosixPath
 from unittest.mock import patch, MagicMock
+from xml.etree import ElementTree
 
 try:
     import lxml.etree as lxml_etree
 except ImportError:
     lxml_etree = None
 
+from elementpath.etree import PyElementTree, is_etree_element
+
 from xmlschema import fetch_namespaces, fetch_resource, normalize_url, \
     fetch_schema, fetch_schema_locations, XMLResource, XMLResourceError, XMLSchema
-from xmlschema.etree import ElementTree, etree_element, py_etree_element, is_etree_element
 from xmlschema.names import XSD_NAMESPACE
 import xmlschema.resources
 from xmlschema.resources import is_url, is_local_url, is_remote_url, \
@@ -790,9 +792,9 @@ class TestResources(unittest.TestCase):
         self.assertEqual(resource.defuse, 'never')
         self.assertRaises(ValueError, XMLResource, self.vh_xml_file, defuse='all')
         self.assertRaises(TypeError, XMLResource, self.vh_xml_file, defuse=None)
-        self.assertIsInstance(resource.root, etree_element)
+        self.assertIsInstance(resource.root, ElementTree.Element)
         resource = XMLResource(self.vh_xml_file, defuse='always', lazy=True)
-        self.assertIsInstance(resource.root, py_etree_element)
+        self.assertIsInstance(resource.root, PyElementTree.Element)
 
         xml_file = casepath('resources/with_entity.xml')
         self.assertIsInstance(XMLResource(xml_file, lazy=True), XMLResource)
@@ -1371,9 +1373,9 @@ class TestResources(unittest.TestCase):
 
     def test_schema_defuse(self):
         vh_schema = XMLSchema(self.vh_xsd_file, defuse='always')
-        self.assertIsInstance(vh_schema.root, etree_element)
+        self.assertIsInstance(vh_schema.root, ElementTree.Element)
         for schema in vh_schema.maps.iter_schemas():
-            self.assertIsInstance(schema.root, etree_element)
+            self.assertIsInstance(schema.root, ElementTree.Element)
 
     def test_schema_resource_access(self):
         vh_schema = XMLSchema(self.vh_xsd_file, allow='sandbox')

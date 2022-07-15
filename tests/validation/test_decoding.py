@@ -16,6 +16,7 @@ import json
 import math
 from decimal import Decimal
 from collections.abc import MutableMapping, MutableSequence, Set
+from xml.etree import ElementTree
 
 try:
     import lxml.etree as lxml_etree
@@ -28,7 +29,6 @@ from xmlschema import XMLSchemaValidationError, ParkerConverter, BadgerFishConve
     AbderaConverter, JsonMLConverter, ColumnarConverter
 
 from xmlschema.names import XSD_STRING
-from xmlschema.etree import ElementTree
 from xmlschema.converters import UnorderedConverter
 from xmlschema.validators import XMLSchema11
 from xmlschema.testing import XsdValidatorTestCase, etree_elements_assert_equal

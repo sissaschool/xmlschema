@@ -9,8 +9,9 @@
 #
 import re
 from typing import Any, Dict, List, Type, Union, Iterator
+from xml.etree.ElementTree import Element
+
 from ..helpers import get_namespace, get_qname
-from ..etree import etree_element
 
 _REGEX_SPACES = re.compile(r'\s+')
 
@@ -33,7 +34,7 @@ def iter_nested_items(items: Union[Dict[Any, Any], List[Any]],
         yield items
 
 
-def etree_elements_assert_equal(elem: etree_element, other: etree_element,
+def etree_elements_assert_equal(elem: Element, other: Element,
                                 strict: bool = True, skip_comments: bool = True,
                                 unordered: bool = False) -> None:
     """
@@ -46,7 +47,7 @@ def etree_elements_assert_equal(elem: etree_element, other: etree_element,
     :param unordered: children may have different order.
     :raise: an AssertionError containing information about first difference encountered.
     """
-    children: Union[etree_element, List[etree_element]]
+    children: Union[Element, List[Element]]
 
     if unordered:
         children = sorted(elem, key=lambda x: '' if callable(x.tag) else x.tag)

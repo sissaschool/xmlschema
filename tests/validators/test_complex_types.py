@@ -10,9 +10,9 @@
 #
 import unittest
 import warnings
+from xml.etree.ElementTree import Element
 
 from xmlschema import XMLSchemaParseError, XMLSchemaModelError
-from xmlschema.etree import etree_element
 from xmlschema.validators import XMLSchema11
 from xmlschema.testing import XsdValidatorTestCase
 
@@ -474,11 +474,11 @@ class TestXsd11ComplexType(TestXsdComplexType):
             </xs:complexType>""")
 
         xsd_type = schema.types['intRange']
-        xsd_type.decode(etree_element('a', attrib={'min': '10', 'max': '19'}))
-        self.assertTrue(xsd_type.is_valid(etree_element('a', attrib={'min': '10', 'max': '19'})))
-        self.assertTrue(xsd_type.is_valid(etree_element('a', attrib={'min': '19', 'max': '19'})))
-        self.assertFalse(xsd_type.is_valid(etree_element('a', attrib={'min': '25', 'max': '19'})))
-        self.assertTrue(xsd_type.is_valid(etree_element('a', attrib={'min': '25', 'max': '100'})))
+        xsd_type.decode(Element('a', attrib={'min': '10', 'max': '19'}))
+        self.assertTrue(xsd_type.is_valid(Element('a', attrib={'min': '10', 'max': '19'})))
+        self.assertTrue(xsd_type.is_valid(Element('a', attrib={'min': '19', 'max': '19'})))
+        self.assertFalse(xsd_type.is_valid(Element('a', attrib={'min': '25', 'max': '19'})))
+        self.assertTrue(xsd_type.is_valid(Element('a', attrib={'min': '25', 'max': '100'})))
 
     def test_sequence_extension(self):
         schema = self.schema_class("""

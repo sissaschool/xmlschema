@@ -13,11 +13,12 @@
 import unittest
 import os
 import pathlib
+from xml.etree import ElementTree
+
 from elementpath import XPath1Parser, XPath2Parser, Selector
 
 from xmlschema import XMLSchema10, XMLSchema11
 from xmlschema.names import XSD_NAMESPACE
-from xmlschema.etree import ElementTree
 from xmlschema.xpath import XMLSchemaProxy, XPathElement
 from xmlschema.validators import XsdAtomic, XsdAtomicRestriction
 

@@ -10,8 +10,7 @@
 from collections.abc import MutableMapping, MutableSequence
 from typing import TYPE_CHECKING, cast, Any, Dict, Union
 
-from ..etree import ElementData
-from .default import XMLSchemaConverter
+from .default import ElementData, XMLSchemaConverter
 
 if TYPE_CHECKING:
     from ..validators import XsdElement

@@ -17,6 +17,7 @@ import logging
 import importlib
 import tempfile
 import warnings
+from xml.etree import ElementTree
 
 try:
     import lxml.etree as lxml_etree
@@ -26,7 +27,7 @@ except ImportError:
 else:
     lxml_etree_element = lxml_etree.Element
 
-from elementpath import XPathSchemaContext
+from elementpath.etree import PyElementTree, etree_tostring
 
 import xmlschema
 from xmlschema import XMLSchemaBase, XMLSchema11, XMLSchemaValidationError, \
@@ -34,8 +35,6 @@ from xmlschema import XMLSchemaBase, XMLSchema11, XMLSchemaValidationError, \
     AbderaConverter, JsonMLConverter, ColumnarConverter
 from xmlschema.names import XSD_IMPORT
 from xmlschema.helpers import local_name
-from xmlschema.etree import etree_tostring, ElementTree, \
-    py_etree_element
 from xmlschema.resources import fetch_namespaces
 from xmlschema.validators import XsdType, Xsd11ComplexType
 from xmlschema.dataobjects import DataElementConverter, DataBindingConverter, DataElement
@@ -114,7 +113,7 @@ def make_schema_test_class(test_file, test_args, test_num, schema_class, check_w
                     # are built with the SafeXMLParser that uses pure Python elements.
                     for e in schema.maps.iter_components():
                         elem = getattr(e, 'elem', getattr(e, 'root', None))
-                        if isinstance(elem, py_etree_element):
+                        if isinstance(elem, PyElementTree.Element):
                             break
                     else:
                         raise

@@ -12,9 +12,9 @@
 
 import unittest
 import pathlib
+from xml.etree import ElementTree
 
 from xmlschema import XMLSchemaValidationError, XMLSchema10, XMLSchema11
-from xmlschema.etree import ElementTree, ParseError
 from xmlschema.extras.wsdl import WsdlParseError, WsdlComponent, WsdlMessage, \
     WsdlPortType, WsdlOperation, WsdlBinding, WsdlService, Wsdl11Document, \
     WsdlInput, SoapHeader
@@ -319,7 +319,7 @@ class TestWsdlDocuments(unittest.TestCase):
 
     def test_example5(self):
         original_example5_file = casepath('features/wsdl/wsdl11_example5.wsdl')
-        with self.assertRaises(ParseError):
+        with self.assertRaises(ElementTree.ParseError):
             Wsdl11Document(original_example5_file)
 
         example5_file = casepath('features/wsdl/wsdl11_example5_valid.wsdl')

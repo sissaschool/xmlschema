@@ -12,12 +12,12 @@ from itertools import count
 from typing import TYPE_CHECKING, cast, overload, Any, Dict, List, Iterator, \
     Optional, Union, Tuple, Type, MutableMapping, MutableSequence
 from elementpath import XPathContext, XPath2Parser, build_node_tree, protocols
+from elementpath.etree import etree_tostring
 
 from .exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, XMLSchemaValueError
-from .etree import ElementData, etree_tostring
 from .aliases import ElementType, XMLSourceType, NamespacesType, BaseXsdType, DecodeType
 from .helpers import get_namespace, get_prefixed_qname, local_name, raw_xml_encode
-from .converters import XMLSchemaConverter
+from .converters import ElementData, XMLSchemaConverter
 from .resources import XMLResource
 from . import validators
 

@@ -10,9 +10,9 @@
 #
 import os
 import unittest
+from xml.etree import ElementTree
 
 from xmlschema import XMLSchema10, XMLSchemaParseError
-from xmlschema.etree import ElementTree
 from xmlschema.validators.particles import ParticleMixin
 
 CASES_DIR = os.path.join(os.path.dirname(__file__), '../test_cases')

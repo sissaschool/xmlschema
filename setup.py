@@ -29,7 +29,7 @@ setup(
         ]
     },
     python_requires='>=3.7',
-    install_requires=['elementpath>=3.0.0, <4.0.0'],
+    install_requires=['elementpath>=2.0.0, <4.0.0'],
     extras_require={
         'codegen': ['elementpath>=3.0.0, <4.0.0', 'jinja2'],
         'dev': ['tox', 'coverage', 'lxml', 'elementpath>=3.0.0, <4.0.0',

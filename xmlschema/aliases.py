@@ -28,12 +28,12 @@ if TYPE_CHECKING:
     from pathlib import Path
     from decimal import Decimal
     from typing import Callable, Dict, List, IO, Iterator, MutableMapping, Tuple, Type, Union
+    from xml.etree import ElementTree
 
     from elementpath.datatypes import NormalizedString, QName, Float10, Integer, \
         Time, Base64Binary, HexBinary, AnyURI, Duration
     from elementpath.datatypes.datetime import OrderedDateTime
 
-    from .etree import ElementTree
     from .resources import XMLResource
     from .converters import XMLSchemaConverter
     from .validators import XMLSchemaValidationError, XsdComponent, XMLSchemaBase, \

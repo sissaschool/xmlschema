@@ -12,9 +12,10 @@ from io import IOBase, TextIOBase
 from typing import Any, Dict, List, Optional, Type, Union, Tuple, \
     IO, BinaryIO, TextIO, Iterator
 
+from elementpath.etree import ElementTree, etree_tostring
+
 from .exceptions import XMLSchemaTypeError, XMLSchemaValueError, XMLResourceError
 from .names import XSD_NAMESPACE, XSI_TYPE
-from .etree import ElementTree, etree_tostring
 from .aliases import ElementType, XMLSourceType, NamespacesType, LocationsType, \
     LazyType, SchemaSourceType, ConverterType, DecodeType, EncodeType, \
     JsonDecodeType

@@ -31,6 +31,7 @@ from copy import copy
 from itertools import chain
 from typing import cast, Callable, ItemsView, List, Optional, Dict, Any, \
     Set, Union, Tuple, Type, Iterator, Counter
+from xml.etree.ElementTree import Element, ParseError
 
 from elementpath import XPathToken, SchemaElementNode, build_schema_node_tree
 
@@ -44,7 +45,6 @@ from ..names import VC_MIN_VERSION, VC_MAX_VERSION, VC_TYPE_AVAILABLE, \
     VC_NAMESPACE, SCHEMAS_DIR, LOCATION_HINTS, XSD_ANNOTATION, XSD_INCLUDE, \
     XSD_IMPORT, XSD_REDEFINE, XSD_OVERRIDE, XSD_DEFAULT_OPEN_CONTENT, \
     XSD_ANY_SIMPLE_TYPE, XSD_UNION, XSD_LIST, XSD_RESTRICTION
-from ..etree import etree_element, ParseError
 from ..aliases import ElementType, XMLSourceType, NamespacesType, LocationsType, \
     SchemaType, SchemaSourceType, ConverterType, ComponentClassType, DecodeType, \
     EncodeType, BaseXsdType, AtomicValueType, ExtraValidatorType, SchemaGlobalType
@@ -81,12 +81,12 @@ XSD_VERSION_PATTERN = re.compile(r'^\d+\.\d+$')
 DRIVE_PATTERN = re.compile(r'^[a-zA-Z]:$')
 
 # Elements for building dummy groups
-ATTRIBUTE_GROUP_ELEMENT = etree_element(XSD_ATTRIBUTE_GROUP)
-ANY_ATTRIBUTE_ELEMENT = etree_element(
+ATTRIBUTE_GROUP_ELEMENT = Element(XSD_ATTRIBUTE_GROUP)
+ANY_ATTRIBUTE_ELEMENT = Element(
     XSD_ANY_ATTRIBUTE, attrib={'namespace': '##any', 'processContents': 'lax'}
 )
-SEQUENCE_ELEMENT = etree_element(XSD_SEQUENCE)
-ANY_ELEMENT = etree_element(
+SEQUENCE_ELEMENT = Element(XSD_SEQUENCE)
+ANY_ELEMENT = Element(
     XSD_ANY,
     attrib={
         'namespace': '##any',
@@ -874,11 +874,11 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     def create_empty_content_group(self, parent: Union[XsdComplexType, XsdGroup],
                                    model: str = 'sequence', **attrib: Any) -> XsdGroup:
         if model == 'sequence':
-            group_elem = etree_element(XSD_SEQUENCE, **attrib)
+            group_elem = Element(XSD_SEQUENCE, **attrib)
         elif model == 'choice':
-            group_elem = etree_element(XSD_CHOICE, **attrib)
+            group_elem = Element(XSD_CHOICE, **attrib)
         elif model == 'all':
-            group_elem = etree_element(XSD_ALL, **attrib)
+            group_elem = Element(XSD_ALL, **attrib)
         else:
             msg = _("'model' argument must be (sequence | choice | all)")
             raise XMLSchemaValueError(msg)
@@ -918,7 +918,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         """
         schema = self.meta_schema or self
         any_type = self.xsd_complex_type_class(
-            elem=etree_element(XSD_COMPLEX_TYPE, name=XSD_ANY_TYPE),
+            elem=Element(XSD_COMPLEX_TYPE, name=XSD_ANY_TYPE),
             schema=schema, parent=None, mixed=True, block='', final=''
         )
         assert isinstance(any_type.content, XsdGroup)
@@ -939,7 +939,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         Used as dummy element for validation/decoding/encoding
         operations of wildcards and complex types.
         """
-        elem = etree_element(XSD_ELEMENT, name=name, **attrib)
+        elem = Element(XSD_ELEMENT, name=name, **attrib)
         if text is not None:
             elem.text = text
         return self.xsd_element_class(elem=elem, schema=self, parent=parent)

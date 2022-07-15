@@ -9,8 +9,9 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import unittest
-import xml.etree.ElementTree as ElementTree
+from xml.etree.ElementTree import Element, parse as etree_parse
 from pathlib import Path
+from typing import cast, MutableMapping, Optional, Type
 
 try:
     import lxml.etree as lxml_etree
@@ -18,7 +19,6 @@ except ImportError:
     lxml_etree = None
 
 from xmlschema import XMLSchema, XMLSchemaValidationError, fetch_namespaces
-from xmlschema.etree import etree_element
 from xmlschema.dataobjects import DataElement
 from xmlschema.testing import etree_elements_assert_equal
 
@@ -29,12 +29,16 @@ from xmlschema.dataobjects import DataElementConverter
 
 
 class TestConverters(unittest.TestCase):
+    col_xsd_filename: str
+    col_xml_filename: str
+    col_nsmap: MutableMapping[str, str]
+    col_lxml_root: Optional['lxml_etree.ElementTree']
 
     @classmethod
     def setUpClass(cls):
         cls.col_xsd_filename = cls.casepath('examples/collection/collection.xsd')
         cls.col_xml_filename = cls.casepath('examples/collection/collection.xml')
-        cls.col_xml_root = ElementTree.parse(cls.col_xml_filename).getroot()
+        cls.col_xml_root = etree_parse(cls.col_xml_filename).getroot()
         cls.col_nsmap = fetch_namespaces(cls.col_xml_filename)
         cls.col_namespace = cls.col_nsmap['col']
 
@@ -49,13 +53,15 @@ class TestConverters(unittest.TestCase):
 
     def test_element_class_argument(self):
         converter = XMLSchemaConverter()
-        self.assertIs(converter.etree_element_class, etree_element)
+        self.assertIs(converter.etree_element_class, Element)
 
-        converter = XMLSchemaConverter(etree_element_class=etree_element)
-        self.assertIs(converter.etree_element_class, etree_element)
+        converter = XMLSchemaConverter(etree_element_class=Element)
+        self.assertIs(converter.etree_element_class, Element)
 
         if lxml_etree is not None:
-            converter = XMLSchemaConverter(etree_element_class=lxml_etree.Element)
+            converter = XMLSchemaConverter(
+                etree_element_class=cast(Type[Element], lxml_etree.Element)
+            )
             self.assertIs(converter.etree_element_class, lxml_etree.Element)
 
     def test_prefix_arguments(self):
@@ -147,10 +153,10 @@ class TestConverters(unittest.TestCase):
     def test_etree_element_method(self):
         converter = XMLSchemaConverter()
         elem = converter.etree_element('A')
-        self.assertIsNone(etree_elements_assert_equal(elem, etree_element('A')))
+        self.assertIsNone(etree_elements_assert_equal(elem, Element('A')))
 
         elem = converter.etree_element('A', attrib={})
-        self.assertIsNone(etree_elements_assert_equal(elem, etree_element('A')))
+        self.assertIsNone(etree_elements_assert_equal(elem, Element('A')))
 
     def test_columnar_converter(self):
         col_schema = XMLSchema(self.col_xsd_filename, converter=ColumnarConverter)

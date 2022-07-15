@@ -16,9 +16,8 @@ import pathlib
 from urllib.error import URLError
 
 import xmlschema
-from xmlschema import XMLSchema, XMLSchema11, iter_errors, to_json, from_json
+from xmlschema import XMLSchema, XMLSchema11, iter_errors, to_json, from_json, etree_tostring
 from xmlschema.exceptions import XMLSchemaValueError
-from xmlschema.etree import etree_tostring
 
 
 PROGRAM_NAME = os.path.basename(sys.argv[0])

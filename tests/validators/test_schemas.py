@@ -19,10 +19,10 @@ import glob
 import os
 import re
 from textwrap import dedent
+from xml.etree.ElementTree import Element
 
 from xmlschema import XMLSchemaParseError, XMLSchemaIncludeWarning, XMLSchemaImportWarning
 from xmlschema.names import XML_NAMESPACE, LOCATION_HINTS, SCHEMAS_DIR, XSD_ELEMENT, XSI_TYPE
-from xmlschema.etree import etree_element
 from xmlschema.validators import XMLSchemaBase, XMLSchema10, XMLSchema11, \
     XsdGlobals, Xsd11Attribute
 from xmlschema.testing import SKIP_REMOTE_TESTS, XsdValidatorTestCase
@@ -316,9 +316,9 @@ class TestXMLSchema10(XsdValidatorTestCase):
 
     def test_schema_defuse(self):
         vh_schema = self.schema_class(self.vh_xsd_file, defuse='always')
-        self.assertIsInstance(vh_schema.root, etree_element)
+        self.assertIsInstance(vh_schema.root, Element)
         for schema in vh_schema.maps.iter_schemas():
-            self.assertIsInstance(schema.root, etree_element)
+            self.assertIsInstance(schema.root, Element)
 
     def test_logging(self):
         self.schema_class(self.vh_xsd_file, loglevel=logging.ERROR)

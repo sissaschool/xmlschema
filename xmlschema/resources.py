@@ -22,10 +22,10 @@ from urllib.error import URLError
 
 from elementpath import XPathToken, XPathContext, XPath2Parser, ElementNode, \
     LazyElementNode, DocumentNode, build_lxml_node_tree, build_node_tree
+from elementpath.etree import ElementTree, PyElementTree, SafeXMLParser, etree_tostring
 
 from .exceptions import XMLSchemaTypeError, XMLSchemaValueError, XMLResourceError
 from .names import XML_NAMESPACE
-from .etree import ElementTree, PyElementTree, SafeXMLParser, etree_tostring
 from .aliases import ElementType, ElementTreeType, NamespacesType, XMLSourceType, \
     NormalizedLocationsType, LocationsType, NsmapType, ParentMapType
 from .helpers import get_namespace, is_etree_document, etree_iter_location_hints

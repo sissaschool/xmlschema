@@ -15,6 +15,7 @@ from copy import copy
 from decimal import Decimal
 from types import GeneratorType
 from typing import TYPE_CHECKING, cast, Any, Dict, Iterator, List, Optional, Tuple, Type, Union
+from xml.etree.ElementTree import Element
 
 from elementpath import XPath2Parser, ElementPathError, XPathContext, XPathToken, \
     LazyElementNode, SchemaElementNode, build_schema_node_tree
@@ -24,7 +25,6 @@ from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from ..names import XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE, XSD_ALTERNATIVE, \
     XSD_ELEMENT, XSD_ANY_TYPE, XSD_UNIQUE, XSD_KEY, XSD_KEYREF, XSI_NIL, \
     XSI_TYPE, XSD_ERROR, XSD_NOTATION_TYPE
-from ..etree import ElementData, etree_element
 from ..aliases import ElementType, SchemaType, BaseXsdType, SchemaElementType, \
     ModelParticleType, ComponentClassType, AtomicValueType, DecodeType, \
     IterDecodeType, IterEncodeType
@@ -32,7 +32,7 @@ from ..translation import gettext as _
 from ..helpers import get_qname, get_namespace, etree_iter_location_hints, \
     raw_xml_encode, strictly_equal
 from .. import dataobjects
-from ..converters import XMLSchemaConverter
+from ..converters import ElementData, XMLSchemaConverter
 from ..xpath import XsdSchemaProtocol, XsdElementProtocol, XMLSchemaProxy, \
     ElementPathMixin, XPathElement
 from ..resources import XMLResource
@@ -113,7 +113,7 @@ class XsdElement(XsdComponent, ParticleMixin,
 
     binding: Optional[DataBindingType] = None
 
-    def __init__(self, elem: etree_element,
+    def __init__(self, elem: Element,
                  schema: SchemaType,
                  parent: Optional[XsdComponent] = None,
                  build: bool = True) -> None:
@@ -1332,12 +1332,12 @@ class Xsd11Element(XsdElement):
                     if value is not None:
                         attrib[k] = value
 
-                elem = etree_element(elem.tag, attrib=attrib)
+                elem = Element(elem.tag, attrib=attrib)
             else:
-                elem = etree_element(elem.tag)
+                elem = Element(elem.tag)
 
         if inherited:
-            dummy = etree_element('_dummy_element', attrib=inherited)
+            dummy = Element('_dummy_element', attrib=inherited)
             dummy.attrib.update(elem.attrib)
 
             for alt in self.alternatives:

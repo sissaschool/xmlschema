@@ -7,7 +7,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from .default import XMLSchemaConverter
+from .default import ElementData, XMLSchemaConverter
 from .unordered import UnorderedConverter
 from .parker import ParkerConverter
 from .badgerfish import BadgerFishConverter
@@ -17,4 +17,4 @@ from .columnar import ColumnarConverter
 
 __all__ = ['XMLSchemaConverter', 'UnorderedConverter', 'ParkerConverter',
            'BadgerFishConverter', 'AbderaConverter', 'JsonMLConverter',
-           'ColumnarConverter']
+           'ColumnarConverter', 'ElementData']

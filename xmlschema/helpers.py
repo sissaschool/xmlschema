@@ -249,7 +249,7 @@ def etree_iter_location_hints(elem: ElementType) -> Iterator[Tuple[Any, Any]]:
 def prune_etree(root: ElementType, selector: Callable[[ElementType], bool]) \
         -> Optional[bool]:
     """
-    Removes from an tree structure the elements that verify the selector
+    Removes from a tree structure the elements that verify the selector
     function. The checking and eventual removals are performed using a
     breadth-first visit method.
 
