@@ -53,10 +53,10 @@ args = parser.parse_args()
 def import_package():
     # Imports of packages used by xmlschema that
     # have a significant memory usage impact.
-    import decimal
-    from urllib.error import URLError
-    import lxml.etree
-    import elementpath
+    import decimal                     # noqa
+    from urllib.error import URLError  # noqa
+    import lxml.etree                  # noqa
+    import elementpath                 # noqa
 
     import xmlschema
     return xmlschema

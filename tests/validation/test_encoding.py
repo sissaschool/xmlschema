@@ -486,7 +486,6 @@ class TestEncoding(XsdValidatorTestCase):
             <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
                        xmlns="http://xmlschema.test/ns"
                        targetNamespace="http://xmlschema.test/ns">
-              
               <xs:element name="a" type="xs:string"/>
               <xs:complexType name="altType">
                 <xs:simpleContent>
@@ -500,7 +499,7 @@ class TestEncoding(XsdValidatorTestCase):
         xml1 = """<a xmlns="http://xmlschema.test/ns">alpha</a>"""
         self.assertEqual(schema.decode(xml1), 'alpha')
 
-        xml2 = """<a xmlns="http://xmlschema.test/ns" 
+        xml2 = """<a xmlns="http://xmlschema.test/ns"
                      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                      xsi:type="altType" a1="beta">alpha</a>"""
 
@@ -645,7 +644,9 @@ class TestEncoding(XsdValidatorTestCase):
             etree_tostring(elem, namespaces=self.col_namespaces),
             dedent(
                 """\
-                <col:collection xmlns:col="http://example.com/ns/collection" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://example.com/ns/collection collection.xsd">
+                <col:collection xmlns:col="http://example.com/ns/collection" \
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" \
+xsi:schemaLocation="http://example.com/ns/collection collection.xsd">
                     <object id="b0836217463" available="true">
                         <position>2</position>
                         <title/>

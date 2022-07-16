@@ -95,7 +95,7 @@ WSDL_DOCUMENT_EXAMPLE = """<?xml version="1.0"?>
 
 WSDL_DOCUMENT_NO_SOAP = """<?xml version="1.0"?>
 <wsdl:definitions name="minimal"
-        xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/" 
+        xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/"
         xmlns:xs="http://www.w3.org/2001/XMLSchema">
 
     <wsdl:message name="myMessage">
@@ -401,7 +401,7 @@ class TestWsdlDocuments(unittest.TestCase):
 
     def test_wsdl_document_invalid_imports(self):
         wsdl_template = """<?xml version="1.0"?>
-        <definitions name="import-test1" 
+        <definitions name="import-test1"
                 xmlns="http://schemas.xmlsoap.org/wsdl/">
             <import namespace="http://example.com/ns" location="{0}"/>
         </definitions>"""
@@ -425,7 +425,7 @@ class TestWsdlDocuments(unittest.TestCase):
         self.assertIn('no element found', str(ctx.exception))
 
         wsdl_template = """<?xml version="1.0"?>
-        <definitions name="import-test1" 
+        <definitions name="import-test1"
                 targetNamespace="http://example.com/ns"
                 xmlns="http://schemas.xmlsoap.org/wsdl/">
             <import namespace="http://example.com/ns" location="{0}"/>
@@ -437,7 +437,7 @@ class TestWsdlDocuments(unittest.TestCase):
         self.assertIn('namespace to import must be different', str(ctx.exception))
 
         wsdl_template = """<?xml version="1.0"?>
-        <definitions name="import-test1" 
+        <definitions name="import-test1"
                 targetNamespace="http://example.com/stockquote/definitions"
                 xmlns="http://schemas.xmlsoap.org/wsdl/">
             <import namespace="http://example.com/ns" location="{0}"/>

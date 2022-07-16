@@ -430,11 +430,11 @@ class TestXsdComplexType(XsdValidatorTestCase):
     def test_is_empty(self):
         schema = self.check_schema("""
             <xs:complexType name="emptyType1"/>
-            
+
             <xs:complexType name="emptyType2">
                 <xs:sequence/>
             </xs:complexType>
-            
+
             <xs:complexType name="emptyType3">
                 <xs:complexContent>
                     <xs:restriction base="xs:anyType"/>
@@ -446,7 +446,7 @@ class TestXsdComplexType(XsdValidatorTestCase):
                     <xs:element name="elem1"/>
                 </xs:sequence>
             </xs:complexType>
-            
+
             <xs:complexType name="notEmptyType2">
                 <xs:complexContent>
                     <xs:extension base="xs:anyType"/>

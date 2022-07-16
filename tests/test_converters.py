@@ -104,7 +104,7 @@ class TestConverters(unittest.TestCase):
                     </xs:sequence>
                 </xs:complexType>
             </xs:element>
-        </xs:schema> 
+        </xs:schema>
         """)
 
         self.assertEqual(
@@ -117,7 +117,7 @@ class TestConverters(unittest.TestCase):
 
     def test_preserve_root__issue_215(self):
         schema = XMLSchema("""
-        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
                    xmlns="http://xmlschema.test/ns"
                    targetNamespace="http://xmlschema.test/ns">
             <xs:element name="a">
@@ -128,8 +128,7 @@ class TestConverters(unittest.TestCase):
                     </xs:sequence>
                 </xs:complexType>
             </xs:element>
-        </xs:schema> 
-        """)
+        </xs:schema>""")
 
         xml_data = """<tns:a xmlns:tns="http://xmlschema.test/ns"><b1/><b2/></tns:a>"""
 

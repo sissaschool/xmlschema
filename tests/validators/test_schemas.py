@@ -114,7 +114,7 @@ class TestXMLSchema10(XsdValidatorTestCase):
     def test_resolve_qname(self):
         schema = self.schema_class(dedent("""\
             <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
-                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">    
+                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
               <xs:element name="root" />
             </xs:schema>"""))
 
@@ -358,7 +358,7 @@ class TestXMLSchema10(XsdValidatorTestCase):
 
     def test_target_namespace(self):
         schema = self.schema_class(dedent("""\
-            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
                     targetNamespace="http://xmlschema.test/ns">
                 <xs:element name="root"/>
             </xs:schema>"""))
@@ -372,7 +372,7 @@ class TestXMLSchema10(XsdValidatorTestCase):
 
         with self.assertRaises(XMLSchemaParseError) as ctx:
             self.schema_class(dedent("""\
-                <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+                <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
                         targetNamespace="">
                     <xs:element name="root"/>
                 </xs:schema>"""))
@@ -382,14 +382,14 @@ class TestXMLSchema10(XsdValidatorTestCase):
 
     def test_block_default(self):
         schema = self.schema_class(dedent("""\
-            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
                     blockDefault="extension restriction ">
                 <xs:element name="root"/>
             </xs:schema>"""))
         self.assertEqual(schema.block_default, 'extension restriction ')
 
         schema = self.schema_class(dedent("""\
-            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
                     blockDefault="#all">
                 <xs:element name="root"/>
             </xs:schema>"""))
@@ -398,7 +398,7 @@ class TestXMLSchema10(XsdValidatorTestCase):
 
         with self.assertRaises(XMLSchemaParseError) as ctx:
             self.schema_class(dedent("""\
-                <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+                <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
                         blockDefault="all">>
                     <xs:element name="root"/>
                 </xs:schema>"""))
@@ -408,7 +408,7 @@ class TestXMLSchema10(XsdValidatorTestCase):
 
         with self.assertRaises(XMLSchemaParseError) as ctx:
             self.schema_class(dedent("""\
-                <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+                <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
                         blockDefault="#all restriction">>
                     <xs:element name="root"/>
                 </xs:schema>"""))
@@ -418,14 +418,14 @@ class TestXMLSchema10(XsdValidatorTestCase):
 
     def test_final_default(self):
         schema = self.schema_class(dedent("""\
-            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
                     finalDefault="extension restriction ">
                 <xs:element name="root"/>
             </xs:schema>"""))
         self.assertEqual(schema.final_default, 'extension restriction ')
 
         schema = self.schema_class(dedent("""\
-            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
                     finalDefault="#all">
                 <xs:element name="root"/>
             </xs:schema>"""))
@@ -434,7 +434,7 @@ class TestXMLSchema10(XsdValidatorTestCase):
 
         with self.assertRaises(XMLSchemaParseError) as ctx:
             self.schema_class(dedent("""\
-                <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+                <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
                         finalDefault="all">>
                     <xs:element name="root"/>
                 </xs:schema>"""))
@@ -473,7 +473,7 @@ class TestXMLSchema10(XsdValidatorTestCase):
                 <xs:element name="root">
                     <xs:complexType>
                         <xs:attribute name="a" use="required"/>
-                        <xs:assert test="@a > 300" vc:minVersion="1.1" 
+                        <xs:assert test="@a > 300" vc:minVersion="1.1"
                             xmlns:vc="http://www.w3.org/2007/XMLSchema-versioning"/>
                     </xs:complexType>
                 </xs:element>
@@ -481,8 +481,8 @@ class TestXMLSchema10(XsdValidatorTestCase):
         self.assertEqual(len(schema.root[0][0]), 1 if schema.XSD_VERSION == '1.0' else 2)
 
         schema = self.schema_class(dedent("""
-            <xs:schema vc:minVersion="1.1" elementFormDefault="qualified" 
-                    xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+            <xs:schema vc:minVersion="1.1" elementFormDefault="qualified"
+                    xmlns:xs="http://www.w3.org/2001/XMLSchema"
                     xmlns:vc="http://www.w3.org/2007/XMLSchema-versioning">
                 <xs:element name="root"/>
             </xs:schema>"""))
@@ -586,7 +586,7 @@ class TestXMLSchema10(XsdValidatorTestCase):
         self.assertIn("global element with name='elem2' is already defined", str(ec.exception))
 
         source1 = dedent("""\
-            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
                     targetNamespace="http://xmlschema.test/ns">
                 <xs:element name="elem1"/>
             </xs:schema>""")
@@ -600,7 +600,7 @@ class TestXMLSchema10(XsdValidatorTestCase):
 
     def test_add_schema(self):
         source1 = dedent("""\
-            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
                     targetNamespace="http://xmlschema.test/ns">
                 <xs:element name="elem1"/>
             </xs:schema>""")
@@ -611,7 +611,7 @@ class TestXMLSchema10(XsdValidatorTestCase):
             </xs:schema>""")
 
         source3 = dedent("""\
-             <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+             <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
                      targetNamespace="http://xmlschema.test/ns1">
                  <xs:element name="elem3"/>
              </xs:schema>""")
@@ -852,7 +852,7 @@ class TestXMLSchema11(TestXMLSchema10):
 
     def test_default_attributes(self):
         schema = self.schema_class(dedent("""\
-                    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+                    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
                             defaultAttributes="attrs">
                         <xs:element name="root"/>
                         <xs:attributeGroup name="attrs">
@@ -863,7 +863,7 @@ class TestXMLSchema11(TestXMLSchema10):
 
         with self.assertRaises(XMLSchemaParseError) as ctx:
             self.schema_class(dedent("""\
-                <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+                <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
                         defaultAttributes="attrs">
                     <xs:element name="root"/>
                 </xs:schema>"""))
@@ -871,7 +871,7 @@ class TestXMLSchema11(TestXMLSchema10):
 
         with self.assertRaises(XMLSchemaParseError) as ctx:
             self.schema_class(dedent("""\
-                <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+                <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
                         defaultAttributes="x:attrs">
                     <xs:element name="root"/>
                 </xs:schema>"""))

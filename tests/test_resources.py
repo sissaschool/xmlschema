@@ -195,8 +195,10 @@ class TestResources(unittest.TestCase):
 
     def test_normalize_url_unc_paths__issue_246(self):
         url = PureWindowsPath(r'\\host\share\file.xsd').as_uri()
-        self.assertNotEqual(normalize_url(r'\\host\share\file.xsd'), url)  # file://host/share/file.xsd
-        self.assertEqual(normalize_url(r'\\host\share\file.xsd'), url.replace('file://', 'file:////'))
+        self.assertNotEqual(normalize_url(r'\\host\share\file.xsd'),
+                            url)  # file://host/share/file.xsd
+        self.assertEqual(normalize_url(r'\\host\share\file.xsd'),
+                         url.replace('file://', 'file:////'))
 
     def test_normalize_url_unc_paths__issue_268(self,):
         unc_path = r'\\filer01\MY_HOME\dev\XMLSCHEMA\test.xsd'
@@ -298,9 +300,9 @@ class TestResources(unittest.TestCase):
         self.assertEqual(normalize_url('//root/dir1/schema.xsd'),
                          'file:////root/dir1/schema.xsd')
         self.assertEqual(normalize_url('dir2/schema.xsd', '//root/dir1/'),
-                         f'file:////root/dir1/dir2/schema.xsd')
+                         'file:////root/dir1/dir2/schema.xsd')
         self.assertEqual(normalize_url('dir2/schema.xsd', '//root/dir1'),
-                         f'file:////root/dir1/dir2/schema.xsd')
+                         'file:////root/dir1/dir2/schema.xsd')
 
     def test_normalize_url_hash_character(self):
         url = normalize_url('issue #000.xml', 'file:///dir1/dir2/')

@@ -416,7 +416,7 @@ class TestHelpers(unittest.TestCase):
             [('http://example.com/xmlschema/ns-A', 'import-case4a.xsd')]
         )
         elem = ElementTree.XML(
-            """<foo xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+            """<foo xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
             xsi:noNamespaceSchemaLocation="schema.xsd"/>"""
         )
         self.assertListEqual(

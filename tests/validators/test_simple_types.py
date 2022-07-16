@@ -36,7 +36,7 @@ class TestXsdSimpleTypes(XsdValidatorTestCase):
         self.assertEqual(xs.types['test_union'].elem.tag, XSD_UNION)
 
     def test_variety_property(self):
-        schema = self.check_schema("""        
+        schema = self.check_schema("""
         <xs:simpleType name="atomicType">
             <xs:restriction base="xs:string"/>
         </xs:simpleType>
@@ -156,7 +156,7 @@ class TestXsdSimpleTypes(XsdValidatorTestCase):
                     <xs:length value="0"/>
                 </xs:restriction>
             </xs:simpleType>
-            
+
             <xs:simpleType name="emptyType3">
                 <xs:restriction base="xs:string">
                     <xs:enumeration value=""/>

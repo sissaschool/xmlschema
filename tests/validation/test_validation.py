@@ -235,7 +235,7 @@ class TestValidation(XsdValidatorTestCase):
                 <xs:element name="elem2" type="xs:string"/>
                 <xs:element name="elem3" type="xs:string"/>
                 <xs:element name="elem4" type="xs:string"/>
-                
+
                 <xs:element name="root" type="enumType"/>
 
                 <xs:simpleType name="enumType">
@@ -244,7 +244,7 @@ class TestValidation(XsdValidatorTestCase):
                         <xs:enumeration value="elem2"/>
                         <xs:enumeration value="tns1:other1"/>
                         <xs:enumeration value="elem3"/>
-                        <xs:enumeration value="tns2:other2"/>                        
+                        <xs:enumeration value="tns2:other2"/>
                         <xs:enumeration value="elem4"/>
                     </xs:restriction>
                 </xs:simpleType>

@@ -1,5 +1,4 @@
-
-#!/usr/bin/env python
+# !/usr/bin/env python
 #
 # Copyright (c), 2016-2020, SISSA (International School for Advanced Studies).
 # All rights reserved.
@@ -631,8 +630,8 @@ class TestDecoding(XsdValidatorTestCase):
     def test_non_global_schema_path(self):
         # Issue #157
         xs = self.schema_class("""<?xml version="1.0" encoding="UTF-8"?>
-        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
-                xmlns:foo="http://example.com/foo" 
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                xmlns:foo="http://example.com/foo"
                 targetNamespace="http://example.com/foo">
             <xs:complexType name="type1">
                 <xs:sequence>
@@ -979,7 +978,7 @@ class TestDecoding(XsdValidatorTestCase):
 
     def test_default_namespace__issue_077(self):
         xs = self.schema_class("""<?xml version="1.0" encoding="UTF-8"?>
-        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
             targetNamespace="http://example.com/foo">
           <xs:element name="foo" type="xs:string" />
         </xs:schema>""")
