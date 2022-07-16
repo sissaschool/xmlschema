@@ -170,11 +170,12 @@ class XsdAssert(XsdComponent, ElementPathMixin[Union['XsdAssert', SchemaElementT
     @property
     def xpath_node(self) -> SchemaElementNode:
         schema_node = self.schema.xpath_node
-        try:
-            return cast(SchemaElementNode, schema_node.elements[self])
-        except KeyError:
-            return build_schema_node_tree(
-                root=cast(XsdElementProtocol, self),
-                elements=schema_node.elements,
-                global_elements=schema_node.children,
-            )
+        node = schema_node.get_element_node(cast(XsdElementProtocol, self))
+        if isinstance(node, SchemaElementNode):
+            return node
+
+        return build_schema_node_tree(
+            root=cast(XsdElementProtocol, self),
+            elements=schema_node.elements,
+            global_elements=schema_node.children,
+        )

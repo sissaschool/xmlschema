@@ -131,7 +131,7 @@ class ElementPathMixin(Sequence[E]):
     attributes: Any = {}
     namespaces: Any = {}
     xpath_default_namespace = ''
-    _xpath_node: Optional[SchemaElementNode] = None
+    _xpath_node: Optional[Union[SchemaElementNode, LazyElementNode]] = None
 
     @abstractmethod
     def __iter__(self) -> Iterator[E]:
@@ -175,7 +175,7 @@ class ElementPathMixin(Sequence[E]):
         raise NotImplementedError
 
     @property
-    def xpath_node(self) -> SchemaElementNode:
+    def xpath_node(self) -> Union[SchemaElementNode, LazyElementNode]:
         """Returns an XPath node for applying selectors on XSD schema/component."""
         raise NotImplementedError
 
@@ -311,7 +311,7 @@ class XPathElement(ElementPathMixin['XPathElement']):
     @property
     def xpath_node(self) -> LazyElementNode:
         if self._xpath_node is None:
-            self._xpath_node = LazyElementNode(self)
+            self._xpath_node = LazyElementNode(cast(XsdElementProtocol, self))
         return self._xpath_node
 
     @property

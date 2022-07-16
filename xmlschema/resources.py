@@ -23,6 +23,7 @@ from urllib.error import URLError
 from elementpath import XPathToken, XPathContext, XPath2Parser, ElementNode, \
     LazyElementNode, DocumentNode, build_lxml_node_tree, build_node_tree
 from elementpath.etree import ElementTree, PyElementTree, SafeXMLParser, etree_tostring
+from elementpath.protocols import LxmlElementProtocol
 
 from .exceptions import XMLSchemaTypeError, XMLSchemaValueError, XMLResourceError
 from .names import XML_NAMESPACE
@@ -545,7 +546,8 @@ class XMLResource:
             if not url.startswith(normalize_url(self._base_url)):
                 raise XMLResourceError("block access to out of sandbox file {}".format(url))
 
-    def _track_nsmap(self, elements, nsmap):
+    def _track_nsmap(self, elements: Iterator[ElementType],
+                     nsmap: NsmapType) -> Iterator[ElementType]:
         _nsmap = None
         for elem in elements:
             try:
@@ -836,7 +838,7 @@ class XMLResource:
             -> Union[DocumentNode, ElementNode]:
         """Build a node tree for non-lazy resources."""
         if hasattr(self._root, 'xpath'):
-            return build_lxml_node_tree(self._root)
+            return build_lxml_node_tree(cast(LxmlElementProtocol, self._root))
         else:
             try:
                 _nsmap = self._nsmap[self._root]
@@ -844,13 +846,13 @@ class XMLResource:
                 # A resource based on an ElementTree structure (no namespace maps)
                 return build_node_tree(self._root, namespaces)
             else:
-                _namespaces = {pfx: uri for pfx, uri in _nsmap}
+                _namespaces: Any = {pfx: uri for pfx, uri in _nsmap}
                 node_tree = build_node_tree(self._root, _namespaces)
 
                 # Update namespace maps
                 for node in node_tree.iter_descendants(with_self=False):
                     if isinstance(node, ElementNode):
-                        elem_nsmap = self._nsmap[node.elem]
+                        elem_nsmap = self._nsmap[cast(ElementType, node.elem)]
                         if _nsmap is not elem_nsmap:
                             _nsmap = elem_nsmap
                             _namespaces = {pfx: uri for pfx, uri in _nsmap}
@@ -1162,7 +1164,7 @@ class XMLResource:
 
                     # reset the whole XPath tree to let it still usable if other
                     # children are added to the root by ElementTree.iterparse().
-                    self._xpath_root.children.clear()
+                    self.xpath_root.children.clear()
         finally:
             if self._source is not resource:
                 resource.close()
@@ -1174,7 +1176,7 @@ class XMLResource:
             if not isinstance(item, ElementNode):
                 msg = "XPath expressions on XML resources can select only elements"
                 raise XMLResourceError(msg)
-            yield item.elem
+            yield cast(ElementType, item.elem)
 
     def _select_ancestors(self, token: XPathToken, node: ResourceNodeType,
                           ancestors: List[ElementType]) -> Iterator[ElementType]:
@@ -1186,18 +1188,17 @@ class XMLResource:
             elif item.elem is self._root:
                 ancestors.clear()
             else:
-                _ancestors = []
+                _ancestors: Any = []
                 parent = item.parent
                 while parent is not None:
-                    if parent is not None:
-                        _ancestors.append(parent.elem)
-                        parent = parent.parent
+                    _ancestors.append(parent.value)
+                    parent = parent.parent
 
                 if _ancestors:
                     ancestors.clear()
                     ancestors.extend(reversed(_ancestors))
 
-            yield item.elem
+            yield cast(ElementType, item.elem)
 
     def iterfind(self, path: str,
                  namespaces: Optional[NamespacesType] = None,
@@ -1243,7 +1244,7 @@ class XMLResource:
                             if subtree_level:
                                 pass
                             elif select_all or \
-                                    node in self._select_elements(token, self._xpath_root):
+                                    node in self._select_elements(token, self.xpath_root):
                                 yield node
                         elif not subtree_level:
                             continue
@@ -1252,11 +1253,11 @@ class XMLResource:
                                 ancestors.pop()
                             continue  # pragma: no cover
                         elif select_all or \
-                                node in self._select_elements(token, self._xpath_root):
+                                node in self._select_elements(token, self.xpath_root):
                             yield node
 
                         del node[:]  # delete children, keep attributes, text and tail.
-                        self._xpath_root.children.clear()  # reset XPath tree
+                        self.xpath_root.children.clear()  # reset XPath tree
 
             finally:
                 if self._source is not resource:

@@ -17,8 +17,6 @@ import os
 from textwrap import dedent
 from xml.etree.ElementTree import Element, iselement
 
-from elementpath.etree import is_etree_element
-
 from xmlschema.exceptions import XMLSchemaValueError
 from xmlschema.names import XSD_NAMESPACE, XSI_NAMESPACE, XSD_SCHEMA
 from xmlschema.helpers import get_namespace
@@ -40,6 +38,13 @@ class XsdValidatorTestCase(unittest.TestCase):
     """
     TEST_CASES_DIR = None
     schema_class = XMLSchema10
+
+    vh_xsd_file: str
+    vh_xml_file: str
+    col_xsd_file: str
+    col_xml_file: str
+    st_xsd_file: str
+    models_xsd_file: str
 
     @classmethod
     def setUpClass(cls):

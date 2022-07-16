@@ -277,6 +277,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     fallback_locations: Dict[str, str] = LOCATION_HINTS.copy()
     _locations: Tuple[Tuple[str, str], ...] = ()
     _annotations = None
+    _xpath_node: Optional[SchemaElementNode]
 
     # XSD components classes
     xsd_notation_class = XsdNotation

@@ -252,7 +252,7 @@ class XsdIdentity(XsdComponent):
         """
         fields: List[IdentityFieldItemType] = []
 
-        def append_fields():
+        def append_fields() -> None:
             if isinstance(value, list):
                 fields.append(tuple(value))
             elif isinstance(value, bool):

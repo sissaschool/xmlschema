@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING, cast, Any, Dict, Iterator, List, Optional, Tup
 from xml.etree.ElementTree import Element
 
 from elementpath import XPath2Parser, ElementPathError, XPathContext, XPathToken, \
-    LazyElementNode, SchemaElementNode, build_schema_node_tree
+    ElementNode, LazyElementNode, SchemaElementNode, build_schema_node_tree
 from elementpath.datatypes import AbstractDateTime, Duration, AbstractBinary
 
 from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
@@ -395,14 +395,15 @@ class XsdElement(XsdComponent, ParticleMixin,
     @property
     def xpath_node(self) -> SchemaElementNode:
         schema_node = self.schema.xpath_node
-        try:
-            return cast(SchemaElementNode, schema_node.elements[self])
-        except KeyError:
-            return build_schema_node_tree(
-                root=cast(XsdElementProtocol, self),
-                elements=schema_node.elements,
-                global_elements=schema_node.children,
-            )
+        node = schema_node.get_element_node(cast(XsdElementProtocol, self))
+        if isinstance(node, SchemaElementNode):
+            return node
+
+        return build_schema_node_tree(
+            root=cast(XsdElementProtocol, self),
+            elements=schema_node.elements,
+            global_elements=schema_node.children,
+        )
 
     def build(self) -> None:
         if self._build:
@@ -675,7 +676,10 @@ class XsdElement(XsdComponent, ParticleMixin,
                         if isinstance(identity.elements, tuple):
                             continue  # Skip unbuilt identities
 
-                        context = XPathContext(self.schema.xpath_node, item=xpath_element)
+                        context = XPathContext(
+                            root=self.schema.xpath_node,
+                            item=cast(XsdElementProtocol, xpath_element)
+                        )
 
                         for e in identity.selector.token.select_results(context):
                             if not isinstance(e, XsdElement):
@@ -843,7 +847,7 @@ class XsdElement(XsdComponent, ParticleMixin,
         if content is not None:
             del content
 
-        element_node = None
+        element_node: Union[None, ElementNode, LazyElementNode] = None
 
         # Collect field values for identities that refer to this element.
         for identity, counter in identities.items():
