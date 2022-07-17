@@ -9,12 +9,13 @@
 #
 import threading
 from typing import TYPE_CHECKING, cast, Any, Dict, Iterator, Optional, Union
-from elementpath import XPath2Parser, XPathContext, XPathToken, ElementPathError
+from elementpath import ElementPathError, XPath2Parser, XPathContext, XPathToken, \
+    LazyElementNode, SchemaElementNode, build_schema_node_tree
 
 from ..names import XSD_ASSERT
 from ..aliases import ElementType, SchemaType, SchemaElementType, NamespacesType
 from ..translation import gettext as _
-from ..xpath import XMLSchemaProtocol, ElementProtocol, ElementPathMixin, XMLSchemaProxy
+from ..xpath import XsdSchemaProtocol, XsdElementProtocol, ElementPathMixin, XMLSchemaProxy
 
 from .exceptions import XMLSchemaNotBuiltError, XMLSchemaValidationError
 from .xsdbase import XsdComponent
@@ -130,11 +131,15 @@ class XsdAssert(XsdComponent, ElementPathMixin[Union['XsdAssert', SchemaElementT
 
         variables = {'value': None if value is None else self.base_type.text_decode(value)}
         if source is not None:
-            context = XPathContext(source.root, namespaces=_namespaces,
-                                   item=elem, variables=variables)
+            context = XPathContext(
+                root=source.xpath_root,
+                namespaces=_namespaces,
+                item=source.get_xpath_node(elem),
+                variables=variables
+            )
         else:
             # If validated from a component (could not work with rooted XPath expressions)
-            context = XPathContext(elem, variables=variables)
+            context = XPathContext(LazyElementNode(elem), variables=variables)
 
         try:
             if not self.token.evaluate(context):
@@ -158,6 +163,19 @@ class XsdAssert(XsdComponent, ElementPathMixin[Union['XsdAssert', SchemaElementT
     @property
     def xpath_proxy(self) -> 'XMLSchemaProxy':
         return XMLSchemaProxy(
-            schema=cast(XMLSchemaProtocol, self.schema),
-            base_element=cast(ElementProtocol, self)
+            schema=cast(XsdSchemaProtocol, self.schema),
+            base_element=cast(XsdElementProtocol, self)
+        )
+
+    @property
+    def xpath_node(self) -> SchemaElementNode:
+        schema_node = self.schema.xpath_node
+        node = schema_node.get_element_node(cast(XsdElementProtocol, self))
+        if isinstance(node, SchemaElementNode):
+            return node
+
+        return build_schema_node_tree(
+            root=cast(XsdElementProtocol, self),
+            elements=schema_node.elements,
+            global_elements=schema_node.children,
         )

@@ -13,8 +13,8 @@ This module contains classes for XML Schema simple data types.
 from decimal import DecimalException
 from typing import cast, Any, Callable, Dict, Iterator, List, \
     Optional, Set, Union, Tuple, Type
+from xml.etree import ElementTree
 
-from ..etree import etree_element
 from ..aliases import ElementType, AtomicValueType, ComponentClassType, \
     IterDecodeType, IterEncodeType, BaseXsdType, SchemaType, DecodedValueType, \
     EncodedValueType
@@ -789,7 +789,7 @@ class XsdList(XsdSimpleType):
     """
     base_type: XsdSimpleType
     _ADMITTED_TAGS = {XSD_LIST}
-    _white_space_elem = etree_element(
+    _white_space_elem = ElementTree.Element(
         XSD_WHITE_SPACE, attrib={'value': 'collapse', 'fixed': 'true'}
     )
 

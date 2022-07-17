@@ -13,6 +13,7 @@ import os
 import platform
 import re
 from textwrap import dedent
+from xml.etree import ElementTree
 
 try:
     import lxml.etree as lxml_etree
@@ -22,7 +23,6 @@ except ImportError:
 from xmlschema.validators import XsdValidator, XsdComponent, XMLSchema10, XMLSchema11, \
     XMLSchemaParseError, XMLSchemaValidationError, XsdAnnotation, XsdGroup, XsdSimpleType
 from xmlschema.names import XSD_NAMESPACE, XSD_ELEMENT, XSD_ANNOTATION, XSD_ANY_TYPE
-from xmlschema.etree import ElementTree
 from xmlschema.dataobjects import DataElement
 
 CASES_DIR = os.path.join(os.path.dirname(__file__), '../test_cases')
@@ -193,7 +193,7 @@ class TestXsdComponent(unittest.TestCase):
                     <xs:simpleContent>
                         <xs:extension base="xs:string">
                             <xs:attribute ref="slot"/>
-                        </xs:extension> 
+                        </xs:extension>
                     </xs:simpleContent>
                 </xs:complexType>
             </xs:element>
@@ -320,13 +320,13 @@ class TestXsdComponent(unittest.TestCase):
                     <xs:complexContent>
                         <xs:restriction base="type0">
                             <xs:sequence>
-                                <xs:element name="elem1" targetNamespace="http://xmlschema.test/ns" 
+                                <xs:element name="elem1" targetNamespace="http://xmlschema.test/ns"
                                 type="xs:integer"/>
                             </xs:sequence>
                         </xs:restriction>
-                    </xs:complexContent>      
+                    </xs:complexContent>
                 </xs:complexType>
-                <xs:element name="root" type="type1"/>    
+                <xs:element name="root" type="type1"/>
             </xs:schema>""")
         self.assertEqual(schema.elements['root'].type.content[0].target_namespace,
                          'http://xmlschema.test/ns')
@@ -335,7 +335,7 @@ class TestXsdComponent(unittest.TestCase):
                 <xs:element name="root">
                     <xs:complexType>
                         <xs:sequence>
-                            <xs:element name="node" targetNamespace=""/> 
+                            <xs:element name="node" targetNamespace=""/>
                         </xs:sequence>
                     </xs:complexType>
                 </xs:element>
@@ -510,7 +510,7 @@ class TestXsdType(unittest.TestCase):
     def setUpClass(cls):
         cls.schema = XMLSchema10(dedent("""\
             <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
-            
+
                  <xs:simpleType name="emptyType">
                      <xs:restriction base="xs:string">
                          <xs:length value="0"/>
@@ -519,7 +519,7 @@ class TestXsdType(unittest.TestCase):
 
                  <xs:complexType name="emptyType2">
                      <xs:attribute name="foo" type="xs:string"/>
-                 </xs:complexType>        
+                 </xs:complexType>
 
                  <xs:simpleType name="idType">
                      <xs:restriction base="xs:ID"/>
@@ -532,7 +532,7 @@ class TestXsdType(unittest.TestCase):
                  <xs:simpleType name="dateTimeType">
                      <xs:restriction base="xs:dateTime"/>
                  </xs:simpleType>
-                 
+
                  <xs:simpleType name="fooType">
                      <xs:restriction base="xs:string"/>
                  </xs:simpleType>
@@ -544,12 +544,12 @@ class TestXsdType(unittest.TestCase):
                  <xs:simpleType name="fooUnionType">
                      <xs:union memberTypes="xs:string xs:anyURI"/>
                  </xs:simpleType>
-                 
+
                  <xs:complexType name="barType">
                      <xs:sequence>
                          <xs:element name="node"/>
                      </xs:sequence>
-                 </xs:complexType>        
+                 </xs:complexType>
 
                  <xs:complexType name="barExtType">
                      <xs:complexContent>
@@ -559,7 +559,7 @@ class TestXsdType(unittest.TestCase):
                              </xs:sequence>
                          </xs:extension>
                      </xs:complexContent>
-                 </xs:complexType>        
+                 </xs:complexType>
 
                  <xs:complexType name="barResType">
                      <xs:complexContent>
@@ -569,17 +569,17 @@ class TestXsdType(unittest.TestCase):
                              </xs:sequence>
                          </xs:restriction>
                      </xs:complexContent>
-                 </xs:complexType>        
+                 </xs:complexType>
 
                  <xs:complexType name="mixedType" mixed="true">
                      <xs:sequence>
                          <xs:element name="node" type="xs:string"/>
                      </xs:sequence>
-                 </xs:complexType>        
+                 </xs:complexType>
 
                  <xs:element name="fooElem" type="fooType"/>
                  <xs:element name="barElem" type="barType" block="extension"/>
-                     
+
             </xs:schema>"""))
 
     def test_content_type_label(self):

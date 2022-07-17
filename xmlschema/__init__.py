@@ -7,14 +7,15 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+from elementpath.etree import etree_tostring
+
 from . import limits
 from . import translation
 from .exceptions import XMLSchemaException, XMLResourceError, XMLSchemaNamespaceError
-from .etree import ElementData, etree_tostring
 from .resources import normalize_url, normalize_locations, fetch_resource, \
     fetch_namespaces, fetch_schema_locations, fetch_schema, XMLResource
 from .xpath import ElementPathMixin
-from .converters import XMLSchemaConverter, \
+from .converters import ElementData, XMLSchemaConverter, \
     UnorderedConverter, ParkerConverter, BadgerFishConverter, \
     AbderaConverter, JsonMLConverter, ColumnarConverter
 from .dataobjects import DataElement, DataElementConverter, DataBindingConverter
@@ -30,7 +31,7 @@ from .validators import (
     XsdComponent, XsdType, XsdElement, XsdAttribute
 )
 
-__version__ = '1.11.3'
+__version__ = '2.0.0'
 __author__ = "Davide Brunato"
 __contact__ = "brunato@sissa.it"
 __copyright__ = "Copyright 2016-2022, SISSA"

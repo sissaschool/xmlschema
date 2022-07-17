@@ -84,7 +84,7 @@ def casepath(relative_path):
 
 XSD_TEST = """\
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
-    xmlns:tns="http://xmlschema.test/ns" 
+    xmlns:tns="http://xmlschema.test/ns"
     targetNamespace="http://xmlschema.test/ns">
 
   <xs:element name="root" type="xs:string" />
@@ -112,7 +112,7 @@ XSD_TEST = """\
   <xs:simpleType name="type5">
     <xs:restriction base="xs:decimal" />
   </xs:simpleType>
-  
+
   <xs:simpleType name="type6">
     <xs:restriction base="xs:float" />
   </xs:simpleType>
@@ -126,6 +126,13 @@ class TestAbstractGenerator(unittest.TestCase):
 
     schema_class = XMLSchema10
     generator_class = DemoGenerator
+
+    schema: XMLSchema10
+    searchpath: Path
+    col_dir: str
+    col_xsd_file: str
+    col_xml_file: str
+    col_schema: XMLSchema10
 
     @classmethod
     def setUpClass(cls):
@@ -232,7 +239,7 @@ class TestAbstractGenerator(unittest.TestCase):
         language = self.generator_class.formal_language.lower()
 
         templates = set(x.name for x in template_dir.glob('{}/*'.format(language)))
-        templates.update(x.name for x in template_dir.glob('filters/*'.format(language)))
+        templates.update(x.name for x in template_dir.glob('filters/*'))
         self.assertSetEqual(set(self.generator.list_templates()), templates)
 
     def test_matching_templates(self):
@@ -500,7 +507,7 @@ class TestAbstractGenerator(unittest.TestCase):
                         <xs:element name="elem2" type="type2" />
                     </xs:sequence>
                 </xs:complexType>
-                
+
                 <xs:complexType name="type2">
                     <xs:sequence>
                         <xs:element name="elem1" type="type1" />
@@ -572,10 +579,9 @@ class TestPythonGenerator(TestAbstractGenerator):
 
     def test_list_templates(self):
         template_dir = Path(__file__).parent.joinpath('templates')
-        language = self.generator_class.formal_language.lower()
 
         templates = {'sample.py.jinja', 'bindings.py.jinja'}
-        templates.update(x.name for x in template_dir.glob('filters/*'.format(language)))
+        templates.update(x.name for x in template_dir.glob('filters/*'))
         self.assertSetEqual(set(self.generator.list_templates()), templates)
 
     def test_sample_module(self):

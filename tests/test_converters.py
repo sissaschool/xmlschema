@@ -9,16 +9,18 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import unittest
-import xml.etree.ElementTree as ElementTree
+from xml.etree.ElementTree import Element, parse as etree_parse
 from pathlib import Path
+from typing import cast, MutableMapping, Optional, Type
 
 try:
     import lxml.etree as lxml_etree
 except ImportError:
     lxml_etree = None
 
+from elementpath.etree import etree_tostring
+
 from xmlschema import XMLSchema, XMLSchemaValidationError, fetch_namespaces
-from xmlschema.etree import etree_element, etree_tostring
 from xmlschema.dataobjects import DataElement
 from xmlschema.testing import etree_elements_assert_equal
 
@@ -29,6 +31,10 @@ from xmlschema.dataobjects import DataElementConverter
 
 
 class TestConverters(unittest.TestCase):
+    col_xsd_filename: str
+    col_xml_filename: str
+    col_nsmap: MutableMapping[str, str]
+    col_lxml_root: Optional['lxml_etree.ElementTree']
 
     col_xsd_filename: str
     col_xml_filename: str
@@ -38,7 +44,7 @@ class TestConverters(unittest.TestCase):
     def setUpClass(cls):
         cls.col_xsd_filename = cls.casepath('examples/collection/collection.xsd')
         cls.col_xml_filename = cls.casepath('examples/collection/collection.xml')
-        cls.col_xml_root = ElementTree.parse(cls.col_xml_filename).getroot()
+        cls.col_xml_root = etree_parse(cls.col_xml_filename).getroot()
         cls.col_nsmap = fetch_namespaces(cls.col_xml_filename)
         cls.col_namespace = cls.col_nsmap['col']
 
@@ -53,13 +59,15 @@ class TestConverters(unittest.TestCase):
 
     def test_element_class_argument(self):
         converter = XMLSchemaConverter()
-        self.assertIs(converter.etree_element_class, etree_element)
+        self.assertIs(converter.etree_element_class, Element)
 
-        converter = XMLSchemaConverter(etree_element_class=etree_element)
-        self.assertIs(converter.etree_element_class, etree_element)
+        converter = XMLSchemaConverter(etree_element_class=Element)
+        self.assertIs(converter.etree_element_class, Element)
 
         if lxml_etree is not None:
-            converter = XMLSchemaConverter(etree_element_class=lxml_etree.Element)
+            converter = XMLSchemaConverter(
+                etree_element_class=cast(Type[Element], lxml_etree.Element)
+            )
             self.assertIs(converter.etree_element_class, lxml_etree.Element)
 
     def test_prefix_arguments(self):
@@ -102,7 +110,7 @@ class TestConverters(unittest.TestCase):
                     </xs:sequence>
                 </xs:complexType>
             </xs:element>
-        </xs:schema> 
+        </xs:schema>
         """)
 
         self.assertEqual(
@@ -115,7 +123,7 @@ class TestConverters(unittest.TestCase):
 
     def test_preserve_root__issue_215(self):
         schema = XMLSchema("""
-        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
                    xmlns="http://xmlschema.test/ns"
                    targetNamespace="http://xmlschema.test/ns">
             <xs:element name="a">
@@ -126,8 +134,7 @@ class TestConverters(unittest.TestCase):
                     </xs:sequence>
                 </xs:complexType>
             </xs:element>
-        </xs:schema> 
-        """)
+        </xs:schema>""")
 
         xml_data = """<tns:a xmlns:tns="http://xmlschema.test/ns"><b1/><b2/></tns:a>"""
 
@@ -151,10 +158,10 @@ class TestConverters(unittest.TestCase):
     def test_etree_element_method(self):
         converter = XMLSchemaConverter()
         elem = converter.etree_element('A')
-        self.assertIsNone(etree_elements_assert_equal(elem, etree_element('A')))
+        self.assertIsNone(etree_elements_assert_equal(elem, Element('A')))
 
         elem = converter.etree_element('A', attrib={})
-        self.assertIsNone(etree_elements_assert_equal(elem, etree_element('A')))
+        self.assertIsNone(etree_elements_assert_equal(elem, Element('A')))
 
     def test_columnar_converter(self):
         col_schema = XMLSchema(self.col_xsd_filename, converter=ColumnarConverter)
@@ -486,10 +493,9 @@ class TestConverters(unittest.TestCase):
 
         # With ElementTree namespaces are not mapped
         obj2 = col_schema.decode(self.col_xml_root)
-        with self.assertRaises(AssertionError) as ctx:
-            # Equivalent if compared as Element trees (tag, text, attrib, tail)
-            etree_elements_assert_equal(obj1, obj2)
-        self.assertIn("attributes differ: {'xsi:schemaLocation'", str(ctx.exception))
+
+        # Equivalent if compared as Element trees (tag, text, attrib, tail)
+        self.assertIsNone(etree_elements_assert_equal(obj1, obj2))
 
         self.assertIsNone(etree_elements_assert_equal(
             obj1, col_schema.decode(self.col_xml_root, namespaces=self.col_nsmap)
@@ -524,7 +530,7 @@ class TestConverters(unittest.TestCase):
 
         for k in (1, 2):
             xml_filename = self.casepath(f'issues/issue_315/issue_315-{k}.xml')
-            xml_tree = ElementTree.parse(xml_filename).getroot()
+            xml_tree = etree_parse(xml_filename).getroot()
             for converter in converters:
                 obj = schema.decode(xml_filename, converter=converter)
                 root = schema.encode(obj, converter=converter)
@@ -544,7 +550,7 @@ class TestConverters(unittest.TestCase):
 
         for k in range(1, 6):
             xml_filename = self.casepath(f'issues/issue_315/issue_315-{k}.xml')
-            xml_tree = ElementTree.parse(xml_filename).getroot()
+            xml_tree = etree_parse(xml_filename).getroot()
             for converter in losslessly_converters:
                 obj = schema.decode(xml_filename, converter=converter)
                 root = schema.encode(obj, converter=converter)
@@ -552,7 +558,7 @@ class TestConverters(unittest.TestCase):
 
         for k in range(1, 6):
             xml_filename = self.casepath(f'issues/issue_315/issue_315-{k}.xml')
-            xml_tree = ElementTree.parse(xml_filename).getroot()
+            xml_tree = etree_parse(xml_filename).getroot()
             for converter in default_converters:
                 obj = schema.decode(xml_filename, converter=converter)
                 root = schema.encode(obj, converter=converter, indent=0)
@@ -574,7 +580,7 @@ class TestConverters(unittest.TestCase):
 
         for k in range(1, 6):
             xml_filename = self.casepath(f'issues/issue_315/issue_315-{k}.xml')
-            xml_tree = ElementTree.parse(xml_filename).getroot()
+            xml_tree = etree_parse(xml_filename).getroot()
             obj = schema.decode(xml_filename, converter=BadgerFishConverter)
             root = schema.encode(obj, converter=BadgerFishConverter, indent=0)
             if k < 4:

@@ -620,35 +620,35 @@ class TestModelValidation(XsdValidatorTestCase):
                     <xs:choice>
                         <xs:any maxOccurs="2" processContents="lax"/>
                     </xs:choice>
-                </xs:complexType>                
+                </xs:complexType>
             </xs:element>
             <xs:element name="a2">
                 <xs:complexType>
                     <xs:choice>
                         <xs:any maxOccurs="2" processContents="strict"/>
                     </xs:choice>
-                </xs:complexType>                
+                </xs:complexType>
             </xs:element>
             <xs:element name="a3">
                 <xs:complexType>
                     <xs:sequence>
                         <xs:any maxOccurs="2" processContents="lax"/>
                     </xs:sequence>
-                </xs:complexType>                
+                </xs:complexType>
             </xs:element>
             <xs:element name="a4">
                 <xs:complexType>
                     <xs:choice>
                         <xs:element name="b" maxOccurs="2"/>
                     </xs:choice>
-                </xs:complexType>                
+                </xs:complexType>
             </xs:element>
             <xs:element name="a5">
                 <xs:complexType>
                     <xs:sequence>
                         <xs:element name="b" maxOccurs="2"/>
                     </xs:sequence>
-                </xs:complexType>                
+                </xs:complexType>
             </xs:element>
             <xs:element name="b"/>
         </xs:schema>""")

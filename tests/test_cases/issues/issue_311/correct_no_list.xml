@@ -1,0 +1,15 @@
+<ns0:kPartModel xmlns:ns0="http://www.ludd21.com/kPartModel" modelName="manysingulars" otherattribute="">
+    <ns0:kPartsPiece pieceName="pieceknit_layer1">
+        <ns0:kPartsList>
+            <ns0:castOnPartSeg nextsnum="1" partNumber="0">
+                <ns0:baseSeg start="9.73143 0.00000" end="17.73188 0.00000" />
+            </ns0:castOnPartSeg>
+            <ns0:joinPart nextsnum="3" previousnum="0 " partNumber="1" >
+                <ns0:baseSeg start="9.88173 -11.82912" end="25.27907 -11.82912" />
+            </ns0:joinPart>
+            <ns0:joinPart nextsnum="1" previousnum="0" partNumber="3">
+                <ns0:baseSeg start="9.98452 -19.91844" end="56.48310 -19.91844" />
+            </ns0:joinPart>
+        </ns0:kPartsList>
+    </ns0:kPartsPiece>
+</ns0:kPartModel>

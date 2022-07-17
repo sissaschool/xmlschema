@@ -445,7 +445,7 @@ class TestXsd11Identities(TestXsdIdentities):
               <xs:keyref name="keyref1" refer="key1">
                 <xs:selector xpath="."/>
                 <xs:field xpath="."/>
-              </xs:keyref>              
+              </xs:keyref>
             </xs:element>
             <xs:element name="secondary_key" type="xs:string">
               <xs:keyref ref="keyref1"/>

@@ -12,9 +12,9 @@
 
 import unittest
 import pathlib
+from xml.etree import ElementTree
 
 from xmlschema import XMLSchemaValidationError, XMLSchema10, XMLSchema11
-from xmlschema.etree import ElementTree, ParseError
 from xmlschema.extras.wsdl import WsdlParseError, WsdlComponent, WsdlMessage, \
     WsdlPortType, WsdlOperation, WsdlBinding, WsdlService, Wsdl11Document, \
     WsdlInput, SoapHeader
@@ -95,7 +95,7 @@ WSDL_DOCUMENT_EXAMPLE = """<?xml version="1.0"?>
 
 WSDL_DOCUMENT_NO_SOAP = """<?xml version="1.0"?>
 <wsdl:definitions name="minimal"
-        xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/" 
+        xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/"
         xmlns:xs="http://www.w3.org/2001/XMLSchema">
 
     <wsdl:message name="myMessage">
@@ -319,7 +319,7 @@ class TestWsdlDocuments(unittest.TestCase):
 
     def test_example5(self):
         original_example5_file = casepath('features/wsdl/wsdl11_example5.wsdl')
-        with self.assertRaises(ParseError):
+        with self.assertRaises(ElementTree.ParseError):
             Wsdl11Document(original_example5_file)
 
         example5_file = casepath('features/wsdl/wsdl11_example5_valid.wsdl')
@@ -401,7 +401,7 @@ class TestWsdlDocuments(unittest.TestCase):
 
     def test_wsdl_document_invalid_imports(self):
         wsdl_template = """<?xml version="1.0"?>
-        <definitions name="import-test1" 
+        <definitions name="import-test1"
                 xmlns="http://schemas.xmlsoap.org/wsdl/">
             <import namespace="http://example.com/ns" location="{0}"/>
         </definitions>"""
@@ -425,7 +425,7 @@ class TestWsdlDocuments(unittest.TestCase):
         self.assertIn('no element found', str(ctx.exception))
 
         wsdl_template = """<?xml version="1.0"?>
-        <definitions name="import-test1" 
+        <definitions name="import-test1"
                 targetNamespace="http://example.com/ns"
                 xmlns="http://schemas.xmlsoap.org/wsdl/">
             <import namespace="http://example.com/ns" location="{0}"/>
@@ -437,7 +437,7 @@ class TestWsdlDocuments(unittest.TestCase):
         self.assertIn('namespace to import must be different', str(ctx.exception))
 
         wsdl_template = """<?xml version="1.0"?>
-        <definitions name="import-test1" 
+        <definitions name="import-test1"
                 targetNamespace="http://example.com/stockquote/definitions"
                 xmlns="http://schemas.xmlsoap.org/wsdl/">
             <import namespace="http://example.com/ns" location="{0}"/>

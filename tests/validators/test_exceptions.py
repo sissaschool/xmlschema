@@ -11,6 +11,7 @@
 import unittest
 import os
 import io
+from xml.etree import ElementTree
 
 try:
     import lxml.etree as lxml_etree
@@ -18,7 +19,6 @@ except ImportError:
     lxml_etree = None
 
 from xmlschema import XMLSchema, XMLResource
-from xmlschema.etree import ElementTree
 from xmlschema.validators.exceptions import XMLSchemaValidatorError, \
     XMLSchemaNotBuiltError, XMLSchemaModelDepthError, XMLSchemaValidationError, \
     XMLSchemaChildrenValidationError

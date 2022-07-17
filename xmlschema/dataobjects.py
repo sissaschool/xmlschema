@@ -11,13 +11,13 @@ from abc import ABCMeta
 from itertools import count
 from typing import TYPE_CHECKING, cast, overload, Any, Dict, List, Iterator, \
     Optional, Union, Tuple, Type, MutableMapping, MutableSequence
-from elementpath import XPathContext, XPath2Parser
+from elementpath import XPathContext, XPath2Parser, build_node_tree, protocols
+from elementpath.etree import etree_tostring
 
 from .exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, XMLSchemaValueError
-from .etree import ElementData, etree_tostring
 from .aliases import ElementType, XMLSourceType, NamespacesType, BaseXsdType, DecodeType
 from .helpers import get_namespace, get_prefixed_qname, local_name, raw_xml_encode
-from .converters import XMLSchemaConverter
+from .converters import ElementData, XMLSchemaConverter
 from .resources import XMLResource
 from . import validators
 
@@ -259,6 +259,10 @@ class DataElement(MutableSequence['DataElement']):
         root, errors = self.encode(validation='lax')
         return etree_tostring(root, self.nsmap, indent, max_lines, spaces_for_tab)
 
+    def _get_xpath_context(self) -> XPathContext:
+        xpath_root = build_node_tree(cast(protocols.ElementProtocol, self))
+        return XPathContext(xpath_root)
+
     def find(self, path: str,
              namespaces: Optional[NamespacesType] = None) -> Optional['DataElement']:
         """
@@ -269,7 +273,7 @@ class DataElement(MutableSequence['DataElement']):
         :return: the first matching data element or ``None`` if there is no match.
         """
         parser = XPath2Parser(namespaces, strict=False)
-        context = XPathContext(cast(Any, self))
+        context = self._get_xpath_context()
         result = next(parser.parse(path).select_results(context), None)
         return result if isinstance(result, DataElement) else None
 
@@ -284,11 +288,11 @@ class DataElement(MutableSequence['DataElement']):
         an empty list is returned if there is no match.
         """
         parser = XPath2Parser(namespaces, strict=False)
-        context = XPathContext(cast(Any, self))
+        context = self._get_xpath_context()
         results = parser.parse(path).get_results(context)
         if not isinstance(results, list):
             return []
-        return [e for e in results if isinstance(e, DataElement)]
+        return cast(List[DataElement], [e for e in results if isinstance(e, DataElement)])
 
     def iterfind(self, path: str,
                  namespaces: Optional[NamespacesType] = None) -> Iterator['DataElement']:
@@ -300,7 +304,7 @@ class DataElement(MutableSequence['DataElement']):
         :return: an iterable yielding all matching data elements in document order.
         """
         parser = XPath2Parser(namespaces, strict=False)
-        context = XPathContext(cast(Any, self))
+        context = self._get_xpath_context()
         results = parser.parse(path).select_results(context)
         yield from filter(lambda x: isinstance(x, DataElement), results)
 
@@ -396,16 +400,20 @@ class DataElementConverter(XMLSchemaConverter):
         obj.data_element_class = kwargs.get('data_element_class', self.data_element_class)
         return obj
 
-    def element_decode(self, data: ElementData, xsd_element: 'XsdElement',
-                       xsd_type: Optional[BaseXsdType] = None, level: int = 0) -> 'DataElement':
-        data_element = self.data_element_class(
+    def get_data_element(self, data: ElementData, xsd_element: 'XsdElement',
+                         xsd_type: Optional[BaseXsdType] = None) -> DataElement:
+        return self.data_element_class(
             tag=data.tag,
             value=data.text,
             nsmap=self.namespaces,
             xsd_element=xsd_element,
             xsd_type=xsd_type
         )
-        data_element.attrib.update((k, v) for k, v in self.map_attributes(data.attributes))
+
+    def element_decode(self, data: ElementData, xsd_element: 'XsdElement',
+                       xsd_type: Optional[BaseXsdType] = None, level: int = 0) -> 'DataElement':
+        data_element = self.get_data_element(data, xsd_element, xsd_type)
+        data_element.attrib.update(self.map_attributes(data.attributes))
 
         if (xsd_type or xsd_element.type).model_group is not None:
             for name, value, _ in self.map_content(data.content):
@@ -454,25 +462,12 @@ class DataBindingConverter(DataElementConverter):
     """
     __slots__ = ()
 
-    def element_decode(self, data: ElementData, xsd_element: 'XsdElement',
-                       xsd_type: Optional[BaseXsdType] = None, level: int = 0) -> 'DataElement':
+    def get_data_element(self, data: ElementData, xsd_element: 'XsdElement',
+                         xsd_type: Optional[BaseXsdType] = None) -> DataElement:
         cls = xsd_element.get_binding(self.data_element_class)
-        data_element = cls(
+        return cls(
             tag=data.tag,
             value=data.text,
             nsmap=self.namespaces,
             xsd_type=xsd_type
         )
-        data_element.attrib.update((k, v) for k, v in self.map_attributes(data.attributes))
-
-        if (xsd_type or xsd_element.type).model_group is not None:
-            for name, value, _ in self.map_content(data.content):
-                if not name.isdigit():
-                    data_element.append(value)
-                else:
-                    try:
-                        data_element[-1].tail = value
-                    except IndexError:
-                        data_element.value = value
-
-        return data_element

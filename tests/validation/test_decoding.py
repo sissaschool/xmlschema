@@ -1,5 +1,4 @@
-
-#!/usr/bin/env python
+# !/usr/bin/env python
 #
 # Copyright (c), 2016-2020, SISSA (International School for Advanced Studies).
 # All rights reserved.
@@ -16,6 +15,7 @@ import json
 import math
 from decimal import Decimal
 from collections.abc import MutableMapping, MutableSequence, Set
+from xml.etree import ElementTree
 
 try:
     import lxml.etree as lxml_etree
@@ -28,7 +28,6 @@ from xmlschema import XMLSchemaValidationError, ParkerConverter, BadgerFishConve
     AbderaConverter, JsonMLConverter, ColumnarConverter
 
 from xmlschema.names import XSD_STRING
-from xmlschema.etree import ElementTree
 from xmlschema.converters import UnorderedConverter
 from xmlschema.validators import XMLSchema11
 from xmlschema.testing import XsdValidatorTestCase, etree_elements_assert_equal
@@ -631,8 +630,8 @@ class TestDecoding(XsdValidatorTestCase):
     def test_non_global_schema_path(self):
         # Issue #157
         xs = self.schema_class("""<?xml version="1.0" encoding="UTF-8"?>
-        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
-                xmlns:foo="http://example.com/foo" 
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                xmlns:foo="http://example.com/foo"
                 targetNamespace="http://example.com/foo">
             <xs:complexType name="type1">
                 <xs:sequence>
@@ -979,7 +978,7 @@ class TestDecoding(XsdValidatorTestCase):
 
     def test_default_namespace__issue_077(self):
         xs = self.schema_class("""<?xml version="1.0" encoding="UTF-8"?>
-        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
             targetNamespace="http://example.com/foo">
           <xs:element name="foo" type="xs:string" />
         </xs:schema>""")

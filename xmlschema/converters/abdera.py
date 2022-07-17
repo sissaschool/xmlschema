@@ -11,9 +11,8 @@ from collections.abc import MutableMapping, MutableSequence
 from typing import TYPE_CHECKING, Any, Optional, List, Dict, Type, Union
 
 from ..exceptions import XMLSchemaValueError
-from ..etree import ElementData
 from ..aliases import NamespacesType, BaseXsdType
-from .default import XMLSchemaConverter
+from .default import ElementData, XMLSchemaConverter
 
 if TYPE_CHECKING:
     from ..validators import XsdElement
