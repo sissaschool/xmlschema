@@ -14,13 +14,7 @@ Two schema classes are created at the end of this module, XMLSchema10 for XSD 1.
 XMLSchema11 for XSD 1.1. The latter class parses also XSD 1.0 schemas, as prescribed by
 the standard.
 """
-import sys
-
-if sys.version_info < (3, 7):
-    from typing import GenericMeta as ABCMeta
-else:
-    from abc import ABCMeta
-
+from abc import ABCMeta
 import os
 import logging
 import threading
@@ -29,6 +23,7 @@ import re
 import sys
 from copy import copy
 from itertools import chain
+from operator import attrgetter
 from typing import cast, Callable, ItemsView, List, Optional, Dict, Any, \
     Set, Union, Tuple, Type, Iterator, Counter
 from xml.etree.ElementTree import Element, ParseError
@@ -76,6 +71,8 @@ from .wildcards import XsdAnyElement, XsdAnyAttribute, Xsd11AnyElement, \
 from .global_maps import XsdGlobals
 
 logger = logging.getLogger('xmlschema')
+
+name_attribute = attrgetter('name')
 
 XSD_VERSION_PATTERN = re.compile(r'^\d+\.\d+$')
 DRIVE_PATTERN = re.compile(r'^[a-zA-Z]:$')
@@ -561,10 +558,10 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             super(XMLSchemaBase, self).__setattr__(name, value)
 
     def __iter__(self) -> Iterator[XsdElement]:
-        yield from sorted(self.elements.values(), key=lambda x: x.name)
+        yield from sorted(self.elements.values(), key=name_attribute)
 
     def __reversed__(self) -> Iterator[XsdElement]:
-        yield from sorted(self.elements.values(), key=lambda x: x.name, reverse=True)
+        yield from sorted(self.elements.values(), key=name_attribute, reverse=True)
 
     def __len__(self) -> int:
         return len(self.elements)
