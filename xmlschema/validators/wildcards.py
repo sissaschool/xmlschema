@@ -13,6 +13,8 @@ This module contains classes for XML Schema wildcards.
 from typing import cast, Any, Callable, Dict, Iterable, Iterator, List, Optional, \
     Tuple, Union, Counter
 
+from elementpath import SchemaElementNode, build_schema_node_tree
+
 from ..exceptions import XMLSchemaValueError
 from ..names import XSI_NAMESPACE, XSD_ANY, XSD_ANY_ATTRIBUTE, \
     XSD_OPEN_CONTENT, XSD_DEFAULT_OPEN_CONTENT, XSI_TYPE
@@ -21,7 +23,7 @@ from ..aliases import ElementType, SchemaType, SchemaElementType, SchemaAttribut
     DecodedValueType, EncodedValueType
 from ..translation import gettext as _
 from ..helpers import get_namespace, raw_xml_encode
-from ..xpath import XMLSchemaProtocol, ElementProtocol, XMLSchemaProxy, ElementPathMixin
+from ..xpath import XsdSchemaProtocol, XsdElementProtocol, XMLSchemaProxy, ElementPathMixin
 from .xsdbase import ValidationMixin, XsdComponent
 from .particles import ParticleMixin
 from . import elements
@@ -149,6 +151,10 @@ class XsdWildcard(XsdComponent):
     @property
     def built(self) -> bool:
         return True
+
+    @property
+    def value_constraint(self) -> Optional[str]:
+        return None
 
     def is_matching(self, name: Optional[str],
                     default_namespace: Optional[str] = None,
@@ -419,8 +425,21 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
     @property
     def xpath_proxy(self) -> XMLSchemaProxy:
         return XMLSchemaProxy(
-            schema=cast(XMLSchemaProtocol, self.schema),
-            base_element=cast(ElementProtocol, self)
+            schema=cast(XsdSchemaProtocol, self.schema),
+            base_element=cast(XsdElementProtocol, self)
+        )
+
+    @property
+    def xpath_node(self) -> SchemaElementNode:
+        schema_node = self.schema.xpath_node
+        node = schema_node.get_element_node(cast(XsdElementProtocol, self))
+        if isinstance(node, SchemaElementNode):
+            return node
+
+        return build_schema_node_tree(
+            root=cast(XsdElementProtocol, self),
+            elements=schema_node.elements,
+            global_elements=schema_node.children,
         )
 
     def _parse(self) -> None:

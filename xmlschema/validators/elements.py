@@ -11,17 +11,20 @@
 This module contains classes for XML Schema elements, complex types and model groups.
 """
 import warnings
+from copy import copy
 from decimal import Decimal
 from types import GeneratorType
 from typing import TYPE_CHECKING, cast, Any, Dict, Iterator, List, Optional, Tuple, Type, Union
-from elementpath import XPath2Parser, ElementPathError, XPathContext, XPathToken
+from xml.etree.ElementTree import Element
+
+from elementpath import XPath2Parser, ElementPathError, XPathContext, XPathToken, \
+    ElementNode, LazyElementNode, SchemaElementNode, build_schema_node_tree
 from elementpath.datatypes import AbstractDateTime, Duration, AbstractBinary
 
 from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from ..names import XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE, XSD_ALTERNATIVE, \
     XSD_ELEMENT, XSD_ANY_TYPE, XSD_UNIQUE, XSD_KEY, XSD_KEYREF, XSI_NIL, \
     XSI_TYPE, XSD_ERROR, XSD_NOTATION_TYPE
-from ..etree import ElementData, etree_element
 from ..aliases import ElementType, SchemaType, BaseXsdType, SchemaElementType, \
     ModelParticleType, ComponentClassType, AtomicValueType, DecodeType, \
     IterDecodeType, IterEncodeType
@@ -29,16 +32,17 @@ from ..translation import gettext as _
 from ..helpers import get_qname, get_namespace, etree_iter_location_hints, \
     raw_xml_encode, strictly_equal
 from .. import dataobjects
-from ..converters import XMLSchemaConverter
-from ..xpath import XMLSchemaProtocol, ElementProtocol, XMLSchemaProxy, \
+from ..converters import ElementData, XMLSchemaConverter
+from ..xpath import XsdSchemaProtocol, XsdElementProtocol, XMLSchemaProxy, \
     ElementPathMixin, XPathElement
+from ..resources import XMLResource
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaTypeTableWarning
 from .helpers import get_xsd_derivation_attribute
 from .xsdbase import XSD_TYPE_DERIVATIONS, XSD_ELEMENT_DERIVATIONS, \
     XsdComponent, ValidationMixin
 from .particles import ParticleMixin, OccursCalculator
-from .identities import IdentityXPathContext, XsdIdentity, XsdKey, XsdUnique, \
+from .identities import XsdIdentity, XsdKey, XsdUnique, \
     XsdKeyref, IdentityCounter, IdentityCounterType
 from .simple_types import XsdSimpleType
 from .attributes import XsdAttribute
@@ -109,7 +113,7 @@ class XsdElement(XsdComponent, ParticleMixin,
 
     binding: Optional[DataBindingType] = None
 
-    def __init__(self, elem: etree_element,
+    def __init__(self, elem: Element,
                  schema: SchemaType,
                  parent: Optional[XsdComponent] = None,
                  build: bool = True) -> None:
@@ -384,13 +388,26 @@ class XsdElement(XsdComponent, ParticleMixin,
     @property
     def xpath_proxy(self) -> XMLSchemaProxy:
         return XMLSchemaProxy(
-            schema=cast(XMLSchemaProtocol, self.schema),
-            base_element=cast(ElementProtocol, self)
+            schema=cast(XsdSchemaProtocol, self.schema),
+            base_element=cast(XsdElementProtocol, self)
+        )
+
+    @property
+    def xpath_node(self) -> SchemaElementNode:
+        schema_node = self.schema.xpath_node
+        node = schema_node.get_element_node(cast(XsdElementProtocol, self))
+        if isinstance(node, SchemaElementNode):
+            return node
+
+        return build_schema_node_tree(
+            root=cast(XsdElementProtocol, self),
+            elements=schema_node.elements,
+            global_elements=schema_node.children,
         )
 
     def build(self) -> None:
         if self._build:
-            return
+            return None
         self._build = True
         self._parse()
 
@@ -659,9 +676,11 @@ class XsdElement(XsdComponent, ParticleMixin,
                         if isinstance(identity.elements, tuple):
                             continue  # Skip unbuilt identities
 
-                        context = IdentityXPathContext(
-                            self.schema, item=xpath_element  # type: ignore[arg-type]
+                        context = XPathContext(
+                            root=self.schema.xpath_node,
+                            item=cast(XsdElementProtocol, xpath_element)
                         )
+
                         for e in identity.selector.token.select_results(context):
                             if not isinstance(e, XsdElement):
                                 reason = _("selector xpath expression can only select elements")
@@ -828,7 +847,9 @@ class XsdElement(XsdComponent, ParticleMixin,
         if content is not None:
             del content
 
-        # Collects fields values for identities that refer to this element.
+        element_node: Union[None, ElementNode, LazyElementNode] = None
+
+        # Collect field values for identities that refer to this element.
         for identity, counter in identities.items():
             if not counter.enabled or not identity.elements:
                 continue
@@ -844,17 +865,26 @@ class XsdElement(XsdComponent, ParticleMixin,
                 if xsd_type is self.type:
                     xsd_fields = identity.elements[xsd_element]
                     if xsd_fields is None:
-                        xsd_fields = identity.get_fields(xsd_element)
+                        xsd_fields = identity.get_fields(xsd_element.xpath_node)
                         identity.elements[xsd_element] = xsd_fields
                 else:
                     xsd_element = cast(XsdElement, self.copy())
                     xsd_element.type = xsd_type
-                    xsd_fields = identity.get_fields(xsd_element)
+                    xsd_fields = identity.get_fields(xsd_element.xpath_node)
 
                 if all(x is None for x in xsd_fields):
                     continue
                 decoders = cast(Tuple[XsdAttribute, ...], xsd_fields)
-                fields = identity.get_fields(obj, namespaces, decoders=decoders)
+
+                if element_node is None:
+                    try:
+                        resource = cast(XMLResource, kwargs['source'])
+                    except KeyError:
+                        element_node = LazyElementNode(obj, nsmap=copy(namespaces))
+                    else:
+                        element_node = resource.get_xpath_node(obj)
+
+                fields = identity.get_fields(element_node, namespaces, decoders=decoders)
             except (XMLSchemaValueError, XMLSchemaTypeError) as err:
                 yield self.validation_error(validation, err, obj, **kwargs)
             else:
@@ -1306,12 +1336,12 @@ class Xsd11Element(XsdElement):
                     if value is not None:
                         attrib[k] = value
 
-                elem = etree_element(elem.tag, attrib=attrib)
+                elem = Element(elem.tag, attrib=attrib)
             else:
-                elem = etree_element(elem.tag)
+                elem = Element(elem.tag)
 
         if inherited:
-            dummy = etree_element('_dummy_element', attrib=inherited)
+            dummy = Element('_dummy_element', attrib=inherited)
             dummy.attrib.update(elem.attrib)
 
             for alt in self.alternatives:

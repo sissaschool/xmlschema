@@ -2,6 +2,12 @@
 CHANGELOG
 *********
 
+`v2.0.0`_ (2022-07-18)
+======================
+* Refactor XPath interface for the full XPath node implementation of elementpath v3.0
+* Fix BadgerFishConverter with mixed content (issue #315)
+* Improve get() and set() of DataElement (issue #314)
+
 `v1.11.3`_ (2022-06-24)
 =======================
 * Fix invalid element not detected with empty particle (issue #306)
@@ -543,3 +549,4 @@ v0.9.6 (2017-05-05)
 .. _v1.11.1: https://github.com/brunato/xmlschema/compare/v1.11.0...v1.11.1
 .. _v1.11.2: https://github.com/brunato/xmlschema/compare/v1.11.1...v1.11.2
 .. _v1.11.3: https://github.com/brunato/xmlschema/compare/v1.11.2...v1.11.3
+.. _v2.0.0: https://github.com/brunato/xmlschema/compare/v1.11.3...v2.0.0

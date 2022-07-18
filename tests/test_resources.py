@@ -21,19 +21,21 @@ from urllib.request import urlopen
 from urllib.parse import urlsplit, uses_relative
 from pathlib import Path, PurePath, PureWindowsPath, PurePosixPath
 from unittest.mock import patch, MagicMock
+from xml.etree import ElementTree
 
 try:
     import lxml.etree as lxml_etree
 except ImportError:
     lxml_etree = None
 
+from elementpath.etree import PyElementTree, is_etree_element
+
 from xmlschema import fetch_namespaces, fetch_resource, normalize_url, \
     fetch_schema, fetch_schema_locations, XMLResource, XMLResourceError, XMLSchema
-from xmlschema.etree import ElementTree, etree_element, py_etree_element, is_etree_element
 from xmlschema.names import XSD_NAMESPACE
 import xmlschema.resources
 from xmlschema.resources import is_url, is_local_url, is_remote_url, \
-    url_path_is_file, normalize_locations, LazySelector
+    url_path_is_file, normalize_locations
 from xmlschema.testing import SKIP_REMOTE_TESTS
 
 
@@ -193,8 +195,10 @@ class TestResources(unittest.TestCase):
 
     def test_normalize_url_unc_paths__issue_246(self):
         url = PureWindowsPath(r'\\host\share\file.xsd').as_uri()
-        self.assertNotEqual(normalize_url(r'\\host\share\file.xsd'), url)  # file://host/share/file.xsd
-        self.assertEqual(normalize_url(r'\\host\share\file.xsd'), url.replace('file://', 'file:////'))
+        self.assertNotEqual(normalize_url(r'\\host\share\file.xsd'),
+                            url)  # file://host/share/file.xsd
+        self.assertEqual(normalize_url(r'\\host\share\file.xsd'),
+                         url.replace('file://', 'file:////'))
 
     def test_normalize_url_unc_paths__issue_268(self,):
         unc_path = r'\\filer01\MY_HOME\dev\XMLSCHEMA\test.xsd'
@@ -296,9 +300,9 @@ class TestResources(unittest.TestCase):
         self.assertEqual(normalize_url('//root/dir1/schema.xsd'),
                          'file:////root/dir1/schema.xsd')
         self.assertEqual(normalize_url('dir2/schema.xsd', '//root/dir1/'),
-                         f'file:////root/dir1/dir2/schema.xsd')
+                         'file:////root/dir1/dir2/schema.xsd')
         self.assertEqual(normalize_url('dir2/schema.xsd', '//root/dir1'),
-                         f'file:////root/dir1/dir2/schema.xsd')
+                         'file:////root/dir1/dir2/schema.xsd')
 
     def test_normalize_url_hash_character(self):
         url = normalize_url('issue #000.xml', 'file:///dir1/dir2/')
@@ -790,9 +794,9 @@ class TestResources(unittest.TestCase):
         self.assertEqual(resource.defuse, 'never')
         self.assertRaises(ValueError, XMLResource, self.vh_xml_file, defuse='all')
         self.assertRaises(TypeError, XMLResource, self.vh_xml_file, defuse=None)
-        self.assertIsInstance(resource.root, etree_element)
+        self.assertIsInstance(resource.root, ElementTree.Element)
         resource = XMLResource(self.vh_xml_file, defuse='always', lazy=True)
-        self.assertIsInstance(resource.root, py_etree_element)
+        self.assertIsInstance(resource.root, PyElementTree.Element)
 
         xml_file = casepath('resources/with_entity.xml')
         self.assertIsInstance(XMLResource(xml_file, lazy=True), XMLResource)
@@ -1135,21 +1139,11 @@ class TestResources(unittest.TestCase):
         self.assertListEqual(nsmap, [('tns2', 'http://example.com/ns2')])
 
         nsmap = []
-        self.assertEqual(resource.find('*/c2/@x', nsmap=nsmap), '2')
-        self.assertListEqual(nsmap, [])
-
-        nsmap = []
         ancestors = []
         self.assertIs(resource.find('*/c2', nsmap=nsmap, ancestors=ancestors),
                       resource.root[0][1])
         self.assertListEqual(nsmap, [('tns2', 'http://example.com/ns2')])
         self.assertListEqual(ancestors, [resource.root, resource.root[0]])
-
-        nsmap = []
-        ancestors = []
-        self.assertEqual(resource.find('*/c2/@x', nsmap=nsmap, ancestors=ancestors), '2')
-        self.assertListEqual(nsmap, [])
-        self.assertListEqual(ancestors, [])
 
         nsmap = []
         ancestors = []
@@ -1381,9 +1375,9 @@ class TestResources(unittest.TestCase):
 
     def test_schema_defuse(self):
         vh_schema = XMLSchema(self.vh_xsd_file, defuse='always')
-        self.assertIsInstance(vh_schema.root, etree_element)
+        self.assertIsInstance(vh_schema.root, ElementTree.Element)
         for schema in vh_schema.maps.iter_schemas():
-            self.assertIsInstance(schema.root, etree_element)
+            self.assertIsInstance(schema.root, ElementTree.Element)
 
     def test_schema_resource_access(self):
         vh_schema = XMLSchema(self.vh_xsd_file, allow='sandbox')
@@ -1452,29 +1446,6 @@ class TestResources(unittest.TestCase):
             self.assertIsNone(resource.url)
             self.assertEqual(set(resource.get_namespaces().keys()), {'vh', 'xsi'})
             self.assertFalse(xml_file.closed)
-
-    def test_lazy_selector(self):
-        selector = LazySelector('./*')
-        self.assertEqual(repr(selector), "LazySelector(path='./*')")
-
-        with self.assertRaises(SyntaxError):
-            LazySelector('self::*')
-
-        root = ElementTree.XML('<a><b1 c="10"/><b2/></a>')
-        self.assertListEqual(selector.select(root), root[:])
-        self.assertListEqual(list(selector.iter_select(root)), root[:])
-
-        selector = LazySelector('./b1/@c')
-
-        with self.assertRaises(XMLResourceError) as ctx:
-            selector.select(root)
-        self.assertEqual("XPath expressions on lazy resources can "
-                         "select only elements", str(ctx.exception))
-
-        with self.assertRaises(XMLResourceError) as ctx:
-            list(selector.iter_select(root))
-        self.assertEqual("XPath expressions on lazy resources can "
-                         "select only elements", str(ctx.exception))
 
     def test_parent_map(self):
         root = ElementTree.XML('<a><b1><c1/><c2/></b1><b2/></a>')

@@ -10,9 +10,8 @@
 from collections.abc import MutableMapping, MutableSequence
 from typing import TYPE_CHECKING, Any, Optional, List, Dict, Type, Union, Tuple
 
-from ..etree import ElementData
 from ..aliases import NamespacesType, BaseXsdType
-from .default import XMLSchemaConverter
+from .default import ElementData, XMLSchemaConverter
 
 if TYPE_CHECKING:
     from ..validators import XsdElement
@@ -59,6 +58,9 @@ class BadgerFishConverter(XMLSchemaConverter):
         if xsd_group is None:
             if data.text is not None and data.text != '':
                 result_dict['$'] = data.text
+        elif not data.content:
+            if data.text is not None and data.text != '':
+                result_dict['$1'] = data.text
         else:
             has_single_group = xsd_group.is_single()
             for name, value, xsd_child in self.map_content(data.content):
@@ -124,6 +126,9 @@ class BadgerFishConverter(XMLSchemaConverter):
         text = None
         content: List[Tuple[Union[str, int], Any]] = []
         attributes = {}
+
+        if isinstance(element_data, list):
+            print(element_data)
 
         for name, value in element_data.items():
             if name == '@xmlns':

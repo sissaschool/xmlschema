@@ -160,7 +160,7 @@ class TestXsdAttributes(XsdValidatorTestCase):
 
         with self.assertRaises(XMLSchemaParseError) as ctx:
             self.schema_class("""<xs:schema
-                    xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+                    xmlns:xs="http://www.w3.org/2001/XMLSchema"
                     targetNamespace="http://www.w3.org/2001/XMLSchema-instance" >
                 <xs:attribute name="phone" type="xs:string"/>
             </xs:schema>""")
@@ -525,7 +525,7 @@ class TestXsd11Attributes(TestXsdAttributes):
 
         xs = self.get_schema(dedent("""\
             <xs:attributeGroup name="attrs">
-                <xs:attribute name="a" type="xs:string" 
+                <xs:attribute name="a" type="xs:string"
                     targetNamespace="http://xmlschema.test/ns"/>
                 <xs:attribute ref="b"/>
             </xs:attributeGroup>
@@ -542,7 +542,7 @@ class TestXsd11Attributes(TestXsdAttributes):
         with self.assertRaises(XMLSchemaParseError) as ec:
             self.get_schema(dedent("""\
                 <xs:attributeGroup name="attrs">
-                    <xs:attribute name="a" type="xs:string" 
+                    <xs:attribute name="a" type="xs:string"
                         use="prohibited" fixed="foo"/>
                 </xs:attributeGroup>"""))
 

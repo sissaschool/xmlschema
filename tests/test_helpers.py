@@ -13,15 +13,21 @@ import unittest
 import sys
 import decimal
 from collections import OrderedDict
+from xml.etree import ElementTree
+
+try:
+    import lxml.etree as lxml_etree
+except ImportError:
+    lxml_etree = None
 
 from xmlschema import XMLSchema, XMLSchemaParseError
-from xmlschema.etree import ElementTree, etree_element
 from xmlschema.names import XSD_NAMESPACE, XSI_NAMESPACE, XSD_SCHEMA, \
     XSD_ELEMENT, XSD_SIMPLE_TYPE, XSD_ANNOTATION, XSI_TYPE
 from xmlschema.helpers import prune_etree, get_namespace, get_qname, \
     local_name, get_prefixed_qname, get_extended_qname, raw_xml_encode, \
-    count_digits, strictly_equal
-from xmlschema.testing import iter_nested_items
+    count_digits, strictly_equal, etree_iterpath, etree_getpath, \
+    etree_iter_location_hints
+from xmlschema.testing import iter_nested_items, etree_elements_assert_equal
 from xmlschema.validators.exceptions import XMLSchemaValidationError
 from xmlschema.validators.helpers import get_xsd_derivation_attribute, \
     decimal_validator, qname_validator, \
@@ -42,7 +48,7 @@ class TestHelpers(unittest.TestCase):
         XMLSchema.meta_schema.clear()
 
     def test_get_xsd_derivation_attribute(self):
-        elem = etree_element(XSD_ELEMENT, attrib={
+        elem = ElementTree.Element(XSD_ELEMENT, attrib={
             'a1': 'extension', 'a2': ' restriction', 'a3': '#all', 'a4': 'other',
             'a5': 'restriction extension restriction ', 'a6': 'other restriction'
         })
@@ -66,28 +72,28 @@ class TestHelpers(unittest.TestCase):
     def test_parse_component(self):
         component = XMLSchema.meta_schema.types['anyType']
 
-        elem = etree_element(XSD_SCHEMA)
+        elem = ElementTree.Element(XSD_SCHEMA)
         self.assertIsNone(component._parse_child_component(elem))
-        elem.append(etree_element(XSD_ELEMENT))
+        elem.append(ElementTree.Element(XSD_ELEMENT))
         self.assertEqual(component._parse_child_component(elem), elem[0])
-        elem.append(etree_element(XSD_SIMPLE_TYPE))
+        elem.append(ElementTree.Element(XSD_SIMPLE_TYPE))
         self.assertRaises(XMLSchemaParseError, component._parse_child_component, elem)
         self.assertEqual(component._parse_child_component(elem, strict=False), elem[0])
 
         elem.clear()
-        elem.append(etree_element(XSD_ANNOTATION))
+        elem.append(ElementTree.Element(XSD_ANNOTATION))
         self.assertIsNone(component._parse_child_component(elem))
-        elem.append(etree_element(XSD_SIMPLE_TYPE))
+        elem.append(ElementTree.Element(XSD_SIMPLE_TYPE))
         self.assertEqual(component._parse_child_component(elem), elem[1])
-        elem.append(etree_element(XSD_ELEMENT))
+        elem.append(ElementTree.Element(XSD_ELEMENT))
         self.assertRaises(XMLSchemaParseError, component._parse_child_component, elem)
         self.assertEqual(component._parse_child_component(elem, strict=False), elem[1])
 
         elem.clear()
-        elem.append(etree_element(XSD_ANNOTATION))
-        elem.append(etree_element(XSD_ANNOTATION))
+        elem.append(ElementTree.Element(XSD_ANNOTATION))
+        elem.append(ElementTree.Element(XSD_ANNOTATION))
         self.assertIsNone(component._parse_child_component(elem, strict=False))
-        elem.append(etree_element(XSD_SIMPLE_TYPE))
+        elem.append(ElementTree.Element(XSD_SIMPLE_TYPE))
         self.assertEqual(component._parse_child_component(elem), elem[2])
 
     def test_raw_xml_encode_function(self):
@@ -275,6 +281,148 @@ class TestHelpers(unittest.TestCase):
         namespaces = {'': XSD_NAMESPACE}
         self.assertEqual(get_extended_qname('element', namespaces), XSD_ELEMENT)
 
+    def test_etree_iterpath(self):
+        root = ElementTree.XML('<a><b1><c1/><c2/></b1><b2/><b3><c3/></b3></a>')
+
+        items = list(etree_iterpath(root))
+        self.assertListEqual(items, [
+            (root, '.'), (root[0], './b1'), (root[0][0], './b1/c1'),
+            (root[0][1], './b1/c2'), (root[1], './b2'), (root[2], './b3'),
+            (root[2][0], './b3/c3')
+        ])
+
+        self.assertListEqual(items, list(etree_iterpath(root, tag='*')))
+        self.assertListEqual(items, list(etree_iterpath(root, path='')))
+        self.assertListEqual(items, list(etree_iterpath(root, path=None)))
+
+        self.assertListEqual(list(etree_iterpath(root, path='/')), [
+            (root, '/'), (root[0], '/b1'), (root[0][0], '/b1/c1'),
+            (root[0][1], '/b1/c2'), (root[1], '/b2'), (root[2], '/b3'),
+            (root[2][0], '/b3/c3')
+        ])
+
+    def test_etree_getpath(self):
+        root = ElementTree.XML('<a><b1><c1/><c2/></b1><b2/><b3><c3/></b3></a>')
+
+        self.assertEqual(etree_getpath(root, root), '.')
+        self.assertEqual(etree_getpath(root[0], root), './b1')
+        self.assertEqual(etree_getpath(root[2][0], root), './b3/c3')
+        self.assertEqual(etree_getpath(root[0], root, parent_path=True), '.')
+        self.assertEqual(etree_getpath(root[2][0], root, parent_path=True), './b3')
+
+        self.assertIsNone(etree_getpath(root, root[0]))
+        self.assertIsNone(etree_getpath(root[0], root[1]))
+        self.assertIsNone(etree_getpath(root, root, parent_path=True))
+
+    def test_etree_elements_assert_equal(self):
+        e1 = ElementTree.XML('<a><b1>text<c1 a="1"/></b1>\n<b2/><b3/></a>\n')
+        e2 = ElementTree.XML('<a><b1>text<c1 a="1"/></b1>\n<b2/><b3/></a>\n')
+
+        self.assertIsNone(etree_elements_assert_equal(e1, e1))
+        self.assertIsNone(etree_elements_assert_equal(e1, e2))
+
+        if lxml_etree is not None:
+            e2 = lxml_etree.XML('<a><b1>text<c1 a="1"/></b1>\n<b2/><b3/></a>\n')
+            self.assertIsNone(etree_elements_assert_equal(e1, e2))
+
+        e2 = ElementTree.XML('<a><b1>text<c1 a="1"/></b1>\n<b2/><b3/><b4/></a>\n')
+        with self.assertRaises(AssertionError) as ctx:
+            etree_elements_assert_equal(e1, e2)
+        self.assertIn("has lesser children than <Element 'a'", str(ctx.exception))
+
+        e2 = ElementTree.XML('<a><b1>text  <c1 a="1"/></b1>\n<b2/><b3/></a>\n')
+        self.assertIsNone(etree_elements_assert_equal(e1, e2, strict=False))
+        with self.assertRaises(AssertionError) as ctx:
+            etree_elements_assert_equal(e1, e2)
+        self.assertIn("texts differ: 'text' != 'text  '", str(ctx.exception))
+
+        e2 = ElementTree.XML('<a><b1>text<c1 a="1"/></b1>\n<b2>text</b2><b3/></a>\n')
+        with self.assertRaises(AssertionError) as ctx:
+            etree_elements_assert_equal(e1, e2, strict=False)
+        self.assertIn("texts differ: None != 'text'", str(ctx.exception))
+
+        e2 = ElementTree.XML('<a><b1>text<c1 a="1"/></b1>\n<b2/><b3/></a>')
+        self.assertIsNone(etree_elements_assert_equal(e1, e2))
+
+        e2 = ElementTree.XML('<a><b1>text<c1 a="1"/></b1><b2/><b3/></a>\n')
+        self.assertIsNone(etree_elements_assert_equal(e1, e2, strict=False))
+        with self.assertRaises(AssertionError) as ctx:
+            etree_elements_assert_equal(e1, e2)
+        self.assertIn(r"tails differ: '\n' != None", str(ctx.exception))
+
+        e2 = ElementTree.XML('<a><b1>text<c1 a="1 "/></b1>\n<b2/><b3/></a>\n')
+        self.assertIsNone(etree_elements_assert_equal(e1, e2, strict=False))
+        with self.assertRaises(AssertionError) as ctx:
+            etree_elements_assert_equal(e1, e2)
+        self.assertIn("attributes differ: {'a': '1'} != {'a': '1 '}", str(ctx.exception))
+
+        e2 = ElementTree.XML('<a><b1>text<c1 a="2 "/></b1>\n<b2/><b3/></a>\n')
+        with self.assertRaises(AssertionError) as ctx:
+            etree_elements_assert_equal(e1, e2, strict=False)
+        self.assertIn("attribute 'a' values differ: '1' != '2'", str(ctx.exception))
+
+        e2 = ElementTree.XML('<a><!--comment--><b1>text<c1 a="1"/></b1>\n<b2/><b3/></a>\n')
+        self.assertIsNone(etree_elements_assert_equal(e1, e2))
+        self.assertIsNone(etree_elements_assert_equal(e1, e2, skip_comments=False))
+
+        if lxml_etree is not None:
+            e2 = lxml_etree.XML('<a><!--comment--><b1>text<c1 a="1"/></b1>\n<b2/><b3/></a>\n')
+            self.assertIsNone(etree_elements_assert_equal(e1, e2))
+
+        e1 = ElementTree.XML('<a><b1>+1</b1></a>')
+        e2 = ElementTree.XML('<a><b1>+ 1 </b1></a>')
+        self.assertIsNone(etree_elements_assert_equal(e1, e2, strict=False))
+
+        e1 = ElementTree.XML('<a><b1>+1</b1></a>')
+        e2 = ElementTree.XML('<a><b1>+1.1 </b1></a>')
+
+        with self.assertRaises(AssertionError) as ctx:
+            etree_elements_assert_equal(e1, e2, strict=False)
+        self.assertIn("texts differ: '+1' != '+1.1 '", str(ctx.exception))
+
+        e1 = ElementTree.XML('<a><b1>1</b1></a>')
+        e2 = ElementTree.XML('<a><b1>true </b1></a>')
+        self.assertIsNone(etree_elements_assert_equal(e1, e2, strict=False))
+        self.assertIsNone(etree_elements_assert_equal(e2, e1, strict=False))
+
+        e2 = ElementTree.XML('<a><b1>false </b1></a>')
+        with self.assertRaises(AssertionError) as ctx:
+            etree_elements_assert_equal(e1, e2, strict=False)
+        self.assertIn("texts differ: '1' != 'false '", str(ctx.exception))
+
+        e1 = ElementTree.XML('<a><b1> 0</b1></a>')
+        self.assertIsNone(etree_elements_assert_equal(e1, e2, strict=False))
+        self.assertIsNone(etree_elements_assert_equal(e2, e1, strict=False))
+
+        e2 = ElementTree.XML('<a><b1>true </b1></a>')
+        with self.assertRaises(AssertionError) as ctx:
+            etree_elements_assert_equal(e1, e2, strict=False)
+        self.assertIn("texts differ: ' 0' != 'true '", str(ctx.exception))
+
+        e1 = ElementTree.XML('<a><b1>text<c1 a="1"/></b1>\n<b2/><b3/></a>\n')
+        e2 = ElementTree.XML('<a><b1>text<c1 a="1"/>tail</b1>\n<b2/><b3/></a>\n')
+
+        with self.assertRaises(AssertionError) as ctx:
+            etree_elements_assert_equal(e1, e2, strict=False)
+        self.assertIn("tails differ: None != 'tail'", str(ctx.exception))
+
+    def test_iter_location_hints(self):
+        elem = ElementTree.XML(
+            """<root xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+            xsi:schemaLocation="http://example.com/xmlschema/ns-A import-case4a.xsd"/>"""
+        )
+        self.assertListEqual(
+            list(etree_iter_location_hints(elem)),
+            [('http://example.com/xmlschema/ns-A', 'import-case4a.xsd')]
+        )
+        elem = ElementTree.XML(
+            """<foo xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+            xsi:noNamespaceSchemaLocation="schema.xsd"/>"""
+        )
+        self.assertListEqual(
+            list(etree_iter_location_hints(elem)), [('', 'schema.xsd')]
+        )
+
     def test_prune_etree_function(self):
         root = ElementTree.XML('<A id="0"><B/><C/><D/></A>')
         self.assertFalse(prune_etree(root, lambda x: x.tag == 'C'))
@@ -307,6 +455,14 @@ class TestHelpers(unittest.TestCase):
         self.assertTrue(prune_etree(root, selector.method))
         self.assertListEqual([e.tag for e in root.iter()], ['A'])
         self.assertEqual(root.attrib, {'id': '1'})
+
+        root = ElementTree.XML('<a><b1><c1/><c2/></b1><b2/><b3><c3/></b3></a>')
+        prune_etree(root, selector=lambda x: x.tag == 'b1')
+        self.assertListEqual([e.tag for e in root.iter()], ['a', 'b2', 'b3', 'c3'])
+
+        root = ElementTree.XML('<a><b1><c1/><c2/></b1><b2/><b3><c3/></b3></a>')
+        prune_etree(root, selector=lambda x: x.tag.startswith('c'))
+        self.assertListEqual([e.tag for e in root.iter()], ['a', 'b1', 'b2', 'b3'])
 
     def test_decimal_validator(self):
         self.assertIsNone(decimal_validator(10))

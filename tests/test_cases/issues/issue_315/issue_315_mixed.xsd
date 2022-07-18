@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema targetNamespace="http://xmlschema.test/ns"
+           xmlns:tst="http://xmlschema.test/ns"
+           xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:element name="e1" type="tst:t1"/>
+  <xs:complexType name="t1">
+    <xs:complexContent mixed="true">
+      <xs:restriction base="xs:anyType">
+        <xs:choice minOccurs="0" maxOccurs="unbounded">
+          <xs:element name="e2" type="xs:string"/>
+        </xs:choice>
+        <xs:attribute type="xs:string" name="a1"/>
+      </xs:restriction>
+    </xs:complexContent>
+  </xs:complexType>
+</xs:schema>

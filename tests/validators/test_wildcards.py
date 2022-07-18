@@ -767,7 +767,7 @@ class TestXsd11Wildcards(TestXsdWildcards):
             <xs:complexType name="taggedType">
               <xs:sequence>
                 <xs:element name="tag" type="xs:string"/>
-                <xs:any namespace="##targetNamespace" 
+                <xs:any namespace="##targetNamespace"
                 notQName="##defined tns1:foo ##definedSibling"/>
               </xs:sequence>
             </xs:complexType>

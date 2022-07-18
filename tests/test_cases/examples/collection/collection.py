@@ -24,4 +24,3 @@ class CollectionBinding(DataElement, metaclass=DataBindingMeta):
 
 class PersonBinding(DataElement, metaclass=DataBindingMeta):
     xsd_element = schema.elements['person']
-

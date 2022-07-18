@@ -6,8 +6,8 @@ publiccodeYmlVersion: '0.2'
 name: xmlschema
 url: 'https://github.com/sissaschool/xmlschema'
 landingURL: 'https://github.com/sissaschool/xmlschema'
-releaseDate: '2022-06-24'
-softwareVersion: v1.11.3
+releaseDate: '2022-07-18'
+softwareVersion: v2.0.0
 developmentStatus: stable
 platforms:
   - linux

@@ -14,16 +14,17 @@ import warnings
 from collections.abc import MutableMapping
 from typing import TYPE_CHECKING, overload, Any, Iterable, Iterator, List, \
     MutableSequence, Optional, Tuple, Union
+from xml.etree import ElementTree
 
 from .. import limits
 from ..exceptions import XMLSchemaValueError
 from ..names import XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ELEMENT, \
     XSD_ANY, XSI_TYPE, XSD_ANY_TYPE, XSD_ANNOTATION
-from ..etree import etree_element, ElementData
 from ..aliases import ElementType, NamespacesType, SchemaType, IterDecodeType, \
     IterEncodeType, ModelParticleType, SchemaElementType, ComponentClassType
 from ..translation import gettext as _
 from ..helpers import get_qname, local_name, raw_xml_encode
+from ..converters import ElementData
 
 from .exceptions import XMLSchemaModelError, XMLSchemaModelDepthError, \
     XMLSchemaValidationError, XMLSchemaChildrenValidationError, \
@@ -37,7 +38,7 @@ from .models import ModelVisitor, distinguishable_paths
 if TYPE_CHECKING:
     from .complex_types import XsdComplexType
 
-ANY_ELEMENT = etree_element(
+ANY_ELEMENT = ElementTree.Element(
     XSD_ANY,
     attrib={
         'namespace': '##any',

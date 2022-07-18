@@ -16,6 +16,7 @@ import io
 import pathlib
 import tempfile
 from decimal import Decimal
+from xml.etree import ElementTree
 
 try:
     import lxml.etree as lxml_etree
@@ -26,7 +27,6 @@ from xmlschema import XMLSchema10, XMLSchema11, XmlDocument, \
     XMLResourceError, XMLSchemaValidationError, XMLSchemaDecodeError, \
     to_json, from_json
 
-from xmlschema.etree import ElementTree
 from xmlschema.names import XSD_NAMESPACE, XSI_NAMESPACE
 from xmlschema.helpers import is_etree_element, is_etree_document
 from xmlschema.resources import XMLResource

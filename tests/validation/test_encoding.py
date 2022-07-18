@@ -12,6 +12,7 @@ import sys
 import os
 import unittest
 from textwrap import dedent
+from xml.etree import ElementTree
 
 try:
     import lxml.etree as lxml_etree
@@ -19,10 +20,10 @@ except ImportError:
     lxml_etree = None
 
 from elementpath import datatypes
+from elementpath.etree import etree_tostring
 
 from xmlschema import XMLSchemaEncodeError, XMLSchemaValidationError
 from xmlschema.converters import UnorderedConverter, JsonMLConverter
-from xmlschema.etree import etree_element, etree_tostring, ElementTree
 from xmlschema.helpers import local_name, is_etree_element
 from xmlschema.resources import XMLResource
 from xmlschema.validators.exceptions import XMLSchemaChildrenValidationError
@@ -226,7 +227,7 @@ class TestEncoding(XsdValidatorTestCase):
         self.check_encode(boolean_or_integer_or_string, "Venice ", u'Venice ')
 
     def test_simple_elements(self):
-        elem = etree_element('A')
+        elem = ElementTree.Element('A')
         elem.text = '89'
         self.check_encode(self.get_element('A', type='xs:string'), '89', elem)
         self.check_encode(self.get_element('A', type='xs:integer'), 89, elem)
@@ -485,7 +486,6 @@ class TestEncoding(XsdValidatorTestCase):
             <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
                        xmlns="http://xmlschema.test/ns"
                        targetNamespace="http://xmlschema.test/ns">
-              
               <xs:element name="a" type="xs:string"/>
               <xs:complexType name="altType">
                 <xs:simpleContent>
@@ -499,7 +499,7 @@ class TestEncoding(XsdValidatorTestCase):
         xml1 = """<a xmlns="http://xmlschema.test/ns">alpha</a>"""
         self.assertEqual(schema.decode(xml1), 'alpha')
 
-        xml2 = """<a xmlns="http://xmlschema.test/ns" 
+        xml2 = """<a xmlns="http://xmlschema.test/ns"
                      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                      xsi:type="altType" a1="beta">alpha</a>"""
 
@@ -644,7 +644,9 @@ class TestEncoding(XsdValidatorTestCase):
             etree_tostring(elem, namespaces=self.col_namespaces),
             dedent(
                 """\
-                <col:collection xmlns:col="http://example.com/ns/collection" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://example.com/ns/collection collection.xsd">
+                <col:collection xmlns:col="http://example.com/ns/collection" \
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" \
+xsi:schemaLocation="http://example.com/ns/collection collection.xsd">
                     <object id="b0836217463" available="true">
                         <position>2</position>
                         <title/>

@@ -16,8 +16,8 @@ from typing import cast, overload, Any, Dict, Iterator, List, Optional, \
     Sequence, Set, TypeVar, Union
 import re
 
-from elementpath import TypedElement, XPath2Parser, \
-    XPathSchemaContext, AbstractSchemaProxy, protocols
+from elementpath import XPath2Parser, XPathSchemaContext, \
+    AbstractSchemaProxy, protocols, LazyElementNode, SchemaElementNode
 
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from .names import XSD_NAMESPACE
@@ -25,87 +25,34 @@ from .aliases import NamespacesType, SchemaType, BaseXsdType, XPathElementType
 from .helpers import get_qname, local_name, get_prefixed_qname
 
 if sys.version_info < (3, 8):
-    XMLSchemaProtocol = SchemaType
-    ElementProtocol = XPathElementType
+    XsdSchemaProtocol = SchemaType
+    XsdElementProtocol = XPathElementType
     XsdTypeProtocol = BaseXsdType
 else:
     from typing import runtime_checkable, Protocol
 
     XsdTypeProtocol = protocols.XsdTypeProtocol
-
-    class XMLSchemaProtocol(protocols.XMLSchemaProtocol, Protocol):
-        attributes: Dict[str, Any]
+    XsdSchemaProtocol = protocols.XsdSchemaProtocol
 
     @runtime_checkable
-    class ElementProtocol(protocols.ElementProtocol, Protocol):
-        schema: XMLSchemaProtocol
+    class XsdElementProtocol(protocols.XsdElementProtocol, Protocol):
+        schema: XsdSchemaProtocol
         attributes: Dict[str, Any]
 
 
 _REGEX_TAG_POSITION = re.compile(r'\b\[\d+]')
 
 
-def iter_schema_nodes(root: Union[XMLSchemaProtocol, ElementProtocol], with_root: bool = True) \
-        -> Iterator[Union[XMLSchemaProtocol, ElementProtocol]]:
-    """
-    Iteration function for schema nodes. It doesn't yield text nodes,
-    that are always `None` for schema elements, and detects visited
-    element in order to skip already visited nodes.
-
-    :param root: schema or schema element.
-    :param with_root: if `True` yields initial element.
-    """
-    if isinstance(root, TypedElement):
-        root = cast(ElementProtocol, root.elem)
-
-    nodes = {root}
-    if with_root:
-        yield root
-
-    iterators: List[Any] = []
-    children: Iterator[Any] = iter(root)
-
-    while True:
-        try:
-            child = next(children)
-        except StopIteration:
-            try:
-                children = iterators.pop()
-            except IndexError:
-                return
-        else:
-            if child in nodes:
-                continue
-            elif child.ref is not None:
-                nodes.add(child)
-                yield child
-                if child.ref not in nodes:
-                    nodes.add(child.ref)
-                    yield child.ref
-                    iterators.append(children)
-                    children = iter(child.ref)
-            else:
-                nodes.add(child)
-                yield child
-                iterators.append(children)
-                children = iter(child)
-
-
-class XMLSchemaContext(XPathSchemaContext):
-    """XPath dynamic schema context for the *xmlschema* library."""
-    _iter_nodes = staticmethod(iter_schema_nodes)
-
-
 class XMLSchemaProxy(AbstractSchemaProxy):
     """XPath schema proxy for the *xmlschema* library."""
     _schema: SchemaType  # type: ignore[assignment]
 
-    def __init__(self, schema: Optional[XMLSchemaProtocol] = None,
-                 base_element: Optional[ElementProtocol] = None) -> None:
+    def __init__(self, schema: Optional[XsdSchemaProtocol] = None,
+                 base_element: Optional[XsdElementProtocol] = None) -> None:
 
         if schema is None:
             from xmlschema import XMLSchema10
-            schema = cast(XMLSchemaProtocol, getattr(XMLSchema10, 'meta_schema', None))
+            schema = cast(XsdSchemaProtocol, getattr(XMLSchema10, 'meta_schema', None))
 
         super(XMLSchemaProxy, self).__init__(schema, base_element)
 
@@ -130,9 +77,9 @@ class XMLSchemaProxy(AbstractSchemaProxy):
 
         parser.symbol_table.update(self._schema.xpath_tokens)
 
-    def get_context(self) -> XMLSchemaContext:
-        return XMLSchemaContext(
-            root=self._schema,  # type: ignore[arg-type]
+    def get_context(self) -> XPathSchemaContext:
+        return XPathSchemaContext(
+            root=self._schema.xpath_node,
             namespaces=dict(self._schema.namespaces),
             item=self._base_element
         )
@@ -167,10 +114,6 @@ class XMLSchemaProxy(AbstractSchemaProxy):
                     hasattr(xsd_type, 'primitive_type'):
                 yield cast(XsdTypeProtocol, xsd_type)
 
-    def get_primitive_type(self, xsd_type: XsdTypeProtocol) -> XsdTypeProtocol:
-        primitive_type = cast(BaseXsdType, xsd_type).root_type
-        return cast(XsdTypeProtocol, primitive_type)
-
 
 E = TypeVar('E', bound='ElementPathMixin[Any]')
 
@@ -188,6 +131,7 @@ class ElementPathMixin(Sequence[E]):
     attributes: Any = {}
     namespaces: Any = {}
     xpath_default_namespace = ''
+    _xpath_node: Optional[Union[SchemaElementNode, LazyElementNode]] = None
 
     @abstractmethod
     def __iter__(self) -> Iterator[E]:
@@ -230,6 +174,11 @@ class ElementPathMixin(Sequence[E]):
         """Returns an XPath proxy instance bound with the schema."""
         raise NotImplementedError
 
+    @property
+    def xpath_node(self) -> Union[SchemaElementNode, LazyElementNode]:
+        """Returns an XPath node for applying selectors on XSD schema/component."""
+        raise NotImplementedError
+
     def _get_xpath_namespaces(self, namespaces: Optional[NamespacesType] = None) \
             -> Dict[str, str]:
         """
@@ -265,7 +214,7 @@ class ElementPathMixin(Sequence[E]):
         path = _REGEX_TAG_POSITION.sub('', path.strip())  # Strips tags positions from path
         namespaces = self._get_xpath_namespaces(namespaces)
         parser = XPath2Parser(namespaces, strict=False)
-        context = XMLSchemaContext(self)  # type: ignore[arg-type]
+        context = XPathSchemaContext(self.xpath_node)
 
         return cast(Optional[E], next(parser.parse(path).select_results(context), None))
 
@@ -278,10 +227,10 @@ class ElementPathMixin(Sequence[E]):
         :return: a list containing all matching XSD subelements in document order, an empty \
         list is returned if there is no match.
         """
-        path = _REGEX_TAG_POSITION.sub('', path.strip())  # Strips tags positions from path
+        path = _REGEX_TAG_POSITION.sub('', path.strip())  # Strip tags positions from path
         namespaces = self._get_xpath_namespaces(namespaces)
         parser = XPath2Parser(namespaces, strict=False)
-        context = XMLSchemaContext(self)  # type: ignore[arg-type]
+        context = XPathSchemaContext(self.xpath_node)
 
         return cast(List[E], parser.parse(path).get_results(context))
 
@@ -293,10 +242,10 @@ class ElementPathMixin(Sequence[E]):
         :param namespaces: is an optional mapping from namespace prefix to full name.
         :return: an iterable yielding all matching XSD subelements in document order.
         """
-        path = _REGEX_TAG_POSITION.sub('', path.strip())  # Strips tags positions from path
+        path = _REGEX_TAG_POSITION.sub('', path.strip())  # Strip tags positions from path
         namespaces = self._get_xpath_namespaces(namespaces)
         parser = XPath2Parser(namespaces, strict=False)
-        context = XMLSchemaContext(self)  # type: ignore[arg-type]
+        context = XPathSchemaContext(self.xpath_node)
 
         return cast(Iterator[E], parser.parse(path).select_results(context))
 
@@ -341,6 +290,7 @@ class XPathElement(ElementPathMixin['XPathElement']):
     """An element node for making XPath operations on schema types."""
     name: str
     parent = None
+    _xpath_node: Optional[LazyElementNode]
 
     def __init__(self, name: str, xsd_type: BaseXsdType) -> None:
         self.name = name
@@ -354,9 +304,15 @@ class XPathElement(ElementPathMixin['XPathElement']):
     @property
     def xpath_proxy(self) -> XMLSchemaProxy:
         return XMLSchemaProxy(
-            cast(XMLSchemaProtocol, self.schema),
-            cast(ElementProtocol, self)
+            cast(XsdSchemaProtocol, self.schema),
+            cast(XsdElementProtocol, self)
         )
+
+    @property
+    def xpath_node(self) -> LazyElementNode:
+        if self._xpath_node is None:
+            self._xpath_node = LazyElementNode(cast(XsdElementProtocol, self))
+        return self._xpath_node
 
     @property
     def schema(self) -> SchemaType:

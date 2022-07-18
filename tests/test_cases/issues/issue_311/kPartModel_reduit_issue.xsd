@@ -1,0 +1,122 @@
+<?xml version="1.1" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+targetNamespace = "http://www.ludd21.com/kPartModel"
+xmlns = "http://www.ludd21.com/kPartModel"
+elementFormDefault="qualified"
+vc:minVersion = "1.1"
+xpathDefaultNamespace="##targetNamespace"
+xmlns:vc="http://www.w3.org/2007/XMLSchema-versioning"
+>
+
+<xs:element name="kPartModel">
+  <xs:complexType>
+    <xs:sequence>
+      <xs:element ref="kPartsPiece"  minOccurs="1" maxOccurs = "unbounded"/>
+    </xs:sequence>
+    <xs:attribute name="modelName" type="xs:NCName" use = "required"/>
+    <xs:attribute name= "otherattribute" type="xs:string" default = ""/>
+  </xs:complexType>
+  
+   <!--piecename must be unique within kpModel-->
+  <xs:unique name= "kPartModel">
+        <xs:selector xpath="*"/>
+        <xs:field xpath= "@pieceName"/>
+      </xs:unique>
+</xs:element>
+
+<xs:element name="kPartsPiece">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref= "kPartsList"/>
+      </xs:sequence>         
+      <xs:attribute name="pieceName" type="xs:NCName"/>
+     <!-- nextsnum must contain valid partNumbers -->
+     <xs:assert id = "test-previous" test = "every $x in data(kPartsList/*/@previousnum) satisfies some $part in kPartsList/* satisfies $part/@partNumber = $x"/>
+     <xs:assert id = "test-nexts" test = "every $x in data(kPartsList/*/@nextsnum) satisfies some $part in kPartsList/* satisfies $part/@partNumber = $x"/>
+     </xs:complexType>
+    <!-- @partNumber is unique across kPartsList -->
+    <xs:unique id = "unique-partNumber" name= "kPartsList">
+      <xs:selector xpath="*/*"/>
+      <xs:field xpath= "@partNumber"/>
+    </xs:unique>
+</xs:element>
+
+<xs:element name = "kPartsList" >
+  <xs:complexType>
+    <xs:sequence>
+      <xs:choice  minOccurs= "0" maxOccurs = "unbounded">
+        <xs:element ref = "castOnPartSeg" />
+        <xs:element ref = "castOnPartPoint" />
+        <xs:element ref = "joinPart"/>
+      </xs:choice>
+    </xs:sequence>
+  </xs:complexType>      
+  </xs:element>
+
+<xs:element name="castOnPartPoint">
+  <xs:complexType>
+    <xs:sequence>
+       <xs:element ref ="basePoint"/>
+     </xs:sequence>
+     <xs:attribute name ="nextsnum" type = "kpRefsList" use = "required"/>
+     <xs:attribute name = "partNumber" type = "xs:nonNegativeInteger" use = "required"/>
+  </xs:complexType>
+</xs:element>
+  
+<xs:element name="castOnPartSeg">
+  <xs:complexType>
+    <xs:sequence>
+      <xs:element ref ="baseSeg"/>          
+    </xs:sequence>
+    <xs:attribute name = "nextsnum"  type = "kpRefsList" use = "required"/>
+    <xs:attribute name = "partNumber" type = "xs:nonNegativeInteger" use = "required"/>
+  </xs:complexType>
+</xs:element>
+
+<xs:element name="joinPart">
+  <xs:complexType>
+    <xs:sequence>
+      <xs:element ref ="baseSeg"/>
+    </xs:sequence>
+  <xs:attribute name ="nextsnum"  type = "kpRefsList" use = "required"/>   
+  <xs:attribute name ="previousnum" type = "kpRefsList" use = "required"/>
+   <xs:attribute name = "partNumber" type = "xs:nonNegativeInteger" use = "required"/>
+  </xs:complexType>
+</xs:element>
+
+<xs:simpleType name = "kpRefsList">
+    <xs:list itemType= "xs:nonNegativeInteger"/>
+</xs:simpleType>
+
+<xs:element name = "basePoint">
+  <xs:complexType>
+    <xs:attribute name= "start" type = "point" use = "required"/>
+  </xs:complexType>
+</xs:element>
+
+
+<xs:element name = "baseSeg">
+  <xs:complexType>
+    <xs:attribute name= "start" type = "point" use = "required"/>
+    <xs:attribute name= "end" type = "point" use = "required"/>
+    <!--<xs:assert id = "test_base_horizontal" test = "@start[1] = @end[1]"/> -->
+  </xs:complexType>
+</xs:element>
+
+
+<xs:simpleType name= "point">
+    <xs:restriction>
+      <xs:simpleType>
+        <xs:list itemType = "decimal5digits"/>
+      </xs:simpleType>
+      <xs:length value = "2"/>
+    </xs:restriction>
+</xs:simpleType>
+
+<xs:simpleType name ="decimal5digits">
+    <xs:restriction base = "xs:decimal">
+        <xs:fractionDigits value="5"/>
+    </xs:restriction>
+</xs:simpleType>
+
+</xs:schema>

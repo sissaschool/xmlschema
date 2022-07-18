@@ -14,13 +14,7 @@ Two schema classes are created at the end of this module, XMLSchema10 for XSD 1.
 XMLSchema11 for XSD 1.1. The latter class parses also XSD 1.0 schemas, as prescribed by
 the standard.
 """
-import sys
-
-if sys.version_info < (3, 7):
-    from typing import GenericMeta as ABCMeta
-else:
-    from abc import ABCMeta
-
+from abc import ABCMeta
 import os
 import logging
 import threading
@@ -29,10 +23,12 @@ import re
 import sys
 from copy import copy
 from itertools import chain
+from operator import attrgetter
 from typing import cast, Callable, ItemsView, List, Optional, Dict, Any, \
     Set, Union, Tuple, Type, Iterator, Counter
+from xml.etree.ElementTree import Element, ParseError
 
-from elementpath import XPathToken
+from elementpath import XPathToken, SchemaElementNode, build_schema_node_tree
 
 from ..exceptions import XMLSchemaTypeError, XMLSchemaKeyError, XMLSchemaRuntimeError, \
     XMLSchemaValueError, XMLSchemaNamespaceError
@@ -44,7 +40,6 @@ from ..names import VC_MIN_VERSION, VC_MAX_VERSION, VC_TYPE_AVAILABLE, \
     VC_NAMESPACE, SCHEMAS_DIR, LOCATION_HINTS, XSD_ANNOTATION, XSD_INCLUDE, \
     XSD_IMPORT, XSD_REDEFINE, XSD_OVERRIDE, XSD_DEFAULT_OPEN_CONTENT, \
     XSD_ANY_SIMPLE_TYPE, XSD_UNION, XSD_LIST, XSD_RESTRICTION
-from ..etree import etree_element, ParseError
 from ..aliases import ElementType, XMLSourceType, NamespacesType, LocationsType, \
     SchemaType, SchemaSourceType, ConverterType, ComponentClassType, DecodeType, \
     EncodeType, BaseXsdType, AtomicValueType, ExtraValidatorType, SchemaGlobalType
@@ -54,7 +49,7 @@ from ..namespaces import NamespaceResourcesMap, NamespaceView
 from ..resources import is_local_url, is_remote_url, url_path_is_file, \
     normalize_locations, fetch_resource, normalize_url, XMLResource
 from ..converters import XMLSchemaConverter
-from ..xpath import XMLSchemaProtocol, XMLSchemaProxy, ElementPathMixin
+from ..xpath import XsdSchemaProtocol, XMLSchemaProxy, ElementPathMixin
 from .. import dataobjects
 
 from .exceptions import XMLSchemaParseError, XMLSchemaValidationError, XMLSchemaEncodeError, \
@@ -77,16 +72,18 @@ from .global_maps import XsdGlobals
 
 logger = logging.getLogger('xmlschema')
 
+name_attribute = attrgetter('name')
+
 XSD_VERSION_PATTERN = re.compile(r'^\d+\.\d+$')
 DRIVE_PATTERN = re.compile(r'^[a-zA-Z]:$')
 
 # Elements for building dummy groups
-ATTRIBUTE_GROUP_ELEMENT = etree_element(XSD_ATTRIBUTE_GROUP)
-ANY_ATTRIBUTE_ELEMENT = etree_element(
+ATTRIBUTE_GROUP_ELEMENT = Element(XSD_ATTRIBUTE_GROUP)
+ANY_ATTRIBUTE_ELEMENT = Element(
     XSD_ANY_ATTRIBUTE, attrib={'namespace': '##any', 'processContents': 'lax'}
 )
-SEQUENCE_ELEMENT = etree_element(XSD_SEQUENCE)
-ANY_ELEMENT = etree_element(
+SEQUENCE_ELEMENT = Element(XSD_SEQUENCE)
+ANY_ELEMENT = Element(
     XSD_ANY,
     attrib={
         'namespace': '##any',
@@ -277,6 +274,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     fallback_locations: Dict[str, str] = LOCATION_HINTS.copy()
     _locations: Tuple[Tuple[str, str], ...] = ()
     _annotations = None
+    _xpath_node: Optional[SchemaElementNode]
 
     # XSD components classes
     xsd_notation_class = XsdNotation
@@ -560,17 +558,25 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             super(XMLSchemaBase, self).__setattr__(name, value)
 
     def __iter__(self) -> Iterator[XsdElement]:
-        yield from sorted(self.elements.values(), key=lambda x: x.name)
+        yield from sorted(self.elements.values(), key=name_attribute)
 
     def __reversed__(self) -> Iterator[XsdElement]:
-        yield from sorted(self.elements.values(), key=lambda x: x.name, reverse=True)
+        yield from sorted(self.elements.values(), key=name_attribute, reverse=True)
 
     def __len__(self) -> int:
         return len(self.elements)
 
     @property
     def xpath_proxy(self) -> XMLSchemaProxy:
-        return XMLSchemaProxy(cast(XMLSchemaProtocol, self))
+        return XMLSchemaProxy(cast(XsdSchemaProtocol, self))
+
+    @property
+    def xpath_node(self) -> SchemaElementNode:
+        if self._xpath_node is None:
+            self._xpath_node = build_schema_node_tree(
+                cast(Union[XsdSchemaProtocol], self)
+            )
+        return self._xpath_node
 
     @property
     def xsd_version(self) -> str:
@@ -866,11 +872,11 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     def create_empty_content_group(self, parent: Union[XsdComplexType, XsdGroup],
                                    model: str = 'sequence', **attrib: Any) -> XsdGroup:
         if model == 'sequence':
-            group_elem = etree_element(XSD_SEQUENCE, **attrib)
+            group_elem = Element(XSD_SEQUENCE, **attrib)
         elif model == 'choice':
-            group_elem = etree_element(XSD_CHOICE, **attrib)
+            group_elem = Element(XSD_CHOICE, **attrib)
         elif model == 'all':
-            group_elem = etree_element(XSD_ALL, **attrib)
+            group_elem = Element(XSD_ALL, **attrib)
         else:
             msg = _("'model' argument must be (sequence | choice | all)")
             raise XMLSchemaValueError(msg)
@@ -910,7 +916,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         """
         schema = self.meta_schema or self
         any_type = self.xsd_complex_type_class(
-            elem=etree_element(XSD_COMPLEX_TYPE, name=XSD_ANY_TYPE),
+            elem=Element(XSD_COMPLEX_TYPE, name=XSD_ANY_TYPE),
             schema=schema, parent=None, mixed=True, block='', final=''
         )
         assert isinstance(any_type.content, XsdGroup)
@@ -931,7 +937,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         Used as dummy element for validation/decoding/encoding
         operations of wildcards and complex types.
         """
-        elem = etree_element(XSD_ELEMENT, name=name, **attrib)
+        elem = Element(XSD_ELEMENT, name=name, **attrib)
         if text is not None:
             elem.text = text
         return self.xsd_element_class(elem=elem, schema=self, parent=parent)
@@ -996,6 +1002,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     def clear(self) -> None:
         """Clears the schema's XSD global maps."""
         self.maps.clear()
+        self._xpath_node = None
 
     @property
     def built(self) -> bool:
@@ -1776,7 +1783,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                         if ancestors[k] is not prev_ancestors[k]:
                             break
 
-                    path_ = '/'.join(e.tag for e in ancestors) + '/ancestor-or-self::node()'
+                    path_ = f"{'/'.join(e.tag for e in ancestors)}/ancestor-or-self::node()"
                     xsd_ancestors = cast(List[XsdElement], schema.findall(path_, namespaces)[1:])
 
                     for e in xsd_ancestors[k:]:

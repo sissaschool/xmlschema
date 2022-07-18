@@ -7,18 +7,31 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+from collections import namedtuple
 from collections.abc import MutableMapping, MutableSequence
 from typing import TYPE_CHECKING, cast, Any, Dict, Iterator, Iterable, \
     List, Optional, Type, Tuple, Union
+from xml.etree.ElementTree import Element
 
 from ..exceptions import XMLSchemaTypeError
 from ..names import XSI_NAMESPACE
-from ..etree import etree_element, ElementData
-from ..aliases import NamespacesType, ElementType, BaseXsdType
+from ..aliases import NamespacesType, BaseXsdType
 from ..namespaces import NamespaceMapper
 
 if TYPE_CHECKING:
     from ..validators import XsdElement
+
+
+ElementData = namedtuple('ElementData', ['tag', 'text', 'content', 'attributes'])
+"""
+Namedtuple for Element data interchange between decoders and converters.
+The field *tag* is a string containing the Element's tag, *text* can be `None`
+or a string representing the Element's text, *content* can be `None`, a list
+containing the Element's children or a dictionary containing element name to
+list of element contents for the Element's children (used for unordered input
+data), *attributes* can be `None` or a dictionary containing the Element's
+attributes.
+"""
 
 
 class XMLSchemaConverter(NamespaceMapper):
@@ -71,8 +84,7 @@ class XMLSchemaConverter(NamespaceMapper):
     dict: Type[Dict[str, Any]] = dict
     list: Type[List[Any]] = list
 
-    etree_element_class: Type[ElementType]
-    etree_element_class = etree_element
+    etree_element_class: Type[Element] = Element
 
     __slots__ = ('text_key', 'ns_prefix', 'attr_prefix', 'cdata_prefix',
                  'indent', 'preserve_root', 'force_dict', 'force_list')
@@ -80,7 +92,7 @@ class XMLSchemaConverter(NamespaceMapper):
     def __init__(self, namespaces: Optional[NamespacesType] = None,
                  dict_class: Optional[Type[Dict[str, Any]]] = None,
                  list_class: Optional[Type[List[Any]]] = None,
-                 etree_element_class: Optional[Type[ElementType]] = None,
+                 etree_element_class: Optional[Type[Element]] = None,
                  text_key: Optional[str] = '$',
                  attr_prefix: Optional[str] = '@',
                  cdata_prefix: Optional[str] = None,
@@ -213,9 +225,9 @@ class XMLSchemaConverter(NamespaceMapper):
 
     def etree_element(self, tag: str,
                       text: Optional[str] = None,
-                      children: Optional[List[ElementType]] = None,
+                      children: Optional[List[Element]] = None,
                       attrib: Optional[Dict[str, str]] = None,
-                      level: int = 0) -> ElementType:
+                      level: int = 0) -> Element:
         """
         Builds an ElementTree's Element using arguments and the element class and
         the indent spacing stored in the converter instance.
@@ -227,7 +239,7 @@ class XMLSchemaConverter(NamespaceMapper):
         :param level: the level related to the encoding process (0 means the root).
         :return: an instance of the Element class is set for the converter instance.
         """
-        if type(self.etree_element_class) is type(etree_element):
+        if type(self.etree_element_class) is type(Element):
             if attrib is None:
                 elem = self.etree_element_class(tag)
             else:
@@ -255,7 +267,7 @@ class XMLSchemaConverter(NamespaceMapper):
         Converts a decoded element data to a data structure.
 
         :param data: ElementData instance decoded from an Element node.
-        :param xsd_element: the `XsdElement` associated to decoded the data.
+        :param xsd_element: the `XsdElement` associated to decode the data.
         :param xsd_type: optional XSD type for supporting dynamic type through \
         *xsi:type* or xs:alternative.
         :param level: the level related to the decoding process (0 means the root).

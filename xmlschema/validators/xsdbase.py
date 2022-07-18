@@ -13,14 +13,15 @@ This module contains base functions and classes XML Schema components.
 import re
 from typing import TYPE_CHECKING, cast, Any, Dict, Generic, List, Iterator, Optional, \
     Set, Tuple, TypeVar, Union, MutableMapping
+from xml.etree import ElementTree
 
-import elementpath
+from elementpath import select
+from elementpath.etree import is_etree_element, etree_tostring
 
 from ..exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from ..names import XSD_ANNOTATION, XSD_APPINFO, XSD_DOCUMENTATION, \
     XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_ID, \
     XSD_QNAME, XSD_OVERRIDE, XSD_NOTATION_TYPE, XSD_DECIMAL
-from ..etree import is_etree_element, etree_tostring, etree_element
 from ..aliases import ElementType, NamespacesType, SchemaType, BaseXsdType, \
     ComponentClassType, ExtraValidatorType, DecodeType, IterDecodeType, \
     EncodeType, IterEncodeType
@@ -67,7 +68,7 @@ class XsdValidator:
     :ivar errors: XSD validator building errors.
     :vartype errors: list
     """
-    elem: Optional[etree_element] = None
+    elem: Optional[ElementTree.Element] = None
     namespaces: Any = None
     errors: List[XMLSchemaParseError]
 
@@ -275,7 +276,7 @@ class XsdComponent(XsdValidator):
     _REGEX_SPACES = re.compile(r'\s+')
     _ADMITTED_TAGS: Union[Set[str], Tuple[str, ...], Tuple[()]] = ()
 
-    elem: etree_element
+    elem: ElementTree.Element
     parent = None
     name = None
     ref: Optional['XsdComponent'] = None
@@ -284,7 +285,7 @@ class XsdComponent(XsdValidator):
     _annotation = None
     _target_namespace: Optional[str]
 
-    def __init__(self, elem: etree_element,
+    def __init__(self, elem: ElementTree.Element,
                  schema: SchemaType,
                  parent: Optional['XsdComponent'] = None,
                  name: Optional[str] = None) -> None:
@@ -672,7 +673,7 @@ class XsdAnnotation(XsdComponent):
         return '%s(%r)' % (self.__class__.__name__, str(self)[:40])
 
     def __str__(self) -> str:
-        return '\n'.join(elementpath.select(self.elem, '*/fn:string()'))
+        return '\n'.join(select(self.elem, '*/fn:string()'))
 
     @property
     def built(self) -> bool:

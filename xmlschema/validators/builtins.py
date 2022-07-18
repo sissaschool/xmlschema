@@ -16,6 +16,7 @@ are created using the XSD 1.0 meta-schema or with and additional base schema for
 from decimal import Decimal
 from elementpath import datatypes
 from typing import cast, Any, Dict, Optional, Type, Tuple, Union
+from xml.etree.ElementTree import Element
 
 from ..exceptions import XMLSchemaValueError
 from ..names import XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_ENUMERATION, \
@@ -31,7 +32,6 @@ from ..names import XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_ENUMERATION,
     XSD_DURATION, XSD_DAY_TIME_DURATION, XSD_YEAR_MONTH_DURATION, XSD_BASE64_BINARY, \
     XSD_HEX_BINARY, XSD_NOTATION_TYPE, XSD_ERROR, XSD_ASSERTION, XSD_SIMPLE_TYPE, \
     XSD_ANY_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_ANY_SIMPLE_TYPE
-from ..etree import etree_element
 from ..aliases import ElementType, SchemaType, BaseXsdType
 
 from .helpers import decimal_validator, qname_validator, byte_validator, \
@@ -69,16 +69,15 @@ DATETIME_FACETS = {
     XSD_MIN_EXCLUSIVE, XSD_ASSERTION, XSD_EXPLICIT_TIMEZONE
 }
 
-
 #
 # Element facets instances for builtin types.
-PRESERVE_WHITE_SPACE_ELEMENT = etree_element(XSD_WHITE_SPACE, value='preserve')
-COLLAPSE_WHITE_SPACE_ELEMENT = etree_element(XSD_WHITE_SPACE, value='collapse')
-REPLACE_WHITE_SPACE_ELEMENT = etree_element(XSD_WHITE_SPACE, value='replace')
-XSD10_FLOAT_PATTERN_ELEMENT = etree_element(
+PRESERVE_WHITE_SPACE_ELEMENT = Element(XSD_WHITE_SPACE, value='preserve')
+COLLAPSE_WHITE_SPACE_ELEMENT = Element(XSD_WHITE_SPACE, value='collapse')
+REPLACE_WHITE_SPACE_ELEMENT = Element(XSD_WHITE_SPACE, value='replace')
+XSD10_FLOAT_PATTERN_ELEMENT = Element(
     XSD_PATTERN, value=r"(\+|-)?([0-9]+(\.[0-9]*)?|\.[0-9]+)([Ee](\+|-)?[0-9]+)?|INF|-INF|NaN"
 )
-XSD11_FLOAT_PATTERN_ELEMENT = etree_element(
+XSD11_FLOAT_PATTERN_ELEMENT = Element(
     XSD_PATTERN, value=r"(\+|-)?([0-9]+(\.[0-9]*)?|\.[0-9]+)([Ee](\+|-)?[0-9]+)?|(\+|-)?INF|NaN"
 )
 
@@ -203,19 +202,19 @@ XSD_COMMON_BUILTIN_TYPES: Tuple[Dict[str, Any], ...] = (
         'name': XSD_LANGUAGE,
         'python_type': str,
         'base_type': XSD_TOKEN,
-        'facets': [etree_element(XSD_PATTERN, value=r"[a-zA-Z]{1,8}(-[a-zA-Z0-9]{1,8})*")]
+        'facets': [Element(XSD_PATTERN, value=r"[a-zA-Z]{1,8}(-[a-zA-Z0-9]{1,8})*")]
     },  # language codes
     {
         'name': XSD_NAME,
         'python_type': str,
         'base_type': XSD_TOKEN,
-        'facets': [etree_element(XSD_PATTERN, value=r"\i\c*")]
+        'facets': [Element(XSD_PATTERN, value=r"\i\c*")]
     },  # not starting with a digit
     {
         'name': XSD_NCNAME,
         'python_type': str,
         'base_type': XSD_NAME,
-        'facets': [etree_element(XSD_PATTERN, value=r"[\i-[:]][\c-[:]]*")]
+        'facets': [Element(XSD_PATTERN, value=r"[\i-[:]][\c-[:]]*")]
     },  # cannot contain colons
     {
         'name': XSD_ID,
@@ -236,7 +235,7 @@ XSD_COMMON_BUILTIN_TYPES: Tuple[Dict[str, Any], ...] = (
         'name': XSD_NMTOKEN,
         'python_type': str,
         'base_type': XSD_TOKEN,
-        'facets': [etree_element(XSD_PATTERN, value=r"\c+")]
+        'facets': [Element(XSD_PATTERN, value=r"\c+")]
     },  # should not contain whitespace (attribute only)
 
     # --- Numerical derived types ---
@@ -250,81 +249,81 @@ XSD_COMMON_BUILTIN_TYPES: Tuple[Dict[str, Any], ...] = (
         'python_type': int,
         'base_type': XSD_INTEGER,
         'facets': [long_validator,
-                   etree_element(XSD_MIN_INCLUSIVE, value='-9223372036854775808'),
-                   etree_element(XSD_MAX_INCLUSIVE, value='9223372036854775807')]
+                   Element(XSD_MIN_INCLUSIVE, value='-9223372036854775808'),
+                   Element(XSD_MAX_INCLUSIVE, value='9223372036854775807')]
     },  # signed 128 bit value
     {
         'name': XSD_INT,
         'python_type': int,
         'base_type': XSD_LONG,
         'facets': [int_validator,
-                   etree_element(XSD_MIN_INCLUSIVE, value='-2147483648'),
-                   etree_element(XSD_MAX_INCLUSIVE, value='2147483647')]
+                   Element(XSD_MIN_INCLUSIVE, value='-2147483648'),
+                   Element(XSD_MAX_INCLUSIVE, value='2147483647')]
     },  # signed 64 bit value
     {
         'name': XSD_SHORT,
         'python_type': int,
         'base_type': XSD_INT,
         'facets': [short_validator,
-                   etree_element(XSD_MIN_INCLUSIVE, value='-32768'),
-                   etree_element(XSD_MAX_INCLUSIVE, value='32767')]
+                   Element(XSD_MIN_INCLUSIVE, value='-32768'),
+                   Element(XSD_MAX_INCLUSIVE, value='32767')]
     },  # signed 32 bit value
     {
         'name': XSD_BYTE,
         'python_type': int,
         'base_type': XSD_SHORT,
         'facets': [byte_validator,
-                   etree_element(XSD_MIN_INCLUSIVE, value='-128'),
-                   etree_element(XSD_MAX_INCLUSIVE, value='127')]
+                   Element(XSD_MIN_INCLUSIVE, value='-128'),
+                   Element(XSD_MAX_INCLUSIVE, value='127')]
     },  # signed 8 bit value
     {
         'name': XSD_NON_NEGATIVE_INTEGER,
         'python_type': int,
         'base_type': XSD_INTEGER,
-        'facets': [non_negative_int_validator, etree_element(XSD_MIN_INCLUSIVE, value='0')]
+        'facets': [non_negative_int_validator, Element(XSD_MIN_INCLUSIVE, value='0')]
     },  # only zero and more value allowed [>= 0]
     {
         'name': XSD_POSITIVE_INTEGER,
         'python_type': int,
         'base_type': XSD_NON_NEGATIVE_INTEGER,
-        'facets': [positive_int_validator, etree_element(XSD_MIN_INCLUSIVE, value='1')]
+        'facets': [positive_int_validator, Element(XSD_MIN_INCLUSIVE, value='1')]
     },  # only positive value allowed [> 0]
     {
         'name': XSD_UNSIGNED_LONG,
         'python_type': int,
         'base_type': XSD_NON_NEGATIVE_INTEGER,
         'facets': [unsigned_long_validator,
-                   etree_element(XSD_MAX_INCLUSIVE, value='18446744073709551615')]
+                   Element(XSD_MAX_INCLUSIVE, value='18446744073709551615')]
     },  # unsigned 128 bit value
     {
         'name': XSD_UNSIGNED_INT,
         'python_type': int,
         'base_type': XSD_UNSIGNED_LONG,
-        'facets': [unsigned_int_validator, etree_element(XSD_MAX_INCLUSIVE, value='4294967295')]
+        'facets': [unsigned_int_validator, Element(XSD_MAX_INCLUSIVE, value='4294967295')]
     },  # unsigned 64 bit value
     {
         'name': XSD_UNSIGNED_SHORT,
         'python_type': int,
         'base_type': XSD_UNSIGNED_INT,
-        'facets': [unsigned_short_validator, etree_element(XSD_MAX_INCLUSIVE, value='65535')]
+        'facets': [unsigned_short_validator, Element(XSD_MAX_INCLUSIVE, value='65535')]
     },  # unsigned 32 bit value
     {
         'name': XSD_UNSIGNED_BYTE,
         'python_type': int,
         'base_type': XSD_UNSIGNED_SHORT,
-        'facets': [unsigned_byte_validator, etree_element(XSD_MAX_INCLUSIVE, value='255')]
+        'facets': [unsigned_byte_validator, Element(XSD_MAX_INCLUSIVE, value='255')]
     },  # unsigned 8 bit value
     {
         'name': XSD_NON_POSITIVE_INTEGER,
         'python_type': int,
         'base_type': XSD_INTEGER,
-        'facets': [non_positive_int_validator, etree_element(XSD_MAX_INCLUSIVE, value='0')]
+        'facets': [non_positive_int_validator, Element(XSD_MAX_INCLUSIVE, value='0')]
     },  # only zero and smaller value allowed [<= 0]
     {
         'name': XSD_NEGATIVE_INTEGER,
         'python_type': int,
         'base_type': XSD_NON_POSITIVE_INTEGER,
-        'facets': [negative_int_validator, etree_element(XSD_MAX_INCLUSIVE, value='-1')]
+        'facets': [negative_int_validator, Element(XSD_MAX_INCLUSIVE, value='-1')]
     },  # only negative value allowed [< 0]
 )
 
@@ -426,7 +425,7 @@ XSD_11_BUILTIN_TYPES: Tuple[Dict[str, Any], ...] = XSD_COMMON_BUILTIN_TYPES + (
         'python_type': (datatypes.DateTimeStamp, str),
         'base_type': XSD_DATETIME,
         'to_python': datatypes.DateTime.fromstring,
-        'facets': [etree_element(XSD_EXPLICIT_TIMEZONE, value='required')],
+        'facets': [Element(XSD_EXPLICIT_TIMEZONE, value='required')],
     },  # [-][Y*]YYYY-MM-DD[Thh:mm:ss] with required timezone
     {
         'name': XSD_DAY_TIME_DURATION,
@@ -475,7 +474,7 @@ def xsd_builtin_types_factory(
     # xs:anySimpleType
     # Ref: https://www.w3.org/TR/xmlschema11-2/#builtin-stds
     xsd_any_simple_type = xsd_types[XSD_ANY_SIMPLE_TYPE] = XsdSimpleType(
-        elem=etree_element(XSD_SIMPLE_TYPE, name=XSD_ANY_SIMPLE_TYPE),
+        elem=Element(XSD_SIMPLE_TYPE, name=XSD_ANY_SIMPLE_TYPE),
         schema=meta_schema,
         parent=None,
         name=XSD_ANY_SIMPLE_TYPE
@@ -484,7 +483,7 @@ def xsd_builtin_types_factory(
     # xs:anyAtomicType
     # Ref: https://www.w3.org/TR/xmlschema11-2/#builtin-stds
     xsd_types[XSD_ANY_ATOMIC_TYPE] = meta_schema.xsd_atomic_restriction_class(
-        elem=etree_element(XSD_SIMPLE_TYPE, name=XSD_ANY_ATOMIC_TYPE),
+        elem=Element(XSD_SIMPLE_TYPE, name=XSD_ANY_ATOMIC_TYPE),
         schema=meta_schema,
         parent=None,
         name=XSD_ANY_ATOMIC_TYPE,
@@ -499,7 +498,7 @@ def xsd_builtin_types_factory(
         except KeyError:
             # If builtin type element is missing create a dummy element. Necessary for the
             # meta-schema XMLSchema.xsd of XSD 1.1, that not includes builtins declarations.
-            elem = etree_element(XSD_SIMPLE_TYPE, name=name, id=name)
+            elem = Element(XSD_SIMPLE_TYPE, name=name, id=name)
         else:
             elem, schema = value
             if schema is not meta_schema:

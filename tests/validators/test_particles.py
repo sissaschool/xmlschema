@@ -10,9 +10,9 @@
 #
 import os
 import unittest
+from xml.etree import ElementTree
 
 from xmlschema import XMLSchema10, XMLSchemaParseError
-from xmlschema.etree import ElementTree
 from xmlschema.validators.particles import ParticleMixin
 
 CASES_DIR = os.path.join(os.path.dirname(__file__), '../test_cases')
@@ -91,7 +91,7 @@ class TestParticleMixin(unittest.TestCase):
                              <xs:element name="node8" minOccurs="3" maxOccurs="11"/>
                              <xs:element name="node9" minOccurs="0" maxOccurs="0"/>
                          </xs:sequence>
-                     </xs:complexType>                             
+                     </xs:complexType>
                  </xs:schema>""")
 
         xsd_group = schema.types['barType'].content

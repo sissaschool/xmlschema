@@ -17,6 +17,7 @@ import logging
 import importlib
 import tempfile
 import warnings
+from xml.etree import ElementTree
 
 try:
     import lxml.etree as lxml_etree
@@ -26,17 +27,16 @@ except ImportError:
 else:
     lxml_etree_element = lxml_etree.Element
 
+from elementpath.etree import PyElementTree, etree_tostring
+
 import xmlschema
 from xmlschema import XMLSchemaBase, XMLSchema11, XMLSchemaValidationError, \
     XMLSchemaParseError, UnorderedConverter, ParkerConverter, BadgerFishConverter, \
     AbderaConverter, JsonMLConverter, ColumnarConverter
 from xmlschema.names import XSD_IMPORT
 from xmlschema.helpers import local_name
-from xmlschema.etree import etree_tostring, ElementTree, \
-    py_etree_element
 from xmlschema.resources import fetch_namespaces
-from xmlschema.xpath import XMLSchemaContext
-from xmlschema.validators import XsdValidator, XsdType, Xsd11ComplexType
+from xmlschema.validators import XsdType, Xsd11ComplexType
 from xmlschema.dataobjects import DataElementConverter, DataBindingConverter, DataElement
 
 try:
@@ -113,7 +113,7 @@ def make_schema_test_class(test_file, test_args, test_num, schema_class, check_w
                     # are built with the SafeXMLParser that uses pure Python elements.
                     for e in schema.maps.iter_components():
                         elem = getattr(e, 'elem', getattr(e, 'root', None))
-                        if isinstance(elem, py_etree_element):
+                        if isinstance(elem, PyElementTree.Element):
                             break
                     else:
                         raise
@@ -121,16 +121,17 @@ def make_schema_test_class(test_file, test_args, test_num, schema_class, check_w
                     self.assertTrue(isinstance(deserialized_schema, XMLSchemaBase), msg=xsd_file)
                     self.assertEqual(schema.built, deserialized_schema.built, msg=xsd_file)
 
-            # XPath API tests
+            # XPath node tree tests
             if not inspect and not self.errors:
-                context = XMLSchemaContext(schema)
-                elements = [x for x in schema.iter()]  # Contains schema elements only
-                xpath_context_elements = [x for x in context.iter() if isinstance(x, XsdValidator)]
-                descendants = [x for x in context.iter_descendants('descendant-or-self')]
-                self.assertTrue(x in descendants for x in xpath_context_elements)
-                for e in elements:
+                xpath_root = schema.xpath_node
+                element_nodes = [x for x in xpath_root.iter() if hasattr(x, 'elem')]
+                descendants = [x for x in xpath_root.iter_descendants('descendant-or-self')]
+                self.assertTrue(x in descendants for x in element_nodes)
+
+                context_xsd_elements = [e.value for e in element_nodes]
+                for xsd_element in schema.iter():
                     # Context elements can include elements of other schemas (by element ref)
-                    self.assertIn(e, xpath_context_elements, msg=xsd_file)
+                    self.assertIn(xsd_element, context_xsd_elements, msg=xsd_file)
 
             # Checks on XSD types
             for xsd_type in schema.maps.iter_components(xsd_classes=XsdType):

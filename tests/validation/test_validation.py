@@ -13,6 +13,7 @@ import os
 import sys
 import decimal
 from textwrap import dedent
+from xml.etree import ElementTree
 
 try:
     import lxml.etree as lxml_etree
@@ -22,7 +23,6 @@ except ImportError:
 import xmlschema
 from xmlschema import XMLSchemaValidationError
 
-from xmlschema.etree import ElementTree
 from xmlschema.validators import XMLSchema11
 from xmlschema.testing import XsdValidatorTestCase
 
@@ -235,7 +235,7 @@ class TestValidation(XsdValidatorTestCase):
                 <xs:element name="elem2" type="xs:string"/>
                 <xs:element name="elem3" type="xs:string"/>
                 <xs:element name="elem4" type="xs:string"/>
-                
+
                 <xs:element name="root" type="enumType"/>
 
                 <xs:simpleType name="enumType">
@@ -244,7 +244,7 @@ class TestValidation(XsdValidatorTestCase):
                         <xs:enumeration value="elem2"/>
                         <xs:enumeration value="tns1:other1"/>
                         <xs:enumeration value="elem3"/>
-                        <xs:enumeration value="tns2:other2"/>                        
+                        <xs:enumeration value="tns2:other2"/>
                         <xs:enumeration value="elem4"/>
                     </xs:restriction>
                 </xs:simpleType>
