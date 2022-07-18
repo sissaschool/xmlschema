@@ -48,6 +48,26 @@ class TestDataElementInterface(unittest.TestCase):
         nsmap = {'tns': 'http://xmlschema.test/ns'}
         self.assertEqual(DataElement('foo', nsmap=nsmap).nsmap, nsmap)
 
+    def test_attributes_with_namespaces(self):
+        nsmap = {'tns': 'http://xmlschema.test/ns'}
+        attrib = {'a': 10, '{http://xmlschema.test/ns}b': 'bar'}
+        element = DataElement('foo', attrib=attrib, nsmap=nsmap)
+
+        self.assertEqual(element.get('{http://xmlschema.test/ns}b'), 'bar')
+        self.assertEqual(element.get('tns:b'), 'bar')
+        self.assertIsNone(element.get('tns:c'))
+
+        with self.assertRaises(ValueError) as ctx:
+            element.get('tns:b:c')
+        self.assertIn("'tns:b:c' has a wrong format", str(ctx.exception))
+
+        with self.assertRaises(KeyError) as ctx:
+            element.get('tns0:b')
+        self.assertIn("prefix 'tns0' not found ", str(ctx.exception))
+
+        self.assertIsNone(element.set('tns:c', 8))
+        self.assertEqual(element.get('tns:c'), 8)
+
     def test_text_value(self):
         self.assertIsNone(DataElement('foo').text)
         self.assertEqual(DataElement('foo', value=True).text, 'true')

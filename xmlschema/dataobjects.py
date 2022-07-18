@@ -14,7 +14,8 @@ from typing import TYPE_CHECKING, cast, overload, Any, Dict, List, Iterator, \
 from elementpath import XPathContext, XPath2Parser, build_node_tree, protocols
 from elementpath.etree import etree_tostring
 
-from .exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, XMLSchemaValueError
+from .exceptions import XMLSchemaAttributeError, XMLSchemaKeyError, XMLSchemaTypeError, \
+    XMLSchemaValueError
 from .aliases import ElementType, XMLSourceType, NamespacesType, BaseXsdType, DecodeType
 from .helpers import get_namespace, get_prefixed_qname, local_name, raw_xml_encode
 from .converters import ElementData, XMLSchemaConverter
@@ -136,12 +137,28 @@ class DataElement(MutableSequence['DataElement']):
         """The string value of the data element."""
         return raw_xml_encode(self.value)
 
+    def _map_attribute_prefixed_name(self, name: str) -> str:
+        try:
+            prefix, _local_name = name.split(':')
+        except ValueError:
+            raise XMLSchemaValueError(f'{name!r} has a wrong format') from None
+        else:
+            try:
+                return '{%s}%s' % (self.nsmap[prefix], _local_name)
+            except KeyError:
+                msg = f'prefix {prefix!r} not found in {self} nsmap'
+                raise XMLSchemaKeyError(msg) from None
+
     def get(self, key: str, default: Any = None) -> Any:
         """Gets a data element attribute."""
+        if not key.startswith('{') and ':' in key:
+            key = self._map_attribute_prefixed_name(key)
         return self.attrib.get(key, default)
 
     def set(self, key: str, value: Any) -> None:
         """Sets a data element attribute."""
+        if not key.startswith('{') and ':' in key:
+            key = self._map_attribute_prefixed_name(key)
         self.attrib[key] = value
 
     @property
