@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns="my_namespace"
+           targetNamespace="my_namespace"
+           elementFormDefault="qualified"
+           attributeFormDefault="unqualified">
+
+  <xs:complexType name="ContainterItemInfo">
+  </xs:complexType>
+
+  <xs:complexType name="ConcreteContainterItemInfo">
+    <xs:complexContent>
+      <xs:extension base="ContainterItemInfo">
+        <xs:attribute name="attr_2" type="xs:string" use="required"/>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:complexType name="ContainerInfo">
+    <xs:complexContent>
+      <xs:extension base="ContainterItemInfo">
+        <xs:sequence>
+          <xs:element name="item" type="ContainterItemInfo" minOccurs="0" maxOccurs="unbounded"/>
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:complexType name="RootElementInfo">
+    <xs:sequence>
+      <xs:element name="container" type="ContainerInfo"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:element name="root-element" type="RootElementInfo">
+  </xs:element>
+
+</xs:schema>

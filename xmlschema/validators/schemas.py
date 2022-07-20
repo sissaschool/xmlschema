@@ -1942,14 +1942,15 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         if not schema_path and path:
             schema_path = resource.get_absolute_path(path)
 
+        namespaces = resource.get_namespaces(namespaces, root_only=True)
+        namespace = resource.namespace or namespaces.get('', '')
+
         if process_namespaces:
-            namespaces = resource.get_namespaces(namespaces, root_only=True)
-            namespace = resource.namespace or namespaces.get('', '')
+            converter = self.get_converter(converter, namespaces=namespaces, **kwargs)
         else:
-            namespace = resource.namespace
+            converter = self.get_converter(converter, **kwargs)
 
         schema = self.get_schema(namespace)
-        converter = self.get_converter(converter, namespaces=namespaces, **kwargs)
         kwargs.update(
             converter=converter,
             namespaces=namespaces,

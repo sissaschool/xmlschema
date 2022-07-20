@@ -1213,6 +1213,33 @@ class TestDecoding(XsdValidatorTestCase):
             self.assertNotAlmostEqual(float_type.decode('INF'), float('-inf'))
             self.assertTrue(math.isnan(float_type.decode('NaN')))
 
+    def test_no_process_namespaces__issue_314(self):
+        xsd_file = self.casepath('issues/issue_314/issue_314.xsd')
+        xml_file = self.casepath('issues/issue_314/issue_314.xml')
+        schema = self.schema_class(xsd_file)
+
+        result = schema.decode(xml_file)
+        self.assertEqual(
+            result,
+            {'@xmlns:p': 'my_namespace',
+             '@xmlns:b': 'http://www.w3.org/2001/XMLSchema-instance',
+             'p:container': {
+                 'p:item': [{
+                     '@b:type': 'p:ConcreteContainterItemInfo',
+                     '@attr_2': 'value_2'}
+                 ]}}
+        )
+
+        result = schema.decode(xml_file, process_namespaces=False)
+        self.assertEqual(
+            result,
+            {'{my_namespace}container': {
+                '{my_namespace}item': [{
+                    '@{http://www.w3.org/2001/XMLSchema-instance}type':
+                        'p:ConcreteContainterItemInfo',
+                    '@attr_2': 'value_2'}]}}
+        )
+
 
 class TestDecoding11(TestDecoding):
     schema_class = XMLSchema11

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<p:root-element xmlns:p="my_namespace" xmlns:b="http://www.w3.org/2001/XMLSchema-instance">
+  <p:container>
+    <p:item b:type="p:ConcreteContainterItemInfo" attr_2="value_2"/>
+  </p:container>
+</p:root-element>

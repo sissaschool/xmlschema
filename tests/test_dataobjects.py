@@ -11,11 +11,13 @@
 import unittest
 import xml.etree.ElementTree as ElementTree
 from pathlib import Path
+from typing import Dict, Optional
 
 from xmlschema import XMLSchema10, XMLSchema11, fetch_namespaces, etree_tostring, \
     XMLSchemaValidationError, DataElement, DataElementConverter, XMLResource
 
 from xmlschema.helpers import is_etree_element
+from xmlschema.names import XSI_TYPE
 from xmlschema.dataobjects import DataBindingMeta, DataBindingConverter
 from xmlschema.testing import etree_elements_assert_equal
 
@@ -50,20 +52,18 @@ class TestDataElementInterface(unittest.TestCase):
 
     def test_attributes_with_namespaces(self):
         nsmap = {'tns': 'http://xmlschema.test/ns'}
-        attrib = {'a': 10, '{http://xmlschema.test/ns}b': 'bar'}
+        attrib = {'tns:a': 10, '{http://xmlschema.test/ns}b': 'bar'}
         element = DataElement('foo', attrib=attrib, nsmap=nsmap)
+
+        self.assertEqual(element.get('tns:a'), 10)
+        self.assertEqual(element.get('{http://xmlschema.test/ns}a'), 10)
 
         self.assertEqual(element.get('{http://xmlschema.test/ns}b'), 'bar')
         self.assertEqual(element.get('tns:b'), 'bar')
         self.assertIsNone(element.get('tns:c'))
 
-        with self.assertRaises(ValueError) as ctx:
-            element.get('tns:b:c')
-        self.assertIn("'tns:b:c' has a wrong format", str(ctx.exception))
-
-        with self.assertRaises(KeyError) as ctx:
-            element.get('tns0:b')
-        self.assertIn("prefix 'tns0' not found ", str(ctx.exception))
+        self.assertIsNone(element.get('tns:b:c'))
+        self.assertIsNone(element.get('tns0:b'))
 
         self.assertIsNone(element.set('tns:c', 8))
         self.assertEqual(element.get('tns:c'), 8)
@@ -79,6 +79,10 @@ class TestDataObjects(unittest.TestCase):
 
     schema_class = XMLSchema10
     converter = DataElementConverter
+
+    col_xsd_filename: str
+    col_xml_filename: str
+    col_nsmap: Dict[str, str]
 
     @classmethod
     def setUpClass(cls):
@@ -370,6 +374,47 @@ class TestDataObjects(unittest.TestCase):
         with self.assertRaises(ValueError) as ec:
             converter.element_encode(col_data, col_data[0].xsd_element)
         self.assertEqual("Unmatched tag", str(ec.exception))
+
+    def test_decoded_names__issue_314(self):
+        xsd_file = self.casepath('issues/issue_314/issue_314.xsd')
+        xml_file = self.casepath('issues/issue_314/issue_314.xml')
+        schema = self.schema_class(xsd_file)
+
+        data_element = schema.to_objects(xml_file, process_namespaces=True)
+        self.assertEqual(data_element.prefixed_name, 'p:root-element')
+        self.assertEqual(data_element[0].prefixed_name, 'p:container')
+        self.assertEqual(data_element[0][0].prefixed_name, 'p:item')
+        self.assertEqual(
+            data_element[0][0].attrib,
+            {'b:type': 'p:ConcreteContainterItemInfo', 'attr_2': 'value_2'}
+        )
+        self.assertEqual(data_element[0][0].get(XSI_TYPE), 'p:ConcreteContainterItemInfo')
+        self.assertEqual(data_element[0][0].get('b:type'), 'p:ConcreteContainterItemInfo')
+        self.assertIsNone(data_element[0][0].get('xsi:type'))
+
+        data_element = schema.to_objects(xml_file, process_namespaces=False)
+        self.assertEqual(data_element.prefixed_name, '{my_namespace}root-element')
+        self.assertEqual(data_element[0].prefixed_name, '{my_namespace}container')
+        self.assertEqual(data_element[0][0].prefixed_name, '{my_namespace}item')
+        self.assertEqual(
+            data_element[0][0].attrib,
+            {f'{XSI_TYPE}': 'p:ConcreteContainterItemInfo', 'attr_2': 'value_2'}
+        )
+        self.assertEqual(data_element[0][0].get(XSI_TYPE), 'p:ConcreteContainterItemInfo')
+        self.assertIsNone(data_element[0][0].get('b:type'))
+        self.assertIsNone(data_element[0][0].get('xsi:type'))
+
+        # For adding namespaces after decoding replace or update nsmap of each element
+        namespaces = {'p': 'my_namespace', 'xsi': "http://www.w3.org/2001/XMLSchema-instance"}
+        for e in data_element.iter():
+            e.nsmap = namespaces
+
+        self.assertEqual(data_element.prefixed_name, 'p:root-element')
+        self.assertEqual(data_element[0].prefixed_name, 'p:container')
+        self.assertEqual(data_element[0][0].prefixed_name, 'p:item')
+        self.assertEqual(data_element[0][0].get(XSI_TYPE), 'p:ConcreteContainterItemInfo')
+        self.assertIsNone(data_element[0][0].get('b:type'))
+        self.assertEqual(data_element[0][0].get('xsi:type'), 'p:ConcreteContainterItemInfo')
 
 
 class TestDataBindings(TestDataObjects):

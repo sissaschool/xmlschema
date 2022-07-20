@@ -137,28 +137,30 @@ class DataElement(MutableSequence['DataElement']):
         """The string value of the data element."""
         return raw_xml_encode(self.value)
 
-    def _map_attribute_prefixed_name(self, name: str) -> str:
-        try:
-            prefix, _local_name = name.split(':')
-        except ValueError:
-            raise XMLSchemaValueError(f'{name!r} has a wrong format') from None
-        else:
-            try:
-                return '{%s}%s' % (self.nsmap[prefix], _local_name)
-            except KeyError:
-                msg = f'prefix {prefix!r} not found in {self} nsmap'
-                raise XMLSchemaKeyError(msg) from None
-
     def get(self, key: str, default: Any = None) -> Any:
         """Gets a data element attribute."""
-        if not key.startswith('{') and ':' in key:
-            key = self._map_attribute_prefixed_name(key)
-        return self.attrib.get(key, default)
+        try:
+            return self.attrib[key]
+        except KeyError:
+            if not self.nsmap:
+                return default
+
+            # Try a match with mapped/unmapped name
+            if key.startswith('{'):
+                key = get_prefixed_qname(key, self.nsmap)
+                return self.attrib.get(key, default)
+            elif ':' in key:
+                try:
+                    _prefix, _local_name = key.split(':')
+                    key = '{%s}%s' % (self.nsmap[_prefix], _local_name)
+                except (ValueError, KeyError):
+                    pass
+                else:
+                    return self.attrib.get(key, default)
+            return default
 
     def set(self, key: str, value: Any) -> None:
         """Sets a data element attribute."""
-        if not key.startswith('{') and ':' in key:
-            key = self._map_attribute_prefixed_name(key)
         self.attrib[key] = value
 
     @property
