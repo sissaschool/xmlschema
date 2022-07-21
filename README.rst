@@ -13,8 +13,6 @@ xmlschema
    :target: https://lbesson.mit-license.org/
 .. image:: https://img.shields.io/pypi/dm/xmlschema.svg
    :target: https://pypi.python.org/pypi/xmlschema/
-.. image:: https://img.shields.io/badge/Maintained%3F-yes-green.svg
-   :target: https://GitHub.com/Naereen/StrapDown.js/graphs/commit-activity
 
 .. xmlschema-introduction-start
 

@@ -2,11 +2,18 @@
 CHANGELOG
 *********
 
+`v2.0.1`_ (2022-07-21)
+======================
+* Remove warnings during the build of the package using package_data specs in setup.py
+* Fix decoding with `process_namespaces=False` and xsi:type in XML instance
+* Refactor `DataElement.get()`, restore `DataElement.set()` (issue #314)
+* Add *map_attribute_names* argument to `DataElementConverter`
+
 `v2.0.0`_ (2022-07-18)
 ======================
 * Refactor XPath interface for the full XPath node implementation of elementpath v3.0
 * Fix BadgerFishConverter with mixed content (issue #315)
-* Improve get() and set() of DataElement (issue #314)
+* Improve `get()` and `set()` of DataElement (issue #314)
 
 `v1.11.3`_ (2022-06-24)
 =======================
@@ -550,3 +557,4 @@ v0.9.6 (2017-05-05)
 .. _v1.11.2: https://github.com/brunato/xmlschema/compare/v1.11.1...v1.11.2
 .. _v1.11.3: https://github.com/brunato/xmlschema/compare/v1.11.2...v1.11.3
 .. _v2.0.0: https://github.com/brunato/xmlschema/compare/v1.11.3...v2.0.0
+.. _v2.0.1: https://github.com/brunato/xmlschema/compare/v2.0.0...v2.0.1
