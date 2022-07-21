@@ -14,8 +14,7 @@ from typing import TYPE_CHECKING, cast, overload, Any, Dict, List, Iterator, \
 from elementpath import XPathContext, XPath2Parser, build_node_tree, protocols
 from elementpath.etree import etree_tostring
 
-from .exceptions import XMLSchemaAttributeError, XMLSchemaKeyError, XMLSchemaTypeError, \
-    XMLSchemaValueError
+from .exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, XMLSchemaValueError
 from .aliases import ElementType, XMLSourceType, NamespacesType, BaseXsdType, DecodeType
 from .helpers import get_namespace, get_prefixed_qname, local_name, raw_xml_encode
 from .converters import ElementData, XMLSchemaConverter
@@ -393,16 +392,21 @@ class DataElementConverter(XMLSchemaConverter):
     :param namespaces: a dictionary map from namespace prefixes to URI.
     :param data_element_class: MutableSequence subclass to use for decoded data. \
     Default is `DataElement`.
+    :param map_attribute_names: define if map the names of attributes to prefixed \
+    form. Defaults to `True`. If `False` the names are kept to extended format.
     """
-    __slots__ = 'data_element_class',
+    __slots__ = 'data_element_class', 'map_attribute_names'
 
     def __init__(self, namespaces: Optional[NamespacesType] = None,
                  data_element_class: Optional[Type['DataElement']] = None,
+                 map_attribute_names: bool = True,
                  **kwargs: Any) -> None:
         if data_element_class is None:
             self.data_element_class = DataElement
         else:
             self.data_element_class = data_element_class
+
+        self.map_attribute_names = map_attribute_names
         kwargs.update(attr_prefix='', text_key='', cdata_prefix='')
         super(DataElementConverter, self).__init__(namespaces, **kwargs)
 
@@ -432,7 +436,10 @@ class DataElementConverter(XMLSchemaConverter):
     def element_decode(self, data: ElementData, xsd_element: 'XsdElement',
                        xsd_type: Optional[BaseXsdType] = None, level: int = 0) -> 'DataElement':
         data_element = self.get_data_element(data, xsd_element, xsd_type)
-        data_element.attrib.update(self.map_attributes(data.attributes))
+        if self.map_attribute_names:
+            data_element.attrib.update(self.map_attributes(data.attributes))
+        elif data.attributes:
+            data_element.attrib.update(data.attributes)
 
         if (xsd_type or xsd_element.type).model_group is not None:
             for name, value, _ in self.map_content(data.content):

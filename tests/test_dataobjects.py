@@ -11,7 +11,7 @@
 import unittest
 import xml.etree.ElementTree as ElementTree
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict
 
 from xmlschema import XMLSchema10, XMLSchema11, fetch_namespaces, etree_tostring, \
     XMLSchemaValidationError, DataElement, DataElementConverter, XMLResource
@@ -415,6 +415,23 @@ class TestDataObjects(unittest.TestCase):
         self.assertEqual(data_element[0][0].get(XSI_TYPE), 'p:ConcreteContainterItemInfo')
         self.assertIsNone(data_element[0][0].get('b:type'))
         self.assertEqual(data_element[0][0].get('xsi:type'), 'p:ConcreteContainterItemInfo')
+
+    def test_map_attribute_names__issue_314(self):
+        xsd_file = self.casepath('issues/issue_314/issue_314.xsd')
+        xml_file = self.casepath('issues/issue_314/issue_314.xml')
+        schema = self.schema_class(xsd_file)
+
+        data_element = schema.to_objects(xml_file, map_attribute_names=False)
+        self.assertEqual(data_element.prefixed_name, 'p:root-element')
+        self.assertEqual(data_element[0].prefixed_name, 'p:container')
+        self.assertEqual(data_element[0][0].prefixed_name, 'p:item')
+        self.assertEqual(
+            data_element[0][0].attrib,
+            {f'{XSI_TYPE}': 'p:ConcreteContainterItemInfo', 'attr_2': 'value_2'}
+        )
+        self.assertEqual(data_element[0][0].get(XSI_TYPE), 'p:ConcreteContainterItemInfo')
+        self.assertEqual(data_element[0][0].get('b:type'), 'p:ConcreteContainterItemInfo')
+        self.assertIsNone(data_element[0][0].get('xsi:type'))
 
 
 class TestDataBindings(TestDataObjects):
