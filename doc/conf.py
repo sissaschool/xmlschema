@@ -54,6 +54,7 @@ nitpick_ignore = [
     ('py:class', 'xmlschema.validators.schemas.XMLSchema10'),
     ('py:meth', 'read'),
     ('py:meth', 'write'),
+    ('py:obj', 'typing.IO'),
 ]
 
 # Add any paths that contain templates here, relative to this directory.
