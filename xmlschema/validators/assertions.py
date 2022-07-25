@@ -132,9 +132,8 @@ class XsdAssert(XsdComponent, ElementPathMixin[Union['XsdAssert', SchemaElementT
         variables = {'value': None if value is None else self.base_type.text_decode(value)}
         if source is not None:
             context = XPathContext(
-                root=source.xpath_root,
+                root=source.get_xpath_node(elem),
                 namespaces=_namespaces,
-                item=source.get_xpath_node(elem),
                 variables=variables
             )
         else:
