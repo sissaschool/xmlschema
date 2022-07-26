@@ -11,9 +11,10 @@ jobs:
 
     runs-on:  ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        python-version: [3.7, 3.8, 3.9, "3.10", "pypy-3.8"]
+        python-version: [3.7, 3.8, 3.9, "3.10", "3.11-dev", "pypy-3.8"]
         exclude:
           - os: macos-latest
             python-version: 3.7
@@ -49,10 +50,10 @@ jobs:
       - name: Lint with mypy if Python version != 3.7
         if: ${{ matrix.python-version != '3.7' }}
         run: |
-          pip install mypy==0.971 elementpath==3.0.0 lxml-stubs
+          pip install mypy==0.971 elementpath==3.0.1 lxml-stubs
           mypy --show-error-codes --strict xmlschema
       - name: Lint with mypy if Python version == 3.7
         if: ${{ matrix.python-version == '3.7' }}
         run: |
-          pip install mypy==0.971 elementpath==3.0.0 lxml-stubs
+          pip install mypy==0.971 elementpath==3.0.1 lxml-stubs
           mypy --show-error-codes --no-warn-redundant-casts --no-warn-unused-ignores --strict xmlschema

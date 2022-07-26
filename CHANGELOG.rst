@@ -2,6 +2,11 @@
 CHANGELOG
 *********
 
+`v2.0.2`_ (2022-07-2x)
+======================
+* Fix XSD 1.1 effective scope
+* Add support for Python 3.11
+
 `v2.0.1`_ (2022-07-21)
 ======================
 * Remove warnings during the build of the package using package_data specs in setup.py
@@ -558,3 +563,4 @@ v0.9.6 (2017-05-05)
 .. _v1.11.3: https://github.com/brunato/xmlschema/compare/v1.11.2...v1.11.3
 .. _v2.0.0: https://github.com/brunato/xmlschema/compare/v1.11.3...v2.0.0
 .. _v2.0.1: https://github.com/brunato/xmlschema/compare/v2.0.0...v2.0.1
+.. _v2.0.2: https://github.com/brunato/xmlschema/compare/v2.0.1...v2.0.2
