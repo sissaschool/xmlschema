@@ -2,9 +2,9 @@
 CHANGELOG
 *********
 
-`v2.0.2`_ (2022-07-2x)
+`v2.0.2`_ (2022-08-12)
 ======================
-* Fix XSD 1.1 effective scope
+* Fix XSD 1.1 assertions effective scope
 * Add support for Python 3.11
 
 `v2.0.1`_ (2022-07-21)

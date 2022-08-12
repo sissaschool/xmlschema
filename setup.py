@@ -21,7 +21,7 @@ setup(
     version='2.0.2',
     packages=find_packages(include=['xmlschema*']),
     package_data={
-        'xmlschema': ['locale/**/*.mo', 'locale/**/*.po', 'schemas/*/*.xsd'],
+        'xmlschema': ['py.typed', 'locale/**/*.mo', 'locale/**/*.po', 'schemas/*/*.xsd'],
         'xmlschema.extras': ['templates/*/*.jinja'],
     },
     entry_points={
