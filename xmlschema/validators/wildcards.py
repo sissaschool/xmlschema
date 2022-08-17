@@ -206,12 +206,14 @@ class XsdWildcard(XsdComponent):
 
     def is_restriction(self, other: Union[ModelParticleType, 'XsdAnyAttribute'],
                        check_occurs: bool = True) -> bool:
-        if check_occurs and isinstance(self, ParticleMixin) \
-                and not isinstance(other, XsdAnyAttribute) \
-                and not self.has_occurs_restriction(other):
+        if not isinstance(other, self.__class__):
             return False
-        elif not isinstance(other, self.__class__):
-            return False
+        elif check_occurs and isinstance(self, ParticleMixin):
+            if not isinstance(other, XsdAnyAttribute) and \
+                    not self.has_occurs_restriction(other):
+                return False
+            elif self.max_occurs == 0:
+                return True
 
         other: XsdWildcard  # type: ignore[no-redef]
         if other.process_contents == 'strict' and self.process_contents != 'strict':

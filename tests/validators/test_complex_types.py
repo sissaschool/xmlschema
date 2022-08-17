@@ -10,6 +10,7 @@
 #
 import unittest
 import warnings
+from textwrap import dedent
 from xml.etree.ElementTree import Element
 
 from xmlschema import XMLSchemaParseError, XMLSchemaModelError
@@ -459,6 +460,48 @@ class TestXsdComplexType(XsdValidatorTestCase):
         self.assertTrue(schema.types['emptyType3'].is_empty())
         self.assertFalse(schema.types['notEmptyType1'].is_empty())
         self.assertFalse(schema.types['notEmptyType2'].is_empty())
+
+    def test_restriction_with_empty_particle__issue_323(self):
+        schema = self.schema_class(dedent("""\
+        
+        
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+          <xs:complexType name="ED" mixed="true">
+            <xs:complexContent>
+              <xs:restriction base="xs:anyType">
+                <xs:sequence>
+                  <xs:element name="reference" type="xs:string" minOccurs="0" maxOccurs="1"/>
+                  <xs:element name="thumbnail" type="thumbnail" minOccurs="0" maxOccurs="1"/>
+                </xs:sequence>
+              </xs:restriction>
+            </xs:complexContent>
+          </xs:complexType>
+
+          <xs:complexType name="thumbnail" mixed="true">
+            <xs:complexContent>
+              <xs:restriction base="ED">
+                <xs:sequence>
+                    <xs:element name="reference" type="xs:string" minOccurs="0" maxOccurs="0"/>
+                    <xs:element name="thumbnail" type="thumbnail" minOccurs="0" maxOccurs="0"/>
+                </xs:sequence>
+              </xs:restriction>
+            </xs:complexContent>
+          </xs:complexType>
+
+          <xs:complexType name="ST" mixed="true">
+            <xs:complexContent>
+              <xs:restriction base="ED">
+                <xs:sequence>
+                    <xs:element name="reference" type="xs:string" minOccurs="0" maxOccurs="0"/>
+                    <xs:element name="thumbnail" type="ED" minOccurs="0" maxOccurs="0"/>
+                </xs:sequence>
+              </xs:restriction>
+            </xs:complexContent>
+          </xs:complexType>
+        </xs:schema>"""), build=False)
+
+        self.assertIsNone(schema.build())
+        self.assertTrue(schema.built)
 
 
 class TestXsd11ComplexType(TestXsdComplexType):

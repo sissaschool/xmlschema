@@ -1139,6 +1139,8 @@ class XsdElement(XsdComponent, ParticleMixin,
 
             if check_occurs and not self.has_occurs_restriction(other):
                 return False
+            elif self.max_occurs == 0 and check_occurs:
+                return True  # type is not effective if the element can't has occurrences
             elif not self.is_consistent(other) and self.type.elem is not other.type.elem and \
                     not self.type.is_derived(other.type, 'restriction') and not other.type.abstract:
                 return False
