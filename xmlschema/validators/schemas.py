@@ -1878,6 +1878,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                     converter: Optional[ConverterType] = None,
                     filler: Optional[Callable[[Union[XsdElement, XsdAttribute]], Any]] = None,
                     fill_missing: bool = False,
+                    keep_empty: bool = False,
                     keep_unknown: bool = False,
                     process_skipped: bool = False,
                     max_depth: Optional[int] = None,
@@ -1917,6 +1918,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         data is replaced by `None`.
         :param fill_missing: if set to `True` the decoder fills also missing attributes. \
         The filling value is `None` or a typed value if the *filler* callback is provided.
+        :param keep_empty: if set to `True` empty elements that are valid are decoded with \
+        an empty string value instead of a `None`.
         :param keep_unknown: if set to `True` unknown tags are kept and are decoded with \
         *xs:anyType*. For default unknown tags not decoded by a wildcard are discarded.
         :param process_skipped: process XML data that match a wildcard with \
@@ -1971,6 +1974,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             kwargs['filler'] = filler
         if fill_missing:
             kwargs['fill_missing'] = fill_missing
+        if keep_empty:
+            kwargs['keep_empty'] = keep_empty
         if keep_unknown:
             kwargs['keep_unknown'] = keep_unknown
         if process_skipped:

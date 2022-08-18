@@ -286,15 +286,15 @@ class XMLSchemaConverter(NamespaceMapper):
         xsd_group = xsd_type.model_group
         if xsd_group is None:
             if data.attributes or self.force_dict and not xsd_type.is_simple():
-                result_dict.update(t for t in self.map_attributes(data.attributes))
-                if data.text is not None and data.text != '' and self.text_key is not None:
+                result_dict.update(self.map_attributes(data.attributes))
+                if data.text is not None and self.text_key is not None:
                     result_dict[self.text_key] = data.text
                 return result_dict
             else:
-                return data.text if data.text != '' else None
+                return data.text
         else:
             if data.attributes:
-                result_dict.update(t for t in self.map_attributes(data.attributes))
+                result_dict.update(self.map_attributes(data.attributes))
 
             has_single_group = xsd_group.is_single()
             if data.content:
@@ -315,7 +315,7 @@ class XMLSchemaConverter(NamespaceMapper):
                         else:
                             result_dict[name] = self.list([result, value])
 
-            elif data.text is not None and data.text != '' and self.text_key is not None:
+            elif data.text is not None and self.text_key is not None:
                 result_dict[self.text_key] = data.text
 
             if level == 0 and self.preserve_root:

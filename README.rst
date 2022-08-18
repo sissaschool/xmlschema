@@ -55,7 +55,7 @@ This library includes the following features:
 Installation
 ============
 
-You can install the library with *pip* in a Python 3.6+ environment::
+You can install the library with *pip* in a Python 3.7+ environment::
 
     pip install xmlschema
 

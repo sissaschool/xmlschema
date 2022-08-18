@@ -54,7 +54,7 @@ class ParkerConverter(XMLSchemaConverter):
             if preserve_root:
                 return self.dict([(self.map_qname(data.tag), data.text)])
             else:
-                return data.text if data.text != '' else None
+                return data.text
         else:
             result_dict = self.dict()
             for name, value, xsd_child in self.map_content(data.content):

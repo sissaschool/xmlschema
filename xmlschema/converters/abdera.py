@@ -48,7 +48,7 @@ class AbderaConverter(XMLSchemaConverter):
                        xsd_type: Optional[BaseXsdType] = None, level: int = 0) -> Any:
         xsd_type = xsd_type or xsd_element.type
         if xsd_type.simple_type is not None:
-            children = data.text if data.text is not None and data.text != '' else None
+            children = data.text
         else:
             children = self.dict()
             for name, value, xsd_child in self.map_content(data.content):
@@ -65,7 +65,7 @@ class AbderaConverter(XMLSchemaConverter):
                 except AttributeError:
                     children[name] = self.list([children[name], value])
             if not children:
-                children = data.text if data.text is not None and data.text != '' else None
+                children = data.text
 
         if data.attributes:
             if children != []:

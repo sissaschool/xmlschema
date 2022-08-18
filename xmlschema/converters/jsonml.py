@@ -53,7 +53,7 @@ class JsonMLConverter(XMLSchemaConverter):
         xsd_type = xsd_type or xsd_element.type
         result_list = self.list()
         result_list.append(self.map_qname(data.tag))
-        if data.text is not None and data.text != '':
+        if data.text is not None:
             result_list.append(data.text)
 
         if xsd_type.model_group is not None:
@@ -62,7 +62,7 @@ class JsonMLConverter(XMLSchemaConverter):
                 for name, value, _ in self.map_content(data.content)
             ])
 
-        attributes = self.dict((k, v) for k, v in self.map_attributes(data.attributes))
+        attributes = self.dict(self.map_attributes(data.attributes))
         if level == 0 and xsd_element.is_global() and not self.strip_namespaces and self:
             attributes.update(
                 ('xmlns:%s' % k if k else 'xmlns', v) for k, v in self._namespaces.items()

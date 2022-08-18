@@ -547,6 +547,8 @@ class XsdElement(XsdComponent, ParticleMixin,
         if text is None:
             text = self.fixed if self.fixed is not None else self.default
             if text is None:
+                if self.type.is_valid(''):
+                    self.type.text_decode('')
                 return None
         return self.type.text_decode(text)
 
@@ -723,7 +725,7 @@ class XsdElement(XsdComponent, ParticleMixin,
             if not self.nillable:
                 reason = _("element is not nillable")
                 yield self.validation_error(validation, reason, obj, **kwargs)
-            elif xsi_nil not in {'0', '1', 'false', 'true'}:
+            elif xsi_nil not in ('0', '1', 'false', 'true'):
                 reason = _("xsi:nil attribute must have a boolean value")
                 yield self.validation_error(validation, reason, obj, **kwargs)
             elif xsi_nil in ('0', 'false'):
@@ -770,7 +772,7 @@ class XsdElement(XsdComponent, ParticleMixin,
 
             text = obj.text
             if self.fixed is not None:
-                if text is None:
+                if not text:
                     text = self.fixed
                 elif text == self.fixed:
                     pass
@@ -801,20 +803,13 @@ class XsdElement(XsdComponent, ParticleMixin,
                     msg = _("missing enumeration facet in xs:NOTATION subtype")
                     yield self.validation_error(validation, msg, text, **kwargs)
 
-            if text is None:
-                for result in content_decoder.iter_decode('', validation, **kwargs):
-                    if isinstance(result, XMLSchemaValidationError):
-                        yield self.validation_error(validation, result, obj, **kwargs)
-                        if 'filler' in kwargs:
-                            value = kwargs['filler'](self)
-            else:
-                for result in content_decoder.iter_decode(text, validation, **kwargs):
-                    if isinstance(result, XMLSchemaValidationError):
-                        yield self.validation_error(validation, result, obj, **kwargs)
-                    elif result is None and 'filler' in kwargs:
-                        value = kwargs['filler'](self)
-                    else:
-                        value = result
+            for result in content_decoder.iter_decode(text or '', validation, **kwargs):
+                if isinstance(result, XMLSchemaValidationError):
+                    yield self.validation_error(validation, result, obj, **kwargs)
+                elif result is None and 'filler' in kwargs:
+                    value = kwargs['filler'](self)
+                elif text or kwargs.get('keep_empty'):
+                    value = result
 
             if 'value_hook' in kwargs:
                 value = kwargs['value_hook'](value, xsd_type)
@@ -1020,7 +1015,7 @@ class XsdElement(XsdComponent, ParticleMixin,
                 pass
             elif self.fixed is not None:
                 errors.append("xsi:nil='true' but the element has a fixed value.")
-            elif element_data.text is not None or element_data.content:
+            elif element_data.text not in (None, '') or element_data.content:
                 errors.append("xsi:nil='true' but the element is not empty.")
             else:
                 elem = converter.etree_element(element_data.tag, attrib=attributes, level=level)

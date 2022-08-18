@@ -70,7 +70,7 @@ class ColumnarConverter(XMLSchemaConverter):
             result_dict = self.dict()
 
         if xsd_type.simple_type is not None:
-            result_dict[xsd_element.local_name] = data.text or None
+            result_dict[xsd_element.local_name] = data.text
 
         if data.content:
             for name, value, xsd_child in self.map_content(data.content):

@@ -56,10 +56,10 @@ class BadgerFishConverter(XMLSchemaConverter):
 
         xsd_group = xsd_type.model_group
         if xsd_group is None:
-            if data.text is not None and data.text != '':
+            if data.text is not None:
                 result_dict['$'] = data.text
         elif not data.content:
-            if data.text is not None and data.text != '':
+            if data.text is not None:
                 result_dict['$1'] = data.text
         else:
             has_single_group = xsd_group.is_single()

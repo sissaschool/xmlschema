@@ -631,12 +631,11 @@ class XsdAtomicBuiltin(XsdAtomic):
         try:
             result = self.to_python(obj)
         except (ValueError, DecimalException) as err:
-            # todo: maybe need to translate python error messages?
             yield XMLSchemaDecodeError(self, obj, self.to_python, reason=str(err))
             yield None
             return
         except TypeError:
-            # xs:error type (eg. an XSD 1.1 type alternative used to catch invalid values)
+            # xs:error type (e.g. an XSD 1.1 type alternative used to catch invalid values)
             reason = _("invalid value {!r}").format(obj)
             yield self.validation_error(validation, error=reason, obj=obj)
             yield None
@@ -1394,8 +1393,6 @@ class XsdAtomicRestriction(XsdAtomic):
         for result in base_type.iter_decode(obj, validation, **kwargs):
             if isinstance(result, XMLSchemaValidationError):
                 yield result
-                if isinstance(result, XMLSchemaDecodeError):
-                    yield str(obj) if validation == 'skip' else None
             else:
                 if result is not None:
                     for validator in self.validators:
