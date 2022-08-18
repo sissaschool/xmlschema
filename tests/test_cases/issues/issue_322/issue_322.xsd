@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:element name="note">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="emptystring" type="xs:string"/>
+        <xs:element name="nillstring" type="xs:string" nillable="true"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>

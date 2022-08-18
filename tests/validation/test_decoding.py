@@ -976,6 +976,24 @@ class TestDecoding(XsdValidatorTestCase):
         obj = xsd_schema.decode(xml_string_2, use_defaults=False)
         self.check_etree_elements(ElementTree.fromstring(xml_string_2), xsd_schema.encode(obj))
 
+    def test_keep_empty(self):
+        schema = self.schema_class(self.casepath('issues/issue_322/issue_322.xsd'))
+        xml_file = self.casepath('issues/issue_322/issue_322.xml')
+
+        data = schema.decode(xml_file)
+        self.assertEqual(data, {
+            '@xmlns:xsi': 'http://www.w3.org/2001/XMLSchema-instance',
+            'emptystring': None,
+            'nillstring': {'@xsi:nil': 'true'}
+        })
+
+        data = schema.decode(xml_file, keep_empty=True)
+        self.assertEqual(data, {
+            '@xmlns:xsi': 'http://www.w3.org/2001/XMLSchema-instance',
+            'emptystring': '',
+            'nillstring': {'@xsi:nil': 'true'}
+        })
+
     def test_default_namespace__issue_077(self):
         xs = self.schema_class("""<?xml version="1.0" encoding="UTF-8"?>
         <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
