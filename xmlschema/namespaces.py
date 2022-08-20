@@ -79,20 +79,8 @@ class NamespaceMapper(MutableMapping[str, str]):
 
     def __init__(self, namespaces: Optional[NamespacesType] = None,
                  strip_namespaces: bool = False):
-        if namespaces is None:
-            self._namespaces = {}
-        else:
-            self._namespaces = namespaces
+        self._namespaces = {} if namespaces is None else namespaces
         self.strip_namespaces = strip_namespaces
-
-    def __setattr__(self, name: str, value: str) -> None:
-        if name == 'strip_namespaces':
-            if value:
-                self.map_qname = self.unmap_qname = self._local_name  # type: ignore[assignment]
-            elif getattr(self, 'strip_namespaces', False):
-                self.map_qname = self._map_qname  # type: ignore[assignment]
-                self.unmap_qname = self._unmap_qname  # type: ignore[assignment]
-        super(NamespaceMapper, self).__setattr__(name, value)
 
     def __getitem__(self, prefix: str) -> str:
         return self._namespaces[prefix]
@@ -144,7 +132,7 @@ class NamespaceMapper(MutableMapping[str, str]):
                 prefix += '0'
         self._namespaces[prefix] = uri
 
-    def _map_qname(self, qname: str) -> str:
+    def map_qname(self, qname: str) -> str:
         """
         Converts an extended QName to the prefixed format. Only registered
         namespaces are mapped.
@@ -152,6 +140,9 @@ class NamespaceMapper(MutableMapping[str, str]):
         :param qname: a QName in extended format or a local name.
         :return: a QName in prefixed format or a local name.
         """
+        if self.strip_namespaces:
+            return local_name(qname)
+
         try:
             if qname[0] != '{' or not self._namespaces:
                 return qname
@@ -165,14 +156,12 @@ class NamespaceMapper(MutableMapping[str, str]):
 
         for prefix, uri in sorted(self._namespaces.items(), reverse=True):
             if uri == namespace:
-                return '%s:%s' % (prefix, local_part) if prefix else local_part
+                return f'{prefix}:{local_part}' if prefix else local_part
         else:
             return qname
 
-    map_qname = _map_qname
-
-    def _unmap_qname(self, qname: str,
-                     name_table: Optional[Container[Optional[str]]] = None) -> str:
+    def unmap_qname(self, qname: str,
+                    name_table: Optional[Container[Optional[str]]] = None) -> str:
         """
         Converts a QName in prefixed format or a local name to the extended QName format.
         Local names are converted only if a default namespace is included in the instance.
@@ -183,6 +172,9 @@ class NamespaceMapper(MutableMapping[str, str]):
         :param name_table: an optional lookup table for checking local names.
         :return: a QName in extended format or a local name.
         """
+        if self.strip_namespaces:
+            return local_name(qname)
+
         try:
             if qname[0] == '{' or not self._namespaces:
                 return qname
@@ -192,10 +184,12 @@ class NamespaceMapper(MutableMapping[str, str]):
         except ValueError:
             if ':' in qname:
                 raise XMLSchemaValueError("the argument 'qname' has an invalid value %r" % qname)
-            if not self._namespaces.get(''):
+
+            default_namespace = self._namespaces.get('')
+            if not default_namespace:
                 return qname
             elif name_table is None or qname not in name_table:
-                return '{%s}%s' % (self._namespaces.get(''), qname)
+                return f'{{{default_namespace}}}{qname}'
             else:
                 return qname
         except (TypeError, AttributeError):
@@ -206,13 +200,7 @@ class NamespaceMapper(MutableMapping[str, str]):
             except KeyError:
                 return qname
             else:
-                return '{%s}%s' % (uri, name) if uri else name
-
-    unmap_qname = _unmap_qname
-
-    @staticmethod
-    def _local_name(qname: str, *_args: Any, **_kwargs: Any) -> str:
-        return local_name(qname)
+                return f'{{{uri}}}{name}' if uri else name
 
     def transfer(self, namespaces: NamespacesType) -> None:
         """
@@ -242,18 +230,15 @@ class NamespaceView(Mapping[str, T]):
     A read-only map for filtered access to a dictionary that stores
     objects mapped from QNames in extended format.
     """
-    __slots__ = 'target_dict', 'namespace', '_key_fmt'
+    __slots__ = 'target_dict', 'namespace', '_key_prefix'
 
     def __init__(self, qname_dict: Dict[str, T], namespace_uri: str):
         self.target_dict = qname_dict
         self.namespace = namespace_uri
-        if namespace_uri:
-            self._key_fmt = '{' + namespace_uri + '}%s'
-        else:
-            self._key_fmt = '%s'
+        self._key_prefix = f'{{{namespace_uri}}}' if namespace_uri else ''
 
     def __getitem__(self, key: str) -> T:
-        return self.target_dict[self._key_fmt % key]
+        return self.target_dict[self._key_prefix + key]
 
     def __len__(self) -> int:
         if not self.namespace:
@@ -276,7 +261,7 @@ class NamespaceView(Mapping[str, T]):
 
     def __contains__(self, key: object) -> bool:
         if isinstance(key, str):
-            return self._key_fmt % key in self.target_dict
+            return self._key_prefix + key in self.target_dict
         return key in self.target_dict
 
     def __eq__(self, other: Any) -> Any:
