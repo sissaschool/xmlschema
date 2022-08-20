@@ -77,7 +77,7 @@ class UnorderedConverter(XMLSchemaConverter):
                 content_lu[index] = value
             elif name == self.ns_prefix:
                 self[''] = value
-            elif name.startswith('%s:' % self.ns_prefix):
+            elif name.startswith(f'{self.ns_prefix}:'):
                 self[name[len(self.ns_prefix) + 1:]] = value
             elif self.attr_prefix and \
                     name.startswith(self.attr_prefix) and \

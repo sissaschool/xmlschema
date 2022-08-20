@@ -49,7 +49,7 @@ class ColumnarConverter(XMLSchemaConverter):
         elif not isinstance(value, str):
             msg = "%(name)r must be a <class 'str'> instance, not %(type)r"
             raise XMLSchemaTypeError(msg % {'name': name, 'type': type(value)})
-        elif value not in {'', '_', '__'}:
+        elif value not in ('', '_', '__'):
             msg = '%r can be the empty string or a single/double underscore'
             raise XMLSchemaValueError(msg % name)
         else:

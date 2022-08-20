@@ -193,12 +193,9 @@ class XMLSchemaConverter(NamespaceMapper):
         """
         if self.attr_prefix is None or not attributes:
             return
-        elif self.attr_prefix:
-            for name, value in attributes:
-                yield '%s%s' % (self.attr_prefix, self.map_qname(name)), value
         else:
             for name, value in attributes:
-                yield self.map_qname(name), value
+                yield self.attr_prefix + self.map_qname(name), value
 
     def map_content(self, content: Iterable[Tuple[str, Any, Any]]) \
             -> Iterator[Tuple[str, Any, Any]]:
@@ -221,7 +218,7 @@ class XMLSchemaConverter(NamespaceMapper):
                     yield name, value, xsd_child
             except TypeError:
                 if self.cdata_prefix is not None:
-                    yield '%s%s' % (self.cdata_prefix, name), value, xsd_child
+                    yield f'{self.cdata_prefix}{name}', value, xsd_child
 
     def etree_element(self, tag: str,
                       text: Optional[str] = None,
@@ -278,7 +275,7 @@ class XMLSchemaConverter(NamespaceMapper):
         if level == 0 and xsd_element.is_global() and not self.strip_namespaces and self:
             schema_namespaces = set(xsd_element.namespaces.values())
             result_dict.update(
-                ('%s:%s' % (self.ns_prefix, k) if k else self.ns_prefix, v)
+                (f'{self.ns_prefix}:{k}' if k else self.ns_prefix, v)
                 for k, v in self._namespaces.items()
                 if v in schema_namespaces or v == XSI_NAMESPACE
             )
@@ -373,7 +370,7 @@ class XMLSchemaConverter(NamespaceMapper):
                 content.append((index, value))
             elif name == self.ns_prefix:
                 self[''] = value
-            elif name.startswith('%s:' % self.ns_prefix):
+            elif name.startswith(f'{self.ns_prefix}:'):
                 if not self.strip_namespaces:
                     self[name[len(self.ns_prefix) + 1:]] = value
             elif self.attr_prefix and \

@@ -65,7 +65,7 @@ class JsonMLConverter(XMLSchemaConverter):
         attributes = self.dict(self.map_attributes(data.attributes))
         if level == 0 and xsd_element.is_global() and not self.strip_namespaces and self:
             attributes.update(
-                ('xmlns:%s' % k if k else 'xmlns', v) for k, v in self._namespaces.items()
+                (f'xmlns:{k}' if k else 'xmlns', v) for k, v in self._namespaces.items()
             )
         if attributes:
             result_list.insert(1, attributes)
