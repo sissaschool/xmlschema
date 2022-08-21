@@ -201,7 +201,7 @@ class ElementPathMixin(Sequence[E]):
         if not name or name[0] == '{' or not default_namespace:
             return self.name == name
         else:
-            return self.name == '{%s}%s' % (default_namespace, name)
+            return self.name == f'{{{default_namespace}}}{name}'
 
     def find(self, path: str, namespaces: Optional[NamespacesType] = None) -> Optional[E]:
         """

@@ -52,10 +52,10 @@ def get_qname(uri: Optional[str], name: str) -> str:
     :param name: local or qualified name
     :return: string or the name argument
     """
-    if not uri or not name or name[0] in ('{', '.', '/', '['):
+    if not uri or not name or name[0] in '{./[':
         return name
     else:
-        return '{%s}%s' % (uri, name)
+        return f'{{{uri}}}{name}'
 
 
 def local_name(qname: str) -> str:
@@ -99,9 +99,9 @@ def get_prefixed_qname(qname: str,
     if not prefixes:
         return qname
     elif prefixes[0]:
-        return '%s:%s' % (prefixes[0], qname.split('}', 1)[1])
+        return f"{prefixes[0]}:{qname.split('}', 1)[1]}"
     elif len(prefixes) > 1:
-        return '%s:%s' % (prefixes[1], qname.split('}', 1)[1])
+        return f"{prefixes[1]}:{qname.split('}', 1)[1]}"
     elif use_empty:
         return qname.split('}', 1)[1]
     else:
@@ -131,14 +131,14 @@ def get_extended_qname(qname: str, namespaces: Optional[MutableMapping[str, str]
         if not namespaces.get(''):
             return qname
         else:
-            return '{%s}%s' % (namespaces[''], qname)
+            return f"{{{namespaces['']}}}{qname}"
     else:
         try:
             uri = namespaces[prefix]
         except KeyError:
             return qname
         else:
-            return '{%s}%s' % (uri, name) if uri else name
+            return f'{{{uri}}}{name}' if uri else name
 
 
 ###
@@ -188,7 +188,7 @@ def etree_iterpath(elem: ElementType,
 
         child_name = child.tag if namespaces is None else get_prefixed_qname(child.tag, namespaces)
         if path == '/':
-            child_path = '/%s' % child_name
+            child_path = f'/{child_name}'
         else:
             child_path = '/'.join((path, child_name))
 
@@ -219,9 +219,9 @@ def etree_getpath(elem: ElementType,
     if relative:
         path = '.'
     elif namespaces:
-        path = '/%s' % get_prefixed_qname(root.tag, namespaces)
+        path = f'/{get_prefixed_qname(root.tag, namespaces)}'
     else:
-        path = '/%s' % root.tag
+        path = f'/{root.tag}'
 
     if not parent_path:
         for e, path in etree_iterpath(root, elem.tag, path, namespaces, add_position):

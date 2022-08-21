@@ -22,12 +22,14 @@ __all__ = ['ElementType', 'ElementTreeType', 'XMLSourceType', 'NamespacesType',
            'ModelParticleType', 'XPathElementType', 'AtomicValueType', 'NumericValueType',
            'DateTimeType', 'SchemaSourceType', 'ConverterType', 'ComponentClassType',
            'ExtraValidatorType', 'DecodeType', 'IterDecodeType', 'JsonDecodeType',
-           'EncodeType', 'IterEncodeType', 'DecodedValueType', 'EncodedValueType']
+           'EncodeType', 'IterEncodeType', 'DecodedValueType', 'EncodedValueType',
+           'FillerType', 'DepthFillerType', 'ValueHookType', 'ElementHookType']
 
 if TYPE_CHECKING:
     from pathlib import Path
     from decimal import Decimal
-    from typing import Callable, Dict, List, IO, Iterator, MutableMapping, Tuple, Type, Union
+    from typing import Any, Callable, Dict, List, IO, Iterator, MutableMapping, \
+        Tuple, Type, Union
     from xml.etree import ElementTree
 
     from elementpath.datatypes import NormalizedString, QName, Float10, Integer, \
@@ -35,7 +37,7 @@ if TYPE_CHECKING:
     from elementpath.datatypes.datetime import OrderedDateTime
 
     from .resources import XMLResource
-    from .converters import XMLSchemaConverter
+    from .converters import ElementData, XMLSchemaConverter
     from .validators import XMLSchemaValidationError, XsdComponent, XMLSchemaBase, \
         XsdComplexType, XsdSimpleType, XsdElement, XsdAnyElement, XsdAttribute, \
         XsdAnyAttribute, XsdAssert, XsdGroup, XsdAttributeGroup, XsdNotation
@@ -100,6 +102,13 @@ if TYPE_CHECKING:
 
     DecodedValueType = Union[None, AtomicValueType, List[AtomicValueType]]
     EncodedValueType = Union[None, str, List[str]]
+
+    FillerType = Callable[[Union[XsdElement, XsdAttribute]], Any]
+    DepthFillerType = Callable[[XsdElement], Any]
+    ValueHookType = Callable[[AtomicValueType, BaseXsdType], Any]
+    ElementHookType = Callable[
+        [ElementData, Optional[XsdElement], Optional[BaseXsdType]], ElementData
+    ]
 
 else:
     # In runtime use a dummy subscriptable type for compatibility

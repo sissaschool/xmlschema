@@ -657,7 +657,7 @@ class XsdAtomicBuiltin(XsdAtomic):
                     pass
                 else:
                     try:
-                        result = '{%s}%s' % (kwargs['namespaces'][prefix], name)
+                        result = f"{{{kwargs['namespaces'][prefix]}}}{name}"
                     except (TypeError, KeyError):
                         try:
                             if kwargs['source'].namespace != XSD_NAMESPACE:
@@ -672,7 +672,7 @@ class XsdAtomicBuiltin(XsdAtomic):
                     pass
                 else:
                     if default_namespace:
-                        result = '{%s}%s' % (default_namespace, obj)
+                        result = f'{{{default_namespace}}}{obj}'
 
         elif self.name == XSD_IDREF:
             try:

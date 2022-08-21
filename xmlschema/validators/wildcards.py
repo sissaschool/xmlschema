@@ -468,7 +468,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
 
         try:
             if name[0] != '{' and default_namespace:
-                return self.maps.lookup_element('{%s}%s' % (default_namespace, name))
+                return self.maps.lookup_element(f'{{{default_namespace}}}{name}')
             else:
                 return self.maps.lookup_element(name)
         except LookupError:
@@ -662,7 +662,7 @@ class XsdAnyAttribute(XsdWildcard, ValidationMixin[Tuple[str, str], DecodedValue
 
         try:
             if name[0] != '{' and default_namespace:
-                return self.maps.lookup_attribute('{%s}%s' % (default_namespace, name))
+                return self.maps.lookup_attribute(f'{{{default_namespace}}}{name}')
             else:
                 return self.maps.lookup_attribute(name)
         except LookupError:
@@ -773,7 +773,7 @@ class Xsd11AnyElement(XsdAnyElement):
             if not self.is_namespace_allowed(''):
                 return False
         else:
-            name = '{%s}%s' % (default_namespace, name)
+            name = f'{{{default_namespace}}}{name}'
             if not self.is_namespace_allowed('') \
                     and not self.is_namespace_allowed(default_namespace):
                 return False
@@ -836,7 +836,7 @@ class Xsd11AnyAttribute(XsdAnyAttribute):
         elif not default_namespace:
             namespace = ''
         else:
-            name = '{%s}%s' % (default_namespace, name)
+            name = f'{{{default_namespace}}}{name}'
             namespace = default_namespace
 
         if '##defined' in self.not_qname and name in self.maps.attributes:

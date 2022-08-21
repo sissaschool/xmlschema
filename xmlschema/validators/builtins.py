@@ -432,7 +432,7 @@ XSD_11_BUILTIN_TYPES: Tuple[Dict[str, Any], ...] = XSD_COMMON_BUILTIN_TYPES + (
         'python_type': (datatypes.DayTimeDuration, str),
         'base_type': XSD_DURATION,
         'to_python': datatypes.DayTimeDuration.fromstring,
-    },  # PnYnMnDTnHnMnS with month an year equal to 0
+    },  # PnYnMnDTnHnMnS with month a year equal to 0
     {
         'name': XSD_YEAR_MONTH_DURATION,
         'python_type': (datatypes.YearMonthDuration, str),

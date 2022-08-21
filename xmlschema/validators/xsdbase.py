@@ -478,7 +478,7 @@ class XsdComponent(XsdValidator):
         elif not self._target_namespace:
             self.name = local_name(self.name)
         else:
-            self.name = '{%s}%s' % (self._target_namespace, local_name(self.name))
+            self.name = f'{{{self._target_namespace}}}{local_name(self.name)}'
 
     @property
     def local_name(self) -> Optional[str]:
@@ -532,7 +532,7 @@ class XsdComponent(XsdValidator):
         elif not default_namespace:
             return self.name == name or not self.qualified and self.local_name == name
         else:
-            qname = '{%s}%s' % (default_namespace, name)
+            qname = f'{{{default_namespace}}}{name}'
             return self.qualified_name == qname or not self.qualified and self.local_name == name
 
     def match(self, name: Optional[str], default_namespace: Optional[str] = None,
@@ -560,7 +560,7 @@ class XsdComponent(XsdValidator):
 
         # Try a match with other prefixes
         target_namespace = self.target_namespace
-        suffix = ':%s' % self.local_name
+        suffix = f':{self.local_name}'
 
         for k in filter(lambda x: x.endswith(suffix), mapping):
             prefix = k.split(':')[0]
@@ -843,7 +843,7 @@ class XsdType(XsdComponent):
         if self is xsd_type:
             return False
 
-        block = ('%s %s' % (xsd_element.block, xsd_type.block)).strip()
+        block = f'{xsd_element.block} {xsd_type.block}'.strip()
         if not block:
             return False
 

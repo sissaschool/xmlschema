@@ -832,6 +832,9 @@ class XsdElement(XsdComponent, ParticleMixin,
 
         if converter is not None:
             element_data = ElementData(obj.tag, value, content, attributes)
+            if 'element_hook' in kwargs:
+                element_data = kwargs['element_hook'](element_data, self, xsd_type)
+
             try:
                 yield converter.element_decode(element_data, self, xsd_type, level)
             except (ValueError, TypeError) as err:
@@ -985,7 +988,7 @@ class XsdElement(XsdComponent, ParticleMixin,
                 if default_namespace and not isinstance(xsd_type, XsdSimpleType):
                     # Adjust attributes mapped into default namespace
 
-                    ns_part = '{%s}' % default_namespace
+                    ns_part = f'{{{default_namespace}}}'
                     for k in list(element_data.attributes):
                         if not k.startswith(ns_part):
                             continue
@@ -1074,7 +1077,7 @@ class XsdElement(XsdComponent, ParticleMixin,
         if not name:
             return False
         elif default_namespace and name[0] != '{':
-            qname = '{%s}%s' % (default_namespace, name)
+            qname = f'{{{default_namespace}}}{name}'
             if name == self.name or qname == self.name:
                 return True
             return any(name == e.name or qname == e.name for e in self.iter_substitutes())
@@ -1088,7 +1091,7 @@ class XsdElement(XsdComponent, ParticleMixin,
         if not name:
             return None
         elif default_namespace and name[0] != '{':
-            qname = '{%s}%s' % (default_namespace, name)
+            qname = f'{{{default_namespace}}}{name}'
             if name == self.name or qname == self.name:
                 return self
 
