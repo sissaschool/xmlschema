@@ -463,8 +463,6 @@ class TestXsdComplexType(XsdValidatorTestCase):
 
     def test_restriction_with_empty_particle__issue_323(self):
         schema = self.schema_class(dedent("""\
-        
-        
         <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
           <xs:complexType name="ED" mixed="true">
             <xs:complexContent>

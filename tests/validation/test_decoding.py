@@ -25,9 +25,9 @@ except ImportError:
 from elementpath import datatypes
 import xmlschema
 from xmlschema import XMLSchemaValidationError, ParkerConverter, BadgerFishConverter, \
-    AbderaConverter, JsonMLConverter, ColumnarConverter
+    AbderaConverter, JsonMLConverter, ColumnarConverter, ElementData
 
-from xmlschema.names import XSD_STRING
+from xmlschema.names import XSD_STRING, XSI_NIL
 from xmlschema.converters import UnorderedConverter
 from xmlschema.validators import XMLSchema11
 from xmlschema.testing import XsdValidatorTestCase, etree_elements_assert_equal
@@ -992,6 +992,36 @@ class TestDecoding(XsdValidatorTestCase):
             '@xmlns:xsi': 'http://www.w3.org/2001/XMLSchema-instance',
             'emptystring': '',
             'nillstring': {'@xsi:nil': 'true'}
+        })
+
+    def test_element_hook__issue_322(self):
+        schema = self.schema_class(self.casepath('issues/issue_322/issue_322.xsd'))
+        xml_file = self.casepath('issues/issue_322/issue_322.xml')
+
+        def element_hook(element_data: ElementData, *_args):
+            if not element_data.attributes:
+                return element_data
+
+            return ElementData(
+                element_data.tag,
+                element_data.text,
+                element_data.content,
+                [x for x in element_data.attributes if x[0] != XSI_NIL]
+            )
+
+        data = schema.decode(xml_file, element_hook=element_hook)
+        self.assertEqual(data, {
+            '@xmlns:xsi': 'http://www.w3.org/2001/XMLSchema-instance',
+            'emptystring': None,
+            'nillstring': None,
+        })
+
+        # Resolution for issue 322
+        data = schema.decode(xml_file, keep_empty=True, element_hook=element_hook)
+        self.assertEqual(data, {
+            '@xmlns:xsi': 'http://www.w3.org/2001/XMLSchema-instance',
+            'emptystring': '',
+            'nillstring': None,
         })
 
     def test_default_namespace__issue_077(self):
