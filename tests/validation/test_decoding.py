@@ -15,6 +15,7 @@ import json
 import math
 from decimal import Decimal
 from collections.abc import MutableMapping, MutableSequence, Set
+from textwrap import dedent
 from xml.etree import ElementTree
 
 try:
@@ -993,6 +994,34 @@ class TestDecoding(XsdValidatorTestCase):
             'emptystring': '',
             'nillstring': {'@xsi:nil': 'true'}
         })
+
+        schema = self.schema_class(dedent("""\
+        <?xml version="1.0"?>
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+          <xs:element name="note">
+            <xs:complexType>
+              <xs:sequence>
+                <xs:element name="emptiable" type="xs:string"/>
+                <xs:element name="filled">
+                  <xs:simpleType>
+                    <xs:restriction base="xs:string">
+                      <xs:minLength value="1"/>
+                    </xs:restriction>
+                  </xs:simpleType>
+                </xs:element>
+                <xs:element name="number" type="xs:int"/>
+              </xs:sequence>
+            </xs:complexType>
+          </xs:element>
+        </xs:schema>"""))
+
+        xml_data = "<note><emptiable/><filled/><number/></note>"
+        data, errors = schema.decode(xml_data, validation='lax', keep_empty=True)
+        self.assertEqual(data, {'emptiable': '', 'filled': '', 'number': None})
+        self.assertEqual(len(errors), 2)
+
+        data = schema.decode(xml_data, validation='skip', keep_empty=True)
+        self.assertEqual(data, {'emptiable': '', 'filled': '', 'number': ''})
 
     def test_element_hook__issue_322(self):
         schema = self.schema_class(self.casepath('issues/issue_322/issue_322.xsd'))
