@@ -358,7 +358,7 @@ class TestConverters(unittest.TestCase):
             col_schema.encode(obj1, path='./col:collection', namespaces=self.col_nsmap)
         self.assertIn("missing required attribute 'id'", str(ec.exception))
 
-    def test_decode_encode_badger_fish_converter(self):
+    def test_decode_encode_badgerfish_converter(self):
         col_schema = XMLSchema(self.col_xsd_filename, converter=BadgerFishConverter)
 
         obj1 = col_schema.decode(self.col_xml_filename)
@@ -512,6 +512,22 @@ class TestConverters(unittest.TestCase):
 
         root = col_schema.encode(obj2)  # No namespace unmap is required
         self.assertIsNone(etree_elements_assert_equal(self.col_xml_root, root, strict=False))
+
+    def test_decode_encode_with_default_namespace(self):
+        # Using default namespace and qualified form for elements
+        qualified_col_xsd = self.casepath('examples/collection/collection5.xsd')
+        col_schema = XMLSchema(qualified_col_xsd, converter=BadgerFishConverter)
+
+        default_xml_filename = self.casepath('examples/collection/collection-default.xml')
+        obj1 = col_schema.decode(default_xml_filename)
+        self.assertIn('@xmlns', obj1)
+        self.assertEqual(repr(obj1).count("'@xmlns'"), 1)
+        self.assertEqual(obj1['@xmlns'], {'$': 'http://example.com/ns/collection',
+                                          'xsi': 'http://www.w3.org/2001/XMLSchema-instance'})
+
+        root = col_schema.encode(obj1)
+        default_xml_root = etree_parse(default_xml_filename).getroot()
+        self.assertIsNone(etree_elements_assert_equal(default_xml_root, root, strict=False))
 
     def test_simple_content__issue_315(self):
         schema = XMLSchema(self.casepath('issues/issue_315/issue_315_simple.xsd'))

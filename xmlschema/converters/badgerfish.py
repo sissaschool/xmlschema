@@ -69,10 +69,16 @@ class BadgerFishConverter(XMLSchemaConverter):
                         self.transfer(value['@xmlns'])
                         if not value['@xmlns']:
                             del value['@xmlns']
+                        elif '' in value['@xmlns']:
+                            value['@xmlns']['$'] = value['@xmlns'].pop('')
+
                     elif '@xmlns' in value[name]:
                         self.transfer(value[name]['@xmlns'])
                         if not value[name]['@xmlns']:
                             del value[name]['@xmlns']
+                        elif '' in value[name]['@xmlns']:
+                            value[name]['@xmlns']['$'] = value[name]['@xmlns'].pop('')
+
                     if len(value) == 1:
                         value = value[name]
                 except (TypeError, KeyError):
@@ -100,18 +106,25 @@ class BadgerFishConverter(XMLSchemaConverter):
         if has_local_root:
             if self:
                 result_dict['@xmlns'].update(self)
+                if not level:
+                    result_dict['@xmlns']['$'] = result_dict['@xmlns'].pop('')
             else:
                 del result_dict['@xmlns']
             return dict_class([(tag, result_dict)])
-        else:
+        elif level:
             return dict_class([('@xmlns', dict_class(self)), (tag, result_dict)])
+        else:
+            return dict_class([
+                ('@xmlns', dict_class((k if k else '$', v) for k, v in self.items())),
+                (tag, result_dict)
+            ])
 
     def element_encode(self, obj: Any, xsd_element: 'XsdElement', level: int = 0) -> ElementData:
         tag = xsd_element.qualified_name if level == 0 else xsd_element.name
 
         if not self.strip_namespaces:
             try:
-                self.update(obj['@xmlns'])
+                self.update((k if k != '$' else '', v) for k, v in obj['@xmlns'].items())
             except KeyError:
                 pass
 
