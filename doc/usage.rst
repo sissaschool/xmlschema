@@ -412,8 +412,92 @@ to the method call:
 See the :ref:`converters` section for more information about converters.
 
 
+Control the decoding of XSD atomic datatypes
+--------------------------------------------
+
+XSD datatypes are decoded to Python basic datatypes. Python strings are used
+for all string-based XSD types and others, like *xs:hexBinary* or *xs:QName*.
+Python integers are used for *xs:integer* and derived types, `bool` for *xs:boolean*
+values and `decimal.Decimal` for *xs:decimal* values.
+
+Currently there are three options for variate the decoding of XSD atomic datatypes:
+
+decimal_type
+    decoding type for *xs:decimal* (is `decimal.Decimal` for default)
+
+datetime_types
+    if set to `True` decodes datetime and duration types to their respective XSD
+    atomic types instead of keeping the XML string value
+
+binary_types
+    if set to `True` decodes *xs:hexBinary* and *xs:base64Binary* types to their
+    respective XSD atomic types instead of keeping the XML string value
+
+
+Filling missing values
+----------------------
+
+Incompatible values are decoded with `None` when the *validation* mode is `'lax'`.
+For these situations there are two options for changing the behavior of the decoder:
+
+filler
+    a callback function to fill undecodable data with a typed value. The
+    callback function must accept one positional argument, that can be an
+    XSD Element or an attribute declaration. If not provided undecodable
+    data is replaced by `None`.
+
+fill_missing
+    if set to True the decoder fills also missing attributes. The filling value
+    is None or a typed value if the *filler* callback is provided.
+
+
+Control the decoding of elements
+--------------------------------
+
+These options concern the decoding of XSD elements:
+
+value_hook
+    a function that will be called with any decoded atomic value and the XSD type
+    used for decoding. The return value will be used instead of the original value.
+
+keep_empty
+    if set to `True` empty elements that are valid are decoded with an empty string
+    value instead of `None`.
+
+element_hook
+    an function that is called with decoded element data before calling the converter
+    decode method. Takes an `ElementData` instance plus optionally the XSD element
+    and the XSD type, and returns a new `ElementData` instance.
+
+
+Control the decoding of wildcards
+---------------------------------
+
+These two options are specific for the content processed with an XSD wildcard:
+
+keep_unknown
+    if set to `True` unknown tags are kept and are decoded with *xs:anyType*.
+    For default unknown tags not decoded by a wildcard are discarded.
+
+process_skipped
+    process XML data that match a wildcard with `processContents=’skip’`.
+
+
+Control the decoding depth
+--------------------------
+
+max_depth
+    maximum level of decoding, for default there is no limit. With lazy resources
+    is automatically set to *source.lazy_depth* for managing lazy decoding.
+
+depth_filler
+    a callback function for replacing data over the *max_depth* level. The callback
+    function must accept one positional argument, that can be an XSD Element. For
+    default deeper data is replaced with `None` values when *max_depth* is provided.
+
+
 Decoding to JSON
-----------------
+================
 
 The data structured created by the decoder can be easily serialized to JSON. But if you data
 include `Decimal` values (for *decimal* XSD built-in type) you cannot convert the data to JSON:

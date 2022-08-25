@@ -104,15 +104,11 @@ Schema level API
     .. automethod:: validate
     .. automethod:: is_valid
     .. automethod:: iter_errors
+
     .. automethod:: decode
-
-    .. _schema-iter_decode:
-
     .. automethod:: iter_decode
+
     .. automethod:: encode
-
-    .. _schema-iter_encode:
-
     .. automethod:: iter_encode
 
 
