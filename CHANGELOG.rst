@@ -2,9 +2,13 @@
 CHANGELOG
 *********
 
+`v2.0.4`_ (2022-xx-xx)
+======================
+* Fix import from locations hints with namespace mismatch (issue #324)
+
 `v2.0.3`_ (2022-08-25)
 ======================
-* *keep_empty* and *element_hook* options to main `iter_decode()`
+* Add *keep_empty* and *element_hook* options to main `iter_decode()` method
 * Fix default namespace mapping in `BadgerFishConverter`
 * Fix type restriction check if restricted particle has `maxOccurs==0` (issue #323)
 
@@ -571,3 +575,4 @@ v0.9.6 (2017-05-05)
 .. _v2.0.1: https://github.com/brunato/xmlschema/compare/v2.0.0...v2.0.1
 .. _v2.0.2: https://github.com/brunato/xmlschema/compare/v2.0.1...v2.0.2
 .. _v2.0.3: https://github.com/brunato/xmlschema/compare/v2.0.2...v2.0.3
+.. _v2.0.4: https://github.com/brunato/xmlschema/compare/v2.0.3...v2.0.4

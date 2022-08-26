@@ -21,6 +21,7 @@ import re
 from textwrap import dedent
 from xml.etree.ElementTree import Element
 
+import xmlschema
 from xmlschema import XMLSchemaParseError, XMLSchemaIncludeWarning, XMLSchemaImportWarning
 from xmlschema.names import XML_NAMESPACE, LOCATION_HINTS, SCHEMAS_DIR, XSD_ELEMENT, XSI_TYPE
 from xmlschema.validators import XMLSchemaBase, XMLSchema10, XMLSchema11, \
@@ -157,6 +158,23 @@ class TestXMLSchema10(XsdValidatorTestCase):
             self.assertTrue(str(context[0].message).startswith("Include"))
             self.assertTrue(str(context[1].message).startswith("Redefine"))
             self.assertTrue(str(context[2].message).startswith("Import of namespace"))
+
+    def test_import_mismatch_with_locations__issue_324(self):
+        xsd1_path = self.casepath('../test_cases/features/namespaces/import-case5a.xsd')
+        xsd2_path = self.casepath('../test_cases/features/namespaces/import-case5b.xsd')
+        xsd3_path = self.casepath('../test_cases/features/namespaces/import-case5c.xsd')
+
+        schema = self.schema_class(xsd1_path, locations=[
+            ('http://xmlschema.test/other-ns', xsd2_path),
+            ('http://xmlschema.test/other-ns2', xsd3_path),
+        ])
+        self.assertTrue(schema.built)
+
+        with self.assertRaises(xmlschema.XMLSchemaParseError):
+            self.schema_class(xsd1_path, locations=[
+                ('http://xmlschema.test/wrong-ns', xsd2_path),
+                ('http://xmlschema.test/wrong-ns2', xsd3_path),
+            ])
 
     def test_wrong_references(self):
         # Wrong namespace for element type's reference

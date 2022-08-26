@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A valid schema for testing custom imports with schema location hints.
+  -->
+<xs:schema
+  xmlns:xs="http://www.w3.org/2001/XMLSchema"
+  xmlns="http://xmlschema.test/other-ns2"
+  targetNamespace="http://xmlschema.test/other-ns2">
+
+  <xs:simpleType name="bType">
+    <xs:restriction base="xs:string"/>
+  </xs:simpleType>
+
+</xs:schema>
+

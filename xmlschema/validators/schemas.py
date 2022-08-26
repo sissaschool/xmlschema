@@ -109,7 +109,7 @@ class XMLSchemaMeta(ABCMeta):
         # For backward compatibility (will be removed in v2.0)
         if 'BUILDERS' in dict_:
             msg = "'BUILDERS' will be removed in v2.0, provide the appropriate " \
-                  "attributes instead (eg. xsd_element_class = Xsd11Element)"
+                  "attributes instead (e.g. xsd_element_class = Xsd11Element)"
             warnings.warn(msg, DeprecationWarning, stacklevel=1)
 
             for k, v in dict_['BUILDERS'].items():
@@ -175,7 +175,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     :param converter: is an optional argument that can be an :class:`XMLSchemaConverter` \
     subclass or instance, used for defining the default XML data converter for XML Schema instance.
     :param locations: schema extra location hints, that can include custom resource locations \
-    (eg. local XSD file instead of remote resource) or additional namespaces to import after \
+    (e.g. local XSD file instead of remote resource) or additional namespaces to import after \
     processing schema's import statements. Can be a dictionary or a sequence of couples \
     (namespace URI, resource URL). Extra locations passed using a tuple container are not \
     normalized.
@@ -196,7 +196,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     is rebuilt if any base namespace has been overridden by an import. Ignored if the \
     argument *global_maps* is provided.
     :param use_fallback: if `True` the schema processor uses the validator fallback \
-    location hints to load well-known namespaces (eg. xhtml).
+    location hints to load well-known namespaces (e.g. xhtml).
     :param loglevel: for setting a different logging level for schema initialization \
     and building. For default is WARNING (30). For INFO level set it with 20, for \
     DEBUG level with 10. The default loglevel is restored after schema building, \
@@ -1385,7 +1385,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             validation=self.validation,
             global_maps=self.maps,
             converter=self.converter,
-            locations=self._locations,
+            locations=[x for x in self._locations if x[0] != namespace],
             base_url=self.base_url,
             allow=self.allow,
             defuse=self.defuse,
@@ -1418,7 +1418,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             validation=self.validation,
             global_maps=self.maps,
             converter=self.converter,
-            locations=self._locations,
+            locations=[x for x in self._locations if x[0] != namespace],
             base_url=self.base_url,
             allow=self.allow,
             defuse=self.defuse,
