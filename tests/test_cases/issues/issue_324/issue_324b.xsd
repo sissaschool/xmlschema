@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<xs:schema
+    xmlns:xs="http://www.w3.org/2001/XMLSchema"
+    targetNamespace="http://xmlschema.test/other-ns">
+  <xs:element name="value" type="xs:int"/>
+</xs:schema>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<tns1:root
+    xmlns:tns1="http://xmlschema.test/ns"
+    xmlns:tns2="http://xmlschema.test/wrong-ns"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://xmlschema.test/ns issue_324a.xsd http://xmlschema.test/wrong-ns issue_324b.xsd">
+  <notes>foo</notes>
+  <tns2:value>10</tns2:value>
+</tns1:root>

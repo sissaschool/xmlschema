@@ -25,7 +25,7 @@ except ImportError:
 
 from xmlschema import XMLSchema10, XMLSchema11, XmlDocument, \
     XMLResourceError, XMLSchemaValidationError, XMLSchemaDecodeError, \
-    to_json, from_json
+    to_json, from_json, validate, XMLSchemaParseError
 
 from xmlschema.names import XSD_NAMESPACE, XSI_NAMESPACE
 from xmlschema.helpers import is_etree_element, is_etree_document
@@ -149,7 +149,7 @@ class TestXmlDocuments(unittest.TestCase):
         with self.assertRaises(ValueError) as ctx:
             get_context('<empty/>')
         self.assertEqual(str(ctx.exception),
-                         "no schema can be retrieved for the provided XML data")
+                         "cannot get a schema for XML data, provide a schema argument")
 
         source, schema = get_context('<empty/>', dummy_schema=True)
         self.assertEqual(source.root.tag, 'empty')
@@ -179,6 +179,38 @@ class TestXmlDocuments(unittest.TestCase):
         self.assertIs(source, col_xml_resource)
         self.assertIs(schema, vh_schema)
         self.assertTrue(schema.is_valid(source))
+
+    def test_use_location_hints_argument__issue_324(self):
+        xsd_file = casepath('issues/issue_324/issue_324a.xsd')
+        schema = XMLSchema10(xsd_file)
+
+        xml_file = casepath('issues/issue_324/issue_324-valid.xml')
+        self.assertIsNone(validate(xml_file))
+
+        with self.assertRaises(XMLSchemaValidationError) as ctx:
+            validate(xml_file, schema=schema)
+        self.assertIn('unavailable namespace', str(ctx.exception))
+
+        with self.assertRaises(ValueError) as ctx:
+            validate(xml_file, use_location_hints=False)
+        self.assertIn('provide a schema argument', str(ctx.exception))
+
+        xml_file = casepath('issues/issue_324/issue_324-invalid.xml')
+        with self.assertRaises(XMLSchemaParseError) as ctx:
+            validate(xml_file)
+        self.assertIn('unmatched namespace', str(ctx.exception))
+
+        with self.assertRaises(XMLSchemaValidationError) as ctx:
+            validate(xml_file, schema=schema)
+        self.assertIn('unavailable namespace', str(ctx.exception))
+
+        with self.assertRaises(ValueError) as ctx:
+            validate(xml_file, use_location_hints=False)
+        self.assertIn('provide a schema argument', str(ctx.exception))
+
+        with self.assertRaises(ValueError) as ctx:
+            XmlDocument(self.col_xml_file, use_location_hints=False)
+        self.assertIn('provide a schema argument', str(ctx.exception))
 
     def test_xml_document_init_with_schema(self):
         xml_document = XmlDocument(self.vh_xml_file)
@@ -221,7 +253,8 @@ class TestXmlDocuments(unittest.TestCase):
     def test_xml_document_init_without_schema(self):
         with self.assertRaises(ValueError) as ctx:
             XmlDocument('<empty/>')
-        self.assertIn('no schema can be retrieved for the XML resource', str(ctx.exception))
+        self.assertIn('cannot get a schema for XML data, provide a schema argument',
+                      str(ctx.exception))
 
         xml_document = XmlDocument('<empty/>', validation='skip')
         self.assertIsNone(xml_document.schema)

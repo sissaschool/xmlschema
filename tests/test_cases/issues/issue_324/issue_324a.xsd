@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<xs:schema
+    xmlns:xs="http://www.w3.org/2001/XMLSchema"
+    targetNamespace="http://xmlschema.test/ns">
+  <xs:element name="root">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="notes" type="xs:string"/>
+        <xs:any/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="label" type="xs:string"/>
+</xs:schema>
