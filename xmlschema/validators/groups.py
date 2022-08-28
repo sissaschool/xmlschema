@@ -345,26 +345,23 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         group, children = self, iter(self)
 
         while True:
-            try:
-                child = next(children)
-            except StopIteration:
+            for child in children:
+                if child is item:
+                    _subgroups = [x[0] for x in subgroups]
+                    _subgroups.append(group)
+                    return _subgroups
+                elif isinstance(child, XsdGroup):
+                    if len(subgroups) > limits.MAX_MODEL_DEPTH:
+                        raise XMLSchemaModelDepthError(self)
+                    subgroups.append((group, children))
+                    group, children = child, iter(child)
+                    break
+            else:
                 try:
                     group, children = subgroups.pop()
                 except IndexError:
                     msg = _('{!r} is not a particle of the model group')
                     raise XMLSchemaModelError(self, msg.format(item)) from None
-                else:
-                    continue
-
-            if child is item:
-                _subgroups = [x[0] for x in subgroups]
-                _subgroups.append(group)
-                return _subgroups
-            elif isinstance(child, XsdGroup):
-                if len(subgroups) > limits.MAX_MODEL_DEPTH:
-                    raise XMLSchemaModelDepthError(self)
-                subgroups.append((group, children))
-                group, children = child, iter(child)
 
     def overall_min_occurs(self, item: ModelParticleType) -> int:
         """Returns the overall min occurs of a particle in the model."""
@@ -669,11 +666,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         # Same model: declarations must simply preserve order
         other_iterator = iter(other.iter_model())
         for item in self.iter_model():
-            while True:
-                try:
-                    other_item = next(other_iterator)
-                except StopIteration:
-                    return False
+            for other_item in other_iterator:
                 if other_item is item or item.is_restriction(other_item, check_occurs):
                     break
                 elif other.model == 'choice':
@@ -687,6 +680,8 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                         break
                 elif not other_item.is_emptiable():
                     return False
+            else:
+                return False
 
         if other.model != 'choice':
             for other_item in other_iterator:

@@ -108,12 +108,12 @@ def get_lazy_json_encoder(errors: List[XMLSchemaValidationError]) -> Type[json.J
     class JSONLazyEncoder(json.JSONEncoder):
         def default(self, obj: Any) -> Any:
             if isinstance(obj, Iterator):
-                while True:
-                    result = next(obj, None)
+                for result in obj:
                     if isinstance(result, XMLSchemaValidationError):
                         errors.append(result)
                     else:
                         return result
+                return None
             return json.JSONEncoder.default(self, obj)
 
     return JSONLazyEncoder

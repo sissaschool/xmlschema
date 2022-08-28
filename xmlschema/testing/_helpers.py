@@ -63,12 +63,10 @@ def etree_elements_assert_equal(elem: Element, other: Element,
         if skip_comments and callable(e1.tag):
             continue
 
-        try:
-            while True:
-                e2 = next(other_children)
-                if not skip_comments or not callable(e2.tag):
-                    break
-        except StopIteration:
+        for e2 in other_children:
+            if not skip_comments or not callable(e2.tag):
+                break
+        else:
             raise AssertionError("Node %r has more children than %r" % (elem, other))
 
         if strict or e1 is elem:
