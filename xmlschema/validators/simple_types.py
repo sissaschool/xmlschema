@@ -12,7 +12,7 @@ This module contains classes for XML Schema simple data types.
 """
 from decimal import DecimalException
 from typing import cast, Any, Callable, Dict, Iterator, List, \
-    Optional, Set, Union, Tuple, Type
+    Optional, Pattern, Set, Union, Tuple, Type
 from xml.etree import ElementTree
 
 from ..aliases import ElementType, AtomicValueType, ComponentClassType, \
@@ -96,6 +96,7 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
             if white_space is not None:
                 self.white_space = white_space
 
+            p: Pattern[str]
             patterns = self.get_facet(XSD_PATTERN)
             if isinstance(patterns, XsdPatternFacets):
                 self.patterns = patterns
@@ -1139,7 +1140,7 @@ class XsdUnion(XsdSimpleType):
                     return
                 elif validation == 'strict':
                     # In 'strict' mode avoid lax encoding by similar types
-                    # (eg. float encoded by int)
+                    # (e.g. float encoded by int)
                     break
 
         if hasattr(obj, '__iter__') and not isinstance(obj, (str, bytes)):

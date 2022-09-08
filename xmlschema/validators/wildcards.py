@@ -551,7 +551,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
                 yield from xsd_element.iter_encode(value, validation, **kwargs)
                 return
 
-        # Check if there is an xsi:type attribute, but it has to extract
+        # Check if there is a xsi:type attribute, but it has to extract
         # attributes using the converter instance.
         if self.process_contents == 'strict':
             xsd_element = self.maps.validator.create_element(

@@ -2,8 +2,10 @@
 CHANGELOG
 *********
 
-`v2.0.4`_ (2022-xx-xx)
+`v2.0.4`_ (2022-09-08)
 ======================
+* Add *use_location_hints* argument to document API for giving the option
+  of ignoring XSI schema locations hints
 * Fix import from locations hints with namespace mismatch (issue #324)
 
 `v2.0.3`_ (2022-08-25)

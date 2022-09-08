@@ -749,7 +749,7 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
     def iter_encode(self, obj: Any, validation: str = 'lax', **kwargs: Any) \
             -> IterEncodeType[ElementType]:
         """
-        Encode XML data. A dummy element is created for the type and it's used for
+        Encode XML data. A dummy element is created for the type, and it's used for
         encode data. Typically used for encoding with xs:anyType when an XSD element
         is not available.
 

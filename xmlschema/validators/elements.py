@@ -11,7 +11,7 @@
 This module contains classes for XML Schema elements, complex types and model groups.
 """
 import warnings
-from copy import copy
+from copy import copy as _copy
 from decimal import Decimal
 from types import GeneratorType
 from typing import TYPE_CHECKING, cast, Any, Dict, Iterator, List, Optional, Tuple, Type, Union
@@ -866,7 +866,7 @@ class XsdElement(XsdComponent, ParticleMixin,
                         xsd_fields = identity.get_fields(xsd_element.xpath_node)
                         identity.elements[xsd_element] = xsd_fields
                 else:
-                    xsd_element = cast(XsdElement, self.copy())
+                    xsd_element = _copy(self)
                     xsd_element.type = xsd_type
                     xsd_fields = identity.get_fields(xsd_element.xpath_node)
 
@@ -878,7 +878,7 @@ class XsdElement(XsdComponent, ParticleMixin,
                     try:
                         resource = cast(XMLResource, kwargs['source'])
                     except KeyError:
-                        element_node = LazyElementNode(obj, nsmap=copy(namespaces))
+                        element_node = LazyElementNode(obj, nsmap=_copy(namespaces))
                     else:
                         element_node = resource.get_xpath_node(obj)
 
@@ -1122,8 +1122,8 @@ class XsdElement(XsdComponent, ParticleMixin,
                         other.min_occurs != other.max_occurs and \
                         self.max_occurs != 0 and not other.abstract \
                         and self.xsd_version == '1.0':
-                    # An UPA violation case. Base is the head element, it's not
-                    # abstract and has non deterministic occurs: this is less
+                    # A UPA violation case. Base is the head element, it's not
+                    # abstract and has non-deterministic occurs: this is less
                     # restrictive than W3C test group (elemZ026), marked as
                     # invalid despite it's based on an abstract declaration.
                     # See also test case invalid_restrictions1.xsd.
@@ -1138,7 +1138,7 @@ class XsdElement(XsdComponent, ParticleMixin,
             if check_occurs and not self.has_occurs_restriction(other):
                 return False
             elif self.max_occurs == 0 and check_occurs:
-                return True  # type is not effective if the element can't has occurrences
+                return True  # type is not effective if the element can't have occurrences
             elif not self.is_consistent(other) and self.type.elem is not other.type.elem and \
                     not self.type.is_derived(other.type, 'restriction') and not other.type.abstract:
                 return False

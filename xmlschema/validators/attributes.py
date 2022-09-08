@@ -10,6 +10,7 @@
 """
 This module contains classes for XML Schema attributes and attribute groups.
 """
+from copy import copy as _copy
 from decimal import Decimal
 from elementpath.datatypes import AbstractDateTime, Duration, AbstractBinary
 from typing import cast, Any, Callable, Union, Dict, List, Optional, \
@@ -416,7 +417,7 @@ class XsdAttributeGroup(
             elif child.tag == XSD_ANY_ATTRIBUTE:
                 any_attribute = self.schema.xsd_any_attribute_class(child, self.schema, self)
                 if None in attributes:
-                    attributes[None] = attr = attributes[None].copy()
+                    attributes[None] = attr = _copy(attributes[None])
                     assert isinstance(attr, XsdAnyAttribute)
                     attr.intersection(any_attribute)
                 else:
@@ -486,7 +487,7 @@ class XsdAttributeGroup(
                                         self.parse_error(msg.format(name))
                                 else:
                                     assert isinstance(base_attr, XsdAnyAttribute)
-                                    attributes[None] = attr = attributes[None].copy()
+                                    attributes[None] = attr = _copy(attributes[None])
                                     assert isinstance(attr, XsdAnyAttribute)
                                     attr.intersection(base_attr)
 
@@ -592,7 +593,7 @@ class XsdAttributeGroup(
         self._attribute_group.update(attributes)
         if None in self._attribute_group and None not in attributes \
                 and self.derivation == 'restriction':
-            wildcard = self._attribute_group[None].copy()
+            wildcard = _copy(self._attribute_group[None])
             wildcard.namespace = wildcard.not_namespace = wildcard.not_qname = ()
             self._attribute_group[None] = wildcard
 

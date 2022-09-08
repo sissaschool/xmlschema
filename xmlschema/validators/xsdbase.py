@@ -507,7 +507,7 @@ class XsdComponent(XsdValidator):
     def build(self) -> None:
         """
         Builds components that are not fully parsed at initialization, like model groups
-        or internal local elements in model groups. Otherwise does nothing.
+        or internal local elements in model groups, otherwise does nothing.
         """
 
     @property
@@ -609,8 +609,8 @@ class XsdComponent(XsdValidator):
         """
         Creates an iterator for XSD subcomponents.
 
-        :param xsd_classes: provide a class or a tuple of classes to iterates over only a \
-        specific classes of components.
+        :param xsd_classes: provide a class or a tuple of classes to iterate \
+        over only a specific classes of components.
         """
         if xsd_classes is None or isinstance(self, xsd_classes):
             yield self
@@ -618,11 +618,12 @@ class XsdComponent(XsdValidator):
     def iter_ancestors(self, xsd_classes: ComponentClassType = None)\
             -> Iterator['XsdComponent']:
         """
-        Creates an iterator for XSD ancestor components, schema excluded. Stops when the component
-        is global or if the ancestor is not an instance of the specified class/classes.
+        Creates an iterator for XSD ancestor components, schema excluded.
+        Stops when the component is global or if the ancestor is not an
+        instance of the specified class/classes.
 
-        :param xsd_classes: provide a class or a tuple of classes to iterates over only a \
-        specific classes of components.
+        :param xsd_classes: provide a class or a tuple of classes to iterate \
+        over only a specific classes of components.
         """
         ancestor = self
         while True:

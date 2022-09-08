@@ -145,7 +145,7 @@ def validate(xml_document: Union[XMLSourceType, XMLResource],
     the schema.
 
     :param xml_document: can be an :class:`XMLResource` instance, a file-like object a path \
-    to a file or an URI of a resource or an Element instance or an ElementTree instance or \
+    to a file or a URI of a resource or an Element instance or an ElementTree instance or \
     a string containing the XML data. If the passed argument is not an :class:`XMLResource` \
     instance a new one is built using this and *defuse*, *timeout* and *lazy* arguments.
     :param schema: can be a schema instance or a file-like object or a file path or a URL \
@@ -191,7 +191,7 @@ def is_valid(xml_document: Union[XMLSourceType, XMLResource],
              lazy: LazyType = False,
              use_location_hints: bool = True) -> bool:
     """
-    Like :meth:`validate` except that do not raises an exception but returns ``True`` if
+    Like :meth:`validate` except that do not raise an exception but returns ``True`` if
     the XML document is valid, ``False`` if it's invalid.
     """
     source, schema = get_context(xml_document, schema, cls, locations, base_url,
@@ -240,7 +240,7 @@ def iter_decode(xml_document: Union[XMLSourceType, XMLResource],
     or more :exc:`XMLSchemaValidationError` instances are yielded before the decoded data.
 
     :param xml_document: can be an :class:`XMLResource` instance, a file-like object a path \
-    to a file or an URI of a resource or an Element instance or an ElementTree instance or \
+    to a file or a URI of a resource or an Element instance or an ElementTree instance or \
     a string containing the XML data. If the passed argument is not an :class:`XMLResource` \
     instance a new one is built using this and *defuse*, *timeout* and *lazy* arguments.
     :param schema: can be a schema instance or a file-like object or a file path or a URL \
@@ -325,11 +325,11 @@ def to_json(xml_document: Union[XMLSourceType, XMLResource],
     is not validated against the schema.
 
     :param xml_document: can be an :class:`XMLResource` instance, a file-like object a path \
-    to a file or an URI of a resource or an Element instance or an ElementTree instance or \
+    to a file or a URI of a resource or an Element instance or an ElementTree instance or \
     a string containing the XML data. If the passed argument is not an :class:`XMLResource` \
     instance a new one is built using this and *defuse*, *timeout* and *lazy* arguments.
     :param fp: can be a :meth:`write()` supporting file-like object.
-    :param schema: can be a schema instance or a file-like object or a file path or an URL \
+    :param schema: can be a schema instance or a file-like object or a file path or a URL \
     of a resource or a string containing the schema.
     :param cls: schema class to use for building the instance (for default uses \
     :class:`XMLSchema10`).
@@ -436,10 +436,10 @@ class XmlDocument(XMLResource):
     context and validation argument is 'skip' the XML document is associated with
     a generic schema, otherwise a ValueError is raised.
 
-    :param source: a string containing XML data or a file path or an URL or a \
+    :param source: a string containing XML data or a file path or a URL or a \
     file like object or an ElementTree or an Element.
     :param schema: can be a :class:`xmlschema.XMLSchema` instance or a file-like \
-    object or a file path or an URL of a resource or a string containing the XSD schema.
+    object or a file path or a URL of a resource or a string containing the XSD schema.
     :param cls: class to use for building the schema instance (for default \
     :class:`XMLSchema10` is used).
     :param validation: the XSD validation mode to use for validating the XML document, \

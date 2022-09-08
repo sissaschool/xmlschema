@@ -175,7 +175,7 @@ def is_local_scheme(scheme: str) -> bool:
 
 
 def is_url(obj: object) -> bool:
-    """Returns `True` if the provided object is an URL, `False` otherwise."""
+    """Returns `True` if the provided object is a URL, `False` otherwise."""
     if isinstance(obj, str):
         if '\n' in obj or obj.lstrip().startswith('<'):
             return False
@@ -284,7 +284,7 @@ def fetch_resource(location: str, base_url: Optional[str] = None, timeout: int =
     Fetch a resource by trying to access it. If the resource is accessible
     returns its URL, otherwise raises an :class:`XMLResourceError`.
 
-    :param location: an URL or a file path.
+    :param location: a URL or a file path.
     :param base_url: reference base URL for normalizing local and relative URLs.
     :param timeout: the timeout in seconds for the connection attempt in case of remote data.
     :return: a normalized URL.
@@ -322,7 +322,7 @@ def fetch_schema_locations(source: Union['XMLResource', XMLSourceType],
     If an accessible schema location is not found raises a ValueError.
 
     :param source: can be an :class:`XMLResource` instance, a file-like object a path \
-    to a file or an URI of a resource or an Element instance or an ElementTree instance or \
+    to a file or a URI of a resource or an Element instance or an ElementTree instance or \
     a string containing the XML data. If the passed argument is not an :class:`XMLResource` \
     instance a new one is built using this and *defuse*, *timeout* and *lazy* arguments.
     :param locations: a dictionary or dictionary items with additional schema location hints.
@@ -386,7 +386,7 @@ class XMLResource:
     """
     XML resource reader based on ElementTree and urllib.
 
-    :param source: a string containing the XML document or file path or an URL or a \
+    :param source: a string containing the XML document or file path or a URL or a \
     file like object or an ElementTree or an Element.
     :param base_url: is an optional base URL, used for the normalization of relative paths \
     when the URL of the resource can't be obtained from the source argument. For security \
@@ -724,7 +724,7 @@ class XMLResource:
         url: Optional[str]
         if isinstance(source, str):
             if is_url(source):
-                # source is a string containing an URL or a file path
+                # source is a string containing a URL or a file path
                 url = normalize_url(source, self._base_url)
                 self._access_control(url)
 
@@ -962,7 +962,7 @@ class XMLResource:
 
     def open(self) -> IO[AnyStr]:
         """
-        Returns a opened resource reader object for the instance URL. If the
+        Returns an opened resource reader object for the instance URL. If the
         source attribute is a seekable file-like object rewind the source and
         return it.
         """

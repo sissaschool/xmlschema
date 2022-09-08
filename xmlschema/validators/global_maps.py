@@ -199,9 +199,10 @@ class XsdGlobals(XsdValidator):
     def copy(self, validator: Optional[SchemaType] = None,
              validation: Optional[str] = None) -> 'XsdGlobals':
         """Makes a copy of the object."""
-        obj = self.__class__(self.validator if validator is None else validator,
-                             validation or self.validation)
-
+        obj = self.__class__(
+            validator=self.validator if validator is None else validator,
+            validation=validation or self.validation
+        )
         obj.namespaces.update(self.namespaces)
         obj.types.update(self.types)
         obj.attributes.update(self.attributes)
@@ -333,7 +334,7 @@ class XsdGlobals(XsdValidator):
             global_map[qname] = obj[0],  # To catch circular builds
             global_map[qname] = component = factory_or_class(elem, schema)
 
-            # Apply redefinitions (changing elem involve a re-parsing of the component)
+            # Apply redefinitions (changing elem involve reparse of the component)
             for elem, schema in obj[1:]:
                 if component.schema.target_namespace != schema.target_namespace:
                     msg = _("redefined schema {!r} has a different targetNamespace")

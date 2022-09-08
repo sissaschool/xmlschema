@@ -150,7 +150,7 @@ class ParticleMixin:
 
 class OccursCalculator:
     """
-    An helper class for adding and multiplying min/max occurrences of XSD particles.
+    A helper class for adding and multiplying min/max occurrences of XSD particles.
     """
     min_occurs: int
     max_occurs: Optional[int]

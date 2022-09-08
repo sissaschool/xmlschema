@@ -12,6 +12,7 @@ This module contains classes for XML Schema model groups.
 """
 import warnings
 from collections.abc import MutableMapping
+from copy import copy as _copy
 from typing import TYPE_CHECKING, overload, Any, Iterable, Iterator, List, \
     MutableSequence, Optional, Tuple, Union
 from xml.etree import ElementTree
@@ -1267,7 +1268,7 @@ class Xsd11Group(XsdGroup):
     Class for XSD 1.1 *model group* definitions.
 
     .. The XSD 1.1 model groups differ from XSD 1.0 groups for the 'all' model,
-    .. that can contains also other groups.
+       that can contains also other groups.
     ..  <all
           id = ID
           maxOccurs = (0 | 1) : 1
@@ -1402,7 +1403,7 @@ class Xsd11Group(XsdGroup):
                         w2.extended = True
                         break
                 else:
-                    wildcards.append(w1.copy())
+                    wildcards.append(_copy(w1))
 
         base_items.extend(w for w in wildcards if hasattr(w, 'extended'))
 
