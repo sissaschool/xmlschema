@@ -762,9 +762,9 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         instance for the new meta schema. If not provided a new map is created.
         """
         if source is None:
-            if cls.meta_schema is None or cls.meta_schema.url:
+            if cls.meta_schema is None or not cls.meta_schema.url:
                 raise XMLSchemaValueError(_("Missing meta-schema source URL"))
-            source = cast(str, cls.meta_schema.url)
+            source = cls.meta_schema.url
 
         _base_schemas: Union[ItemsView[str, str], List[Tuple[str, str]]]
         if base_schemas is None:
@@ -781,13 +781,22 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
         meta_schema: SchemaType
         meta_schema_class = cls if cls.meta_schema is None else cls.meta_schema.__class__
-        meta_schema = meta_schema_class(source, XSD_NAMESPACE, global_maps=global_maps,
-                                        defuse='never', build=False)
+
+        if global_maps is None:
+            meta_schema = meta_schema_class(source, XSD_NAMESPACE, defuse='never', build=False)
+            global_maps = meta_schema.maps
+        elif XSD_NAMESPACE not in global_maps.namespaces:
+            meta_schema = meta_schema_class(source, XSD_NAMESPACE, global_maps=global_maps,
+                                            defuse='never', build=False)
+        else:
+            meta_schema = global_maps.namespaces[XSD_NAMESPACE][0]
+
         for ns, location in _base_schemas:
             if ns == XSD_NAMESPACE:
                 meta_schema.include_schema(location=location)
-            else:
+            elif ns not in global_maps.namespaces:
                 meta_schema.import_schema(namespace=ns, location=location)
+
         return meta_schema
 
     def simple_type_factory(self, elem: ElementType,
