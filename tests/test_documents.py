@@ -16,6 +16,7 @@ import io
 import pathlib
 import tempfile
 from decimal import Decimal
+from textwrap import dedent
 from xml.etree import ElementTree
 
 try:
@@ -25,7 +26,7 @@ except ImportError:
 
 from xmlschema import XMLSchema10, XMLSchema11, XmlDocument, \
     XMLResourceError, XMLSchemaValidationError, XMLSchemaDecodeError, \
-    to_json, from_json, validate, XMLSchemaParseError
+    to_json, from_json, validate, XMLSchemaParseError, is_valid, to_dict
 
 from xmlschema.names import XSD_NAMESPACE, XSI_NAMESPACE
 from xmlschema.helpers import is_etree_element, is_etree_document
@@ -443,6 +444,49 @@ class TestXmlDocuments(unittest.TestCase):
 
         with self.assertRaises(XMLResourceError):
             XmlDocument(self.vh_xml_file, lazy=True).tostring()
+
+    def test_get_context_on_xsd_schema__issue_325(self):
+        source, schema = get_context(self.col_xsd_file)
+        self.assertIsInstance(source, XMLResource)
+        self.assertTrue(source.name, 'collection.xsd')
+        self.assertIs(schema, XMLSchema10.meta_schema)
+
+        source, schema = get_context(self.col_xsd_file, cls=XMLSchema11)
+        self.assertIsInstance(source, XMLResource)
+        self.assertTrue(source.name, 'collection.xsd')
+        self.assertIs(schema, XMLSchema11.meta_schema)
+
+    def test_document_api_on_xsd_schema__issue_325(self):
+        self.assertIsNone(validate(self.col_xsd_file))
+        self.assertTrue(is_valid(self.col_xsd_file))
+
+        valid_xsd = dedent("""\
+        <xs:schema targetNamespace="http://example.com/ns/collection"
+            xmlns:xs="http://www.w3.org/2001/XMLSchema" >
+          <xs:element name="collection"/>
+        </xs:schema>""")
+        self.assertTrue(is_valid(valid_xsd))
+
+        invalid_xsd = dedent("""\
+        <xs:schema targetNamespace="http://example.com/ns/collection"
+            xmlns:xs="http://www.w3.org/2001/XMLSchema" >
+          <xs:element ref="collection"/>
+        </xs:schema>""")
+        self.assertFalse(is_valid(invalid_xsd))
+
+        obj = to_dict(valid_xsd)
+        self.assertDictEqual(obj, {
+            '@xmlns:xs': 'http://www.w3.org/2001/XMLSchema',
+            '@targetNamespace': 'http://example.com/ns/collection',
+            '@finalDefault': [],
+            '@blockDefault': [],
+            '@attributeFormDefault': 'unqualified',
+            '@elementFormDefault': 'unqualified',
+            'xs:element': {'@name': 'collection', '@abstract': False, '@nillable': False}})
+
+        root = XMLSchema10.meta_schema.encode(obj)
+        self.assertTrue(hasattr(root, 'tag'))
+        self.assertEqual(root.tag, '{http://www.w3.org/2001/XMLSchema}schema')
 
 
 if __name__ == '__main__':

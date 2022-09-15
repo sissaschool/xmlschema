@@ -73,7 +73,8 @@ def get_context(xml_document: Union[XMLSourceType, XMLResource],
                 return resource, cls(schema, **kwargs)
 
     if schema is None:
-        if XSI_TYPE in resource.root.attrib and cls.meta_schema is not None:
+        if cls.meta_schema is not None and \
+                (XSI_TYPE in resource.root.attrib or XSD_NAMESPACE in resource.namespace):
             return resource, cls.meta_schema
         elif dummy_schema:
             return resource, get_dummy_schema(resource, cls)
