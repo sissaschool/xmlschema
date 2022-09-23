@@ -520,14 +520,6 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
         return self.content if isinstance(self.content, XsdGroup) else None
 
     @property
-    def content_type(self) -> Union[XsdGroup, XsdSimpleType]:
-        """Property that returns the attribute *content*, for backward compatibility."""
-        import warnings
-        warnings.warn("'content_type' attribute has been replaced by 'content' "
-                      "and will be removed in version 2.0", DeprecationWarning, stacklevel=2)
-        return self.content
-
-    @property
     def content_type_label(self) -> str:
         if self.is_empty():
             return 'empty'

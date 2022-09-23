@@ -76,21 +76,25 @@ class TestXmlDocuments(unittest.TestCase):
 
     def test_from_json_api(self):
         json_data = to_json(self.col_xml_file, lazy=True)
+        root_tag = '{http://example.com/ns/collection}collection'
 
         with self.assertRaises(TypeError) as ctx:
             from_json(json_data)
         self.assertIn("a path is required for building a dummy schema", str(ctx.exception))
 
         collection = from_json(json_data, schema=self.col_xsd_file)
-        self.assertEqual(collection.tag, '{http://example.com/ns/collection}collection')
+        self.assertEqual(collection.tag, root_tag)
 
         col_schema = XMLSchema10(self.col_xsd_file)
         collection = from_json(json_data, schema=col_schema)
-        self.assertEqual(collection.tag, '{http://example.com/ns/collection}collection')
+        self.assertEqual(collection.tag, root_tag)
 
         col_schema = XMLSchema10(self.col_xsd_file)
         collection = from_json(json_data, col_schema, json_options={'parse_float': Decimal})
-        self.assertEqual(collection.tag, '{http://example.com/ns/collection}collection')
+        self.assertEqual(collection.tag, root_tag)
+
+        collection = from_json(json_data, path=root_tag)
+        self.assertEqual(collection.tag, root_tag)
 
     def test_get_context_with_schema(self):
         source, schema = get_context(self.col_xml_file)

@@ -584,6 +584,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
 
         if validation != 'skip' and self.process_contents == 'strict':
             yield self.validation_error(validation, reason, **kwargs)
+
         yield from self.any_type.iter_encode(obj, validation, **kwargs)
 
     def is_overlap(self, other: ModelParticleType) -> bool:

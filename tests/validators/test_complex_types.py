@@ -409,25 +409,6 @@ class TestXsdComplexType(XsdValidatorTestCase):
         self.assertTrue(xsd_type.has_mixed_content())
         self.assertEqual(xsd_type.content_type_label, 'mixed')
 
-    def test_content_type_property(self):
-        schema = self.schema_class("""
-            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
-                <xs:complexType name="type1">
-                    <xs:sequence>
-                        <xs:element name="elem1"/>
-                    </xs:sequence>
-                </xs:complexType>
-            </xs:schema>""")
-
-        xsd_type = schema.types['type1']
-
-        with warnings.catch_warnings(record=True) as context:
-            warnings.simplefilter("always")
-            self.assertIs(xsd_type.content_type, xsd_type.content)
-
-        self.assertEqual(len(context), 1)
-        self.assertIs(context[0].category, DeprecationWarning)
-
     def test_is_empty(self):
         schema = self.check_schema("""
             <xs:complexType name="emptyType1"/>
