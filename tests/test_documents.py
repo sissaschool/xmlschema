@@ -76,9 +76,13 @@ class TestXmlDocuments(unittest.TestCase):
 
     def test_from_json_api(self):
         json_data = to_json(self.col_xml_file, lazy=True)
+
         with self.assertRaises(TypeError) as ctx:
-            from_json(json_data, self.col_xsd_file)
-        self.assertIn("invalid type <class 'str'> for argument 'schema'", str(ctx.exception))
+            from_json(json_data)
+        self.assertIn("a path is required for building a dummy schema", str(ctx.exception))
+
+        collection = from_json(json_data, schema=self.col_xsd_file)
+        self.assertEqual(collection.tag, '{http://example.com/ns/collection}collection')
 
         col_schema = XMLSchema10(self.col_xsd_file)
         collection = from_json(json_data, schema=col_schema)

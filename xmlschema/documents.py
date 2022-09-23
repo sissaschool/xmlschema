@@ -19,12 +19,12 @@ from .names import XSD_NAMESPACE, XSI_TYPE
 from .aliases import ElementType, XMLSourceType, NamespacesType, LocationsType, \
     LazyType, SchemaSourceType, ConverterType, DecodeType, EncodeType, \
     JsonDecodeType
-from .helpers import is_etree_document
+from .helpers import get_extended_qname, is_etree_document
 from .resources import fetch_schema_locations, XMLResource
 from .validators import XMLSchema10, XMLSchemaBase, XMLSchemaValidationError
 
 
-def get_context(xml_document: Union[XMLSourceType, XMLResource],
+def get_context(xml_document: Union[None, XMLSourceType, XMLResource],
                 schema: Optional[Union[XMLSchemaBase, SchemaSourceType]] = None,
                 cls: Optional[Type[XMLSchemaBase]] = None,
                 locations: Optional[LocationsType] = None,
@@ -77,7 +77,7 @@ def get_context(xml_document: Union[XMLSourceType, XMLResource],
                 (XSI_TYPE in resource.root.attrib or XSD_NAMESPACE in resource.namespace):
             return resource, cls.meta_schema
         elif dummy_schema:
-            return resource, get_dummy_schema(resource, cls)
+            return resource, get_dummy_schema(resource.root.tag, cls)
         else:
             msg = "cannot get a schema for XML data, provide a schema argument"
             raise XMLSchemaValueError(msg)
@@ -89,8 +89,7 @@ def get_context(xml_document: Union[XMLSourceType, XMLResource],
                              defuse=defuse, timeout=timeout)
 
 
-def get_dummy_schema(resource: XMLResource, cls: Type[XMLSchemaBase]) -> XMLSchemaBase:
-    tag = resource.root.tag
+def get_dummy_schema(tag: str, cls: Type[XMLSchemaBase]) -> XMLSchemaBase:
     if tag.startswith('{'):
         namespace, name = tag[1:].split('}')
     else:
@@ -392,8 +391,78 @@ def to_json(xml_document: Union[XMLSourceType, XMLResource],
         return result if not errors else (result, tuple(errors))
 
 
+def to_etree(obj: Any,
+             schema: Optional[Union[XMLSchemaBase, SchemaSourceType]] = None,
+             cls: Optional[Type[XMLSchemaBase]] = None,
+             path: Optional[str] = None,
+             validation: str = 'strict',
+             namespaces: Optional[NamespacesType] = None,
+             use_defaults: bool = True,
+             converter: Optional[ConverterType] = None,
+             unordered: bool = False,
+             **kwargs: Any) -> EncodeType[ElementType]:
+    """
+    Encodes a data structure/object to an ElementTree's Element.
+
+    :param obj: the Python object that has to be encoded to XML data.
+    :param schema: can be a schema instance or a file-like object or a file path or a URL \
+    of a resource or a string containing the schema.
+    :param cls: class to use for building the schema instance (for default uses \
+    :class:`XMLSchema10`).
+    :param path: is an optional XPath expression for selecting the element of the schema \
+    that matches the data that has to be encoded. For default the first global element of \
+    the schema is used.
+    :param validation: the XSD validation mode. Can be 'strict', 'lax' or 'skip'.
+    :param namespaces: is an optional mapping from namespace prefix to URI.
+    :param use_defaults: whether to use default values for filling missing data.
+    :param converter: an :class:`XMLSchemaConverter` subclass or instance to use for \
+    the encoding.
+    :param unordered: a flag for explicitly activating unordered encoding mode for \
+    content model data. This mode uses content models for a reordered-by-model \
+    iteration of the child elements.
+    :param kwargs: other optional arguments of :meth:`XMLSchemaBase.iter_encode` and \
+    options for the converter.
+    :return: An element tree's Element instance. If ``validation='lax'`` keyword argument is \
+    provided the validation errors are collected and returned coupled in a tuple with the \
+    Element instance.
+    :raises: :exc:`XMLSchemaValidationError` if the object is not encodable by the schema, \
+    or also if it's invalid when ``validation='strict'`` is provided.
+    """
+    if cls is None:
+        cls = XMLSchema10
+    elif not issubclass(cls, XMLSchemaBase):
+        raise XMLSchemaTypeError("invalid schema class %r" % cls)
+
+    if schema is None:
+        if not path:
+            raise XMLSchemaTypeError("without schema a path is required "
+                                     "for building a dummy schema")
+
+        tag = get_extended_qname(path, namespaces)
+        if not tag.startswith('{') and ':' in tag:
+            raise XMLSchemaTypeError("without schema the path must be "
+                                     "mappable to a local or extended name")
+
+        _schema = get_dummy_schema(tag, cls)
+    elif isinstance(schema, XMLSchemaBase):
+        _schema = schema
+    else:
+        _schema = cls(schema, **kwargs)
+
+    return _schema.encode(
+        obj=obj,
+        path=path,
+        validation=validation,
+        namespaces=namespaces,
+        use_defaults=use_defaults,
+        converter=converter,
+        unordered=unordered,
+        **kwargs
+    )
+
+
 def from_json(source: Union[str, bytes, IO[str]],
-              schema: XMLSchemaBase,
+              schema: Optional[Union[XMLSchemaBase, SchemaSourceType]] = None,
               path: Optional[str] = None,
               converter: Optional[ConverterType] = None,
               json_options: Optional[Dict[str, Any]] = None,
@@ -418,9 +487,7 @@ def from_json(source: Union[str, bytes, IO[str]],
     :raises: :exc:`XMLSchemaValidationError` if the object is not encodable by the schema, \
     or also if it's invalid when ``validation='strict'`` is provided.
     """
-    if not isinstance(schema, XMLSchemaBase):
-        raise XMLSchemaTypeError("invalid type %r for argument 'schema'" % type(schema))
-    elif json_options is None:
+    if json_options is None:
         json_options = {}
 
     if isinstance(source, (str, bytes)):
@@ -428,7 +495,7 @@ def from_json(source: Union[str, bytes, IO[str]],
     else:
         obj = json.load(source, **json_options)
 
-    return schema.encode(obj, path=path, converter=converter, **kwargs)
+    return to_etree(obj, schema=schema, path=path, converter=converter, **kwargs)
 
 
 class XmlDocument(XMLResource):
@@ -514,7 +581,7 @@ class XmlDocument(XMLResource):
                     msg = "cannot get a schema for XML data, provide a schema argument"
                     raise XMLSchemaValueError(msg)
                 else:
-                    self._fallback_schema = get_dummy_schema(self, cls)
+                    self._fallback_schema = get_dummy_schema(self.root.tag, cls)
 
         if self.schema is None:
             pass
