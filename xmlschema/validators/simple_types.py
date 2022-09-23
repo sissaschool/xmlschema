@@ -437,44 +437,45 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
 
     def iter_decode(self, obj: Union[str, bytes], validation: str = 'lax',
                     **kwargs: Any) -> IterDecodeType[DecodedValueType]:
-        if obj is None:
-            yield obj
-        else:
-            text = self.normalize(obj)
-            if self.patterns is not None:
-                try:
-                    self.patterns(text)
-                except XMLSchemaValidationError as err:
-                    yield err
+        text = self.normalize(obj)
+        if self.patterns is not None:
+            try:
+                self.patterns(text)
+            except XMLSchemaValidationError as err:
+                yield err
 
-            for validator in self.validators:
-                try:
-                    validator(text)
-                except XMLSchemaValidationError as err:
-                    yield err
+        for validator in self.validators:
+            try:
+                validator(text)
+            except XMLSchemaValidationError as err:
+                yield err
 
-            yield text
+        yield text
 
     def iter_encode(self, obj: Any, validation: str = 'lax', **kwargs: Any) \
             -> IterEncodeType[EncodedValueType]:
-        if not isinstance(obj, (str, bytes)):
-            reason = _("a {0!r} or {1!r} object required").format(str, bytes)
-            yield XMLSchemaEncodeError(self, obj, str, reason)
-        else:
+        if isinstance(obj, (str, bytes)):
             text = self.normalize(obj)
-            if self.patterns is not None:
-                try:
-                    self.patterns(text)
-                except XMLSchemaValidationError as err:
-                    yield err
+        elif obj is None:
+            text = ''
+        elif isinstance(obj, list):
+            text = ' '.join(str(x) for x in obj)
+        else:
+            text = str(obj)
 
-            for validator in self.validators:
-                try:
-                    validator(text)
-                except XMLSchemaValidationError as err:
-                    yield err
+        if self.patterns is not None:
+            try:
+                self.patterns(text)
+            except XMLSchemaValidationError as err:
+                yield err
 
-            yield text
+        for validator in self.validators:
+            try:
+                validator(text)
+            except XMLSchemaValidationError as err:
+                yield err
+
+        yield text
 
     def get_facet(self, tag: str) -> Optional[FacetsValueType]:
         return self.facets.get(tag)

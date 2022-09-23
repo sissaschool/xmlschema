@@ -24,7 +24,7 @@ from .resources import fetch_schema_locations, XMLResource
 from .validators import XMLSchema10, XMLSchemaBase, XMLSchemaValidationError
 
 
-def get_context(xml_document: Union[None, XMLSourceType, XMLResource],
+def get_context(xml_document: Union[XMLSourceType, XMLResource],
                 schema: Optional[Union[XMLSchemaBase, SchemaSourceType]] = None,
                 cls: Optional[Type[XMLSchemaBase]] = None,
                 locations: Optional[LocationsType] = None,

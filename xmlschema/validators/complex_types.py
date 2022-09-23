@@ -9,6 +9,8 @@
 #
 from typing import cast, Any, Callable, Iterator, List, Optional, Tuple, Union
 
+from elementpath.datatypes import AnyAtomicType
+
 from ..exceptions import XMLSchemaValueError
 from ..names import XSD_GROUP, XSD_ATTRIBUTE_GROUP, XSD_SEQUENCE, XSD_OVERRIDE, \
     XSD_ALL, XSD_CHOICE, XSD_ANY_ATTRIBUTE, XSD_ATTRIBUTE, XSD_COMPLEX_CONTENT, \
@@ -757,8 +759,16 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
             name = obj.name
             value = obj
 
-        xsd_element = self.schema.create_element(name, parent=self, form='unqualified')
-        xsd_element.type = self
+        xsd_type: BaseXsdType
+        if isinstance(value, list):
+            xsd_type = self.any_simple_type
+        elif isinstance(value, AnyAtomicType):
+            xsd_type = self.any_atomic_type
+        else:
+            xsd_type = self.any_type
+
+        xsd_element = self.schema.create_element(name, parent=xsd_type, form='unqualified')
+        xsd_element.type = xsd_type
         yield from xsd_element.iter_encode(value, validation, **kwargs)
 
 
