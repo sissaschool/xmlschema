@@ -20,7 +20,7 @@ from .converters import ElementData, XMLSchemaConverter, \
     AbderaConverter, JsonMLConverter, ColumnarConverter
 from .dataobjects import DataElement, DataElementConverter, DataBindingConverter
 from .documents import validate, is_valid, iter_errors, iter_decode, \
-    to_dict, to_json, from_json, XmlDocument
+    to_dict, to_json, to_etree, from_json, XmlDocument
 
 from .validators import (
     XMLSchemaValidatorError, XMLSchemaParseError, XMLSchemaNotBuiltError,
@@ -31,7 +31,7 @@ from .validators import (
     XsdComponent, XsdType, XsdElement, XsdAttribute
 )
 
-__version__ = '2.0.4'
+__version__ = '2.1.0'
 __author__ = "Davide Brunato"
 __contact__ = "brunato@sissa.it"
 __copyright__ = "Copyright 2016-2022, SISSA"
@@ -46,7 +46,7 @@ __all__ = [
     'UnorderedConverter', 'ParkerConverter', 'BadgerFishConverter', 'AbderaConverter',
     'JsonMLConverter', 'ColumnarConverter', 'DataElement', 'DataElementConverter',
     'DataBindingConverter', 'validate', 'is_valid', 'iter_errors', 'iter_decode',
-    'to_dict', 'to_json', 'from_json', 'XmlDocument', 'XMLSchemaValidatorError',
+    'to_dict', 'to_json', 'to_etree', 'from_json', 'XmlDocument', 'XMLSchemaValidatorError',
     'XMLSchemaParseError', 'XMLSchemaNotBuiltError', 'XMLSchemaModelError',
     'XMLSchemaModelDepthError', 'XMLSchemaValidationError', 'XMLSchemaDecodeError',
     'XMLSchemaEncodeError', 'XMLSchemaChildrenValidationError', 'XMLSchemaIncludeWarning',
