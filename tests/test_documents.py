@@ -26,12 +26,14 @@ except ImportError:
 
 from xmlschema import XMLSchema10, XMLSchema11, XmlDocument, \
     XMLResourceError, XMLSchemaValidationError, XMLSchemaDecodeError, \
-    to_json, from_json, validate, XMLSchemaParseError, is_valid, to_dict
+    to_json, from_json, validate, XMLSchemaParseError, is_valid, to_dict, \
+    to_etree, JsonMLConverter
 
-from xmlschema.names import XSD_NAMESPACE, XSI_NAMESPACE
+from xmlschema.names import XSD_NAMESPACE, XSI_NAMESPACE, XSD_SCHEMA
 from xmlschema.helpers import is_etree_element, is_etree_document
 from xmlschema.resources import XMLResource
 from xmlschema.documents import get_context
+from xmlschema.testing import etree_elements_assert_equal
 
 
 TEST_CASES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_cases/')
@@ -73,6 +75,49 @@ class TestXmlDocuments(unittest.TestCase):
                                     json_options={'default': lambda x: None})
         self.assertEqual(len(errors), 0)
         self.assertIn('"object": [null, null]', json_data)
+
+    def test_to_etree_api(self):
+        data = to_dict(self.col_xml_file)
+        root_tag = '{http://example.com/ns/collection}collection'
+
+        with self.assertRaises(TypeError) as ctx:
+            to_etree(data)
+        self.assertIn("a path is required for building a dummy schema", str(ctx.exception))
+
+        collection = to_etree(data, schema=self.col_xsd_file)
+        self.assertEqual(collection.tag, root_tag)
+
+        col_schema = XMLSchema10(self.col_xsd_file)
+        collection = to_etree(data, schema=col_schema)
+        self.assertEqual(collection.tag, root_tag)
+
+        collection = to_etree(data, path=root_tag)
+        self.assertEqual(collection.tag, root_tag)
+
+    def test_to_etree_api_on_schema__issue_325(self):
+        col_root = ElementTree.parse(self.col_xsd_file).getroot()
+        kwargs = dict(use_defaults=False, converter=JsonMLConverter)
+        data = to_dict(self.col_xsd_file, **kwargs)
+
+        with self.assertRaises(TypeError) as ctx:
+            to_etree(data)
+        self.assertIn("a path is required for building a dummy schema", str(ctx.exception))
+
+        collection_xsd = to_etree(data, schema=XMLSchema10.meta_schema.url, **kwargs)
+        self.assertEqual(collection_xsd.tag, XSD_SCHEMA)
+        self.assertIsNone(etree_elements_assert_equal(collection_xsd, col_root, strict=False))
+
+        collection_xsd = to_etree(data, path=XSD_SCHEMA, **kwargs)
+        self.assertIsNone(etree_elements_assert_equal(collection_xsd, col_root, strict=False))
+
+        # automatically map xs/xsd prefixes and use meta-schema
+        collection_xsd = to_etree(data, path='xs:schema', **kwargs)
+        self.assertIsNone(etree_elements_assert_equal(collection_xsd, col_root, strict=False))
+
+        with self.assertRaises(TypeError) as ctx:
+            to_etree(data, path='xs:schema', namespaces={}, **kwargs)
+        self.assertIn("the path must be mappable to a local or extended name",
+                      str(ctx.exception))
 
     def test_from_json_api(self):
         json_data = to_json(self.col_xml_file, lazy=True)

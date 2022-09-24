@@ -40,6 +40,7 @@ Document level API
 .. autofunction:: xmlschema.iter_decode
 .. autofunction:: xmlschema.to_dict
 .. autofunction:: xmlschema.to_json
+.. autofunction:: xmlschema.to_etree
 .. autofunction:: xmlschema.from_json
 
 

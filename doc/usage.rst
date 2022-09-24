@@ -94,8 +94,8 @@ build after the loading of all schema resources. For example:
     >>> _ = schema.include_schema('tests/test_cases/examples/vehicles/bikes.xsd')
     >>> schema.build()
 
-Another option, available from release v1.6.1, is to provide a list of schema sources,
-particurlaly useful when sources have no locations associated:
+Another option, available since release v1.6.1, is to provide a list of schema sources,
+particularly useful when sources have no locations associated:
 
 .. doctest::
 
