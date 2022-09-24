@@ -2,6 +2,10 @@
 CHANGELOG
 *********
 
+`v2.1.0`_ (2022-09-24)
+======================
+* Add *to_etree* to package API
+
 `v2.0.4`_ (2022-09-08)
 ======================
 * Add *use_location_hints* argument to document API for giving the option
@@ -578,3 +582,4 @@ v0.9.6 (2017-05-05)
 .. _v2.0.2: https://github.com/brunato/xmlschema/compare/v2.0.1...v2.0.2
 .. _v2.0.3: https://github.com/brunato/xmlschema/compare/v2.0.2...v2.0.3
 .. _v2.0.4: https://github.com/brunato/xmlschema/compare/v2.0.3...v2.0.4
+.. _v2.1.0: https://github.com/brunato/xmlschema/compare/v2.0.4...v2.1.0

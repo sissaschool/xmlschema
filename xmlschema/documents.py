@@ -225,8 +225,7 @@ def iter_decode(xml_document: Union[XMLSourceType, XMLResource],
                 schema: Optional[XMLSchemaBase] = None,
                 cls: Optional[Type[XMLSchemaBase]] = None,
                 path: Optional[str] = None,
-                validation: str = 'strict',
-                process_namespaces: bool = True,
+                validation: str = 'lax',
                 locations: Optional[LocationsType] = None,
                 base_url: Optional[str] = None,
                 defuse: str = 'remote',
@@ -251,8 +250,6 @@ def iter_decode(xml_document: Union[XMLSourceType, XMLResource],
     data that have to be decoded. If not provided the XML root element is used.
     :param validation: defines the XSD validation mode to use for decode, can be \
     'strict', 'lax' or 'skip'.
-    :param process_namespaces: indicates whether to use namespace information in \
-    the decoding process.
     :param locations: additional schema location hints, in case a schema instance \
     has to be built.
     :param base_url: is an optional custom base URL for remapping relative locations, for \
@@ -272,8 +269,7 @@ def iter_decode(xml_document: Union[XMLSourceType, XMLResource],
     """
     source, _schema = get_context(xml_document, schema, cls, locations, base_url,
                                   defuse, timeout, lazy, use_location_hints)
-    yield from _schema.iter_decode(source, path=path, validation=validation,
-                                   process_namespaces=process_namespaces, **kwargs)
+    yield from _schema.iter_decode(source, path=path, validation=validation, **kwargs)
 
 
 def to_dict(xml_document: Union[XMLSourceType, XMLResource],
@@ -281,7 +277,6 @@ def to_dict(xml_document: Union[XMLSourceType, XMLResource],
             cls: Optional[Type[XMLSchemaBase]] = None,
             path: Optional[str] = None,
             validation: str = 'strict',
-            process_namespaces: bool = True,
             locations: Optional[LocationsType] = None,
             base_url: Optional[str] = None,
             defuse: str = 'remote',
@@ -300,8 +295,7 @@ def to_dict(xml_document: Union[XMLSourceType, XMLResource],
     """
     source, _schema = get_context(xml_document, schema, cls, locations, base_url,
                                   defuse, timeout, lazy, use_location_hints)
-    return _schema.decode(source, path=path, validation=validation,
-                          process_namespaces=process_namespaces, **kwargs)
+    return _schema.decode(source, path=path, validation=validation, **kwargs)
 
 
 def to_json(xml_document: Union[XMLSourceType, XMLResource],
@@ -309,8 +303,7 @@ def to_json(xml_document: Union[XMLSourceType, XMLResource],
             schema: Optional[XMLSchemaBase] = None,
             cls: Optional[Type[XMLSchemaBase]] = None,
             path: Optional[str] = None,
-            converter: Optional[ConverterType] = None,
-            process_namespaces: bool = True,
+            validation: str = 'strict',
             locations: Optional[LocationsType] = None,
             base_url: Optional[str] = None,
             defuse: str = 'remote',
@@ -335,10 +328,8 @@ def to_json(xml_document: Union[XMLSourceType, XMLResource],
     :class:`XMLSchema10`).
     :param path: is an optional XPath expression that matches the elements of the XML \
     data that have to be decoded. If not provided the XML root element is used.
-    :param converter: an :class:`XMLSchemaConverter` subclass or instance to use \
-    for the decoding.
-    :param process_namespaces: indicates whether to use namespace information in \
-    the decoding process.
+    :param validation: defines the XSD validation mode to use for decode, can be \
+    'strict', 'lax' or 'skip'.
     :param locations: additional schema location hints, in case the schema instance \
     has to be built.
     :param base_url: is an optional custom base URL for remapping relative locations, for \
@@ -366,15 +357,13 @@ def to_json(xml_document: Union[XMLSourceType, XMLResource],
         json_options = {}
     if 'decimal_type' not in kwargs:
         kwargs['decimal_type'] = float
-    kwargs['converter'] = converter
-    kwargs['process_namespaces'] = process_namespaces
 
     errors: List[XMLSchemaValidationError] = []
 
     if path is None and source.is_lazy() and 'cls' not in json_options:
         json_options['cls'] = get_lazy_json_encoder(errors)
 
-    obj = _schema.decode(source, path=path, **kwargs)
+    obj = _schema.decode(source, path=path, validation=validation, **kwargs)
     if isinstance(obj, tuple):
         errors.extend(obj[1])
         if fp is not None:
@@ -448,6 +437,7 @@ def to_etree(obj: Any,
                                      "mappable to a local or extended name")
 
         if tag == XSD_SCHEMA:
+            assert cls.meta_schema is not None
             _schema = cls.meta_schema
         else:
             _schema = get_dummy_schema(tag, cls)
