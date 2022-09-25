@@ -9,7 +9,6 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import unittest
-import warnings
 from textwrap import dedent
 from xml.etree.ElementTree import Element
 

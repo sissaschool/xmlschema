@@ -2,9 +2,11 @@
 CHANGELOG
 *********
 
-`v2.1.0`_ (2022-09-24)
+`v2.1.0`_ (2022-09-25)
 ======================
-* Add *to_etree* to package API
+* Add *to_etree()* to document API
+* Improve generic encoding with wildcards
+* Clean document API and schema decoding
 
 `v2.0.4`_ (2022-09-08)
 ======================

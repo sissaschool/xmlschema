@@ -16,8 +16,8 @@ from functools import lru_cache
 from typing import cast, Any, Callable, Dict, List, Iterable, Iterator, \
     MutableMapping, Optional, Set, Union, Tuple, Type
 
-from ..exceptions import XMLSchemaKeyError, XMLSchemaTypeError, XMLSchemaValueError, \
-    XMLSchemaRuntimeError, XMLSchemaWarning
+from ..exceptions import XMLSchemaKeyError, XMLSchemaTypeError, \
+    XMLSchemaValueError, XMLSchemaWarning
 from ..names import XSD_NAMESPACE, XSD_REDEFINE, XSD_OVERRIDE, XSD_NOTATION, \
     XSD_ANY_TYPE, XSD_SIMPLE_TYPE, XSD_COMPLEX_TYPE, XSD_GROUP, \
     XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ELEMENT, XSI_TYPE
