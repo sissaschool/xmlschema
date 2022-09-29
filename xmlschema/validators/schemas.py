@@ -1786,7 +1786,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
         for elem in selector:
             if elem is resource.root:
-                xsd_element = schema.get_element(elem.tag, namespaces=namespaces)
                 if resource.lazy_depth:
                     kwargs['level'] = 0
                     kwargs['identities'] = {}
@@ -1809,8 +1808,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
                     prev_ancestors = ancestors[:]
 
-                xsd_element = schema.get_element(elem.tag, schema_path, namespaces)
-
+            xsd_element = schema.get_element(elem.tag, schema_path, namespaces)
             if xsd_element is None:
                 if XSI_TYPE in elem.attrib:
                     xsd_element = self.create_element(name=elem.tag)
