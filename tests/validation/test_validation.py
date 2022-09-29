@@ -135,7 +135,7 @@ class TestValidation(XsdValidatorTestCase):
         self.assertTrue(xsd_element.is_valid(root[1], max_depth=1))
         self.assertFalse(xsd_element.is_valid(root[1], max_depth=2))
 
-    def test_extra_validator(self):
+    def test_extra_validator_argument(self):
         # Related to issue 227
 
         def bikes_validator(elem, xsd_element_):
@@ -167,6 +167,43 @@ class TestValidation(XsdValidatorTestCase):
         with self.assertRaises(XMLSchemaValidationError) as ec:
             self.vh_schema.validate(self.vh_xml_file, extra_validator=bikes_validator)
         self.assertIn('Reason: not an Harley-Davidson', str(ec.exception))
+
+    def test_path_argument(self):
+        schema = xmlschema.XMLSchema(self.casepath('examples/vehicles/vehicles.xsd'))
+
+        self.assertTrue(schema.is_valid(self.vh_xml_file, path='*'))
+        self.assertTrue(schema.is_valid(self.vh_xml_file, path='/vh:vehicles'))
+        self.assertTrue(schema.is_valid(self.vh_xml_file, path='/vh:vehicles/vh:cars'))
+        self.assertTrue(schema.is_valid(self.vh_xml_file, path='vh:cars'))
+        self.assertTrue(schema.is_valid(self.vh_xml_file, path='/vh:vehicles/vh:cars/vh:car'))
+        self.assertTrue(schema.is_valid(self.vh_xml_file, path='.//vh:car'))
+
+        self.assertTrue(schema.is_valid(self.vh_xml_file, path='xs:vehicles'))
+        self.assertFalse(
+            schema.is_valid(self.vh_xml_file, path='xs:vehicles', allow_empty=False)
+        )
+
+    def test_schema_path_argument__issue_326(self):
+        schema = xmlschema.XMLSchema(self.casepath('examples/vehicles/vehicles.xsd'))
+        document = ElementTree.parse(self.vh_xml_file)
+
+        entries = document.findall('vh:cars', {'vh': 'http://example.com/vehicles'})
+        self.assertListEqual(entries, [document.getroot()[0]])
+        for entry in entries:
+            self.assertTrue(schema.is_valid(
+                entry,
+                schema_path='/vh:vehicles/vh:cars',
+                namespaces={'vh': 'http://example.com/vehicles'}
+            ))
+
+        entries = document.findall('vh:cars/vh:car', {'vh': 'http://example.com/vehicles'})
+        self.assertListEqual(entries, list(document.getroot()[0][:]))
+        for entry in entries:
+            self.assertTrue(schema.is_valid(
+                entry,
+                schema_path='.//vh:cars/vh:car',
+                namespaces={'vh': 'http://example.com/vehicles'}
+            ))
 
     def test_issue_064(self):
         self.check_validity(self.st_schema, '<name xmlns="ns"></name>', False)
