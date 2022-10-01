@@ -93,7 +93,6 @@ Schema level API
     .. automethod:: iter_globals
     .. automethod:: iter_components
 
-    .. automethod:: check_schema
     .. automethod:: build
     .. automethod:: clear
     .. autoattribute:: built

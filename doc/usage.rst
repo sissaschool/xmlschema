@@ -596,3 +596,87 @@ available for representing XML resources with a related schema:
 
 This class can be used to derive specialized schema-related classes.
 See :ref:`wsdl11-documents` section for an application example.
+
+
+Meta-schemas and XSD sources
+============================
+
+Schema classes :class:`xmlschema.XMLSchema10` and :class:`xmlschema.XMLSchema11`
+have built-in meta-schema instances, related to the XSD namespace, that can be used
+directly to validate XSD sources without build a new schema:
+
+.. doctest::
+
+    >>> from xmlschema import XMLSchema
+    >>> XMLSchema.meta_schema.validate('tests/test_cases/examples/vehicles/vehicles.xsd')
+    >>> XMLSchema.meta_schema.validate('tests/test_cases/examples/vehicles/invalid.xsd')
+    Traceback (most recent call last):
+    ...
+    ...
+    xmlschema.validators.exceptions.XMLSchemaValidationError: failed validating ...
+
+    Reason: use of attribute 'name' is prohibited
+
+    Schema:
+
+      <xs:restriction xmlns:xs="http://www.w3.org/2001/XMLSchema" base="xs:complexType">
+       <xs:sequence>
+        <xs:element ref="xs:annotation" minOccurs="0" />
+        <xs:group ref="xs:complexTypeModel" />
+       </xs:sequence>
+       <xs:attribute name="name" use="prohibited" />
+       <xs:attribute name="abstract" use="prohibited" />
+       <xs:attribute name="final" use="prohibited" />
+       <xs:attribute name="block" use="prohibited" />
+       <xs:anyAttribute namespace="##other" processContents="lax" />
+      </xs:restriction>
+
+    Instance:
+
+      <xs:complexType xmlns:xs="http://www.w3.org/2001/XMLSchema" name="vehiclesType">
+        <xs:sequence>
+          <xs:element ref="vh:cars" />
+          <xs:element ref="vh:bikes" />
+        </xs:sequence>
+      </xs:complexType>
+
+    Path: /xs:schema/xs:element/xs:complexType
+
+
+Furthermore also decode and encode methods can be applied on XSD files or sources:
+
+.. doctest::
+
+    >>> from xmlschema import XMLSchema
+    >>> obj = XMLSchema.meta_schema.decode('tests/test_cases/examples/vehicles/vehicles.xsd')
+    >>> from pprint import pprint
+    >>> pprint(obj)
+    {'@attributeFormDefault': 'unqualified',
+     '@blockDefault': [],
+     '@elementFormDefault': 'qualified',
+     '@finalDefault': [],
+     '@targetNamespace': 'http://example.com/vehicles',
+     '@xmlns:xs': 'http://www.w3.org/2001/XMLSchema',
+     'xs:attribute': {'@name': 'step', '@type': 'xs:positiveInteger'},
+     'xs:element': {'@abstract': False,
+                    '@name': 'vehicles',
+                    '@nillable': False,
+                    'xs:complexType': {'@mixed': False,
+                                       'xs:sequence': {'@maxOccurs': 1,
+                                                       '@minOccurs': 1,
+                                                       'xs:element': [{'@maxOccurs': 1,
+                                                                       '@minOccurs': 1,
+                                                                       '@nillable': False,
+                                                                       '@ref': 'vh:cars'},
+                                                                      {'@maxOccurs': 1,
+                                                                       '@minOccurs': 1,
+                                                                       '@nillable': False,
+                                                                       '@ref': 'vh:bikes'}]}}},
+     'xs:include': [{'@schemaLocation': 'cars.xsd'},
+                    {'@schemaLocation': 'bikes.xsd'}]}
+
+.. note::
+    Building a new schema for XSD namespace could be not trivial because other schemas are
+    required for base namespaces (e.g. XML namespace 'http://www.w3.org/XML/1998/namespace').
+    This is particularly true for XSD 1.1 because the XSD meta-schema lacks of built-in
+    list types definitions, so a patch schema is required.
