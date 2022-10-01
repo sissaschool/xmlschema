@@ -106,23 +106,6 @@ class XMLSchemaMeta(ABCMeta):
         assert bases, "a base class is mandatory"
         base_class = bases[0]
 
-        # For backward compatibility (will be removed in v2.0)
-        if 'BUILDERS' in dict_:
-            msg = "'BUILDERS' will be removed in v2.0, provide the appropriate " \
-                  "attributes instead (e.g. xsd_element_class = Xsd11Element)"
-            warnings.warn(msg, DeprecationWarning, stacklevel=1)
-
-            for k, v in dict_['BUILDERS'].items():
-                if k == 'simple_type_factory':
-                    dict_['simple_type_factory'] = staticmethod(v)
-                    continue
-
-                attr_name = 'xsd_{}'.format(k)
-                if not hasattr(base_class, attr_name):
-                    continue
-                elif getattr(base_class, attr_name) is not v:
-                    dict_[attr_name] = v
-
         if isinstance(dict_.get('meta_schema'), str):
             # Build a new meta-schema class and register it into module's globals
             meta_schema_file: str = dict_.pop('meta_schema')
@@ -989,8 +972,10 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         """
         if cls.meta_schema is None:
             raise XMLSchemaRuntimeError(_("meta-schema unavailable for %r") % cls)
-        elif not cls.meta_schema.maps.types:
-            cls.meta_schema.maps.build()
+
+        msg = f"check_schema() class method will be removed in v3.0, use " \
+              f"{cls.__name__}.meta_schema instead for validating XSD data."
+        warnings.warn(msg, DeprecationWarning, stacklevel=1)
 
         for error in cls.meta_schema.iter_errors(schema.source, namespaces=namespaces):
             raise error
