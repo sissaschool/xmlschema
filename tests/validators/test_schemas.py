@@ -24,8 +24,7 @@ from xml.etree.ElementTree import Element
 import xmlschema
 from xmlschema import XMLSchemaParseError, XMLSchemaIncludeWarning, XMLSchemaImportWarning
 from xmlschema.names import XML_NAMESPACE, LOCATION_HINTS, SCHEMAS_DIR, XSD_ELEMENT, XSI_TYPE
-from xmlschema.validators import XMLSchemaBase, XMLSchema10, XMLSchema11, \
-    XsdGlobals, Xsd11Attribute
+from xmlschema.validators import XMLSchemaBase, XMLSchema10, XMLSchema11, XsdGlobals
 from xmlschema.testing import SKIP_REMOTE_TESTS, XsdValidatorTestCase
 from xmlschema.validators.schemas import logger
 

@@ -2,6 +2,11 @@
 CHANGELOG
 *********
 
+`v2.1.1`_ (2022-10-01)
+======================
+* Fix *schema_path* usage in `XMLSchemaBase.iter_errors()`
+* Add *allow_empty* option to `XMLSchemaBase` validation API
+
 `v2.1.0`_ (2022-09-25)
 ======================
 * Add *to_etree()* to document API
@@ -585,3 +590,4 @@ v0.9.6 (2017-05-05)
 .. _v2.0.3: https://github.com/brunato/xmlschema/compare/v2.0.2...v2.0.3
 .. _v2.0.4: https://github.com/brunato/xmlschema/compare/v2.0.3...v2.0.4
 .. _v2.1.0: https://github.com/brunato/xmlschema/compare/v2.0.4...v2.1.0
+.. _v2.1.1: https://github.com/brunato/xmlschema/compare/v2.1.0...v2.1.1
