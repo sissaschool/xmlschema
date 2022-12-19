@@ -14,8 +14,10 @@ from pathlib import Path
 from typing import Dict
 
 from xmlschema import XMLSchema10, XMLSchema11, fetch_namespaces, etree_tostring, \
-    XMLSchemaValidationError, DataElement, DataElementConverter, XMLResource
+    XMLSchemaValidationError, DataElement, DataElementConverter, XMLResource, \
+    XsdElement, XsdAttribute, XsdType
 
+from xmlschema.validators import XsdAttributeGroup
 from xmlschema.helpers import is_etree_element
 from xmlschema.names import XSI_TYPE
 from xmlschema.dataobjects import DataBindingMeta, DataBindingConverter
@@ -432,6 +434,21 @@ class TestDataObjects(unittest.TestCase):
         self.assertEqual(data_element[0][0].get(XSI_TYPE), 'p:ConcreteContainterItemInfo')
         self.assertEqual(data_element[0][0].get('b:type'), 'p:ConcreteContainterItemInfo')
         self.assertIsNone(data_element[0][0].get('xsi:type'))
+
+    def test_xsd_attribute_access__issue_331(self):
+        col_data = self.col_schema.decode(self.col_xml_filename)
+        self.assertIsInstance(col_data[0].xsd_element, XsdElement)
+        self.assertEqual(col_data[0].xsd_element.name, 'object')
+        self.assertIsInstance(
+            col_data[0].xsd_element.attributes, XsdAttributeGroup
+        )
+        xsd_attribute = col_data[0].xsd_element.attributes.get('id')
+        self.assertIsInstance(xsd_attribute, XsdAttribute)
+
+        xsd_attribute = col_data[0].xsd_element.find('@id')
+        self.assertIsInstance(xsd_attribute, XsdAttribute)
+        self.assertIsInstance(xsd_attribute.type, XsdType)
+        self.assertIsNone(col_data[0].xsd_element.find('@unknown'))
 
 
 class TestDataBindings(TestDataObjects):

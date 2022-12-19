@@ -472,15 +472,6 @@ class XsdElement(XsdComponent, ParticleMixin,
                                 dataobjects.DataBindingMeta(class_name, bases, attrs))
         return self.binding
 
-    def get_attribute(self, name: str) -> Optional[XsdAttribute]:
-        if name[0] != '{':
-            name = get_qname(self.type.target_namespace, name)
-        if not isinstance(self.type, XsdSimpleType):
-            xsd_attribute = self.type.attributes[name]
-            assert isinstance(xsd_attribute, XsdAttribute)
-            return xsd_attribute
-        return None
-
     def get_type(self, elem: Union[ElementType, ElementData],
                  inherited: Optional[Dict[str, Any]] = None) -> BaseXsdType:
         return self._head_type or self.type
