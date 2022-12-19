@@ -768,6 +768,7 @@ class XsdType(XsdComponent):
     @staticmethod
     def is_complex() -> bool:
         """Returns `True` if the instance is a complexType, `False` otherwise."""
+        return False
 
     def is_atomic(self) -> bool:
         """Returns `True` if the instance is an atomic simpleType, `False` otherwise."""

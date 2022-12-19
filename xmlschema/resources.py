@@ -27,7 +27,7 @@ from elementpath.protocols import LxmlElementProtocol
 
 from .exceptions import XMLSchemaTypeError, XMLSchemaValueError, XMLResourceError
 from .names import XML_NAMESPACE
-from .aliases import ElementType, ElementTreeType, NamespacesType, XMLSourceType, \
+from .aliases import ElementType, NamespacesType, XMLSourceType, \
     NormalizedLocationsType, LocationsType, NsmapType, ParentMapType
 from .helpers import get_namespace, is_etree_document, etree_iter_location_hints
 
@@ -793,7 +793,7 @@ class XMLResource:
                 self._root = cast(ElementType, source)
             elif is_etree_document(source):
                 # Could be only an ElementTree object at last
-                self._root = cast(ElementTreeType, source).getroot()
+                self._root = source.getroot()
             else:
                 raise XMLSchemaTypeError(
                     "wrong type %r for 'source' attribute: an ElementTree object or "

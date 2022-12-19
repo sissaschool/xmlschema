@@ -68,8 +68,8 @@ class XsdSelector(XsdComponent):
         lazy_quantifiers=False,
         anchors=False
     )
-    token = None   # type: XPathToken
-    parser = None  # type: IdentityXPathParser
+    token: XPathToken
+    parser: IdentityXPathParser
 
     def __init__(self, elem: ElementType, schema: SchemaType,
                  parent: Optional['XsdIdentity']) -> None:

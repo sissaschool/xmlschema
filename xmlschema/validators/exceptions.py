@@ -240,7 +240,7 @@ class XMLSchemaValidationError(XMLSchemaValidatorError, ValueError):
             msg.append('Reason: %s\n' % self.reason)
 
         if hasattr(self.validator, 'tostring'):
-            chunk = self.validator.tostring('  ', 20)  # type: ignore[union-attr]
+            chunk = self.validator.tostring('  ', 20)
             msg.append("Schema:\n\n%s\n" % chunk)
 
         if self.elem is not None and is_etree_element(self.elem):

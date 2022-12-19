@@ -208,7 +208,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     belong the declarations/definitions of the schema. If it's empty no namespace is associated \
     with the schema. In this case the schema declarations can be reused from other namespaces as \
     *chameleon* definitions.
-    :ivar validation: validation mode, can be 'strict', 'lax' or 'skip'.
     :ivar maps: XSD global declarations/definitions maps. This is an instance of \
     :class:`XsdGlobals`, that stores the *global_maps* argument or a new object \
     when this argument is not provided.
@@ -350,7 +349,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         self.imports = {}
         self.includes = {}
         self.warnings = []
-        self._root_elements = None  # type: Optional[Set[str]]
+        self._root_elements: Optional[Set[str]] = None
 
         self.name = self.source.name
         root = self.source.root
