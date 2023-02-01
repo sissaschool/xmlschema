@@ -1,8 +1,8 @@
 # Requirements for setup a development environment for the xmlschema package.
 setuptools
-tox
+tox>=4.0
 coverage
-elementpath>=3.0.0, <4.0.0
+elementpath>=4.0.0, <5.0.0
 lxml
 jinja2
 memory_profiler
