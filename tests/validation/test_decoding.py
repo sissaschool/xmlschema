@@ -866,8 +866,8 @@ class TestDecoding(XsdValidatorTestCase):
         self.assertIsInstance(obj, str)
 
         obj = xs.decode('<hex> 9AFD </hex>', binary_types=True)
-        self.assertEqual(obj, '9AFD')
         self.assertIsInstance(obj, datatypes.HexBinary)
+        self.assertEqual(obj.value, b'9AFD')
 
         xs = self.get_schema('<xs:attribute name="hex" type="xs:hexBinary"/>')
 
@@ -876,8 +876,8 @@ class TestDecoding(XsdValidatorTestCase):
         self.assertIsInstance(obj, str)
 
         obj = xs.attributes['hex'].decode(' 9AFD ', binary_types=True)
-        self.assertEqual(obj, '9AFD')
         self.assertIsInstance(obj, datatypes.HexBinary)
+        self.assertEqual(obj.value, b'9AFD')
 
     def test_base64_binary_type(self):
         base64_code_type = self.st_schema.types['base64Code']
@@ -891,7 +891,7 @@ class TestDecoding(XsdValidatorTestCase):
         xs = self.get_schema('<xs:attribute name="b64" type="xs:base64Binary"/>')
 
         obj = xs.attributes['b64'].decode(base64_value.decode())
-        self.assertEqual(obj, expected_value)
+        self.assertEqual(obj, str(expected_value))
         self.assertIsInstance(obj, str)
 
         obj = xs.attributes['b64'].decode(base64_value.decode(), binary_types=True)
@@ -902,7 +902,7 @@ class TestDecoding(XsdValidatorTestCase):
         xs = self.get_schema('<xs:element name="b64" type="xs:base64Binary"/>')
 
         obj = xs.decode('<b64>{}</b64>'.format(base64_value.decode()))
-        self.assertEqual(obj, expected_value)
+        self.assertEqual(obj, str(expected_value))
         self.assertIsInstance(obj, str)
 
         obj = xs.decode('<b64>{}</b64>'.format(base64_value.decode()), binary_types=True)

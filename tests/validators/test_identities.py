@@ -122,7 +122,7 @@ class TestXsdIdentities(XsdValidatorTestCase):
                     </xs:key>
                 </xs:element>""")
 
-        self.assertIn("a QName cannot contains spaces", ctx.exception.message)
+        self.assertIn("XPST0003", ctx.exception.message)
 
     def test_selector_target_namespace(self):
         schema = self.check_schema("""
