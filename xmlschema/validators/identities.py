@@ -22,6 +22,7 @@ from ..names import XSD_QNAME, XSD_UNIQUE, XSD_KEY, XSD_KEYREF, XSD_SELECTOR, XS
 from ..translation import gettext as _
 from ..helpers import get_qname, get_extended_qname
 from ..aliases import ElementType, SchemaType, NamespacesType, AtomicValueType
+from .exceptions import XMLSchemaNotBuiltError
 from .xsdbase import XsdComponent
 from .attributes import XsdAttribute
 
@@ -68,8 +69,8 @@ class XsdSelector(XsdComponent):
         lazy_quantifiers=False,
         anchors=False
     )
-    token: XPathToken
-    parser: IdentityXPathParser
+    token: Optional[XPathToken] = None
+    parser: Optional[IdentityXPathParser] = None
 
     def __init__(self, elem: ElementType, schema: SchemaType,
                  parent: Optional['XsdIdentity']) -> None:
@@ -161,8 +162,8 @@ class XsdIdentity(XsdComponent):
     parent: 'XsdElement'
     ref: Optional['XsdIdentity']
 
-    selector = None  # type: XsdSelector
-    fields = ()      # type: Union[Tuple[()], List[XsdFieldSelector]]
+    selector: Optional[XsdSelector] = None
+    fields: Union[Tuple[()], List[XsdFieldSelector]] = ()
 
     # XSD elements bound by selector (for speed-up and for lazy mode)
     elements: Union[Tuple[()], Dict['XsdElement', Optional[IdentityCounterType]]] = ()
@@ -206,34 +207,37 @@ class XsdIdentity(XsdComponent):
                 self.fields = ref.fields
                 self.ref = ref
 
+        if self.selector is None:
+            return  # Do not raise, already found by meta-schema validation.
+        elif self.selector.token is None:
+            raise XMLSchemaNotBuiltError(self, "identity selector is not built")
+
         context = XPathContext(self.schema.xpath_node, item=self.parent.xpath_node)
         self.elements = {}
-        try:
-            for e in self.selector.token.select_results(context):
-                if not isinstance(e, XsdComponent) or isinstance(e, XsdAttribute):
-                    msg = _("selector xpath expression can only select elements")
-                    self.parse_error(msg)
-                elif e.name is not None:
-                    if TYPE_CHECKING:
-                        assert isinstance(e, XsdElement)  # for mypy checks with Python 3.7
-                    self.elements[e] = None
-        except AttributeError:
-            pass
-        else:
-            if not self.elements:
-                # Try to detect target XSD elements extracting QNames
-                # of the leaf elements from the XPath expression and
-                # use them to match global elements.
 
-                qname: Any
-                for qname in self.selector.token.iter_leaf_elements():
-                    xsd_element = self.maps.elements.get(
-                        get_extended_qname(qname, self.namespaces)
-                    )
-                    if xsd_element is not None and \
-                            not isinstance(xsd_element, tuple) and \
-                            xsd_element not in self.elements:
-                        self.elements[xsd_element] = None
+        for e in self.selector.token.select_results(context):
+            if not isinstance(e, XsdComponent) or isinstance(e, XsdAttribute):
+                msg = _("selector xpath expression can only select elements")
+                self.parse_error(msg)
+            elif e.name is not None:
+                if TYPE_CHECKING:
+                    assert isinstance(e, XsdElement)  # for mypy checks with Python 3.7
+                self.elements[e] = None
+
+        if not self.elements:
+            # Try to detect target XSD elements extracting QNames
+            # of the leaf elements from the XPath expression and
+            # use them to match global elements.
+
+            qname: Any
+            for qname in self.selector.token.iter_leaf_elements():
+                xsd_element = self.maps.elements.get(
+                    get_extended_qname(qname, self.namespaces)
+                )
+                if xsd_element is not None and \
+                        not isinstance(xsd_element, tuple) and \
+                        xsd_element not in self.elements:
+                    self.elements[xsd_element] = None
 
     @property
     def built(self) -> bool:
@@ -268,6 +272,10 @@ class XsdIdentity(XsdComponent):
         value: Union[AtomicValueType, None]
 
         for k, field in enumerate(self.fields):
+            if field.token is None:
+                msg = f"identity field {field} is not built"
+                raise XMLSchemaNotBuiltError(self, msg)
+
             context = XPathContext(element_node)
             result = field.token.get_results(context)
 

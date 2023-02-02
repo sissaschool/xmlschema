@@ -37,7 +37,8 @@ from ..xpath import XsdSchemaProtocol, XsdElementProtocol, XMLSchemaProxy, \
     ElementPathMixin, XPathElement
 from ..resources import XMLResource
 
-from .exceptions import XMLSchemaValidationError, XMLSchemaTypeTableWarning
+from .exceptions import XMLSchemaNotBuiltError, XMLSchemaValidationError, \
+    XMLSchemaTypeTableWarning
 from .helpers import get_xsd_derivation_attribute
 from .xsdbase import XSD_TYPE_DERIVATIONS, XSD_ELEMENT_DERIVATIONS, \
     XsdComponent, ValidationMixin
@@ -666,8 +667,13 @@ class XsdElement(XsdComponent, ParticleMixin,
                 if self.identities:
                     xpath_element = XPathElement(self.name, xsd_type)
                     for identity in self.identities.values():
-                        if isinstance(identity.elements, tuple):
-                            continue  # Skip unbuilt identities
+                        if isinstance(identity.elements, tuple) \
+                                or identity.selector is None:
+                            continue  # Skip unbuilt or incomplete identities
+                        elif identity.selector.token is None:
+                            raise XMLSchemaNotBuiltError(
+                                identity, "identity selector is not built"
+                            )
 
                         context = XPathContext(
                             root=self.schema.xpath_node,
