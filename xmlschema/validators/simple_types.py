@@ -352,16 +352,16 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
 
         root_type = self.root_type
         if root_type.name is not None:
-            sequence_type = cast(str, root_type.prefixed_name)
+            sequence_type = f'xs:{root_type.local_name}'
         else:
-            sequence_type = get_prefixed_qname(XSD_UNTYPED_ATOMIC, self.namespaces)
+            sequence_type = 'xs:untypedAtomic'
 
         if not self.is_list():
             return sequence_type
         elif self.is_emptiable():
-            return '{}*'.format(sequence_type)
+            return f'{sequence_type}*'
         else:
-            return '{}+'.format(sequence_type)
+            return f'{sequence_type}+'
 
     def is_empty(self) -> bool:
         return self.max_length == 0 or \

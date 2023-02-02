@@ -15,12 +15,12 @@ from ..exceptions import XMLSchemaValueError
 from ..names import XSD_GROUP, XSD_ATTRIBUTE_GROUP, XSD_SEQUENCE, XSD_OVERRIDE, \
     XSD_ALL, XSD_CHOICE, XSD_ANY_ATTRIBUTE, XSD_ATTRIBUTE, XSD_COMPLEX_CONTENT, \
     XSD_RESTRICTION, XSD_COMPLEX_TYPE, XSD_EXTENSION, XSD_ANY_TYPE, XSD_ASSERT, \
-    XSD_UNTYPED_ATOMIC, XSD_SIMPLE_CONTENT, XSD_OPEN_CONTENT, XSD_ANNOTATION
+    XSD_SIMPLE_CONTENT, XSD_OPEN_CONTENT, XSD_ANNOTATION
 from ..aliases import ElementType, NamespacesType, SchemaType, ComponentClassType, \
     DecodeType, IterDecodeType, IterEncodeType, BaseXsdType, AtomicValueType, \
     ExtraValidatorType
 from ..translation import gettext as _
-from ..helpers import get_prefixed_qname, get_qname, local_name
+from ..helpers import get_qname, local_name
 
 from .exceptions import XMLSchemaDecodeError
 from .helpers import get_xsd_derivation_attribute
@@ -537,15 +537,14 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
         if self.is_empty():
             return 'empty-sequence()'
         elif not self.has_simple_content():
-            st = get_prefixed_qname(XSD_UNTYPED_ATOMIC, self.namespaces)
+            st = 'xs:untypedAtomic'
         else:
             try:
-                st = self.content.primitive_type.prefixed_name  # type: ignore[union-attr]
+                name = self.content.primitive_type.local_name  # type: ignore[union-attr]
             except AttributeError:
-                st = get_prefixed_qname(XSD_UNTYPED_ATOMIC, self.namespaces)
+                st = 'xs:untypedAtomic'
             else:
-                if st is None:
-                    st = 'item()'
+                st = 'item()' if name is None else f'xs:{name}'
 
         return f"{st}{'*' if self.is_emptiable() else '+'}"
 
