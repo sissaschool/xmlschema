@@ -458,7 +458,7 @@ class TestXmlDocuments(unittest.TestCase):
             xml_document = XmlDocument(self.col_xml_file, lazy=True)
             with self.assertRaises(XMLResourceError) as ctx:
                 xml_document.write(str(col_file_path))
-            self.assertEqual(str(ctx.exception), "cannot serialize a lazy XML document")
+            self.assertEqual(str(ctx.exception), "cannot serialize a lazy XML resource")
 
     def test_xml_document_etree_interface(self):
         xml_document = XmlDocument(self.vh_xml_file)
@@ -471,7 +471,8 @@ class TestXmlDocuments(unittest.TestCase):
         xml_document = XmlDocument(self.vh_xml_file, lazy=1)
         with self.assertRaises(XMLResourceError) as ctx:
             xml_document.get_etree_document()
-        self.assertIn('cannot create an ElementTree from a lazy resource', str(ctx.exception))
+        self.assertIn('cannot create an ElementTree instance from a lazy XML resource',
+                      str(ctx.exception))
 
         vh_tree = ElementTree.parse(self.vh_xml_file)
         xml_document = XmlDocument(vh_tree, base_url=self.vh_dir)

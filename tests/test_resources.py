@@ -43,6 +43,10 @@ TEST_CASES_DIR = str(pathlib.Path(__file__).absolute().parent.joinpath('test_cas
 
 DRIVE_REGEX = '/[a-zA-Z]:' if platform.system() == 'Windows' else ''
 
+XML_WITH_NAMESPACES = '<pfa:root xmlns:pfa="http://xmlschema.test/nsa">\n' \
+                      '  <pfb:elem xmlns:pfb="http://xmlschema.test/nsb"/>\n' \
+                      '</pfa:root>'
+
 
 def casepath(relative_path):
     return str(pathlib.Path(TEST_CASES_DIR).joinpath(relative_path))
@@ -456,7 +460,7 @@ class TestResources(unittest.TestCase):
         self.assertIsNone(resource.text)
         with self.assertRaises(XMLResourceError) as ctx:
             resource.load()
-        self.assertIn('cannot load a lazy resource', str(ctx.exception))
+        self.assertIn('cannot load a lazy XML resource', str(ctx.exception))
         self.assertIsNone(resource.text)
 
         resource = XMLResource(self.vh_xml_file, lazy=False)
@@ -492,7 +496,7 @@ class TestResources(unittest.TestCase):
         self.assertIsNone(resource.text)
         with self.assertRaises(XMLResourceError) as ctx:
             resource.load()
-        self.assertIn('cannot load a lazy resource', str(ctx.exception))
+        self.assertIn('cannot load a lazy XML resource', str(ctx.exception))
         self.assertIsNone(resource.text)
 
         resource = XMLResource(path, lazy=False)
@@ -605,7 +609,7 @@ class TestResources(unittest.TestCase):
 
             with self.assertRaises(XMLResourceError) as ctx:
                 resource.load()
-            self.assertEqual("cannot load a lazy resource", str(ctx.exception))
+            self.assertEqual("cannot load a lazy XML resource", str(ctx.exception))
 
             self.assertFalse(schema_file.closed)
             for _ in resource.iter():
@@ -962,7 +966,24 @@ class TestResources(unittest.TestCase):
         resource = XMLResource(self.vh_xml_file, lazy=True)
         with self.assertRaises(XMLResourceError) as ctx:
             resource.tostring()
-        self.assertEqual("cannot serialize a lazy resource", str(ctx.exception))
+        self.assertEqual("cannot serialize a lazy XML resource", str(ctx.exception))
+
+        resource = XMLResource(XML_WITH_NAMESPACES)
+        result = resource.tostring()
+        self.assertNotEqual(result, XML_WITH_NAMESPACES)
+
+        # With xml.etree.ElementTree namespace declarations are serialized
+        # with a loss of information (all collapsed into the root element).
+        self.assertEqual(result, '<pfa:root xmlns:pfa="http://xmlschema.test/nsa" '
+                                 'xmlns:pfb="http://xmlschema.test/nsb">\n'
+                                 '  <pfb:elem />\n</pfa:root>')
+
+        if lxml_etree is not None:
+            root = lxml_etree.XML(XML_WITH_NAMESPACES)
+            resource = XMLResource(root)
+
+            # With lxml.etree there is no information loss.
+            self.assertEqual(resource.tostring(), XML_WITH_NAMESPACES)
 
     def test_xml_resource_open(self):
         resource = XMLResource(self.vh_xml_file)
@@ -1459,7 +1480,8 @@ class TestResources(unittest.TestCase):
         resource = XMLResource(StringIO('<a><b1><c1/><c2/></b1><b2/></a>'), lazy=True)
         with self.assertRaises(XMLResourceError) as ctx:
             _ = resource.parent_map
-        self.assertEqual("cannot create the parent map of a lazy resource", str(ctx.exception))
+        self.assertEqual("cannot create the parent map of a lazy XML resource",
+                         str(ctx.exception))
 
     def test_get_nsmap(self):
         source = '<a xmlns="uri1"><b1 xmlns:x="uri2"><c1/><c2/></b1><b2 xmlns="uri3"/></a>'
@@ -1502,7 +1524,8 @@ class TestResources(unittest.TestCase):
         resource = XMLResource(self.vh_xml_file, lazy=True)
         with self.assertRaises(XMLResourceError) as ctx:
             resource.subresource(resource.root)
-        self.assertEqual("cannot create a subresource from a lazy resource", str(ctx.exception))
+        self.assertEqual("cannot create a subresource from a lazy XML resource",
+                         str(ctx.exception))
 
         resource = XMLResource(self.vh_xml_file)
         root = resource.root

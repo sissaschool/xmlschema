@@ -8,6 +8,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import json
+import copy
 from io import IOBase, TextIOBase
 from typing import Any, Dict, List, Optional, Type, Union, Tuple, \
     IO, BinaryIO, TextIO, Iterator
@@ -616,7 +617,7 @@ class XmlDocument(XMLResource):
 
     def parse(self, source: XMLSourceType, lazy: LazyType = False) -> None:
         super(XmlDocument, self).parse(source, lazy)
-        self.namespaces = self.get_namespaces(self._namespaces)
+        self.namespaces = self.get_namespaces()
 
         if self.schema is None:
             pass
@@ -625,39 +626,37 @@ class XmlDocument(XMLResource):
         elif self.validation == 'lax':
             self.errors = [e for e in self.schema.iter_errors(self, namespaces=self.namespaces)]
 
+    def get_namespaces(self, namespaces: Optional[NamespacesType] = None,
+                       root_only: Optional[bool] = None) -> NamespacesType:
+        if not self._namespaces:
+            _namespaces = namespaces
+        elif not namespaces:
+            _namespaces = self._namespaces
+        else:
+            _namespaces = copy.copy(self._namespaces)
+            _namespaces.update(namespaces)
+
+        return super().get_namespaces(_namespaces, root_only)
+
     def getroot(self) -> ElementType:
         """Get the root element of the XML document."""
         return self._root
 
     def get_etree_document(self) -> Any:
         """
-        The resource as ElementTree XML document. If the resource is lazy raises a resource error.
+        The resource as ElementTree XML document. If the resource is lazy
+        raises a resource error.
         """
         if is_etree_document(self._source):
             return self._source
         elif self._lazy:
-            raise XMLResourceError("cannot create an ElementTree from a lazy resource")
+            raise XMLResourceError(
+                "cannot create an ElementTree instance from a lazy XML resource"
+            )
         elif hasattr(self._root, 'nsmap'):
             return self._root.getroottree()  # type: ignore[attr-defined]
         else:
             return ElementTree.ElementTree(self._root)
-
-    def tostring(self, indent: str = '', max_lines: Optional[int] = None,
-                 spaces_for_tab: int = 4, xml_declaration: bool = False,
-                 encoding: str = 'unicode', method: str = 'xml') -> str:
-        if self._lazy:
-            raise XMLResourceError("cannot serialize a lazy XML document")
-
-        _string = etree_tostring(
-            elem=self._root,
-            namespaces=self.namespaces,
-            xml_declaration=xml_declaration,
-            encoding=encoding,
-            method=method
-        )
-        if isinstance(_string, bytes):
-            return _string.decode('utf-8')
-        return _string
 
     def decode(self, **kwargs: Any) -> DecodeType[Any]:
         """
@@ -731,7 +730,7 @@ class XmlDocument(XMLResource):
               default_namespace: Optional[str] = None, method: str = "xml") -> None:
         """Serialize an XML resource to a file. Cannot be used with lazy resources."""
         if self._lazy:
-            raise XMLResourceError("cannot serialize a lazy XML document")
+            raise XMLResourceError("cannot serialize a lazy XML resource")
 
         kwargs: Dict[str, Any] = {
             'xml_declaration': xml_declaration,

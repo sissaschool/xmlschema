@@ -536,15 +536,15 @@ class XMLResource:
         if self._allow == 'all':
             return
         elif self._allow == 'none':
-            raise XMLResourceError("block access to resource {}".format(url))
+            raise XMLResourceError(f"block access to resource {url}")
         elif self._allow == 'remote':
             if is_local_url(url):
-                raise XMLResourceError("block access to local resource {}".format(url))
+                raise XMLResourceError(f"block access to local resource {url}")
         elif is_remote_url(url):
-            raise XMLResourceError("block access to remote resource {}".format(url))
+            raise XMLResourceError(f"block access to remote resource {url}")
         elif self._allow == 'sandbox' and self._base_url is not None:
             if not url.startswith(normalize_url(self._base_url)):
-                raise XMLResourceError("block access to out of sandbox file {}".format(url))
+                raise XMLResourceError(f"block access to out of sandbox file {url}")
 
     def _track_nsmap(self, elements: Iterator[ElementType],
                      nsmap: NsmapType) -> Iterator[ElementType]:
@@ -827,7 +827,7 @@ class XMLResource:
     @property
     def parent_map(self) -> Dict[ElementType, Optional[ElementType]]:
         if self._lazy:
-            raise XMLResourceError("cannot create the parent map of a lazy resource")
+            raise XMLResourceError("cannot create the parent map of a lazy XML resource")
         if self._parent_map is None:
             assert self._root is not None
             self._parent_map = {child: elem for elem in self._root.iter() for child in elem}
@@ -917,23 +917,51 @@ class XMLResource:
 
         return self.tostring(xml_declaration=True)
 
-    def tostring(self, indent: str = '', max_lines: Optional[int] = None,
-                 spaces_for_tab: int = 4, xml_declaration: bool = False) -> str:
-        """Generates a string representation of the XML resource."""
+    def tostring(self, namespaces: Optional[MutableMapping[str, str]] = None,
+                 indent: str = '', max_lines: Optional[int] = None,
+                 spaces_for_tab: int = 4, xml_declaration: bool = False,
+                 encoding: str = 'unicode', method: str = 'xml') -> str:
+        """
+        Serialize an XML resource to a string.
+
+        :param namespaces: is an optional mapping from namespace prefix to URI. \
+        Provided namespaces are registered before serialization. Ignored if the \
+        provided *elem* argument is a lxml Element instance.
+        :param indent: the base line indentation.
+        :param max_lines: if truncate serialization after a number of lines \
+        (default: do not truncate).
+        :param spaces_for_tab: number of spaces for replacing tab characters. For \
+        default tabs are replaced with 4 spaces, provide `None` to keep tab characters.
+        :param xml_declaration: if set to `True` inserts the XML declaration at the head.
+        :param encoding: if "unicode" (the default) the output is a string, \
+        otherwise it’s binary.
+        :param method: is either "xml" (the default), "html" or "text".
+        :return: a Unicode string.
+        """
         if self._lazy:
-            raise XMLResourceError("cannot serialize a lazy resource")
+            raise XMLResourceError("cannot serialize a lazy XML resource")
 
-        elem = self._root
-        namespaces = self.get_namespaces(root_only=False)
-        _string = etree_tostring(elem, namespaces, indent, max_lines,
-                                 spaces_for_tab, xml_declaration)
+        if not hasattr(self._root, 'nsmap'):
+            namespaces = self.get_namespaces(namespaces)
 
-        return _string.decode('utf-8') if isinstance(_string, bytes) else _string
+        _string = etree_tostring(
+            elem=self._root,
+            namespaces=namespaces,
+            indent=indent,
+            max_lines=max_lines,
+            spaces_for_tab=spaces_for_tab,
+            xml_declaration=xml_declaration,
+            encoding=encoding,
+            method=method
+        )
+        if isinstance(_string, bytes):
+            return _string.decode('utf-8')
+        return _string
 
     def subresource(self, elem: ElementType) -> 'XMLResource':
         """Create an XMLResource instance from a subelement of a non-lazy XML tree."""
         if self._lazy:
-            raise XMLResourceError("cannot create a subresource from a lazy resource")
+            raise XMLResourceError("cannot create a subresource from a lazy XML resource")
 
         for e in self._root.iter():  # pragma: no cover
             if e is elem:
@@ -969,7 +997,7 @@ class XMLResource:
         if self.seek(0) == 0:
             return cast(IO[AnyStr], self._source)
         elif self._url is None:
-            raise XMLResourceError("can't open, the resource has no URL associated.")
+            raise XMLResourceError(f"can't open, {self!r} has no URL associated")
 
         try:
             return cast(IO[AnyStr], urlopen(self._url, timeout=self._timeout))
@@ -1013,7 +1041,7 @@ class XMLResource:
         if self._url is None and not hasattr(self._source, 'read'):
             return  # Created from Element or text source --> already loaded
         elif self._lazy:
-            raise XMLResourceError("cannot load a lazy resource")
+            raise XMLResourceError("cannot load a lazy XML resource")
 
         resource = self.open()
         try:
