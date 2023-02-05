@@ -7,7 +7,9 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+import re
 from abc import ABCMeta
+from copy import copy
 from itertools import count
 from typing import TYPE_CHECKING, cast, overload, Any, Dict, List, Iterator, \
     Optional, Union, Tuple, Type, MutableMapping, MutableSequence
@@ -188,6 +190,71 @@ class DataElement(MutableSequence['DataElement']):
         """The local part of the tag."""
         return local_name(self.tag)
 
+    def iter(self, tag: Optional[str] = None) -> Iterator['DataElement']:
+        """
+        Creates an iterator for the data element and its subelements. If tag
+        is not `None` or '*', only data elements whose matches tag are returned
+        from the iterator.
+        """
+        if tag == '*':
+            tag = None
+        if tag is None or tag == self.tag:
+            yield self
+        for child in self._children:
+            yield from child.iter(tag)
+
+    def iterchildren(self, tag: Optional[str] = None) -> Iterator['DataElement']:
+        """
+        Creates an iterator for the child data elements. If *tag* is not `None` or '*',
+        only data elements whose name matches tag are returned from the iterator.
+        """
+        if tag == '*':
+            tag = None
+        for child in self:
+            if tag is None or tag == child.tag:
+                yield child
+
+    def get_namespaces(self, namespaces: Optional[NamespacesType] = None) -> NamespacesType:
+        """
+        Returns an overall namespace map for DetaElement and its descendants,
+        resolving prefix redefinitions.
+
+        :param namespaces: builds the namespace map starting over the dictionary provided.
+        """
+        namespaces = copy(namespaces) if namespaces is not None else {}
+        nsmap = None
+
+        for elem in self.iter():
+            if nsmap is elem.nsmap:
+                continue
+            else:
+                nsmap = elem.nsmap
+                for prefix, uri in nsmap.items():
+                    if not prefix:
+                        if not uri:
+                            continue
+                        elif '' not in namespaces:
+                            if self.namespace:
+                                namespaces[prefix] = uri
+                                continue
+                        elif namespaces[''] == uri:
+                            continue
+                        prefix = 'default'
+
+                    while prefix in namespaces:
+                        if namespaces[prefix] == uri:
+                            break
+                        match = re.search(r'(\d+)$', prefix)
+                        if match:
+                            index = int(match.group()) + 1
+                            prefix = prefix[:match.span()[0]] + str(index)
+                        else:
+                            prefix += '0'
+                    else:
+                        namespaces[prefix] = uri
+
+        return namespaces
+
     def validate(self, use_defaults: bool = True,
                  namespaces: Optional[NamespacesType] = None,
                  max_depth: Optional[int] = None) -> None:
@@ -228,11 +295,10 @@ class DataElement(MutableSequence['DataElement']):
             raise XMLSchemaValueError("%r has no schema bindings" % self)
 
         kwargs: Dict[str, Any] = {
+            'namespaces': self.get_namespaces(namespaces),
             'converter': DataElementConverter,
             'use_defaults': use_defaults,
         }
-        if namespaces:
-            kwargs['namespaces'] = namespaces
         if isinstance(max_depth, int) and max_depth >= 0:
             kwargs['max_depth'] = max_depth
 
@@ -256,6 +322,7 @@ class DataElement(MutableSequence['DataElement']):
         :raises: :exc:`XMLSchemaValidationError` if the object is invalid \
         and ``validation='strict'``.
         """
+        kwargs['namespaces'] = self.get_namespaces(kwargs.get('namespaces'))
         if 'converter' not in kwargs:
             kwargs['converter'] = DataElementConverter
 
@@ -271,11 +338,44 @@ class DataElement(MutableSequence['DataElement']):
 
     to_etree = encode
 
-    def tostring(self, indent: str = '', max_lines: Optional[int] = None,
-                 spaces_for_tab: int = 4) -> Any:
-        """Serializes the data element tree to an XML source string."""
-        root, errors = self.encode(validation='lax')
-        return etree_tostring(root, self.nsmap, indent, max_lines, spaces_for_tab)
+    def tostring(self, namespaces: Optional[MutableMapping[str, str]] = None,
+                 indent: str = '', max_lines: Optional[int] = None,
+                 spaces_for_tab: int = 4, xml_declaration: bool = False,
+                 encoding: str = 'unicode', method: str = 'xml') -> str:
+        """
+        Serializes the data element tree to an XML source string.
+
+        :param namespaces: is an optional mapping from namespace prefix to URI. \
+        Provided namespaces are registered before serialization. Ignored if the \
+        provided *elem* argument is a lxml Element instance.
+        :param indent: the base line indentation.
+        :param max_lines: if truncate serialization after a number of lines \
+        (default: do not truncate).
+        :param spaces_for_tab: number of spaces for replacing tab characters. For \
+        default tabs are replaced with 4 spaces, provide `None` to keep tab characters.
+        :param xml_declaration: if set to `True` inserts the XML declaration at the head.
+        :param encoding: if "unicode" (the default) the output is a string, \
+        otherwise it’s binary.
+        :param method: is either "xml" (the default), "html" or "text".
+        :return: a Unicode string.
+        """
+        root, _ = self.encode(validation='lax')
+        if hasattr(root, 'nsmap'):
+            namespaces = self.get_namespaces(namespaces)
+
+        _string = etree_tostring(
+            elem=root,
+            namespaces=namespaces,
+            indent=indent,
+            max_lines=max_lines,
+            spaces_for_tab=spaces_for_tab,
+            xml_declaration=xml_declaration,
+            encoding=encoding,
+            method=method
+        )
+        if isinstance(_string, bytes):
+            return _string.decode('utf-8')
+        return _string
 
     def _get_xpath_context(self) -> XPathContext:
         xpath_root = build_node_tree(cast(protocols.ElementProtocol, self))
@@ -325,30 +425,6 @@ class DataElement(MutableSequence['DataElement']):
         context = self._get_xpath_context()
         results = parser.parse(path).select_results(context)
         yield from filter(lambda x: isinstance(x, DataElement), results)
-
-    def iter(self, tag: Optional[str] = None) -> Iterator['DataElement']:
-        """
-        Creates an iterator for the data element and its subelements. If tag
-        is not `None` or '*', only data elements whose matches tag are returned
-        from the iterator.
-        """
-        if tag == '*':
-            tag = None
-        if tag is None or tag == self.tag:
-            yield self
-        for child in self._children:
-            yield from child.iter(tag)
-
-    def iterchildren(self, tag: Optional[str] = None) -> Iterator['DataElement']:
-        """
-        Creates an iterator for the child data elements. If *tag* is not `None` or '*',
-        only data elements whose name matches tag are returned from the iterator.
-        """
-        if tag == '*':
-            tag = None
-        for child in self:
-            if tag is None or tag == child.tag:
-                yield child
 
 
 class DataBindingMeta(ABCMeta):
