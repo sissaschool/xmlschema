@@ -27,9 +27,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-      - name: Install additional development libraries for building lxml
-        if: ${{ matrix.os == 'ubuntu-latest' && matrix.python-version == 'pypy-3.8' }}
-        run: sudo apt-get update && sudo apt-get install libxml2-dev libxslt-dev python-dev
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
         with:
@@ -50,10 +47,10 @@ jobs:
       - name: Lint with mypy if Python version != 3.7
         if: ${{ matrix.python-version != '3.7' }}
         run: |
-          pip install mypy==0.991 elementpath==4.0.0 lxml-stubs
+          pip install mypy==0.991 elementpath==4.0.1 lxml-stubs
           mypy --show-error-codes --strict xmlschema
       - name: Lint with mypy if Python version == 3.7
         if: ${{ matrix.python-version == '3.7' }}
         run: |
-          pip install mypy==0.991 elementpath==4.0.0 lxml-stubs
+          pip install mypy==0.991 elementpath==4.0.1 lxml-stubs
           mypy --show-error-codes --no-warn-redundant-casts --no-warn-unused-ignores --strict xmlschema
