@@ -31,10 +31,10 @@ from .validators import (
     XsdComponent, XsdType, XsdElement, XsdAttribute
 )
 
-__version__ = '2.1.2'
+__version__ = '2.2.0'
 __author__ = "Davide Brunato"
 __contact__ = "brunato@sissa.it"
-__copyright__ = "Copyright 2016-2022, SISSA"
+__copyright__ = "Copyright 2016-2023, SISSA"
 __license__ = "MIT"
 __status__ = "Production/Stable"
 
