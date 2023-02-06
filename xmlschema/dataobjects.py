@@ -360,7 +360,7 @@ class DataElement(MutableSequence['DataElement']):
         :return: a Unicode string.
         """
         root, _ = self.encode(validation='lax')
-        if hasattr(root, 'nsmap'):
+        if not hasattr(root, 'nsmap'):
             namespaces = self.get_namespaces(namespaces)
 
         _string = etree_tostring(
