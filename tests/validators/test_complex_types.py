@@ -481,6 +481,33 @@ class TestXsdComplexType(XsdValidatorTestCase):
         self.assertIsNone(schema.build())
         self.assertTrue(schema.built)
 
+    def test_mixed_content_extension__issue_334(self):
+        schema = self.schema_class("""
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+            <xs:complexType name="mixedContentType" mixed="true">
+                <xs:sequence>
+                    <xs:element name="elem1"/>
+                </xs:sequence>
+            </xs:complexType>
+
+            <xs:element name="foo">
+              <xs:complexType>
+                <xs:complexContent>
+                  <xs:extension base="mixedContentType">
+                    <xs:attribute name="bar" type="xs:string" use="required" />
+                  </xs:extension>
+                </xs:complexContent>
+              </xs:complexType>
+            </xs:element>
+
+        </xs:schema>
+        """)
+
+        self.assertTrue(schema.types['mixedContentType'].mixed)
+        self.assertTrue(schema.elements['foo'].type.mixed)
+        self.assertTrue(schema.elements['foo'].type.content.mixed)
+
 
 class TestXsd11ComplexType(TestXsdComplexType):
 
