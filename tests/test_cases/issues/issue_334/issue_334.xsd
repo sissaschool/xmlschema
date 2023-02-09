@@ -1,0 +1,73 @@
+<?xml version="1.0"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+		   xmlns:cwe="http://xmlschema.test/ns"
+		   targetNamespace="http://xmlschema.test/ns"
+		   elementFormDefault="qualified">
+  <!-- From https://github.com/sissaschool/xmlschema/issues/334 -->
+  <xs:element name="Demonstrative_Examples" type="cwe:DemonstrativeExamplesType"/>
+
+  <!-- =============================================== -->
+  <!-- Types from CWE XSD schema with some adaptations -->
+  <!-- =============================================== -->
+  <xs:complexType name="StructuredTextType" mixed="true">
+	<xs:annotation>
+		<xs:documentation>The StructuredTextType complex type is used to allow XHTML content embedded within standard string data. Some common elements are: &lt;BR/&gt; to insert a line break, &lt;UL&gt;&lt;LI/&gt;&lt;/UL&gt; to create a bulleted list, &lt;OL&gt;&lt;LI/&gt;&lt;/OL&gt; to create a numbered list, and &lt;DIV style="margin-left: 40px"&gt;&lt;/DIV&gt; to create a new indented section.</xs:documentation>
+	</xs:annotation>
+	<xs:sequence>
+		<xs:any namespace="http://www.w3.org/1999/xhtml" minOccurs="0" maxOccurs="unbounded" processContents="strict"/>
+	</xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="StructuredCodeType" mixed="true">
+	<xs:annotation>
+		<xs:documentation>The StructuredCodeType complex type is used to present source code examples and other structured text that is not a regular paragraph. It allows embedded XHTML content to enable formatting of the code. The required Nature attribute states what type of code the example shows.  The optional Language attribute states which source code language is used in the example. This is mostly appropriate when the Nature is "good" or "bad".</xs:documentation>
+	</xs:annotation>
+	<xs:sequence>
+		<xs:any namespace="http://www.w3.org/1999/xhtml" minOccurs="0" maxOccurs="unbounded" processContents="strict"/>
+	</xs:sequence>
+	<xs:attribute name="Language" type="xs:string"/>
+	<xs:attribute name="Nature" type="xs:string" use="required"></xs:attribute>
+  </xs:complexType>
+
+  <xs:complexType name="ReferencesType">
+	<xs:annotation>
+		<xs:documentation>The ReferencesType complex type contains one or more reference elements, each of which is used to link to an external reference defined within the catalog. The required External_Reference_ID attribute represents the external reference entry being linked to (e.g., REF-1). Text or quotes within the same CWE entity can cite this External_Reference_ID similar to how a footnote is used, and should use the format [REF-1]. The optional Section attribute holds any section title or page number that is specific to this use of the reference.</xs:documentation>
+	</xs:annotation>
+	<xs:sequence>
+		<xs:element name="Reference" minOccurs="1" maxOccurs="unbounded">
+			<xs:complexType>
+				<xs:attribute name="External_Reference_ID" type="xs:string" use="required"/>
+				<xs:attribute name="Section" type="xs:string"/>
+			</xs:complexType>
+		</xs:element>
+	</xs:sequence>
+  </xs:complexType>
+  <!-- =============================================== -->
+  <!-- =============================================== -->
+  <!-- =============================================== -->
+
+  <xs:complexType name="DemonstrativeExamplesType">
+		<xs:annotation>
+			<xs:documentation>The DemonstrativeExamplesType complex type contains one or more Demonstrative_Example elements, each of which contains an example illustrating how a weakness may look in actual code. The optional Title_Text element provides a title for the example. The Intro_Text element describes the context and setting in which this code should be viewed, summarizing what the code is attempting to do. The Body_Text and Example_Code elements are a mixture of code and explanatory text about the example. The References element provides additional information.</xs:documentation>
+			<xs:documentation>The optional Demonstrative_Example_ID attribute is used by the internal CWE team to uniquely identify examples that are repeated across any number of individual weaknesses. To help make sure that the details of these common examples stay synchronized, the Demonstrative_Example_ID is used to quickly identify those examples across CWE that should be identical. The identifier is a string and should match the following format: DX-1.</xs:documentation>
+		</xs:annotation>
+
+		<xs:sequence>
+			<xs:element name="Demonstrative_Example" minOccurs="1" maxOccurs="unbounded">
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element name="Title_Text" type="xs:string" minOccurs="0" maxOccurs="1"/>
+						<xs:element name="Intro_Text" type="cwe:StructuredTextType" minOccurs="1" maxOccurs="1"/>
+						<xs:choice minOccurs="0" maxOccurs="unbounded">
+							<xs:element name="Body_Text" type="cwe:StructuredTextType"/>
+							<xs:element name="Example_Code" type="cwe:StructuredCodeType"/>
+						</xs:choice>
+						<xs:element name="References" type="cwe:ReferencesType" minOccurs="0" maxOccurs="1"/>
+					</xs:sequence>
+					<xs:attribute name="Demonstrative_Example_ID" type="xs:string"/>
+				</xs:complexType>
+			</xs:element>
+		</xs:sequence>
+	</xs:complexType>
+
+</xs:schema>

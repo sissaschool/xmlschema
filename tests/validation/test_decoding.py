@@ -1317,6 +1317,64 @@ class TestDecoding(XsdValidatorTestCase):
                     '@attr_2': 'value_2'}]}}
         )
 
+    def test_mixed_content_decode__issue_334(self):
+        schema = self.schema_class("""
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+            <xs:complexType name="mixedContentType" mixed="true">
+                <xs:sequence>
+                    <xs:element name="elem1" maxOccurs="unbounded"/>
+                </xs:sequence>
+            </xs:complexType>
+
+            <xs:element name="foo">
+              <xs:complexType>
+                <xs:complexContent>
+                  <xs:extension base="mixedContentType">
+                    <xs:attribute name="bar" type="xs:string" />
+                  </xs:extension>
+                </xs:complexContent>
+              </xs:complexType>
+            </xs:element>
+            
+            <xs:element name="root" type="mixedContentType" />
+
+        </xs:schema>
+        """)
+
+        result = schema.decode('<root>text1<elem1/>tail1<elem1/>tail2</root>')
+        self.assertEqual(result, {'elem1': [None, None]})
+
+        result = schema.decode('<root>text1<elem1/>tail1<elem1/>tail2</root>', cdata_prefix='#')
+        self.assertEqual(result, {'#1': 'text1',
+                                  'elem1': [None, None],
+                                  '#2': 'tail1',
+                                  '#3': 'tail2'})
+        result = schema.decode('<root>text1<elem1/>tail1<elem1/>tail2</root>', cdata_prefix='')
+        self.assertEqual(result, {'1': 'text1',
+                                  'elem1': [None, None],
+                                  '2': 'tail1',
+                                  '3': 'tail2'})
+
+        xsd_file = self.casepath('issues/issue_334/issue_334.xsd')
+        xml_file = self.casepath('issues/issue_334/issue_334.xml')
+        xs = self.schema_class(xsd_file)
+        result = xs.decode(xml_file)
+        body_text = result['Demonstrative_Example'][0]['Body_Text']
+
+        expected = ['The snippet of code below establishes a new cookie to hold the sessionID.',
+                    'The HttpOnly flag is not set for the cookie. An attacker who can perform '
+                    'XSS could insert malicious script such as:',
+                    'When the client loads and executes this script, it makes a request to the '
+                    'attacker-controlled web site. The attacker can then log the request and '
+                    'steal the cookie.',
+                    'To mitigate the risk, use the setHttpOnly(true) method.']
+        self.assertListEqual(body_text, expected)
+
+        result = xs.decode(xml_file, preserve_root=True)
+        body_text = result['Demonstrative_Examples']['Demonstrative_Example'][0]['Body_Text']
+        self.assertListEqual(body_text, expected)
+
 
 class TestDecoding11(TestDecoding):
     schema_class = XMLSchema11

