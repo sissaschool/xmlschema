@@ -300,7 +300,7 @@ class XPathElement(ElementPathMixin['XPathElement']):
 
     def __iter__(self) -> Iterator['XPathElement']:
         if not self.type.has_simple_content():
-            yield from self.type.content.iter_elements()  # type: ignore[union-attr]
+            yield from self.type.content.iter_elements()  # type: ignore[union-attr,misc]
 
     @property
     def xpath_proxy(self) -> XMLSchemaProxy:

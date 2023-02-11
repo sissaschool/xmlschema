@@ -205,7 +205,9 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
             if derivation_elem.tag == XSD_RESTRICTION:
                 self._parse_complex_content_restriction(derivation_elem, self.base_type)
             else:
-                self._parse_complex_content_extension(derivation_elem, self.base_type, has_mixed_attribute)
+                self._parse_complex_content_extension(
+                    derivation_elem, self.base_type, has_mixed_attribute
+                )
 
             if content_elem is not self.elem[-1]:
                 k = 2 if content_elem is not self.elem[0] else 1

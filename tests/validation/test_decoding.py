@@ -1336,7 +1336,7 @@ class TestDecoding(XsdValidatorTestCase):
                 </xs:complexContent>
               </xs:complexType>
             </xs:element>
-            
+
             <xs:element name="root" type="mixedContentType" />
 
         </xs:schema>

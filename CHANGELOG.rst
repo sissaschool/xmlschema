@@ -2,6 +2,10 @@
 CHANGELOG
 *********
 
+`v2.2.1`_ (2023-02-11)
+======================
+* Fix mixed content extension without explicit mixed attribute (issue #334)
+
 `v2.2.0`_ (2023-02-06)
 ======================
 * Refine string serialization of XML resources and data elements
@@ -599,3 +603,4 @@ v0.9.6 (2017-05-05)
 .. _v2.1.0: https://github.com/brunato/xmlschema/compare/v2.0.4...v2.1.0
 .. _v2.1.1: https://github.com/brunato/xmlschema/compare/v2.1.0...v2.1.1
 .. _v2.2.0: https://github.com/brunato/xmlschema/compare/v2.1.1...v2.2.0
+.. _v2.2.1: https://github.com/brunato/xmlschema/compare/v2.2.0...v2.2.1
