@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any, Optional, List, Dict, Type
 from ..aliases import NamespacesType, BaseXsdType
 from .default import ElementData, XMLSchemaConverter
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from ..validators import XsdElement
 
 

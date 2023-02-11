@@ -18,7 +18,7 @@ from ..names import XSI_NAMESPACE
 from ..aliases import NamespacesType, BaseXsdType
 from ..namespaces import NamespaceMapper
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from ..validators import XsdElement
 
 

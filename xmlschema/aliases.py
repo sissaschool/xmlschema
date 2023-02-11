@@ -25,7 +25,7 @@ __all__ = ['ElementType', 'ElementTreeType', 'XMLSourceType', 'NamespacesType',
            'EncodeType', 'IterEncodeType', 'DecodedValueType', 'EncodedValueType',
            'FillerType', 'DepthFillerType', 'ValueHookType', 'ElementHookType']
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from pathlib import Path
     from decimal import Decimal
     from typing import Any, Callable, Dict, List, IO, Iterator, MutableMapping, \

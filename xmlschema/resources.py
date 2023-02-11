@@ -188,7 +188,7 @@ def is_url(obj: object) -> bool:
             return False
         try:
             urlsplit(obj.strip())
-        except ValueError:
+        except ValueError:  # pragma: no cover
             return False
     else:
         return isinstance(obj, Path)
@@ -202,7 +202,7 @@ def is_remote_url(obj: object) -> bool:
             return False
         try:
             return not is_local_scheme(urlsplit(obj.strip()).scheme)
-        except ValueError:
+        except ValueError:  # pragma: no cover
             return False
 
     elif isinstance(obj, bytes):
@@ -210,7 +210,7 @@ def is_remote_url(obj: object) -> bool:
             return False
         try:
             return not is_local_scheme(urlsplit(obj.strip().decode('utf-8')).scheme)
-        except ValueError:
+        except ValueError:  # pragma: no cover
             return False
     else:
         return False
@@ -222,7 +222,7 @@ def is_local_url(obj: object) -> bool:
             return False
         try:
             return is_local_scheme(urlsplit(obj.strip()).scheme)
-        except ValueError:
+        except ValueError:  # pragma: no cover
             return False
 
     elif isinstance(obj, bytes):
@@ -230,7 +230,7 @@ def is_local_url(obj: object) -> bool:
             return False
         try:
             return is_local_scheme(urlsplit(obj.strip().decode('utf-8')).scheme)
-        except ValueError:
+        except ValueError:  # pragma: no cover
             return False
     else:
         return isinstance(obj, Path)
@@ -954,7 +954,7 @@ class XMLResource:
             encoding=encoding,
             method=method
         )
-        if isinstance(_string, bytes):
+        if isinstance(_string, bytes):  # pragma: no cover
             return _string.decode('utf-8')
         return _string
 
@@ -1201,7 +1201,7 @@ class XMLResource:
     def _select_elements(token: XPathToken, node: ResourceNodeType) -> Iterator[ElementType]:
         context = XPathContext(node)
         for item in token.select(context):
-            if not isinstance(item, ElementNode):
+            if not isinstance(item, ElementNode):  # pragma: no cover
                 msg = "XPath expressions on XML resources can select only elements"
                 raise XMLResourceError(msg)
             yield cast(ElementType, item.elem)
@@ -1210,7 +1210,7 @@ class XMLResource:
                           ancestors: List[ElementType]) -> Iterator[ElementType]:
         context = XPathContext(node)
         for item in token.select(context):
-            if not isinstance(item, ElementNode):
+            if not isinstance(item, ElementNode):  # pragma: no cover
                 msg = "XPath expressions on XML resources can select only elements"
                 raise XMLResourceError(msg)
             elif item.elem is self._root:

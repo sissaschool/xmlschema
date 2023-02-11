@@ -22,7 +22,7 @@ from .xsdbase import XsdComponent
 from .groups import XsdGroup
 
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from ..resources import XMLResource
     from .attributes import XsdAttributeGroup
     from .complex_types import XsdComplexType

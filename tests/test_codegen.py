@@ -87,6 +87,7 @@ XSD_TEST = """\
     xmlns:tns="http://xmlschema.test/ns"
     targetNamespace="http://xmlschema.test/ns">
 
+  <xs:import /> <!-- for resolving local names in tests -->
   <xs:element name="root" type="xs:string" />
 
   <xs:complexType name="type3">
@@ -543,6 +544,14 @@ class TestAbstractGenerator(unittest.TestCase):
 
         self.assertTrue(self.generator.derivation(self.schema.types['type1'], 'tns:type1'))
         self.assertTrue(self.generator.restriction(self.schema.types['type6'], 'xs:float'))
+
+        self.assertFalse(self.generator.is_derived(
+            self.schema.types['type1'], '{http://xmlschema.test/ns}foo'
+        ))
+        self.assertFalse(self.generator.is_derived(
+            self.schema.types['type1'], '{http://xmlschema.test/ns}bar'
+        ))
+        self.assertFalse(self.generator.is_derived(self.schema.types['type1'], 'bar', 'foo'))
 
     def test_multi_sequence(self):
         self.assertFalse(self.generator.multi_sequence(self.schema.types['type3']))

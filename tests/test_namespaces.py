@@ -166,6 +166,9 @@ class TestNamespaceMapper(unittest.TestCase):
         self.assertEqual(mapper.unmap_qname('element'), '{foo}element')
         self.assertEqual(mapper.unmap_qname('element', name_table=['element']), 'element')
 
+        mapper.strip_namespaces = True
+        self.assertEqual(mapper.unmap_qname('element'), 'element')
+
     def test_transfer(self):
         mapper = NamespaceMapper(namespaces={'xs': XSD_NAMESPACE, 'xsi': XSI_NAMESPACE})
 

@@ -24,7 +24,7 @@ from .names import XSD_NAMESPACE
 from .aliases import NamespacesType, SchemaType, BaseXsdType, XPathElementType
 from .helpers import get_qname, local_name, get_prefixed_qname
 
-if sys.version_info < (3, 8):
+if sys.version_info < (3, 8):  # pragma: no cover
     XsdSchemaProtocol = SchemaType
     XsdElementProtocol = XPathElementType
     XsdTypeProtocol = BaseXsdType
@@ -87,10 +87,10 @@ class XMLSchemaProxy(AbstractSchemaProxy):
     def is_instance(self, obj: Any, type_qname: str) -> bool:
         # FIXME: use elementpath.datatypes for checking atomic datatypes
         xsd_type = self._schema.maps.types[type_qname]
-        if isinstance(xsd_type, tuple):
+        if isinstance(xsd_type, tuple):  # pragma: no cover
             from .validators import XMLSchemaNotBuiltError
-            msg = "XSD type %r is not built"
-            raise XMLSchemaNotBuiltError(xsd_type[1], msg % type_qname)
+            schema = xsd_type[1]
+            raise XMLSchemaNotBuiltError(schema, f"XSD type {type_qname!r} is not built")
 
         try:
             xsd_type.encode(obj)
@@ -101,10 +101,11 @@ class XMLSchemaProxy(AbstractSchemaProxy):
 
     def cast_as(self, obj: Any, type_qname: str) -> Any:
         xsd_type = self._schema.maps.types[type_qname]
-        if isinstance(xsd_type, tuple):
+        if isinstance(xsd_type, tuple):  # pragma: no cover
             from .validators import XMLSchemaNotBuiltError
-            msg = "XSD type %r is not built"
-            raise XMLSchemaNotBuiltError(xsd_type[1], msg % type_qname)
+            schema = xsd_type[1]
+            raise XMLSchemaNotBuiltError(schema, f"XSD type {type_qname!r} is not built")
+
         return xsd_type.decode(obj)
 
     def iter_atomic_types(self) -> Iterator[XsdTypeProtocol]:
@@ -138,10 +139,10 @@ class ElementPathMixin(Sequence[E]):
         raise NotImplementedError
 
     @overload
-    def __getitem__(self, i: int) -> E: ...
+    def __getitem__(self, i: int) -> E: ...  # pragma: no cover
 
     @overload
-    def __getitem__(self, s: slice) -> Sequence[E]: ...
+    def __getitem__(self, s: slice) -> Sequence[E]: ...  # pragma: no cover
 
     def __getitem__(self, i: Union[int, slice]) -> Union[E, Sequence[E]]:
         try:

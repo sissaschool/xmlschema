@@ -19,7 +19,7 @@ from elementpath import XPath1Parser, XPath2Parser, Selector
 
 from xmlschema import XMLSchema10, XMLSchema11
 from xmlschema.names import XSD_NAMESPACE
-from xmlschema.xpath import XMLSchemaProxy, XPathElement
+from xmlschema.xpath import XMLSchemaProxy, LazyElementNode, XPathElement
 from xmlschema.validators import XsdAtomic, XsdAtomicRestriction
 
 CASES_DIR = os.path.join(os.path.dirname(__file__), 'test_cases/')
@@ -155,6 +155,13 @@ class XPathElementTest(unittest.TestCase):
         xpath_proxy = elem.xpath_proxy
         self.assertIsInstance(xpath_proxy, XMLSchemaProxy)
         self.assertIs(xpath_proxy._schema, self.col_schema)
+
+    def test_xpath_node(self):
+        elem = XPathElement('foo', self.col_schema.types['objType'])
+        xpath_node = elem.xpath_node
+        self.assertIsInstance(xpath_node, LazyElementNode)
+        self.assertIs(xpath_node, elem._xpath_node)
+        self.assertIs(xpath_node, elem.xpath_node)
 
     def test_schema(self):
         elem = XPathElement('foo', self.col_schema.types['objType'])

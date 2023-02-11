@@ -30,7 +30,7 @@ from ..helpers import get_qname, local_name, get_prefixed_qname
 from ..resources import XMLResource
 from .exceptions import XMLSchemaParseError, XMLSchemaValidationError
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from .simple_types import XsdSimpleType
     from .complex_types import XsdComplexType
     from .elements import XsdElement
@@ -584,13 +584,13 @@ class XsdComponent(XsdValidator):
         if self.parent is None:
             return self
         component = self.parent
-        while component is not self:  # pragma: no cover
+        while component is not self:
             if component.parent is None:
                 return component
             component = component.parent
-        else:
+        else:  # pragma: no cover
             msg = _("parent circularity from {}")
-            raise XMLSchemaValueError(msg.format(self))  # pragma: no cover
+            raise XMLSchemaValueError(msg.format(self))
 
     def get_parent_type(self) -> Optional['XsdType']:
         """
@@ -768,7 +768,7 @@ class XsdType(XsdComponent):
     @staticmethod
     def is_complex() -> bool:
         """Returns `True` if the instance is a complexType, `False` otherwise."""
-        return False
+        raise NotImplementedError()
 
     def is_atomic(self) -> bool:
         """Returns `True` if the instance is an atomic simpleType, `False` otherwise."""

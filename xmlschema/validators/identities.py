@@ -26,7 +26,7 @@ from .exceptions import XMLSchemaNotBuiltError
 from .xsdbase import XsdComponent
 from .attributes import XsdAttribute
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from .elements import XsdElement
 
 IdentityFieldItemType = Union[AtomicValueType, XsdAttribute, Tuple[Any, ...], None]

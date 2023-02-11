@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, cast, Any, Dict, Union
 
 from .default import ElementData, XMLSchemaConverter
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from ..validators import XsdElement
 
 

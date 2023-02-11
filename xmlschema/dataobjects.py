@@ -23,7 +23,7 @@ from .converters import ElementData, XMLSchemaConverter
 from .resources import XMLResource
 from . import validators
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from .validators import XMLSchemaValidationError, XsdElement
 
 
@@ -79,10 +79,10 @@ class DataElement(MutableSequence['DataElement']):
             self._encoder = self.xsd_element
 
     @overload
-    def __getitem__(self, i: int) -> 'DataElement': ...
+    def __getitem__(self, i: int) -> 'DataElement': ...  # pragma: no cover
 
     @overload
-    def __getitem__(self, s: slice) -> MutableSequence['DataElement']: ...
+    def __getitem__(self, s: slice) -> MutableSequence['DataElement']: ...  # pragma: no cover
 
     def __getitem__(self, i: Union[int, slice]) \
             -> Union['DataElement', MutableSequence['DataElement']]:
@@ -373,7 +373,7 @@ class DataElement(MutableSequence['DataElement']):
             encoding=encoding,
             method=method
         )
-        if isinstance(_string, bytes):
+        if isinstance(_string, bytes):  # pragma: no cover
             return _string.decode('utf-8')
         return _string
 
@@ -408,7 +408,7 @@ class DataElement(MutableSequence['DataElement']):
         parser = XPath2Parser(namespaces, strict=False)
         context = self._get_xpath_context()
         results = parser.parse(path).get_results(context)
-        if not isinstance(results, list):
+        if not isinstance(results, list):  # pragma: no cover
             return []
         return cast(List[DataElement], [e for e in results if isinstance(e, DataElement)])
 

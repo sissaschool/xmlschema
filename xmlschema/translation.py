@@ -33,7 +33,7 @@ def activate(localedir: Union[None, str, Path] = None,
     global _translation
     global _installed
 
-    if localedir is None:
+    if localedir is None:  # pragma: no cover
         localedir = Path(__file__).parent.joinpath('locale').resolve()
 
     translation = _gettext.translation(
@@ -58,7 +58,7 @@ def deactivate() -> None:
 
     if _installed and _translation is not None:
         import builtins
-        if builtins.__dict__.get('_') == _translation.gettext:
+        if builtins.__dict__.get('_') == _translation.gettext:  # pragma: no cover
             builtins.__dict__.pop('_')
 
     _translation = None
