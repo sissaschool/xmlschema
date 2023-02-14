@@ -190,11 +190,21 @@ class XsdGlobals(XsdValidator):
             XSD_GROUP: validator.xsd_group_class,
             XSD_ELEMENT: validator.xsd_element_class,
         }
+        self.load_namespace = lru_cache(maxsize=1000)(self._load_namespace)
 
     def __repr__(self) -> str:
         return '%s(validator=%r, validation=%r)' % (
             self.__class__.__name__, self.validator, self.validation
         )
+
+    def __getstate__(self) -> Dict[str, Any]:
+        state = self.__dict__.copy()
+        state.pop('load_namespace', None)
+        return state
+
+    def __setstate__(self, state: Dict[str, Any]) -> None:
+        self.__dict__.update(state)
+        self.load_namespace = lru_cache(maxsize=1000)(self._load_namespace)
 
     def copy(self, validator: Optional[SchemaType] = None,
              validation: Optional[str] = None) -> 'XsdGlobals':
@@ -470,8 +480,7 @@ class XsdGlobals(XsdValidator):
                          for obj in ns_schemas):
                 ns_schemas.append(schema)
 
-    @lru_cache(maxsize=1000)
-    def load_namespace(self, namespace: str, build: bool = True) -> bool:
+    def _load_namespace(self, namespace: str, build: bool = True) -> bool:
         """
         Load namespace from available location hints. Returns `True` if the namespace
         is already loaded or if the namespace can be loaded from one of the locations,
