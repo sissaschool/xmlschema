@@ -124,7 +124,6 @@ class XsdSelector(XsdComponent):
 
     @property
     def target_namespace(self) -> str:
-        # TODO: implement a property in elementpath for getting XPath token's namespace
         if self.token is None:
             pass  # xpathDefaultNamespace="##targetNamespace"
         elif self.token.symbol == ':':

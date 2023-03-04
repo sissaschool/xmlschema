@@ -122,10 +122,7 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
             except ValueError as err:
                 self.parse_error(err)
 
-        if 'mixed' not in self.elem.attrib:
-            has_mixed_attribute = False
-        else:
-            has_mixed_attribute = True
+        if 'mixed' in self.elem.attrib:
             if self.elem.attrib['mixed'].strip() in {'true', '1'}:
                 self.mixed = True
 
@@ -184,7 +181,6 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
             #
             # complexType with complexContent restriction/extension
             if 'mixed' in content_elem.attrib:
-                has_mixed_attribute = True
                 mixed = content_elem.attrib['mixed'] in ('true', '1')
                 if mixed is not self.mixed:
                     self.mixed = mixed
@@ -205,9 +201,7 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
             if derivation_elem.tag == XSD_RESTRICTION:
                 self._parse_complex_content_restriction(derivation_elem, self.base_type)
             else:
-                self._parse_complex_content_extension(
-                    derivation_elem, self.base_type, has_mixed_attribute
-                )
+                self._parse_complex_content_extension(derivation_elem, self.base_type)
 
             if content_elem is not self.elem[-1]:
                 k = 2 if content_elem is not self.elem[0] else 1
@@ -413,8 +407,7 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
         self._parse_content_tail(elem, derivation='restriction',
                                  base_attributes=base_type.attributes)
 
-    def _parse_complex_content_extension(self, elem: ElementType, base_type: Any,
-                                         has_mixed_attribute: bool) -> None:
+    def _parse_complex_content_extension(self, elem: ElementType, base_type: Any) -> None:
         if 'extension' in base_type.final:
             msg = _("the base type is not derivable by extension")
             self.parse_error(msg)
@@ -439,7 +432,7 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
                     self.content = self.schema.create_empty_content_group(
                         parent=self, elem=base_type.content.elem
                     )
-            elif base_type.mixed:
+            else:
                 # Empty mixed model extension
                 self.content = self.schema.create_empty_content_group(self)
                 self.content.append(self.schema.create_empty_content_group(self.content))
@@ -484,7 +477,7 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
             if base_type.content.model == 'all' and base_type.content and group:
                 msg = _("XSD 1.0 does not allow extension of a not empty 'all' model group")
                 self.parse_error(msg)
-            if base_type.mixed is not self.mixed and base_type.name != XSD_ANY_TYPE:
+            if base_type.mixed is not self.mixed:
                 msg = _("base has a different content type (mixed=%r) "
                         "and the extension group is not empty")
                 self.parse_error(msg % base_type.mixed, elem)
@@ -495,11 +488,12 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
         elif base_type.has_simple_content():
             self.content = base_type.content
         else:
-            if base_type.mixed is not self.mixed and base_type.name != XSD_ANY_TYPE:
-                if has_mixed_attribute:
+            # Derived type has an empty content
+            if self.mixed is not base_type.mixed:
+                if self.mixed:
                     msg = _("extended type has a mixed content but the base is element-only")
                     self.parse_error(msg, elem)
-                self.mixed = base_type.mixed
+                self.mixed = base_type.mixed  # not an error if mixed='false'
 
             self.content = self.schema.create_empty_content_group(self)
             self.content.append(base_type.content)
@@ -885,8 +879,7 @@ class Xsd11ComplexType(XsdComplexType):
 
             self.attributes.update((k, v) for k, v in self.default_attributes.items())
 
-    def _parse_complex_content_extension(self, elem: ElementType, base_type: Any,
-                                         has_mixed_attribute: bool) -> None:
+    def _parse_complex_content_extension(self, elem: ElementType, base_type: Any) -> None:
         # Complex content extension with simple base is forbidden XSD 1.1.
         # For the detailed rule refer to XSD 1.1 documentation:
         #   https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/#sec-cos-ct-extends
@@ -931,7 +924,7 @@ class Xsd11ComplexType(XsdComplexType):
                         maxOccurs='unbounded' if max_occurs is None else str(max_occurs),
                     )
 
-            elif base_type.mixed:
+            else:
                 # Empty mixed model extension
                 self.content = self.schema.create_empty_content_group(self)
                 self.content.append(self.schema.create_empty_content_group(self.content))
@@ -990,7 +983,7 @@ class Xsd11ComplexType(XsdComplexType):
                     content.extend(group)
                     content.elem.extend(group.elem)
 
-            if base_type.mixed is not self.mixed and base_type.name != XSD_ANY_TYPE:
+            if base_type.mixed is not self.mixed:
                 msg = _("base has a different content type (mixed=%r) "
                         "and the extension group is not empty.")
                 self.parse_error(msg % base_type.mixed, elem)
@@ -1002,11 +995,12 @@ class Xsd11ComplexType(XsdComplexType):
         elif base_type.has_simple_content():
             self.content = base_type.content
         else:
-            if base_type.mixed is not self.mixed and base_type.name != XSD_ANY_TYPE:
-                if has_mixed_attribute:
+            # Derived type has an empty content
+            if self.mixed is not base_type.mixed:
+                if self.mixed:
                     msg = _("extended type has a mixed content but the base is element-only")
                     self.parse_error(msg, elem)
-                self.mixed = base_type.mixed
+                self.mixed = base_type.mixed  # not an error if mixed='false'
 
             self.content = self.schema.create_empty_content_group(self)
             self.content.append(base_type.content)

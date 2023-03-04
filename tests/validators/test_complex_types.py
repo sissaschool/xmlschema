@@ -482,7 +482,7 @@ class TestXsdComplexType(XsdValidatorTestCase):
         self.assertTrue(schema.built)
 
     def test_mixed_content_extension__issue_334(self):
-        schema = self.schema_class("""
+        schema = self.schema_class(dedent("""\
         <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
 
             <xs:complexType name="mixedContentType" mixed="true">
@@ -502,11 +502,250 @@ class TestXsdComplexType(XsdValidatorTestCase):
             </xs:element>
 
         </xs:schema>
-        """)
+        """))
 
         self.assertTrue(schema.types['mixedContentType'].mixed)
         self.assertTrue(schema.elements['foo'].type.mixed)
         self.assertTrue(schema.elements['foo'].type.content.mixed)
+
+    def test_mixed_content_extension__issue_337(self):
+        schema = self.schema_class(dedent("""\
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+            <!-- Valid schema: the derived type adds empty content -->
+            <xs:complexType name="baseType" mixed="true">
+                <xs:sequence>
+                    <xs:element name="elem1"/>
+                </xs:sequence>
+            </xs:complexType>
+            <xs:complexType name="derivedType">
+                <xs:complexContent>
+                    <xs:extension base="baseType">
+                    </xs:extension>
+                </xs:complexContent>
+            </xs:complexType>
+        </xs:schema>"""))
+
+        self.assertTrue(schema.types['baseType'].mixed)
+        self.assertEqual(schema.types['baseType'].content_type_label, 'mixed')
+        self.assertTrue(schema.types['derivedType'].mixed)
+        self.assertEqual(schema.types['derivedType'].content_type_label, 'mixed')
+
+        with self.assertRaises(XMLSchemaParseError):
+            self.schema_class(dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <!-- Invalid schema: the derived type adds element-only content -->
+                <xs:complexType name="baseType" mixed="true">
+                    <xs:sequence>
+                        <xs:element name="elem1"/>
+                    </xs:sequence>
+                </xs:complexType>
+                <xs:complexType name="derivedType">
+                    <xs:complexContent>
+                        <xs:extension base="baseType">
+                            <xs:sequence>
+                                <xs:element name="elem2"/>
+                            </xs:sequence>
+                        </xs:extension>
+                    </xs:complexContent>
+                </xs:complexType>
+            </xs:schema>"""))
+
+        schema = self.schema_class(dedent("""\
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+            <!-- Valid schema: the derived type adds mixed content -->
+            <xs:complexType name="baseType" mixed="true">
+            </xs:complexType>
+            <xs:complexType name="derivedType">
+                <xs:complexContent mixed="true">
+                    <xs:extension base="baseType">
+                        <xs:sequence>
+                            <xs:element name="elem1"/>
+                        </xs:sequence>
+                    </xs:extension>
+                </xs:complexContent>
+            </xs:complexType>
+        </xs:schema>"""))
+
+        self.assertTrue(schema.types['baseType'].mixed)
+        self.assertEqual(schema.types['baseType'].content_type_label, 'mixed')
+        self.assertTrue(schema.types['derivedType'].mixed)
+        self.assertEqual(schema.types['derivedType'].content_type_label, 'mixed')
+
+        with self.assertRaises(XMLSchemaParseError):
+            self.schema_class(dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <!-- Invalid schema: the derived type adds element-only content -->
+                <xs:complexType name="baseType" mixed="true">
+                </xs:complexType>
+                <xs:complexType name="derivedType">
+                    <xs:complexContent>
+                        <xs:extension base="baseType">
+                            <xs:sequence>
+                                <xs:element name="elem1"/>
+                            </xs:sequence>
+                        </xs:extension>
+                    </xs:complexContent>
+                </xs:complexType>
+            </xs:schema>"""))
+
+    def test_empty_content_extension(self):
+        schema = self.schema_class(dedent("""\
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+            <xs:complexType name="baseType" mixed="false">
+            </xs:complexType>
+            <xs:complexType name="derivedType" mixed="true">
+                <xs:complexContent>
+                    <xs:extension base="baseType"/>
+                </xs:complexContent>
+            </xs:complexType>
+        </xs:schema>"""))
+
+        self.assertFalse(schema.types['baseType'].mixed)
+        self.assertEqual(schema.types['baseType'].content_type_label, 'empty')
+        self.assertTrue(schema.types['derivedType'].mixed)
+        self.assertEqual(schema.types['derivedType'].content_type_label, 'mixed')
+
+        schema = self.schema_class(dedent("""\
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+            <xs:complexType name="baseType" mixed="false">
+            </xs:complexType>
+            <xs:complexType name="derivedType">
+                <xs:complexContent>
+                    <xs:extension base="baseType"/>
+                </xs:complexContent>
+            </xs:complexType>
+        </xs:schema>"""))
+
+        self.assertFalse(schema.types['baseType'].mixed)
+        self.assertEqual(schema.types['baseType'].content_type_label, 'empty')
+        self.assertFalse(schema.types['derivedType'].mixed)
+        self.assertEqual(schema.types['derivedType'].content_type_label, 'empty')
+
+        schema = self.schema_class(dedent("""\
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+            <xs:complexType name="baseType" mixed="false">
+            </xs:complexType>
+            <xs:complexType name="derivedType">
+                <xs:complexContent>
+                    <xs:extension base="baseType">
+                        <xs:sequence>
+                            <xs:element name="elem1"/>
+                        </xs:sequence>
+                    </xs:extension>
+                </xs:complexContent>
+            </xs:complexType>
+        </xs:schema>"""))
+
+        self.assertFalse(schema.types['baseType'].mixed)
+        self.assertEqual(schema.types['baseType'].content_type_label, 'empty')
+        self.assertFalse(schema.types['derivedType'].mixed)
+        self.assertEqual(schema.types['derivedType'].content_type_label, 'element-only')
+
+    def test_element_only_content_extension(self):
+
+        schema = self.schema_class(dedent("""\
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+            <xs:complexType name="baseType" mixed="false">
+                <xs:sequence>
+                    <xs:element name="elem1"/>
+                </xs:sequence>
+            </xs:complexType>
+            <xs:complexType name="derivedType">
+                <xs:complexContent>
+                    <xs:extension base="baseType"/>
+                </xs:complexContent>
+            </xs:complexType>
+        </xs:schema>"""))
+
+        self.assertFalse(schema.types['baseType'].mixed)
+        self.assertEqual(schema.types['baseType'].content_type_label, 'element-only')
+        self.assertFalse(schema.types['derivedType'].mixed)
+        self.assertEqual(schema.types['derivedType'].content_type_label, 'element-only')
+
+        with self.assertRaises(XMLSchemaParseError):
+            self.schema_class(dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <!-- Invalid schema: the derived type adds mixed content -->
+                <xs:complexType name="baseType">
+                    <xs:sequence>
+                        <xs:element name="elem1"/>
+                    </xs:sequence>
+                </xs:complexType>
+                <xs:complexType name="derivedType" mixed="true">
+                    <xs:complexContent>
+                        <xs:extension base="baseType">
+                            <xs:sequence>
+                                <xs:element name="elem2"/>
+                            </xs:sequence>
+                        </xs:extension>
+                    </xs:complexContent>
+                </xs:complexType>
+            </xs:schema>"""))
+
+        with self.assertRaises(XMLSchemaParseError):
+            self.schema_class(dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <!-- Invalid schema: the derived type adds mixed content -->
+                <xs:complexType name="baseType">
+                    <xs:sequence>
+                        <xs:element name="elem1"/>
+                    </xs:sequence>
+                </xs:complexType>
+                <xs:complexType name="derivedType" mixed="true">
+                    <xs:complexContent>
+                        <xs:extension base="baseType"/>
+                    </xs:complexContent>
+                </xs:complexType>
+            </xs:schema>"""))
+
+    def test_any_type_extension(self):
+        schema = self.schema_class(dedent("""\
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+            <xs:complexType name="derivedType">
+                <xs:complexContent>
+                    <xs:extension base="xs:anyType"/>
+                </xs:complexContent>
+            </xs:complexType>
+        </xs:schema>"""))
+
+        self.assertTrue(schema.types['derivedType'].mixed)
+        self.assertEqual(schema.types['derivedType'].content_type_label, 'mixed')
+
+        xsd_source = dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:complexType name="derivedType">
+                    <xs:complexContent mixed="true">
+                        <xs:extension base="xs:anyType">
+                            <xs:sequence>
+                                <xs:element name="elem1"/>
+                            </xs:sequence>
+                        </xs:extension>
+                    </xs:complexContent>
+                </xs:complexType>
+            </xs:schema>""")
+
+        if self.schema_class.XSD_VERSION == '1.0':
+            with self.assertRaises(XMLSchemaModelError):
+                self.schema_class(xsd_source)
+        else:
+            schema = self.schema_class(xsd_source)
+            self.assertTrue(schema.types['derivedType'].mixed)
+            self.assertEqual(schema.types['derivedType'].content_type_label, 'mixed')
+
+        with self.assertRaises(XMLSchemaParseError):
+            self.schema_class(dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <!-- Invalid schema: derived type content is element-only -->
+                <xs:complexType name="derivedType">
+                    <xs:complexContent>
+                        <xs:extension base="xs:anyType">
+                            <xs:sequence>
+                                <xs:element name="elem1"/>
+                            </xs:sequence>
+                        </xs:extension>
+                    </xs:complexContent>
+                </xs:complexType>
+            </xs:schema>"""))
 
 
 class TestXsd11ComplexType(TestXsdComplexType):
