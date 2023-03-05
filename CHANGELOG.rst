@@ -2,6 +2,11 @@
 CHANGELOG
 *********
 
+`v2.2.2`_ (2023-03-05)
+======================
+* Fix mixed content extension with empty content (issue #337)
+* Fix lru_cache() usage on global maps caching
+
 `v2.2.1`_ (2023-02-11)
 ======================
 * Fix mixed content extension without explicit mixed attribute (issue #334)
@@ -604,3 +609,4 @@ v0.9.6 (2017-05-05)
 .. _v2.1.1: https://github.com/brunato/xmlschema/compare/v2.1.0...v2.1.1
 .. _v2.2.0: https://github.com/brunato/xmlschema/compare/v2.1.1...v2.2.0
 .. _v2.2.1: https://github.com/brunato/xmlschema/compare/v2.2.0...v2.2.1
+.. _v2.2.2: https://github.com/brunato/xmlschema/compare/v2.2.1...v2.2.2
