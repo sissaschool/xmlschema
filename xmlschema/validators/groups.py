@@ -36,7 +36,7 @@ from .elements import XsdElement, XsdAlternative
 from .wildcards import XsdAnyElement, Xsd11AnyElement
 from .models import ModelVisitor, distinguishable_paths
 
-if TYPE_CHECKING:  # pragma: no cover
+if TYPE_CHECKING:
     from .complex_types import XsdComplexType
 
 ANY_ELEMENT = ElementTree.Element(

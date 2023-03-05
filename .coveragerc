@@ -7,6 +7,7 @@ omit =
 [report]
 exclude_lines =
     pragma: no cover
+    if TYPE_CHECKING:
     raise NotImplementedError()
     in self._etree_iterparse\(
     in PyElementTree.iterparse\(

@@ -32,7 +32,7 @@ from ..helpers import count_digits, local_name
 from .exceptions import XMLSchemaValidationError, XMLSchemaDecodeError
 from .xsdbase import XsdComponent, XsdAnnotation
 
-if TYPE_CHECKING:  # pragma: no cover
+if TYPE_CHECKING:
     from .simple_types import XsdList, XsdAtomicRestriction
 
 LaxDecodeType = Tuple[Any, List[XMLSchemaValidationError]]

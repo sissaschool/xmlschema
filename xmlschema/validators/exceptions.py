@@ -15,7 +15,7 @@ from ..aliases import ElementType, NamespacesType, SchemaElementType, ModelParti
 from ..helpers import get_prefixed_qname, etree_getpath, is_etree_element
 from ..translation import gettext as _
 
-if TYPE_CHECKING:  # pragma: no cover
+if TYPE_CHECKING:
     from ..resources import XMLResource
     from .xsdbase import XsdValidator
     from .groups import XsdGroup

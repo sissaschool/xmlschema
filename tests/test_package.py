@@ -41,7 +41,8 @@ class TestPackaging(unittest.TestCase):
         filename = None
         file_excluded = []
         files = glob.glob(os.path.join(self.source_dir, '*.py')) + \
-            glob.glob(os.path.join(self.source_dir, 'validators/*.py'))
+            glob.glob(os.path.join(self.source_dir, 'validators/*.py')) + \
+            glob.glob(os.path.join(self.source_dir, 'converters/*.py'))
         for line in fileinput.input(files):
             if fileinput.isfirstline():
                 filename = fileinput.filename()

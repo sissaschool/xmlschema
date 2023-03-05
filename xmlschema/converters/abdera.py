@@ -14,7 +14,7 @@ from ..exceptions import XMLSchemaValueError
 from ..aliases import NamespacesType, BaseXsdType
 from .default import ElementData, XMLSchemaConverter
 
-if TYPE_CHECKING:  # pragma: no cover
+if TYPE_CHECKING:
     from ..validators import XsdElement
 
 

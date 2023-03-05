@@ -30,7 +30,7 @@ from ..helpers import get_qname, local_name, get_prefixed_qname
 from ..resources import XMLResource
 from .exceptions import XMLSchemaParseError, XMLSchemaValidationError
 
-if TYPE_CHECKING:  # pragma: no cover
+if TYPE_CHECKING:
     from .simple_types import XsdSimpleType
     from .complex_types import XsdComplexType
     from .elements import XsdElement

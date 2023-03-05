@@ -23,7 +23,7 @@ from .converters import ElementData, XMLSchemaConverter
 from .resources import XMLResource
 from . import validators
 
-if TYPE_CHECKING:  # pragma: no cover
+if TYPE_CHECKING:
     from .validators import XMLSchemaValidationError, XsdElement
 
 

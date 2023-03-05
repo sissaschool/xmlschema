@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any, Optional, List, Dict, Type, Union, Tuple
 from ..aliases import NamespacesType, BaseXsdType
 from .default import ElementData, XMLSchemaConverter
 
-if TYPE_CHECKING:  # pragma: no cover
+if TYPE_CHECKING:
     from ..validators import XsdElement
 
 
@@ -139,9 +139,6 @@ class BadgerFishConverter(XMLSchemaConverter):
         text = None
         content: List[Tuple[Union[str, int], Any]] = []
         attributes = {}
-
-        if isinstance(element_data, list):
-            print(element_data)
 
         for name, value in element_data.items():
             if name == '@xmlns':

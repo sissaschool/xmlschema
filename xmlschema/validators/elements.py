@@ -49,7 +49,7 @@ from .simple_types import XsdSimpleType
 from .attributes import XsdAttribute
 from .wildcards import XsdAnyElement
 
-if TYPE_CHECKING:  # pragma: no cover
+if TYPE_CHECKING:
     from .attributes import XsdAttributeGroup
     from .groups import XsdGroup
 
