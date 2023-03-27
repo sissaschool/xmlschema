@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<TEST>
+  <TEST_EL Date="2022-10-03">
+  <TEST_EL_2>
+    <exists_in_xml test_attr="test_value_attr" />
+  </TEST_EL_2>
+  </TEST_EL>
+</TEST>

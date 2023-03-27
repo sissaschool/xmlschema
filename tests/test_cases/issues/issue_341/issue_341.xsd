@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="windows-1251"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+    <xs:element name="TEST">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="TEST_EL" maxOccurs="1000">
+                    <xs:complexType>
+                        <xs:sequence>
+                            <xs:element name="TEST_EL_2">
+                                <xs:complexType>
+                                    <xs:sequence>
+                                        <xs:element name="exists_in_xml" type="test_type"/>
+                                        <xs:element name="not_exists_in_xml" type="test_type" minOccurs="0"/>
+                                    </xs:sequence>
+                                </xs:complexType>
+                            </xs:element>
+                        </xs:sequence>
+                        <xs:attribute name="Date" type="xs:date" use="required"/>
+                    </xs:complexType>
+                </xs:element>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+    <xs:complexType name="test_type">
+        <xs:attribute name="test_attr">
+            <xs:simpleType>
+                <xs:restriction base="xs:string">
+                    <xs:minLength value="1"/>
+                    <xs:maxLength value="60"/>
+                </xs:restriction>
+            </xs:simpleType>
+        </xs:attribute>
+        <xs:attribute name="test_attr_2">
+            <xs:simpleType>
+                <xs:restriction base="xs:string">
+                    <xs:minLength value="1"/>
+                    <xs:maxLength value="60"/>
+                </xs:restriction>
+            </xs:simpleType>
+        </xs:attribute>
+    </xs:complexType>
+</xs:schema>

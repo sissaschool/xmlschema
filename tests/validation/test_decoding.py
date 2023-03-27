@@ -30,7 +30,7 @@ from xmlschema import XMLSchemaValidationError, ParkerConverter, BadgerFishConve
 
 from xmlschema.names import XSD_STRING, XSI_NIL
 from xmlschema.converters import UnorderedConverter
-from xmlschema.validators import XMLSchema11
+from xmlschema.validators import XMLSchema11, ModelVisitor
 from xmlschema.testing import XsdValidatorTestCase, etree_elements_assert_equal
 
 VEHICLES_DICT = {
@@ -375,7 +375,9 @@ class TestDecoding(XsdValidatorTestCase):
         xml_dict = self.vh_schema.to_dict(vh_xml_tree, namespaces=self.vh_namespaces)
         self.assertEqual(xml_dict, VEHICLES_DICT)
 
-        xml_dict = xmlschema.to_dict(vh_xml_tree, self.vh_schema.url, namespaces=self.vh_namespaces)
+        xml_dict = xmlschema.to_dict(
+            vh_xml_tree, self.vh_schema.url, namespaces=self.vh_namespaces
+        )
         self.assertEqual(xml_dict, VEHICLES_DICT)
 
         xml_dict = self.col_schema.to_dict(col_xml_tree)
@@ -1374,6 +1376,92 @@ class TestDecoding(XsdValidatorTestCase):
         result = xs.decode(xml_file, preserve_root=True)
         body_text = result['Demonstrative_Examples']['Demonstrative_Example'][0]['Body_Text']
         self.assertListEqual(body_text, expected)
+
+    def test_fill_missing_elements__issue_341(self):
+        xsd_file = self.casepath('issues/issue_341/issue_341.xsd')
+        xml_file = self.casepath('issues/issue_341/issue_341.xml')
+        schema = self.schema_class(xsd_file)
+
+        expected = {'TEST_EL': [
+            {'@Date': '2022-10-03',
+             'TEST_EL_2': {
+                 'exists_in_xml': {
+                     '@test_attr': 'test_value_attr', '@test_attr_2': None
+                 }
+             }}
+        ]}
+        xml_dict = schema.decode(xml_file, fill_missing=True)
+        self.assertDictEqual(xml_dict, expected)
+
+        def fill_missing_content(element_data: ElementData, _xsd_element, xsd_type):
+            group = xsd_type.model_group
+            if group is None:
+                return element_data  # an element with simple content
+
+            filled_content = []
+            model = ModelVisitor(group)
+            xsd_element = None
+            for name, value, xsd_element in element_data.content:
+                if isinstance(name, int) or xsd_element is None:
+                    filled_content.append((name, value, xsd_element))
+                    continue
+
+                while model.element is not None:
+                    if model.element is xsd_element:
+                        filled_content.append((name, value, xsd_element))
+                        for _err in model.advance(True):
+                            pass
+                        break
+
+                    if model.element.max_occurs != 0:
+                        filled_content.append((model.element.name, None, model.element))
+                    for _err in model.advance(False):
+                        pass
+                else:
+                    filled_content.append((name, value, xsd_element))
+
+            while model.element is not None:
+                if model.element is not xsd_element and model.element.max_occurs != 0:
+                    filled_content.append((model.element.name, None, model.element))
+                for _err in model.advance(False):
+                    pass
+
+            return ElementData(
+                element_data.tag,
+                element_data.text,
+                filled_content,
+                element_data.attributes
+            )
+
+        expected = {'TEST_EL': [
+            {'@Date': '2022-10-03',
+             'TEST_EL_2': {
+                 'exists_in_xml': {
+                     '@test_attr': 'test_value_attr', '@test_attr_2': None
+                 },
+                 'not_exists_in_xml': None
+             }}
+        ]}
+        xml_dict = schema.decode(xml_file, element_hook=fill_missing_content, fill_missing=True)
+        self.assertDictEqual(xml_dict, expected)
+
+        # Resolving more complex schemas requires more checks in hook function
+        xsd_file = self.casepath('issues/issue_341/issue_341-ext.xsd')
+        schema = self.schema_class(xsd_file)
+
+        expected = {'TEST_EL': [
+            {'@Date': '2022-10-03',
+             'TEST_EL_2': {
+                 'exists_in_xml': {
+                     '@test_attr': 'test_value_attr', '@test_attr_2': None
+                 },
+                 'not_exists_in_xml': None,
+                 'choice_elem1': None,
+                 'choice_elem2': None,  # this is wrong (at most one element for a choice)
+             }}
+        ]}
+        xml_dict = schema.decode(xml_file, element_hook=fill_missing_content, fill_missing=True)
+        self.assertDictEqual(xml_dict, expected)
 
 
 class TestDecoding11(TestDecoding):
