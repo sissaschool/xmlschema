@@ -18,7 +18,8 @@ from xmlschema import XMLSchema10, XMLSchema11
 from xmlschema.exceptions import XMLSchemaValueError
 from xmlschema.validators.exceptions import XMLSchemaValidationError
 from xmlschema.validators.particles import ParticleMixin
-from xmlschema.validators.models import distinguishable_paths, ModelVisitor
+from xmlschema.validators.models import distinguishable_paths, ModelVisitor, \
+    sort_content, iter_collapsed_content
 from xmlschema.validators.groups import XsdGroup
 from xmlschema.validators.elements import XsdElement
 from xmlschema.testing import XsdValidatorTestCase
@@ -115,7 +116,7 @@ class TestModelValidation(XsdValidatorTestCase):
 
         model = ModelVisitor(group)
         model.occurs[group[1]] = 1
-        self.assertListEqual(list(model.items), group[1:])
+        self.assertEqual(list(model.items), group[1:])
 
         group = ModelGroup('all')
         group.append(ParticleMixin())
@@ -124,7 +125,7 @@ class TestModelValidation(XsdValidatorTestCase):
 
         model = ModelVisitor(group)
         model.occurs[group[1]] = 1
-        self.assertListEqual(list(model.items), group[2:])
+        self.assertEqual(list(model.items), group[2:])
 
     # --- Vehicles schema ---
 
@@ -985,33 +986,24 @@ class TestModelBasedSorting(XsdValidatorTestCase):
             </xs:complexType>
             """)
 
-        model = ModelVisitor(schema.types['A_type'].content)
+        group = schema.types['A_type'].content
 
         self.assertListEqual(
-            model.sort_content([('B2', 10), ('B1', 'abc'), ('B3', True)], restart=False),
+            sort_content([('B2', 10), ('B1', 'abc'), ('B3', True)], group),
             [('B1', 'abc'), ('B2', 10), ('B3', True)]
         )
         self.assertListEqual(
-            model.sort_content([('B2', 10), ('B1', 'abc'), ('B3', True)]),
+            sort_content([('B3', True), ('B2', 10), ('B1', 'abc')], group),
             [('B1', 'abc'), ('B2', 10), ('B3', True)]
         )
         self.assertListEqual(
-            model.sort_content([('B2', 10), ('B1', 'abc'), ('B3', True)], restart=False),
-            [('B2', 10), ('B1', 'abc'), ('B3', True)]
-        )
-
-        self.assertListEqual(
-            model.sort_content([('B3', True), ('B2', 10), ('B1', 'abc')]),
-            [('B1', 'abc'), ('B2', 10), ('B3', True)]
-        )
-        self.assertListEqual(
-            model.sort_content([('B2', 10), ('B4', None), ('B1', 'abc'), ('B3', True)]),
+            sort_content([('B2', 10), ('B4', None), ('B1', 'abc'), ('B3', True)], group),
             [('B1', 'abc'), ('B2', 10), ('B3', True), ('B4', None)]
         )
 
         content = [('B2', 10), ('B4', None), ('B1', 'abc'), (1, 'hello'), ('B3', True)]
         self.assertListEqual(
-            model.sort_content(content),
+            sort_content(content, group),
             [(1, 'hello'), ('B1', 'abc'), ('B2', 10), ('B3', True), ('B4', None)]
         )
 
@@ -1019,7 +1011,7 @@ class TestModelBasedSorting(XsdValidatorTestCase):
             (2, 'world!'), ('B2', 10), ('B4', None), ('B1', 'abc'), (1, 'hello'), ('B3', True)
         ]
         self.assertListEqual(
-            model.sort_content(content),
+            sort_content(content, group),
             [(1, 'hello'), ('B1', 'abc'), (2, 'world!'), ('B2', 10), ('B3', True), ('B4', None)]
         )
 
@@ -1028,7 +1020,7 @@ class TestModelBasedSorting(XsdValidatorTestCase):
             (5, 'five'), (4, 'four'), (2, 'two'), (3, 'three'), (1, 'one')
         ]
         self.assertListEqual(
-            model.sort_content(content),
+            sort_content(content, group),
             [(1, 'one'), ('B1', 'abc'), (2, 'two'), ('B2', 10), (3, 'three'),
              ('B3', True), (4, 'four'), ('B4', None), (5, 'five'), (6, 'six')]
         )
@@ -1036,26 +1028,30 @@ class TestModelBasedSorting(XsdValidatorTestCase):
         # With a dict-type argument
         content = dict([('B2', [10]), ('B1', ['abc']), ('B3', [True])])
         self.assertListEqual(
-            model.sort_content(content), [('B1', 'abc'), ('B2', 10), ('B3', True)]
+            sort_content(content, group), [('B1', 'abc'), ('B2', 10), ('B3', True)]
         )
         content = dict([('B2', [10]), ('B1', ['abc']), ('B3', [True]), (1, 'hello')])
         self.assertListEqual(
-            model.sort_content(content), [(1, 'hello'), ('B1', 'abc'), ('B2', 10), ('B3', True)]
+            sort_content(content, group),
+            [(1, 'hello'), ('B1', 'abc'), ('B2', 10), ('B3', True)]
         )
 
         # With partial content
-        self.assertListEqual(model.sort_content([]), [])
-        self.assertListEqual(model.sort_content([('B1', 'abc')]), [('B1', 'abc')])
-        self.assertListEqual(model.sort_content([('B2', 10)]), [('B2', 10)])
-        self.assertListEqual(model.sort_content([('B3', True)]), [('B3', True)])
+        self.assertListEqual(sort_content([], group), [])
+        self.assertListEqual(sort_content([('B1', 'abc')], group), [('B1', 'abc')])
+        self.assertListEqual(sort_content([('B2', 10)], group), [('B2', 10)])
+        self.assertListEqual(sort_content([('B3', True)], group), [('B3', True)])
         self.assertListEqual(
-            model.sort_content([('B3', True), ('B1', 'abc')]), [('B1', 'abc'), ('B3', True)]
+            sort_content([('B3', True), ('B1', 'abc')], group),
+            [('B1', 'abc'), ('B3', True)]
         )
         self.assertListEqual(
-            model.sort_content([('B2', 10), ('B1', 'abc')]), [('B1', 'abc'), ('B2', 10)]
+            sort_content([('B2', 10), ('B1', 'abc')], group),
+            [('B1', 'abc'), ('B2', 10)]
         )
         self.assertListEqual(
-            model.sort_content([('B3', True), ('B2', 10)]), [('B2', 10), ('B3', True)]
+            sort_content([('B3', True), ('B2', 10)], group),
+            [('B2', 10), ('B3', True)]
         )
 
     def test_iter_collapsed_content_with_optional_elements(self):
@@ -1074,18 +1070,25 @@ class TestModelBasedSorting(XsdValidatorTestCase):
             </xs:complexType>
             """)
 
-        model = ModelVisitor(schema.types['A_type'].content)
+        group = schema.types['A_type'].content
+        model = ModelVisitor(group)
 
         content = [('B3', 10), ('B4', None), ('B5', True), ('B6', 'alpha'), ('B7', 20)]
         model.restart()
         self.assertListEqual(
             list(model.iter_collapsed_content(content)), content
         )
+        self.assertListEqual(
+            list(iter_collapsed_content(content, group)), content
+        )
 
         content = [('B3', 10), ('B5', True), ('B6', 'alpha'), ('B7', 20)]  # Missing B4
         model.restart()
         self.assertListEqual(
             list(model.iter_collapsed_content(content)), content
+        )
+        self.assertListEqual(
+            list(iter_collapsed_content(content, group)), content
         )
 
     def test_iter_collapsed_content_with_repeated_elements(self):
@@ -1104,27 +1107,19 @@ class TestModelBasedSorting(XsdValidatorTestCase):
             </xs:complexType>
             """)
 
-        model = ModelVisitor(schema.types['A_type'].content)
+        group = schema.types['A_type'].content
 
         content = [
             ('B3', 10), ('B4', None), ('B5', True), ('B5', False), ('B6', 'alpha'), ('B7', 20)
         ]
-        self.assertListEqual(
-            list(model.iter_collapsed_content(content)), content
-        )
+        self.assertListEqual(list(iter_collapsed_content(content, group)), content)
 
         content = [('B3', 10), ('B3', 11), ('B3', 12), ('B4', None), ('B5', True),
                    ('B5', False), ('B6', 'alpha'), ('B7', 20), ('B7', 30)]
-        model.restart()
-        self.assertListEqual(
-            list(model.iter_collapsed_content(content)), content
-        )
+        self.assertListEqual(list(iter_collapsed_content(content, group)), content)
 
         content = [('B3', 10), ('B3', 11), ('B3', 12), ('B4', None), ('B5', True), ('B5', False)]
-        model.restart()
-        self.assertListEqual(
-            list(model.iter_collapsed_content(content)), content
-        )
+        self.assertListEqual(list(iter_collapsed_content(content, group)), content)
 
     def test_iter_collapsed_content_with_repeated_groups(self):
         schema = self.get_schema("""
@@ -1137,38 +1132,33 @@ class TestModelBasedSorting(XsdValidatorTestCase):
             </xs:complexType>
             """)
 
-        model = ModelVisitor(schema.types['A_type'].content)
+        group = schema.types['A_type'].content
 
         content = [('B1', 1), ('B1', 2), ('B2', 3), ('B2', 4)]
         self.assertListEqual(
-            list(model.iter_collapsed_content(content)),
+            list(iter_collapsed_content(content, group)),
             [('B1', 1), ('B2', 3), ('B1', 2), ('B2', 4)]
         )
 
         # Model broken by unknown element at start
         content = [('X', None), ('B1', 1), ('B1', 2), ('B2', 3), ('B2', 4)]
-        model.restart()
-        self.assertListEqual(list(model.iter_collapsed_content(content)), content)
+        self.assertListEqual(list(iter_collapsed_content(content, group)), content)
 
         content = [('B1', 1), ('X', None), ('B1', 2), ('B2', 3), ('B2', 4)]
-        model.restart()
-        self.assertListEqual(list(model.iter_collapsed_content(content)), content)
+        self.assertListEqual(list(iter_collapsed_content(content, group)), content)
 
         content = [('B1', 1), ('B1', 2), ('X', None), ('B2', 3), ('B2', 4)]
-        model.restart()
-        self.assertListEqual(list(model.iter_collapsed_content(content)), content)
+        self.assertListEqual(list(iter_collapsed_content(content, group)), content)
 
         content = [('B1', 1), ('B1', 2), ('B2', 3), ('X', None), ('B2', 4)]
-        model.restart()
         self.assertListEqual(
-            list(model.iter_collapsed_content(content)),
+            list(iter_collapsed_content(content, group)),
             [('B1', 1), ('B2', 3), ('B1', 2), ('X', None), ('B2', 4)]
         )
 
         content = [('B1', 1), ('B1', 2), ('B2', 3), ('B2', 4), ('X', None)]
-        model.restart()
         self.assertListEqual(
-            list(model.iter_collapsed_content(content)),
+            list(iter_collapsed_content(content, group)),
             [('B1', 1), ('B2', 3), ('B1', 2), ('B2', 4), ('X', None)]
         )
 
@@ -1184,34 +1174,28 @@ class TestModelBasedSorting(XsdValidatorTestCase):
             </xs:complexType>
             """)
 
-        model = ModelVisitor(schema.types['A_type'].content)
+        group = schema.types['A_type'].content
 
         content = [('B1', 'abc'), ('B2', 10), ('B3', False)]
-        model.restart()
-        self.assertListEqual(list(model.iter_collapsed_content(content)), content)
+        self.assertListEqual(list(iter_collapsed_content(content, group)), content)
 
         content = [('B3', False), ('B1', 'abc'), ('B2', 10)]
-        model.restart()
-        self.assertListEqual(list(model.iter_collapsed_content(content)), content)
+        self.assertListEqual(list(iter_collapsed_content(content, group)), content)
 
         content = [('B1', 'abc'), ('B3', False), ('B2', 10)]
-        model.restart()
-        self.assertListEqual(list(model.iter_collapsed_content(content)), content)
+        self.assertListEqual(list(iter_collapsed_content(content, group)), content)
 
         content = [('B1', 'abc'), ('B1', 'def'), ('B2', 10), ('B3', False)]
-        model.restart()
         self.assertListEqual(
-            list(model.iter_collapsed_content(content)),
+            list(iter_collapsed_content(content, group)),
             [('B1', 'abc'), ('B2', 10), ('B3', False), ('B1', 'def')]
         )
 
         content = [('B1', 'abc'), ('B2', 10), ('X', None)]
-        model.restart()
-        self.assertListEqual(list(model.iter_collapsed_content(content)), content)
+        self.assertListEqual(list(iter_collapsed_content(content, group)), content)
 
         content = [('X', None), ('B1', 'abc'), ('B2', 10), ('B3', False)]
-        model.restart()
-        self.assertListEqual(list(model.iter_collapsed_content(content)), content)
+        self.assertListEqual(list(iter_collapsed_content(content, group)), content)
 
 
 class TestModelPaths(unittest.TestCase):

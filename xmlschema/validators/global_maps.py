@@ -31,6 +31,7 @@ from .exceptions import XMLSchemaNotBuiltError, XMLSchemaModelError, XMLSchemaMo
     XMLSchemaParseError
 from .xsdbase import XsdValidator, XsdComponent
 from .builtins import xsd_builtin_types_factory
+from .models import check_model
 from . import XsdAttribute, XsdSimpleType, XsdComplexType, XsdElement, XsdAttributeGroup, \
     XsdGroup, XsdNotation, XsdIdentity, XsdAssert, XsdUnion, XsdAtomicRestriction
 
@@ -731,7 +732,7 @@ class XsdGlobals(XsdValidator):
                             _group.parse_error(msg, validation=validation)
 
                 try:
-                    xsd_type.content.check_model()
+                    check_model(xsd_type.content)
                 except XMLSchemaModelDepthError:
                     msg = _("can't verify the content model of {!r} "
                             "due to exceeding of maximum recursion depth")

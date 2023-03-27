@@ -8,19 +8,24 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-This module contains a function and a class for validating XSD content models.
+This module contains a function and a class for validating XSD content models,
+plus a set of functions for manipulating encoded content.
 """
 from collections import defaultdict, deque
-from typing import Any, Counter, Dict, Iterable, Iterator, List, Optional, Tuple, Union
+from typing import Any, Counter, Dict, Iterable, Iterator, List, \
+    MutableMapping, MutableSequence, Optional, Tuple, Union
 
 from ..exceptions import XMLSchemaValueError
 from ..aliases import ModelGroupType, ModelParticleType, SchemaElementType
+from ..translation import gettext as _
+from .. import limits
+from .exceptions import XMLSchemaModelError, XMLSchemaModelDepthError
+from .wildcards import XsdAnyElement, Xsd11AnyElement
 from . import groups
 
 AdvanceYieldedType = Tuple[ModelParticleType, int, List[SchemaElementType]]
-EncodedContentType = Union[Dict[Union[int, str], List[Any]],
-                           List[Tuple[Union[int, str], List[Any]]]]
 ContentItemType = Tuple[Union[int, str], Any]
+EncodedContentType = Union[MutableMapping[Union[int, str], Any], Iterable[ContentItemType]]
 
 
 def distinguishable_paths(path1: List[ModelParticleType], path2: List[ModelParticleType]) -> bool:
@@ -88,6 +93,81 @@ def distinguishable_paths(path1: List[ModelParticleType], path2: List[ModelParti
                (before1 or (before2 or univocal2) and (path2[-1].is_univocal() or after2))
 
 
+def check_model(group: ModelGroupType) -> None:
+    """
+    Checks if the model group is deterministic. Element Declarations Consistent and
+    Unique Particle Attribution constraints are checked.
+
+    :param group: the model group to check.
+    :raises: an `XMLSchemaModelError` at first violated constraint.
+    """
+    def safe_iter_path() -> Iterator[SchemaElementType]:
+        iterators: List[Iterator[ModelParticleType]] = []
+        particles = iter(group)
+
+        while True:
+            for item in particles:
+                if isinstance(item, groups.XsdGroup):
+                    current_path.append(item)
+                    iterators.append(particles)
+                    particles = iter(item)
+                    if len(iterators) > limits.MAX_MODEL_DEPTH:
+                        raise XMLSchemaModelDepthError(group)
+                    break
+                else:
+                    yield item
+            else:
+                try:
+                    current_path.pop()
+                    particles = iterators.pop()
+                except IndexError:
+                    return
+
+    paths: Any = {}
+    current_path: List[ModelParticleType] = [group]
+    try:
+        any_element = group.parent.open_content.any_element  # type: ignore[union-attr]
+    except AttributeError:
+        any_element = None
+
+    for e in safe_iter_path():
+
+        previous_path: List[ModelParticleType]
+        for pe, previous_path in paths.values():
+            # EDC check
+            if not e.is_consistent(pe) or any_element and not any_element.is_consistent(pe):
+                msg = _("Element Declarations Consistent violation between {0!r} and {1!r}"
+                        ": match the same name but with different types").format(e, pe)
+                raise XMLSchemaModelError(group, msg)
+
+            # UPA check
+            if pe is e or not pe.is_overlap(e):
+                continue
+            elif pe.parent is e.parent:
+                if pe.parent.model in {'all', 'choice'}:
+                    if isinstance(pe, Xsd11AnyElement) and not isinstance(e, XsdAnyElement):
+                        pe.add_precedence(e, group)
+                    elif isinstance(e, Xsd11AnyElement) and not isinstance(pe, XsdAnyElement):
+                        e.add_precedence(pe, group)
+                    else:
+                        msg = _("{0!r} and {1!r} overlap and are in the same {2!r} group")
+                        raise XMLSchemaModelError(group, msg.format(pe, e, pe.parent.model))
+                elif pe.is_univocal():
+                    continue
+
+            if distinguishable_paths(previous_path + [pe], current_path + [e]):
+                continue
+            elif isinstance(pe, Xsd11AnyElement) and not isinstance(e, XsdAnyElement):
+                pe.add_precedence(e, group)
+            elif isinstance(e, Xsd11AnyElement) and not isinstance(pe, XsdAnyElement):
+                e.add_precedence(pe, group)
+            else:
+                msg = _("Unique Particle Attribution violation between {0!r} and {1!r}")
+                raise XMLSchemaModelError(group, msg.format(pe, e))
+
+        paths[e.name] = e, current_path[:]
+
+
 class ModelVisitor:
     """
     A visitor design pattern class that can be used for validating XML data related to an XSD
@@ -104,6 +184,8 @@ class ModelVisitor:
     """
     _groups: List[Tuple[ModelGroupType, Iterator[ModelParticleType], bool]]
     element: Optional[SchemaElementType]
+
+    __slots__ = '_groups', 'root', 'occurs', 'element', 'group', 'items', 'match'
 
     def __init__(self, root: ModelGroupType) -> None:
         self._groups = []
@@ -246,7 +328,7 @@ class ModelVisitor:
 
                     item_max_occurs = occurs[(item2,)] or item_occurs
                     if item_max_occurs == 1 or any(not x.is_emptiable() for x in self.group[k:]):
-                        self.occurs[self.group] += 1
+                        occurs[self.group] += 1
                         break
 
                     min_group_occurs = max(1, item_occurs // (item2.max_occurs or item_occurs))
@@ -258,25 +340,25 @@ class ModelVisitor:
 
             return item.is_missing(max(occurs[item], occurs[(item,)]))
 
-        element, occurs = self.element, self.occurs
-        if element is None:
+        occurs = self.occurs
+        if self.element is None:
             raise XMLSchemaValueError("cannot advance, %r is ended!" % self)
 
         if match:
-            occurs[element] += 1
+            occurs[self.element] += 1
             self.match = True
             if self.group.model == 'all':
                 self.items = (e for e in self.group.iter_elements() if not e.is_over(occurs[e]))
-            elif not element.is_over(occurs[element]):
+            elif not self.element.is_over(occurs[self.element]):
                 return
-            elif self.group.model == 'choice' and element.is_ambiguous():
+            elif self.group.model == 'choice' and self.element.is_ambiguous():
                 return
 
         obj = None
         try:
-            element_occurs = occurs[element]
-            if stop_item(element):
-                yield element, element_occurs, [element]
+            element_occurs = occurs[self.element]
+            if stop_item(self.element):
+                yield self.element, element_occurs, [self.element]
 
             while True:
                 while self.group.is_over(max(occurs[self.group], occurs[(self.group,)])):
@@ -333,131 +415,156 @@ class ModelVisitor:
             elif self.group.max_occurs is not None and self.group.max_occurs < occurs[self.group]:
                 yield self.group, occurs[self.group], self.expected
 
-    def sort_content(self, content: EncodedContentType, restart: bool = True) \
-            -> List[ContentItemType]:
-        if restart:
-            self.restart()
-        return [(name, value) for name, value in self.iter_unordered_content(content)]
-
+    # Kept for backward compatibility
     def iter_unordered_content(
             self, content: EncodedContentType,
             default_namespace: Optional[str] = None) -> Iterator[ContentItemType]:
-        """
-        Takes an unordered content stored in a dictionary of lists and yields the
-        content elements sorted with the ordering defined by the model. Character
-        data parts are yielded at start and between child elements.
-
-        Ordering is inferred from ModelVisitor instance with any elements that
-        don't fit the schema placed at the end of the returned sequence. Checking
-        the yielded content validity is the responsibility of method *iter_encode*
-        of class :class:`XsdGroup`.
-
-        :param content: a dictionary of element names to list of element contents \
-        or an iterable composed of couples of name and value. In case of a \
-        dictionary the values must be lists where each item is the content \
-        of a single element.
-        :param default_namespace: the default namespace to apply for matching names.
-        """
-        consumable_content: Dict[str, Any]
-
-        if isinstance(content, dict):
-            cdata_content = sorted(
-                ((k, v) for k, v in content.items() if isinstance(k, int)), reverse=True
-            )
-            consumable_content = {k: deque(v) for k, v in content.items() if not isinstance(k, int)}
-        else:
-            cdata_content = sorted(((k, v) for k, v in content if isinstance(k, int)), reverse=True)
-            consumable_content = defaultdict(deque)
-            for k, v in content:
-                if isinstance(k, str):
-                    consumable_content[k].append(v)
-
-        if cdata_content:
-            yield cdata_content.pop()
-
-        while self.element is not None and consumable_content:  # pragma: no cover
-            for name in consumable_content:
-                if self.element.is_matching(name, default_namespace, group=self.group):
-                    yield name, consumable_content[name].popleft()
-                    if not consumable_content[name]:
-                        del consumable_content[name]
-                    for _ in self.advance(True):
-                        pass
-                    if cdata_content:
-                        yield cdata_content.pop()
-                    break
-            else:
-                # Consume the return of advance otherwise we get stuck in an infinite loop.
-                for _ in self.advance(False):
-                    pass
-
-        # Add the remaining consumable content onto the end of the data.
-        for name, values in consumable_content.items():
-            for v in values:
-                yield name, v
-                if cdata_content:
-                    yield cdata_content.pop()
-
-        while cdata_content:
-            yield cdata_content.pop()
+        return iter_unordered_content(content, self.root, default_namespace)
 
     def iter_collapsed_content(
-            self, content: Iterable[Tuple[Union[int, str], Any]],
+            self, content: Iterable[ContentItemType],
             default_namespace: Optional[str] = None) -> Iterator[ContentItemType]:
-        """
-        Iterates a content stored in a sequence of couples *(name, value)*, yielding
-        items in the same order of the sequence, except for repetitions of the same
-        tag that don't match with the current element of the :class:`ModelVisitor`
-        instance. These items are included in an unsorted buffer and yielded asap
-        when there is a match with the model's element or at the end of the iteration.
+        return iter_collapsed_content(content, self.root, default_namespace)
 
-        This iteration mode, in cooperation with the method *iter_encode* of the class
-        XsdGroup, facilitates the encoding of content formatted with a convention that
-        collapses the children with the same tag into a list (eg. BadgerFish).
 
-        :param content: an iterable containing couples of names and values.
-        :param default_namespace: the default namespace to apply for matching names.
-        """
-        prev_name = None
-        unordered_content: Dict[str, Any] = defaultdict(deque)
+#
+# Functions for manipulating encoded content
 
-        for name, value in content:
-            if isinstance(name, int) or self.element is None:
-                yield name, value
-                continue
+def iter_unordered_content(
+        content: EncodedContentType,
+        group: ModelGroupType,
+        default_namespace: Optional[str] = None) -> Iterator[ContentItemType]:
+    """
+    Takes an unordered content stored in a dictionary of lists and yields the
+    content elements sorted with the ordering defined by the model group. Character
+    data parts are yielded at start and between child elements.
 
-            while self.element is not None:
-                if self.element.is_matching(name, default_namespace, group=self.group):
-                    yield name, value
-                    prev_name = name
-                    for _ in self.advance(True):
-                        pass
-                    break
+    Ordering is inferred from ModelVisitor instance with any elements that
+    don't fit the schema placed at the end of the returned sequence. Checking
+    the yielded content validity is the responsibility of method *iter_encode*
+    of class :class:`XsdGroup`.
 
-                for key in unordered_content:
-                    if self.element.is_matching(key, default_namespace, group=self.group):
-                        break
-                else:
-                    if prev_name == name:
-                        unordered_content[name].append(value)
-                        break
+    :param content: a dictionary of element names to list of element contents \
+    or an iterable composed of couples of name and value. In case of a \
+    dictionary the values must be lists where each item is the content \
+    of a single element.
+    :param group: the model group related to content.
+    :param default_namespace: the default namespace to apply for matching names.
+    """
+    consumable_content: Dict[str, Any]
 
-                    for _ in self.advance(False):
-                        pass
-                    continue
+    if isinstance(content, MutableMapping):
+        cdata_content = sorted(
+            ((k, v) for k, v in content.items() if isinstance(k, int)), reverse=True
+        )
+        consumable_content = {
+            k: deque(v) if isinstance(v, MutableSequence) else deque([v])
+            for k, v in content.items() if not isinstance(k, int)
+        }
+    else:
+        cdata_content = sorted(((k, v) for k, v in content if isinstance(k, int)), reverse=True)
+        consumable_content = defaultdict(deque)
+        for k, v in content:
+            if isinstance(k, str):
+                consumable_content[k].append(v)
 
-                try:
-                    yield key, unordered_content[key].popleft()
-                except IndexError:
-                    del unordered_content[key]
-                else:
-                    for _ in self.advance(True):
-                        pass
-            else:
+    if cdata_content:
+        yield cdata_content.pop()
+
+    model = ModelVisitor(group)
+    while model.element is not None and consumable_content:  # pragma: no cover
+        for name in consumable_content:
+            if model.element.is_matching(name, default_namespace, group=group):
+                yield name, consumable_content[name].popleft()
+                if not consumable_content[name]:
+                    del consumable_content[name]
+                for _err in model.advance(True):
+                    pass
+                if cdata_content:
+                    yield cdata_content.pop()
+                break
+        else:
+            # Consume the return of advance otherwise we get stuck in an infinite loop.
+            for _err in model.advance(False):
+                pass
+
+    # Add the remaining consumable content onto the end of the data.
+    for name, values in consumable_content.items():
+        for v in values:
+            yield name, v
+            if cdata_content:
+                yield cdata_content.pop()
+
+    while cdata_content:
+        yield cdata_content.pop()
+
+
+def sort_content(content: EncodedContentType,
+                 group: ModelGroupType,
+                 default_namespace: Optional[str] = None) -> List[ContentItemType]:
+    return [x for x in iter_unordered_content(content, group, default_namespace)]
+
+
+def iter_collapsed_content(
+        content: Iterable[ContentItemType],
+        group: ModelGroupType,
+        default_namespace: Optional[str] = None) -> Iterator[ContentItemType]:
+    """
+    Iterates a content stored in a sequence of couples *(name, value)*, yielding
+    items in the same order of the sequence, except for repetitions of the same
+    tag that don't match with the current element of the :class:`ModelVisitor`
+    instance. These items are included in an unsorted buffer and yielded asap
+    when there is a match with the model's element or at the end of the iteration.
+
+    This iteration mode, in cooperation with the method *iter_encode* of the class
+    XsdGroup, facilitates the encoding of content formatted with a convention that
+    collapses the children with the same tag into a list (eg. BadgerFish).
+
+    :param content: an iterable containing couples of names and values.
+    :param group: the model group related to content.
+    :param default_namespace: the default namespace to apply for matching names.
+    """
+    prev_name = None
+    unordered_content: Dict[str, Any] = defaultdict(deque)
+
+    model = ModelVisitor(group)
+    for name, value in content:
+        if isinstance(name, int) or model.element is None:
+            yield name, value
+            continue
+
+        while model.element is not None:
+            if model.element.is_matching(name, default_namespace, group=group):
                 yield name, value
                 prev_name = name
+                for _err in model.advance(True):
+                    pass
+                break
 
-        # Add the remaining consumable content onto the end of the data.
-        for name, values in unordered_content.items():
-            for v in values:
-                yield name, v
+            for key in unordered_content:
+                if model.element.is_matching(key, default_namespace, group=group):
+                    break
+            else:
+                if prev_name == name:
+                    unordered_content[name].append(value)
+                    break
+
+                for _err in model.advance(False):
+                    pass
+                continue
+
+            try:
+                yield key, unordered_content[key].popleft()
+            except IndexError:
+                del unordered_content[key]
+            else:
+                for _err in model.advance(True):
+                    pass
+        else:
+            yield name, value
+            prev_name = name
+
+    # Add the remaining consumable content onto the end of the data.
+    for name, values in unordered_content.items():
+        for v in values:
+            yield name, v

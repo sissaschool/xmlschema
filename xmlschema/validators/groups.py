@@ -34,7 +34,7 @@ from .xsdbase import ValidationMixin, XsdComponent, XsdType
 from .particles import ParticleMixin, OccursCalculator
 from .elements import XsdElement, XsdAlternative
 from .wildcards import XsdAnyElement, Xsd11AnyElement
-from .models import ModelVisitor, distinguishable_paths
+from .models import ModelVisitor, iter_unordered_content, iter_collapsed_content
 
 if TYPE_CHECKING:
     from .complex_types import XsdComplexType
@@ -765,78 +765,6 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         else:
             return other_max_occurs >= max_occurs * self.max_occurs
 
-    def check_model(self) -> None:
-        """
-        Checks if the model group is deterministic. Element Declarations Consistent and
-        Unique Particle Attribution constraints are checked.
-        :raises: an `XMLSchemaModelError` at first violated constraint.
-        """
-        def safe_iter_path() -> Iterator[SchemaElementType]:
-            iterators: List[Iterator[ModelParticleType]] = []
-            particles = iter(self)
-
-            while True:
-                for item in particles:
-                    if isinstance(item, XsdGroup):
-                        current_path.append(item)
-                        iterators.append(particles)
-                        particles = iter(item)
-                        if len(iterators) > limits.MAX_MODEL_DEPTH:
-                            raise XMLSchemaModelDepthError(self)
-                        break
-                    else:
-                        yield item
-                else:
-                    try:
-                        current_path.pop()
-                        particles = iterators.pop()
-                    except IndexError:
-                        return
-
-        paths: Any = {}
-        current_path: List[ModelParticleType] = [self]
-        try:
-            any_element = self.parent.open_content.any_element  # type: ignore[union-attr]
-        except AttributeError:
-            any_element = None
-
-        for e in safe_iter_path():
-
-            previous_path: List[ModelParticleType]
-            for pe, previous_path in paths.values():
-                # EDC check
-                if not e.is_consistent(pe) or any_element and not any_element.is_consistent(pe):
-                    msg = _("Element Declarations Consistent violation between {0!r} and {1!r}"
-                            ": match the same name but with different types").format(e, pe)
-                    raise XMLSchemaModelError(self, msg)
-
-                # UPA check
-                if pe is e or not pe.is_overlap(e):
-                    continue
-                elif pe.parent is e.parent:
-                    if pe.parent.model in {'all', 'choice'}:
-                        if isinstance(pe, Xsd11AnyElement) and not isinstance(e, XsdAnyElement):
-                            pe.add_precedence(e, self)
-                        elif isinstance(e, Xsd11AnyElement) and not isinstance(pe, XsdAnyElement):
-                            e.add_precedence(pe, self)
-                        else:
-                            msg = _("{0!r} and {1!r} overlap and are in the same {2!r} group")
-                            raise XMLSchemaModelError(self, msg.format(pe, e, pe.parent.model))
-                    elif pe.is_univocal():
-                        continue
-
-                if distinguishable_paths(previous_path + [pe], current_path + [e]):
-                    continue
-                elif isinstance(pe, Xsd11AnyElement) and not isinstance(e, XsdAnyElement):
-                    pe.add_precedence(e, self)
-                elif isinstance(e, Xsd11AnyElement) and not isinstance(pe, XsdAnyElement):
-                    e.add_precedence(pe, self)
-                else:
-                    msg = _("Unique Particle Attribution violation between {0!r} and {1!r}")
-                    raise XMLSchemaModelError(self, msg.format(pe, e))
-
-            paths[e.name] = e, current_path[:]
-
     def check_dynamic_context(self, elem: ElementType,
                               xsd_element: SchemaElementType,
                               model_element: SchemaElementType,
@@ -1137,9 +1065,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         if not obj.content:
             content = []
         elif isinstance(obj.content, MutableMapping) or kwargs.get('unordered'):
-            content = ModelVisitor(self).iter_unordered_content(
-                obj.content, default_namespace
-            )
+            content = iter_unordered_content(obj.content, self, default_namespace)
         elif not isinstance(obj.content, MutableSequence):
             wrong_content_type = True
             content = []
@@ -1152,9 +1078,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         elif converter.losslessly:
             content = obj.content
         else:
-            content = ModelVisitor(self).iter_collapsed_content(
-                obj.content, default_namespace
-            )
+            content = iter_collapsed_content(obj.content, self, default_namespace)
 
         for index, (name, value) in enumerate(content):
             if isinstance(name, int):
