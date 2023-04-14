@@ -2,6 +2,11 @@
 CHANGELOG
 *********
 
+`v2.2.3`_ (2023-04-14)
+======================
+* Add support for Python 3.12
+* Detach content iteration methods from ModelVisitor
+
 `v2.2.2`_ (2023-03-05)
 ======================
 * Fix mixed content extension with empty content (issue #337)
@@ -610,3 +615,4 @@ v0.9.6 (2017-05-05)
 .. _v2.2.0: https://github.com/brunato/xmlschema/compare/v2.1.1...v2.2.0
 .. _v2.2.1: https://github.com/brunato/xmlschema/compare/v2.2.0...v2.2.1
 .. _v2.2.2: https://github.com/brunato/xmlschema/compare/v2.2.1...v2.2.2
+.. _v2.2.3: https://github.com/brunato/xmlschema/compare/v2.2.2...v2.2.3
