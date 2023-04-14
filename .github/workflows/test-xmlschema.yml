@@ -47,10 +47,10 @@ jobs:
       - name: Lint with mypy if Python version != 3.7
         if: ${{ matrix.python-version != '3.7' }}
         run: |
-          pip install mypy==1.0.1 elementpath==4.0.1 lxml-stubs
+          pip install mypy==1.2.0 elementpath==4.1.1 lxml-stubs
           mypy --show-error-codes --strict xmlschema
       - name: Lint with mypy if Python version == 3.7
         if: ${{ matrix.python-version == '3.7' }}
         run: |
-          pip install mypy==1.0.1 elementpath==4.0.1 lxml-stubs
+          pip install mypy==1.2.0 elementpath==4.1.1 lxml-stubs
           mypy --show-error-codes --no-warn-redundant-casts --no-warn-unused-ignores --strict xmlschema
