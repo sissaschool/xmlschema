@@ -11,53 +11,54 @@
 """Tests about static typing of xmlschema objects."""
 
 import unittest
-import subprocess
-import re
+import importlib
 from pathlib import Path
 
 try:
-    import mypy
+    from mypy import api as mypy_api
 except ImportError:
-    mypy = None
+    mypy_api = None
+
+try:
+    lxml_stubs_module = importlib.import_module('lxml-stubs')
+except ImportError:
+    lxml_stubs_module = None
 
 
-@unittest.skipIf(mypy is None, "mypy is not installed")
+@unittest.skipIf(mypy_api is None, "mypy is not installed")
+@unittest.skipIf(lxml_stubs_module is None, "lxml-stubs is not installed")
 class TestTyping(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
         cls.cases_dir = Path(__file__).parent.joinpath('test_cases/mypy')
         cls.config_file = Path(__file__).parent.parent.joinpath('mypy.ini')
-        cls.error_pattern = re.compile(r'Found \d+ error', re.IGNORECASE)
-
-    def check_mypy_output(self, testfile, *options):
-        cmd = ['mypy', '--config-file', str(self.config_file), testfile]
-        if options:
-            cmd.extend(str(opt) for opt in options)
-        process = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-
-        self.assertEqual(process.stderr, b'')
-        output = process.stdout.decode('utf-8').strip()
-        output_lines = output.split('\n')
-
-        self.assertGreater(len(output_lines), 0, msg=output)
-        self.assertNotRegex(output_lines[-1], self.error_pattern, msg=output)
-        return output_lines
 
     def test_schema_source(self):
-        case_path = self.cases_dir.joinpath('schema_source.py')
-        output_lines = self.check_mypy_output(case_path, '--strict', '--no-warn-unused-ignores')
-        self.assertTrue(output_lines[0].startswith('Success:'), msg='\n'.join(output_lines))
+        result = mypy_api.run([
+            '--strict',
+            '--no-warn-unused-ignores',
+            '--config-file', str(self.config_file),
+            str(self.cases_dir.joinpath('schema_source.py'))
+        ])
+        self.assertEqual(result[2], 0, msg=result[1] or result[0])
 
     def test_simple_types(self):
-        case_path = self.cases_dir.joinpath('simple_types.py')
-        output_lines = self.check_mypy_output(case_path, '--strict', '--no-warn-unused-ignores')
-        self.assertTrue(output_lines[0].startswith('Success:'), msg='\n'.join(output_lines))
+        result = mypy_api.run([
+            '--strict',
+            '--no-warn-unused-ignores',
+            '--config-file', str(self.config_file),
+            str(self.cases_dir.joinpath('simple_types.py'))
+        ])
+        self.assertEqual(result[2], 0, msg=result[1] or result[0])
 
     def test_extra_validator__issue_291(self):
-        case_path = self.cases_dir.joinpath('extra_validator.py')
-        output_lines = self.check_mypy_output(case_path, '--strict')
-        self.assertTrue(output_lines[0].startswith('Success:'), msg='\n'.join(output_lines))
+        result = mypy_api.run([
+            '--strict',
+            '--config-file', str(self.config_file),
+            str(self.cases_dir.joinpath('extra_validator.py'))
+        ])
+        self.assertEqual(result[2], 0, msg=result[1] or result[0])
 
 
 if __name__ == '__main__':
