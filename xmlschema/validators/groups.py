@@ -223,7 +223,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
             except TypeError:
                 return None
             else:
-                return self.max_occurs * value
+                return None if value is None else self.max_occurs * value
 
         not_emptiable_items = [e for e in effective_items if e.effective_min_occurs]
         if not not_emptiable_items:
@@ -232,7 +232,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
             except TypeError:
                 return None
             else:
-                return self.max_occurs * value
+                return None if value is None else self.max_occurs * value
 
         elif len(not_emptiable_items) > 1:
             return self.max_occurs
@@ -246,7 +246,18 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         if not self:
             return True
         elif isinstance(other, XsdGroup):
-            return super(XsdGroup, self).has_occurs_restriction(other)
+            if self.xsd_version == '1.0':
+                return super(XsdGroup, self).has_occurs_restriction(other)
+            elif self.effective_min_occurs < other.effective_min_occurs:
+                return False
+            elif self.effective_max_occurs == 0:
+                return True
+            elif other.effective_max_occurs is None:
+                return True
+            elif self.effective_max_occurs is None:
+                return False
+            else:
+                return self.effective_max_occurs <= other.effective_max_occurs
 
         # Group particle compared to element particle
         if self.max_occurs is None or any(e.max_occurs is None for e in self):
@@ -1307,7 +1318,18 @@ class Xsd11Group(XsdGroup):
                 item = next(item_iterator, None)
             elif not other_item.is_emptiable():
                 return False
-        return item is None
+        else:
+            if item is None:
+                return True
+
+        # Restriction check failed again: try checking other items against self
+        for other_item in other.iter_model():
+            if self.is_restriction(other_item, check_occurs):
+                return True
+            elif not other_item.is_emptiable():
+                return False
+        else:
+            return False
 
     def is_all_restriction(self, other: XsdGroup) -> bool:
         if not self.has_occurs_restriction(other):

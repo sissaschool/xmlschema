@@ -39,11 +39,15 @@ features/decoder/mixed-content.xsd
 features/decoder/data4-mixed.xml
 
 features/derivations/complex-extensions.xsd --errors=1
+features/derivations/complex11-restrictions.xsd --version=1.1
 features/derivations/complex-with-simple-content-restriction.xsd
 features/derivations/list_types.xsd --errors=1
 features/derivations/list_types.xml --errors=2
-features/derivations/invalid_enumeration_restriction.xsd --errors=1
-features/derivations/invalid_restrictions1.xsd --errors=2
+features/derivations/invalid-enumeration-restriction.xsd --errors=1
+features/derivations/invalid-restrictions1.xsd --errors=2
+features/derivations/invalid-restrictions1.xsd --version=1.1 --errors=1
+features/derivations/invalid-restrictions2.xsd --errors=1
+features/derivations/invalid-restrictions2.xsd --version=1.1 --errors=1
 
 features/elements/type_alternatives.xsd --errors=3
 features/elements/type_alternatives.xsd --version=1.1

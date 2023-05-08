@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Schema test for invalid model restriction (issue 344):
+occurrence violation for XSD 1.0, not emptiable particle for XSD 1.1. -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+    <xs:complexType name="baseType1">
+        <xs:sequence>
+            <xs:element name="elem1" />
+            <xs:sequence minOccurs="0" maxOccurs="unbounded">
+                <xs:element name="elem2" type="xs:string" />
+                <xs:element name="elem3" type="xs:string" />
+            </xs:sequence>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:complexType name="restrictedType1">
+        <xs:complexContent>
+            <xs:restriction base="baseType1">
+                <xs:sequence minOccurs="0" maxOccurs="unbounded">
+                    <xs:element name="elem2" type="xs:string" />
+                    <xs:element name="elem3" type="xs:string" />
+                </xs:sequence>
+            </xs:restriction>
+        </xs:complexContent>
+    </xs:complexType>
+
+</xs:schema>

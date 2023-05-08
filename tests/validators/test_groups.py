@@ -30,6 +30,10 @@ class ModelGroup(XsdGroup):
     def __repr__(self) -> str:
         return '%s(model=%r, occurs=%r)' % (self.__class__.__name__, self.model, self.occurs)
 
+    @property
+    def xsd_version(self) -> str:
+        return '1.0'
+
     append: Any
 
 
