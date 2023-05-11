@@ -44,4 +44,64 @@
         </xs:complexContent>
     </xs:complexType>
 
+    <xs:complexType name="baseType3">
+        <xs:sequence>
+            <xs:element name="elem1" minOccurs="0"/>
+            <xs:choice maxOccurs="5">
+                <xs:element name="elem2" type="xs:string" maxOccurs="2"/>
+                <xs:element name="elem3" type="xs:string" maxOccurs="2"/>
+            </xs:choice>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:complexType name="restrictedType3">
+        <xs:complexContent>
+            <xs:restriction base="baseType3">
+                <xs:choice maxOccurs="10">
+                    <xs:element name="elem3" type="xs:string" />
+                </xs:choice>
+            </xs:restriction>
+        </xs:complexContent>
+    </xs:complexType>
+
+    <xs:complexType name="baseType4">
+        <xs:sequence>
+            <xs:element name="elem1" minOccurs="0"/>
+            <xs:choice maxOccurs="5">
+                <xs:element name="elem2" type="xs:string" maxOccurs="3"/>
+                <xs:element name="elem3" type="xs:string" maxOccurs="4"/>
+            </xs:choice>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:complexType name="restrictedType4">
+        <xs:complexContent>
+            <xs:restriction base="baseType4">
+                <xs:choice maxOccurs="10">
+                    <xs:element name="elem3" type="xs:string" maxOccurs="2"/>
+                </xs:choice>
+            </xs:restriction>
+        </xs:complexContent>
+    </xs:complexType>
+
+    <xs:complexType name="baseType5">
+        <xs:sequence>
+            <xs:element name="elem1" minOccurs="0"/>
+            <xs:choice minOccurs="5" maxOccurs="unbounded">
+                <xs:element name="elem2" type="xs:string" maxOccurs="3"/>
+                <xs:element name="elem3" type="xs:string" maxOccurs="4"/>
+            </xs:choice>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:complexType name="restrictedType5">
+        <xs:complexContent>
+            <xs:restriction base="baseType5">
+                <xs:choice minOccurs="10" maxOccurs="unbounded">
+                    <xs:element name="elem3" type="xs:string" maxOccurs="2"/>
+                </xs:choice>
+            </xs:restriction>
+        </xs:complexContent>
+    </xs:complexType>
+
 </xs:schema>

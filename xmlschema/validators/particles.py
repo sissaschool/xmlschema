@@ -44,7 +44,8 @@ class ParticleMixin:
         """
         A property calculated from minOccurs, that is equal to minOccurs
         for elements and may vary for content model groups, in dependance
-        of group model and structure.
+        of group model and structure. Used for checking restrictions of
+        model groups in XSD 1.1.
         """
         return self.min_occurs
 
@@ -54,7 +55,7 @@ class ParticleMixin:
         A property calculated from maxOccurs, that is equal to maxOccurs
         for elements and may vary for content model groups, in dependance
         of group model and structure. Used for checking restrictions of
-        xs:choice model groups in XSD 1.1.
+        model groups in XSD 1.1.
         """
         return self.max_occurs
 

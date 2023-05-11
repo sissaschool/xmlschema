@@ -196,13 +196,24 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
     def effective_min_occurs(self) -> int:
         if not self.min_occurs or not self:
             return 0
+
+        effective_items: List[Any]
+        value: int
+        effective_items = [e for e in self.iter_model() if e.effective_max_occurs != 0]
+        if not effective_items:
+            return 0
         elif self.model == 'choice':
-            if any(not e.effective_min_occurs for e in self.iter_model()):
-                return 0
-        else:
-            if all(not e.effective_min_occurs for e in self.iter_model()):
-                return 0
-        return self.min_occurs
+            return self.min_occurs * min(e.effective_min_occurs for e in effective_items)
+        elif self.model == 'all':
+            return self.min_occurs * min(e.effective_min_occurs for e in effective_items)
+
+        not_emptiable_items = [e for e in effective_items if e.effective_min_occurs]
+        if not not_emptiable_items:
+            return 0
+        elif len(not_emptiable_items) > 1:
+            return self.min_occurs
+
+        return self.min_occurs * not_emptiable_items[0].effective_min_occurs
 
     @property
     def effective_max_occurs(self) -> Optional[int]:
@@ -215,6 +226,8 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         effective_items = [e for e in self.iter_model() if e.effective_max_occurs != 0]
         if not effective_items:
             return 0
+        elif False and self.model == 'all':
+            return self.max_occurs
         elif self.max_occurs is None:
             return None
         elif self.model == 'choice':
@@ -246,18 +259,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         if not self:
             return True
         elif isinstance(other, XsdGroup):
-            if self.xsd_version == '1.0':
-                return super(XsdGroup, self).has_occurs_restriction(other)
-            elif self.effective_min_occurs < other.effective_min_occurs:
-                return False
-            elif self.effective_max_occurs == 0:
-                return True
-            elif other.effective_max_occurs is None:
-                return True
-            elif self.effective_max_occurs is None:
-                return False
-            else:
-                return self.effective_max_occurs <= other.effective_max_occurs
+            return super(XsdGroup, self).has_occurs_restriction(other)
 
         # Group particle compared to element particle
         if self.max_occurs is None or any(e.max_occurs is None for e in self):
@@ -1291,6 +1293,26 @@ class Xsd11Group(XsdGroup):
         else:  # other.model == 'choice':
             return self.is_choice_restriction(other)
 
+    def has_occurs_restriction(
+            self, other: Union[ModelParticleType, ParticleMixin, 'OccursCalculator']) -> bool:
+        if not isinstance(other, XsdGroup):
+            return super().has_occurs_restriction(other)
+        elif not self:
+            return True
+        elif self.effective_min_occurs < other.effective_min_occurs:
+            return False
+
+        effective_max_occurs = self.effective_max_occurs
+        if effective_max_occurs == 0:
+            return True
+        elif effective_max_occurs is None:
+            return other.effective_max_occurs is None
+        else:
+            try:
+                return effective_max_occurs <= other.effective_max_occurs
+            except TypeError:
+                return True
+
     def is_sequence_restriction(self, other: XsdGroup) -> bool:
         if not self.has_occurs_restriction(other):
             return False
@@ -1317,15 +1339,16 @@ class Xsd11Group(XsdGroup):
             if item is not None and item.is_restriction(other_item, check_occurs):
                 item = next(item_iterator, None)
             elif not other_item.is_emptiable():
-                return False
+                break
         else:
             if item is None:
                 return True
 
         # Restriction check failed again: try checking other items against self
-        for other_item in other.iter_model():
+        other_items = other.iter_model()
+        for other_item in other_items:
             if self.is_restriction(other_item, check_occurs):
-                return True
+                return all(x.is_emptiable() for x in other_items)
             elif not other_item.is_emptiable():
                 return False
         else:
