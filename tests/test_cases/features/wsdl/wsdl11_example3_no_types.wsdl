@@ -1,9 +1,7 @@
 <?xml version="1.0"?>
 <!--
-Original example #3 from WSDL 1.1 definition with SOAP 1.1 bindings:
+Example #3 from WSDL 1.1 definition with SOAP 1.1 bindings:
   href: https://www.w3.org/TR/2001/NOTE-wsdl-20010315#_soap-e
-
-This case contains a typo in <binding> definition
 -->
 <definitions name="StockQuote"
           targetNamespace="http://example.com/stockquote.wsdl"
@@ -26,10 +24,10 @@ This case contains a typo in <binding> definition
     <binding name="StockQuoteSoap" type="tns:StockQuotePortType">
         <soap:binding style="document" transport="http://example.com/smtp"/>
         <operation name="SubscribeToQuotes">
-               <input message="tns:SubscribeToQuotes"> <!-- attribute 'message' not allowed -->
+            <input>
                <soap:body parts="body" use="literal"/>
                <soap:header message="tns:SubscribeToQuotes" part="subscribeheader" use="literal"/>
-           </input>
+            </input>
         </operation>
     </binding>
 
@@ -38,18 +36,4 @@ This case contains a typo in <binding> definition
            <soap:address location="mailto:subscribe@example.com"/>
         </port>
     </service>
-
-    <types>
-        <schema targetNamespace="http://example.com/stockquote.xsd"
-               xmlns="http://www.w3.org/2001/XMLSchema">
-           <element name="SubscribeToQuotes">
-               <complexType>
-                   <all>
-                       <element name="tickerSymbol" type="string"/>
-                   </all>
-               </complexType>
-           </element>
-           <element name="SubscriptionHeader" type="anyURI"/>
-        </schema>
-    </types>
 </definitions>

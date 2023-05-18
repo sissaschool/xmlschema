@@ -543,6 +543,9 @@ class XmlDocument(XMLResource):
     :param defuse: the defuse mode for base :class:`xmlschema.XMLResource` initialization.
     :param timeout: the timeout for base :class:`xmlschema.XMLResource` initialization.
     :param lazy: the lazy mode for base :class:`xmlschema.XMLResource` initialization.
+    :param use_location_hints: for default, in case a schema instance has \
+    to be built, uses also schema locations hints provided within XML data. \
+    Set this option to `False` to ignore these schema location hints.
     """
     schema: Optional[XMLSchemaBase] = None
     _fallback_schema: Optional[XMLSchemaBase] = None

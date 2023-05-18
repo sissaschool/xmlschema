@@ -17,7 +17,7 @@ from ..helpers import get_qname, local_name, get_extended_qname, get_prefixed_qn
 from ..namespaces import NamespaceResourcesMap
 from ..resources import fetch_resource
 from ..documents import XmlDocument
-from ..validators import XMLSchema10
+from ..validators import XMLSchemaBase, XMLSchema10
 
 
 # WSDL 1.1 global declarations
@@ -463,6 +463,9 @@ class Wsdl11Document(XmlDocument):
 
     :param source: a string containing XML data or a file path or an URL or a \
     file like object or an ElementTree or an Element.
+    :param schema: additional schema for providing XSD types and elements to the \
+    WSDL document. Can be a :class:`xmlschema.XMLSchema` instance or a file-like \
+    object or a file path or a URL of a resource or a string containing the XSD schema.
     :param cls: class to use for building the schema instance (for default \
     :class:`xmlschema.XMLSchema10` is used).
     :param validation: the XSD validation mode to use for validating the XML document, \
@@ -479,17 +482,30 @@ class Wsdl11Document(XmlDocument):
     target_namespace = ''
     soap_binding = False
 
-    def __init__(self, source, cls=None, validation='strict', namespaces=None, maps=None,
-                 locations=None, base_url=None, allow='all', defuse='remote', timeout=300):
+    def __init__(self, source, schema=None, cls=None, validation='strict',
+                 namespaces=None, maps=None, locations=None, base_url=None,
+                 allow='all', defuse='remote', timeout=300):
 
-        if maps is None:
+        if maps is not None:
+            self.maps = maps
+            self.schema = maps.wsdl_document.schema
+        else:
             if cls is None:
                 cls = XMLSchema10
-            self.schema = cls(source=os.path.join(SCHEMAS_DIR, 'WSDL/wsdl.xsd'))
+
+            if isinstance(schema, XMLSchemaBase):
+                cls = schema.__class__
+                global_maps = schema.maps
+            elif schema is not None:
+                global_maps = cls(schema).maps
+            else:
+                global_maps = None
+
+            self.schema = cls(
+                source=os.path.join(SCHEMAS_DIR, 'WSDL/wsdl.xsd'),
+                global_maps=global_maps,
+            )
             self.maps = Wsdl11Maps(self)
-        else:
-            self.schema = maps.wsdl_document.schema
-            self.maps = maps
 
         if locations:
             self.locations = NamespaceResourcesMap(locations)

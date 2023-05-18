@@ -258,6 +258,19 @@ class TestWsdlDocuments(unittest.TestCase):
         port = wsdl_document.services[service_name].ports['StockQuotePort']
         self.assertEqual(port.soap_location, 'mailto:subscribe@example.com')
 
+    def test_example3_without_types__issue_347(self):
+        no_types_file = casepath('features/wsdl/wsdl11_example3_no_types.wsdl')
+        with self.assertRaises(WsdlParseError):
+            Wsdl11Document(no_types_file)
+
+        schema_file = casepath('features/wsdl/wsdl11_example3_types.xsd')
+        wsdl_document = Wsdl11Document(no_types_file, schema=schema_file)
+
+        self.assertIn('{http://example.com/stockquote.xsd}SubscribeToQuotes',
+                      wsdl_document.schema.maps.elements)
+        self.assertIn('{http://example.com/stockquote.xsd}SubscriptionHeader',
+                      wsdl_document.schema.maps.elements)
+
     def test_example4(self):
         original_example4_file = casepath('features/wsdl/wsdl11_example4.wsdl')
         with self.assertRaises(XMLSchemaValidationError):
