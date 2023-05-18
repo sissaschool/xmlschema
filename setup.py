@@ -18,7 +18,7 @@ with Path(__file__).parent.joinpath('README.rst').open() as readme:
 
 setup(
     name='xmlschema',
-    version='2.2.3',
+    version='2.3.0',
     packages=find_packages(include=['xmlschema*']),
     package_data={
         'xmlschema': ['py.typed', 'locale/**/*.mo', 'locale/**/*.po', 'schemas/*/*.xsd'],
@@ -32,13 +32,13 @@ setup(
         ]
     },
     python_requires='>=3.7',
-    install_requires=['elementpath>=4.0.0, <5.0.0'],
+    install_requires=['elementpath>=4.1.2, <5.0.0'],
     extras_require={
-        'codegen': ['elementpath>=4.0.0, <5.0.0', 'jinja2'],
-        'dev': ['tox', 'coverage', 'lxml', 'elementpath>=4.0.0, <5.0.0',
+        'codegen': ['elementpath>=4.1.2, <5.0.0', 'jinja2'],
+        'dev': ['tox', 'coverage', 'lxml', 'elementpath>=4.1.2, <5.0.0',
                 'memory_profiler', 'Sphinx', 'sphinx_rtd_theme', 'jinja2',
                 'flake8', 'mypy', 'lxml-stubs'],
-        'docs': ['elementpath>=4.0.0, <5.0.0', 'Sphinx', 'sphinx_rtd_theme', 'jinja2']
+        'docs': ['elementpath>=4.1.2, <5.0.0', 'Sphinx', 'sphinx_rtd_theme', 'jinja2']
     },
     author='Davide Brunato',
     author_email='brunato@sissa.it',

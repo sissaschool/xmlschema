@@ -2,6 +2,11 @@
 CHANGELOG
 *********
 
+`v2.3.0`_ (2023-05-18)
+======================
+* Improve sequence/all restriction checks for XSD 1.1
+* Add *schema* argument to `Wsdl11Document`
+
 `v2.2.3`_ (2023-04-14)
 ======================
 * Add support for Python 3.12
@@ -616,3 +621,4 @@ v0.9.6 (2017-05-05)
 .. _v2.2.1: https://github.com/brunato/xmlschema/compare/v2.2.0...v2.2.1
 .. _v2.2.2: https://github.com/brunato/xmlschema/compare/v2.2.1...v2.2.2
 .. _v2.2.3: https://github.com/brunato/xmlschema/compare/v2.2.2...v2.2.3
+.. _v2.3.0: https://github.com/brunato/xmlschema/compare/v2.2.3...v2.3.0

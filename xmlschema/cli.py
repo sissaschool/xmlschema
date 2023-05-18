@@ -6,7 +6,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-# type: ignore
+# mypy: ignore-errors
 """Command Line Interface"""
 import sys
 import os

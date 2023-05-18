@@ -7,7 +7,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-# type: ignore
+# mypy: ignore-errors
 """
 Subpackage with unittest extensions for xmlschema.
 

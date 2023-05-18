@@ -7,7 +7,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-# type: ignore
+# mypy: ignore-errors
 """
 Observers for testing XMLSchema classes.
 """

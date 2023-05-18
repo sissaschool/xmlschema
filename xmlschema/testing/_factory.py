@@ -7,7 +7,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-# type: ignore
+# mypy: ignore-errors
 """
 Test factory for creating test cases from lists of paths to XSD or XML files.
 

@@ -7,7 +7,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-# type: ignore
+# mypy: ignore-errors
 """
 Tests subpackage module: common definitions for unittest scripts of the 'xmlschema' package.
 """
