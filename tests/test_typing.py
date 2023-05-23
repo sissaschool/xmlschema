@@ -12,6 +12,7 @@
 
 import unittest
 import importlib
+import sys
 from pathlib import Path
 
 try:
@@ -27,6 +28,7 @@ except ImportError:
 
 @unittest.skipIf(mypy_api is None, "mypy is not installed")
 @unittest.skipIf(lxml_stubs_module is None, "lxml-stubs is not installed")
+@unittest.skipIf(sys.version_info < (3, 8), "Python version < 3.8")
 class TestTyping(unittest.TestCase):
 
     @classmethod
