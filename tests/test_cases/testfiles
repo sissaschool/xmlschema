@@ -147,3 +147,5 @@ issues/issue_311/correct_no_list.xml --version=1.1 --validation-only \
     -L 'http://www.ludd21.com/kPartModel' kPartModel_reduit_issue.xsd
 issues/issue_311/incorrect_with_list.xml --version=1.1 --validation-only \
     -L 'http://www.ludd21.com/kPartModel' kPartModel_reduit_issue.xsd
+issues/issue_349/issue_349.xml --errors=1 --validation-only
+issues/issue_349/issue_349.xml --version=1.1

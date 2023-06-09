@@ -12,6 +12,7 @@ import pdb
 import os
 import ast
 import pickle
+import re
 import time
 import logging
 import importlib
@@ -47,6 +48,9 @@ except ImportError:
 from ._helpers import iter_nested_items, etree_elements_assert_equal
 from ._case_class import XsdValidatorTestCase
 from ._observers import SchemaObserver
+
+
+OBJ_ID_PATTERN = re.compile(r" at 0x[0-9a-f]+")
 
 
 def make_schema_test_class(test_file, test_args, test_num, schema_class, check_with_lxml):
@@ -542,6 +546,16 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
                 self.assertIsNone(self.schema.validate(xml_file), msg=xml_file)
 
         def check_iter_errors(self):
+            def compare_error_reasons(reason, other_reason):
+                if ' at 0x' in reason:
+                    self.assertEqual(
+                        OBJ_ID_PATTERN.sub(' at 0xff', reason),
+                        OBJ_ID_PATTERN.sub(' at 0xff', other_reason),
+                        msg=xml_file
+                    )
+                else:
+                    self.assertEqual(reason, other_reason, msg=xml_file)
+
             errors = list(self.schema.iter_errors(xml_file))
             for e in errors:
                 self.assertIsInstance(e.reason, str, msg=xml_file)
@@ -550,12 +564,12 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
             module_api_errors = list(xmlschema.iter_errors(xml_file, schema=self.schema))
             self.assertEqual(len(errors), len(module_api_errors), msg=xml_file)
             for e, api_error in zip(errors, module_api_errors):
-                self.assertEqual(e.reason, api_error.reason, msg=xml_file)
+                compare_error_reasons(e.reason, api_error.reason)
 
             lazy_errors = list(xmlschema.iter_errors(xml_file, schema=self.schema, lazy=True))
             self.assertEqual(len(errors), len(lazy_errors), msg=xml_file)
             for e, lazy_error in zip(errors, lazy_errors):
-                self.assertEqual(e.reason, lazy_error.reason, msg=xml_file)
+                compare_error_reasons(e.reason, lazy_error.reason)
 
             # TODO: Test also lazy validation with lazy=2.
             #  This needs two fixes in XPath:
