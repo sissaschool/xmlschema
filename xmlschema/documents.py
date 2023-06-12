@@ -74,10 +74,10 @@ def get_context(xml_document: Union[XMLSourceType, XMLResource],
                 return resource, cls(schema, **kwargs)
 
     if schema is None:
-        if cls.meta_schema is not None and \
-                (XSI_TYPE in resource.root.attrib or XSD_NAMESPACE in resource.namespace):
+        if XSD_NAMESPACE == resource.namespace:
+            assert cls.meta_schema is not None
             return resource, cls.meta_schema
-        elif dummy_schema:
+        elif dummy_schema or XSI_TYPE in resource.root.attrib:
             return resource, get_dummy_schema(resource.root.tag, cls)
         else:
             msg = "cannot get a schema for XML data, provide a schema argument"
@@ -602,12 +602,12 @@ class XmlDocument(XMLResource):
 
             if self.schema is None:
                 if XSI_TYPE in self._root.attrib:
-                    self.schema = cls.meta_schema
+                    self.schema = get_dummy_schema(self._root.tag, cls)
                 elif validation != 'skip':
                     msg = "cannot get a schema for XML data, provide a schema argument"
                     raise XMLSchemaValueError(msg)
                 else:
-                    self._fallback_schema = get_dummy_schema(self.root.tag, cls)
+                    self._fallback_schema = get_dummy_schema(self._root.tag, cls)
 
         if self.schema is None:
             pass

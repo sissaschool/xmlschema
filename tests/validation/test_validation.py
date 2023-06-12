@@ -328,6 +328,33 @@ class TestValidation(XsdValidatorTestCase):
         self.assertIsInstance(col_xml_data, bytes)
         self.assertTrue(self.col_schema.is_valid(col_xml_data))
 
+    def test_issue_350__ignore_xsi_type_for_schema_validation(self):
+        schema = xmlschema.XMLSchema(dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+
+                <xs:element name="root" xsi:type="non-empty-string" />
+
+                <xs:simpleType name="non-empty-string">
+                  <xs:restriction base="xs:string">
+                    <xs:minLength value="1" />
+                  </xs:restriction>
+                </xs:simpleType>
+
+            </xs:schema>"""))
+
+        self.assertTrue(schema.is_valid('<root></root>'))
+        self.assertTrue(schema.is_valid('<root>foo</root>'))
+
+        self.assertFalse(schema.is_valid(
+            '<root xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
+            'xsi:type="non-empty-string"></root>'
+        ))
+        self.assertTrue(schema.is_valid(
+            '<root xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
+            'xsi:type="non-empty-string">foo</root>'
+        ))
+
 
 class TestValidation11(TestValidation):
     schema_class = XMLSchema11

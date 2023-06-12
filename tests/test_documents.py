@@ -196,7 +196,7 @@ class TestXmlDocuments(unittest.TestCase):
 
         source, schema = get_context(xml_data)
         self.assertIsInstance(source, XMLResource)
-        self.assertIs(schema, XMLSchema10.meta_schema)
+        self.assertIsNot(schema, XMLSchema10.meta_schema)
         self.assertEqual(source.root.tag, 'text')
         self.assertTrue(schema.is_valid(source))
 

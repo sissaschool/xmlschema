@@ -804,6 +804,10 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
             try:
                 xsd_element = self.maps.lookup_element(elem.tag)
             except LookupError:
+                if self.schema.meta_schema is None:
+                    # Meta-schema groups ignore xsi:type (issue #350)
+                    return
+
                 try:
                     type_name = elem.attrib[XSI_TYPE].strip()
                 except KeyError:
@@ -824,7 +828,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                     )
 
         else:
-            if XSI_TYPE not in elem.attrib:
+            if XSI_TYPE not in elem.attrib or self.schema.meta_schema is None:
                 xsd_type = xsd_element.type
             else:
                 alternatives = xsd_element.alternatives
@@ -846,7 +850,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                                    "head element").format(xsd_element, derivation)
                         raise XMLSchemaValidationError(self, elem, reason)
 
-            if XSI_TYPE not in elem.attrib:
+            if XSI_TYPE not in elem.attrib or self.schema.meta_schema is None:
                 return
 
         # If it's a restriction the context is the base_type's group

@@ -657,7 +657,8 @@ class XsdElement(XsdComponent, ParticleMixin,
 
         # Get the instance effective type
         xsd_type = self.get_type(obj, inherited)
-        if XSI_TYPE in obj.attrib:
+        if XSI_TYPE in obj.attrib and self.schema.meta_schema is not None:
+            # Meta-schema elements ignore xsi:type (issue #350)
             type_name = obj.attrib[XSI_TYPE].strip()
             try:
                 xsd_type = self.maps.get_instance_type(type_name, xsd_type, namespaces)
@@ -974,7 +975,7 @@ class XsdElement(XsdComponent, ParticleMixin,
         attributes = ()
 
         xsd_type = self.get_type(element_data)
-        if XSI_TYPE in element_data.attributes:
+        if XSI_TYPE in element_data.attributes and self.schema.meta_schema is not None:
             type_name = element_data.attributes[XSI_TYPE].strip()
             try:
                 xsd_type = self.maps.get_instance_type(type_name, xsd_type, converter)
