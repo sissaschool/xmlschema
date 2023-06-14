@@ -50,7 +50,7 @@ from ._case_class import XsdValidatorTestCase
 from ._observers import SchemaObserver
 
 
-OBJ_ID_PATTERN = re.compile(r" at 0x[0-9a-f]+")
+OBJ_ID_PATTERN = re.compile(r" at 0x[0-9a-fA-F]+")
 
 
 def make_schema_test_class(test_file, test_args, test_num, schema_class, check_with_lxml):
