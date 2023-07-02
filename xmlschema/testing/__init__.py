@@ -40,9 +40,7 @@ def has_network_access(*locations):
     return False
 
 
-SKIP_REMOTE_TESTS = not has_network_access(
-    'https://github.com/', 'https://www.w3.org/', 'https://www.sissa.it/'
-)
+SKIP_REMOTE_TESTS = not has_network_access('https://github.com/')
 
 
 __all__ = [
