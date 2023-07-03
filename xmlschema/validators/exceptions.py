@@ -339,7 +339,7 @@ class XMLSchemaChildrenValidationError(XMLSchemaValidationError):
 
         tag = get_prefixed_qname(elem.tag, validator.namespaces, use_empty=False)
         if index >= len(elem):
-            reason = "The content of element %r is not complete." % tag
+            reason = _("The content of element %r is not complete.") % tag
         else:
             child_tag = get_prefixed_qname(elem[index].tag, validator.namespaces, use_empty=False)
             reason = _("Unexpected child with tag %r at position %d.") % (child_tag, index + 1)
