@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="utf-8"?>
+<tw1:Dokument xmlns:ns="http://crd.gov.pl/xml/schematy/dziedzinowe/mf/2020/07/06/eD/DefinicjeTypy/" xmlns:tw1="http://crd.gov.pl/wzor/2021/06/15/10693/" xmlns:com="http://crd.gov.pl/xml/schematy/dziedzinowe/mf/2021/04/14/eTW/Commons/" xmlns:str="http://crd.gov.pl/xml/schematy/struktura/2009/11/16/" xmlns="http://www.unece.org/etrades/unedocs/repository/codelists/xml/CountryCode.xsd" xmlns:adr="http://crd.gov.pl/xml/schematy/adres/2009/11/09/" xmlns:oso="http://crd.gov.pl/xml/schematy/osoba/2009/11/16/" xmlns:inst="http://crd.gov.pl/xml/schematy/instytucja/2009/11/16/" xmlns:meta="http://crd.gov.pl/xml/schematy/meta/2009/11/16/" xmlns:iso639-2="http://lcweb.loc.gov/standards/iso639-2/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://crd.gov.pl/wzor/2021/06/15/10693/ schema.xsd">
+  <tw1:OpisDokumentu>
+    <meta:Jezyk kodJezyka="pol" />
+  </tw1:OpisDokumentu>
+  <tw1:DaneDokumentu>
+    <meta:Data typDaty="stworzony">
+      <meta:Czas>2022-12-15</meta:Czas>
+    </meta:Data>
+  </tw1:DaneDokumentu>
+  <tw1:TrescDokumentu format="text/xml" kodowanie="XML">
+    <tw1:Wniosek>
+      <tw1:Naglowek>
+        <com:KodUrzedu>1435</com:KodUrzedu>
+        <com:UUID>e8cfbf72-cede-4a2e-b027-d24c783fa812</com:UUID>
+        <com:NazwaPliku>wydanie_tytułu_12152022_000000</com:NazwaPliku>
+        <tw1:KodFormularza kodSystemowy="TW-1(5)" wersjaSchemy="1-8E">TW-1</tw1:KodFormularza>
+        <tw1:WariantFormularza>5</tw1:WariantFormularza>
+        <tw1:PodstawaPrawna>art. 26 ustawy z dnia 17 czerwca 1966 r. o postępowaniu egzekucyjnym w administracji (Dz. U. z 2020 r. poz. 1427, z późn. zm.), zwanej dalej „ustawą”</tw1:PodstawaPrawna>
+      </tw1:Naglowek>
+      <tw1:TW-1>
+        <tw1:DaneReferencyjne>
+          <com:Sygnatura>01/2023</com:Sygnatura>
+          <com:DataWystawienia>2023-02-15</com:DataWystawienia>
+          <tw1:RodzajDokumentu>1</tw1:RodzajDokumentu>
+        </tw1:DaneReferencyjne>
+        <tw1:Zobowiazany>
+          <tw1:OsobaNiefizyczna wSpadku="false">
+            <com:Nazwa>Austriackie płaczki</com:Nazwa>
+            <com:AdmId>
+              <com:REGON>198765432</com:REGON>
+              <com:NIP>3557623921</com:NIP>
+            </com:AdmId>
+            <com:Adres>
+              <com:AdresPolski>
+                <com:KodKraju>PL</com:KodKraju>
+                <com:PodzialAdm>
+                  <com:Opisowy>
+                    <com:Wojewodztwo>bydgoskie</com:Wojewodztwo>
+                    <com:Powiat>bydgoski</com:Powiat>
+                    <com:Gmina>Bydg</com:Gmina>
+                  </com:Opisowy>
+                </com:PodzialAdm>
+                <com:NrDomu>150</com:NrDomu>
+                <com:KodPocztowy>87129</com:KodPocztowy>
+              </com:AdresPolski>
+            </com:Adres>
+            <com:Odpowiedzialnosc>1</com:Odpowiedzialnosc>
+          </tw1:OsobaNiefizyczna>
+        </tw1:Zobowiazany>
+        <tw1:Naleznosc>
+          <com:AktNormatywny>Treść parametru 1</com:AktNormatywny>
+          <com:RodzajNaleznosci rodzaj="8" kodPodstawyPrawnej="SW 1ŻSN220200825">Nieuiszczony podatek</com:RodzajNaleznosci>
+          <com:Obowiazek>
+            <com:InnyDokument>deklaracja</com:InnyDokument>
+          </com:Obowiazek>
+          <com:Doreczenia>
+            <com:Upomnienie>
+              <com:KosztyUpomnienia>31.11</com:KosztyUpomnienia>
+              <com:dataDoreczenia>2022-12-18</com:dataDoreczenia>
+            </com:Upomnienie>
+          </com:Doreczenia>
+          <com:Zobowiazanie>
+            <com:BrakOdsetek>
+              <com:Pozycja>
+                <com:Kwota>23.50</com:Kwota>
+                <com:Okres>
+                  <com:DniaOd>2022-01-01</com:DniaOd>
+                  <com:DniaDo>2022-12-31</com:DniaDo>
+                </com:Okres>
+                <com:PodstawaPrawnaPierwszenstwa>Treść parametru 2</com:PodstawaPrawnaPierwszenstwa>
+              </com:Pozycja>
+              <com:Pozycja>
+                <com:Kwota>23.01</com:Kwota>
+                <com:Okres>
+                  <com:DniaOd>2022-01-01</com:DniaOd>
+                  <com:DniaDo>2022-12-31</com:DniaDo>
+                </com:Okres>
+                <com:PodstawaPrawnaPierwszenstwa>Treść parametru 2</com:PodstawaPrawnaPierwszenstwa>
+              </com:Pozycja>
+            </com:BrakOdsetek>
+          </com:Zobowiazanie>
+          <com:InnaPodstawaPrawna>Treść parametru 3</com:InnaPodstawaPrawna>
+          <com:InformacjeDotNalPienieznej>
+            <com:OdpowiedzialnoscObejmujeMajatekWspolny>false</com:OdpowiedzialnoscObejmujeMajatekWspolny>
+            <com:ObowiazekScisleZwiazanyZeZobowiazanym>false</com:ObowiazekScisleZwiazanyZeZobowiazanym>
+          </com:InformacjeDotNalPienieznej>
+        </tw1:Naleznosc>
+        <tw1:Wierzyciel kodWierzyciela="PRMI082">
+          <com:Nazwa>PREZYDENT MIASTA STOŁECZNEGO WARSZAWY</com:Nazwa>
+          <com:Adres>
+            <com:KodKraju>PL</com:KodKraju>
+            <com:PodzialAdm>
+              <com:Opisowy>
+                <com:Wojewodztwo>mazowieckie</com:Wojewodztwo>
+                <com:Powiat>Warszawa</com:Powiat>
+                <com:Gmina>Warszawa</com:Gmina>
+                <com:Miejscowosc>Warszawa</com:Miejscowosc>
+                <com:NazwaUlicy>Plac Bankowy</com:NazwaUlicy>
+              </com:Opisowy>
+            </com:PodzialAdm>
+            <com:NrDomu>3</com:NrDomu>
+            <com:NrLokalu>5</com:NrLokalu>
+            <com:KodPocztowy>00950</com:KodPocztowy>
+          </com:Adres>
+          <com:AdmId>
+            <com:NIP>5252248481</com:NIP>
+            <com:REGON>015259640</com:REGON>
+          </com:AdmId>
+          <com:Beneficjent>
+            <com:Nazwa>Centrum Obsługi Podatnika</com:Nazwa>
+            <com:Adres>
+              <com:KodKraju>PL</com:KodKraju>
+              <com:PodzialAdm>
+                <com:Opisowy>
+                  <com:Wojewodztwo>mazowieckie</com:Wojewodztwo>
+                  <com:Powiat>Warszawa</com:Powiat>
+                  <com:Gmina>Warszawa</com:Gmina>
+                  <com:Miejscowosc>Warszawa</com:Miejscowosc>
+                  <com:NazwaUlicy>Obozowa</com:NazwaUlicy>
+                </com:Opisowy>
+              </com:PodzialAdm>
+              <com:NrDomu>57</com:NrDomu>
+              <com:KodPocztowy>01161</com:KodPocztowy>
+            </com:Adres>
+
+          </com:Beneficjent>
+          <com:WniosekOWszczecie>1</com:WniosekOWszczecie>
+          <com:OsobaUpowazniona>
+            <com:Imie>Mikołaj</com:Imie>
+            <com:Nazwisko>Linda</com:Nazwisko>
+            <com:Stanowisko>ogrodnik</com:Stanowisko>
+          </com:OsobaUpowazniona>
+        </tw1:Wierzyciel>
+        <tw1:Pouczenie>1</tw1:Pouczenie>
+      </tw1:TW-1>
+    </tw1:Wniosek>
+  </tw1:TrescDokumentu>
+</tw1:Dokument>
