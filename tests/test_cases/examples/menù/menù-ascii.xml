@@ -1,0 +1,14 @@
+<?xml version='1.0' encoding='US-ASCII'?>
+<men&#249; xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="men&#249;.xsd">
+	<antipasto>Affettati misti</antipasto>
+	<antipasto>Bruschetta</antipasto>
+	<antipasto>Polenta e funghi</antipasto>
+	<primo>Lasagne</primo>
+	<primo>Gnocchi al rag&#249;</primo>
+	<primo>Risotto allo zafferano</primo>
+	<secondo>Tagliata di pollo</secondo>
+	<secondo>Cotoletta alla milanese</secondo>
+	<secondo>Caprese</secondo>
+	<dolce>Crostata ai mirtilli</dolce>
+	<dolce>Tiramis&#249;</dolce>
+</men&#249;>

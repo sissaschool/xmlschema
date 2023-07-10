@@ -9,6 +9,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import unittest
+import filecmp
 import logging
 import tempfile
 import warnings
@@ -805,6 +806,35 @@ class TestXMLSchema10(XsdValidatorTestCase):
             )
 
         self.assertFalse(os.path.isdir(dirname))
+
+    def test_export_other_encoding(self):
+        schema_file = self.casepath('examples/menù/menù.xsd')
+        schema_ascii_file = self.casepath('examples/menù/menù-ascii.xsd')
+        schema_cp1252_file = self.casepath('examples/menù/menù-cp1252.xsd')
+
+        schema = self.schema_class(schema_file)
+        with tempfile.TemporaryDirectory() as dirname:
+            schema.export(target=dirname)
+            exported_schema = pathlib.Path(dirname).joinpath('menù.xsd')
+            self.assertTrue(filecmp.cmp(schema_file, exported_schema))
+            self.assertFalse(filecmp.cmp(schema_ascii_file, exported_schema))
+            self.assertFalse(filecmp.cmp(schema_cp1252_file, exported_schema))
+
+        schema = self.schema_class(schema_ascii_file)
+        with tempfile.TemporaryDirectory() as dirname:
+            schema.export(target=dirname)
+            exported_schema = pathlib.Path(dirname).joinpath('menù-ascii.xsd')
+            self.assertFalse(filecmp.cmp(schema_file, exported_schema))
+            self.assertTrue(filecmp.cmp(schema_ascii_file, exported_schema))
+            self.assertFalse(filecmp.cmp(schema_cp1252_file, exported_schema))
+
+        schema = self.schema_class(schema_cp1252_file)
+        with tempfile.TemporaryDirectory() as dirname:
+            schema.export(target=dirname)
+            exported_schema = pathlib.Path(dirname).joinpath('menù-cp1252.xsd')
+            self.assertFalse(filecmp.cmp(schema_file, exported_schema))
+            self.assertFalse(filecmp.cmp(schema_ascii_file, exported_schema))
+            self.assertTrue(filecmp.cmp(schema_cp1252_file, exported_schema))
 
     def test_pickling_subclassed_schema__issue_263(self):
         cases_dir = pathlib.Path(__file__).parent.parent

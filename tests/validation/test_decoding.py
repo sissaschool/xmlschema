@@ -95,6 +95,15 @@ COLLECTION_DICT = {
     }]
 }
 
+MENU_DICT = {
+    '@xmlns:xsi': 'http://www.w3.org/2001/XMLSchema-instance',
+    '@xsi:noNamespaceSchemaLocation': 'menù.xsd',
+    'antipasto': ['Affettati misti', 'Bruschetta', 'Polenta e funghi'],
+    'primo': ['Lasagne', 'Gnocchi al ragù', 'Risotto allo zafferano'],
+    'secondo': ['Tagliata di pollo', 'Cotoletta alla milanese', 'Caprese'],
+    'dolce': ['Crostata ai mirtilli', 'Tiramisù']
+}
+
 COLLECTION_PARKER = {
     'object': [{'author': {'born': '1841-02-25',
                            'dead': '1919-12-03',
@@ -1462,6 +1471,31 @@ class TestDecoding(XsdValidatorTestCase):
         ]}
         xml_dict = schema.decode(xml_file, element_hook=fill_missing_content, fill_missing=True)
         self.assertDictEqual(xml_dict, expected)
+
+    def test_decoding_non_unicode_files(self):
+        # Using cp1252 encoded XSD
+        schema_file = self.casepath('examples/menù/menù-cp1252.xsd')
+        schema = self.schema_class(schema_file)
+
+        xml_file = self.casepath('examples/menù/menù-cp1252.xml')
+        self.assertDictEqual(schema.decode(xml_file), MENU_DICT)
+
+        xml_file = self.casepath('examples/menù/menù-ascii.xml')
+        with self.assertRaises(ElementTree.ParseError):
+            schema.decode(xml_file)  # Invalid XML file (entity in a tag name)
+
+        xml_file = self.casepath('examples/menù/menù.xml')
+        self.assertDictEqual(schema.decode(xml_file), MENU_DICT)
+
+        # Using ASCII encoded XSD
+        schema_file = self.casepath('examples/menù/menù-ascii.xsd')
+        schema = self.schema_class(schema_file)
+
+        xml_file = self.casepath('examples/menù/menù-cp1252.xml')
+        self.assertDictEqual(schema.decode(xml_file), MENU_DICT)
+
+        xml_file = self.casepath('examples/menù/menù.xml')
+        self.assertDictEqual(schema.decode(xml_file), MENU_DICT)
 
 
 class TestDecoding11(TestDecoding):

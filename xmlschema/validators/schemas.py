@@ -26,6 +26,7 @@ from itertools import chain
 from operator import attrgetter
 from typing import cast, Callable, ItemsView, List, Optional, Dict, Any, \
     Set, Union, Tuple, Type, Iterator, Counter
+from urllib.parse import unquote
 from xml.etree.ElementTree import Element, ParseError
 
 from elementpath import XPathToken, SchemaElementNode, build_schema_node_tree
@@ -1451,7 +1452,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             raise XMLSchemaValueError(msg.format(target_path.parent))
 
         url = self.url or 'schema.xsd'
-        basename = pathlib.Path(urlsplit(url).path).name
+        basename = pathlib.Path(unquote(urlsplit(url).path)).name
         exports: Any = {self: [target_path.joinpath(basename), self.get_text()]}
         path: Any
 
@@ -1510,7 +1511,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                                 except ValueError:
                                     break
 
-                    path = target_path.joinpath(path)
+                    path = target_path.joinpath(unquote(str(path)))
                     repl = 'schemaLocation="{}"'.format(path.as_posix())
                     schema_text = exports[schema][1]
                     pattern = r'\bschemaLocation\s*=\s*[\'\"].*%s.*[\'"]' % re.escape(location)
@@ -1524,7 +1525,16 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             if not path.parent.exists():
                 path.parent.mkdir(parents=True)
 
-            with path.open(mode='w') as fp:
+            encoding = 'utf-8'  # default encoding for XML 1.0
+
+            if text.startswith('<?'):
+                # Get the encoding from XML declaration
+                xml_declaration = text.split('\n', maxsplit=1)[0]
+                re_match = re.search('(?<=encoding=["\'])[^"\']+', xml_declaration)
+                if re_match is not None:
+                    encoding = re_match.group(0).lower()
+
+            with path.open(mode='w', encoding=encoding) as fp:
                 fp.write(text)
 
     def version_check(self, elem: ElementType) -> bool:
