@@ -191,40 +191,35 @@ def is_url(obj: object) -> bool:
     if isinstance(obj, str):
         if '\n' in obj or obj.lstrip().startswith('<'):
             return False
-        try:
-            urlsplit(obj.strip())
-        except ValueError:
-            return False
     elif isinstance(obj, bytes):
         if b'\n' in obj or obj.lstrip().startswith(b'<'):
-            return False
-        try:
-            urlsplit(obj.strip())
-        except ValueError:  # pragma: no cover
             return False
     else:
         return isinstance(obj, Path)
 
-    return True
+    try:
+        urlsplit(obj)  # type: ignore[call-overload]
+    except ValueError:  # pragma: no cover
+        return False
+    else:
+        return True
 
 
 def is_remote_url(obj: object) -> bool:
     if isinstance(obj, str):
         if '\n' in obj or obj.lstrip().startswith('<'):
             return False
-        try:
-            return not is_local_scheme(urlsplit(obj.strip()).scheme)
-        except ValueError:  # pragma: no cover
-            return False
-
+        url = obj
     elif isinstance(obj, bytes):
         if b'\n' in obj or obj.lstrip().startswith(b'<'):
             return False
-        try:
-            return not is_local_scheme(urlsplit(obj.strip().decode('utf-8')).scheme)
-        except ValueError:  # pragma: no cover
-            return False
+        url = obj.decode('utf-8')
     else:
+        return False
+
+    try:
+        return not is_local_scheme(urlsplit(url).scheme)
+    except ValueError:  # pragma: no cover
         return False
 
 
@@ -232,20 +227,18 @@ def is_local_url(obj: object) -> bool:
     if isinstance(obj, str):
         if '\n' in obj or obj.lstrip().startswith('<'):
             return False
-        try:
-            return is_local_scheme(urlsplit(obj.strip()).scheme)
-        except ValueError:  # pragma: no cover
-            return False
-
+        url = obj
     elif isinstance(obj, bytes):
         if b'\n' in obj or obj.lstrip().startswith(b'<'):
             return False
-        try:
-            return is_local_scheme(urlsplit(obj.strip().decode('utf-8')).scheme)
-        except ValueError:  # pragma: no cover
-            return False
+        url = obj.decode('utf-8')
     else:
         return isinstance(obj, Path)
+
+    try:
+        return is_local_scheme(urlsplit(url).scheme)
+    except ValueError:  # pragma: no cover
+        return False
 
 
 def url_path_is_file(url: str) -> bool:
@@ -302,7 +295,7 @@ def fetch_resource(location: str, base_url: Optional[str] = None, timeout: int =
     :return: a normalized URL.
     """
     if not location:
-        raise XMLSchemaValueError("'location' argument should contain a not empty string")
+        raise XMLSchemaValueError("the 'location' argument must contain a not empty string")
 
     url = normalize_url(location, base_url)
     try:
@@ -355,7 +348,7 @@ def fetch_schema_locations(source: Union['XMLResource', XMLSourceType],
     locations = resource.get_locations(locations, root_only=False)
     if not locations:
         msg = "%r does not contain any schema location hint"
-        raise XMLSchemaValueError(msg % source)
+        raise XMLSchemaValueError(msg % resource)
 
     for ns, url in sorted(locations, key=lambda x: x[0] != namespace):
         try:
@@ -363,7 +356,7 @@ def fetch_schema_locations(source: Union['XMLResource', XMLSourceType],
         except XMLResourceError:
             pass
 
-    raise XMLSchemaValueError("not found a schema for XML data resource %r" % source)
+    raise XMLSchemaValueError("not found a schema for %r" % resource)
 
 
 def fetch_schema(source: Union['XMLResource', XMLSourceType],
@@ -438,16 +431,12 @@ class XMLResource:
                  timeout: int = 300,
                  lazy: Union[bool, int] = False) -> None:
 
-        if isinstance(base_url, str):
+        if isinstance(base_url, (str, bytes)):
             if not is_url(base_url):
                 raise XMLSchemaValueError("'base_url' argument is not an URL")
-            self._base_url = base_url
+            self._base_url = base_url if isinstance(base_url, str) else base_url.decode()
         elif isinstance(base_url, Path):
             self._base_url = str(base_url)
-        elif isinstance(base_url, bytes):
-            if not is_url(base_url):
-                raise XMLSchemaValueError("'base_url' argument is not an URL")
-            self._base_url = base_url.decode()
         elif base_url is not None:
             msg = "invalid type %r for argument 'base_url'"
             raise XMLSchemaTypeError(msg % type(base_url))
@@ -582,7 +571,7 @@ class XMLResource:
                 return
             elif '' not in nsmap:
                 if self.namespace:
-                    nsmap[prefix] = uri
+                    nsmap[''] = uri
                     return
             elif nsmap[''] == uri:
                 return
@@ -637,9 +626,9 @@ class XMLResource:
                             self._root, nsmap={k: v for k, v in _nsmap}
                         )
                         root_started = True
-                    if nsmap_update and isinstance(nsmap, dict):
+                    if nsmap_update:
                         for prefix, uri in _nsmap:
-                            self._update_nsmap(nsmap, prefix, uri)
+                            self._update_nsmap(nsmap, prefix, uri)  # type: ignore[arg-type]
                         nsmap_update = False
                     yield event, node
 
@@ -799,7 +788,7 @@ class XMLResource:
             self._lazy = lazy
 
         else:
-            # Source is already an Element or an ElementTree.
+            # source is an Element or an ElementTree
             if hasattr(source, 'tag') and hasattr(source, 'attrib'):
                 # Source is already an Element --> nothing to parse
                 self._root = cast(ElementType, source)
@@ -834,49 +823,44 @@ class XMLResource:
     @property
     def namespace(self) -> str:
         """The namespace of the XML resource."""
-        return '' if self._root is None else get_namespace(self._root.tag)
+        return get_namespace(self._root.tag)
 
     @property
     def parent_map(self) -> Dict[ElementType, Optional[ElementType]]:
         if self._lazy:
             raise XMLResourceError("cannot create the parent map of a lazy XML resource")
         if self._parent_map is None:
-            assert self._root is not None
             self._parent_map = {child: elem for elem in self._root.iter() for child in elem}
             self._parent_map[self._root] = None
         return self._parent_map
-
-    def _build_node_tree(self, namespaces: Optional[NamespacesType] = None) \
-            -> Union[DocumentNode, ElementNode]:
-        """Build a node tree for non-lazy resources."""
-        if hasattr(self._root, 'xpath'):
-            return build_lxml_node_tree(cast(LxmlElementProtocol, self._root))
-        else:
-            try:
-                _nsmap = self._nsmap[self._root]
-            except KeyError:
-                # A resource based on an ElementTree structure (no namespace maps)
-                return build_node_tree(self._root, namespaces)
-            else:
-                _namespaces: Any = {pfx: uri for pfx, uri in _nsmap}
-                node_tree = build_node_tree(self._root, _namespaces)
-
-                # Update namespace maps
-                for node in node_tree.iter_descendants(with_self=False):
-                    if isinstance(node, ElementNode):
-                        elem_nsmap = self._nsmap[cast(ElementType, node.elem)]
-                        if _nsmap is not elem_nsmap:
-                            _nsmap = elem_nsmap
-                            _namespaces = {pfx: uri for pfx, uri in _nsmap}
-                        node.nsmap = _namespaces
-
-                return node_tree
 
     @property
     def xpath_root(self) -> Union[ElementNode, DocumentNode]:
         """The XPath root node."""
         if self._xpath_root is None:
-            self._xpath_root = self._build_node_tree()
+            if hasattr(self._root, 'xpath'):
+                self._xpath_root = build_lxml_node_tree(cast(LxmlElementProtocol, self._root))
+            else:
+                try:
+                    _nsmap = self._nsmap[self._root]
+                except KeyError:
+                    # A resource based on an ElementTree structure (no namespace maps)
+                    self._xpath_root = build_node_tree(self._root)
+                else:
+                    _namespaces: Any = {pfx: uri for pfx, uri in _nsmap}
+                    node_tree = build_node_tree(self._root, _namespaces)
+
+                    # Update namespace maps
+                    for node in node_tree.iter_descendants(with_self=False):
+                        if isinstance(node, ElementNode):
+                            elem_nsmap = self._nsmap[cast(ElementType, node.elem)]
+                            if _nsmap is not elem_nsmap:
+                                _nsmap = elem_nsmap
+                                _namespaces = {pfx: uri for pfx, uri in _nsmap}
+                            node.nsmap = _namespaces
+
+                    self._xpath_root = node_tree
+
         return self._xpath_root
 
     def get_xpath_node(self, elem: ElementType) -> ElementNode:
@@ -1341,7 +1325,7 @@ class XMLResource:
         if namespaces is None:
             namespaces = {}
         elif namespaces.get('xml', XML_NAMESPACE) != XML_NAMESPACE:
-            msg = "reserved prefix (xml) must not be bound to another namespace name"
+            msg = "reserved prefix 'xml' can't be used for another namespace name"
             raise XMLSchemaValueError(msg)
         else:
             namespaces = copy.copy(namespaces)
