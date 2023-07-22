@@ -32,7 +32,7 @@ from ._observers import SchemaObserver, ObservedXMLSchema10, ObservedXMLSchema11
 def has_network_access(*locations):
     for url in locations:
         try:
-            urlopen(url, timeout=5)
+            urlopen(url, timeout=10)
         except (URLError, OSError):
             pass
         else:

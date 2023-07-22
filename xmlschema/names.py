@@ -40,11 +40,21 @@ VC_NAMESPACE = 'http://www.w3.org/2007/XMLSchema-versioning'
 "URI of the XML Schema Versioning namespace (vc)"
 
 ###
-# Namespace URIs for XML documents
+# Namespaces for WSDL documents
 WSDL_NAMESPACE = 'http://schemas.xmlsoap.org/wsdl/'
 SOAP_NAMESPACE = 'http://schemas.xmlsoap.org/wsdl/soap/'
 SOAP_ENVELOPE_NAMESPACE = 'http://schemas.xmlsoap.org/soap/envelope/'
 SOAP_ENCODING_NAMESPACE = 'http://schemas.xmlsoap.org/soap/encoding/'
+
+###
+# Namespaces for XML Signature Syntax and Processing
+DSIG_NAMESPACE = 'http://www.w3.org/2000/09/xmldsig#'
+DSIG11_NAMESPACE = 'http://www.w3.org/2009/xmldsig11#'
+
+###
+# Namespaces for XML Encryption Syntax and Processing
+XENC_NAMESPACE = 'http://www.w3.org/2001/04/xmlenc#'
+XENC11_NAMESPACE = 'http://www.w3.org/2009/xmlenc11#'
 
 
 ###
@@ -54,7 +64,7 @@ SCHEMAS_DIR = os.path.join(os.path.dirname(__file__), 'schemas/')
 
 LOCATION_HINTS = {
     # Locally saved schemas
-    # HFP_NAMESPACE: os.path.join(SCHEMAS_DIR, 'HFP/XMLSchema-hasFacetAndProperty_minimal.xsd'),
+    HFP_NAMESPACE: os.path.join(SCHEMAS_DIR, 'HFP/XMLSchema-hasFacetAndProperty_minimal.xsd'),
     VC_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XSI/XMLSchema-versioning.xsd'),
     XLINK_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XLINK/xlink.xsd'),
     XHTML_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XHTML/xhtml1-strict.xsd'),
@@ -62,10 +72,14 @@ LOCATION_HINTS = {
     SOAP_NAMESPACE: os.path.join(SCHEMAS_DIR, 'WSDL/wsdl-soap.xsd'),
     SOAP_ENVELOPE_NAMESPACE: os.path.join(SCHEMAS_DIR, 'WSDL/soap-envelope.xsd'),
     SOAP_ENCODING_NAMESPACE: os.path.join(SCHEMAS_DIR, 'WSDL/soap-encoding.xsd'),
+    DSIG_NAMESPACE: os.path.join(SCHEMAS_DIR, 'DSIG/xmldsig-core-schema.xsd'),
+    DSIG11_NAMESPACE: os.path.join(SCHEMAS_DIR, 'DSIG/xmldsig11-schema.xsd'),
+    XENC_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XENC/xenc-schema.xsd'),
+    XENC11_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XENC/xenc-schema-11.xsd'),
 
     # Remote locations: contributors can propose additional official locations
     # for other namespaces for extending this list.
-    XSLT_NAMESPACE: os.path.join(SCHEMAS_DIR, 'http://www.w3.org/2007/schema-for-xslt20.xsd'),
+    XSLT_NAMESPACE: 'http://www.w3.org/2007/schema-for-xslt20.xsd',
 }
 
 
