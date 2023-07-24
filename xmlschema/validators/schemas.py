@@ -46,7 +46,7 @@ from ..aliases import ElementType, XMLSourceType, NamespacesType, LocationsType,
     EncodeType, BaseXsdType, ExtraValidatorType, SchemaGlobalType, \
     FillerType, DepthFillerType, ValueHookType, ElementHookType
 from ..translation import gettext as _
-from ..helpers import prune_etree, get_namespace, get_qname
+from ..helpers import prune_etree, get_namespace, get_qname, is_defuse_error
 from ..namespaces import NamespaceResourcesMap, NamespaceView
 from ..resources import is_local_url, is_remote_url, url_path_is_file, \
     normalize_locations, fetch_resource, normalize_url, XMLResource
@@ -1313,7 +1313,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             self._import_namespace(namespace, locations)
 
     def _import_namespace(self, namespace: str, locations: List[str]) -> None:
-        import_error = None
+        import_error: Optional[Exception] = None
         for url in locations:
             try:
                 logger.debug("Import namespace %r from %r", namespace, url)
@@ -1325,14 +1325,20 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 if import_error is None:
                     import_error = err
             except (XMLSchemaParseError, XMLSchemaTypeError, ParseError) as err:
-                if namespace:
-                    msg = _("cannot import namespace {0!r}: {1}").format(namespace, err)
+                if is_defuse_error(err):
+                    # Consider defuse of XML data as a location access fail
+                    logger.debug('%s', err)
+                    if import_error is None:
+                        import_error = err
                 else:
-                    msg = _("cannot import chameleon schema: %s") % err
-                if isinstance(err, (XMLSchemaParseError, ParseError)):
-                    self.parse_error(msg)
-                else:
-                    raise type(err)(msg)
+                    if namespace:
+                        msg = _("cannot import namespace {0!r}: {1}").format(namespace, err)
+                    else:
+                        msg = _("cannot import chameleon schema: %s") % err
+                    if isinstance(err, (XMLSchemaParseError, ParseError)):
+                        self.parse_error(msg)
+                    else:
+                        raise type(err)(msg)
 
             except XMLSchemaValueError as err:
                 self.parse_error(err)
