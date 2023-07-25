@@ -923,15 +923,17 @@ class XsdList(XsdSimpleType):
         if self.base_type.parent is not None:
             yield from self.base_type.iter_components(xsd_classes)
 
-    def iter_decode(self, obj: Union[str, bytes],  # type: ignore[override]
+    def iter_decode(self, obj: Union[str, bytes],
                     validation: str = 'lax', **kwargs: Any) \
-            -> IterDecodeType[List[DecodedValueType]]:
+            -> IterDecodeType[Union[XMLSchemaValidationError,
+                              List[Optional[AtomicValueType]]]]:
         items = []
         for chunk in self.normalize(obj).split():
             for result in self.base_type.iter_decode(chunk, validation, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
                     yield result
                 else:
+                    assert not isinstance(result, list)
                     items.append(result)
         else:
             yield items
@@ -1084,18 +1086,17 @@ class XsdUnion(XsdSimpleType):
         for mt in filter(lambda x: x.parent is not None, self.member_types):
             yield from mt.iter_components(xsd_classes)
 
-    def iter_decode(self, obj: Any, validation: str = 'lax',
+    def iter_decode(self, obj: AtomicValueType, validation: str = 'lax',
                     patterns: Optional[XsdPatternFacets] = None,
                     **kwargs: Any) -> IterDecodeType[DecodedValueType]:
 
-        # Try decoding the whole text
+        # Try decoding the whole text (or validate the decoded atomic value)
         for member_type in self.member_types:
             for result in member_type.iter_decode(obj, validation='lax', **kwargs):
                 if not isinstance(result, XMLSchemaValidationError):
-                    if patterns:
-                        obj = member_type.normalize(obj)
+                    if patterns and isinstance(obj, (str, bytes)):
                         try:
-                            patterns(obj)
+                            patterns(member_type.normalize(obj))
                         except XMLSchemaValidationError as err:
                             yield err
 
@@ -1103,9 +1104,13 @@ class XsdUnion(XsdSimpleType):
                     return
                 break
 
-        if ' ' not in obj.strip():
+        if isinstance(obj, bytes):
+            obj = obj.decode('utf-8')
+
+        if not isinstance(obj, str) or ' ' not in obj.strip():
             reason = _("invalid value {!r}").format(obj)
             yield XMLSchemaDecodeError(self, obj, self.member_types, reason)
+            return
 
         items = []
         not_decodable = []
@@ -1364,10 +1369,19 @@ class XsdAtomicRestriction(XsdAtomic):
         if self.base_type.parent is not None:
             yield from self.base_type.iter_components(xsd_classes)
 
-    def iter_decode(self, obj: Union[str, bytes], validation: str = 'lax', **kwargs: Any) \
+    def iter_decode(self, obj: AtomicValueType, validation: str = 'lax', **kwargs: Any) \
             -> IterDecodeType[DecodedValueType]:
         if isinstance(obj, (str, bytes)):
             obj = self.normalize(obj)
+
+            if self.patterns:
+                if not isinstance(self.primitive_type, XsdUnion):
+                    try:
+                        self.patterns(obj)
+                    except XMLSchemaValidationError as err:
+                        yield err
+                elif 'patterns' not in kwargs:
+                    kwargs['patterns'] = self.patterns
 
         base_type: Any
         if isinstance(self.base_type, XsdSimpleType):
@@ -1377,19 +1391,10 @@ class XsdAtomicRestriction(XsdAtomic):
         elif self.base_type.mixed:
             yield obj
             return
-        else:
+        else:  # pragma: no cover
             msg = _("wrong base type %r: a simpleType or a complexType "
                     "with simple or mixed content required")
             raise XMLSchemaValueError(msg % self.base_type)
-
-        if self.patterns:
-            if not isinstance(self.primitive_type, XsdUnion):
-                try:
-                    self.patterns(obj)
-                except XMLSchemaValidationError as err:
-                    yield err
-            elif 'patterns' not in kwargs:
-                kwargs['patterns'] = self.patterns
 
         for result in base_type.iter_decode(obj, validation, **kwargs):
             if isinstance(result, XMLSchemaValidationError):
@@ -1424,7 +1429,7 @@ class XsdAtomicRestriction(XsdAtomic):
             elif self.base_type.mixed:
                 yield str(obj)
                 return
-            else:
+            else:  # pragma: no cover
                 msg = _("wrong base type %r: a simpleType or a complexType "
                         "with simple or mixed content required")
                 raise XMLSchemaValueError(msg % self.base_type)

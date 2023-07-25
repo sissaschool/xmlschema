@@ -355,6 +355,41 @@ class TestValidation(XsdValidatorTestCase):
             'xsi:type="non-empty-string">foo</root>'
         ))
 
+    def test_issue_356__validate_empty_simple_elements(self):
+        schema = xmlschema.XMLSchema(dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+                <xs:element name="root1" type="emptyString" />
+                <xs:element name="root2" type="emptyList" />
+                <xs:element name="root3" type="emptiableUnion" />
+
+                <xs:simpleType name="emptyString">
+                    <xs:restriction base='xs:string'>
+                      <xs:length value="0"/>
+                    </xs:restriction>
+                </xs:simpleType>
+
+                <xs:simpleType name="emptyList">
+                    <xs:list itemType="emptyString"/>
+                </xs:simpleType>
+                
+                <xs:simpleType name="emptiableUnion">
+                    <xs:union memberTypes="xs:int emptyString"/>
+                </xs:simpleType>
+
+            </xs:schema>"""))
+
+        self.assertTrue(schema.is_valid('<root1></root1>'))
+        self.assertFalse(schema.is_valid('<root1>foo</root1>'))
+
+        self.assertTrue(schema.is_valid('<root2></root2>'))
+        self.assertFalse(schema.is_valid('<root2>foo</root2>'))
+        self.assertFalse(schema.is_valid('<root2>foo bar</root2>'))
+
+        self.assertTrue(schema.is_valid('<root3>1</root3>'))
+        self.assertTrue(schema.is_valid('<root3></root3>'))
+        self.assertFalse(schema.is_valid('<root3>foo</root3>'))
+
 
 class TestValidation11(TestValidation):
     schema_class = XMLSchema11

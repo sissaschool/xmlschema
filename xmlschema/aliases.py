@@ -78,8 +78,9 @@ if TYPE_CHECKING:
 
     ##
     # Type aliases for datatypes
-    AtomicValueType = Union[str, int, float, Decimal, bool, Integer, Float10, NormalizedString,
-                            AnyURI, HexBinary, Base64Binary, QName, Duration, OrderedDateTime, Time]
+    AtomicValueType = Union[str, bytes, int, float, Decimal, bool, Integer,
+                            Float10, NormalizedString, AnyURI, HexBinary,
+                            Base64Binary, QName, Duration, OrderedDateTime, Time]
     NumericValueType = Union[str, bytes, int, float, Decimal]
     DateTimeType = Union[OrderedDateTime, Time]
 
@@ -100,8 +101,9 @@ if TYPE_CHECKING:
     JsonDecodeType = Union[str, None, Tuple[XMLSchemaValidationError, ...],
                            Tuple[Union[str, None], Tuple[XMLSchemaValidationError, ...]]]
 
-    DecodedValueType = Union[None, AtomicValueType, List[AtomicValueType]]
-    EncodedValueType = Union[None, str, List[str]]
+    DecodedValueType = Union[None, AtomicValueType, List[Optional[AtomicValueType]],
+                             XMLSchemaValidationError]
+    EncodedValueType = Union[None, str, List[str], XMLSchemaValidationError]
 
     FillerType = Callable[[Union[XsdElement, XsdAttribute]], Any]
     DepthFillerType = Callable[[XsdElement], Any]
