@@ -807,6 +807,7 @@ class TestXMLSchema10(XsdValidatorTestCase):
 
         self.assertFalse(os.path.isdir(dirname))
 
+    @unittest.skipIf(platform.system() == 'Windows', 'skip, Windows systems save with <CR><LF>')
     def test_export_other_encoding(self):
         schema_file = self.casepath('examples/menù/menù.xsd')
         schema_ascii_file = self.casepath('examples/menù/menù-ascii.xsd')

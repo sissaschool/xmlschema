@@ -41,7 +41,7 @@ from xmlschema.testing import SKIP_REMOTE_TESTS
 
 TEST_CASES_DIR = str(pathlib.Path(__file__).absolute().parent.joinpath('test_cases'))
 
-DRIVE_REGEX = '/[a-zA-Z]:' if platform.system() == 'Windows' else ''
+DRIVE_REGEX = '(/[a-zA-Z]:|/)' if platform.system() == 'Windows' else ''
 
 XML_WITH_NAMESPACES = '<pfa:root xmlns:pfa="http://xmlschema.test/nsa">\n' \
                       '  <pfb:elem xmlns:pfb="http://xmlschema.test/nsb"/>\n' \
