@@ -887,14 +887,20 @@ class TestXMLSchema10(XsdValidatorTestCase):
     @unittest.skipIf(SKIP_REMOTE_TESTS, "Remote networks are not accessible.")
     def test_import_dsig_namespace__issue_357(self):
         location = 'https://www.w3.org/TR/2008/REC-xmldsig-core-20080610/xmldsig-core-schema.xsd'
+        dsig_namespace = 'http://www.w3.org/2000/09/xmldsig#'
 
         schema = self.schema_class(dedent(f"""<?xml version="1.0" encoding="UTF-8"?>
             <!-- Test import of defused data from remote with a fallback.-->
             <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
-	            <xs:import namespace="http://www.w3.org/2000/09/xmldsig#"
-			        schemaLocation="{location}"/>
-	            <xs:element name="root"/>
+                <xs:import namespace="{dsig_namespace}"
+                    schemaLocation="{location}"/>
+                <xs:element name="root"/>
             </xs:schema>"""))
+
+        self.assertIn(dsig_namespace, schema.maps.namespaces)
+        url = schema.maps.namespaces[dsig_namespace][0].url
+        self.assertIsInstance(url, str)
+        self.assertTrue(url.endswith('schemas/DSIG/xmldsig-core-schema.xsd'))
 
 
 class TestXMLSchema11(TestXMLSchema10):

@@ -198,7 +198,7 @@ def is_url(obj: object) -> bool:
         return isinstance(obj, Path)
 
     try:
-        urlsplit(obj)  # type: ignore[call-overload]
+        urlsplit(obj.strip())  # type: ignore
     except ValueError:  # pragma: no cover
         return False
     else:
@@ -209,11 +209,11 @@ def is_remote_url(obj: object) -> bool:
     if isinstance(obj, str):
         if '\n' in obj or obj.lstrip().startswith('<'):
             return False
-        url = obj
+        url = obj.strip()
     elif isinstance(obj, bytes):
         if b'\n' in obj or obj.lstrip().startswith(b'<'):
             return False
-        url = obj.decode('utf-8')
+        url = obj.strip().decode('utf-8')
     else:
         return False
 
@@ -227,11 +227,11 @@ def is_local_url(obj: object) -> bool:
     if isinstance(obj, str):
         if '\n' in obj or obj.lstrip().startswith('<'):
             return False
-        url = obj
+        url = obj.strip()
     elif isinstance(obj, bytes):
         if b'\n' in obj or obj.lstrip().startswith(b'<'):
             return False
-        url = obj.decode('utf-8')
+        url = obj.strip().decode('utf-8')
     else:
         return isinstance(obj, Path)
 

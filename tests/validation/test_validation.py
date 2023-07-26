@@ -372,7 +372,7 @@ class TestValidation(XsdValidatorTestCase):
                 <xs:simpleType name="emptyList">
                     <xs:list itemType="emptyString"/>
                 </xs:simpleType>
-                
+
                 <xs:simpleType name="emptiableUnion">
                     <xs:union memberTypes="xs:int emptyString"/>
                 </xs:simpleType>
