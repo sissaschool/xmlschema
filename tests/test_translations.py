@@ -93,7 +93,6 @@ class TestTranslations(unittest.TestCase):
         self.assertIsNone(translation._translation)
         try:
             translation.activate(languages=['pl'])
-            print(translation._translation)
             self.assertIsInstance(translation._translation, gettext.GNUTranslations)
             result = translation.gettext("The content of element %r is not complete.")
             self.assertEqual(result, "Zawartość elementu %r nie jest kompletna.")
@@ -109,12 +108,14 @@ class TestTranslations(unittest.TestCase):
             translation._translation = None
 
     def test_pl_validation_translation(self):
-        xml_path = "tests//test_cases//translations//polish_translation//tytul_wykonawczy_niekompletny.xml"
-        xsd_path = "tests//test_cases//translations//polish_translation//tw-1(5)8e.xsd"
+        xml_path = "tests//test_cases//translations//pl//tytul_wykonawczy_niekompletny.xml"
+        xsd_path = "tests//test_cases//translations//pl//tw-1(5)8e.xsd"
         expected_errors = [
-            "Zawartość elementu 'com:Opisowy' nie jest kompletna. Oczekiwany znacznik 'com:Miejscowosc'.",
+            "Zawartość elementu 'com:Opisowy' nie jest kompletna. "
+            "Oczekiwany znacznik 'com:Miejscowosc'.",
             "atrybut rodzaj='8': wartość musi być jedną z [1, 2]",
-            "Zawartość elementu 'com:Beneficjent' nie jest kompletna. Oczekiwany znacznik 'com:NrRachunkuPL'.",
+            "Zawartość elementu 'com:Beneficjent' nie jest kompletna. "
+            "Oczekiwany znacznik 'com:NrRachunkuPL'.",
         ]
         try:
             translation.activate(languages=['pl'])
