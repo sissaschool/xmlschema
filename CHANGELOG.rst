@@ -2,6 +2,11 @@
 CHANGELOG
 *********
 
+`v2.4.0`_ (2023-07-27)
+======================
+* Improve schema export using XSD source encoding
+* Add XML signature and encryption to local fallback schemas (issue #357)
+
 `v2.3.1`_ (2023-06-14)
 ======================
 * Meta-schema elements and groups ignore xsi:type attributes (issue #350)
@@ -628,3 +633,4 @@ v0.9.6 (2017-05-05)
 .. _v2.2.3: https://github.com/brunato/xmlschema/compare/v2.2.2...v2.2.3
 .. _v2.3.0: https://github.com/brunato/xmlschema/compare/v2.2.3...v2.3.0
 .. _v2.3.1: https://github.com/brunato/xmlschema/compare/v2.3.0...v2.3.1
+.. _v2.4.0: https://github.com/brunato/xmlschema/compare/v2.3.1...v2.4.0
