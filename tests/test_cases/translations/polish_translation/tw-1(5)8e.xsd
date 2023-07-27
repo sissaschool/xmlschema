@@ -1,0 +1,369 @@
+<?xml version="1.0" encoding="UTF-8"?>
+  <xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema" 
+    xmlns:etd="http://crd.gov.pl/xml/schematy/dziedzinowe/mf/2020/07/06/eD/DefinicjeTypy/" 
+    xmlns:str="http://crd.gov.pl/xml/schematy/struktura/2009/11/16/" 
+    xmlns:com="http://crd.gov.pl/xml/schematy/dziedzinowe/mf/2021/04/14/eTW/Commons/" 
+    xmlns:tw1="http://crd.gov.pl/wzor/2021/06/15/10693/" 
+    targetNamespace="http://crd.gov.pl/wzor/2021/06/15/10693/" 
+    elementFormDefault="qualified" 
+    attributeFormDefault="unqualified" 
+    version="1.8">
+  
+  <xsd:import namespace="http://crd.gov.pl/xml/schematy/dziedzinowe/mf/2020/07/06/eD/DefinicjeTypy/" 
+    schemaLocation="http://crd.gov.pl/xml/schematy/dziedzinowe/mf/2020/07/06/eD/DefinicjeTypy/StrukturyDanych_v7-0E.xsd"/>
+  <xsd:import namespace="http://crd.gov.pl/xml/schematy/struktura/2009/11/16/" 
+    schemaLocation="http://crd.gov.pl/xml/schematy/struktura/2009/11/16/struktura.xsd"/>
+  <xsd:import namespace="http://crd.gov.pl/xml/schematy/dziedzinowe/mf/2021/04/14/eTW/Commons/" 
+    schemaLocation="http://crd.gov.pl/xml/schematy/dziedzinowe/mf/2021/04/14/eTW/Commons/schemat_commons.xsd"/>
+  
+  <xsd:element name="Dokument" type="tw1:TDokument"/>
+  <xsd:complexType name="TDokument">
+    <xsd:sequence>
+      <xsd:element name="OpisDokumentu" type="str:OpisDokumentuTyp"/>
+      <xsd:element name="DaneDokumentu" type="str:DaneDokumentuTyp"/>
+      <xsd:element name="TrescDokumentu" type="tw1:TTrescDokumentu"/>
+    </xsd:sequence>
+  </xsd:complexType>
+  <xsd:complexType name="TTrescDokumentu">
+    <xsd:complexContent>
+      <xsd:extension base="str:TrescDokumentuTyp">
+        <xsd:sequence>
+          <xsd:element name="Wniosek" type="tw1:TWniosek"/>
+          <xsd:element name="DodatkowaInformacja" type="com:TZalaczniki" minOccurs="0"/>
+        </xsd:sequence>
+      </xsd:extension>
+    </xsd:complexContent>
+  </xsd:complexType>
+  <xsd:complexType name="TWniosek">
+    <xsd:annotation>
+      <xsd:documentation>Wniosek wierzyciela o dochodzenie należności pieniężnych</xsd:documentation>
+    </xsd:annotation>
+    <xsd:sequence>
+      <xsd:element name="Naglowek" type="tw1:TNaglowekTW1">
+        <xsd:annotation>
+          <xsd:documentation>Nagłówek wniosku</xsd:documentation>
+        </xsd:annotation>
+      </xsd:element>
+      <xsd:element name="TW-1" type="tw1:TTW1">
+        <xsd:annotation>
+          <xsd:documentation>Tytuł wykonawczy stosowany w egzekucji należności pieniężnych</xsd:documentation>
+        </xsd:annotation>
+      </xsd:element>
+    </xsd:sequence>
+  </xsd:complexType>
+  <xsd:complexType name="TNaglowekTW1">
+    <xsd:complexContent>
+      <xsd:extension base="com:TNaglowek">
+        <xsd:sequence>
+          <xsd:element name="KodFormularza">
+            <xsd:complexType>
+              <xsd:simpleContent>
+                <xsd:extension base="tw1:TKodFormularzaTW1">
+                  <xsd:attribute name="kodSystemowy" type="xsd:string" use="required" fixed="TW-1(5)"/>
+                  <xsd:attribute name="wersjaSchemy" type="xsd:string" use="required" fixed="1-8E"/>
+                </xsd:extension>
+              </xsd:simpleContent>
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="WariantFormularza">
+            <xsd:simpleType>
+              <xsd:restriction base="xsd:byte">
+                <xsd:enumeration value="5"/>
+              </xsd:restriction>
+            </xsd:simpleType>
+          </xsd:element>
+          <xsd:element name="PodstawaPrawna" type="etd:TTekstowy" fixed="art. 26 ustawy z dnia 17 czerwca 1966 r. o postępowaniu egzekucyjnym w administracji (Dz. U. z 2020 r. poz. 1427, z późn. zm.), zwanej dalej „ustawą”"/>
+        </xsd:sequence>
+      </xsd:extension>
+    </xsd:complexContent>
+  </xsd:complexType>
+  <xsd:complexType name="TTW1">
+    <xsd:annotation>
+      <xsd:documentation>Tytuł wykonawczy stosowany w egzekucji należności pieniężnych</xsd:documentation>
+    </xsd:annotation>
+    <xsd:sequence>
+      <xsd:element name="DaneReferencyjne" type="tw1:TDaneReferencyjneTW1">
+        <xsd:annotation>
+          <xsd:documentation>Dane referencyjne tytułu wykonawczego</xsd:documentation>
+        </xsd:annotation>
+      </xsd:element>
+      <xsd:element name="Zobowiazany">
+        <xsd:annotation>
+          <xsd:documentation>Dane identyfikacyjne zobowiązanego</xsd:documentation>
+        </xsd:annotation>
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:choice>
+              <xsd:element name="OsobaFizyczna">
+                <xsd:annotation>
+                  <xsd:documentation>Osoba fizyczna</xsd:documentation>
+                </xsd:annotation>
+                <xsd:complexType>
+                  <xsd:complexContent>
+                    <xsd:extension base="com:TOsobaFizycznaTW">
+                      <xsd:sequence>
+                        <xsd:element name="ZobowiazanyPierwotny" type="com:TZobowiazanyPierwotny" minOccurs="0" maxOccurs="99">
+                          <xsd:annotation>
+                            <xsd:documentation>Występuje jedynie w przypadku gdy wskazano "następca prawny" lub "osoba trzecia" jako rodzaj odpowiedzialności zobowiązanego</xsd:documentation>
+                          </xsd:annotation>
+                        </xsd:element>
+                      </xsd:sequence>
+                    </xsd:extension>
+                  </xsd:complexContent>
+                </xsd:complexType>
+              </xsd:element>
+              <xsd:element name="OsobaNiefizyczna">
+                <xsd:annotation>
+                  <xsd:documentation>Podmiot niebędący osobą fizyczną</xsd:documentation>
+                </xsd:annotation>
+                <xsd:complexType>
+                  <xsd:complexContent>
+                    <xsd:extension base="com:TOsobaNiefizycznaTW">
+                      <xsd:sequence>
+                        <xsd:element name="ZobowiazanyPierwotny" type="com:TZobowiazanyPierwotny" minOccurs="0" maxOccurs="99">
+                          <xsd:annotation>
+                            <xsd:documentation>Występuje jedynie w przypadku gdy wskazano "następca prawny" lub "osoba trzecia" jako rodzaj odpowiedzialności zobowiązanego</xsd:documentation>
+                          </xsd:annotation>
+                        </xsd:element>
+                      </xsd:sequence>
+                    </xsd:extension>
+                  </xsd:complexContent>
+                </xsd:complexType>
+              </xsd:element>
+              <xsd:element name="Solidarni">
+                <xsd:complexType>
+                  <xsd:complexContent>
+                    <xsd:extension base="com:TSolidarni">
+                      <xsd:sequence>
+                        <xsd:element name="ZobowiazanyPierwotny" type="com:TZobowiazanyPierwotny" minOccurs="0" maxOccurs="99"/>
+                      </xsd:sequence>
+                    </xsd:extension>
+                  </xsd:complexContent>
+                </xsd:complexType>
+              </xsd:element>
+            </xsd:choice>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+      <xsd:element name="Naleznosc" type="com:TNaleznosc">
+        <xsd:annotation>
+          <xsd:documentation>Dane dotyczące należności pieniężnych</xsd:documentation>
+        </xsd:annotation>
+      </xsd:element>
+      <xsd:element name="Wierzyciel" type="com:TWierzyciel">
+        <xsd:annotation>
+          <xsd:documentation>Dane identyfikacyjne wierzyciela</xsd:documentation>
+        </xsd:annotation>
+      </xsd:element>
+      <xsd:element name="Pouczenie" fixed="1">
+        <xsd:annotation>
+          <xsd:documentation>Wprowadzenie wartości "1" oznacza potwierdzenie treści pouczenia</xsd:documentation>
+        </xsd:annotation>
+        <xsd:simpleType>
+          <xsd:restriction base="xsd:byte">
+            <xsd:enumeration value="1">
+              <xsd:annotation>
+                <xsd:documentation>Środkami egzekucyjnymi stosowanymi w egzekucji należności pieniężnych są egzekucje: z pieniędzy, z wynagrodzenia za pracę, ze świadczeń z zaopatrzenia emerytalnego oraz ubezpieczenia społecznego, a także z renty socjalnej, z rachunków bankowych, z innych wierzytelności pieniężnych, z praw z instrumentów finansowych w rozumieniu przepisów o obrocie instrumentami finansowymi, zapisanych na rachunku papierów wartościowych lub innym rachunku oraz z wierzytelności z rachunku pieniężnego służącego do obsługi takich rachunków, z papierów wartościowych niezapisanych na rachunku papierów wartościowych, z weksla, z autorskich praw majątkowych i praw pokrewnych oraz z praw własności przemysłowej, z udziału w spółce z ograniczoną odpowiedzialnością, z pozostałych praw majątkowych, z ruchomości oraz z nieruchomości , a od dnia 1 marca 2021 r. również z praw majątkowych zarejestrowanych w rejestrze akcjonariuszy (art. 1a pkt 12 lit. a ustawy). 
+
+Zobowiązanemu przysługuje prawo wniesienia do wierzyciela, za pośrednictwem organu egzekucyjnego, zarzutu w sprawie egzekucji administracyjnej. 
+Zarzut w sprawie egzekucji administracyjnej winien określać istotę i zakres żądania oraz dowody uzasadniające to żądanie (art . 33 § 1, 2 i 4 ustawy). 
+Zgodnie z art. 33 § 2 ustawy podstawą zarzutu w sprawie egzekucji administracyjnej jest: 
+1) nieistnienie obowiązku; 
+2) określenie obowiązku niezgodnie z treścią obowiązku wynikającego z: 
+a) orzeczenia, o którym mowa w części D poz. 3–5 tytułu wykonawczego, 
+b) dokumentu, o którym mowa w części D poz. 3 i 4 tytułu wykonawczego, 
+c) przepisu prawa, jeżeli obowiązek wynika bezpośrednio z tego przepisu; 
+3) błąd co do zobowiązanego; 
+4) brak uprzedniego doręczenia zobowiązanemu upomnienia, jeżeli jest wymagane; 
+5) wygaśnięcie obowiązku w całości albo w części; 
+6) brak wymagalności obowiązku w przypadku: 
+a) odroczenia terminu wykonania obowiązku, 
+b) rozłożenia na raty spłaty należności pieniężnej, 
+c) wystąpienia innej przyczyny niż określona w lit. a i b. 
+Wniesienie przez zobowiązanego zarzutu w sprawie egzekucji administracyjnej, nie później niż w terminie 7 dni od dnia doręczenia odpisu/ wydruku tytułu wykonawczego, zawiesza postępowanie egzekucyjne w całości albo w części z dniem doręczenia tego zarzutu organowi egzekucyjnemu do czasu zawiadomienia tego organu o wydaniu ostatecznego postanowienia w sprawie tego zarzutu (art. 35 § 1 ustawy). Wniesienie zarzutu w sprawie egzekucji administracyjnej po terminie 7 dni od dnia doręczenia odpisu/ wydruku tytułu wykonawczego nie zawiesza postępowania egzekucyjnego. Wierzyciel po otrzymaniu zarzutu w sprawie egzekucji administracyjnej może w uzasadnionych przypadkach wystąpić z wnioskiem o podjęcie zawieszonego postępowania egzekucyjnego w całości albo w części (art. 35 § 1a ustawy). 
+W przypadku zmienionego tytułu wykonawczego nie przysługuje prawo zgłoszenia zarzutu w sprawie egzekucji administracyjnej. 
+Zarzut w sprawie egzekucji administracyjnej wnosi się nie później niż: 
+1) w terminie 30 dni od dnia wyegzekwowania w całości obowiązku, kosztów upomnienia i kosztów egzekucyjnych; 
+2) do dnia zapłaty w całości należności pieniężnej, odsetek z tytułu niezapłacenia jej w terminie, kosztów upomnienia i kosztów egzekucyjnych; 
+3) w terminie 7 dni od dnia doręczenia zobowiązanemu postanowienia o umorzeniu postępowania egzekucyjnego w całości albo w części. 
+
+Zobowiązany ma obowiązek niezwłocznie zawiadomić organ egzekucyjny o zmianie adresu miejsca zamieszkania lub siedziby. W razie niewykonania tego obowiązku doręczenie pisma organu egzekucyjnego pod dotychczasowym adresem jest skuteczne (art. 36 § 3 pkt 2 i § 4 ustawy). Na zobowiązanego, który nie zawiadomił organu egzekucyjnego o zmianie adresu miejsca zamieszkania lub siedziby, może być nałożona kara pieniężna (art. 168d § 3 pkt 1 lit. a tiret pierwsze ustawy). 
+
+Jeżeli w części A wpisano jako zobowiązanych dane małżonków, tytuł wykonawczy stanowi podstawę przeprowadzenia egzekucji administracyjnej z ich majątku wspólnego i ich majątków osobistych. 
+
+Tytuł wykonawczy stanowi podstawę do prowadzenia egzekucji z majątku osobistego zobowiązanego i majątku wspólnego zobowiązanego i jego małżonka, jeżeli zgodnie z odrębnymi przepisami odpowiedzialność zobowiązanego za należność pieniężną i odsetki z tytułu niezapłacenia jej w terminie obejmuje majątek osobisty zobowiązanego i majątek wspólny zobowiązanego i jego małżonka. W takim przypadku tytuł wykonawczy jest podstawą do prowadzenia egzekucji również kosztów upomnienia oraz kosztów egzekucyjnych powstałych w postępowaniu egzekucyjnym prowadzonym na podstawie tego tytułu wykonawczego (art. 27e § 1 i 2 ustawy). 
+Małżonkowi zobowiązanego przysługuje prawo wniesienia wniosku do organu egzekucyjnego o udzielenie informacji o aktualnej wysokości egzekwowanej należności pieniężnej, odsetek z tytułu niezapłacenia jej w terminie, kosztów upomnienia i kosztów egzekucyjnych (art. 27e § 4 ustawy), a także wniesienia do wierzyciela, za pośrednictwem organu egzekucyjnego, sprzeciwu w sprawie odpowiedzialności majątkiem wspólnym. W sprzeciwie określa się istotę i zakres żądania oraz dowody uzasadniające to żądanie. Sprzeciw może być wniesiony jeden raz w postępowaniu egzekucyjnym (art. 27f § 3 ustawy). W przypadku egzekucji z nieruchomości wchodzącej w skład majątku wspólnego zobowiązanego i jego małżonka sprzeciw wnosi się nie później niż w terminie 14 dni od dnia doręczenia małżonkowi zobowiązanego wezwania do zapłaty egzekwowanej należności pieniężnej wraz z odsetkami z tytułu niezapłacenia jej w terminie i kosztami egzekucyjnymi (art. 27f § 2 ustawy).</xsd:documentation>
+              </xsd:annotation>
+            </xsd:enumeration>
+          </xsd:restriction>
+        </xsd:simpleType>
+      </xsd:element>
+    </xsd:sequence>
+  </xsd:complexType>
+  <xsd:complexType name="TDaneReferencyjneTW1">
+    <xsd:complexContent>
+      <xsd:extension base="com:TDaneReferencyjneTW">
+        <xsd:sequence>
+          <xsd:element name="RodzajDokumentu">
+            <xsd:annotation>
+              <xsd:documentation>Rodzaj dokumentu</xsd:documentation>
+            </xsd:annotation>
+            <xsd:simpleType>
+              <xsd:restriction base="xsd:byte">
+                <xsd:enumeration value="1">
+                  <xsd:annotation>
+                    <xsd:documentation>tytuł wykonawczy</xsd:documentation>
+                  </xsd:annotation>
+                </xsd:enumeration>
+                <xsd:enumeration value="2">
+                  <xsd:annotation>
+                    <xsd:documentation>zmieniony tytuł wykonawczy</xsd:documentation>
+                  </xsd:annotation>
+                </xsd:enumeration>
+                <xsd:enumeration value="3">
+                  <xsd:annotation>
+                    <xsd:documentation>dalszy tytuł wykonawczy</xsd:documentation>
+                  </xsd:annotation>
+                </xsd:enumeration>
+                <xsd:enumeration value="4">
+                  <xsd:annotation>
+                    <xsd:documentation>ponowny tytuł wykonawczy</xsd:documentation>
+                  </xsd:annotation>
+                </xsd:enumeration>
+              </xsd:restriction>
+            </xsd:simpleType>
+          </xsd:element>
+          <xsd:element name="DTW" minOccurs="0">
+            <xsd:annotation>
+              <xsd:documentation>Dalszy tytuł wykonawczy</xsd:documentation>
+            </xsd:annotation>
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="PierwotnyTW" type="com:TPierwotnyTW" minOccurs="0">
+                  <xsd:annotation>
+                    <xsd:documentation>Dane pierwotnego tytułu wykonawczego</xsd:documentation>
+                  </xsd:annotation>
+                </xsd:element>
+                <xsd:element name="NumerPorzadkowy" type="xsd:positiveInteger">
+                  <xsd:annotation>
+                    <xsd:documentation>Numer porządkowy dalszego tytułu wykonawczego</xsd:documentation>
+                  </xsd:annotation>
+                </xsd:element>
+                <xsd:element name="CelWydania">
+                  <xsd:annotation>
+                    <xsd:documentation>Cel wydania dalszego tytułu wykonawczego</xsd:documentation>
+                  </xsd:annotation>
+                  <xsd:simpleType>
+                    <xsd:restriction base="xsd:byte">
+                      <xsd:enumeration value="1">
+                        <xsd:annotation>
+                          <xsd:documentation>prowadzenie egzekucji przez inny organ egzekucyjny</xsd:documentation>
+                        </xsd:annotation>
+                      </xsd:enumeration>
+                      <xsd:enumeration value="2">
+                        <xsd:annotation>
+                          <xsd:documentation>zabezpieczenie hipoteką przymusową, w tym hipoteką przymusową morską</xsd:documentation>
+                        </xsd:annotation>
+                      </xsd:enumeration>
+                      <xsd:enumeration value="3">
+                        <xsd:annotation>
+                          <xsd:documentation>ponowne wszczęcie egzekucji administracyjnej</xsd:documentation>
+                        </xsd:annotation>
+                      </xsd:enumeration>
+                    </xsd:restriction>
+                  </xsd:simpleType>
+                </xsd:element>
+                <xsd:element name="DataWydaniaDalszegoTW" type="xsd:date">
+                  <xsd:annotation>
+                    <xsd:documentation>Data wydania dalszego tytułu wykonawczego</xsd:documentation>
+                  </xsd:annotation>
+                </xsd:element>
+                <xsd:element name="DotyczyDokumentu">
+                  <xsd:annotation>
+                    <xsd:documentation>Rodzaj dokumentu, którego dotyczy dalszy tytuł wykonawczy</xsd:documentation>
+                  </xsd:annotation>
+                  <xsd:simpleType>
+                    <xsd:restriction base="xsd:byte">
+                      <xsd:enumeration value="1">
+                        <xsd:annotation>
+                          <xsd:documentation>tytułu wykonawczego</xsd:documentation>
+                        </xsd:annotation>
+                      </xsd:enumeration>
+                      <xsd:enumeration value="2">
+                        <xsd:annotation>
+                          <xsd:documentation>zmienionego tytułu wykonawczego</xsd:documentation>
+                        </xsd:annotation>
+                      </xsd:enumeration>
+                    </xsd:restriction>
+                  </xsd:simpleType>
+                </xsd:element>
+                <xsd:element name="KosztyEgzekucyjne" type="etd:TKwota2Nieujemna"/>
+              </xsd:sequence>
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="Adnotacja" minOccurs="0">
+            <xsd:annotation>
+              <xsd:documentation>Adnotacja dotycząca ponownie wydanego tytułu wykonawczego</xsd:documentation>
+            </xsd:annotation>
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="DataWystawieniaPonownegoTW" type="com:TData">
+                  <xsd:annotation>
+                    <xsd:documentation>6.A. Data wystawienia utraconego tytułu wykonawczego</xsd:documentation>
+                  </xsd:annotation>
+                </xsd:element>
+                <xsd:element name="NazwaWierzyciela" type="etd:TZnakowy">
+                  <xsd:annotation>
+                    <xsd:documentation>6.B. Nazwa wierzyciela</xsd:documentation>
+                  </xsd:annotation>
+                </xsd:element>
+                <xsd:element name="SygnaturaPostanowienia">
+                  <xsd:annotation>
+                    <xsd:documentation>6.C. Numer (sygnatura) postanowienia wierzyciela</xsd:documentation>
+                  </xsd:annotation>
+                  <xsd:simpleType>
+                    <xsd:restriction base="etd:TZnakowy">
+                      <xsd:pattern value="[a-zA-Z0-9\.:\-/]{1,60}"/>
+                    </xsd:restriction>
+                  </xsd:simpleType>
+                </xsd:element>
+                <xsd:element name="DataWydaniaPostanowienia" type="com:TData">
+                  <xsd:annotation>
+                    <xsd:documentation>6.D. Data wydania postanowienia przez wierzyciela</xsd:documentation>
+                  </xsd:annotation>
+                </xsd:element>
+                <xsd:element name="RodzajUtraconegoDokumentu">
+                  <xsd:annotation>
+                    <xsd:documentation>Rodzaj utraconego dokumentu</xsd:documentation>
+                  </xsd:annotation>
+                  <xsd:simpleType>
+                    <xsd:restriction base="xsd:byte">
+                      <xsd:enumeration value="1">
+                        <xsd:annotation>
+                          <xsd:documentation>tytułu wykonawczego</xsd:documentation>
+                        </xsd:annotation>
+                      </xsd:enumeration>
+                      <xsd:enumeration value="2">
+                        <xsd:annotation>
+                          <xsd:documentation>zmienionego tytułu wykonawczego</xsd:documentation>
+                        </xsd:annotation>
+                      </xsd:enumeration>
+                    </xsd:restriction>
+                  </xsd:simpleType>
+                </xsd:element>
+              </xsd:sequence>
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:sequence>
+      </xsd:extension>
+    </xsd:complexContent>
+  </xsd:complexType>
+  <xsd:simpleType name="TKodFormularzaTW1">
+    <xsd:annotation>
+      <xsd:documentation>Symbol wzoru formularza</xsd:documentation>
+    </xsd:annotation>
+    <xsd:restriction base="xsd:string">
+      <xsd:enumeration value="TW-1"/>
+    </xsd:restriction>
+  </xsd:simpleType>
+</xsd:schema>
