@@ -10,7 +10,6 @@
 #
 import unittest
 import os
-import sys
 
 from xmlschema.names import XSD_NAMESPACE, XSI_NAMESPACE
 from xmlschema.namespaces import NamespaceResourcesMap, NamespaceMapper, NamespaceView
@@ -28,7 +27,6 @@ class TestNamespaceResourcesMap(unittest.TestCase):
         nsmap.append(('tns0', 'schema2.xsd'))
         self.assertEqual(NamespaceResourcesMap(nsmap), {'tns0': ['schema1.xsd', 'schema2.xsd']})
 
-    @unittest.skipIf(sys.version_info[:2] < (3, 6), "Python 3.6+ needed")
     def test_repr(self):
         namespaces = NamespaceResourcesMap()
         namespaces['tns0'] = 'schema1.xsd'
