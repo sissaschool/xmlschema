@@ -929,7 +929,11 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                 result_list.append((cdata_index, text, None))
                 cdata_index += 1
 
-        level = kwargs['level'] = kwargs.pop('level', 0) + 1
+        try:
+            level = kwargs['level'] = kwargs['level'] + 1
+        except KeyError:
+            level = kwargs['level'] = 1
+
         over_max_depth = 'max_depth' in kwargs and kwargs['max_depth'] <= level
         if level > limits.MAX_XML_DEPTH:
             reason = _("XML data depth exceeded (MAX_XML_DEPTH=%r)") % limits.MAX_XML_DEPTH
@@ -1063,10 +1067,15 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         :return: yields a couple with the text of the Element and a list of child \
         elements, eventually preceded by a sequence of validation errors.
         """
-        level = kwargs['level'] = kwargs.get('level', 0) + 1
         errors = []
         text = raw_xml_encode(obj.text)
         children: List[ElementType] = []
+
+        try:
+            level = kwargs['level'] = kwargs['level'] + 1
+        except KeyError:
+            level = kwargs['level'] = 1
+
         try:
             indent = kwargs['indent']
         except KeyError:

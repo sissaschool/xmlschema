@@ -658,7 +658,11 @@ class XsdAttributeGroup(
             reason = _("missing required attribute {!r}").format(name)
             yield self.validation_error(validation, reason, obj, **kwargs)
 
-        kwargs['level'] = kwargs.get('level', 0) + 1
+        try:
+            kwargs['level'] += 1
+        except KeyError:
+            kwargs['level'] = 1
+
         try:
             use_defaults = kwargs['use_defaults']
         except KeyError:

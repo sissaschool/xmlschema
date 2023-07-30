@@ -953,7 +953,7 @@ class XsdElement(XsdComponent, ParticleMixin,
         try:
             level = kwargs['level']
         except KeyError:
-            level = 0
+            level = kwargs['level'] = 0
 
         try:
             element_data = converter.element_encode(obj, self, level)
