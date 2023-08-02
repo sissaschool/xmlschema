@@ -19,8 +19,8 @@ from memory_profiler import profile
 
 
 def test_choice_type(value):
-    if value not in (str(v) for v in range(1, 9)):
-        msg = "%r must be an integer between [1 ... 8]." % value
+    if value not in (str(v) for v in range(1, 13)):
+        msg = "%r must be an integer between [1 ... 12]." % value
         raise argparse.ArgumentTypeError(msg)
     return int(value)
 
@@ -37,6 +37,10 @@ Run memory tests:
   6) Decode XML file with xmlschema in lazy mode
   7) Validate XML file with xmlschema
   8) Validate XML file with xmlschema in lazy mode
+  9) Iterate XML file with XMLResource instance
+  10) Iterate XML file with lazy XMLResource instance
+  11) Iterate XML file with lxml parse
+  12) Iterate XML file with lxml full iterparse
 
 """
 
@@ -74,6 +78,7 @@ def etree_parse(source, repeat=1):
     for _ in range(repeat):
         for _ in xt.iter():
             pass
+    del xt
 
 
 @profile
@@ -131,6 +136,42 @@ def lazy_validate(source, repeat=1):
         validator.validate(xmlschema.XMLResource(source, lazy=True), path=path)
 
 
+@profile
+def full_xml_resource(source, repeat=1):
+    xr = xmlschema.XMLResource(source)
+    for _ in range(repeat):
+        for _ in xr.iter():
+            pass
+    del xr
+
+
+@profile
+def lazy_xml_resource(source, repeat=1):
+    xr = xmlschema.XMLResource(source, lazy=True)
+    for _ in range(repeat):
+        for _ in xr.iter():
+            pass
+    del xr
+
+
+@profile
+def lxml_etree_parse(source, repeat=1):
+    xt = etree.parse(source)
+    for _ in range(repeat):
+        for _ in xt.iter():
+            pass
+    del xt
+
+
+@profile
+def lxml_etree_full_iterparse(source, repeat=1):
+    for _ in range(repeat):
+        context = etree.iterparse(source, events=('start', 'end'))
+        for event, elem in context:
+            if event == 'start':
+                pass
+
+
 if __name__ == '__main__':
     if args.test_num == 1:
         if args.xml_file is None:
@@ -163,3 +204,15 @@ if __name__ == '__main__':
         import xmlschema
         xmlschema.XMLSchema.meta_schema.build()
         lazy_validate(args.xml_file, args.repeat)
+    elif args.test_num == 9:
+        import xmlschema
+        full_xml_resource(args.xml_file, args.repeat)
+    elif args.test_num == 10:
+        import xmlschema
+        lazy_xml_resource(args.xml_file, args.repeat)
+    elif args.test_num == 11:
+        from lxml import etree
+        lxml_etree_parse(args.xml_file, args.repeat)
+    elif args.test_num == 12:
+        from lxml import etree
+        lxml_etree_full_iterparse(args.xml_file, args.repeat)
