@@ -670,31 +670,33 @@ class XMLResource:
             else:
                 resource.seek(0)
 
-        elem: Optional[ElementType] = None
-        nsmap: List[Tuple[str, str]] = []
-        nsmap_changed = False
-        namespaces = {}
-        events = 'start-ns', 'end-ns', 'end'
+        root: Optional[ElementType] = None
+        start_ns: List[Tuple[str, str]] = []
+        end_ns = False
+        nsmaps = {}
+        events = 'start-ns', 'end-ns', 'start'
+        nsmap_stack: List[List[Tuple[str, str]]] = [[]]
 
         for event, node in ElementTree.iterparse(resource, events):
-            if event == 'end':
-                if nsmap_changed or elem is None:
-                    namespaces[node] = nsmap[:]
-                    nsmap_changed = False
-                else:
-                    namespaces[node] = namespaces[elem]
-                elem = node
+            if event == 'start':
+                if root is None:
+                    root = node
+                if end_ns:
+                    nsmap_stack.pop()
+                    end_ns = False
+                if start_ns:
+                    nsmap_stack.append(nsmap_stack[-1] + start_ns)
+                    start_ns.clear()
+                nsmaps[node] = nsmap_stack[-1]
             elif event == 'start-ns':
-                nsmap.append(node)
-                nsmap_changed = True
+                start_ns.append(node)
             else:
-                nsmap.pop()
-                nsmap_changed = True
+                end_ns = True
 
-        assert elem is not None
-        self._root = elem
+        assert root is not None
+        self._root = root
         self._xpath_root = None
-        self._nsmap = namespaces
+        self._nsmap = nsmaps
 
     def _parse_resource(self, resource: IO[AnyStr],
                         url: Optional[str],
