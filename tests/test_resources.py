@@ -1258,8 +1258,8 @@ class TestResources(unittest.TestCase):
                                                '': 'http://example.com/ns/collection'})
 
         nsmap.clear()
-        resource._nsmap.clear()
-        resource._nsmap[resource._root] = []
+        resource._nsmaps.clear()
+        resource._nsmaps[resource._root] = {}
 
         for _ in resource.iter(nsmap=nsmap):
             self.assertEqual(nsmap, [])
@@ -1490,35 +1490,35 @@ class TestResources(unittest.TestCase):
         root = ElementTree.XML(source)
         resource = XMLResource(root)
 
-        self.assertListEqual(resource.get_nsmap(root), [])
-        self.assertListEqual(resource.get_nsmap(root[1]), [])
-        self.assertListEqual(resource.get_nsmap(alien_elem), [])
+        self.assertIsNone(resource.get_nsmap(root))
+        self.assertIsNone(resource.get_nsmap(root[1]))
+        self.assertIsNone(resource.get_nsmap(alien_elem))
 
         if lxml_etree is not None:
             root = lxml_etree.XML(source)
             resource = XMLResource(root)
 
-            self.assertListEqual(resource.get_nsmap(root), [('', 'uri1')])
-            self.assertListEqual(resource.get_nsmap(root[0]), [('x', 'uri2'), ('', 'uri1')])
-            self.assertListEqual(resource.get_nsmap(root[1]), [('', 'uri3')])
-            self.assertListEqual(resource.get_nsmap(alien_elem), [])
+            self.assertDictEqual(resource.get_nsmap(root), {'': 'uri1'})
+            self.assertDictEqual(resource.get_nsmap(root[0]), {'x': 'uri2', '': 'uri1'})
+            self.assertDictEqual(resource.get_nsmap(root[1]), {'': 'uri3'})
+            self.assertIsNone(resource.get_nsmap(alien_elem))
 
         resource = XMLResource(source)
         root = resource.root
 
-        self.assertListEqual(resource.get_nsmap(root), [('', 'uri1')])
-        self.assertListEqual(resource.get_nsmap(root[0]), [('', 'uri1'), ('x', 'uri2')])
-        self.assertListEqual(resource.get_nsmap(root[1]), [('', 'uri1'), ('', 'uri3')])
-        self.assertListEqual(resource.get_nsmap(alien_elem), [])
+        self.assertDictEqual(resource.get_nsmap(root), {'': 'uri1'})
+        self.assertDictEqual(resource.get_nsmap(root[0]), {'': 'uri1', 'x': 'uri2'})
+        self.assertDictEqual(resource.get_nsmap(root[1]), {'': 'uri3'})
+        self.assertIsNone(resource.get_nsmap(alien_elem))
 
         resource = XMLResource(StringIO(source), lazy=True)
         root = resource.root
         self.assertTrue(resource.is_lazy())
 
-        self.assertListEqual(resource.get_nsmap(root), [('', 'uri1')])
-        self.assertListEqual(resource.get_nsmap(root[0]), [])
-        self.assertListEqual(resource.get_nsmap(root[1]), [])
-        self.assertListEqual(resource.get_nsmap(alien_elem), [])
+        self.assertDictEqual(resource.get_nsmap(root), {'': 'uri1'})
+        self.assertIsNone(resource.get_nsmap(root[0]))
+        self.assertIsNone(resource.get_nsmap(root[1]))
+        self.assertIsNone(resource.get_nsmap(alien_elem))
 
     def test_xml_subresource(self):
         resource = XMLResource(self.vh_xml_file, lazy=True)
