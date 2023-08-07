@@ -418,6 +418,7 @@ class XMLResource:
     _root: ElementType
     _xpath_root: Union[None, ElementNode, DocumentNode] = None
     _nsmaps: Dict[ElementType, Dict[str, str]]
+    _ns_declarations: Dict[ElementType, List[Tuple[str, str]]]
     _text: Optional[str] = None
     _url: Optional[str] = None
     _base_url: Optional[str] = None
@@ -673,10 +674,9 @@ class XMLResource:
         root: Optional[ElementType] = None
         start_ns: List[Tuple[str, str]] = []
         end_ns = False
-        nsmaps_old = {}
-        nsmaps = {}
+        nsmaps: Dict[ElementType, Dict[str, str]] = {}
+        ns_declarations: Dict[ElementType, List[Tuple[str, str]]] = {}
         events = 'start-ns', 'end-ns', 'start'
-        nsmap_stack_old: List[List[Tuple[str, str]]] = [[]]
         nsmap_stack: List[Dict[str, str]] = [{}]
 
         for event, node in ElementTree.iterparse(resource, events):
@@ -684,15 +684,13 @@ class XMLResource:
                 if root is None:
                     root = node
                 if end_ns:
-                    nsmap_stack_old.pop()
                     nsmap_stack.pop()
                     end_ns = False
                 if start_ns:
-                    nsmap_stack_old.append(nsmap_stack_old[-1] + start_ns)
                     nsmap_stack.append(nsmap_stack[-1].copy())
                     nsmap_stack[-1].update(start_ns)
-                    start_ns.clear()
-                nsmaps_old[node] = nsmap_stack_old[-1]
+                    ns_declarations[node] = start_ns
+                    start_ns = []
                 nsmaps[node] = nsmap_stack[-1]
             elif event == 'start-ns':
                 start_ns.append(node)
@@ -700,10 +698,10 @@ class XMLResource:
                 end_ns = True
 
         assert root is not None
-        assert len(nsmaps) == len(nsmaps_old)
         self._root = root
         self._xpath_root = None
         self._nsmaps = nsmaps
+        self._ns_declarations = ns_declarations
 
     def _parse_resource(self, resource: IO[AnyStr],
                         url: Optional[str],
@@ -716,6 +714,7 @@ class XMLResource:
                 nsmap: List[Tuple[str, str]] = []
                 for _, root in self._lazy_iterparse(resource, nsmap):  # pragma: no cover
                     self._nsmaps = {root: dict(nsmap)}
+                    self._ns_declarations = {root: nsmap}
                     break
         except Exception:
             self._url = _url
@@ -815,6 +814,7 @@ class XMLResource:
             self._text = self._url = None
             self._lazy = False
             self._nsmaps = {}
+            self._ns_declarations = {}
 
             # TODO for Python 3.8+: need a Protocol for checking this with isinstance()
             if hasattr(self._root, 'xpath'):
@@ -822,8 +822,18 @@ class XMLResource:
                 lxml_nsmap = None
                 for elem in cast(Any, self._root.iter()):
                     if lxml_nsmap != elem.nsmap:
-                        lxml_nsmap = elem.nsmap
                         nsmap = {k or '': v for k, v in elem.nsmap.items()}
+
+                        if lxml_nsmap is None:
+                            ns_declarations = [(k, v) for k, v in nsmap.items()]
+                        else:
+                            ns_declarations = [(k or '', v) for k, v in elem.nsmap.items()
+                                               if k not in lxml_nsmap or v != lxml_nsmap[k]]
+                        if ns_declarations:
+                            self._ns_declarations[elem] = ns_declarations
+
+                        lxml_nsmap = elem.nsmap
+
                     self._nsmaps[elem] = nsmap
 
         self._parent_map = None
@@ -884,10 +894,18 @@ class XMLResource:
 
     def get_nsmap(self, elem: ElementType) -> Optional[Dict[str, str]]:
         """
-        Returns the namespace map (nsmap) of the element. Lazy resources have only the
-        nsmap for the root element. Returns `None` if no nsmap is found for the element.
+        Returns the namespace map (nsmap) of the element. Returns `None` if no nsmap is
+        found for the element. Lazy resources have only the nsmap for the root element.
         """
         return self._nsmaps.get(elem)
+
+    def get_ns_declarations(self, elem: ElementType) -> Optional[List[Tuple[str, str]]]:
+        """
+        Returns the list of namespaces declarations (xmlns and xmlns:<prefix> attributes)
+        of the element. Returns `None` if the element doesn't have namespace declarations.
+        Lazy resources have only the namespace declarations for the root element.
+        """
+        return self._ns_declarations.get(elem)
 
     def get_absolute_path(self, path: Optional[str] = None) -> str:
         if path is None:
@@ -971,6 +989,8 @@ class XMLResource:
         if not hasattr(elem, 'nsmap'):
             for e in elem.iter():
                 resource._nsmaps[e] = self._nsmaps[e]
+                if e in self._ns_declarations:
+                    resource._ns_declarations[e] = self._ns_declarations[e]
 
         return resource
 

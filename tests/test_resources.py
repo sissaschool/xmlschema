@@ -1520,6 +1520,43 @@ class TestResources(unittest.TestCase):
         self.assertIsNone(resource.get_nsmap(root[1]))
         self.assertIsNone(resource.get_nsmap(alien_elem))
 
+    def test_get_ns_declarations(self):
+        source = '<a xmlns="uri1"><b1 xmlns:x="uri2"><c1/><c2/></b1><b2 xmlns="uri3"/></a>'
+        alien_elem = ElementTree.XML('<a/>')
+
+        root = ElementTree.XML(source)
+        resource = XMLResource(root)
+
+        self.assertIsNone(resource.get_ns_declarations(root))
+        self.assertIsNone(resource.get_ns_declarations(root[1]))
+        self.assertIsNone(resource.get_ns_declarations(alien_elem))
+
+        if lxml_etree is not None:
+            root = lxml_etree.XML(source)
+            resource = XMLResource(root)
+
+            self.assertListEqual(resource.get_ns_declarations(root), [('', 'uri1')])
+            self.assertListEqual(resource.get_ns_declarations(root[0]), [('x', 'uri2')])
+            self.assertListEqual(resource.get_ns_declarations(root[1]), [('', 'uri3')])
+            self.assertIsNone(resource.get_ns_declarations(alien_elem))
+
+        resource = XMLResource(source)
+        root = resource.root
+
+        self.assertListEqual(resource.get_ns_declarations(root), [('', 'uri1')])
+        self.assertListEqual(resource.get_ns_declarations(root[0]), [('x', 'uri2')])
+        self.assertListEqual(resource.get_ns_declarations(root[1]), [('', 'uri3')])
+        self.assertIsNone(resource.get_ns_declarations(alien_elem))
+
+        resource = XMLResource(StringIO(source), lazy=True)
+        root = resource.root
+        self.assertTrue(resource.is_lazy())
+
+        self.assertListEqual(resource.get_ns_declarations(root), [('', 'uri1')])
+        self.assertIsNone(resource.get_ns_declarations(root[0]))
+        self.assertIsNone(resource.get_ns_declarations(root[1]))
+        self.assertIsNone(resource.get_ns_declarations(alien_elem))
+
     def test_xml_subresource(self):
         resource = XMLResource(self.vh_xml_file, lazy=True)
         with self.assertRaises(XMLResourceError) as ctx:
