@@ -124,6 +124,39 @@ or similarly to the previous example one can use the method :meth:`xmlschema.XML
     schemas to other XSD validators.
 
 
+Creating a local copy of a remote XSD schema for offline use
+------------------------------------------------------------
+
+Sometimes, it is advantageous to validate XML files using an XSD schema located
+at a remote location while also having the option to store the same schema
+locally for offline use.
+
+.. code-block:: py
+
+    import xmlschema
+    schema = xmlschema.XMLSchema("https://www.omg.org/spec/ReqIF/20110401/reqif.xsd")
+    schema.export(target='my_schemas', save_remote=True)
+    schema = xmlschema.XMLSchema("my_schemas/reqif.xsd")  # works without internet
+
+With these commands, a folder ``my_schemas`` is created and contains the
+XSD files that can be used without access to the internet.
+
+The resulting XSD files are identical to their remote source files, with the
+only difference being that xmlschema transforms the remote URLs into local
+URLs. The ``export`` command bundles a set of a target XSD file and all its
+dependencies by changing the ``schemaLocation`` attributes into
+``xs:import/xs:include`` statements as follows:
+
+.. code-block:: xml
+
+    <xsd:import namespace="http://www.w3.org/1999/xhtml" schemaLocation="http://www.omg.org/spec/ReqIF/20110402/driver.xsd"/>
+
+becomes
+
+.. code-block:: xml
+
+    <xsd:import namespace="http://www.w3.org/1999/xhtml" schemaLocation="my_schemas/www.omg.org/spec/ReqIF/20110402/driver.xsd"/>
+
 Validation
 ==========
 

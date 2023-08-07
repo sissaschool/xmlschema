@@ -40,6 +40,7 @@ This library includes the following features:
 
 * Full XSD 1.0 and XSD 1.1 support
 * Building of XML schema objects from XSD files
+* Downloading XSD files from a remote URL and storing them for offline use
 * Validation of XML instances against XSD schemas
 * Decoding of XML data into Python data and to JSON
 * Encoding of Python data and JSON to XML
