@@ -931,12 +931,12 @@ class TestResources(unittest.TestCase):
         for _, elem in resource._lazy_iterparse(self.col_xml_file):
             self.assertTrue(is_etree_element(elem))
 
-        nsmap = []
+        nsmap = {}
         for _, elem in resource._lazy_iterparse(self.col_xml_file, nsmap=nsmap):
             self.assertTrue(is_etree_element(elem))
-            self.assertListEqual(
-                nsmap, [('col', 'http://example.com/ns/collection'),
-                        ('xsi', 'http://www.w3.org/2001/XMLSchema-instance')])
+            self.assertDictEqual(
+                nsmap, {'col': 'http://example.com/ns/collection',
+                        'xsi': 'http://www.w3.org/2001/XMLSchema-instance'})
 
         resource._defuse = 'always'
         for _, elem in resource._lazy_iterparse(self.col_xml_file):
@@ -1066,13 +1066,13 @@ class TestResources(unittest.TestCase):
 
         # Note: Element change with lazy resource so compare only tags
 
-        nsmap = []
+        nsmap = {}
         tags = [x.tag for x in resource.iter_depth(nsmap=nsmap)]
         self.assertEqual(len(tags), 1)
         self.assertEqual(tags[0], '{%s}schema' % XSD_NAMESPACE)
-        self.assertListEqual(
-            nsmap, [('xs', 'http://www.w3.org/2001/XMLSchema'),
-                    ('hfp', 'http://www.w3.org/2001/XMLSchema-hasFacetAndProperty')])
+        self.assertDictEqual(
+            nsmap, {'xs': 'http://www.w3.org/2001/XMLSchema',
+                    'hfp': 'http://www.w3.org/2001/XMLSchema-hasFacetAndProperty'})
 
         lazy_tags = [x.tag for x in lazy_resource.iter_depth()]
         self.assertEqual(len(lazy_tags), 156)
@@ -1104,11 +1104,11 @@ class TestResources(unittest.TestCase):
                           '</b1><b2><c3><d1/></c3></b2></a>')
         resource = XMLResource(source, lazy=3)
 
-        nsmap = []
+        nsmap = {}
         ancestors = []
         self.assertIs(next(resource.iter_depth(nsmap=nsmap, ancestors=ancestors)),
                       resource.root[1][0][0])
-        self.assertListEqual(nsmap, [('tns0', 'http://example.com/ns0')])
+        self.assertDictEqual(nsmap, {'tns0': 'http://example.com/ns0'})
         self.assertListEqual(ancestors, [resource.root, resource.root[1], resource.root[1][0]])
 
     def test_xml_resource_iterfind(self):
@@ -1155,28 +1155,28 @@ class TestResources(unittest.TestCase):
                                '  <c1 xmlns:tns1="http://example.com/ns1"/>'
                                '  <c2 xmlns:tns2="http://example.com/ns2" x="2"/>'
                                '</b1><b2/></a>')
-        nsmap = []
+        nsmap = {}
         self.assertIs(resource.find('*/c2', nsmap=nsmap), resource.root[0][1])
-        self.assertListEqual(nsmap, [('tns2', 'http://example.com/ns2')])
+        self.assertDictEqual(nsmap, {'tns2': 'http://example.com/ns2'})
 
-        nsmap = []
+        nsmap = {}
         ancestors = []
         self.assertIs(resource.find('*/c2', nsmap=nsmap, ancestors=ancestors),
                       resource.root[0][1])
-        self.assertListEqual(nsmap, [('tns2', 'http://example.com/ns2')])
+        self.assertDictEqual(nsmap, {'tns2': 'http://example.com/ns2'})
         self.assertListEqual(ancestors, [resource.root, resource.root[0]])
 
-        nsmap = []
+        nsmap = {}
         ancestors = []
         self.assertIs(resource.find('.', nsmap=nsmap, ancestors=ancestors),
                       resource.root)
-        self.assertListEqual(nsmap, [])
+        self.assertDictEqual(nsmap, {})
         self.assertListEqual(ancestors, [])
 
-        nsmap = []
+        nsmap = {}
         ancestors = []
         self.assertIsNone(resource.find('b3', nsmap=nsmap, ancestors=ancestors))
-        self.assertListEqual(nsmap, [])
+        self.assertDictEqual(nsmap, {})
         self.assertListEqual(ancestors, [])
 
     def test_xml_resource_lazy_find(self):
@@ -1190,50 +1190,50 @@ class TestResources(unittest.TestCase):
                           '</b1><b2><c3><d1/></c3></b2></a>')
         resource = XMLResource(source, lazy=True)
 
-        nsmap = []
+        nsmap = {}
         ancestors = []
         self.assertIs(resource.find('*/c2', nsmap=nsmap, ancestors=ancestors),
                       resource.root[0][1])
-        self.assertListEqual(nsmap, [('tns0', 'http://example.com/ns0'),
-                                     ('tns2', 'http://example.com/ns2')])
+        self.assertDictEqual(nsmap, {'tns0': 'http://example.com/ns0',
+                                     'tns2': 'http://example.com/ns2'})
         self.assertListEqual(ancestors, [resource.root, resource.root[0]])
 
-        nsmap = []
+        nsmap = {}
         ancestors = []
         self.assertIs(resource.find('*/c3', nsmap=nsmap, ancestors=ancestors),
                       resource.root[1][0])
-        self.assertListEqual(nsmap, [('tns0', 'http://example.com/ns0')])
+        self.assertDictEqual(nsmap, {'tns0': 'http://example.com/ns0'})
         self.assertListEqual(ancestors, [resource.root, resource.root[1]])
 
-        nsmap = []
+        nsmap = {}
         ancestors = []
         self.assertIs(resource.find('*/c3/d1', nsmap=nsmap, ancestors=ancestors),
                       resource.root[1][0][0])
-        self.assertListEqual(nsmap, [('tns0', 'http://example.com/ns0')])
+        self.assertDictEqual(nsmap, {'tns0': 'http://example.com/ns0'})
         self.assertListEqual(ancestors,
                              [resource.root, resource.root[1], resource.root[1][0]])
 
-        nsmap = []
+        nsmap = {}
         ancestors = []
         self.assertIs(resource.find('*', nsmap=nsmap, ancestors=ancestors),
                       resource.root[0])
-        self.assertListEqual(nsmap, [('tns0', 'http://example.com/ns0')])
+        self.assertDictEqual(nsmap, {'tns0': 'http://example.com/ns0'})
         self.assertListEqual(ancestors, [resource.root])
 
-        nsmap = []
+        nsmap = {}
         ancestors = []
         self.assertIsNone(resource.find('/b1', nsmap=nsmap, ancestors=ancestors))
-        self.assertListEqual(nsmap, [])
+        self.assertDictEqual(nsmap, {})
         self.assertListEqual(ancestors, [])
 
         source.seek(0)
         resource = XMLResource(source, lazy=2)
-        nsmap = []
+        nsmap = {}
         ancestors = []
         self.assertIs(resource.find('*/c2', nsmap=nsmap, ancestors=ancestors),
                       resource.root[0][1])
-        self.assertListEqual(nsmap, [('tns0', 'http://example.com/ns0'),
-                                     ('tns2', 'http://example.com/ns2')])
+        self.assertDictEqual(nsmap, {'tns0': 'http://example.com/ns0',
+                                     'tns2': 'http://example.com/ns2'})
         self.assertListEqual(ancestors, [resource.root, resource.root[0]])
 
     def test_xml_resource_findall(self):
@@ -1247,7 +1247,7 @@ class TestResources(unittest.TestCase):
         xsd_file = casepath('examples/collection/collection4.xsd')
         resource = XMLResource(xsd_file)
         root = resource.root
-        nsmap = []
+        nsmap = {}
 
         for elem in resource.iter(nsmap=nsmap):
             if elem is root[2][0] or elem in root[2][0]:

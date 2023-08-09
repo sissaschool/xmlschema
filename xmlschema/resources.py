@@ -555,12 +555,8 @@ class XMLResource:
             try:
                 if _nsmap is not self._nsmaps[elem]:
                     _nsmap = self._nsmaps[elem]
-                    if isinstance(nsmap, list):
-                        nsmap.clear()
-                        nsmap.extend(_nsmap.items())
-                    else:
-                        for prefix, uri in _nsmap.items():
-                            self._update_nsmap(nsmap, prefix, uri)
+                    for prefix, uri in _nsmap.items():
+                        self._update_nsmap(nsmap, prefix, uri)
             except KeyError:
                 pass
 
@@ -592,18 +588,12 @@ class XMLResource:
     def _lazy_iterparse(self, resource: IO[AnyStr], nsmap: Optional[NsmapType] = None) \
             -> Iterator[Tuple[str, ElementType]]:
         events: Tuple[str, ...]
-        _nsmap: List[Tuple[str, str]]
+        _nsmap: List[Tuple[str, str]] = []
 
         if nsmap is None:
             events = 'start', 'end'
-            _nsmap = []
         else:
             events = 'start-ns', 'end-ns', 'start', 'end'
-            if isinstance(nsmap, list):
-                _nsmap = nsmap
-                _nsmap.clear()
-            else:
-                _nsmap = []
 
         if self._defuse == 'remote' and is_remote_url(self.base_url) \
                 or self._defuse == 'nonlocal' and not is_local_url(self.base_url) \
@@ -640,7 +630,7 @@ class XMLResource:
                         _nsmap.append(node)
                     else:
                         _nsmap.pop()
-                    nsmap_update = isinstance(nsmap, dict)
+                    nsmap_update = True
 
         except Exception as err:
             if _root is not None:
@@ -711,10 +701,10 @@ class XMLResource:
             if not lazy:
                 self._parse(resource)
             else:
-                nsmap: List[Tuple[str, str]] = []
+                nsmap: NsmapType = {}
                 for _, root in self._lazy_iterparse(resource, nsmap):  # pragma: no cover
-                    self._nsmaps = {root: dict(nsmap)}
-                    self._ns_declarations = {root: nsmap}
+                    self._nsmaps = {root: nsmap}
+                    self._ns_declarations = {root: [(k, v) for k, v in nsmap.items()]}
                     break
         except Exception:
             self._url = _url
@@ -1099,10 +1089,8 @@ class XMLResource:
         XML resource tree iterator. The iteration of a lazy resource
         is in reverse order (top level element is the last). If tag
         is not None or '*', only elements whose tag equals tag are
-        returned from the iterator. Provide a *nsmap* list for
-        tracking the namespaces of yielded elements. If *nsmap* is
-        a dictionary the tracking of namespaces is cumulative on
-        the whole tree, renaming prefixes in case of conflicts.
+        returned from the iterator. Provide a *nsmap* dict for
+        tracking the namespaces of yielded elements.
         """
         if self._lazy:
             resource = self.open()
@@ -1146,9 +1134,7 @@ class XMLResource:
           4. An incomplete root at start, the elements at *depth_level* and a pruned root
 
         :param mode: an integer in range [1..4] that defines the iteration mode.
-        :param nsmap: provide a list/dict for tracking the namespaces of yielded \
-        elements. If a list is passed the tracking is done at element level, otherwise \
-        the tracking is on the whole tree, renaming prefixes in case of conflicts.
+        :param nsmap: provide a dict for tracking the namespaces of yielded elements.
         :param ancestors: provide a list for tracking the ancestors of yielded elements.
         """
         if ancestors is not None:
@@ -1156,13 +1142,9 @@ class XMLResource:
 
         if not self._lazy:
             if nsmap is not None and self._nsmaps:
-                if isinstance(nsmap, list):
-                    nsmap.clear()
-                    nsmap.extend(self._nsmaps[self._root].items())
-                else:
-                    for elem in self._root.iter():
-                        for prefix, uri in self._nsmaps[elem].items():
-                            self._update_nsmap(nsmap, prefix, uri)
+                for elem in self._root.iter():
+                    for prefix, uri in self._nsmaps[elem].items():
+                        self._update_nsmap(nsmap, prefix, uri)
 
             yield self._root
             return
@@ -1246,9 +1228,7 @@ class XMLResource:
         Selecting other values or nodes raise an error.
         :param namespaces: an optional mapping from namespace prefixes to URIs \
         used for parsing the XPath expression.
-        :param nsmap: provide a list/dict for tracking the namespaces of yielded \
-        elements. If a list is passed the tracking is done at element level, otherwise \
-        the tracking is on the whole tree, renaming prefixes in case of conflicts.
+        :param nsmap: provide a dict for tracking the namespaces of yielded elements.
         :param ancestors: provide a list for tracking the ancestors of yielded elements.
         """
         parser = XPath2Parser(namespaces, strict=False)

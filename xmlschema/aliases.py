@@ -53,7 +53,7 @@ if TYPE_CHECKING:
     # Type aliases for XML resources
     NormalizedLocationsType = List[Tuple[str, str]]
     LocationsType = Union[Tuple[Tuple[str, str], ...], Dict[str, str], NormalizedLocationsType]
-    NsmapType = Union[List[Tuple[str, str]], MutableMapping[str, str]]
+    NsmapType = MutableMapping[str, str]
     ParentMapType = Dict[ElementType, Optional[ElementType]]
     LazyType = Union[bool, int]
 
