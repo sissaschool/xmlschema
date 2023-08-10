@@ -1223,7 +1223,7 @@ class TestResources(unittest.TestCase):
         nsmap = {}
         ancestors = []
         self.assertIsNone(resource.find('/b1', nsmap=nsmap, ancestors=ancestors))
-        self.assertDictEqual(nsmap, {})
+        self.assertDictEqual(nsmap, {'tns0': 'http://example.com/ns0'})
         self.assertListEqual(ancestors, [])
 
         source.seek(0)

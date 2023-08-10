@@ -588,13 +588,8 @@ class XMLResource:
     def _lazy_iterparse(self, resource: IO[AnyStr], nsmap: Optional[NsmapType] = None) \
             -> Iterator[Tuple[str, ElementType]]:
         events: Tuple[str, ...]
-        _nsmap: List[Tuple[str, str]] = []
 
-        if nsmap is None:
-            events = 'start', 'end'
-        else:
-            events = 'start-ns', 'end-ns', 'start', 'end'
-
+        events = 'start-ns', 'end-ns', 'start', 'end'
         if self._defuse == 'remote' and is_remote_url(self.base_url) \
                 or self._defuse == 'nonlocal' and not is_local_url(self.base_url) \
                 or self._defuse == 'always':
@@ -604,38 +599,67 @@ class XMLResource:
             tree_iterator = ElementTree.iterparse(resource, events)
 
         root_started = False
-        nsmap_update = False
+        start_ns: List[Tuple[str, str]] = []
+        end_ns = False
+        nsmap_stack: List[Dict[str, str]] = [{}]
 
         _root = cast(Optional[ElementType], getattr(self, '_root', None))
         _xpath_root = self._xpath_root
+        self._nsmaps = {}
+        self._ns_declarations = {}
         try:
             for event, node in tree_iterator:
                 if event == 'start':
                     if not root_started:
                         self._root = node
                         self._xpath_root = LazyElementNode(
-                            self._root, nsmap={k: v for k, v in _nsmap}
+                            self._root, nsmap={k: v for k, v in start_ns}
                         )
                         root_started = True
-                    if nsmap_update:
-                        for prefix, uri in _nsmap:
-                            self._update_nsmap(nsmap, prefix, uri)  # type: ignore[arg-type]
-                        nsmap_update = False
+
+                    if end_ns:
+                        nsmap_stack.pop()
+                        end_ns = False
+                        if nsmap is not None:
+                            nsmap.clear()
+                            nsmap.update(nsmap_stack[-1])
+
+                    if start_ns:
+                        nsmap_stack.append(nsmap_stack[-1].copy())
+                        nsmap_stack[-1].update(start_ns)
+                        self._ns_declarations[node] = start_ns
+                        start_ns = []
+                        if nsmap is None:
+                            self._nsmaps[node] = nsmap_stack[-1]
+                        else:
+                            nsmap.clear()
+                            nsmap.update(nsmap_stack[-1])
+                    elif nsmap is None:
+                        self._nsmaps[node] = nsmap_stack[-1]
+
                     yield event, node
 
                 elif event == 'end':
+                    if end_ns:
+                        nsmap_stack.pop()
+                        end_ns = False
+                        if nsmap is not None:
+                            nsmap.clear()
+                            nsmap.update(nsmap_stack[-1])
+
                     yield event, node
-                elif nsmap is not None:
-                    if event == 'start-ns':
-                        _nsmap.append(node)
-                    else:
-                        _nsmap.pop()
-                    nsmap_update = True
+
+                elif event == 'start-ns':
+                    start_ns.append(node)
+                else:
+                    end_ns = True
 
         except Exception as err:
             if _root is not None:
                 self._root = _root
                 self._xpath_root = _xpath_root
+                self._nsmaps.clear()
+                self._ns_declarations.clear()
             if isinstance(err, PyElementTree.ParseError):
                 raise ElementTree.ParseError(str(err)) from None
             raise
@@ -701,10 +725,7 @@ class XMLResource:
             if not lazy:
                 self._parse(resource)
             else:
-                nsmap: NsmapType = {}
-                for _, root in self._lazy_iterparse(resource, nsmap):  # pragma: no cover
-                    self._nsmaps = {root: nsmap}
-                    self._ns_declarations = {root: [(k, v) for k, v in nsmap.items()]}
+                for _, root in self._lazy_iterparse(resource):  # pragma: no cover
                     break
         except Exception:
             self._url = _url
@@ -1101,6 +1122,8 @@ class XMLResource:
                         if tag == '*' or node.tag == tag:
                             yield node
                         node.clear()
+                        self._nsmaps.clear()
+                        self._ns_declarations.clear()
             finally:
                 # Close the resource only if it was originally opened by XMLResource
                 if resource is not self._source:
@@ -1178,6 +1201,8 @@ class XMLResource:
                         yield node
 
                     del node[:]  # delete children, keep attributes, text and tail.
+                    self._nsmaps.clear()
+                    self._ns_declarations.clear()
 
                     # reset the whole XPath tree to let it still usable if other
                     # children are added to the root by ElementTree.iterparse().
@@ -1273,6 +1298,8 @@ class XMLResource:
 
                         del node[:]  # delete children, keep attributes, text and tail.
                         self.xpath_root.children.clear()  # reset XPath tree
+                        self._nsmaps.clear()
+                        self._ns_declarations.clear()
 
             finally:
                 if self._source is not resource:
