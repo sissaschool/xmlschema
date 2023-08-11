@@ -1346,7 +1346,7 @@ class TestResources(unittest.TestCase):
         resource = XMLResource(self.col_xml_file)
         self.check_url(resource.url, normalize_url(self.col_xml_file))
 
-        locations = resource.get_locations([('ns', 'other.xsd')])
+        locations = resource.get_locations([('ns', 'other.xsd')], root_only=False)
         self.assertEqual(len(locations), 2)
         self.check_url(locations[0][1], os.path.join(self.col_dir, 'other.xsd'))
         self.check_url(locations[1][1], normalize_url(self.col_xsd_file))
@@ -1358,7 +1358,7 @@ class TestResources(unittest.TestCase):
                           '</b1></a>')
 
         resource = XMLResource(source)
-        locations = resource.get_locations()
+        locations = resource.get_locations(root_only=False)
         self.assertEqual(len(locations), 2)
         self.assertEqual(locations[0][0], 'http://example.com/ns1')
         self.assertRegex(locations[0][1], f'file://{DRIVE_REGEX}/loc1')

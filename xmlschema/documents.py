@@ -620,7 +620,7 @@ class XmlDocument(XMLResource):
 
     def parse(self, source: XMLSourceType, lazy: LazyType = False) -> None:
         super(XmlDocument, self).parse(source, lazy)
-        self.namespaces = self.get_namespaces()
+        self.namespaces = self.get_namespaces(root_only=True)
 
         if self.schema is None:
             pass
@@ -630,7 +630,7 @@ class XmlDocument(XMLResource):
             self.errors = [e for e in self.schema.iter_errors(self, namespaces=self.namespaces)]
 
     def get_namespaces(self, namespaces: Optional[NamespacesType] = None,
-                       root_only: Optional[bool] = None) -> NamespacesType:
+                       root_only: bool = True) -> NamespacesType:
         if not self._namespaces:
             _namespaces = namespaces
         elif not namespaces:

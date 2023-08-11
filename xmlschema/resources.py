@@ -984,7 +984,7 @@ class XMLResource:
             raise XMLResourceError("cannot serialize a lazy XML resource")
 
         if not hasattr(self._root, 'nsmap'):
-            namespaces = self.get_namespaces(namespaces)
+            namespaces = self.get_namespaces(namespaces, root_only=False)
 
         _string = etree_tostring(
             elem=self._root,
@@ -1349,7 +1349,7 @@ class XMLResource:
         return list(self.iterfind(path, namespaces))
 
     def get_namespaces(self, namespaces: Optional[NamespacesType] = None,
-                       root_only: Optional[bool] = None) -> NamespacesType:
+                       root_only: bool = True) -> NamespacesType:
         """
         Extracts namespaces with related prefixes from the XML resource. If a duplicate
         prefix declaration is encountered and the prefix maps a different namespace,
@@ -1358,8 +1358,7 @@ class XMLResource:
         names. In other cases uses 'default' prefix as substitute.
 
         :param namespaces: builds the namespace map starting over the dictionary provided.
-        :param root_only: if `True`, or `None` and the resource is lazy, extracts \
-        only the namespaces declared in the root element.
+        :param root_only: if `True` extracts only the namespaces declared in the root element.
         :return: a dictionary for mapping namespace prefixes to full URI.
         """
         if namespaces is None:
@@ -1370,12 +1369,11 @@ class XMLResource:
         else:
             namespaces = copy.copy(namespaces)
 
-        _root_only = root_only or root_only is None and self._lazy
         try:
             for elem in self.iter(reversed_lazy=False):
                 if elem in self._ns_declarations:
                     self._update_nsmap(namespaces, self._ns_declarations[elem])
-                if _root_only:
+                if root_only:
                     break
         except (ElementTree.ParseError, PyElementTree.ParseError, UnicodeEncodeError):
             pass
@@ -1383,7 +1381,7 @@ class XMLResource:
         return namespaces
 
     def get_locations(self, locations: Optional[LocationsType] = None,
-                      root_only: Optional[bool] = None) -> NormalizedLocationsType:
+                      root_only: bool = True) -> NormalizedLocationsType:
         """
         Extracts a list of schema location hints from the XML resource.
         The locations are normalized using the base URL of the instance.
@@ -1391,13 +1389,10 @@ class XMLResource:
         :param locations: a sequence of schema location hints inserted \
         before the ones extracted from the XML resource. Locations passed \
         within a tuple container are not normalized.
-        :param root_only: if `True`, or if `None` and the resource is lazy, \
-        extracts the location hints of the root element only.
+        :param root_only: if `True` extracts only the location hints of the \
+        root element.
         :returns: a list of couples containing normalized location hints.
         """
-        if root_only is None:
-            root_only = bool(self._lazy)
-
         if not locations:
             location_hints = []
         elif isinstance(locations, tuple):

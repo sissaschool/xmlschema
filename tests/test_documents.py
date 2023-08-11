@@ -211,7 +211,7 @@ class TestXmlDocuments(unittest.TestCase):
 
         col_xml_resource = XMLResource(self.col_xml_file)
         col_xml_resource.root.attrib.clear()
-        self.assertEqual(col_xml_resource.get_locations(), [])
+        self.assertEqual(col_xml_resource.get_locations(root_only=False), [])
 
         source, schema = get_context(col_xml_resource, self.col_xsd_file)
         self.assertIs(source, col_xml_resource)

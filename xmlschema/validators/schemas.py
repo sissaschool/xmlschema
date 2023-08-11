@@ -421,7 +421,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             return  # Meta-schemas don't need to be checked and don't process imports
 
         # Completes the namespaces map with internal declarations, remapping same prefixes.
-        self.namespaces = self.source.get_namespaces(self.namespaces)
+        self.namespaces = self.source.get_namespaces(self.namespaces, root_only=False)
 
         if locations:
             if isinstance(locations, tuple):
@@ -429,7 +429,9 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             else:
                 self._locations = tuple(normalize_locations(locations, self.base_url))
 
-        self.locations = NamespaceResourcesMap(self.source.get_locations(self._locations))
+        self.locations = NamespaceResourcesMap(
+            self.source.get_locations(self._locations, root_only=False)
+        )
         if not use_fallback:
             self.fallback_locations = {}
 
