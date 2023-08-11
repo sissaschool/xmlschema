@@ -1016,7 +1016,12 @@ class XMLResource:
         if not hasattr(elem, 'nsmap'):
             for e in elem.iter():
                 resource._nsmaps[e] = self._nsmaps[e]
-                if e in self._ns_declarations:
+
+                if e is elem:
+                    ns_declarations = [(k, v) for k, v in self._nsmaps[e].items()]
+                    if ns_declarations:
+                        resource._ns_declarations[e] = ns_declarations
+                elif e in self._ns_declarations:
                     resource._ns_declarations[e] = self._ns_declarations[e]
 
         return resource
