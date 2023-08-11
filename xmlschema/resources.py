@@ -1125,29 +1125,37 @@ class XMLResource:
         """Returns `True` if the XML text of the data source is loaded."""
         return self._text is not None
 
-    def iter(self, tag: Optional[str] = None, nsmap: Optional[NsmapType] = None) \
-            -> Iterator[ElementType]:
+    def iter(self, tag: Optional[str] = None, nsmap: Optional[NsmapType] = None,
+             reversed_lazy: bool = True) -> Iterator[ElementType]:
         """
-        XML resource tree iterator. The iteration of a lazy resource
-        is in reverse order (top level element is the last). If tag
-        is not None or '*', only elements whose tag equals tag are
-        returned from the iterator. Provide a *nsmap* dict for
-        tracking the namespaces of yielded elements.
+        XML resource tree iterator. If tag is not None or '*', only elements whose
+        tag equals tag are returned from the iterator. Provide a *nsmap* dict for
+        tracking the namespaces of yielded elements. For default the iteration of
+        lazy resources is in reverse order (top level element is the last) for having
+        fully build elements. Provide *reversed_lazy* as `False` for iterating lazy
+        resources in forward order. In this case the returned elements are incomplete.
         """
         if self._lazy:
             resource = self.open()
             tag = '*' if tag is None else tag.strip()
             try:
-                for event, node in self._lazy_iterparse(resource, nsmap):
-                    if event == 'end':
-                        if tag == '*' or node.tag == tag:
-                            yield node
-                        node.clear()
+                if reversed_lazy:
+                    for event, node in self._lazy_iterparse(resource, nsmap):
+                        if event == 'end':
+                            if tag == '*' or node.tag == tag:
+                                yield node
+                            node.clear()
+                else:
+                    for event, node in self._lazy_iterparse(resource, nsmap):
+                        if event == 'start':
+                            if tag == '*' or node.tag == tag:
+                                yield node
+                        else:
+                            node.clear()
             finally:
                 # Close the resource only if it was originally opened by XMLResource
                 if resource is not self._source:
                     resource.close()
-            return
 
         elif not self._nsmaps or nsmap is None:
             yield from self._root.iter(tag)
@@ -1364,7 +1372,7 @@ class XMLResource:
 
         _root_only = root_only or root_only is None and self._lazy
         try:
-            for elem in self.iter():
+            for elem in self.iter(reversed_lazy=False):
                 if elem in self._ns_declarations:
                     self._update_nsmap(namespaces, self._ns_declarations[elem])
                 if _root_only:
