@@ -701,22 +701,22 @@ class TestResources(unittest.TestCase):
         resource = XMLResource(self.vh_xml_file)
 
         nsmap = {}
-        resource._update_nsmap(nsmap, 'xs', XSD_NAMESPACE)
+        resource._update_nsmap(nsmap, [('xs', XSD_NAMESPACE)])
         self.assertEqual(nsmap, {'xs': XSD_NAMESPACE})
-        resource._update_nsmap(nsmap, 'xs', XSD_NAMESPACE)
+        resource._update_nsmap(nsmap, [('xs', XSD_NAMESPACE)])
         self.assertEqual(nsmap, {'xs': XSD_NAMESPACE})
-        resource._update_nsmap(nsmap, 'tns0', 'http://example.com/ns')
+        resource._update_nsmap(nsmap, [('tns0', 'http://example.com/ns')])
         self.assertEqual(nsmap, {'xs': XSD_NAMESPACE, 'tns0': 'http://example.com/ns'})
-        resource._update_nsmap(nsmap, 'xs', 'http://example.com/ns')
+        resource._update_nsmap(nsmap, [('xs', 'http://example.com/ns')])
         self.assertEqual(nsmap, {'xs': XSD_NAMESPACE,
                                  'xs0': 'http://example.com/ns',
                                  'tns0': 'http://example.com/ns'})
-        resource._update_nsmap(nsmap, 'xs', 'http://example.com/ns')
+        resource._update_nsmap(nsmap, [('xs', 'http://example.com/ns')])
         self.assertEqual(nsmap, {'xs': XSD_NAMESPACE,
                                  'xs0': 'http://example.com/ns',
                                  'tns0': 'http://example.com/ns'})
 
-        resource._update_nsmap(nsmap, 'xs', 'http://example.com/ns2')
+        resource._update_nsmap(nsmap, [('xs', 'http://example.com/ns2')])
         self.assertEqual(nsmap, {'xs': XSD_NAMESPACE,
                                  'xs0': 'http://example.com/ns',
                                  'xs1': 'http://example.com/ns2',
@@ -1262,7 +1262,7 @@ class TestResources(unittest.TestCase):
         resource._nsmaps[resource._root] = {}
 
         for _ in resource.iter(nsmap=nsmap):
-            self.assertEqual(nsmap, [])
+            self.assertEqual(nsmap, {})
 
         nsmap.clear()
         if lxml_etree is not None:
@@ -1286,8 +1286,9 @@ class TestResources(unittest.TestCase):
         for elem in resource.iter(nsmap=nsmap):
             try:
                 if elem is resource.root[2][0] or elem in resource.root[2][0]:
-                    self.assertEqual(nsmap['default'], 'http://www.w3.org/2001/XMLSchema')
-                self.assertEqual(nsmap[''], 'http://example.com/ns/collection')
+                    self.assertEqual(nsmap[''], 'http://www.w3.org/2001/XMLSchema')
+                else:
+                    self.assertEqual(nsmap[''], 'http://example.com/ns/collection')
             except IndexError:
                 self.assertEqual(nsmap[''], 'http://example.com/ns/collection')
 

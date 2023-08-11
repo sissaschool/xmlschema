@@ -16,8 +16,8 @@ import re
 import string
 from io import StringIO, BytesIO
 from pathlib import Path, PurePath, PurePosixPath, PureWindowsPath
-from typing import cast, Any, AnyStr, Dict, Optional, IO, Iterator, List, \
-    MutableMapping, Union, Tuple
+from typing import cast, Any, AnyStr, Dict, Optional, IO, Iterable, \
+    Iterator, List, MutableMapping, Union, Tuple
 from urllib.request import urlopen
 from urllib.parse import urlsplit, urlunsplit, unquote, quote_from_bytes
 from urllib.error import URLError
@@ -550,40 +550,46 @@ class XMLResource:
 
     def _track_nsmap(self, elements: Iterator[ElementType],
                      nsmap: NsmapType) -> Iterator[ElementType]:
-        _nsmap = None
+        initial_nsmap = {k: v for k, v in nsmap.items()}
+        elem_nsmap = None
         for elem in elements:
             try:
-                if _nsmap is not self._nsmaps[elem]:
-                    _nsmap = self._nsmaps[elem]
-                    for prefix, uri in _nsmap.items():
-                        self._update_nsmap(nsmap, prefix, uri)
+                if elem_nsmap is not self._nsmaps[elem]:
+                    elem_nsmap = self._nsmaps[elem]
+                    nsmap.clear()
+                    nsmap.update(initial_nsmap)
+                    self._update_nsmap(nsmap, elem_nsmap.items())
             except KeyError:
                 pass
 
             yield elem
 
-    def _update_nsmap(self, nsmap: MutableMapping[str, str], prefix: str, uri: str) -> None:
-        if not prefix:
-            if not uri:
-                return
-            elif '' not in nsmap:
-                if self.namespace:
-                    nsmap[''] = uri
-                    return
-            elif nsmap[''] == uri:
-                return
-            prefix = 'default'
+    def _update_nsmap(self, nsmap: MutableMapping[str, str],
+                      ns_declarations: Iterable[Tuple[str, str]]) -> None:
+        """Update a namespace map without overwriting existing declarations."""
+        for prefix, uri in ns_declarations:
+            if not prefix:
+                if not uri:
+                    continue
+                elif '' not in nsmap:
+                    if self.namespace:
+                        nsmap[''] = uri
+                        continue
+                elif nsmap[''] == uri:
+                    continue
+                prefix = 'default'
 
-        while prefix in nsmap:
-            if nsmap[prefix] == uri:
-                return
-            match = re.search(r'(\d+)$', prefix)
-            if match:
-                index = int(match.group()) + 1
-                prefix = prefix[:match.span()[0]] + str(index)
+            while prefix in nsmap:
+                if nsmap[prefix] == uri:
+                    break
+                match = re.search(r'(\d+)$', prefix)
+                if match:
+                    index = int(match.group()) + 1
+                    prefix = prefix[:match.span()[0]] + str(index)
+                else:
+                    prefix += '0'
             else:
-                prefix += '0'
-        nsmap[prefix] = uri
+                nsmap[prefix] = uri
 
     def _lazy_iterparse(self, resource: IO[AnyStr], nsmap: Optional[NsmapType] = None) \
             -> Iterator[Tuple[str, ElementType]]:
@@ -603,17 +609,29 @@ class XMLResource:
         end_ns = False
         nsmap_stack: List[Dict[str, str]] = [{}]
 
-        _root = cast(Optional[ElementType], getattr(self, '_root', None))
-        _xpath_root = self._xpath_root
+        # Save previous status (if any)
+        _root: Optional[ElementType]
+        _nsmaps: Optional[Dict[ElementType, Dict[str, str]]]
+        _ns_declarations: Optional[Dict[ElementType, List[Tuple[str, str]]]]
+        if hasattr(self, '_root'):
+            _root = self._root
+            _nsmaps = self._nsmaps
+            _ns_declarations = self._ns_declarations
+            _xpath_root = self._xpath_root
+        else:
+            _root = _nsmaps = _ns_declarations = _xpath_root = None
+
         self._nsmaps = {}
         self._ns_declarations = {}
+
         try:
             for event, node in tree_iterator:
                 if event == 'start':
                     if not root_started:
                         self._root = node
+                        self._nsmaps[node] = {k: v for k, v in start_ns}
                         self._xpath_root = LazyElementNode(
-                            self._root, nsmap={k: v for k, v in start_ns}
+                            self._root, nsmap=self._nsmaps[node]
                         )
                         root_started = True
 
@@ -629,13 +647,9 @@ class XMLResource:
                         nsmap_stack[-1].update(start_ns)
                         self._ns_declarations[node] = start_ns
                         start_ns = []
-                        if nsmap is None:
-                            self._nsmaps[node] = nsmap_stack[-1]
-                        else:
+                        if nsmap is not None:
                             nsmap.clear()
                             nsmap.update(nsmap_stack[-1])
-                    elif nsmap is None:
-                        self._nsmaps[node] = nsmap_stack[-1]
 
                     yield event, node
 
@@ -655,11 +669,13 @@ class XMLResource:
                     end_ns = True
 
         except Exception as err:
-            if _root is not None:
+            if _root is not None \
+                    and _nsmaps is not None \
+                    and _ns_declarations is not None:
                 self._root = _root
+                self._nsmaps = _nsmaps
+                self._ns_declarations = _ns_declarations
                 self._xpath_root = _xpath_root
-                self._nsmaps.clear()
-                self._ns_declarations.clear()
             if isinstance(err, PyElementTree.ParseError):
                 raise ElementTree.ParseError(str(err)) from None
             raise
@@ -1122,8 +1138,6 @@ class XMLResource:
                         if tag == '*' or node.tag == tag:
                             yield node
                         node.clear()
-                        self._nsmaps.clear()
-                        self._ns_declarations.clear()
             finally:
                 # Close the resource only if it was originally opened by XMLResource
                 if resource is not self._source:
@@ -1166,8 +1180,7 @@ class XMLResource:
         if not self._lazy:
             if nsmap is not None and self._nsmaps:
                 for elem in self._root.iter():
-                    for prefix, uri in self._nsmaps[elem].items():
-                        self._update_nsmap(nsmap, prefix, uri)
+                    self._update_nsmap(nsmap, self._nsmaps[elem].items())
 
             yield self._root
             return
@@ -1201,8 +1214,6 @@ class XMLResource:
                         yield node
 
                     del node[:]  # delete children, keep attributes, text and tail.
-                    self._nsmaps.clear()
-                    self._ns_declarations.clear()
 
                     # reset the whole XPath tree to let it still usable if other
                     # children are added to the root by ElementTree.iterparse().
@@ -1298,8 +1309,6 @@ class XMLResource:
 
                         del node[:]  # delete children, keep attributes, text and tail.
                         self.xpath_root.children.clear()  # reset XPath tree
-                        self._nsmaps.clear()
-                        self._ns_declarations.clear()
 
             finally:
                 if self._source is not resource:
@@ -1348,13 +1357,13 @@ class XMLResource:
         else:
             namespaces = copy.copy(namespaces)
 
+        _root_only = root_only or root_only is None and self._lazy
         try:
-            if root_only or root_only is None and self._lazy:
-                for _elem in self.iter(nsmap=namespaces):
+            for elem in self.iter():
+                if elem in self._ns_declarations:
+                    self._update_nsmap(namespaces, self._ns_declarations[elem])
+                if _root_only:
                     break
-            else:
-                for _elem in self.iter(nsmap=namespaces):
-                    pass
         except (ElementTree.ParseError, PyElementTree.ParseError, UnicodeEncodeError):
             pass
 
