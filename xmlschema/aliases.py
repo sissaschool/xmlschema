@@ -47,10 +47,10 @@ if TYPE_CHECKING:
     ElementType = ElementTree.Element
     ElementTreeType = ElementTree.ElementTree
     XMLSourceType = Union[str, bytes, Path, IO[str], IO[bytes], ElementType, ElementTreeType]
-    NamespacesType = MutableMapping[str, str]
 
     ##
     # Type aliases for XML resources
+    NamespacesType = MutableMapping[str, str]
     NormalizedLocationsType = List[Tuple[str, str]]
     LocationsType = Union[Tuple[Tuple[str, str], ...], Dict[str, str], NormalizedLocationsType]
     NsmapType = MutableMapping[str, str]

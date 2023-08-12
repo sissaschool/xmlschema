@@ -7,7 +7,6 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-import re
 from abc import ABCMeta
 from copy import copy
 from itertools import count
@@ -18,7 +17,8 @@ from elementpath.etree import etree_tostring
 
 from .exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, XMLSchemaValueError
 from .aliases import ElementType, XMLSourceType, NamespacesType, BaseXsdType, DecodeType
-from .helpers import get_namespace, get_prefixed_qname, local_name, raw_xml_encode
+from .helpers import get_namespace, get_prefixed_qname, local_name, update_namespaces,\
+    raw_xml_encode
 from .converters import ElementData, XMLSchemaConverter
 from .resources import XMLResource
 from . import validators
@@ -214,44 +214,26 @@ class DataElement(MutableSequence['DataElement']):
             if tag is None or tag == child.tag:
                 yield child
 
-    def get_namespaces(self, namespaces: Optional[NamespacesType] = None) -> NamespacesType:
+    def get_namespaces(self, namespaces: Optional[NamespacesType] = None,
+                       root_only: bool = True) -> NamespacesType:
         """
-        Returns an overall namespace map for DetaElement and its descendants,
-        resolving prefix redefinitions.
+        Returns an overall namespace map for DetaElement, resolving prefix redefinitions.
 
         :param namespaces: builds the namespace map starting over the dictionary provided.
+        :param root_only: if `True` processes only the namespaces declared in the data \
+        element, otherwise precesses also other namespaces declared in its descendants.
         """
         namespaces = copy(namespaces) if namespaces is not None else {}
-        nsmap = None
+        if root_only:
+            update_namespaces(namespaces, self.nsmap.items(), self.namespace)
+        else:
+            nsmap = None
+            root_namespace = self.namespace
 
-        for elem in self.iter():
-            if nsmap is elem.nsmap:
-                continue
-            else:
-                nsmap = elem.nsmap
-                for prefix, uri in nsmap.items():
-                    if not prefix:
-                        if not uri:
-                            continue
-                        elif '' not in namespaces:
-                            if self.namespace:
-                                namespaces[prefix] = uri
-                                continue
-                        elif namespaces[''] == uri:
-                            continue
-                        prefix = 'default'
-
-                    while prefix in namespaces:
-                        if namespaces[prefix] == uri:
-                            break
-                        match = re.search(r'(\d+)$', prefix)
-                        if match:
-                            index = int(match.group()) + 1
-                            prefix = prefix[:match.span()[0]] + str(index)
-                        else:
-                            prefix += '0'
-                    else:
-                        namespaces[prefix] = uri
+            for elem in self.iter():
+                if nsmap is not elem.nsmap:
+                    nsmap = elem.nsmap
+                    update_namespaces(namespaces, nsmap.items(), root_namespace)
 
         return namespaces
 
@@ -295,7 +277,7 @@ class DataElement(MutableSequence['DataElement']):
             raise XMLSchemaValueError("%r has no schema bindings" % self)
 
         kwargs: Dict[str, Any] = {
-            'namespaces': self.get_namespaces(namespaces),
+            'namespaces': self.get_namespaces(namespaces, root_only=False),
             'converter': DataElementConverter,
             'use_defaults': use_defaults,
         }
@@ -322,7 +304,7 @@ class DataElement(MutableSequence['DataElement']):
         :raises: :exc:`XMLSchemaValidationError` if the object is invalid \
         and ``validation='strict'``.
         """
-        kwargs['namespaces'] = self.get_namespaces(kwargs.get('namespaces'))
+        kwargs['namespaces'] = self.get_namespaces(kwargs.get('namespaces'), False)
         if 'converter' not in kwargs:
             kwargs['converter'] = DataElementConverter
 
@@ -348,7 +330,7 @@ class DataElement(MutableSequence['DataElement']):
         :param namespaces: is an optional mapping from namespace prefix to URI. \
         Provided namespaces are registered before serialization. Ignored if the \
         provided *elem* argument is a lxml Element instance.
-        :param indent: the base line indentation.
+        :param indent: the baseline indentation.
         :param max_lines: if truncate serialization after a number of lines \
         (default: do not truncate).
         :param spaces_for_tab: number of spaces for replacing tab characters. For \
@@ -361,7 +343,7 @@ class DataElement(MutableSequence['DataElement']):
         """
         root, _ = self.encode(validation='lax')
         if not hasattr(root, 'nsmap'):
-            namespaces = self.get_namespaces(namespaces)
+            namespaces = self.get_namespaces(namespaces, root_only=False)
 
         _string = etree_tostring(
             elem=root,

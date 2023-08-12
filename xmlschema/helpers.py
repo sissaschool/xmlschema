@@ -10,7 +10,7 @@
 import re
 from collections import Counter
 from decimal import Decimal
-from typing import Any, Callable, Iterator, List, MutableMapping, \
+from typing import Any, Callable, Iterable, Iterator, List, MutableMapping, \
     Optional, Tuple, Union
 from xml.etree.ElementTree import ParseError
 
@@ -19,7 +19,7 @@ from .names import XSI_SCHEMA_LOCATION, XSI_NONS_SCHEMA_LOCATION
 from .aliases import ElementType, NamespacesType, AtomicValueType, NumericValueType
 
 ###
-# Helper functions for QNames
+# Helper functions for QNames and namespaces
 
 NAMESPACE_PATTERN = re.compile(r'{([^}]*)}')
 
@@ -141,6 +141,42 @@ def get_extended_qname(qname: str, namespaces: Optional[MutableMapping[str, str]
             return qname
         else:
             return f'{{{uri}}}{name}' if uri else name
+
+
+def update_namespaces(namespaces: NamespacesType,
+                      ns_declarations: Iterable[Tuple[str, str]],
+                      root_namespace: Optional[str] = None) -> None:
+    """
+    Update a namespace map without overwriting existing declarations.
+
+    :param namespaces: the target namespace map.
+    :param ns_declarations: an iterable containing couples of namespace declarations.
+    :param root_namespace: the namespace of the root element of the XML tree, for \
+    deciding if the empty prefix can be used.
+    """
+    for prefix, uri in ns_declarations:
+        if not prefix:
+            if not uri:
+                continue
+            elif '' not in namespaces:
+                if root_namespace:
+                    namespaces[''] = uri
+                    continue
+            elif namespaces[''] == uri:
+                continue
+            prefix = 'default'
+
+        while prefix in namespaces:
+            if namespaces[prefix] == uri:
+                break
+            match = re.search(r'(\d+)$', prefix)
+            if match:
+                index = int(match.group()) + 1
+                prefix = prefix[:match.span()[0]] + str(index)
+            else:
+                prefix += '0'
+        else:
+            namespaces[prefix] = uri
 
 
 ###

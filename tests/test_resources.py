@@ -697,31 +697,6 @@ class TestResources(unittest.TestCase):
         self.assertEqual(resource.namespace, 'http://example.com/ns/collection')
         self.assertEqual(XMLResource('<A/>').namespace, '')
 
-    def test_xml_resource_update_nsmap_method(self):
-        resource = XMLResource(self.vh_xml_file)
-
-        nsmap = {}
-        resource._update_nsmap(nsmap, [('xs', XSD_NAMESPACE)])
-        self.assertEqual(nsmap, {'xs': XSD_NAMESPACE})
-        resource._update_nsmap(nsmap, [('xs', XSD_NAMESPACE)])
-        self.assertEqual(nsmap, {'xs': XSD_NAMESPACE})
-        resource._update_nsmap(nsmap, [('tns0', 'http://example.com/ns')])
-        self.assertEqual(nsmap, {'xs': XSD_NAMESPACE, 'tns0': 'http://example.com/ns'})
-        resource._update_nsmap(nsmap, [('xs', 'http://example.com/ns')])
-        self.assertEqual(nsmap, {'xs': XSD_NAMESPACE,
-                                 'xs0': 'http://example.com/ns',
-                                 'tns0': 'http://example.com/ns'})
-        resource._update_nsmap(nsmap, [('xs', 'http://example.com/ns')])
-        self.assertEqual(nsmap, {'xs': XSD_NAMESPACE,
-                                 'xs0': 'http://example.com/ns',
-                                 'tns0': 'http://example.com/ns'})
-
-        resource._update_nsmap(nsmap, [('xs', 'http://example.com/ns2')])
-        self.assertEqual(nsmap, {'xs': XSD_NAMESPACE,
-                                 'xs0': 'http://example.com/ns',
-                                 'xs1': 'http://example.com/ns2',
-                                 'tns0': 'http://example.com/ns'})
-
     def test_xml_resource_access(self):
         resource = XMLResource(self.vh_xml_file)
         base_url = resource.base_url

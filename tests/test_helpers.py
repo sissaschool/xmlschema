@@ -26,7 +26,7 @@ from xmlschema.names import XSD_NAMESPACE, XSI_NAMESPACE, XSD_SCHEMA, \
 from xmlschema.helpers import prune_etree, get_namespace, get_qname, \
     local_name, get_prefixed_qname, get_extended_qname, raw_xml_encode, \
     count_digits, strictly_equal, etree_iterpath, etree_getpath, \
-    etree_iter_location_hints
+    etree_iter_location_hints, update_namespaces
 from xmlschema.testing import iter_nested_items, etree_elements_assert_equal
 from xmlschema.validators.exceptions import XMLSchemaValidationError
 from xmlschema.validators.helpers import get_xsd_derivation_attribute, \
@@ -280,6 +280,51 @@ class TestHelpers(unittest.TestCase):
 
         namespaces = {'': XSD_NAMESPACE}
         self.assertEqual(get_extended_qname('element', namespaces), XSD_ELEMENT)
+
+    def test_update_namespaces(self):
+        nsmap = {}
+        update_namespaces(nsmap, [('xs', XSD_NAMESPACE)])
+        self.assertEqual(nsmap, {'xs': XSD_NAMESPACE})
+        update_namespaces(nsmap, [('xs', XSD_NAMESPACE)])
+        self.assertEqual(nsmap, {'xs': XSD_NAMESPACE})
+        update_namespaces(nsmap, [('tns0', 'http://example.com/ns')])
+        self.assertEqual(nsmap, {'xs': XSD_NAMESPACE, 'tns0': 'http://example.com/ns'})
+        update_namespaces(nsmap, [('xs', 'http://example.com/ns')])
+        self.assertEqual(nsmap, {'xs': XSD_NAMESPACE,
+                                 'xs0': 'http://example.com/ns',
+                                 'tns0': 'http://example.com/ns'})
+        update_namespaces(nsmap, [('xs', 'http://example.com/ns')])
+        self.assertEqual(nsmap, {'xs': XSD_NAMESPACE,
+                                 'xs0': 'http://example.com/ns',
+                                 'tns0': 'http://example.com/ns'})
+
+        update_namespaces(nsmap, [('xs', 'http://example.com/ns2')])
+        self.assertEqual(nsmap, {'xs': XSD_NAMESPACE,
+                                 'xs0': 'http://example.com/ns',
+                                 'xs1': 'http://example.com/ns2',
+                                 'tns0': 'http://example.com/ns'})
+
+        nsmap = {}
+        update_namespaces(nsmap, [('', XSD_NAMESPACE)])
+        self.assertEqual(nsmap, {'default': 'http://www.w3.org/2001/XMLSchema'})
+        update_namespaces(nsmap, [('', XSD_NAMESPACE)])
+        self.assertEqual(nsmap, {'default': 'http://www.w3.org/2001/XMLSchema'})
+        update_namespaces(nsmap, [('', 'http://example.com/ns')])
+        self.assertEqual(nsmap, {'default': 'http://www.w3.org/2001/XMLSchema',
+                                 'default0': 'http://example.com/ns'})
+        update_namespaces(nsmap, [('', 'http://example.com/ns2')], root_namespace='foo')
+        self.assertEqual(nsmap, {'default': 'http://www.w3.org/2001/XMLSchema',
+                                 'default0': 'http://example.com/ns',
+                                 '': 'http://example.com/ns2'})
+        update_namespaces(nsmap, [('', 'http://example.com/ns2')])
+        self.assertEqual(nsmap, {'default': 'http://www.w3.org/2001/XMLSchema',
+                                 'default0': 'http://example.com/ns',
+                                 '': 'http://example.com/ns2'})
+        update_namespaces(nsmap, [('', 'http://example.com/ns3')])
+        self.assertEqual(nsmap, {'default': 'http://www.w3.org/2001/XMLSchema',
+                                 'default0': 'http://example.com/ns',
+                                 '': 'http://example.com/ns2',
+                                 'default1': 'http://example.com/ns3'})
 
     def test_etree_iterpath(self):
         root = ElementTree.XML('<a><b1><c1/><c2/></b1><b2/><b3><c3/></b3></a>')
