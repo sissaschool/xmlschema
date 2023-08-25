@@ -13,6 +13,7 @@ import unittest
 import gettext
 
 from xmlschema import XMLSchema, translation
+from xmlschema.testing import SKIP_REMOTE_TESTS
 
 
 class TestTranslations(unittest.TestCase):
@@ -107,6 +108,7 @@ class TestTranslations(unittest.TestCase):
         finally:
             translation._translation = None
 
+    @unittest.skipIf(SKIP_REMOTE_TESTS, "Remote networks are not accessible.")
     def test_pl_validation_translation(self):
         xml_path = "tests//test_cases//translations//pl//tytul_wykonawczy_niekompletny.xml"
         xsd_path = "tests//test_cases//translations//pl//tw-1(5)8e.xsd"
