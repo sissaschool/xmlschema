@@ -441,6 +441,22 @@ class TestValidation(XsdValidatorTestCase):
             '<tns:root xmlns:tns="http://xmlschema.test/ns" tns:a3="foo"/>'
         ))
 
+    def test_issue_363(self):
+        schema = self.schema_class(self.casepath('issues/issue_363/issue_363.xsd'))
+
+        self.assertTrue(schema.is_valid(self.casepath('issues/issue_363/issue_363.xml')))
+        self.assertFalse(
+            schema.is_valid(self.casepath('issues/issue_363/issue_363-invalid-1.xml')))
+        self.assertFalse(
+            schema.is_valid(self.casepath('issues/issue_363/issue_363-invalid-2.xml')))
+
+        # Issue instance case (no default namespace and namespace mismatch)
+        self.assertFalse(
+            schema.is_valid(self.casepath('issues/issue_363/issue_363-invalid-3.xml')))
+        self.assertFalse(
+            schema.is_valid(self.casepath('issues/issue_363/issue_363-invalid-3.xml'),
+                            namespaces={'': "http://xmlschema.test/ns"}))
+
 
 class TestValidation11(TestValidation):
     schema_class = XMLSchema11
@@ -457,7 +473,7 @@ class TestValidation11(TestValidation):
                                      "</tree>"))
 
     def test_issue_171(self):
-        # First schema has an assert with naive check
+        # First schema has an assert with a naive check
         schema = self.schema_class(self.casepath('issues/issue_171/issue_171.xsd'))
         self.check_validity(schema, '<tag name="test" abc="10" def="0"/>', False)
         self.check_validity(schema, '<tag name="test" abc="10" def="1"/>', False)
