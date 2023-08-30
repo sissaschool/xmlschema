@@ -507,7 +507,7 @@ class XsdAttributeGroup(
                 if name not in self.base_attributes:
                     if self.derivation != 'restriction':
                         continue
-                    elif wildcard is None or not wildcard.is_matching(name, self.default_namespace):
+                    elif wildcard is None or not wildcard.is_matching(name):
                         msg = _("Unexpected attribute {!r} in restriction")
                         self.parse_error(msg.format(name))
                     continue

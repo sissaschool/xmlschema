@@ -521,19 +521,12 @@ class XsdComponent(XsdValidator):
         `False` otherwise. For XSD elements the matching is extended to substitutes.
 
         :param name: a local or fully-qualified name.
-        :param default_namespace: used if it's not None and not empty for completing \
+        :param default_namespace: used by the XPath processor for completing \
         the name argument in case it's a local name.
         :param kwargs: additional options that can be used by certain components.
         """
-        if not name:
-            return self.name == name
-        elif name[0] == '{':
-            return self.qualified_name == name
-        elif not default_namespace:
-            return self.name == name or not self.qualified and self.local_name == name
-        else:
-            qname = f'{{{default_namespace}}}{name}'
-            return self.qualified_name == qname or not self.qualified and self.local_name == name
+        return bool(self.name == name or default_namespace and name and
+                    name[0] != '{' and self.name == f'{{{default_namespace}}}{name}')
 
     def match(self, name: Optional[str], default_namespace: Optional[str] = None,
               **kwargs: Any) -> Optional['XsdComponent']:

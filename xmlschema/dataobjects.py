@@ -532,7 +532,7 @@ class DataElementConverter(XMLSchemaConverter):
     def element_encode(self, data_element: 'DataElement', xsd_element: 'XsdElement',
                        level: int = 0) -> ElementData:
         self.namespaces.update(data_element.nsmap)
-        if not xsd_element.is_matching(data_element.tag, self._namespaces.get('')):
+        if not xsd_element.is_matching(data_element.tag):
             raise XMLSchemaValueError("Unmatched tag")
 
         attributes = {self.unmap_qname(k, xsd_element.attributes): v

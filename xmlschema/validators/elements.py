@@ -953,7 +953,7 @@ class XsdElement(XsdComponent, ParticleMixin,
         try:
             level = kwargs['level']
         except KeyError:
-            level = 0
+            level = kwargs['level'] = 0
 
         try:
             element_data = converter.element_encode(obj, self, level)
@@ -962,7 +962,7 @@ class XsdElement(XsdComponent, ParticleMixin,
             return
         else:
             if not level:
-                if not self.is_matching(element_data.tag, self.default_namespace):
+                if not self.is_matching(element_data.tag):
                     errors.append("data tag does not match XSD element name")
 
                 if 'max_depth' in kwargs and kwargs['max_depth'] == 0:
@@ -1075,29 +1075,24 @@ class XsdElement(XsdComponent, ParticleMixin,
         if not name:
             return False
         elif default_namespace and name[0] != '{':
-            qname = f'{{{default_namespace}}}{name}'
-            if name == self.name or qname == self.name:
-                return True
-            return any(name == e.name or qname == e.name for e in self.iter_substitutes())
-        elif name == self.name:
-            return True
-        else:
-            return any(name == e.name for e in self.iter_substitutes())
+            name = f'{{{default_namespace}}}{name}'
+
+            # Workaround for backward compatibility of XPath selectors on schemas.
+            # It could be removed in v3.0.
+            if not self.qualified and default_namespace == self.target_namespace:
+                return (name == self.qualified_name or
+                        any(name == e.qualified_name for e in self.iter_substitutes()))
+
+        return name == self.name or any(name == e.name for e in self.iter_substitutes())
 
     def match(self, name: Optional[str], default_namespace: Optional[str] = None,
               **kwargs: Any) -> Optional['XsdElement']:
         if not name:
             return None
         elif default_namespace and name[0] != '{':
-            qname = f'{{{default_namespace}}}{name}'
-            if name == self.name or qname == self.name:
-                return self
+            name = f'{{{default_namespace}}}{name}'
 
-            for xsd_element in self.iter_substitutes():
-                if name == xsd_element.name or qname == xsd_element.name:
-                    return xsd_element
-
-        elif name == self.name:
+        if name == self.name:
             return self
         else:
             for xsd_element in self.iter_substitutes():

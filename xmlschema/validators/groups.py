@@ -693,7 +693,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                 elif other.model == 'choice':
                     if item.max_occurs != 0:
                         continue
-                    elif not other_item.is_matching(item.name, self.default_namespace):
+                    elif not other_item.is_matching(item.name):
                         continue
                     elif all(e.max_occurs == 0 for e in self.iter_model()):
                         return False
@@ -881,14 +881,13 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                         "{0!r} and {1!r}.").format(self, xsd_element)
                 warnings.warn(msg, XMLSchemaTypeTableWarning, stacklevel=3)
 
-    def match_element(self, name: str, default_namespace: Optional[str] = None) \
-            -> Optional[SchemaElementType]:
+    def match_element(self, name: str) -> Optional[SchemaElementType]:
         """
         Try a model-less match of a child element. Returns the
         matched element, or `None` if there is no match.
         """
         for xsd_element in self.iter_elements():
-            if xsd_element.is_matching(name, default_namespace, group=self):
+            if xsd_element.is_matching(name, group=self):
                 return xsd_element
         return None
 
@@ -962,7 +961,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                     xsd_element = None
                 else:
                     xsd_element = model.element.match(
-                        child.tag, default_namespace, group=self, occurs=model.occurs
+                        child.tag, group=self, occurs=model.occurs
                     )
 
                 if xsd_element is None:
@@ -975,7 +974,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                         errors.append((index, particle, occurs, expected))
                         model.clear()
                         broken_model = True  # the model is broken, continues with raw decoding.
-                        xsd_element = self.match_element(child.tag, default_namespace)
+                        xsd_element = self.match_element(child.tag)
                         break
                     else:
                         continue
@@ -994,7 +993,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                         self.suffix.is_matching(child.tag, default_namespace, self):
                     xsd_element = self.suffix
                 else:
-                    xsd_element = self.match_element(child.tag, default_namespace)
+                    xsd_element = self.match_element(child.tag)
                     if xsd_element is None:
                         errors.append((index, self, 0, None))
                         broken_model = True
@@ -1125,7 +1124,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                         xsd_element = None
                     else:
                         xsd_element = model.element.match(
-                            name, default_namespace, group=self, occurs=model.occurs
+                            name, group=self, occurs=model.occurs
                         )
 
                     if xsd_element is None:
@@ -1144,7 +1143,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                         value = get_qname(default_namespace, name), value
                     else:
                         errors.append((index - cdata_index, self, 0, []))
-                        xsd_element = self.match_element(name, default_namespace)
+                        xsd_element = self.match_element(name)
                         if isinstance(xsd_element, XsdAnyElement):
                             value = get_qname(default_namespace, name), value
                         elif xsd_element is None:
@@ -1506,7 +1505,7 @@ class Xsd11Group(XsdGroup):
                     break
                 elif item.max_occurs != 0:
                     continue
-                elif not other_item.is_matching(item.name, self.default_namespace):
+                elif not other_item.is_matching(item.name):
                     continue
                 elif has_not_empty_item:
                     break
