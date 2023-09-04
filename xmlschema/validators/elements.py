@@ -102,7 +102,7 @@ class XsdElement(XsdComponent, ParticleMixin,
     fixed: Optional[str] = None
     substitution_group: Optional[str] = None
 
-    identities: Dict[str, XsdIdentity]
+    identities: List[XsdIdentity]
     alternatives = ()  # type: Union[Tuple[()], List[XsdAlternative]]
     inheritable = ()  # type: Union[Tuple[()], Dict[str, XsdAttribute]]
 
@@ -298,7 +298,7 @@ class XsdElement(XsdComponent, ParticleMixin,
                 self.parse_error(msg)
 
         # Identity constraints
-        self.identities = {}
+        self.identities = []
         constraint: Union[XsdKey, XsdUnique, XsdKeyref]
         for child in self.elem:
             if child.tag == XSD_UNIQUE:
@@ -312,11 +312,11 @@ class XsdElement(XsdComponent, ParticleMixin,
                 continue
 
             if constraint.ref:
-                if constraint.name in self.identities:
+                if any(constraint.name == x.name for x in self.identities):
                     msg = _("duplicated identity constraint %r:")
                     self.parse_error(msg % constraint.name, child)
 
-                self.identities[constraint.name] = constraint
+                self.identities.append(constraint)
                 continue
 
             try:
@@ -326,7 +326,7 @@ class XsdElement(XsdComponent, ParticleMixin,
             except KeyError:
                 self.maps.identities[constraint.name] = constraint
             finally:
-                self.identities[constraint.name] = constraint
+                self.identities.append(constraint)
 
     def _parse_substitution_group(self, substitution_group: str) -> None:
         try:
@@ -416,7 +416,7 @@ class XsdElement(XsdComponent, ParticleMixin,
     def built(self) -> bool:
         return hasattr(self, 'type') and \
             (self.type.parent is None or self.type.built) and \
-            all(c.built for c in self.identities.values())
+            all(c.built for c in self.identities)
 
     @property
     def validation_attempted(self) -> str:
@@ -424,7 +424,7 @@ class XsdElement(XsdComponent, ParticleMixin,
             return 'full'
         elif self.type.validation_attempted == 'partial':
             return 'partial'
-        elif any(c.validation_attempted == 'partial' for c in self.identities.values()):
+        elif any(c.validation_attempted == 'partial' for c in self.identities):
             return 'partial'
         else:
             return 'none'
@@ -514,12 +514,12 @@ class XsdElement(XsdComponent, ParticleMixin,
 
         if xsd_classes is None:
             yield self
-            yield from self.identities.values()
+            yield from self.identities
         else:
             if isinstance(self, xsd_classes):
                 yield self
             if issubclass(XsdIdentity, xsd_classes):
-                yield from self.identities.values()
+                yield from self.identities
 
         if self.ref is None and self.type.parent is not None:
             yield from self.type.iter_components(xsd_classes)
@@ -588,7 +588,7 @@ class XsdElement(XsdComponent, ParticleMixin,
 
         :param identities: a dictionary containing the identities counters.
         """
-        for constraint in self.identities.values():
+        for constraint in self.identities:
             try:
                 identities[constraint].clear()
             except KeyError:
@@ -600,7 +600,7 @@ class XsdElement(XsdComponent, ParticleMixin,
 
         :param identities: a dictionary containing the identities counters.
         """
-        for identity in self.identities.values():
+        for identity in self.identities:
             try:
                 identities[identity].enabled = False
             except KeyError:
@@ -667,7 +667,7 @@ class XsdElement(XsdComponent, ParticleMixin,
             else:
                 if self.identities:
                     xpath_element = XPathElement(self.name, xsd_type)
-                    for identity in self.identities.values():
+                    for identity in self.identities:
                         if isinstance(identity.elements, tuple) \
                                 or identity.selector is None:
                             continue  # Skip unbuilt or incomplete identities
@@ -903,7 +903,7 @@ class XsdElement(XsdComponent, ParticleMixin,
 
         # Disable collect for out of scope identities and check key references
         if 'max_depth' not in kwargs:
-            for identity in self.identities.values():
+            for identity in self.identities:
                 counter = identities[identity]
                 counter.enabled = False
                 if isinstance(identity, XsdKeyref):
@@ -1280,7 +1280,7 @@ class Xsd11Element(XsdElement):
     @property
     def built(self) -> bool:
         return (self.type.parent is None or self.type.built) and \
-            all(c.built for c in self.identities.values()) and \
+            all(c.built for c in self.identities) and \
             all(a.built for a in self.alternatives)
 
     @property
@@ -1295,12 +1295,12 @@ class Xsd11Element(XsdElement):
     def iter_components(self, xsd_classes: ComponentClassType = None) -> Iterator[XsdComponent]:
         if xsd_classes is None:
             yield self
-            yield from self.identities.values()
+            yield from self.identities
         else:
             if isinstance(self, xsd_classes):
                 yield self
 
-            for obj in self.identities.values():
+            for obj in self.identities:
                 if isinstance(obj, xsd_classes):
                     yield obj
 

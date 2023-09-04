@@ -399,8 +399,8 @@ class TestXsd11Identities(TestXsdIdentities):
             </xs:element>""")
 
         key1 = schema.identities['key1']
-        self.assertIsNot(schema.elements['secondary_key'].identities['key1'], key1)
-        self.assertIs(schema.elements['secondary_key'].identities['key1'].ref, key1)
+        self.assertIsNot(schema.elements['secondary_key'].identities[0], key1)
+        self.assertIs(schema.elements['secondary_key'].identities[0].ref, key1)
 
     def test_missing_key_reference_definition(self):
         schema = self.check_schema("""
@@ -451,10 +451,10 @@ class TestXsd11Identities(TestXsdIdentities):
               <xs:keyref ref="keyref1"/>
             </xs:element>""")
 
-        self.assertIsNot(schema.elements['secondary_key'].identities['keyref1'],
-                         schema.elements['primary_key'].identities['keyref1'])
-        self.assertIs(schema.elements['secondary_key'].identities['keyref1'].ref,
-                      schema.elements['primary_key'].identities['keyref1'])
+        self.assertIsNot(schema.elements['secondary_key'].identities[0],
+                         schema.elements['primary_key'].identities[-1])
+        self.assertIs(schema.elements['secondary_key'].identities[0].ref,
+                      schema.elements['primary_key'].identities[-1])
 
     def test_selector_default_namespace(self):
         schema = self.check_schema("""

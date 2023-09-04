@@ -361,7 +361,7 @@ class XMLSchemaChildrenValidationError(XMLSchemaValidationError):
                 name = xsd_element.prefixed_name
                 if name is not None:
                     if ':' not in name:
-                        name = xsd_element.name  # avoid empty prefixes
+                        name = cast(str, xsd_element.name)  # avoid empty prefixes
                     expected_tags.append(name)
 
                 elif getattr(xsd_element, 'process_contents', '') == 'strict':

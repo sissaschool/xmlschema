@@ -168,7 +168,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     normalized.
     :param base_url: is an optional base URL, used for the normalization of relative paths \
     when the URL of the schema resource can't be obtained from the source argument.
-    :param allow: defines the security mode for accessing resource locations. Can be \
+    :param allow: the security mode for accessing resource locations. Can be \
     'all', 'remote', 'local' or 'sandbox'. Default is 'all' that means all types of \
     URLs are allowed. With 'remote' only remote resource URLs are allowed. With 'local' \
     only file paths and URLs are allowed. With 'sandbox' only file paths and URLs that \
@@ -599,12 +599,14 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
     @property
     def allow(self) -> str:
-        """Defines the resource access security mode, can be 'all', 'local' or 'sandbox'."""
+        """
+        The resource access security mode: can be 'all', 'remote', 'local' or 'sandbox'.
+        """
         return self.source.allow
 
     @property
     def defuse(self) -> str:
-        """Defines when to defuse XML data, can be 'always', 'remote' or 'never'."""
+        """Defines when to defuse XML data: can be 'always', 'remote' or 'never'."""
         return self.source.defuse
 
     @property
