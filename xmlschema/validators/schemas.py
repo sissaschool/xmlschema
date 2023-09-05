@@ -1808,11 +1808,13 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                     path_ = f"{'/'.join(e.tag for e in ancestors)}/ancestor-or-self::node()"
                     xsd_ancestors = cast(List[XsdElement], schema.findall(path_, namespaces)[1:])
 
+                    # Clear identity constraints counters
                     for e in xsd_ancestors[k:]:
-                        e.stop_identities(identities)
-
-                    for e in xsd_ancestors[k:]:
-                        e.start_identities(identities)
+                        for identity in e.identities:
+                            if identity in identities:
+                                identities[identity].clear()
+                            else:
+                                identities[identity] = identity.get_counter()
 
                     prev_ancestors = ancestors[:]
 
@@ -1840,8 +1842,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 return
 
         if kwargs['identities'] is not identities:
-            identity: XsdIdentity
-            counter: IdentityCounter
             for identity, counter in kwargs['identities'].items():
                 identities[identity].counter.update(counter.counter)
             kwargs['identities'] = identities
@@ -1862,8 +1862,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
         # Check still enabled key references (lazy validation cases)
         if identities is not None:
-            for constraint, counter in identities.items():
-                if counter.enabled and isinstance(constraint, XsdKeyref):
+            for identity, counter in identities.items():
+                if counter.enabled and isinstance(identity, XsdKeyref):
                     for error in cast(KeyrefCounter, counter).iter_errors(identities):
                         yield self.validation_error(validation, error, source.root, **kwargs)
 

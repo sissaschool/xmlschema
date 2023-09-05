@@ -44,7 +44,7 @@ from .xsdbase import XSD_TYPE_DERIVATIONS, XSD_ELEMENT_DERIVATIONS, \
     XsdComponent, ValidationMixin
 from .particles import ParticleMixin, OccursCalculator
 from .identities import XsdIdentity, XsdKey, XsdUnique, \
-    XsdKeyref, IdentityCounter, IdentityCounterType
+    XsdKeyref, KeyrefCounter, IdentityCounterType
 from .simple_types import XsdSimpleType
 from .attributes import XsdAttribute
 from .wildcards import XsdAnyElement
@@ -582,30 +582,6 @@ class XsdElement(XsdComponent, ParticleMixin,
             if ns not in locations:
                 locations[ns] = None
 
-    def start_identities(self, identities: Dict[XsdIdentity, IdentityCounter]) -> None:
-        """
-        Start tracking of XSD element's identities.
-
-        :param identities: a dictionary containing the identities counters.
-        """
-        for constraint in self.identities:
-            try:
-                identities[constraint].clear()
-            except KeyError:
-                identities[constraint] = constraint.get_counter()
-
-    def stop_identities(self, identities: Dict[XsdIdentity, IdentityCounter]) -> None:
-        """
-        Stop tracking of XSD element's identities.
-
-        :param identities: a dictionary containing the identities counters.
-        """
-        for identity in self.identities:
-            try:
-                identities[identity].enabled = False
-            except KeyError:
-                identities[identity] = identity.get_counter(enabled=False)
-
     def iter_decode(self, obj: ElementType, validation: str = 'lax', **kwargs: Any) \
             -> IterDecodeType[Any]:
         """
@@ -636,7 +612,11 @@ class XsdElement(XsdComponent, ParticleMixin,
         except KeyError:
             identities = kwargs['identities'] = {}
 
-        self.start_identities(identities)
+        for identity in self.identities:
+            if identity in identities:
+                identities[identity].clear()
+            else:
+                identities[identity] = identity.get_counter()
 
         try:
             converter = kwargs['converter']
@@ -907,10 +887,12 @@ class XsdElement(XsdComponent, ParticleMixin,
                 counter = identities[identity]
                 counter.enabled = False
                 if isinstance(identity, XsdKeyref):
+                    assert isinstance(counter, KeyrefCounter)
                     for error in counter.iter_errors(identities):
                         yield self.validation_error(validation, error, obj, **kwargs)
         elif level:
-            self.stop_identities(identities)
+            for identity in self.identities:
+                identities[identity].enabled = False
 
     def to_objects(self, obj: ElementType, with_bindings: bool = False, **kwargs: Any) \
             -> DecodeType['dataobjects.DataElement']:
