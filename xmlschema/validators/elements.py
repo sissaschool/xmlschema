@@ -14,7 +14,8 @@ import warnings
 from copy import copy as _copy
 from decimal import Decimal
 from types import GeneratorType
-from typing import TYPE_CHECKING, cast, Any, Dict, Iterator, List, Optional, Tuple, Type, Union
+from typing import TYPE_CHECKING, cast, Any, Dict, Iterator, List, Optional, \
+    Set, Tuple, Type, Union
 from xml.etree.ElementTree import Element
 
 from elementpath import XPath2Parser, ElementPathError, XPathContext, XPathToken, \
@@ -103,6 +104,7 @@ class XsdElement(XsdComponent, ParticleMixin,
     substitution_group: Optional[str] = None
 
     identities: List[XsdIdentity]
+    selected_by: Set[XsdIdentity]
     alternatives = ()  # type: Union[Tuple[()], List[XsdAlternative]]
     inheritable = ()  # type: Union[Tuple[()], Dict[str, XsdAttribute]]
 
@@ -121,6 +123,7 @@ class XsdElement(XsdComponent, ParticleMixin,
 
         if not build:
             self._build = False
+        self.selected_by = set()
         super(XsdElement, self).__init__(elem, schema, parent)
 
     def __repr__(self) -> str:
@@ -177,6 +180,7 @@ class XsdElement(XsdComponent, ParticleMixin,
                 self.substitution_group = xsd_element.substitution_group
                 self.identities = xsd_element.identities
                 self.alternatives = xsd_element.alternatives
+                self.selected_by = xsd_element.selected_by
 
             for attr_name in {'type', 'nillable', 'default', 'fixed', 'form',
                               'block', 'abstract', 'final', 'substitutionGroup'}:
@@ -593,14 +597,11 @@ class XsdElement(XsdComponent, ParticleMixin,
         :return: yields a decoded object, eventually preceded by a sequence of \
         validation or decoding errors.
         """
+        error: Union[XMLSchemaValueError, XMLSchemaValidationError]
+
         if self.abstract:
             reason = _("cannot use an abstract element for validation")
             yield self.validation_error(validation, reason, obj, **kwargs)
-
-        try:
-            namespaces = kwargs['namespaces']
-        except KeyError:
-            namespaces = None
 
         try:
             level = kwargs['level']
@@ -614,9 +615,9 @@ class XsdElement(XsdComponent, ParticleMixin,
 
         for identity in self.identities:
             if identity in identities:
-                identities[identity].clear()
+                identities[identity].reset(obj)
             else:
-                identities[identity] = identity.get_counter()
+                identities[identity] = identity.get_counter(obj)
 
         try:
             converter = kwargs['converter']
@@ -641,6 +642,11 @@ class XsdElement(XsdComponent, ParticleMixin,
             # Meta-schema elements ignore xsi:type (issue #350)
             type_name = obj.attrib[XSI_TYPE].strip()
             try:
+                namespaces = kwargs['namespaces']
+            except KeyError:
+                namespaces = None
+
+            try:
                 xsd_type = self.maps.get_instance_type(type_name, xsd_type, namespaces)
             except (KeyError, TypeError) as err:
                 yield self.validation_error(validation, err, obj, **kwargs)
@@ -662,11 +668,13 @@ class XsdElement(XsdComponent, ParticleMixin,
                         )
 
                         for e in identity.selector.token.select_results(context):
-                            if not isinstance(e, XsdElement):
+                            if not isinstance(e, (XsdElement, XsdAnyElement)):
                                 reason = _("selector xpath expression can only select elements")
                                 yield self.validation_error(validation, reason, e, **kwargs)
                             elif e not in identity.elements:
                                 identity.elements[e] = None
+                                if isinstance(e, XsdElement):
+                                    e.selected_by.add(identity)
 
             if xsd_type.is_blocked(self):
                 reason = _("usage of %r is blocked") % xsd_type
@@ -823,52 +831,8 @@ class XsdElement(XsdComponent, ParticleMixin,
         if content is not None:
             del content
 
-        element_node: Union[None, ElementNode, LazyElementNode] = None
-
-        # Collect field values for identities that refer to this element.
-        for identity, counter in identities.items():
-            if not counter.enabled or not identity.elements:
-                continue
-            elif self in identity.elements:
-                xsd_element = self
-            elif self.ref in identity.elements:
-                xsd_element = self.ref
-            else:
-                continue
-
-            try:
-                xsd_fields: Optional[IdentityCounterType]
-                if xsd_type is self.type:
-                    xsd_fields = identity.elements[xsd_element]
-                    if xsd_fields is None:
-                        xsd_fields = identity.get_fields(xsd_element.xpath_node)
-                        identity.elements[xsd_element] = xsd_fields
-                else:
-                    xsd_element = _copy(self)
-                    xsd_element.type = xsd_type
-                    xsd_fields = identity.get_fields(xsd_element.xpath_node)
-
-                if all(x is None for x in xsd_fields):
-                    continue
-                decoders = cast(Tuple[XsdAttribute, ...], xsd_fields)
-
-                if element_node is None:
-                    try:
-                        resource = cast(XMLResource, kwargs['source'])
-                    except KeyError:
-                        element_node = LazyElementNode(obj, nsmap=_copy(namespaces))
-                    else:
-                        element_node = resource.get_xpath_node(obj)
-
-                fields = identity.get_fields(element_node, namespaces, decoders=decoders)
-            except (XMLSchemaValueError, XMLSchemaTypeError) as err:
-                yield self.validation_error(validation, err, obj, **kwargs)
-            else:
-                if any(x is not None for x in fields) or nilled:
-                    try:
-                        counter.increase(fields)
-                    except ValueError as err:
-                        yield self.validation_error(validation, err, obj, **kwargs)
+        if self.selected_by:
+            yield from self.collect_key_fields(obj, xsd_type, validation, nilled, **kwargs)
 
         # Apply non XSD optional validations
         if 'extra_validator' in kwargs:
@@ -893,6 +857,67 @@ class XsdElement(XsdComponent, ParticleMixin,
         elif level:
             for identity in self.identities:
                 identities[identity].enabled = False
+
+    def collect_key_fields(self, elem: ElementType, xsd_type: BaseXsdType,
+                           validation: str = 'lax', nilled: bool = False,
+                           **kwargs: Any) -> Iterator[XMLSchemaValidationError]:
+        element_node: Union[ElementNode, LazyElementNode]
+        xsd_fields: Optional[IdentityCounterType]
+
+        try:
+            identities = kwargs['identities']
+        except KeyError:
+            return
+
+        try:
+            namespaces = kwargs['namespaces']
+        except KeyError:
+            namespaces = None
+
+        try:
+            resource = cast(XMLResource, kwargs['source'])
+        except KeyError:
+            element_node = LazyElementNode(elem, nsmap=_copy(namespaces))
+        else:
+            element_node = resource.get_xpath_node(elem)
+
+        xsd_element = self if self.ref is None else self.ref
+        if xsd_element.type is not xsd_type:
+            xsd_element = _copy(xsd_element)
+            xsd_element.type = xsd_type
+
+        # Collect field values for identities that refer to this element.
+        for identity in self.selected_by:
+            try:
+                counter = identities[identity]
+            except KeyError:
+                continue
+            else:
+                if not counter.enabled or not identity.elements:
+                    continue
+
+            try:
+                if xsd_element.type is self.type:
+                    xsd_fields = identity.elements[xsd_element]
+                    if xsd_fields is None:
+                        xsd_fields = identity.get_fields(xsd_element.xpath_node)
+                        identity.elements[xsd_element] = xsd_fields
+                else:
+                    xsd_fields = identity.get_fields(xsd_element.xpath_node)
+
+                if all(x is None for x in xsd_fields):
+                    continue
+
+                decoders = cast(Tuple[XsdAttribute, ...], xsd_fields)
+                fields = identity.get_fields(element_node, namespaces, decoders=decoders)
+            except (XMLSchemaValueError, XMLSchemaTypeError) as err:
+                yield self.validation_error(validation, err, elem, **kwargs)
+            else:
+                if any(x is not None for x in fields) or nilled:
+                    try:
+                        counter.increase(fields)
+                    except ValueError as err:
+                        yield self.validation_error(validation, err, elem, **kwargs)
 
     def to_objects(self, obj: ElementType, with_bindings: bool = False, **kwargs: Any) \
             -> DecodeType['dataobjects.DataElement']:

@@ -1812,9 +1812,9 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                     for e in xsd_ancestors[k:]:
                         for identity in e.identities:
                             if identity in identities:
-                                identities[identity].clear()
+                                identities[identity].reset(elem)
                             else:
-                                identities[identity] = identity.get_counter()
+                                identities[identity] = identity.get_counter(elem)
 
                     prev_ancestors = ancestors[:]
 

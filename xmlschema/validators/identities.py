@@ -25,6 +25,8 @@ from ..aliases import ElementType, SchemaType, NamespacesType, AtomicValueType
 from .exceptions import XMLSchemaNotBuiltError
 from .xsdbase import XsdComponent
 from .attributes import XsdAttribute
+from .wildcards import XsdAnyElement
+from . import elements
 
 if TYPE_CHECKING:
     from .elements import XsdElement
@@ -230,13 +232,14 @@ class XsdIdentity(XsdComponent):
         self.elements = {}
 
         for e in self.selector.token.select_results(context):
-            if not isinstance(e, XsdComponent) or isinstance(e, XsdAttribute):
+            if not isinstance(e, (elements.XsdElement, XsdAnyElement)):
                 msg = _("selector xpath expression can only select elements")
                 self.parse_error(msg)
             elif e.name is not None:
-                if TYPE_CHECKING:
-                    assert isinstance(e, XsdElement)  # for mypy checks with Python 3.7
+                if e.ref is not None:
+                    e = e.ref
                 self.elements[e] = None
+                e.selected_by.add(self)
 
         if not self.elements:
             # Try to detect target XSD elements extracting QNames
@@ -251,15 +254,18 @@ class XsdIdentity(XsdComponent):
                 if xsd_element is not None and \
                         not isinstance(xsd_element, tuple) and \
                         xsd_element not in self.elements:
+                    if xsd_element.ref is not None:
+                        xsd_element = xsd_element.ref
+
                     self.elements[xsd_element] = None
+                    xsd_element.selected_by.add(self)
 
         self.root_elements = set()
         for token in iter_root_elements(self.selector.token):
             context = XPathContext(self.schema.xpath_node, item=self.parent.xpath_node)
             for e in token.select_results(context):
-                if TYPE_CHECKING:
-                    assert isinstance(e, XsdElement)
-                self.root_elements.add(e)
+                if isinstance(e, elements.XsdElement):
+                    self.root_elements.add(e)
 
     @property
     def built(self) -> bool:
@@ -342,8 +348,8 @@ class XsdIdentity(XsdComponent):
 
         return tuple(fields)
 
-    def get_counter(self, enabled: bool = True) -> 'IdentityCounter':
-        return IdentityCounter(self, enabled)
+    def get_counter(self, elem: Optional[ElementType] = None) -> 'IdentityCounter':
+        return IdentityCounter(self, elem)
 
 
 class XsdUnique(XsdIdentity):
@@ -432,8 +438,8 @@ class XsdKeyref(XsdIdentity):
     def built(self) -> bool:
         return not isinstance(self.elements, tuple) and isinstance(self.refer, XsdIdentity)
 
-    def get_counter(self, enabled: bool = True) -> 'KeyrefCounter':
-        return KeyrefCounter(self, enabled)
+    def get_counter(self, elem: Optional[ElementType] = None) -> 'KeyrefCounter':
+        return KeyrefCounter(self, elem)
 
 
 class Xsd11Unique(XsdUnique):
@@ -462,16 +468,18 @@ class Xsd11Keyref(XsdKeyref):
 
 class IdentityCounter:
 
-    def __init__(self, identity: XsdIdentity, enabled: bool = True) -> None:
+    def __init__(self, identity: XsdIdentity, elem: Optional[ElementType] = None) -> None:
         self.counter: Counter[IdentityCounterType] = Counter[IdentityCounterType]()
         self.identity = identity
-        self.enabled = enabled
+        self.elem = elem
+        self.enabled = True
 
     def __repr__(self) -> str:
         return "%s%r" % (self.__class__.__name__[:-7], self.counter)
 
-    def clear(self) -> None:
+    def reset(self, elem: Optional[ElementType] = None) -> None:
         self.counter.clear()
+        self.elem = elem
         self.enabled = True
 
     def increase(self, fields: IdentityCounterType) -> None:
