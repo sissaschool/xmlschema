@@ -66,7 +66,7 @@ class XMLSchemaProxy(AbstractSchemaProxy):
 
     def bind_parser(self, parser: XPath2Parser) -> None:
         parser.schema = self
-        parser.symbol_table = dict(parser.__class__.symbol_table)
+        parser.symbol_table = dict(parser.__class__.symbol_table)  # type: ignore[arg-type]
 
         with self._schema.lock:
             if self._schema.xpath_tokens is None:

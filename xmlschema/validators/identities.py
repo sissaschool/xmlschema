@@ -238,7 +238,7 @@ class XsdIdentity(XsdComponent):
             elif e.name is not None:
                 if e.ref is not None:
                     e = e.ref
-                self.elements[e] = None
+                self.elements[e] = None  # XSD fields must be added during validation
                 e.selected_by.add(self)
 
         if not self.elements:
@@ -348,7 +348,7 @@ class XsdIdentity(XsdComponent):
 
         return tuple(fields)
 
-    def get_counter(self, elem: Optional[ElementType] = None) -> 'IdentityCounter':
+    def get_counter(self, elem: ElementType) -> 'IdentityCounter':
         return IdentityCounter(self, elem)
 
 
@@ -438,7 +438,7 @@ class XsdKeyref(XsdIdentity):
     def built(self) -> bool:
         return not isinstance(self.elements, tuple) and isinstance(self.refer, XsdIdentity)
 
-    def get_counter(self, elem: Optional[ElementType] = None) -> 'KeyrefCounter':
+    def get_counter(self, elem: ElementType) -> 'KeyrefCounter':
         return KeyrefCounter(self, elem)
 
 
@@ -468,7 +468,7 @@ class Xsd11Keyref(XsdKeyref):
 
 class IdentityCounter:
 
-    def __init__(self, identity: XsdIdentity, elem: Optional[ElementType] = None) -> None:
+    def __init__(self, identity: XsdIdentity, elem: ElementType) -> None:
         self.counter: Counter[IdentityCounterType] = Counter[IdentityCounterType]()
         self.identity = identity
         self.elem = elem
@@ -477,7 +477,7 @@ class IdentityCounter:
     def __repr__(self) -> str:
         return "%s%r" % (self.__class__.__name__[:-7], self.counter)
 
-    def reset(self, elem: Optional[ElementType] = None) -> None:
+    def reset(self, elem: ElementType) -> None:
         self.counter.clear()
         self.elem = elem
         self.enabled = True

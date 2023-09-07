@@ -9,6 +9,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import unittest
+import xml.etree.ElementTree as ElementTree
 
 from xmlschema import XMLSchemaParseError, XMLSchemaValidationError
 from xmlschema.validators import XMLSchema11
@@ -333,7 +334,8 @@ class TestXsdIdentities(XsdValidatorTestCase):
               </xs:key>
             </xs:element>""")
 
-        counter = IdentityCounter(schema.identities['key1'])
+        elem = ElementTree.XML('<primary_key>3</primary_key>')
+        counter = IdentityCounter(schema.identities['key1'], elem)
         self.assertEqual(repr(counter), 'IdentityCounter()')
         self.assertIsNone(counter.increase(('1',)))
         self.assertIsNone(counter.increase(('2',)))
@@ -359,7 +361,8 @@ class TestXsdIdentities(XsdValidatorTestCase):
               </xs:keyref>
             </xs:element>""")
 
-        counter = KeyrefCounter(schema.identities['keyref1'])
+        elem = ElementTree.XML('<primary_key>3</primary_key>')
+        counter = KeyrefCounter(schema.identities['keyref1'], elem)
         self.assertIsNone(counter.increase(('1',)))
         self.assertIsNone(counter.increase(('2',)))
         self.assertIsNone(counter.increase(('1',)))
@@ -370,7 +373,7 @@ class TestXsdIdentities(XsdValidatorTestCase):
         with self.assertRaises(KeyError):
             list(counter.iter_errors(identities={}))
 
-        key_counter = IdentityCounter(schema.identities['key1'])
+        key_counter = IdentityCounter(schema.identities['key1'], elem)
         self.assertIsNone(key_counter.increase(('1',)))
         self.assertIsNone(key_counter.increase('4'))
 

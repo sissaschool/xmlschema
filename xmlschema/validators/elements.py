@@ -886,6 +886,12 @@ class XsdElement(XsdComponent, ParticleMixin,
             xsd_element = _copy(xsd_element)
             xsd_element.type = xsd_type
 
+        if len(self.selected_by) <= 1:
+            ambiguous = False
+        else:
+            ambiguous = sum(x in identities and identities[x].enabled
+                            for x in self.selected_by) > 1
+
         # Collect field values for identities that refer to this element.
         for identity in self.selected_by:
             try:
@@ -893,11 +899,18 @@ class XsdElement(XsdComponent, ParticleMixin,
             except KeyError:
                 continue
             else:
-                if not counter.enabled or not identity.elements:
+                if not counter.enabled:
+                    continue
+
+            if ambiguous:
+                # Select selector path on Element ancestor for ambiguous cases
+                context = XPathContext(counter.elem)
+                result = identity.selector.token.get_results(context)  # type: ignore[union-attr]
+                if elem not in result:  # type: ignore[operator]
                     continue
 
             try:
-                if xsd_element.type is self.type:
+                if xsd_element.type is self.type and identity.elements:
                     xsd_fields = identity.elements[xsd_element]
                     if xsd_fields is None:
                         xsd_fields = identity.get_fields(xsd_element.xpath_node)
