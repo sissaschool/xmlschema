@@ -866,7 +866,9 @@ class XsdElement(XsdComponent, ParticleMixin,
 
         try:
             identities = kwargs['identities']
+            resource = cast(XMLResource, kwargs['source'])
         except KeyError:
+            # skip identities collect if identity map or XML source are missing
             return
 
         try:
@@ -874,23 +876,12 @@ class XsdElement(XsdComponent, ParticleMixin,
         except KeyError:
             namespaces = None
 
-        try:
-            resource = cast(XMLResource, kwargs['source'])
-        except KeyError:
-            element_node = LazyElementNode(elem, nsmap=_copy(namespaces))
-        else:
-            element_node = resource.get_xpath_node(elem)
+        element_node = resource.get_xpath_node(elem)
 
         xsd_element = self if self.ref is None else self.ref
         if xsd_element.type is not xsd_type:
             xsd_element = _copy(xsd_element)
             xsd_element.type = xsd_type
-
-        if len(self.selected_by) <= 1:
-            ambiguous = False
-        else:
-            ambiguous = sum(x in identities and identities[x].enabled
-                            for x in self.selected_by) > 1
 
         # Collect field values for identities that refer to this element.
         for identity in self.selected_by:
@@ -902,15 +893,18 @@ class XsdElement(XsdComponent, ParticleMixin,
                 if not counter.enabled:
                     continue
 
-            if ambiguous:
-                # Select selector path on Element ancestor for ambiguous cases
-                context = XPathContext(counter.elem)
-                result = identity.selector.token.get_results(context)  # type: ignore[union-attr]
-                if elem not in result:  # type: ignore[operator]
-                    continue
+            # Apply selector on Element ancestor for discard false matches
+            root_node = resource.get_xpath_node(counter.elem)
+            context = XPathContext(root_node)
+
+            for item in identity.selector.token.select_results(context):
+                if item is elem:
+                    break
+            else:
+                continue
 
             try:
-                if xsd_element.type is self.type and identity.elements:
+                if xsd_element.type is self.type and xsd_element in identity.elements:
                     xsd_fields = identity.elements[xsd_element]
                     if xsd_fields is None:
                         xsd_fields = identity.get_fields(xsd_element.xpath_node)
