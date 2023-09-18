@@ -48,7 +48,7 @@ from ..aliases import ElementType, XMLSourceType, NamespacesType, LocationsType,
 from ..translation import gettext as _
 from ..helpers import prune_etree, get_namespace, get_qname, is_defuse_error
 from ..namespaces import NamespaceResourcesMap, NamespaceView
-from ..resources import is_local_url, is_remote_url, url_path_is_file, \
+from ..resources import _PurePath, is_local_url, is_remote_url, url_path_is_file, \
     normalize_locations, fetch_resource, normalize_url, XMLResource
 from ..converters import XMLSchemaConverter
 from ..xpath import XsdSchemaProtocol, XMLSchemaProxy, ElementPathMixin
@@ -1459,9 +1459,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             msg = _("target parent {} is not a directory")
             raise XMLSchemaValueError(msg.format(target_path.parent))
 
-        url = self.url or 'schema.xsd'
-        basename = pathlib.Path(unquote(urlsplit(url).path)).name
-        exports: Any = {self: [target_path.joinpath(basename), self.get_text()]}
+        name = self.name or 'schema.xsd'
+        exports: Any = {self: [_PurePath(unquote(name)), self.get_text()]}
         path: Any
 
         while True:
@@ -1469,7 +1468,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
             for schema in list(exports):
                 dir_path = exports[schema][0].parent
-                imports_items = [(x.url, x) for x in schema.imports.values() if x is not None]
+                imports_items = [(x.url, x) for x in schema.imports.values()
+                                 if x is not None]
 
                 for location, ref_schema in chain(schema.includes.items(), imports_items):
                     if ref_schema in exports:
@@ -1478,50 +1478,51 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                     if is_remote_url(location):
                         if not save_remote:
                             continue
-                        url_parts = urlsplit(location)
-                        netloc, path = url_parts.netloc, url_parts.path
-                        path = pathlib.Path().joinpath(netloc).joinpath(path.lstrip('/'))
+
+                        parts = urlsplit(unquote(location))
+                        path = _PurePath(parts.scheme). \
+                            joinpath(parts.netloc). \
+                            joinpath(parts.path.lstrip('/'))
                     else:
                         if location.startswith('file:/'):
                             location = urlsplit(location).path
 
-                        path = pathlib.Path(location)
+                        path = _PurePath(unquote(location))
                         if path.is_absolute():
-                            location = '/'.join(path.parts[-2:])
-                            try:
-                                schema_path = pathlib.Path(schema.filepath)
-                            except TypeError:
-                                pass
-                            else:
-                                try:
-                                    path = path.relative_to(schema_path.parent)
-                                except ValueError:
-                                    parts = path.parts
-                                    if parts[:-2] == schema_path.parts[:-2]:
-                                        path = pathlib.Path(location)
-                                else:
-                                    path = dir_path.joinpath(path)
-                                    exports[ref_schema] = [path, ref_schema.get_text()]
-                                    continue
+                            path = _PurePath('file').joinpath(path.as_posix().lstrip('/'))
+                        else:
+                            path = dir_path.joinpath(path).normalize()
+                            if not str(path).startswith('..'):
+                                # A relative path that doesn't exceed the loading schema dir
+                                exports[ref_schema] = [path, ref_schema.get_text()]
+                                continue
 
-                        elif not str(path).startswith('..'):
-                            path = dir_path.joinpath(path)
-                            exports[ref_schema] = [path, ref_schema.get_text()]
-                            continue
+                            # Use the absolute schema path
+                            filepath = ref_schema.filepath
+                            assert filepath is not None
+                            path = _PurePath('file').joinpath(unquote(filepath).lstrip('/'))
 
-                        if DRIVE_PATTERN.match(path.parts[0]):
-                            path = pathlib.Path().joinpath(path.parts[1:])
+                    parts = path.parent.parts
+                    dir_parts = dir_path.parts
 
-                        for strip_path in ('/', '\\', '..'):
-                            while True:
-                                try:
-                                    path = path.relative_to(strip_path)
-                                except ValueError:
-                                    break
+                    k = 0
+                    for item1, item2 in zip(parts, dir_parts):
+                        if item1 != item2:
+                            break
+                        k += 1
 
-                    path = target_path.joinpath(unquote(str(path)))
-                    repl = 'schemaLocation="{}"'.format(path.as_posix())
+                    if not k:
+                        prefix = '/'.join(['..'] * len(dir_parts))
+                        repl_path = _PurePath(prefix).joinpath(path)
+                    else:
+                        repl_path = _PurePath('/'.join(parts[k:])).joinpath(path.name)
+                        if k < len(dir_parts):
+                            prefix = '/'.join(['..'] * (len(dir_parts) - k))
+                            repl_path = _PurePath(prefix).joinpath(repl_path)
+
+                    repl = 'schemaLocation="{}"'.format(repl_path.as_posix())
                     schema_text = exports[schema][1]
+
                     pattern = r'\bschemaLocation\s*=\s*[\'\"].*%s.*[\'"]' % re.escape(location)
                     exports[schema][1] = re.sub(pattern, repl, schema_text)
                     exports[ref_schema] = [path, ref_schema.get_text()]
@@ -1530,8 +1531,18 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 break
 
         for schema, (path, text) in exports.items():
-            if not path.parent.exists():
-                path.parent.mkdir(parents=True)
+            filepath = target_path.joinpath(path)
+            if not filepath.resolve().is_relative_to(target_path.absolute()):
+                msg = _("target directory {} violation for exported path {}")
+                raise XMLSchemaValueError(msg.format(target, str(path)))
+
+            if not filepath.parent.exists():
+                filepath.parent.mkdir(parents=True)
+
+            if save_remote:
+                # Deactivate residual remote imports
+                pattern = r'\bschemaLocation\s*=\s*[\'\"].*(http|https)\://.*[\'"]'
+                text = re.sub(pattern, '', text)
 
             encoding = 'utf-8'  # default encoding for XML 1.0
 
@@ -1542,7 +1553,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 if re_match is not None:
                     encoding = re_match.group(0).lower()
 
-            with path.open(mode='w', encoding=encoding) as fp:
+            with filepath.open(mode='w', encoding=encoding) as fp:
                 fp.write(text)
 
     def version_check(self, elem: ElementType) -> bool:

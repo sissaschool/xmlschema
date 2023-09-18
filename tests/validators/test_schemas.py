@@ -35,7 +35,7 @@ class CustomXMLSchema(XMLSchema10):
 
 
 class TestXMLSchema10(XsdValidatorTestCase):
-    TEST_CASES_DIR = os.path.join(os.path.dirname(__file__), '../test_cases')
+    TEST_CASES_DIR = str(pathlib.Path(__file__).parent.joinpath('../test_cases').resolve())
     maxDiff = None
 
     class CustomXMLSchema(XMLSchema10):
@@ -747,10 +747,21 @@ class TestXMLSchema10(XsdValidatorTestCase):
                 original_schema = re.sub(r'\s+', '', original_schema)
 
             self.assertNotEqual(exported_schema, original_schema)
+            repl = str(pathlib.Path('file').joinpath(str(self.TEST_CASES_DIR).lstrip('/')))
             self.assertEqual(
                 exported_schema,
-                original_schema.replace('../..', dirname.replace('\\', '/'))
+                original_schema.replace('../..', repl)
             )
+
+            schema_file = pathlib.Path(dirname).joinpath('issue_187_1.xsd')
+            schema = xmlschema.XMLSchema(schema_file)
+            ns_schemas = schema.maps.namespaces['http://example.com/vehicles']
+
+            self.assertEqual(len(ns_schemas), 4)
+            self.assertEqual(ns_schemas[0].name, 'issue_187_1.xsd')
+            self.assertEqual(ns_schemas[1].name, 'cars.xsd')
+            self.assertEqual(ns_schemas[2].name, 'types.xsd')
+            self.assertEqual(ns_schemas[3].name, 'bikes.xsd')
 
         self.assertFalse(os.path.isdir(dirname))
 
@@ -799,11 +810,22 @@ class TestXMLSchema10(XsdValidatorTestCase):
                 original_schema = re.sub(r'\s+', '', original_schema)
 
             self.assertNotEqual(exported_schema, original_schema)
+            self.assertNotIn('https://', exported_schema)
             self.assertEqual(
                 exported_schema,
                 original_schema.replace('https://raw.githubusercontent.com',
-                                        dirname.replace('\\', '/') + '/raw.githubusercontent.com')
+                                        'https/raw.githubusercontent.com')
             )
+
+            schema_file = pathlib.Path(dirname).joinpath('issue_187_2.xsd')
+            schema = xmlschema.XMLSchema(schema_file)
+            ns_schemas = schema.maps.namespaces['http://example.com/vehicles']
+
+            self.assertEqual(len(ns_schemas), 4)
+            self.assertEqual(ns_schemas[0].name, 'issue_187_2.xsd')
+            self.assertEqual(ns_schemas[1].name, 'cars.xsd')
+            self.assertEqual(ns_schemas[2].name, 'types.xsd')
+            self.assertEqual(ns_schemas[3].name, 'bikes.xsd')
 
         self.assertFalse(os.path.isdir(dirname))
 
