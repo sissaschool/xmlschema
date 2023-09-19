@@ -747,11 +747,13 @@ class TestXMLSchema10(XsdValidatorTestCase):
                 original_schema = re.sub(r'\s+', '', original_schema)
 
             self.assertNotEqual(exported_schema, original_schema)
-            repl = str(pathlib.Path('file').joinpath(str(self.TEST_CASES_DIR).lstrip('/')))
-            self.assertEqual(
-                exported_schema,
-                original_schema.replace('../..', repl)
-            )
+
+            if platform.system() != 'Windows':
+                repl = str(pathlib.Path('file').joinpath(str(self.TEST_CASES_DIR).lstrip('/')))
+                self.assertEqual(
+                    exported_schema,
+                    original_schema.replace('../..', repl)
+                )
 
             schema_file = pathlib.Path(dirname).joinpath('issue_187_1.xsd')
             schema = xmlschema.XMLSchema(schema_file)

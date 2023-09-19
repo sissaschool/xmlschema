@@ -77,7 +77,6 @@ logger = logging.getLogger('xmlschema')
 name_attribute = attrgetter('name')
 
 XSD_VERSION_PATTERN = re.compile(r'^\d+\.\d+$')
-DRIVE_PATTERN = re.compile(r'^[a-zA-Z]:$')
 
 # Elements for building dummy groups
 ATTRIBUTE_GROUP_ELEMENT = Element(XSD_ATTRIBUTE_GROUP)
@@ -1488,9 +1487,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                             location = urlsplit(location).path
 
                         path = _PurePath(unquote(location))
-                        if path.is_absolute():
-                            path = _PurePath('file').joinpath(path.as_posix().lstrip('/'))
-                        else:
+                        if not path.is_absolute():
                             path = dir_path.joinpath(path).normalize()
                             if not str(path).startswith('..'):
                                 # A relative path that doesn't exceed the loading schema dir
@@ -1498,9 +1495,15 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                                 continue
 
                             # Use the absolute schema path
-                            filepath = ref_schema.filepath
-                            assert filepath is not None
-                            path = _PurePath('file').joinpath(unquote(filepath).lstrip('/'))
+                            schema_path = ref_schema.filepath
+                            assert schema_path is not None
+                            path = _PurePath(schema_path)
+
+                        if path.drive:
+                            drive = path.drive.split(':')[0]
+                            path = _PurePath(drive).joinpath('/'.join(path.parts[1:]))
+
+                        path = _PurePath('file').joinpath(path.as_posix().lstrip('/'))
 
                     parts = path.parent.parts
                     dir_parts = dir_path.parts
@@ -1532,9 +1535,13 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
         for schema, (path, text) in exports.items():
             filepath = target_path.joinpath(path)
-            if not filepath.resolve().is_relative_to(target_path.absolute()):
-                msg = _("target directory {} violation for exported path {}")
-                raise XMLSchemaValueError(msg.format(target, str(path)))
+
+            # Safety check: raise error if filepath is not inside the target path
+            try:
+                filepath.resolve(strict=False).relative_to(target_path.resolve(strict=False))
+            except ValueError:
+                msg = _("target directory {} violation for exported path {}, {}")
+                raise XMLSchemaValueError(msg.format(target, str(path), str(filepath)))
 
             if not filepath.parent.exists():
                 filepath.parent.mkdir(parents=True)
