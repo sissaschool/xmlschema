@@ -515,7 +515,7 @@ class TestXsdComponent(unittest.TestCase):
               <xs:attribute name="attr1"/>
               <xs:attribute name="attr2"/>
             </xs:attributeGroup>
-            
+
             <xs:complexType name="rootType" mixed="true">
               <xs:annotation>
                 <xs:documentation>
@@ -531,7 +531,7 @@ class TestXsdComponent(unittest.TestCase):
             <xs:element name="root" type="rootType">
               <xs:annotation>
                 <xs:documentation>
-                The root element           
+                The root element
                 </xs:documentation>
               </xs:annotation>
             </xs:element>
