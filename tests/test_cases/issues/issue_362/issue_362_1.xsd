@@ -1,0 +1,25 @@
+<!--
+A test for export schemas with crossed imports/includes and additional failing remote imports.
+-->
+<xs:schema
+  xmlns:xs="http://www.w3.org/2001/XMLSchema"
+  xmlns:tns1="http://xmlschema.test/tns1"
+  xmlns:tns2="http://xmlschema.test/tns2"
+  targetNamespace="http://xmlschema.test/tns1">
+
+  <xs:include schemaLocation="./dir1/../dir1/issue_362_1.xsd"/>
+  <xs:import namespace="http://xmlschema.test/tns2" schemaLocation="http://xmlschema.test/tns2"/>
+  <xs:import namespace="http://xmlschema.test/tns2" schemaLocation="dir1/dir2/issue_362_2.xsd"/>
+
+  <xs:element name="root">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="tns1:item1" />
+        <xs:element ref="tns2:item2" />
+        <xs:element ref="tns2:item3" />
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+</xs:schema>
+

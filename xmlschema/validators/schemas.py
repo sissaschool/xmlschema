@@ -22,11 +22,9 @@ import warnings
 import re
 import sys
 from copy import copy as _copy
-from itertools import chain
 from operator import attrgetter
 from typing import cast, Callable, ItemsView, List, Optional, Dict, Any, \
     Set, Union, Tuple, Type, Iterator, Counter
-from urllib.parse import unquote
 from xml.etree.ElementTree import Element, ParseError
 
 from elementpath import XPathToken, SchemaElementNode, build_schema_node_tree
@@ -48,7 +46,7 @@ from ..aliases import ElementType, XMLSourceType, NamespacesType, LocationsType,
 from ..translation import gettext as _
 from ..helpers import prune_etree, get_namespace, get_qname, is_defuse_error
 from ..namespaces import NamespaceResourcesMap, NamespaceView
-from ..resources import _PurePath, is_local_url, is_remote_url, url_path_is_file, \
+from ..resources import is_local_url, is_remote_url, url_path_is_file, \
     normalize_locations, fetch_resource, normalize_url, XMLResource
 from ..converters import XMLSchemaConverter
 from ..xpath import XsdSchemaProtocol, XMLSchemaProxy, ElementPathMixin
@@ -1432,136 +1430,19 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             build=build,
         )
 
-    def export(self, target: str, save_remote: bool = False) -> None:
+    def export(self, target: str, save_remote: bool = False,
+               remove_residuals: bool = True) -> None:
         """
         Exports a schema instance. The schema instance is exported to a
         directory with also the hierarchy of imported/included schemas.
 
         :param target: a path to a local empty directory.
         :param save_remote: if `True` is provided saves also remote schemas.
+        :param remove_residuals: for default removes residual schema locations \
+        from redundant import statements.
         """
-        import pathlib
-        from urllib.parse import urlsplit
-
-        target_path = pathlib.Path(target)
-        if target_path.is_dir():
-            if list(target_path.iterdir()):
-                msg = _("target directory {} is not empty")
-                raise XMLSchemaValueError(msg.format(target))
-        elif target_path.exists():
-            msg = _("target {} is not a directory")
-            raise XMLSchemaValueError(msg.format(target_path.parent))
-        elif not target_path.parent.exists():
-            msg = _("target parent directory {} does not exist")
-            raise XMLSchemaValueError(msg.format(target_path.parent))
-        elif not target_path.parent.is_dir():
-            msg = _("target parent {} is not a directory")
-            raise XMLSchemaValueError(msg.format(target_path.parent))
-
-        name = self.name or 'schema.xsd'
-        exports: Any = {self: [_PurePath(unquote(name)), self.get_text()]}
-        path: Any
-
-        while True:
-            current_length = len(exports)
-
-            for schema in list(exports):
-                dir_path = exports[schema][0].parent
-                imports_items = [(x.url, x) for x in schema.imports.values()
-                                 if x is not None]
-
-                for location, ref_schema in chain(schema.includes.items(), imports_items):
-                    if ref_schema in exports:
-                        continue
-
-                    if is_remote_url(location):
-                        if not save_remote:
-                            continue
-
-                        parts = urlsplit(unquote(location))
-                        path = _PurePath(parts.scheme). \
-                            joinpath(parts.netloc). \
-                            joinpath(parts.path.lstrip('/'))
-                    else:
-                        if location.startswith('file:/'):
-                            location = urlsplit(location).path
-
-                        path = _PurePath(unquote(location))
-                        if not path.is_absolute():
-                            path = dir_path.joinpath(path).normalize()
-                            if not str(path).startswith('..'):
-                                # A relative path that doesn't exceed the loading schema dir
-                                exports[ref_schema] = [path, ref_schema.get_text()]
-                                continue
-
-                            # Use the absolute schema path
-                            schema_path = ref_schema.filepath
-                            assert schema_path is not None
-                            path = _PurePath(schema_path)
-
-                        if path.drive:
-                            drive = path.drive.split(':')[0]
-                            path = _PurePath(drive).joinpath('/'.join(path.parts[1:]))
-
-                        path = _PurePath('file').joinpath(path.as_posix().lstrip('/'))
-
-                    parts = path.parent.parts
-                    dir_parts = dir_path.parts
-
-                    k = 0
-                    for item1, item2 in zip(parts, dir_parts):
-                        if item1 != item2:
-                            break
-                        k += 1
-
-                    if not k:
-                        prefix = '/'.join(['..'] * len(dir_parts))
-                        repl_path = _PurePath(prefix).joinpath(path)
-                    else:
-                        repl_path = _PurePath('/'.join(parts[k:])).joinpath(path.name)
-                        if k < len(dir_parts):
-                            prefix = '/'.join(['..'] * (len(dir_parts) - k))
-                            repl_path = _PurePath(prefix).joinpath(repl_path)
-
-                    repl = 'schemaLocation="{}"'.format(repl_path.as_posix())
-                    schema_text = exports[schema][1]
-
-                    pattern = r'\bschemaLocation\s*=\s*[\'\"].*%s.*[\'"]' % re.escape(location)
-                    exports[schema][1] = re.sub(pattern, repl, schema_text)
-                    exports[ref_schema] = [path, ref_schema.get_text()]
-
-            if current_length == len(exports):
-                break
-
-        for schema, (path, text) in exports.items():
-            filepath = target_path.joinpath(path)
-
-            # Safety check: raise error if filepath is not inside the target path
-            try:
-                filepath.resolve(strict=False).relative_to(target_path.resolve(strict=False))
-            except ValueError:
-                msg = _("target directory {} violation for exported path {}, {}")
-                raise XMLSchemaValueError(msg.format(target, str(path), str(filepath)))
-
-            if not filepath.parent.exists():
-                filepath.parent.mkdir(parents=True)
-
-            if save_remote:
-                # Deactivate residual remote imports
-                pattern = r'\bschemaLocation\s*=\s*[\'\"].*(http|https)\://.*[\'"]'
-                text = re.sub(pattern, '', text)
-
-            encoding = 'utf-8'  # default encoding for XML 1.0
-
-            if text.startswith('<?'):
-                # Get the encoding from XML declaration
-                xml_declaration = text.split('\n', maxsplit=1)[0]
-                re_match = re.search('(?<=encoding=["\'])[^"\']+', xml_declaration)
-                if re_match is not None:
-                    encoding = re_match.group(0).lower()
-
-            with filepath.open(mode='w', encoding=encoding) as fp:
-                fp.write(text)
+        from ..exports import export_schema
+        export_schema(self, target, save_remote, remove_residuals)
 
     def version_check(self, elem: ElementType) -> bool:
         """
