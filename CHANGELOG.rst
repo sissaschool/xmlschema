@@ -2,9 +2,9 @@
 CHANGELOG
 *********
 
-`v2.5.0`_ (2023-09-19)
+`v2.5.0`_ (2023-09-21)
 ======================
-* Fix identity keys tacking with additional full XPath checks on XML data
+* Fix identity keys tracking with additional full XPath checks on XML data
 * Rewrite schema exports using relative paths
 
 `v2.4.0`_ (2023-07-27)
