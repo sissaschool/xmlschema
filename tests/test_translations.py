@@ -12,6 +12,7 @@
 import unittest
 import gettext
 import warnings
+import pathlib
 
 from xmlschema import XMLSchema, translation
 from xmlschema.testing import SKIP_REMOTE_TESTS
@@ -111,8 +112,13 @@ class TestTranslations(unittest.TestCase):
 
     @unittest.skipIf(SKIP_REMOTE_TESTS, "Remote networks are not accessible.")
     def test_pl_validation_translation(self):
-        xml_path = "tests//test_cases//translations//pl//tytul_wykonawczy_niekompletny.xml"
-        xsd_path = "tests//test_cases//translations//pl//tw-1(5)8e.xsd"
+        test_dir_path = pathlib.Path(__file__).absolute().parent
+
+        xml_path = test_dir_path.joinpath(
+            "test_cases//translations//pl//tytul_wykonawczy_niekompletny.xml"
+        )
+        xsd_path = test_dir_path.joinpath("test_cases//translations//pl//tw-1(5)8e.xsd")
+
         expected_errors = [
             "Zawartość elementu 'com:Opisowy' nie jest kompletna. "
             "Oczekiwany znacznik 'com:Miejscowosc'.",
