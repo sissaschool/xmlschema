@@ -2,6 +2,11 @@
 CHANGELOG
 *********
 
+`v2.5.0`_ (2023-09-21)
+======================
+* Fix identity keys tracking with additional full XPath checks on XML data
+* Rewrite schema exports using relative paths
+
 `v2.4.0`_ (2023-07-27)
 ======================
 * Improve schema export using XSD source encoding
@@ -634,3 +639,4 @@ v0.9.6 (2017-05-05)
 .. _v2.3.0: https://github.com/brunato/xmlschema/compare/v2.2.3...v2.3.0
 .. _v2.3.1: https://github.com/brunato/xmlschema/compare/v2.3.0...v2.3.1
 .. _v2.4.0: https://github.com/brunato/xmlschema/compare/v2.3.1...v2.4.0
+.. _v2.5.0: https://github.com/brunato/xmlschema/compare/v2.4.0...v2.5.0

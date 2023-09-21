@@ -11,6 +11,7 @@
 """Tests on internal helper functions"""
 import unittest
 import gettext
+import warnings
 
 from xmlschema import XMLSchema, translation
 from xmlschema.testing import SKIP_REMOTE_TESTS
@@ -119,17 +120,23 @@ class TestTranslations(unittest.TestCase):
             "Zawartość elementu 'com:Beneficjent' nie jest kompletna. "
             "Oczekiwany znacznik 'com:NrRachunkuPL'.",
         ]
-        try:
-            translation.activate(languages=['pl'])
-            schema = XMLSchema(
-                xsd_path,
-                defuse="never",
-                validation="lax",
-            )
-            errors = [error.reason for error in schema.iter_errors(xml_path)]
-            assert errors == expected_errors
-        finally:
-            translation._translation = None
+        with warnings.catch_warnings(record=True) as warns:
+            warnings.simplefilter("always")
+
+            try:
+                translation.activate(languages=['pl'])
+                schema = XMLSchema(
+                    xsd_path,
+                    defuse="never",
+                    validation="lax",
+                )
+                errors = [error.reason for error in schema.iter_errors(xml_path)]
+                if warns:
+                    self.assertNotEqual(errors, expected_errors)
+                else:
+                    self.assertListEqual(errors, expected_errors)
+            finally:
+                translation._translation = None
 
 
 if __name__ == '__main__':

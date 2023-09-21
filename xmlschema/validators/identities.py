@@ -13,7 +13,7 @@ This module contains classes for other XML Schema identity constraints.
 import re
 import math
 from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Pattern, \
-    Tuple, Union, Counter
+    Set, Tuple, Union, Counter
 from elementpath import XPath2Parser, ElementPathError, XPathToken, XPathContext, \
     ElementNode, translate_pattern, datatypes
 
@@ -25,6 +25,8 @@ from ..aliases import ElementType, SchemaType, NamespacesType, AtomicValueType
 from .exceptions import XMLSchemaNotBuiltError
 from .xsdbase import XsdComponent
 from .attributes import XsdAttribute
+from .wildcards import XsdAnyElement
+from . import elements
 
 if TYPE_CHECKING:
     from .elements import XsdElement
@@ -48,6 +50,20 @@ XSD_IDENTITY_XPATH_SYMBOLS = frozenset((
 # XSD identities use a restricted XPath 2.0 parser. The XMLSchemaProxy is
 # not used for the specific selection of fields and elements and the XSD
 # fields are collected at first validation run.
+
+def iter_root_elements(token: XPathToken) -> Iterator[XPathToken]:
+    if token.symbol in ('(name)', ':', '*', '.'):
+        yield token
+    elif token.symbol in ('//', '/'):
+        yield from iter_root_elements(token[0])
+        for tk in token[1].iter():
+            if tk.symbol == '|':
+                yield from iter_root_elements(tk[1])
+                break
+    elif token.symbol in '|':
+        for tk in token:
+            yield from iter_root_elements(tk)
+
 
 class IdentityXPathParser(XPath2Parser):
     symbol_table = {
@@ -166,6 +182,7 @@ class XsdIdentity(XsdComponent):
 
     # XSD elements bound by selector (for speed-up and for lazy mode)
     elements: Union[Tuple[()], Dict['XsdElement', Optional[IdentityCounterType]]] = ()
+    root_elements: Union[Tuple[()], Set['XsdElement']] = ()
 
     def __init__(self, elem: ElementType, schema: SchemaType,
                  parent: Optional['XsdElement']) -> None:
@@ -215,13 +232,14 @@ class XsdIdentity(XsdComponent):
         self.elements = {}
 
         for e in self.selector.token.select_results(context):
-            if not isinstance(e, XsdComponent) or isinstance(e, XsdAttribute):
+            if not isinstance(e, (elements.XsdElement, XsdAnyElement)):
                 msg = _("selector xpath expression can only select elements")
                 self.parse_error(msg)
             elif e.name is not None:
-                if TYPE_CHECKING:
-                    assert isinstance(e, XsdElement)  # for mypy checks with Python 3.7
-                self.elements[e] = None
+                if e.ref is not None:
+                    e = e.ref
+                self.elements[e] = None  # XSD fields must be added during validation
+                e.selected_by.add(self)
 
         if not self.elements:
             # Try to detect target XSD elements extracting QNames
@@ -236,7 +254,18 @@ class XsdIdentity(XsdComponent):
                 if xsd_element is not None and \
                         not isinstance(xsd_element, tuple) and \
                         xsd_element not in self.elements:
+                    if xsd_element.ref is not None:
+                        xsd_element = xsd_element.ref
+
                     self.elements[xsd_element] = None
+                    xsd_element.selected_by.add(self)
+
+        self.root_elements = set()
+        for token in iter_root_elements(self.selector.token):
+            context = XPathContext(self.schema.xpath_node, item=self.parent.xpath_node)
+            for e in token.select_results(context):
+                if isinstance(e, elements.XsdElement):
+                    self.root_elements.add(e)
 
     @property
     def built(self) -> bool:
@@ -319,8 +348,8 @@ class XsdIdentity(XsdComponent):
 
         return tuple(fields)
 
-    def get_counter(self, enabled: bool = True) -> 'IdentityCounter':
-        return IdentityCounter(self, enabled)
+    def get_counter(self, elem: ElementType) -> 'IdentityCounter':
+        return IdentityCounter(self, elem)
 
 
 class XsdUnique(XsdIdentity):
@@ -363,7 +392,13 @@ class XsdKeyref(XsdIdentity):
         if self.refer is None:
             return  # attribute or key/unique identity constraint missing
         elif isinstance(self.refer, str):
-            refer = self.parent.identities.get(self.refer)
+            refer: Optional[XsdIdentity]
+            for refer in self.parent.identities:
+                if refer.name == self.refer:
+                    break
+            else:
+                refer = None
+
             if refer is not None and refer.ref is None:
                 self.refer = refer  # type: ignore[assignment]
             else:
@@ -403,8 +438,8 @@ class XsdKeyref(XsdIdentity):
     def built(self) -> bool:
         return not isinstance(self.elements, tuple) and isinstance(self.refer, XsdIdentity)
 
-    def get_counter(self, enabled: bool = True) -> 'KeyrefCounter':
-        return KeyrefCounter(self, enabled)
+    def get_counter(self, elem: ElementType) -> 'KeyrefCounter':
+        return KeyrefCounter(self, elem)
 
 
 class Xsd11Unique(XsdUnique):
@@ -433,16 +468,18 @@ class Xsd11Keyref(XsdKeyref):
 
 class IdentityCounter:
 
-    def __init__(self, identity: XsdIdentity, enabled: bool = True) -> None:
+    def __init__(self, identity: XsdIdentity, elem: ElementType) -> None:
         self.counter: Counter[IdentityCounterType] = Counter[IdentityCounterType]()
         self.identity = identity
-        self.enabled = enabled
+        self.elem = elem
+        self.enabled = True
 
     def __repr__(self) -> str:
         return "%s%r" % (self.__class__.__name__[:-7], self.counter)
 
-    def clear(self) -> None:
+    def reset(self, elem: ElementType) -> None:
         self.counter.clear()
+        self.elem = elem
         self.enabled = True
 
     def increase(self, fields: IdentityCounterType) -> None:

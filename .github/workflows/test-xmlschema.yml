@@ -14,7 +14,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        python-version: [3.7, 3.8, 3.9, "3.10", 3.11, 3.12.0-beta.4, pypy-3.9]
+        python-version: [3.7, 3.8, 3.9, "3.10", 3.11, 3.12.0-rc.2, pypy-3.9]
         exclude:
           - os: macos-latest
             python-version: 3.7
@@ -40,18 +40,13 @@ jobs:
           pip install lxml jinja2
           pip install .
           python -m unittest
-      - name: Lint with flake8 if Python version != 3.12b4
-        if: ${{ matrix.python-version != '3.12.0-beta.4' }}
+      - name: Lint with flake8 if Python version != 3.12rc2
+        if: ${{ matrix.python-version != '3.12.0-rc.2' }}
         run: |
           pip install flake8
           flake8 xmlschema --max-line-length=100 --statistics
       - name: Lint with mypy if Python version != 3.7
         if: ${{ matrix.python-version != '3.7' }}
         run: |
-          pip install mypy==1.4.1 elementpath==4.1.5 lxml-stubs
+          pip install mypy==1.5.1 elementpath==4.1.5 lxml-stubs
           mypy --show-error-codes --strict xmlschema
-      - name: Lint with mypy if Python version == 3.7
-        if: ${{ matrix.python-version == '3.7' }}
-        run: |
-          pip install mypy==1.4.1 elementpath==4.1.5 lxml-stubs
-          mypy --show-error-codes --no-warn-redundant-casts --no-warn-unused-ignores --strict xmlschema

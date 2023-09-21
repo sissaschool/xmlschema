@@ -22,11 +22,9 @@ import warnings
 import re
 import sys
 from copy import copy as _copy
-from itertools import chain
 from operator import attrgetter
 from typing import cast, Callable, ItemsView, List, Optional, Dict, Any, \
     Set, Union, Tuple, Type, Iterator, Counter
-from urllib.parse import unquote
 from xml.etree.ElementTree import Element, ParseError
 
 from elementpath import XPathToken, SchemaElementNode, build_schema_node_tree
@@ -77,7 +75,6 @@ logger = logging.getLogger('xmlschema')
 name_attribute = attrgetter('name')
 
 XSD_VERSION_PATTERN = re.compile(r'^\d+\.\d+$')
-DRIVE_PATTERN = re.compile(r'^[a-zA-Z]:$')
 
 # Elements for building dummy groups
 ATTRIBUTE_GROUP_ELEMENT = Element(XSD_ATTRIBUTE_GROUP)
@@ -168,7 +165,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     normalized.
     :param base_url: is an optional base URL, used for the normalization of relative paths \
     when the URL of the schema resource can't be obtained from the source argument.
-    :param allow: defines the security mode for accessing resource locations. Can be \
+    :param allow: the security mode for accessing resource locations. Can be \
     'all', 'remote', 'local' or 'sandbox'. Default is 'all' that means all types of \
     URLs are allowed. With 'remote' only remote resource URLs are allowed. With 'local' \
     only file paths and URLs are allowed. With 'sandbox' only file paths and URLs that \
@@ -599,12 +596,14 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
     @property
     def allow(self) -> str:
-        """Defines the resource access security mode, can be 'all', 'local' or 'sandbox'."""
+        """
+        The resource access security mode: can be 'all', 'remote', 'local' or 'sandbox'.
+        """
         return self.source.allow
 
     @property
     def defuse(self) -> str:
-        """Defines when to defuse XML data, can be 'always', 'remote' or 'never'."""
+        """Defines when to defuse XML data: can be 'always', 'remote' or 'never'."""
         return self.source.defuse
 
     @property
@@ -1431,117 +1430,19 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             build=build,
         )
 
-    def export(self, target: str, save_remote: bool = False) -> None:
+    def export(self, target: str, save_remote: bool = False,
+               remove_residuals: bool = True) -> None:
         """
         Exports a schema instance. The schema instance is exported to a
         directory with also the hierarchy of imported/included schemas.
 
         :param target: a path to a local empty directory.
         :param save_remote: if `True` is provided saves also remote schemas.
+        :param remove_residuals: for default removes residual schema locations \
+        from redundant import statements.
         """
-        import pathlib
-        from urllib.parse import urlsplit
-
-        target_path = pathlib.Path(target)
-        if target_path.is_dir():
-            if list(target_path.iterdir()):
-                msg = _("target directory {} is not empty")
-                raise XMLSchemaValueError(msg.format(target))
-        elif target_path.exists():
-            msg = _("target {} is not a directory")
-            raise XMLSchemaValueError(msg.format(target_path.parent))
-        elif not target_path.parent.exists():
-            msg = _("target parent directory {} does not exist")
-            raise XMLSchemaValueError(msg.format(target_path.parent))
-        elif not target_path.parent.is_dir():
-            msg = _("target parent {} is not a directory")
-            raise XMLSchemaValueError(msg.format(target_path.parent))
-
-        url = self.url or 'schema.xsd'
-        basename = pathlib.Path(unquote(urlsplit(url).path)).name
-        exports: Any = {self: [target_path.joinpath(basename), self.get_text()]}
-        path: Any
-
-        while True:
-            current_length = len(exports)
-
-            for schema in list(exports):
-                dir_path = exports[schema][0].parent
-                imports_items = [(x.url, x) for x in schema.imports.values() if x is not None]
-
-                for location, ref_schema in chain(schema.includes.items(), imports_items):
-                    if ref_schema in exports:
-                        continue
-
-                    if is_remote_url(location):
-                        if not save_remote:
-                            continue
-                        url_parts = urlsplit(location)
-                        netloc, path = url_parts.netloc, url_parts.path
-                        path = pathlib.Path().joinpath(netloc).joinpath(path.lstrip('/'))
-                    else:
-                        if location.startswith('file:/'):
-                            location = urlsplit(location).path
-
-                        path = pathlib.Path(location)
-                        if path.is_absolute():
-                            location = '/'.join(path.parts[-2:])
-                            try:
-                                schema_path = pathlib.Path(schema.filepath)
-                            except TypeError:
-                                pass
-                            else:
-                                try:
-                                    path = path.relative_to(schema_path.parent)
-                                except ValueError:
-                                    parts = path.parts
-                                    if parts[:-2] == schema_path.parts[:-2]:
-                                        path = pathlib.Path(location)
-                                else:
-                                    path = dir_path.joinpath(path)
-                                    exports[ref_schema] = [path, ref_schema.get_text()]
-                                    continue
-
-                        elif not str(path).startswith('..'):
-                            path = dir_path.joinpath(path)
-                            exports[ref_schema] = [path, ref_schema.get_text()]
-                            continue
-
-                        if DRIVE_PATTERN.match(path.parts[0]):
-                            path = pathlib.Path().joinpath(path.parts[1:])
-
-                        for strip_path in ('/', '\\', '..'):
-                            while True:
-                                try:
-                                    path = path.relative_to(strip_path)
-                                except ValueError:
-                                    break
-
-                    path = target_path.joinpath(unquote(str(path)))
-                    repl = 'schemaLocation="{}"'.format(path.as_posix())
-                    schema_text = exports[schema][1]
-                    pattern = r'\bschemaLocation\s*=\s*[\'\"].*%s.*[\'"]' % re.escape(location)
-                    exports[schema][1] = re.sub(pattern, repl, schema_text)
-                    exports[ref_schema] = [path, ref_schema.get_text()]
-
-            if current_length == len(exports):
-                break
-
-        for schema, (path, text) in exports.items():
-            if not path.parent.exists():
-                path.parent.mkdir(parents=True)
-
-            encoding = 'utf-8'  # default encoding for XML 1.0
-
-            if text.startswith('<?'):
-                # Get the encoding from XML declaration
-                xml_declaration = text.split('\n', maxsplit=1)[0]
-                re_match = re.search('(?<=encoding=["\'])[^"\']+', xml_declaration)
-                if re_match is not None:
-                    encoding = re_match.group(0).lower()
-
-            with path.open(mode='w', encoding=encoding) as fp:
-                fp.write(text)
+        from ..exports import export_schema
+        export_schema(self, target, save_remote, remove_residuals)
 
     def version_check(self, elem: ElementType) -> bool:
         """
@@ -1806,11 +1707,13 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                     path_ = f"{'/'.join(e.tag for e in ancestors)}/ancestor-or-self::node()"
                     xsd_ancestors = cast(List[XsdElement], schema.findall(path_, namespaces)[1:])
 
-                    for e in xsd_ancestors[k:]:
-                        e.stop_identities(identities)
-
-                    for e in xsd_ancestors[k:]:
-                        e.start_identities(identities)
+                    # Clear identity constraints counters
+                    for k, e in enumerate(xsd_ancestors[k:], start=k):
+                        for identity in e.identities:
+                            if identity in identities:
+                                identities[identity].reset(ancestors[k])
+                            else:
+                                identities[identity] = identity.get_counter(ancestors[k])
 
                     prev_ancestors = ancestors[:]
 
@@ -1838,8 +1741,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 return
 
         if kwargs['identities'] is not identities:
-            identity: XsdIdentity
-            counter: IdentityCounter
             for identity, counter in kwargs['identities'].items():
                 identities[identity].counter.update(counter.counter)
             kwargs['identities'] = identities
@@ -1860,8 +1761,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
         # Check still enabled key references (lazy validation cases)
         if identities is not None:
-            for constraint, counter in identities.items():
-                if counter.enabled and isinstance(constraint, XsdKeyref):
+            for identity, counter in identities.items():
+                if counter.enabled and isinstance(identity, XsdKeyref):
                     for error in cast(KeyrefCounter, counter).iter_errors(identities):
                         yield self.validation_error(validation, error, source.root, **kwargs)
 

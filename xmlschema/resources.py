@@ -515,7 +515,7 @@ class XMLResource:
         if self._url:
             url_parts = urlsplit(self._url)
             if url_parts.scheme in ('', 'file'):
-                return url_parts.path
+                return str(_PurePath.from_uri(self._url))
         return None
 
     @property

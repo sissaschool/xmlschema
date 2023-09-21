@@ -474,7 +474,7 @@ def iter_unordered_content(
     model = ModelVisitor(group)
     while model.element is not None and consumable_content:  # pragma: no cover
         for name in consumable_content:
-            if model.element.is_matching(name, default_namespace, group=group):
+            if model.element.is_matching(name, group=group):
                 yield name, consumable_content[name].popleft()
                 if not consumable_content[name]:
                     del consumable_content[name]
@@ -534,7 +534,7 @@ def iter_collapsed_content(
             continue
 
         while model.element is not None:
-            if model.element.is_matching(name, default_namespace, group=group):
+            if model.element.is_matching(name, group=group):
                 yield name, value
                 prev_name = name
                 for _err in model.advance(True):
@@ -542,7 +542,7 @@ def iter_collapsed_content(
                 break
 
             for key in unordered_content:
-                if model.element.is_matching(key, default_namespace, group=group):
+                if model.element.is_matching(key, group=group):
                     break
             else:
                 if prev_name == name:
