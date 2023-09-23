@@ -40,7 +40,7 @@ class TestValidation(XsdValidatorTestCase):
 
     @unittest.skipIf(lxml_etree is None, "The lxml library is not available.")
     def test_lxml(self):
-        xs = xmlschema.XMLSchema(self.casepath('examples/vehicles/vehicles.xsd'))
+        xs = self.schema_class(self.casepath('examples/vehicles/vehicles.xsd'))
         xt1 = lxml_etree.parse(self.casepath('examples/vehicles/vehicles.xml'))
         xt2 = lxml_etree.parse(self.casepath('examples/vehicles/vehicles-1_error.xml'))
         self.assertTrue(xs.is_valid(xt1))
@@ -126,8 +126,7 @@ class TestValidation(XsdValidatorTestCase):
         self.assertTrue(xsd_element.is_valid(root, max_depth=2))
         self.assertFalse(xsd_element.is_valid(root, max_depth=3))
 
-        # Need to provide namespace explicitly because the default namespace
-        # is set with xpathDefaultNamespace, that is '' in this case.
+        # Need to provide namespace explicitly because the default namespace is '' in this case.
         xsd_element = schema.find('collection/object', namespaces={'': schema.target_namespace})
 
         self.assertTrue(xsd_element.is_valid(root[0]))
@@ -169,7 +168,7 @@ class TestValidation(XsdValidatorTestCase):
         self.assertIn('Reason: not an Harley-Davidson', str(ec.exception))
 
     def test_path_argument(self):
-        schema = xmlschema.XMLSchema(self.casepath('examples/vehicles/vehicles.xsd'))
+        schema = self.schema_class(self.casepath('examples/vehicles/vehicles.xsd'))
 
         self.assertTrue(schema.is_valid(self.vh_xml_file, path='*'))
         self.assertTrue(schema.is_valid(self.vh_xml_file, path='/vh:vehicles'))
@@ -184,7 +183,7 @@ class TestValidation(XsdValidatorTestCase):
         )
 
     def test_schema_path_argument__issue_326(self):
-        schema = xmlschema.XMLSchema(self.casepath('examples/vehicles/vehicles.xsd'))
+        schema = self.schema_class(self.casepath('examples/vehicles/vehicles.xsd'))
         document = ElementTree.parse(self.vh_xml_file)
 
         entries = document.findall('vh:cars', {'vh': 'http://example.com/vehicles'})
@@ -207,28 +206,6 @@ class TestValidation(XsdValidatorTestCase):
 
     def test_issue_064(self):
         self.check_validity(self.st_schema, '<name xmlns="ns"></name>', False)
-
-    def test_issue_171(self):
-        # First schema has an assert with naive check
-        schema = xmlschema.XMLSchema11(self.casepath('issues/issue_171/issue_171.xsd'))
-        self.check_validity(schema, '<tag name="test" abc="10" def="0"/>', False)
-        self.check_validity(schema, '<tag name="test" abc="10" def="1"/>', False)
-        self.check_validity(schema, '<tag name="test" abc="10"/>', True)
-
-        # Same schema with a more reliable assert expression
-        schema = xmlschema.XMLSchema11(self.casepath('issues/issue_171/issue_171b.xsd'))
-        self.check_validity(schema, '<tag name="test" abc="10" def="0"/>', False)
-        self.check_validity(schema, '<tag name="test" abc="10" def="1"/>', False)
-        self.check_validity(schema, '<tag name="test" abc="10"/>', True)
-
-        # Another schema with a simple assert expression to test that EBV of abc/def='0' is True
-        schema = xmlschema.XMLSchema11(self.casepath('issues/issue_171/issue_171c.xsd'))
-        self.check_validity(schema, '<tag name="test" abc="0" def="1"/>', True)
-        self.check_validity(schema, '<tag name="test" abc="1" def="0"/>', True)
-        self.check_validity(schema, '<tag name="test" abc="1" def="1"/>', True)
-        self.check_validity(schema, '<tag name="test" abc="0" def="0"/>', True)
-        self.check_validity(schema, '<tag name="test" abc="1"/>', False)
-        self.check_validity(schema, '<tag name="test" def="1"/>', False)
 
     def test_issue_183(self):
         # Test for issue #183
@@ -291,7 +268,7 @@ class TestValidation(XsdValidatorTestCase):
         self.check_validity(schema, xml_data, True)
 
     def test_issue_213(self):
-        schema = xmlschema.XMLSchema(dedent("""\
+        schema = self.schema_class(dedent("""\
         <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
           <xs:element name="amount" type="xs:decimal"/>
         </xs:schema>"""))
@@ -303,7 +280,7 @@ class TestValidation(XsdValidatorTestCase):
         self.assertIsInstance(schema.decode(xml2), decimal.Decimal)
 
     def test_issue_224__validate_malformed_file(self):
-        schema = xmlschema.XMLSchema(dedent("""\
+        schema = self.schema_class(dedent("""\
             <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
               <xs:element name="root" type="xs:string"/>
             </xs:schema>"""))
@@ -314,7 +291,7 @@ class TestValidation(XsdValidatorTestCase):
             schema.is_valid(malformed_xml_file)
 
     def test_issue_238__validate_bytes_strings(self):
-        schema = xmlschema.XMLSchema(dedent("""\
+        schema = self.schema_class(dedent("""\
             <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
               <xs:element name="value" type="xs:int"/>
             </xs:schema>"""))
@@ -329,7 +306,7 @@ class TestValidation(XsdValidatorTestCase):
         self.assertTrue(self.col_schema.is_valid(col_xml_data))
 
     def test_issue_350__ignore_xsi_type_for_schema_validation(self):
-        schema = xmlschema.XMLSchema(dedent("""\
+        schema = self.schema_class(dedent("""\
             <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
                 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 
@@ -356,7 +333,7 @@ class TestValidation(XsdValidatorTestCase):
         ))
 
     def test_issue_356__validate_empty_simple_elements(self):
-        schema = xmlschema.XMLSchema(dedent("""\
+        schema = self.schema_class(dedent("""\
             <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
 
                 <xs:element name="root1" type="emptyString" />
@@ -390,6 +367,96 @@ class TestValidation(XsdValidatorTestCase):
         self.assertTrue(schema.is_valid('<root3></root3>'))
         self.assertFalse(schema.is_valid('<root3>foo</root3>'))
 
+    def test_element_form(self):
+        schema = self.schema_class(dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                targetNamespace="http://xmlschema.test/ns">
+
+                <xs:element name="root">
+                  <xs:complexType>
+                    <xs:sequence>
+                      <xs:element name="c1" minOccurs="0" />
+                      <xs:element name="c2" minOccurs="0" form="qualified"/>
+                      <xs:element name="c3" minOccurs="0" form="unqualified"/>
+                    </xs:sequence>
+                  </xs:complexType>
+                </xs:element>
+
+            </xs:schema>"""))
+
+        self.assertFalse(schema.is_valid('<root></root>'))
+        self.assertTrue(schema.is_valid(
+            '<root xmlns="http://xmlschema.test/ns"></root>')
+        )
+        self.assertTrue(schema.is_valid(
+            '<root xmlns="http://xmlschema.test/ns"><c1 xmlns=""/></root>'
+        ))
+        self.assertFalse(schema.is_valid(
+            '<root xmlns="http://xmlschema.test/ns"><c1/></root>'
+        ))
+        self.assertFalse(schema.is_valid(
+            '<root xmlns="http://xmlschema.test/ns"><c2 xmlns=""/></root>'
+        ))
+        self.assertTrue(schema.is_valid(
+            '<root xmlns="http://xmlschema.test/ns"><c2/></root>'
+        ))
+        self.assertTrue(schema.is_valid(
+            '<root xmlns="http://xmlschema.test/ns"><c3 xmlns=""/></root>'
+        ))
+        self.assertFalse(schema.is_valid(
+            '<root xmlns="http://xmlschema.test/ns"><c3/></root>'
+        ))
+
+    def test_attribute_form(self):
+        schema = self.schema_class(dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                targetNamespace="http://xmlschema.test/ns">
+
+                <xs:element name="root">
+                  <xs:complexType>
+                    <xs:attribute name="a1"/>
+                    <xs:attribute name="a2" form="qualified"/>
+                    <xs:attribute name="a3" form="unqualified"/>
+                  </xs:complexType>
+                </xs:element>
+
+            </xs:schema>"""))
+
+        self.assertTrue(schema.is_valid(
+            '<tns:root xmlns:tns="http://xmlschema.test/ns" a1="foo"/>'
+        ))
+        self.assertFalse(schema.is_valid(
+            '<tns:root xmlns:tns="http://xmlschema.test/ns" tns:a1="foo"/>'
+        ))
+        self.assertFalse(schema.is_valid(
+            '<tns:root xmlns:tns="http://xmlschema.test/ns" a2="foo"/>'
+        ))
+        self.assertTrue(schema.is_valid(
+            '<tns:root xmlns:tns="http://xmlschema.test/ns" tns:a2="foo"/>'
+        ))
+        self.assertTrue(schema.is_valid(
+            '<tns:root xmlns:tns="http://xmlschema.test/ns" a3="foo"/>'
+        ))
+        self.assertFalse(schema.is_valid(
+            '<tns:root xmlns:tns="http://xmlschema.test/ns" tns:a3="foo"/>'
+        ))
+
+    def test_issue_363(self):
+        schema = self.schema_class(self.casepath('issues/issue_363/issue_363.xsd'))
+
+        self.assertTrue(schema.is_valid(self.casepath('issues/issue_363/issue_363.xml')))
+        self.assertFalse(
+            schema.is_valid(self.casepath('issues/issue_363/issue_363-invalid-1.xml')))
+        self.assertFalse(
+            schema.is_valid(self.casepath('issues/issue_363/issue_363-invalid-2.xml')))
+
+        # Issue instance case (no default namespace and namespace mismatch)
+        self.assertFalse(
+            schema.is_valid(self.casepath('issues/issue_363/issue_363-invalid-3.xml')))
+        self.assertFalse(
+            schema.is_valid(self.casepath('issues/issue_363/issue_363-invalid-3.xml'),
+                            namespaces={'': "http://xmlschema.test/ns"}))
+
 
 class TestValidation11(TestValidation):
     schema_class = XMLSchema11
@@ -404,6 +471,28 @@ class TestValidation11(TestValidation):
                                      "   <node>alpha</node>\n"  # Misses required attribute
                                      "   <node node-id='2' colour='red'>beta</node>\n"
                                      "</tree>"))
+
+    def test_issue_171(self):
+        # First schema has an assert with a naive check
+        schema = self.schema_class(self.casepath('issues/issue_171/issue_171.xsd'))
+        self.check_validity(schema, '<tag name="test" abc="10" def="0"/>', False)
+        self.check_validity(schema, '<tag name="test" abc="10" def="1"/>', False)
+        self.check_validity(schema, '<tag name="test" abc="10"/>', True)
+
+        # Same schema with a more reliable assert expression
+        schema = self.schema_class(self.casepath('issues/issue_171/issue_171b.xsd'))
+        self.check_validity(schema, '<tag name="test" abc="10" def="0"/>', False)
+        self.check_validity(schema, '<tag name="test" abc="10" def="1"/>', False)
+        self.check_validity(schema, '<tag name="test" abc="10"/>', True)
+
+        # Another schema with a simple assert expression to test that EBV of abc/def='0' is True
+        schema = self.schema_class(self.casepath('issues/issue_171/issue_171c.xsd'))
+        self.check_validity(schema, '<tag name="test" abc="0" def="1"/>', True)
+        self.check_validity(schema, '<tag name="test" abc="1" def="0"/>', True)
+        self.check_validity(schema, '<tag name="test" abc="1" def="1"/>', True)
+        self.check_validity(schema, '<tag name="test" abc="0" def="0"/>', True)
+        self.check_validity(schema, '<tag name="test" abc="1"/>', False)
+        self.check_validity(schema, '<tag name="test" def="1"/>', False)
 
 
 if __name__ == '__main__':

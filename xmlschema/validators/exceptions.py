@@ -360,7 +360,10 @@ class XMLSchemaChildrenValidationError(XMLSchemaValidationError):
             for xsd_element in expected:
                 name = xsd_element.prefixed_name
                 if name is not None:
+                    if ':' not in name:
+                        name = cast(str, xsd_element.name)  # avoid empty prefixes
                     expected_tags.append(name)
+
                 elif getattr(xsd_element, 'process_contents', '') == 'strict':
                     expected_tags.append(
                         'from %r namespace/s' % xsd_element.namespace  # type: ignore[union-attr]

@@ -27,7 +27,7 @@ from ..translation import gettext as _
 from ..helpers import get_namespace, get_qname
 
 from .exceptions import XMLSchemaValidationError
-from .xsdbase import XsdComponent, ValidationMixin
+from .xsdbase import XsdComponent, XsdAnnotation, ValidationMixin
 from .simple_types import XsdSimpleType
 from .wildcards import XsdAnyAttribute
 
@@ -507,7 +507,7 @@ class XsdAttributeGroup(
                 if name not in self.base_attributes:
                     if self.derivation != 'restriction':
                         continue
-                    elif wildcard is None or not wildcard.is_matching(name, self.default_namespace):
+                    elif wildcard is None or not wildcard.is_matching(name):
                         msg = _("Unexpected attribute {!r} in restriction")
                         self.parse_error(msg.format(name))
                     continue
@@ -613,6 +613,12 @@ class XsdAttributeGroup(
     @property
     def built(self) -> bool:
         return True
+
+    @property
+    def annotation(self) -> Optional['XsdAnnotation']:
+        if self.parent is not None and '_annotation' not in self.__dict__:
+            self._annotation = None
+        return super().annotation
 
     def parse_error(self, error: Union[str, Exception],
                     elem: Optional[ElementType] = None,

@@ -17,7 +17,7 @@ from elementpath.etree import etree_tostring
 
 from .exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, XMLSchemaValueError
 from .aliases import ElementType, XMLSourceType, NamespacesType, BaseXsdType, DecodeType
-from .helpers import get_namespace, get_prefixed_qname, local_name, update_namespaces,\
+from .helpers import get_namespace, get_prefixed_qname, local_name, update_namespaces, \
     raw_xml_encode
 from .converters import ElementData, XMLSchemaConverter
 from .resources import XMLResource
@@ -514,7 +514,7 @@ class DataElementConverter(XMLSchemaConverter):
     def element_encode(self, data_element: 'DataElement', xsd_element: 'XsdElement',
                        level: int = 0) -> ElementData:
         self.namespaces.update(data_element.nsmap)
-        if not xsd_element.is_matching(data_element.tag, self._namespaces.get('')):
+        if not xsd_element.is_matching(data_element.tag):
             raise XMLSchemaValueError("Unmatched tag")
 
         attributes = {self.unmap_qname(k, xsd_element.attributes): v

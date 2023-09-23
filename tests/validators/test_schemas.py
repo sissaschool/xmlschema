@@ -35,7 +35,7 @@ class CustomXMLSchema(XMLSchema10):
 
 
 class TestXMLSchema10(XsdValidatorTestCase):
-    TEST_CASES_DIR = os.path.join(os.path.dirname(__file__), '../test_cases')
+    TEST_CASES_DIR = str(pathlib.Path(__file__).parent.joinpath('../test_cases').resolve())
     maxDiff = None
 
     class CustomXMLSchema(XMLSchema10):
@@ -747,10 +747,23 @@ class TestXMLSchema10(XsdValidatorTestCase):
                 original_schema = re.sub(r'\s+', '', original_schema)
 
             self.assertNotEqual(exported_schema, original_schema)
-            self.assertEqual(
-                exported_schema,
-                original_schema.replace('../..', dirname.replace('\\', '/'))
-            )
+
+            if platform.system() != 'Windows':
+                repl = str(pathlib.Path('file').joinpath(str(self.TEST_CASES_DIR).lstrip('/')))
+                self.assertEqual(
+                    exported_schema,
+                    original_schema.replace('../..', repl)
+                )
+
+            schema_file = pathlib.Path(dirname).joinpath('issue_187_1.xsd')
+            schema = xmlschema.XMLSchema(schema_file)
+            ns_schemas = schema.maps.namespaces['http://example.com/vehicles']
+
+            self.assertEqual(len(ns_schemas), 4)
+            self.assertEqual(ns_schemas[0].name, 'issue_187_1.xsd')
+            self.assertEqual(ns_schemas[1].name, 'cars.xsd')
+            self.assertEqual(ns_schemas[2].name, 'types.xsd')
+            self.assertEqual(ns_schemas[3].name, 'bikes.xsd')
 
         self.assertFalse(os.path.isdir(dirname))
 
@@ -799,11 +812,22 @@ class TestXMLSchema10(XsdValidatorTestCase):
                 original_schema = re.sub(r'\s+', '', original_schema)
 
             self.assertNotEqual(exported_schema, original_schema)
+            self.assertNotIn('https://', exported_schema)
             self.assertEqual(
                 exported_schema,
                 original_schema.replace('https://raw.githubusercontent.com',
-                                        dirname.replace('\\', '/') + '/raw.githubusercontent.com')
+                                        'https/raw.githubusercontent.com')
             )
+
+            schema_file = pathlib.Path(dirname).joinpath('issue_187_2.xsd')
+            schema = xmlschema.XMLSchema(schema_file)
+            ns_schemas = schema.maps.namespaces['http://example.com/vehicles']
+
+            self.assertEqual(len(ns_schemas), 4)
+            self.assertEqual(ns_schemas[0].name, 'issue_187_2.xsd')
+            self.assertEqual(ns_schemas[1].name, 'cars.xsd')
+            self.assertEqual(ns_schemas[2].name, 'types.xsd')
+            self.assertEqual(ns_schemas[3].name, 'bikes.xsd')
 
         self.assertFalse(os.path.isdir(dirname))
 
@@ -836,6 +860,38 @@ class TestXMLSchema10(XsdValidatorTestCase):
             self.assertFalse(filecmp.cmp(schema_file, exported_schema))
             self.assertFalse(filecmp.cmp(schema_ascii_file, exported_schema))
             self.assertTrue(filecmp.cmp(schema_cp1252_file, exported_schema))
+
+    def test_export_more_remote_imports__issue_362(self):
+        schema_file = self.casepath('issues/issue_362/issue_362_1.xsd')
+        with warnings.catch_warnings(record=True):
+            warnings.simplefilter("always")
+            schema = self.schema_class(schema_file)
+
+        self.assertIn('{http://xmlschema.test/tns1}root', schema.maps.elements)
+        self.assertIn('{http://xmlschema.test/tns1}item1', schema.maps.elements)
+        self.assertIn('{http://xmlschema.test/tns2}item2', schema.maps.elements)
+        self.assertIn('{http://xmlschema.test/tns2}item3', schema.maps.elements)
+
+        with tempfile.TemporaryDirectory() as dirname:
+            schema.export(target=dirname)
+
+            exported_files = set(
+                str(x.relative_to(dirname)).replace('\\', '/')
+                for x in pathlib.Path(dirname).glob('**/*.xsd')
+            )
+            self.assertSetEqual(
+                exported_files,
+                {'issue_362_1.xsd', 'dir2/issue_362_2.xsd', 'dir1/issue_362_1.xsd',
+                 'dir1/dir2/issue_362_2.xsd', 'issue_362_1.xsd', 'dir2/issue_362_2.xsd',
+                 'dir1/issue_362_1.xsd', 'dir1/dir2/issue_362_2.xsd'}
+            )
+
+            schema_file = pathlib.Path(dirname).joinpath('issue_362_1.xsd')
+            schema = self.schema_class(schema_file)
+            self.assertIn('{http://xmlschema.test/tns1}root', schema.maps.elements)
+            self.assertIn('{http://xmlschema.test/tns1}item1', schema.maps.elements)
+            self.assertIn('{http://xmlschema.test/tns2}item2', schema.maps.elements)
+            self.assertIn('{http://xmlschema.test/tns2}item3', schema.maps.elements)
 
     def test_pickling_subclassed_schema__issue_263(self):
         cases_dir = pathlib.Path(__file__).parent.parent

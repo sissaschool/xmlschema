@@ -1,0 +1,12 @@
+<xs:schema
+  xmlns:xs="http://www.w3.org/2001/XMLSchema"
+  targetNamespace="http://xmlschema.test/tns2"
+  elementFormDefault="qualified">
+
+  <xs:include schemaLocation="../dir1/dir2/issue_362_2.xsd"/>
+  <xs:import namespace="http://xmlschema.test/tns1" schemaLocation="http://xmlschema.test/tns1"/>
+
+  <xs:element name="item3" />
+
+</xs:schema>
+

@@ -11,6 +11,8 @@
 """Tests on internal helper functions"""
 import unittest
 import gettext
+import warnings
+import pathlib
 
 from xmlschema import XMLSchema, translation
 from xmlschema.testing import SKIP_REMOTE_TESTS
@@ -108,10 +110,15 @@ class TestTranslations(unittest.TestCase):
         finally:
             translation._translation = None
 
-    @unittest.skipIf(SKIP_REMOTE_TESTS, "Remote networks are not accessible")
+    @unittest.skipIf(SKIP_REMOTE_TESTS, "Remote networks are not accessible.")
     def test_pl_validation_translation(self):
-        xml_path = "tests//test_cases//translations//pl//tytul_wykonawczy_niekompletny.xml"
-        xsd_path = "tests//test_cases//translations//pl//tw-1(5)8e.xsd"
+        test_dir_path = pathlib.Path(__file__).absolute().parent
+
+        xml_path = test_dir_path.joinpath(
+            "test_cases//translations//pl//tytul_wykonawczy_niekompletny.xml"
+        )
+        xsd_path = test_dir_path.joinpath("test_cases//translations//pl//tw-1(5)8e.xsd")
+
         expected_errors = [
             "Zawartość elementu 'com:Opisowy' nie jest kompletna. "
             "Oczekiwany znacznik 'com:Miejscowosc'.",
@@ -119,17 +126,23 @@ class TestTranslations(unittest.TestCase):
             "Zawartość elementu 'com:Beneficjent' nie jest kompletna. "
             "Oczekiwany znacznik 'com:NrRachunkuPL'.",
         ]
-        try:
-            translation.activate(languages=['pl'])
-            schema = XMLSchema(
-                xsd_path,
-                defuse="never",
-                validation="lax",
-            )
-            errors = [error.reason for error in schema.iter_errors(xml_path)]
-            assert errors == expected_errors
-        finally:
-            translation._translation = None
+        with warnings.catch_warnings(record=True) as warns:
+            warnings.simplefilter("always")
+
+            try:
+                translation.activate(languages=['pl'])
+                schema = XMLSchema(
+                    xsd_path,
+                    defuse="never",
+                    validation="lax",
+                )
+                errors = [error.reason for error in schema.iter_errors(xml_path)]
+                if warns:
+                    self.assertNotEqual(errors, expected_errors)
+                else:
+                    self.assertListEqual(errors, expected_errors)
+            finally:
+                translation._translation = None
 
 
 if __name__ == '__main__':

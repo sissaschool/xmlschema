@@ -66,7 +66,7 @@ class XMLSchemaProxy(AbstractSchemaProxy):
 
     def bind_parser(self, parser: XPath2Parser) -> None:
         parser.schema = self
-        parser.symbol_table = dict(parser.__class__.symbol_table)
+        parser.symbol_table = dict(parser.__class__.symbol_table)  # type: ignore[arg-type]
 
         with self._schema.lock:
             if self._schema.xpath_tokens is None:
@@ -188,14 +188,11 @@ class ElementPathMixin(Sequence[E]):
         :param namespaces: an optional map from namespace prefix to namespace URI. \
         If this argument is not provided the schema's namespaces are used.
         """
-        if namespaces is None:
-            namespaces = {k: v for k, v in self.namespaces.items() if k}
-            namespaces[''] = self.xpath_default_namespace
-        elif '' not in namespaces:
-            namespaces[''] = self.xpath_default_namespace
-
         xpath_namespaces: Dict[str, str] = XPath2Parser.DEFAULT_NAMESPACES.copy()
-        xpath_namespaces.update(namespaces)
+        if namespaces is None:
+            xpath_namespaces.update(self.namespaces)
+        else:
+            xpath_namespaces.update(namespaces)
         return xpath_namespaces
 
     def is_matching(self, name: Optional[str], default_namespace: Optional[str] = None) -> bool:

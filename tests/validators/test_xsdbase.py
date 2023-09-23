@@ -503,6 +503,51 @@ class TestXsdComponent(unittest.TestCase):
         self.assertEqual(len(annotation.errors), 0)  # see issue 287
         self.assertIsNone(annotation.annotation)
 
+    def test_attribute_group_annotation__issue_366(self):
+        schema = XMLSchema10(dedent("""\
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+            <xs:attributeGroup name="attrGroup">
+              <xs:annotation>
+                 <xs:documentation>
+                 A global attribute group
+                 </xs:documentation>
+              </xs:annotation>
+              <xs:attribute name="attr1"/>
+              <xs:attribute name="attr2"/>
+            </xs:attributeGroup>
+
+            <xs:complexType name="rootType" mixed="true">
+              <xs:annotation>
+                <xs:documentation>
+                A global complex type
+                </xs:documentation>
+              </xs:annotation>
+              <xs:sequence>
+                <xs:any minOccurs="0" maxOccurs="unbounded" processContents="lax"/>
+              </xs:sequence>
+              <xs:attributeGroup ref="attrGroup"/>
+            </xs:complexType>
+
+            <xs:element name="root" type="rootType">
+              <xs:annotation>
+                <xs:documentation>
+                The root element
+                </xs:documentation>
+              </xs:annotation>
+            </xs:element>
+        </xs:schema>"""))
+
+        attribute_group = schema.attribute_groups['attrGroup']
+        self.assertIn('A global attribute group', str(attribute_group.annotation))
+
+        xsd_type = schema.types['rootType']
+        self.assertIn('A global complex type', str(xsd_type.annotation))
+        self.assertIsNone(xsd_type.attributes.annotation)
+
+        xsd_element = schema.elements['root']
+        self.assertIn('The root element', str(xsd_element.annotation))
+        self.assertIsNone(xsd_element.attributes.annotation)
+
 
 class TestXsdType(unittest.TestCase):
 

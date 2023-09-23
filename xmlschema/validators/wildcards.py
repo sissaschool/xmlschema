@@ -166,8 +166,7 @@ class XsdWildcard(XsdComponent):
         elif not default_namespace:
             return self.is_namespace_allowed('')
         else:
-            return self.is_namespace_allowed('') or \
-                self.is_namespace_allowed(default_namespace)
+            return self.is_namespace_allowed(default_namespace)
 
     def is_namespace_allowed(self, namespace: str) -> bool:
         if self.not_namespace:
@@ -756,10 +755,10 @@ class Xsd11AnyElement(XsdAnyElement):
                     **kwargs: Any) -> bool:
         """
         Returns `True` if the component name is matching the name provided as argument,
-        `False` otherwise. For XSD elements the matching is extended to substitutes.
+        `False` otherwise.
 
         :param name: a local or fully-qualified name.
-        :param default_namespace: used if it's not None and not empty for completing \
+        :param default_namespace: used by the XPath processor for completing \
         the name argument in case it's a local name.
         :param group: used only by XSD 1.1 any element wildcards to verify siblings in \
         case of ##definedSibling value in notQName attribute.
@@ -775,8 +774,7 @@ class Xsd11AnyElement(XsdAnyElement):
                 return False
         else:
             name = f'{{{default_namespace}}}{name}'
-            if not self.is_namespace_allowed('') \
-                    and not self.is_namespace_allowed(default_namespace):
+            if not self.is_namespace_allowed(default_namespace):
                 return False
 
         if group in self.precedences:
