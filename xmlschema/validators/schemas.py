@@ -46,8 +46,9 @@ from ..aliases import ElementType, XMLSourceType, NamespacesType, LocationsType,
 from ..translation import gettext as _
 from ..helpers import prune_etree, get_namespace, get_qname, is_defuse_error
 from ..namespaces import NamespaceResourcesMap, NamespaceView
-from ..resources import is_local_url, is_remote_url, url_path_is_file, \
-    normalize_locations, fetch_resource, normalize_url, XMLResource
+from ..locations import is_local_url, is_remote_url, url_path_is_file, \
+    normalize_url, normalize_locations
+from ..resources import fetch_resource, XMLResource
 from ..converters import XMLSchemaConverter
 from ..xpath import XsdSchemaProtocol, XMLSchemaProxy, ElementPathMixin
 from .. import dataobjects

@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, Any
 from urllib.parse import unquote, urlsplit
 
 from .exceptions import XMLSchemaValueError
-from .resources import _PurePath, is_remote_url
+from .locations import LocationPath, is_remote_url
 from .translation import gettext as _
 
 if TYPE_CHECKING:
@@ -46,7 +46,7 @@ def export_schema(obj: 'XMLSchemaBase', target_dir: str,
         raise XMLSchemaValueError(msg.format(target_path.parent))
 
     name = obj.name or 'schema.xsd'
-    exports: Any = {obj: [_PurePath(unquote(name)), obj.get_text(), False]}
+    exports: Any = {obj: [LocationPath(unquote(name)), obj.get_text(), False]}
     path: Any
 
     while True:
@@ -83,7 +83,7 @@ def export_schema(obj: 'XMLSchemaBase', target_dir: str,
                         continue
                     else:
                         for item in matching_items:
-                            item_path = _PurePath.from_uri(item)
+                            item_path = LocationPath.from_uri(item)
                             if location.endswith(str(item_path).lstrip('.')):
                                 location = item
                                 schema_locations.remove(location)
@@ -97,14 +97,14 @@ def export_schema(obj: 'XMLSchemaBase', target_dir: str,
                         continue
 
                     parts = urlsplit(unquote(location))
-                    path = _PurePath(parts.scheme). \
+                    path = LocationPath(parts.scheme). \
                         joinpath(parts.netloc). \
                         joinpath(parts.path.lstrip('/'))
                 else:
                     if location.startswith('file:/'):
-                        path = _PurePath(unquote(urlsplit(location).path))
+                        path = LocationPath(unquote(urlsplit(location).path))
                     else:
-                        path = _PurePath(unquote(location))
+                        path = LocationPath(unquote(location))
 
                     if not path.is_absolute():
                         path = dir_path.joinpath(path).normalize()
@@ -117,13 +117,13 @@ def export_schema(obj: 'XMLSchemaBase', target_dir: str,
                         # Use the absolute schema path
                         schema_path = ref_schema.filepath
                         assert schema_path is not None
-                        path = _PurePath(schema_path)
+                        path = LocationPath(schema_path)
 
                     if path.drive:
                         drive = path.drive.split(':')[0]
-                        path = _PurePath(drive).joinpath('/'.join(path.parts[1:]))
+                        path = LocationPath(drive).joinpath('/'.join(path.parts[1:]))
 
-                    path = _PurePath('file').joinpath(path.as_posix().lstrip('/'))
+                    path = LocationPath('file').joinpath(path.as_posix().lstrip('/'))
 
                 parts = path.parent.parts
                 dir_parts = dir_path.parts
@@ -136,12 +136,12 @@ def export_schema(obj: 'XMLSchemaBase', target_dir: str,
 
                 if not k:
                     prefix = '/'.join(['..'] * len(dir_parts))
-                    repl_path = _PurePath(prefix).joinpath(path)
+                    repl_path = LocationPath(prefix).joinpath(path)
                 else:
-                    repl_path = _PurePath('/'.join(parts[k:])).joinpath(path.name)
+                    repl_path = LocationPath('/'.join(parts[k:])).joinpath(path.name)
                     if k < len(dir_parts):
                         prefix = '/'.join(['..'] * (len(dir_parts) - k))
-                        repl_path = _PurePath(prefix).joinpath(repl_path)
+                        repl_path = LocationPath(prefix).joinpath(repl_path)
 
                 repl = repl_path.as_posix()
                 exports[schema][1] = replace_location(exports[schema][1], location, repl)
