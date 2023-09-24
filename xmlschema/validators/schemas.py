@@ -48,7 +48,7 @@ from ..helpers import prune_etree, get_namespace, get_qname, is_defuse_error
 from ..namespaces import NamespaceResourcesMap, NamespaceView
 from ..locations import is_local_url, is_remote_url, url_path_is_file, \
     normalize_url, normalize_locations
-from ..resources import fetch_resource, XMLResource
+from ..resources import XMLResource
 from ..converters import XMLSchemaConverter
 from ..xpath import XsdSchemaProtocol, XMLSchemaProxy, ElementPathMixin
 from .. import dataobjects
@@ -1231,14 +1231,14 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         :return: the included :class:`XMLSchema` instance.
         """
         schema: SchemaType
-        schema_url = fetch_resource(location, base_url)
+        url = normalize_url(location, base_url)
         for schema in self.maps.namespaces[self.target_namespace]:
-            if schema_url == schema.url:
+            if url == schema.url:
                 logger.info("Resource %r is already loaded", location)
                 break
         else:
             schema = type(self)(
-                source=schema_url,
+                source=url,
                 namespace=self.target_namespace,
                 validation=self.validation,
                 global_maps=self.maps,
@@ -1256,7 +1256,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         elif location not in self.includes:
             self.includes[location] = schema
         elif self.includes[location] is not schema:
-            self.includes[schema_url] = schema
+            self.includes[url] = schema
         return schema
 
     def _parse_imports(self) -> None:
@@ -1377,18 +1377,18 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 return self.imports[namespace]
 
         schema: SchemaType
-        schema_url = fetch_resource(location, base_url)
+        url = normalize_url(location, base_url)
         imported_ns = self.imports.get(namespace)
-        if imported_ns is not None and imported_ns.url == schema_url:
+        if imported_ns is not None and imported_ns.url == url:
             return imported_ns
         elif namespace in self.maps.namespaces:
             for schema in self.maps.namespaces[namespace]:
-                if schema_url == schema.url:
+                if url == schema.url:
                     self.imports[namespace] = schema
                     return schema
 
         schema = type(self)(
-            source=schema_url,
+            source=url,
             validation=self.validation,
             global_maps=self.maps,
             converter=self.converter,

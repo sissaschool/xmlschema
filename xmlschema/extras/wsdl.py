@@ -1,5 +1,5 @@
 #
-# Copyright (c), 2016-2021, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2023, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -15,7 +15,7 @@ from ..names import XSD_NAMESPACE, WSDL_NAMESPACE, SOAP_NAMESPACE, \
     SCHEMAS_DIR, XSD_ANY_TYPE, XSD_SCHEMA
 from ..helpers import get_qname, local_name, get_extended_qname, get_prefixed_qname
 from ..namespaces import NamespaceResourcesMap
-from ..resources import fetch_resource
+from ..locations import normalize_url
 from ..documents import XmlDocument
 from ..validators import XMLSchemaBase, XMLSchema10
 
@@ -658,7 +658,7 @@ class Wsdl11Document(XmlDocument):
         elif namespace in self.maps.imports:
             return self.maps.imports[namespace]
 
-        url = fetch_resource(location, base_url or self.base_url)
+        url = normalize_url(location, base_url or self.base_url)
         wsdl_document = self.__class__(
             source=url,
             maps=self.maps,
