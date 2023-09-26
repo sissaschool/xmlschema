@@ -12,6 +12,7 @@
 
 import unittest
 import os
+import contextlib
 import pathlib
 import platform
 import warnings
@@ -47,6 +48,16 @@ XML_WITH_NAMESPACES = '<pfa:root xmlns:pfa="http://xmlschema.test/nsa">\n' \
 
 def casepath(relative_path):
     return str(pathlib.Path(TEST_CASES_DIR).joinpath(relative_path))
+
+
+@contextlib.contextmanager
+def working_dir(path):
+    current = Path().absolute()
+    try:
+        os.chdir(path)
+        yield
+    finally:
+        os.chdir(current)
 
 
 def is_windows_path(path):
@@ -109,39 +120,77 @@ class TestResources(unittest.TestCase):
         self.assertIn('argument must contain a not empty string', str(ctx.exception))
 
         wrong_path = casepath('resources/dummy_file.txt')
-        self.assertRaises(XMLResourceError, fetch_resource, wrong_path)
+        self.assertRaises(URLError, fetch_resource, wrong_path)
 
         wrong_path = casepath('/home/dummy_file.txt')
-        self.assertRaises(XMLResourceError, fetch_resource, wrong_path)
+        self.assertRaises(URLError, fetch_resource, wrong_path)
 
-        right_path = casepath('resources/dummy file.txt')
-        self.assertTrue(fetch_resource(right_path).endswith('dummy%20file.txt'))
+        filepath = casepath('resources/dummy file.txt')
+        self.assertTrue(fetch_resource(filepath).endswith('dummy%20file.txt'))
 
-        right_path = Path(casepath('resources/dummy file.txt')).relative_to(os.getcwd())
-        self.assertTrue(fetch_resource(str(right_path), '/home').endswith('dummy%20file.txt'))
+        filepath = Path(casepath('resources/dummy file.txt')).relative_to(os.getcwd())
+        self.assertTrue(fetch_resource(str(filepath), '/home').endswith('dummy%20file.txt'))
 
-        with self.assertRaises(XMLResourceError):
-            fetch_resource(str(right_path.parent.joinpath('dummy_file.txt')), '/home')
+        filepath = casepath('resources/dummy file.xml')
+        self.assertTrue(fetch_resource(filepath).endswith('dummy%20file.xml'))
 
-        ambiguous_path = casepath('resources/dummy file #2.txt')
-        self.assertTrue(fetch_resource(ambiguous_path).endswith('dummy%20file%20%232.txt'))
+        with urlopen(fetch_resource(filepath)) as res:
+            self.assertEqual(res.read(), b'<root>DUMMY CONTENT</root>')
 
-        with urlopen(fetch_resource(ambiguous_path)) as res:
-            self.assertEqual(res.read(), b'DUMMY CONTENT')
+        with working_dir(pathlib.Path(__file__).parent):
+            filepath = 'test_cases/resources/dummy file.xml'
+            result = fetch_resource(filepath)
+            self.assertTrue(result.startswith('file://'))
+            self.assertTrue(result.endswith('dummy%20file.xml'))
+
+            base_url = "file:///wrong/base/url"
+            result = fetch_resource(filepath, base_url)
+            self.assertTrue(result.startswith('file://'))
+            self.assertTrue(result.endswith('dummy%20file.xml'))
 
     def test_fetch_namespaces_function(self):
         self.assertFalse(fetch_namespaces(casepath('resources/malformed.xml')))
 
-    def test_fetch_schema_locations(self):
-        locations = fetch_schema_locations(self.col_xml_file)
-        self.check_url(locations[0], self.col_xsd_file)
-        self.assertEqual(locations[1][0][0], 'http://example.com/ns/collection')
-        self.check_url(locations[1][0][1], self.col_xsd_file)
-        self.check_url(fetch_schema(self.vh_xml_file), self.vh_xsd_file)
+    def test_fetch_schema_locations_function(self):
+        schema_url, locations = fetch_schema_locations(self.col_xml_file)
+        self.check_url(schema_url, self.col_xsd_file)
+        self.assertEqual(locations[0][0], 'http://example.com/ns/collection')
+        self.check_url(locations[0][1], self.col_xsd_file)
+
+        with self.assertRaises(ValueError) as ctx:
+            fetch_schema_locations(self.col_xml_file, allow='none')
+        self.assertIn('not found a schema for', str(ctx.exception))
 
         with self.assertRaises(ValueError) as ctx:
             fetch_schema_locations('<empty/>')
-        self.assertIn('does not contain any schema location hint', str(ctx.exception))
+        self.assertEqual(
+            "provided arguments don't contain any schema location hint",
+            str(ctx.exception)
+        )
+
+        schema_url, locations_ = fetch_schema_locations('<empty/>', locations)
+        self.check_url(schema_url, self.col_xsd_file)
+        self.assertListEqual(locations, locations_)
+
+        locations = [('', casepath('resources/dummy file.xml'))]
+        with self.assertRaises(ValueError) as ctx:
+            fetch_schema_locations('<empty/>', locations)
+        self.assertIn('not found a schema for', str(ctx.exception))
+
+        with working_dir(pathlib.Path(__file__).parent):
+            locations = [('http://example.com/ns/collection',
+                          'test_cases/examples/collection/collection.xsd')]
+            schema_url, locations_ = fetch_schema_locations('<empty/>', locations)
+            self.check_url(schema_url, self.col_xsd_file)
+            self.assertNotEqual(locations, locations_)
+
+            base_url = "file:///wrong/base/url"
+            with self.assertRaises(ValueError) as ctx:
+                fetch_schema_locations('<empty/>', locations, base_url)
+            self.assertIn('not found a schema for', str(ctx.exception))
+
+    def test_fetch_schema_function(self):
+        self.check_url(fetch_schema(self.vh_xml_file), self.vh_xsd_file)
 
     # Tests on XMLResource instances
     def test_xml_resource_representation(self):

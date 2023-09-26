@@ -23,7 +23,7 @@ from elementpath.etree import ElementTree, PyElementTree, SafeXMLParser, etree_t
 from elementpath.protocols import LxmlElementProtocol
 
 from .exceptions import XMLSchemaTypeError, XMLSchemaValueError, XMLResourceError
-from .names import XML_NAMESPACE
+from .names import XML_NAMESPACE, XSD_NAMESPACE
 from .aliases import ElementType, NamespacesType, XMLSourceType, \
     NormalizedLocationsType, LocationsType, ParentMapType
 from .helpers import get_namespace, update_namespaces, is_etree_document, \
@@ -39,8 +39,8 @@ ResourceNodeType = Union[ElementNode, LazyElementNode, DocumentNode]
 
 def fetch_resource(location: str, base_url: Optional[str] = None, timeout: int = 30) -> str:
     """
-    Fetch a resource by trying to access it. If the resource is accessible
-    returns its URL, otherwise raises an :class:`XMLResourceError`.
+    Fetches a resource by trying to access it. If the resource is accessible
+    returns its normalized URL, otherwise raises an `urllib.error.URLError`.
 
     :param location: a URL or a file path.
     :param base_url: reference base URL for normalizing local and relative URLs.
@@ -54,19 +54,14 @@ def fetch_resource(location: str, base_url: Optional[str] = None, timeout: int =
     try:
         with urlopen(url, timeout=timeout):
             return url
-    except URLError as err:
-        # fallback joining the path without a base URL
-        alt_url = normalize_url(location)
-        if url == alt_url:
-            msg = "cannot access to resource %(url)r: %(reason)s"
-            raise XMLResourceError(msg % {'url': url, 'reason': err.reason})
-
-        try:
+    except URLError:
+        if url == normalize_url(location):
+            raise
+        else:
+            # fallback using the location without a base URL
+            alt_url = normalize_url(location)
             with urlopen(alt_url, timeout=timeout):
                 return alt_url
-        except URLError:
-            msg = "cannot access to resource %(url)r: %(reason)s"
-            raise XMLResourceError(msg % {'url': url, 'reason': err.reason})
 
 
 def fetch_schema_locations(source: Union['XMLResource', XMLSourceType],
@@ -74,7 +69,8 @@ def fetch_schema_locations(source: Union['XMLResource', XMLSourceType],
                            base_url: Optional[str] = None,
                            allow: str = 'all',
                            defuse: str = 'remote',
-                           timeout: int = 30) -> Tuple[str, NormalizedLocationsType]:
+                           timeout: int = 30,
+                           root_only: bool = True) -> Tuple[str, NormalizedLocationsType]:
     """
     Fetches schema location hints from an XML data source and a list of location hints.
     If an accessible schema location is not found raises a ValueError.
@@ -85,31 +81,35 @@ def fetch_schema_locations(source: Union['XMLResource', XMLSourceType],
     instance a new one is built using this and *defuse*, *timeout* and *lazy* arguments.
     :param locations: a dictionary or dictionary items with additional schema location hints.
     :param base_url: the same argument of the :class:`XMLResource`.
-    :param allow: the same argument of the :class:`XMLResource`.
+    :param allow: the same argument of the :class:`XMLResource`, \
+    applied to location hints only.
     :param defuse: the same argument of the :class:`XMLResource`.
     :param timeout: the same argument of the :class:`XMLResource` but with a reduced default.
+    :param root_only: if `True` extracts from the XML source only the location hints \
+    of the root element.
     :return: A 2-tuple with the URL referring to the first reachable schema resource \
     and a list of dictionary items with normalized location hints.
     """
     if not isinstance(source, XMLResource):
-        resource = XMLResource(source, base_url, allow, defuse, timeout, lazy=True)
+        resource = XMLResource(source, base_url, defuse=defuse, timeout=timeout, lazy=True)
     else:
         resource = source
 
-    base_url = resource.base_url
-    namespace = resource.namespace
-    locations = resource.get_locations(locations, root_only=False)
+    locations = resource.get_locations(locations, root_only=root_only)
     if not locations:
-        msg = "%r does not contain any schema location hint"
-        raise XMLSchemaValueError(msg % resource)
+        raise XMLSchemaValueError("provided arguments don't contain any schema location hint")
 
-    for ns, url in sorted(locations, key=lambda x: x[0] != namespace):
+    namespace = resource.namespace
+    for ns, location in sorted(locations, key=lambda x: x[0] != namespace):
         try:
-            return fetch_resource(url, base_url, timeout), locations
-        except XMLResourceError:
-            pass
+            resource = XMLResource(location, base_url, allow, defuse, timeout, lazy=True)
+        except (XMLResourceError, URLError, ElementTree.ParseError):
+            continue
 
-    raise XMLSchemaValueError("not found a schema for %r" % resource)
+        if resource.namespace == XSD_NAMESPACE and resource.url:
+            return resource.url, locations
+    else:
+        raise XMLSchemaValueError("not found a schema for provided XML source")
 
 
 def fetch_schema(source: Union['XMLResource', XMLSourceType],
@@ -117,12 +117,14 @@ def fetch_schema(source: Union['XMLResource', XMLSourceType],
                  base_url: Optional[str] = None,
                  allow: str = 'all',
                  defuse: str = 'remote',
-                 timeout: int = 30) -> str:
+                 timeout: int = 30,
+                 root_only: bool = True) -> str:
     """
-    Like :meth:`fetch_schema_locations` but returns only a reachable
-    location hint for a schema related to the source's namespace.
+    Like :meth:`fetch_schema_locations` but returns only the URL of a loadable XSD
+    schema from location hints fetched from the source or provided by argument.
     """
-    return fetch_schema_locations(source, locations, base_url, allow, defuse, timeout)[0]
+    return fetch_schema_locations(source, locations, base_url, allow,
+                                  defuse, timeout, root_only)[0]
 
 
 def fetch_namespaces(source: XMLSourceType,

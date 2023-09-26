@@ -62,7 +62,7 @@ def get_context(xml_document: Union[XMLSourceType, XMLResource],
     if use_location_hints:
         try:
             schema_location, locations = fetch_schema_locations(
-                resource, locations, base_url=base_url
+                resource, locations, base_url=base_url, root_only=False
             )
         except ValueError:
             pass
@@ -587,7 +587,7 @@ class XmlDocument(XMLResource):
             if use_location_hints:
                 try:
                     schema_location, locations = fetch_schema_locations(
-                        self, locations=locations, base_url=base_url
+                        self, locations, base_url=base_url, root_only=False
                     )
                 except ValueError:
                     pass
