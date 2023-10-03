@@ -1689,9 +1689,10 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             kwargs['extra_validator'] = extra_validator
 
         if path:
-            selector = resource.iterfind(path, namespaces, nsmap=namespaces, ancestors=ancestors)
+            selector = resource.iterfind(path, namespaces, nsmap=namespaces,
+                                         ancestors=ancestors, thin_lazy=True)
         else:
-            selector = resource.iter_depth(mode=3, nsmap=namespaces, ancestors=ancestors)
+            selector = resource.iter_depth(mode=4, nsmap=namespaces, ancestors=ancestors)
 
         elem: Optional[Element] = None
         for elem in selector:
@@ -1775,9 +1776,9 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             -> Iterator[Union[Any, XMLSchemaValidationError]]:
         """Returns a generator for decoding a resource."""
         if path:
-            selector = source.iterfind(path, namespaces, nsmap=namespaces)
+            selector = source.iterfind(path, namespaces, nsmap=namespaces, thin_lazy=True)
         else:
-            selector = source.iter_depth(nsmap=namespaces)
+            selector = source.iter_depth(mode=2, nsmap=namespaces)
 
         for elem in selector:
             xsd_element = self.get_element(elem.tag, schema_path, namespaces)
@@ -1924,7 +1925,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             kwargs['element_hook'] = element_hook
 
         if path:
-            selector = resource.iterfind(path, namespaces, nsmap=namespaces)
+            selector = resource.iterfind(path, namespaces, nsmap=namespaces, thin_lazy=True)
         elif not resource.is_lazy():
             selector = resource.iter_depth(nsmap=namespaces)
         else:
@@ -1935,7 +1936,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             )
             kwargs['depth_filler'] = lambda x: decoder
             kwargs['max_depth'] = resource.lazy_depth
-            selector = resource.iter_depth(mode=2, nsmap=namespaces)
+            selector = resource.iter_depth(mode=3, nsmap=namespaces)
 
         for elem in selector:
             xsd_element = schema.get_element(elem.tag, schema_path, namespaces)

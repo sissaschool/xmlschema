@@ -10,6 +10,7 @@
 import re
 from collections import Counter
 from decimal import Decimal
+from itertools import zip_longest
 from typing import Any, Callable, Iterable, Iterator, List, MutableMapping, \
     Optional, Tuple, Union
 from xml.etree.ElementTree import ParseError
@@ -308,6 +309,21 @@ def prune_etree(root: ElementType, selector: Callable[[ElementType], bool]) \
         return True
     _prune_subtree(root)
     return None
+
+
+def etree_delete_preceding(elem: ElementType, ancestors: List[ElementType]) -> None:
+    """
+    Removes the preceding elements given a list of ancestors.
+    """
+    for parent, child in zip_longest(ancestors, ancestors[1:]):
+        if child is None:
+            child = elem
+
+        for k, e in enumerate(parent):
+            if child is e:
+                if k:
+                    del parent[:k]
+                break
 
 
 def count_digits(number: NumericValueType) -> Tuple[int, int]:

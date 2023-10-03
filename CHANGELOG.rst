@@ -4,8 +4,9 @@ CHANGELOG
 
 `v3.0.0`_ (2023-XX-XX)
 ======================
+* [TODO] Decode/validate with dynamic schema load
 * XMLResource enhancement for a better XML resources processing
-* Improve lazy resources processing (TODO)
+* Improve lazy resources iteration removing preceding elements (*thin_mode* option)
 * Drop support for Python 3.7
 
 `v2.5.0`_ (2023-09-21)

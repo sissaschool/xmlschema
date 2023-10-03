@@ -27,7 +27,7 @@ from .names import XML_NAMESPACE, XSD_NAMESPACE
 from .aliases import ElementType, NamespacesType, XMLSourceType, \
     NormalizedLocationsType, LocationsType, ParentMapType
 from .helpers import get_namespace, update_namespaces, is_etree_document, \
-    etree_iter_location_hints
+    etree_iter_location_hints, etree_delete_preceding
 from .locations import LocationPath, is_url, is_remote_url, is_local_url, \
     normalize_url, normalize_locations
 
@@ -856,7 +856,7 @@ class XMLResource:
         return self._text is not None
 
     def iter(self, tag: Optional[str] = None, nsmap: Optional[NamespacesType] = None,
-             reversed_lazy: bool = True) -> Iterator[ElementType]:
+             reversed_lazy: bool = True, thin_lazy: bool = False) -> Iterator[ElementType]:
         """
         XML resource tree iterator. If tag is not None or '*', only elements whose
         tag equals tag are returned from the iterator. Provide a *nsmap* dict for
@@ -864,12 +864,27 @@ class XMLResource:
         lazy resources is in reverse order (top level element is the last) for having
         fully build elements. Provide *reversed_lazy* as `False` for iterating lazy
         resources in forward order. In this case the returned elements are incomplete.
+        Provide *thin_lazy* as `True` for iterating the lazy resource in forward order
+        and removing the preceding elements during iteration. This option has the
+        precedence over *reversed_lazy* option.
         """
         if self._lazy:
             resource = self.open()
             tag = '*' if tag is None else tag.strip()
             try:
-                if reversed_lazy:
+                if thin_lazy:
+                    ancestors = []
+                    for event, node in self._lazy_iterparse(resource, nsmap):
+                        if event == 'start':
+                            if tag == '*' or node.tag == tag:
+                                yield node
+                            ancestors.append(node)
+                        else:
+                            ancestors.pop()
+                            etree_delete_preceding(node, ancestors)
+                            node.clear()
+
+                elif reversed_lazy:
                     for event, node in self._lazy_iterparse(resource, nsmap):
                         if event == 'end':
                             if tag == '*' or node.tag == tag:
@@ -909,16 +924,20 @@ class XMLResource:
         completeness of yielded elements. There are four possible modes, that
         generate different sequences of elements:\n
           1. Only the elements at *depth_level* level of the tree\n
-          2. Only a root element pruned at *depth_level*\n
-          3. The elements at *depth_level* and then a pruned root\n
-          4. An incomplete root at start, the elements at *depth_level* and a pruned root
+          2. Only the elements at *depth_level* level of the tree removing\n
+             the preceding elements of ancestors (thin lazy tree)
+          3. Only a root element pruned at *depth_level*\n
+          4. The elements at *depth_level* and then a pruned root\n
+          5. An incomplete root at start, the elements at *depth_level* and a pruned root\n
 
-        :param mode: an integer in range [1..4] that defines the iteration mode.
+        :param mode: an integer in range [1..5] that defines the iteration mode.
         :param nsmap: provide a dict for tracking the namespaces of yielded elements.
         :param ancestors: provide a list for tracking the ancestors of yielded elements.
         """
         if ancestors is not None:
             ancestors.clear()
+        elif mode <= 2:
+            ancestors = []
 
         if not self._lazy:
             if nsmap is not None and self._nsmaps:
@@ -929,18 +948,24 @@ class XMLResource:
             yield self._root
             return
 
-        if mode not in (1, 2, 3, 4):
+        if mode not in (1, 2, 3, 4, 5):
             raise XMLSchemaValueError("invalid argument mode={!r}".format(mode))
 
         resource = self.open()
         level = 0
         subtree_level = int(self._lazy)
 
+        # boolean flags
+        incomplete_root = mode == 5
+        pruned_root = mode > 2
+        depth_level_elements = mode != 3
+        thin_lazy = mode <= 2
+
         try:
             for event, node in self._lazy_iterparse(resource, nsmap):
                 if event == "start":
                     if not level:
-                        if mode == 4:
+                        if incomplete_root:
                             yield node
                     if ancestors is not None and level < subtree_level:
                         ancestors.append(node)
@@ -948,14 +973,17 @@ class XMLResource:
                 else:
                     level -= 1
                     if not level:
-                        if mode != 1:
+                        if pruned_root:
                             yield node
                     elif level != subtree_level:
                         if ancestors is not None and level < subtree_level:
                             ancestors.pop()
                         continue  # pragma: no cover
-                    elif mode != 2:
+                    elif depth_level_elements:
                         yield node
+
+                        if thin_lazy and ancestors:
+                            etree_delete_preceding(node, ancestors)
 
                     del node[:]  # delete children, keep attributes, text and tail.
 
@@ -966,41 +994,35 @@ class XMLResource:
             if self._source is not resource:
                 resource.close()
 
-    @staticmethod
-    def _select_elements(token: XPathToken, node: ResourceNodeType) -> Iterator[ElementType]:
+    def _select_elements(self, token: XPathToken,
+                         node: ResourceNodeType,
+                         ancestors: Optional[List[ElementType]] = None) -> Iterator[ElementType]:
         context = XPathContext(node)
         for item in token.select(context):
             if not isinstance(item, ElementNode):  # pragma: no cover
                 msg = "XPath expressions on XML resources can select only elements"
                 raise XMLResourceError(msg)
-            yield cast(ElementType, item.elem)
-
-    def _select_ancestors(self, token: XPathToken, node: ResourceNodeType,
-                          ancestors: List[ElementType]) -> Iterator[ElementType]:
-        context = XPathContext(node)
-        for item in token.select(context):
-            if not isinstance(item, ElementNode):  # pragma: no cover
-                msg = "XPath expressions on XML resources can select only elements"
-                raise XMLResourceError(msg)
-            elif item.elem is self._root:
-                ancestors.clear()
-            else:
-                _ancestors: Any = []
-                parent = item.parent
-                while parent is not None:
-                    _ancestors.append(parent.value)
-                    parent = parent.parent
-
-                if _ancestors:
+            elif ancestors is not None:
+                if item.elem is self._root:
                     ancestors.clear()
-                    ancestors.extend(reversed(_ancestors))
+                else:
+                    _ancestors: Any = []
+                    parent = item.parent
+                    while parent is not None:
+                        _ancestors.append(parent.value)
+                        parent = parent.parent
+
+                    if _ancestors:
+                        ancestors.clear()
+                        ancestors.extend(reversed(_ancestors))
 
             yield cast(ElementType, item.elem)
 
     def iterfind(self, path: str,
                  namespaces: Optional[NamespacesType] = None,
                  nsmap: Optional[NamespacesType] = None,
-                 ancestors: Optional[List[ElementType]] = None) -> Iterator[ElementType]:
+                 ancestors: Optional[List[ElementType]] = None,
+                 thin_lazy: bool = False) -> Iterator[ElementType]:
         """
         Apply XPath selection to XML resource that yields full subtrees.
 
@@ -1010,6 +1032,8 @@ class XMLResource:
         used for parsing the XPath expression.
         :param nsmap: provide a dict for tracking the namespaces of yielded elements.
         :param ancestors: provide a list for tracking the ancestors of yielded elements.
+        :param thin_lazy: provide *thin_lazy* as `True` for removing the preceding \
+        elements after each yielded one.
         """
         parser = XPath2Parser(namespaces, strict=False)
         token = parser.parse(path)
@@ -1026,6 +1050,11 @@ class XMLResource:
                 subtree_level = path.count('/') - 1
             else:
                 subtree_level = path.count('/') + 1
+
+            if ancestors is not None:
+                ancestors.clear()
+            elif thin_lazy:
+                ancestors = []
 
             try:
                 for event, node in self._lazy_iterparse(resource, nsmap):
@@ -1044,12 +1073,15 @@ class XMLResource:
                         elif not subtree_level:
                             continue
                         elif level != subtree_level:
-                            if ancestors is not None and level < subtree_level:
+                            if ancestors and level < subtree_level:
                                 ancestors.pop()
                             continue  # pragma: no cover
                         elif select_all or \
                                 node in self._select_elements(token, self.xpath_root):
                             yield node
+
+                        if thin_lazy and ancestors:
+                            etree_delete_preceding(node, ancestors)
 
                         del node[:]  # delete children, keep attributes, text and tail.
                         self.xpath_root.children.clear()  # reset XPath tree
@@ -1059,10 +1091,7 @@ class XMLResource:
                     resource.close()
 
         else:
-            if ancestors is None:
-                selector = self._select_elements(token, self.xpath_root)
-            else:
-                selector = self._select_ancestors(token, self.xpath_root, ancestors)
+            selector = self._select_elements(token, self.xpath_root, ancestors)
 
             if not self._nsmaps or nsmap is None:
                 yield from selector
@@ -1072,8 +1101,9 @@ class XMLResource:
     def find(self, path: str,
              namespaces: Optional[NamespacesType] = None,
              nsmap: Optional[NamespacesType] = None,
-             ancestors: Optional[List[ElementType]] = None) -> Optional[ElementType]:
-        return next(self.iterfind(path, namespaces, nsmap, ancestors), None)
+             ancestors: Optional[List[ElementType]] = None,
+             thin_lazy: bool = False) -> Optional[ElementType]:
+        return next(self.iterfind(path, namespaces, nsmap, ancestors, thin_lazy), None)
 
     def findall(self, path: str, namespaces: Optional[NamespacesType] = None) \
             -> List[ElementType]:

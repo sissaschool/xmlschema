@@ -802,24 +802,24 @@ class TestResources(unittest.TestCase):
         self.assertEqual(lazy_tags[0], '{%s}annotation' % XSD_NAMESPACE)
         self.assertEqual(lazy_tags[-1], '{%s}element' % XSD_NAMESPACE)
 
-        lazy_tags = [x.tag for x in lazy_resource.iter_depth(mode=2)]
+        lazy_tags = [x.tag for x in lazy_resource.iter_depth(mode=3)]
         self.assertListEqual(tags, lazy_tags)
 
         lazy_tags = [x.tag for x in lazy_resource.iter_depth(mode=1)]
         self.assertEqual(len(lazy_tags), 156)
 
-        lazy_tags = [x.tag for x in lazy_resource.iter_depth(mode=3)]
+        lazy_tags = [x.tag for x in lazy_resource.iter_depth(mode=4)]
         self.assertEqual(len(lazy_tags), 157)
         self.assertEqual(tags[0], lazy_tags[-1])
 
-        lazy_tags = [x.tag for x in lazy_resource.iter_depth(mode=4)]
+        lazy_tags = [x.tag for x in lazy_resource.iter_depth(mode=5)]
         self.assertEqual(len(lazy_tags), 158)
         self.assertEqual(tags[0], lazy_tags[0])
         self.assertEqual(tags[0], lazy_tags[-1])
 
         with self.assertRaises(ValueError) as ctx:
-            _ = [x.tag for x in lazy_resource.iter_depth(mode=5)]
-        self.assertEqual("invalid argument mode=5", str(ctx.exception))
+            _ = [x.tag for x in lazy_resource.iter_depth(mode=6)]
+        self.assertEqual("invalid argument mode=6", str(ctx.exception))
 
         source = StringIO('<a xmlns:tns0="http://example.com/ns0"><b1>'
                           '  <c1 xmlns:tns1="http://example.com/ns1"/>'

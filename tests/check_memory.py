@@ -19,8 +19,8 @@ from memory_profiler import profile
 
 
 def test_choice_type(value):
-    if value not in (str(v) for v in range(1, 13)):
-        msg = "%r must be an integer between [1 ... 12]." % value
+    if value not in (str(v) for v in range(1, 14)):
+        msg = "%r must be an integer between [1 ... 13]." % value
         raise argparse.ArgumentTypeError(msg)
     return int(value)
 
@@ -39,8 +39,9 @@ Run memory tests:
   8) Validate XML file with xmlschema in lazy mode
   9) Iterate XML file with XMLResource instance
   10) Iterate XML file with lazy XMLResource instance
-  11) Iterate XML file with lxml parse
-  12) Iterate XML file with lxml full iterparse
+  11) Iterate XML file with lazy XMLResource instance (thin lazy iter)
+  12) Iterate XML file with lxml parse
+  13) Iterate XML file with lxml full iterparse
 
 """
 
@@ -155,6 +156,15 @@ def lazy_xml_resource(source, repeat=1):
 
 
 @profile
+def thin_lazy_xml_resource(source, repeat=1):
+    xr = xmlschema.XMLResource(source, lazy=True)
+    for _ in range(repeat):
+        for _ in xr.iter(thin_lazy=True):
+            pass
+    del xr
+
+
+@profile
 def lxml_etree_parse(source, repeat=1):
     xt = etree.parse(source)
     for _ in range(repeat):
@@ -211,8 +221,11 @@ if __name__ == '__main__':
         import xmlschema
         lazy_xml_resource(args.xml_file, args.repeat)
     elif args.test_num == 11:
+        import xmlschema
+        thin_lazy_xml_resource(args.xml_file, args.repeat)
+    elif args.test_num == 12:
         from lxml import etree
         lxml_etree_parse(args.xml_file, args.repeat)
-    elif args.test_num == 12:
+    elif args.test_num == 13:
         from lxml import etree
         lxml_etree_full_iterparse(args.xml_file, args.repeat)
