@@ -18,6 +18,7 @@ from urllib.parse import urlsplit, urlunsplit, unquote, quote_from_bytes
 
 from .exceptions import XMLSchemaValueError
 from .aliases import NormalizedLocationsType, LocationsType
+from .namespaces import NamespaceResourcesMap
 
 
 DRIVE_LETTERS = frozenset(string.ascii_letters)
@@ -248,7 +249,7 @@ def normalize_locations(locations: LocationsType,
     :return: a list of couples containing normalized namespace location hints.
     """
     normalized_locations = []
-    if isinstance(locations, dict):
+    if isinstance(locations, (dict, NamespaceResourcesMap)):
         for ns, value in locations.items():
             if isinstance(value, list):
                 normalized_locations.extend(

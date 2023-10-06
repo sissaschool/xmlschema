@@ -21,7 +21,7 @@ import threading
 import warnings
 import re
 import sys
-from copy import copy as _copy
+from copy import copy as _copy, deepcopy
 from operator import attrgetter
 from typing import cast, Callable, ItemsView, List, Optional, Dict, Any, \
     Set, Union, Tuple, Type, Iterator, Counter
@@ -257,7 +257,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     meta_schema: Optional['XMLSchemaBase'] = None
     BASE_SCHEMAS: Dict[str, str] = {}
     fallback_locations: Dict[str, str] = LOCATION_HINTS.copy()
-    _locations: Tuple[Tuple[str, str], ...] = ()
     _annotations = None
     _xpath_node: Optional[SchemaElementNode]
 
@@ -421,15 +420,17 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         # Completes the namespaces map with internal declarations, remapping same prefixes.
         self.namespaces = self.source.get_namespaces(self.namespaces, root_only=False)
 
-        if locations:
-            if isinstance(locations, tuple):
-                self._locations = locations
-            else:
-                self._locations = tuple(normalize_locations(locations, self.base_url))
+        if isinstance(locations, NamespaceResourcesMap):
+            self.locations = locations
+        elif not locations:
+            self.locations = NamespaceResourcesMap()
+        elif isinstance(locations, tuple):
+            self.locations = NamespaceResourcesMap(locations)
+        else:
+            self.locations = NamespaceResourcesMap(
+                normalize_locations(locations, self.base_url)
+            )
 
-        self.locations = NamespaceResourcesMap(
-            self.source.get_locations(self._locations, root_only=False)
-        )
         if not use_fallback:
             self.fallback_locations = {}
 
@@ -1243,7 +1244,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 validation=self.validation,
                 global_maps=self.maps,
                 converter=self.converter,
-                locations=self._locations,
+                locations=self.locations,
                 base_url=self.base_url,
                 allow=self.allow,
                 defuse=self.defuse,
@@ -1387,12 +1388,16 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                     self.imports[namespace] = schema
                     return schema
 
+        locations = deepcopy(self.locations)
+        if namespace in locations:
+            locations.pop(namespace)
+
         schema = type(self)(
             source=url,
             validation=self.validation,
             global_maps=self.maps,
             converter=self.converter,
-            locations=[x for x in self._locations if x[0] != namespace],
+            locations=locations,
             base_url=self.base_url,
             allow=self.allow,
             defuse=self.defuse,
@@ -1419,13 +1424,20 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         :param build: defines when to build the imported schema, the default is to not build.
         :return: the added :class:`XMLSchema` instance.
         """
+        locations = deepcopy(self.locations)
+        if namespace is None:
+            if '' in locations:
+                locations.pop('')
+        elif namespace in locations:
+            locations.pop(namespace)
+
         return type(self)(
             source=source,
             namespace=namespace,
             validation=self.validation,
             global_maps=self.maps,
             converter=self.converter,
-            locations=[x for x in self._locations if x[0] != namespace],
+            locations=locations,
             base_url=self.base_url,
             allow=self.allow,
             defuse=self.defuse,

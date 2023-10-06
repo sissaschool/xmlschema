@@ -36,6 +36,7 @@ if TYPE_CHECKING:
         Time, Base64Binary, HexBinary, AnyURI, Duration
     from elementpath.datatypes.datetime import OrderedDateTime
 
+    from .namespaces import NamespaceResourcesMap
     from .resources import XMLResource
     from .converters import ElementData, XMLSchemaConverter
     from .validators import XMLSchemaValidationError, XsdComponent, XMLSchemaBase, \
@@ -52,7 +53,8 @@ if TYPE_CHECKING:
     # Type aliases for XML resources
     NamespacesType = MutableMapping[str, str]
     NormalizedLocationsType = List[Tuple[str, str]]
-    LocationsType = Union[Tuple[Tuple[str, str], ...], Dict[str, str], NormalizedLocationsType]
+    LocationsType = Union[Tuple[Tuple[str, str], ...], Dict[str, str],
+                          NormalizedLocationsType, NamespaceResourcesMap]
     NsmapType = MutableMapping[str, str]
     ParentMapType = Dict[ElementType, Optional[ElementType]]
     LazyType = Union[bool, int]
