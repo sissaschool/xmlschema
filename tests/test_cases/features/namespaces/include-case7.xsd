@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  An invalid include from a schema that redefine the same elements.
+  -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+  <xs:include schemaLocation="included7-overlap.xsd"/>
+
+  <xs:element name="elem1" />
+  <xs:element name="elem2" />
+
+</xs:schema>
+

@@ -76,7 +76,10 @@ def create_load_function(tag: str) \
                             continue
 
                     msg = _("global {0} with name={1!r} is already defined")
-                    schema.parse_error(msg.format(local_name(tag), qname))
+                    schema.parse_error(
+                        error=msg.format(local_name(tag), qname),
+                        elem=elem
+                    )
 
         redefined_names = Counter(x[0] for x in redefinitions)
         for qname, elem, child, schema, redefined_schema in reversed(redefinitions):
@@ -89,7 +92,10 @@ def create_load_function(tag: str) \
                 redefined_schemas = [x[-1] for x in redefinitions if x[0] == qname]
                 if any(redefined_schemas.count(x) > 1 for x in redefined_schemas):
                     msg = _("multiple redefinition for {0} {1!r}")
-                    schema.parse_error(msg.format(local_name(child.tag), qname), child)
+                    schema.parse_error(
+                        error=msg.format(local_name(child.tag), qname),
+                        elem=child
+                    )
                 else:
                     redefined_schemas = {x[-1]: x[-2] for x in redefinitions if x[0] == qname}
                     for rs, s in redefined_schemas.items():
@@ -101,7 +107,10 @@ def create_load_function(tag: str) \
 
                             if s is rs:
                                 msg = _("circular redefinition for {0} {1!r}")
-                                schema.parse_error(msg.format(local_name(child.tag), qname), child)
+                                schema.parse_error(
+                                    error=msg.format(local_name(child.tag), qname),
+                                    elem=child
+                                )
                                 break
 
             if elem.tag == XSD_OVERRIDE:
@@ -643,8 +652,7 @@ class XsdGlobals(XsdValidator):
                 msg = _("defaultAttributes={0!r} doesn't match any attribute group of {1!r}")
                 schema.parse_error(
                     error=msg.format(schema.root.get('defaultAttributes'), schema),
-                    elem=schema.root,
-                    validation=schema.validation
+                    elem=schema.root
                 )
             else:
                 schema.default_attributes = cast(XsdAttributeGroup, attributes)

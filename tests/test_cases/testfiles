@@ -84,6 +84,7 @@ features/namespaces/include-case3.xsd
 features/namespaces/include-case4.xsd --errors=2
 features/namespaces/include-case5.xsd
 features/namespaces/include-case6.xsd --errors=1
+features/namespaces/include-case7.xsd --errors=1
 
 features/patterns/patterns.xsd
 features/patterns/patterns.xml --errors=6
