@@ -959,6 +959,24 @@ class TestXMLSchema10(XsdValidatorTestCase):
         self.assertIsInstance(url, str)
         self.assertTrue(url.endswith('schemas/DSIG/xmldsig-core-schema.xsd'))
 
+    def test_include_overlap(self):
+        schema = self.schema_class(dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">        
+                <xs:element name="elem1"/>
+                <xs:element name="elem2"/>
+            </xs:schema>"""))
+
+        elem1 = schema.maps.elements['elem1']
+
+        schema2 = self.schema_class(dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">        
+                <xs:element name="elem1"/>
+                <xs:element name="elem2"/>
+            </xs:schema>"""), global_maps=schema.maps)
+
+        self.assertIs(elem1, schema2.elements['elem1'])
+
+
 
 class TestXMLSchema11(TestXMLSchema10):
 

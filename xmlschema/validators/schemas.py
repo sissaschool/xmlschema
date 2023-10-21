@@ -345,6 +345,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         logger.debug("Read schema from %r", self.source.url or self.source.source)
 
         self.imports = {}
+        self._import_statements = set()
         self.includes = {}
         self.warnings = []
         self._root_elements: Optional[Set[str]] = None
@@ -1287,6 +1288,9 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 self.parse_error(msg)
                 continue
 
+            # Register if the namespace has an xs:import statement
+            self._import_statements.add(namespace)
+
             # Skip import of already imported namespaces
             if self.imports.get(namespace) is not None:
                 continue
@@ -1582,7 +1586,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             namespace, local_name = self.namespaces.get('', ''), qname
 
         if not namespace:
-            if namespace_imported and self.target_namespace and '' not in self.imports:
+            if namespace_imported and self.target_namespace \
+                    and '' not in self._import_statements:
                 msg = _("the QName {!r} is mapped to no namespace, but this requires "
                         "that there is an xs:import statement in the schema without "
                         "the 'namespace' attribute.")
@@ -1591,7 +1596,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         elif namespace_imported and self.meta_schema is not None and \
                 namespace != self.target_namespace and \
                 namespace not in {XSD_NAMESPACE, XSI_NAMESPACE} and \
-                namespace not in self.imports:
+                namespace not in self._import_statements:
             msg = _("the QName {0!r} is mapped to the namespace {1!r}, but this "
                     "namespace has not an xs:import statement in the schema.")
             raise XMLSchemaNamespaceError(msg.format(qname, namespace))
@@ -1605,7 +1610,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                  namespaces: Optional[NamespacesType] = None,
                  max_depth: Optional[int] = None,
                  extra_validator: Optional[ExtraValidatorType] = None,
-                 allow_empty: bool = True) -> None:
+                 allow_empty: bool = True,
+                 use_location_hints: bool = False) -> None:
         """
         Validates an XML data against the XSD schema/component instance.
 
@@ -1628,10 +1634,14 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         raise/yield :exc:`XMLSchemaValidationError` exceptions.
         :param allow_empty: for default providing a path argument empty selections \
         of XML data are allowed. Provide `False` to generate a validation error.
+        :param use_location_hints: for default schema locations hints provided within \
+        XML data are ignored in order to avoid the change of schema instance. Set this \
+        option to `True` to activate dynamic schema loading using schema location hints.
         :raises: :exc:`XMLSchemaValidationError` if the XML data instance is invalid.
         """
-        for error in self.iter_errors(source, path, schema_path, use_defaults, namespaces,
-                                      max_depth, extra_validator, allow_empty):
+        for error in self.iter_errors(source, path, schema_path, use_defaults,
+                                      namespaces, max_depth, extra_validator,
+                                      allow_empty, use_location_hints):
             raise error
 
     def is_valid(self, source: Union[XMLSourceType, XMLResource],
@@ -1641,13 +1651,15 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                  namespaces: Optional[NamespacesType] = None,
                  max_depth: Optional[int] = None,
                  extra_validator: Optional[ExtraValidatorType] = None,
-                 allow_empty: bool = True) -> bool:
+                 allow_empty: bool = True,
+                 use_location_hints: bool = False) -> bool:
         """
         Like :meth:`validate` except that does not raise an exception but returns
         ``True`` if the XML data instance is valid, ``False`` if it is invalid.
         """
-        error = next(self.iter_errors(source, path, schema_path, use_defaults, namespaces,
-                                      max_depth, extra_validator, allow_empty), None)
+        error = next(self.iter_errors(source, path, schema_path, use_defaults,
+                                      namespaces, max_depth, extra_validator,
+                                      allow_empty, use_location_hints), None)
         return error is None
 
     def iter_errors(self, source: Union[XMLSourceType, XMLResource],
@@ -1657,7 +1669,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                     namespaces: Optional[NamespacesType] = None,
                     max_depth: Optional[int] = None,
                     extra_validator: Optional[ExtraValidatorType] = None,
-                    allow_empty: bool = True) \
+                    allow_empty: bool = True,
+                    use_location_hints: bool = False) \
             -> Iterator[XMLSchemaValidationError]:
         """
         Creates an iterator for the errors generated by the validation of an XML data against
@@ -1681,7 +1694,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             schema = self
 
         identities: Dict[XsdIdentity, IdentityCounter] = {}
-        locations: List[Any] = []
         ancestors: List[ElementType] = []
         prev_ancestors: List[ElementType] = []
         kwargs: Dict[Any, Any] = {
@@ -1693,8 +1705,9 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             'id_map': Counter[str](),
             'identities': identities,
             'inherited': {},
-            'locations': locations,  # TODO: lazy schemas load
         }
+        if use_location_hints and self.XSD_VERSION == '1.0':
+            kwargs['used_namespaces'] = {resource.namespace}
         if max_depth is not None:
             kwargs['max_depth'] = max_depth
         if extra_validator is not None:
@@ -1814,6 +1827,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                     process_namespaces: bool = True,
                     namespaces: Optional[NamespacesType] = None,
                     use_defaults: bool = True,
+                    use_location_hints: bool = False,
                     decimal_type: Optional[Type[Any]] = None,
                     datetime_types: bool = False,
                     binary_types: bool = False,
@@ -1846,6 +1860,9 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         and the map extracted from the XML document.
         :param namespaces: is an optional mapping from namespace prefix to URI.
         :param use_defaults: whether to use default values for filling missing data.
+        :param use_location_hints: for default schema locations hints provided within \
+        XML data are ignored in order to avoid the change of schema instance. Set this \
+        option to `True` to activate dynamic schema loading using schema location hints.
         :param decimal_type: conversion type for `Decimal` objects (generated by \
         `xs:decimal` built-in and derived types), useful if you want to generate a \
         JSON-compatible data structure.
@@ -1910,7 +1927,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             identities={},
             inherited={},
         )
-
+        if use_location_hints and self.XSD_VERSION == '1.0':
+            kwargs['used_namespaces'] = {resource.namespace}
         if decimal_type is not None:
             kwargs['decimal_type'] = decimal_type
         if datetime_types:

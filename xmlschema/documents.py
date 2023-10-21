@@ -21,7 +21,7 @@ from .aliases import ElementType, XMLSourceType, NamespacesType, LocationsType, 
     LazyType, SchemaSourceType, ConverterType, DecodeType, EncodeType, \
     JsonDecodeType
 from .helpers import get_extended_qname, is_etree_document
-from .resources import fetch_schema_locations, XMLResource
+from .resources import fetch_schema_locations, fetch_schema, XMLResource
 from .validators import XMLSchema10, XMLSchemaBase, XMLSchemaValidationError
 
 
@@ -62,7 +62,7 @@ def get_context(xml_document: Union[XMLSourceType, XMLResource],
     if use_location_hints:
         try:
             schema_location, locations = fetch_schema_locations(
-                resource, locations, base_url=base_url, root_only=False
+                resource, locations, base_url=base_url
             )
         except ValueError:
             pass
@@ -175,7 +175,8 @@ def validate(xml_document: Union[XMLSourceType, XMLResource],
     """
     source, _schema = get_context(xml_document, schema, cls, locations, base_url,
                                   defuse, timeout, lazy, use_location_hints)
-    _schema.validate(source, path, schema_path, use_defaults, namespaces)
+    _schema.validate(source, path, schema_path, use_defaults, namespaces,
+                     use_location_hints=use_location_hints)
 
 
 def is_valid(xml_document: Union[XMLSourceType, XMLResource],
@@ -197,7 +198,8 @@ def is_valid(xml_document: Union[XMLSourceType, XMLResource],
     """
     source, schema = get_context(xml_document, schema, cls, locations, base_url,
                                  defuse, timeout, lazy, use_location_hints)
-    return schema.is_valid(source, path, schema_path, use_defaults, namespaces)
+    return schema.is_valid(source, path, schema_path, use_defaults, namespaces,
+                           use_location_hints=use_location_hints)
 
 
 def iter_errors(xml_document: Union[XMLSourceType, XMLResource],
@@ -219,7 +221,8 @@ def iter_errors(xml_document: Union[XMLSourceType, XMLResource],
     """
     source, schema = get_context(xml_document, schema, cls, locations, base_url,
                                  defuse, timeout, lazy, use_location_hints)
-    return schema.iter_errors(source, path, schema_path, use_defaults, namespaces)
+    return schema.iter_errors(source, path, schema_path, use_defaults, namespaces,
+                              use_location_hints=use_location_hints)
 
 
 def iter_decode(xml_document: Union[XMLSourceType, XMLResource],
@@ -270,7 +273,8 @@ def iter_decode(xml_document: Union[XMLSourceType, XMLResource],
     """
     source, _schema = get_context(xml_document, schema, cls, locations, base_url,
                                   defuse, timeout, lazy, use_location_hints)
-    yield from _schema.iter_decode(source, path=path, validation=validation, **kwargs)
+    yield from _schema.iter_decode(source, path=path, validation=validation,
+                                   use_location_hints=use_location_hints,**kwargs)
 
 
 def to_dict(xml_document: Union[XMLSourceType, XMLResource],
@@ -296,7 +300,8 @@ def to_dict(xml_document: Union[XMLSourceType, XMLResource],
     """
     source, _schema = get_context(xml_document, schema, cls, locations, base_url,
                                   defuse, timeout, lazy, use_location_hints)
-    return _schema.decode(source, path=path, validation=validation, **kwargs)
+    return _schema.decode(source, path=path, validation=validation,
+                          use_location_hints=use_location_hints, **kwargs)
 
 
 def to_json(xml_document: Union[XMLSourceType, XMLResource],
@@ -364,7 +369,9 @@ def to_json(xml_document: Union[XMLSourceType, XMLResource],
     if path is None and source.is_lazy() and 'cls' not in json_options:
         json_options['cls'] = get_lazy_json_encoder(errors)
 
-    obj = _schema.decode(source, path=path, validation=validation, **kwargs)
+    obj = _schema.decode(source, path=path, validation=validation,
+                         use_location_hints=use_location_hints, **kwargs)
+
     if isinstance(obj, tuple):
         errors.extend(obj[1])
         if fp is not None:

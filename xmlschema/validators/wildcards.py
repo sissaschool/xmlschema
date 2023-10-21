@@ -524,7 +524,11 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
 
         if validation != 'skip' and self.process_contents == 'strict':
             yield self.validation_error(validation, reason, obj, **kwargs)
-        yield from self.any_type.iter_decode(obj, validation, **kwargs)
+
+        xsd_element = self.maps.validator.create_element(
+            obj.tag, parent=self, form='unqualified'
+        )
+        yield from xsd_element.iter_decode(obj, validation, **kwargs)
 
     def iter_encode(self, obj: Tuple[str, ElementType], validation: str = 'lax', **kwargs: Any) \
             -> IterEncodeType[Any]:

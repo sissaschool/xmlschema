@@ -168,12 +168,12 @@ SKIPPED_TESTS = {
 
     ##
     # Skip for TODO
-    '../msData/additional/test93490_2.xml',  # 4793
-    '../msData/additional/test93490_5.xml',  # 4796
-    '../msData/additional/test93490_7.xml',  # 4798
-    '../msData/additional/test93490_10.xml',  # 4801
-    '../msData/additional/test93490_12.xml',  # 4803
-    '../msData/additional/addB191.xml',       # 4824
+    # '../msData/additional/test93490_2.xml',  # 4793
+    # '../msData/additional/test93490_5.xml',  # 4796
+    # '../msData/additional/test93490_7.xml',  # 4798
+    # '../msData/additional/test93490_10.xml',  # 4801
+    # '../msData/additional/test93490_12.xml',  # 4803
+    # '../msData/additional/addB191.xml',       # 4824
     # Dynamic schema load cases
 }
 

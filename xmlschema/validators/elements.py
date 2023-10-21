@@ -32,6 +32,7 @@ from ..aliases import ElementType, SchemaType, BaseXsdType, SchemaElementType, \
 from ..translation import gettext as _
 from ..helpers import get_qname, get_namespace, etree_iter_location_hints, \
     raw_xml_encode, strictly_equal
+from ..locations import normalize_url
 from .. import dataobjects
 from ..converters import ElementData, XMLSchemaConverter
 from ..xpath import XsdSchemaProtocol, XsdElementProtocol, XMLSchemaProxy, \
@@ -548,43 +549,43 @@ class XsdElement(XsdComponent, ParticleMixin,
                 return None
         return self.type.text_decode(text)
 
-    def check_dynamic_context(self, elem: ElementType, **kwargs: Any) -> None:
-        try:
-            locations = kwargs['locations']
-        except KeyError:
-            return
+    def check_dynamic_context(self, elem: ElementType, options: Dict[str, Any]) -> None:
+        if 'used_namespaces' not in options:
+            return None
 
-        schema: Optional[SchemaType]
+        used_namespaces = options['used_namespaces']
+
         for ns, url in etree_iter_location_hints(elem):
-            if ns not in locations:
-                locations[ns] = url
-            elif locations[ns] is None:
+            try:
+                base_url = options['source'].base_url
+            except KeyError:
+                return None
+
+            url = normalize_url(url, base_url)
+            if ns not in self.maps.namespaces:
+                self.schema.import_schema(ns, url, base_url, build=True)
+            else:
+                if any(url == schema.url for schema in self.maps.namespaces[ns]):
+                    continue
+
+                schema = self.maps.namespaces[ns][0]
+                schema.include_schema(url, build=True)
+
+            if ns in used_namespaces:
                 reason = _("schemaLocation declaration after namespace start")
                 raise XMLSchemaValidationError(self, elem, reason)
 
-            if ns == self.target_namespace:
-                schema = self.schema.include_schema(url, self.schema.base_url)
-            else:
-                schema = self.schema.import_schema(ns, url, self.schema.base_url)
-
-            if schema is None:
-                reason = _("missing dynamic loaded schema from %s") % url
-                raise XMLSchemaValidationError(self, elem, reason)
-            elif not schema.built:
-                reason = _("dynamic loaded schema change the assessment")
-                raise XMLSchemaValidationError(self, elem, reason)
+        if elem.tag[0] == '{':
+            ns = get_namespace(elem.tag)
+            if ns not in used_namespaces:
+                used_namespaces.add(ns)
 
         if elem.attrib:
             for name in elem.attrib:
                 if name[0] == '{':
                     ns = get_namespace(name)
-                    if ns not in locations:
-                        locations[ns] = None
-
-        if elem.tag[0] == '{':
-            ns = get_namespace(elem.tag)
-            if ns not in locations:
-                locations[ns] = None
+                    if ns not in used_namespaces:
+                        used_namespaces.add(ns)
 
     def iter_decode(self, obj: ElementType, validation: str = 'lax', **kwargs: Any) \
             -> IterDecodeType[Any]:
@@ -627,10 +628,11 @@ class XsdElement(XsdComponent, ParticleMixin,
             if converter is not None and not isinstance(converter, XMLSchemaConverter):
                 converter = kwargs['converter'] = self.schema.get_converter(**kwargs)
 
-        try:
-            pass  # self.check_dynamic_context(elem, **kwargs) TODO: dynamic schema load
-        except XMLSchemaValidationError as err:
-            yield self.validation_error(validation, err, obj, **kwargs)
+        if level:
+            try:
+                self.check_dynamic_context(obj, options=kwargs)
+            except XMLSchemaValidationError as err:
+                yield self.validation_error(validation, err, obj, **kwargs)
 
         inherited = kwargs.get('inherited')
         value = content = attributes = None
@@ -1412,6 +1414,12 @@ class Xsd11Element(XsdElement):
             msg = _("Maybe a not equivalent type table between elements {0!r} and {1!r}")
             warnings.warn(msg.format(e1, e2), XMLSchemaTypeTableWarning, stacklevel=3)
         return True
+
+    def check_dynamic_context(self, elem: ElementType, options: Dict[str, Any]) -> None:
+        for ns, url in etree_iter_location_hints(elem):
+            if False:
+                reason = _("schemaLocation declaration after namespace start")
+                raise XMLSchemaValidationError(self, elem, reason)
 
 
 class XsdAlternative(XsdComponent):
