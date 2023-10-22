@@ -61,8 +61,9 @@ class ParticleMixin:
 
     def is_emptiable(self) -> bool:
         """
-        Tests if max_occurs == 0. A zero-length model group is considered emptiable.
-        For model groups the test outcome depends also on nested particles.
+        Tests if min_occurs == 0. A model group that can have zero-length is
+        considered emptiable. For model groups the test outcome depends also
+        on nested particles.
         """
         return self.min_occurs == 0
 
