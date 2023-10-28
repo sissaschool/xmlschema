@@ -21,7 +21,7 @@ from .aliases import ElementType, XMLSourceType, NamespacesType, LocationsType, 
     LazyType, SchemaSourceType, ConverterType, DecodeType, EncodeType, \
     JsonDecodeType
 from .helpers import get_extended_qname, is_etree_document
-from .resources import fetch_schema_locations, fetch_schema, XMLResource
+from .resources import fetch_schema_locations, XMLResource
 from .validators import XMLSchema10, XMLSchemaBase, XMLSchemaValidationError
 
 
@@ -274,7 +274,7 @@ def iter_decode(xml_document: Union[XMLSourceType, XMLResource],
     source, _schema = get_context(xml_document, schema, cls, locations, base_url,
                                   defuse, timeout, lazy, use_location_hints)
     yield from _schema.iter_decode(source, path=path, validation=validation,
-                                   use_location_hints=use_location_hints,**kwargs)
+                                   use_location_hints=use_location_hints, **kwargs)
 
 
 def to_dict(xml_document: Union[XMLSourceType, XMLResource],

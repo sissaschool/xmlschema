@@ -40,7 +40,7 @@ from ..xpath import XsdSchemaProtocol, XsdElementProtocol, XMLSchemaProxy, \
 from ..resources import XMLResource
 
 from .exceptions import XMLSchemaNotBuiltError, XMLSchemaValidationError, \
-    XMLSchemaTypeTableWarning
+    XMLSchemaParseError, XMLSchemaTypeTableWarning
 from .helpers import get_xsd_derivation_attribute
 from .xsdbase import XSD_TYPE_DERIVATIONS, XSD_ELEMENT_DERIVATIONS, \
     XsdComponent, ValidationMixin
@@ -559,21 +559,21 @@ class XsdElement(XsdComponent, ParticleMixin,
             try:
                 base_url = options['source'].base_url
             except KeyError:
-                return None
+                return
 
             url = normalize_url(url, base_url)
-            if ns not in self.maps.namespaces:
-                self.schema.import_schema(ns, url, base_url, build=True)
-            else:
-                if any(url == schema.url for schema in self.maps.namespaces[ns]):
-                    continue
-
-                schema = self.maps.namespaces[ns][0]
-                schema.include_schema(url, build=True)
+            if any(url == schema.url for schema in self.maps.iter_schemas()):
+                continue
 
             if ns in used_namespaces:
                 reason = _("schemaLocation declaration after namespace start")
                 raise XMLSchemaValidationError(self, elem, reason)
+
+            if ns in self.maps.namespaces:
+                schema = self.maps.namespaces[ns][0]
+                schema.include_schema(url, build=True)
+            else:
+                self.schema.import_schema(ns, url, base_url, build=True)
 
         if elem.tag[0] == '{':
             ns = get_namespace(elem.tag)
@@ -633,6 +633,8 @@ class XsdElement(XsdComponent, ParticleMixin,
                 self.check_dynamic_context(obj, options=kwargs)
             except XMLSchemaValidationError as err:
                 yield self.validation_error(validation, err, obj, **kwargs)
+            except XMLSchemaParseError as err:
+                yield self.validation_error(validation, err.message, obj, **kwargs)
 
         inherited = kwargs.get('inherited')
         value = content = attributes = None
@@ -1417,9 +1419,21 @@ class Xsd11Element(XsdElement):
 
     def check_dynamic_context(self, elem: ElementType, options: Dict[str, Any]) -> None:
         for ns, url in etree_iter_location_hints(elem):
-            if False:
-                reason = _("schemaLocation declaration after namespace start")
-                raise XMLSchemaValidationError(self, elem, reason)
+            try:
+                base_url = options['source'].base_url
+            except KeyError:
+                return None
+
+            url = normalize_url(url, base_url)
+
+            if ns not in self.maps.namespaces:
+                self.schema.import_schema(ns, url, base_url, build=True)
+            else:
+                if any(url == schema.url for schema in self.maps.namespaces[ns]):
+                    continue
+
+                schema = self.maps.namespaces[ns][0]
+                schema.include_schema(url, build=True)
 
 
 class XsdAlternative(XsdComponent):

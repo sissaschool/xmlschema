@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  An invalid include from a schema that redefine the same elements.
+  An invalid include from a schema that declares the same elements.
   -->
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
 

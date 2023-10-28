@@ -93,7 +93,6 @@ SKIPPED_TESTS = {
     # 3984: Invalid if lxml is used (xsi:type and duplicate prefix)
     '../msData/additional/test93490_4.xml',
     # 4795: https://www.w3.org/Bugs/Public/show_bug.cgi?id=4078
-    '../msData/additional/test93490_8.xml',  # 4799: Idem
     '../msData/datatypes/gMonth002.xml',
     # 8017: gMonth bogus: conflicts with other invalid schema tests
     '../msData/datatypes/gMonth004.xml',
@@ -171,6 +170,7 @@ SKIPPED_TESTS = {
     # '../msData/additional/test93490_2.xml',  # 4793
     # '../msData/additional/test93490_5.xml',  # 4796
     # '../msData/additional/test93490_7.xml',  # 4798
+    # '../msData/additional/test93490_8.xml',  # 4799
     # '../msData/additional/test93490_10.xml',  # 4801
     # '../msData/additional/test93490_12.xml',  # 4803
     # '../msData/additional/addB191.xml',       # 4824

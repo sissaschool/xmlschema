@@ -241,6 +241,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     locations: NamespaceResourcesMap
     maps: XsdGlobals
     imports: Dict[str, Optional[SchemaType]]
+    _import_statements: Set[str]
     includes: Dict[str, SchemaType]
     warnings: List[str]
 
@@ -282,12 +283,12 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     element_form_default = 'unqualified'
     block_default = ''
     final_default = ''
-    redefine = None
+    redefine: Optional['XMLSchemaBase'] = None
 
     # Additional defaults for XSD 1.1
     default_attributes: Optional[Union[str, XsdAttributeGroup]] = None
     default_open_content = None
-    override = None
+    override: Optional['XMLSchemaBase'] = None
 
     # Store XPath constructors tokens (for schema and its assertions)
     xpath_tokens: Optional[Dict[str, Type[XPathToken]]] = None
@@ -1288,7 +1289,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 self.parse_error(msg)
                 continue
 
-            # Register if the namespace has an xs:import statement
+            # Register if the namespace has a xs:import statement
             self._import_statements.add(namespace)
 
             # Skip import of already imported namespaces

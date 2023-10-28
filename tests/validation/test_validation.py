@@ -21,7 +21,7 @@ except ImportError:
     lxml_etree = None
 
 import xmlschema
-from xmlschema import XMLSchemaValidationError
+from xmlschema import XMLSchemaParseError, XMLSchemaValidationError
 
 from xmlschema.validators import XMLSchema11
 from xmlschema.testing import XsdValidatorTestCase
@@ -457,6 +457,15 @@ class TestValidation(XsdValidatorTestCase):
             schema.is_valid(self.casepath('issues/issue_363/issue_363-invalid-3.xml'),
                             namespaces={'': "http://xmlschema.test/ns"}))
 
+    def test_dynamic_schema_load(self):
+        xml_file = self.casepath('features/namespaces/dynamic-case1.xml')
+
+        with self.assertRaises(XMLSchemaValidationError) as ctx:
+            xmlschema.validate(xml_file, cls=self.schema_class)
+
+        self.assertIn("schemaLocation declaration after namespace start",
+                      str(ctx.exception))
+
 
 class TestValidation11(TestValidation):
     schema_class = XMLSchema11
@@ -493,6 +502,15 @@ class TestValidation11(TestValidation):
         self.check_validity(schema, '<tag name="test" abc="0" def="0"/>', True)
         self.check_validity(schema, '<tag name="test" abc="1"/>', False)
         self.check_validity(schema, '<tag name="test" def="1"/>', False)
+
+    def test_dynamic_schema_load(self):
+        xml_file = self.casepath('features/namespaces/dynamic-case1.xml')
+
+        with self.assertRaises(XMLSchemaValidationError) as ctx:
+            xmlschema.validate(xml_file, cls=self.schema_class)
+
+        self.assertIn("global element with name='elem1' is already defined",
+                      str(ctx.exception))
 
 
 if __name__ == '__main__':
