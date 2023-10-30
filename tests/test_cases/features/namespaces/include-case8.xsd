@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  An include from a schema that redefines the same initial schema.
+  Consider this schema composition valid, mainly because loading
+  from the included schema that redefine this is certainly valid.
+  -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+  <xs:include schemaLocation="included8-redefine.xsd"/>
+
+  <xs:simpleType name="aType">
+    <xs:restriction base="xs:string"/>
+  </xs:simpleType>
+
+</xs:schema>
+

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  An invalid include from a schema that redefine the same initial schema.
+  -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+  <xs:redefine schemaLocation="include-case8.xsd">
+    <xs:simpleType name="aType">
+      <xs:restriction base="aType"/>
+    </xs:simpleType>
+  </xs:redefine>
+
+</xs:schema>
+
