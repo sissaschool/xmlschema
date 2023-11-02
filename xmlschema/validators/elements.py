@@ -763,7 +763,7 @@ class XsdElement(XsdComponent, ParticleMixin,
                     reason = _("must have the fixed value %r") % self.fixed
                     yield self.validation_error(validation, reason, obj, **kwargs)
 
-            elif not text and self.default is not None and kwargs.get('use_defaults'):
+            elif not text and self.default is not None and kwargs.get('use_defaults', True):
                 text = self.default
 
             if not isinstance(xsd_type, XsdSimpleType):
@@ -1048,7 +1048,7 @@ class XsdElement(XsdComponent, ParticleMixin,
 
             elif self.fixed is not None:
                 text = self.fixed
-            elif self.default is not None and kwargs.get('use_defaults'):
+            elif self.default is not None and kwargs.get('use_defaults', True):
                 text = self.default
 
         elif xsd_type.has_simple_content():
@@ -1062,7 +1062,7 @@ class XsdElement(XsdComponent, ParticleMixin,
 
             elif self.fixed is not None:
                 text = self.fixed
-            elif self.default is not None and kwargs.get('use_defaults'):
+            elif self.default is not None and kwargs.get('use_defaults', True):
                 text = self.default
 
         else:

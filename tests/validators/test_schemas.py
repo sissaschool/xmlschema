@@ -963,14 +963,14 @@ class TestXMLSchema10(XsdValidatorTestCase):
 
     def test_include_overlap(self):
         schema = self.schema_class(dedent("""\
-            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">        
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
                 <xs:element name="elem1"/>
                 <xs:element name="elem2"/>
             </xs:schema>"""))
 
         with self.assertRaises(XMLSchemaParseError) as ctx:
             self.schema_class(dedent("""\
-                <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">        
+                <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
                     <xs:element name="elem1"/>
                     <xs:element name="elem2"/>
                 </xs:schema>"""), global_maps=schema.maps)
