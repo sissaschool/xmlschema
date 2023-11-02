@@ -194,7 +194,7 @@ class XsdValidator:
                          obj: Any = None,
                          source: Optional[XMLResource] = None,
                          namespaces: Optional[NamespacesType] = None,
-                         **_kwargs: Any) -> XMLSchemaValidationError:
+                         **kwargs: Any) -> XMLSchemaValidationError:
         """
         Helper method for generating and updating validation errors. If validation
         mode is 'lax' or 'skip' returns the error, otherwise raises the error.
@@ -204,7 +204,7 @@ class XsdValidator:
         :param obj: the instance related to the error.
         :param source: the XML resource related to the validation process.
         :param namespaces: is an optional mapping from namespace prefix to URI.
-        :param _kwargs: keyword arguments of the validation process that are not used.
+        :param kwargs: other keyword arguments of the validation process.
         """
         check_validation_mode(validation)
         if isinstance(error, XMLSchemaValidationError):
@@ -226,6 +226,10 @@ class XsdValidator:
 
         if validation == 'strict' and error.elem is not None:
             raise error
+
+        if 'errors' in kwargs and error not in kwargs['errors']:
+            kwargs['errors'].append(error)
+
         return error
 
     def _parse_xpath_default_namespace(self, elem: ElementType) -> str:

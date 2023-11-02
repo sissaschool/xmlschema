@@ -21,7 +21,7 @@ except ImportError:
     lxml_etree = None
 
 import xmlschema
-from xmlschema import XMLSchemaParseError, XMLSchemaValidationError
+from xmlschema import XMLSchemaValidationError
 
 from xmlschema.validators import XMLSchema11
 from xmlschema.testing import XsdValidatorTestCase
@@ -502,6 +502,17 @@ class TestValidation11(TestValidation):
         self.check_validity(schema, '<tag name="test" abc="0" def="0"/>', True)
         self.check_validity(schema, '<tag name="test" abc="1"/>', False)
         self.check_validity(schema, '<tag name="test" def="1"/>', False)
+
+    def test_optional_errors_collector(self):
+        schema = self.schema_class(self.col_xsd_file)
+        invalid_col_xml_file = self.casepath('examples/collection/collection-1_error.xml')
+
+        errors = []
+        chunks = list(schema.iter_decode(invalid_col_xml_file, errors=errors))
+        self.assertTrue(len(chunks), 2)
+        self.assertIsInstance(chunks[0], XMLSchemaValidationError)
+        self.assertTrue(len(errors), 1)
+        self.assertIs(chunks[0], errors[0])
 
     def test_dynamic_schema_load(self):
         xml_file = self.casepath('features/namespaces/dynamic-case1.xml')
