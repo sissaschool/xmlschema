@@ -87,6 +87,7 @@ features/namespaces/include-case6.xsd --errors=1
 features/namespaces/include-case7.xsd --errors=1
 features/namespaces/include-case8.xsd
 features/namespaces/included8-redefine.xsd
+features/namespaces/dynamic-case1-override.xsd --version=1.1
 
 features/patterns/patterns.xsd
 features/patterns/patterns.xml --errors=6

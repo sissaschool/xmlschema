@@ -1707,8 +1707,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             'identities': identities,
             'inherited': {},
         }
-        if use_location_hints and self.XSD_VERSION == '1.0':
-            kwargs['used_namespaces'] = {resource.namespace}
+        if use_location_hints and not resource.is_lazy():
+            kwargs['use_location_hints'] = True
         if max_depth is not None:
             kwargs['max_depth'] = max_depth
         if extra_validator is not None:
@@ -1928,8 +1928,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             identities={},
             inherited={},
         )
-        if use_location_hints and self.XSD_VERSION == '1.0':
-            kwargs['used_namespaces'] = {resource.namespace}
+        if use_location_hints and not resource.is_lazy():
+            kwargs['use_location_hints'] = True
         if decimal_type is not None:
             kwargs['decimal_type'] = decimal_type
         if datetime_types:

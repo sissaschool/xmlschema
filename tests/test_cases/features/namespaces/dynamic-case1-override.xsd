@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:override schemaLocation="dynamic-case1.xsd">
+    <xs:element name="elem1" type="xs:int"/>
+  </xs:override>
+</xs:schema>
+

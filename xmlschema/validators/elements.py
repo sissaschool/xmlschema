@@ -16,7 +16,7 @@ from decimal import Decimal
 from types import GeneratorType
 from typing import TYPE_CHECKING, cast, Any, Dict, Iterator, List, Optional, \
     Set, Tuple, Type, Union
-from xml.etree.ElementTree import Element
+from xml.etree.ElementTree import Element, ParseError
 
 from elementpath import XPath2Parser, ElementPathError, XPathContext, XPathToken, \
     ElementNode, LazyElementNode, SchemaElementNode, build_schema_node_tree
@@ -30,8 +30,8 @@ from ..aliases import ElementType, SchemaType, BaseXsdType, SchemaElementType, \
     ModelParticleType, ComponentClassType, AtomicValueType, DecodeType, \
     IterDecodeType, IterEncodeType
 from ..translation import gettext as _
-from ..helpers import get_qname, get_namespace, etree_iter_location_hints, \
-    raw_xml_encode, strictly_equal
+from ..helpers import get_qname, etree_iter_location_hints, \
+    etree_iter_namespaces, raw_xml_encode, strictly_equal
 from ..locations import normalize_url
 from .. import dataobjects
 from ..converters import ElementData, XMLSchemaConverter
@@ -549,43 +549,39 @@ class XsdElement(XsdComponent, ParticleMixin,
                 return None
         return self.type.text_decode(text)
 
-    def check_dynamic_context(self, elem: ElementType, options: Dict[str, Any]) -> None:
-        if 'used_namespaces' not in options:
-            return None
-
-        used_namespaces = options['used_namespaces']
+    def check_dynamic_context(self, elem: ElementType,
+                              validation: str,
+                              options: Dict[str, Any]) -> Iterator[XMLSchemaValidationError]:
+        try:
+            source: XMLResource = options['source']
+        except KeyError:
+            return
 
         for ns, url in etree_iter_location_hints(elem):
-            try:
-                base_url = options['source'].base_url
-            except KeyError:
-                return
-
+            base_url = source.base_url
             url = normalize_url(url, base_url)
             if any(url == schema.url for schema in self.maps.iter_schemas()):
                 continue
 
-            if ns in used_namespaces:
+            if ns in etree_iter_namespaces(source.root, elem):
                 reason = _("schemaLocation declaration after namespace start")
-                raise XMLSchemaValidationError(self, elem, reason)
+                yield self.validation_error(validation, reason, elem, **options)
 
-            if ns in self.maps.namespaces:
-                schema = self.maps.namespaces[ns][0]
-                schema.include_schema(url, build=True)
-            else:
-                self.schema.import_schema(ns, url, base_url, build=True)
+            try:
+                if ns in self.maps.namespaces:
+                    schema = self.maps.namespaces[ns][0]
+                    schema.include_schema(url)
+                    self.schema.clear()
+                    self.schema.build()
+                else:
+                    self.schema.import_schema(ns, url, base_url, build=True)
 
-        if elem.tag[0] == '{':
-            ns = get_namespace(elem.tag)
-            if ns not in used_namespaces:
-                used_namespaces.add(ns)
-
-        if elem.attrib:
-            for name in elem.attrib:
-                if name[0] == '{':
-                    ns = get_namespace(name)
-                    if ns not in used_namespaces:
-                        used_namespaces.add(ns)
+            except (XMLSchemaValidationError, ParseError) as err:
+                yield self.validation_error(validation, err, elem, **options)
+            except XMLSchemaParseError as err:
+                yield self.validation_error(validation, err.message, elem, **options)
+            except (OSError, IOError):
+                continue
 
     def iter_decode(self, obj: ElementType, validation: str = 'lax', **kwargs: Any) \
             -> IterDecodeType[Any]:
@@ -628,13 +624,9 @@ class XsdElement(XsdComponent, ParticleMixin,
             if converter is not None and not isinstance(converter, XMLSchemaConverter):
                 converter = kwargs['converter'] = self.schema.get_converter(**kwargs)
 
-        if level:
-            try:
-                self.check_dynamic_context(obj, options=kwargs)
-            except XMLSchemaValidationError as err:
-                yield self.validation_error(validation, err, obj, **kwargs)
-            except XMLSchemaParseError as err:
-                yield self.validation_error(validation, err.message, obj, **kwargs)
+        # Use location hints for dynamic schema load
+        if level and kwargs.get('use_location_hints'):
+            yield from self.check_dynamic_context(obj, validation, options=kwargs)
 
         inherited = kwargs.get('inherited')
         value = content = attributes = None
@@ -1417,23 +1409,35 @@ class Xsd11Element(XsdElement):
             warnings.warn(msg.format(e1, e2), XMLSchemaTypeTableWarning, stacklevel=3)
         return True
 
-    def check_dynamic_context(self, elem: ElementType, options: Dict[str, Any]) -> None:
+    def check_dynamic_context(self, elem: ElementType,
+                              validation: str,
+                              options: Dict[str, Any]) -> Iterator[XMLSchemaValidationError]:
+        try:
+            source = options['source']
+        except KeyError:
+            return
+
         for ns, url in etree_iter_location_hints(elem):
-            try:
-                base_url = options['source'].base_url
-            except KeyError:
-                return None
-
+            base_url = source.base_url
             url = normalize_url(url, base_url)
+            if any(url == schema.url for schema in self.maps.iter_schemas()):
+                continue
 
-            if ns not in self.maps.namespaces:
-                self.schema.import_schema(ns, url, base_url, build=True)
-            else:
-                if any(url == schema.url for schema in self.maps.namespaces[ns]):
-                    continue
+            try:
+                if ns in self.maps.namespaces:
+                    schema = self.maps.namespaces[ns][0]
+                    schema.include_schema(url)
+                    self.schema.clear()
+                    self.schema.build()
+                else:
+                    self.schema.import_schema(ns, url, base_url, build=True)
 
-                schema = self.maps.namespaces[ns][0]
-                schema.include_schema(url, build=True)
+            except (XMLSchemaValidationError, ParseError) as err:
+                yield self.validation_error(validation, err, elem, **options)
+            except XMLSchemaParseError as err:
+                yield self.validation_error(validation, err.message, elem, **options)
+            except (OSError, IOError):
+                continue
 
 
 class XsdAlternative(XsdComponent):

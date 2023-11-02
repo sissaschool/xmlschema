@@ -285,6 +285,27 @@ def etree_iter_location_hints(elem: ElementType) -> Iterator[Tuple[Any, Any]]:
             yield '', url
 
 
+def etree_iter_namespaces(root: ElementType,
+                          elem: Optional[ElementType] = None) -> Iterator[str]:
+    """
+    Yields namespaces of an ElementTree structure. If an *elem* is
+    provided stops when found if during the iteration.
+    """
+    if root.tag != '{' and root is not elem:
+        yield ''
+
+    for e in root.iter():
+        if e is elem:
+            return
+        elif e.tag[0] == '{':
+            yield get_namespace(e.tag)
+
+        if e.attrib:
+            for name in e.attrib:
+                if name[0] == '{':
+                    yield get_namespace(name)
+
+
 def prune_etree(root: ElementType, selector: Callable[[ElementType], bool]) \
         -> Optional[bool]:
     """

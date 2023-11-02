@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:noNamespaceSchemaLocation="dynamic-case1.xsd">
+  <elem1>foo</elem1>
+  <elem2 xsi:noNamespaceSchemaLocation="dynamic-case1-override.xsd"/>
+</root>
+

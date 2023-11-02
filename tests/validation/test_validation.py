@@ -512,6 +512,14 @@ class TestValidation11(TestValidation):
         self.assertIn("global element with name='elem1' is already defined",
                       str(ctx.exception))
 
+        xml_file = self.casepath('features/namespaces/dynamic-case1-2.xml')
+
+        with self.assertRaises(XMLSchemaValidationError) as ctx:
+            xmlschema.validate(xml_file, cls=self.schema_class)
+
+        self.assertIn("schemaLocation declaration after namespace start",
+                      str(ctx.exception))
+
 
 if __name__ == '__main__':
     import platform
