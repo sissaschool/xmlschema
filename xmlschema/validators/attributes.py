@@ -656,7 +656,8 @@ class XsdAttributeGroup(
                 yield from attr.iter_components(xsd_classes)
 
     def iter_decode(self, obj: MutableMapping[str, str], validation: str = 'lax',
-                    **kwargs: Any) -> IterDecodeType[List[Tuple[str, Any]]]:
+                    use_defaults: bool = True, **kwargs: Any) \
+            -> IterDecodeType[List[Tuple[str, Any]]]:
         if not obj and not self:
             return
 
@@ -668,11 +669,6 @@ class XsdAttributeGroup(
             kwargs['level'] += 1
         except KeyError:
             kwargs['level'] = 1
-
-        try:
-            use_defaults = kwargs['use_defaults']
-        except KeyError:
-            use_defaults = True
 
         additional_attrs = [
             (k, v) for k, v in self.iter_value_constraints(use_defaults) if k not in obj
@@ -738,18 +734,14 @@ class XsdAttributeGroup(
         yield result_list
 
     def iter_encode(self, obj: MutableMapping[str, Any], validation: str = 'lax',
-                    **kwargs: Any) -> IterEncodeType[List[Tuple[str, Union[str, List[str]]]]]:
+                    use_defaults: bool = True, **kwargs: Any) \
+            -> IterEncodeType[List[Tuple[str, Union[str, List[str]]]]]:
         if not obj and not self:
             return
 
         for name in filter(lambda x: x not in obj, self.iter_required()):
             reason = _("missing required attribute {!r}").format(name)
             yield self.validation_error(validation, reason, obj, **kwargs)
-
-        try:
-            use_defaults = kwargs['use_defaults']
-        except KeyError:
-            use_defaults = True
 
         result_list = []
         for name, value in obj.items():
