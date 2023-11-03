@@ -382,6 +382,10 @@ class XMLSchemaChildrenValidationError(XMLSchemaValidationError):
             __init__(validator, elem, reason, source, namespaces)
 
 
+class XMLSchemaStopValidation(XMLSchemaException):
+    """Stops the validation process."""
+
+
 class XMLSchemaIncludeWarning(XMLSchemaWarning):
     """A schema include fails."""
 

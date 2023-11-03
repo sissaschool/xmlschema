@@ -40,7 +40,7 @@ from ..xpath import XsdSchemaProtocol, XsdElementProtocol, XMLSchemaProxy, \
 from ..resources import XMLResource
 
 from .exceptions import XMLSchemaNotBuiltError, XMLSchemaValidationError, \
-    XMLSchemaParseError, XMLSchemaTypeTableWarning
+    XMLSchemaParseError, XMLSchemaStopValidation, XMLSchemaTypeTableWarning
 from .helpers import get_xsd_derivation_attribute
 from .xsdbase import XSD_TYPE_DERIVATIONS, XSD_ELEMENT_DERIVATIONS, \
     XsdComponent, ValidationMixin
@@ -595,10 +595,16 @@ class XsdElement(XsdComponent, ParticleMixin,
         validation or decoding errors.
         """
         error: Union[XMLSchemaValueError, XMLSchemaValidationError]
+        result: Any
 
         if self.abstract:
             reason = _("cannot use an abstract element for validation")
             yield self.validation_error(validation, reason, obj, **kwargs)
+
+        # Stop/skip validation on element and its descendants
+        if 'stop_validation' in kwargs:
+            if kwargs['stop_validation'](obj, self):
+                validation = 'skip'
 
         try:
             level = kwargs['level']
@@ -686,7 +692,6 @@ class XsdElement(XsdComponent, ParticleMixin,
 
         # Decode attributes
         attribute_group = self.get_attributes(xsd_type)
-        result: Any
         for result in attribute_group.iter_decode(obj.attrib, validation, **kwargs):
             if isinstance(result, XMLSchemaValidationError):
                 yield self.validation_error(validation, result, obj, **kwargs)
@@ -1427,10 +1432,23 @@ class Xsd11Element(XsdElement):
                 if ns in self.maps.namespaces:
                     schema = self.maps.namespaces[ns][0]
                     schema.include_schema(url)
-                    self.schema.clear()
-                    self.schema.build()
+                    schema.clear()
+                    schema.build()
                 else:
-                    self.schema.import_schema(ns, url, base_url, build=True)
+                    schema = self.schema
+                    schema.import_schema(ns, url, base_url, build=True)
+
+                def stop_validation(e: ElementType, _xsd_element: XsdElement) -> bool:
+                    if e is elem:
+                        raise XMLSchemaStopValidation()
+                    return False
+
+                errors = list(schema.iter_errors(source, stop_validation=stop_validation))
+                if len(options['errors']) != len(errors) or \
+                        any(e1.elem is not e2.elem for e1, e2 in zip(options['errors'], errors)):
+                    reason = _(f"adding schema at {url} change the "
+                               f"assessment outcome of previous items")
+                    yield self.validation_error(validation, reason, elem, **options)
 
             except (XMLSchemaValidationError, ParseError) as err:
                 yield self.validation_error(validation, err, elem, **options)

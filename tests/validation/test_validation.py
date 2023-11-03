@@ -528,7 +528,7 @@ class TestValidation11(TestValidation):
         with self.assertRaises(XMLSchemaValidationError) as ctx:
             xmlschema.validate(xml_file, cls=self.schema_class)
 
-        self.assertIn("schemaLocation declaration after namespace start",
+        self.assertIn("change the assessment outcome of previous items",
                       str(ctx.exception))
 
 

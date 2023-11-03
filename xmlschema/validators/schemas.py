@@ -41,8 +41,8 @@ from ..names import VC_MIN_VERSION, VC_MAX_VERSION, VC_TYPE_AVAILABLE, \
     XSD_ANY_SIMPLE_TYPE, XSD_UNION, XSD_LIST, XSD_RESTRICTION
 from ..aliases import ElementType, XMLSourceType, NamespacesType, LocationsType, \
     SchemaType, SchemaSourceType, ConverterType, ComponentClassType, DecodeType, \
-    EncodeType, BaseXsdType, ExtraValidatorType, SchemaGlobalType, \
-    FillerType, DepthFillerType, ValueHookType, ElementHookType
+    EncodeType, BaseXsdType, ExtraValidatorType, StopValidationType, \
+    SchemaGlobalType, FillerType, DepthFillerType, ValueHookType, ElementHookType
 from ..translation import gettext as _
 from ..helpers import prune_etree, get_namespace, get_qname, is_defuse_error
 from ..namespaces import NamespaceResourcesMap, NamespaceView
@@ -53,8 +53,9 @@ from ..converters import XMLSchemaConverter
 from ..xpath import XsdSchemaProtocol, XMLSchemaProxy, ElementPathMixin
 from .. import dataobjects
 
-from .exceptions import XMLSchemaParseError, XMLSchemaValidationError, XMLSchemaEncodeError, \
-    XMLSchemaNotBuiltError, XMLSchemaIncludeWarning, XMLSchemaImportWarning
+from .exceptions import XMLSchemaParseError, XMLSchemaValidationError, \
+    XMLSchemaEncodeError, XMLSchemaNotBuiltError, XMLSchemaStopValidation, \
+    XMLSchemaIncludeWarning, XMLSchemaImportWarning
 from .helpers import get_xsd_derivation_attribute
 from .xsdbase import check_validation_mode, XsdValidator, XsdComponent, XsdAnnotation
 from .notations import XsdNotation
@@ -1611,6 +1612,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                  namespaces: Optional[NamespacesType] = None,
                  max_depth: Optional[int] = None,
                  extra_validator: Optional[ExtraValidatorType] = None,
+                 stop_validation: Optional[StopValidationType] = None,
                  allow_empty: bool = True,
                  use_location_hints: bool = False) -> None:
         """
@@ -1633,6 +1635,10 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         element, with the XML element as 1st argument and the corresponding XSD \
         element as 2nd argument. It can be also a generator function and has to \
         raise/yield :exc:`XMLSchemaValidationError` exceptions.
+        :param stop_validation: on optional function for stopping validation at \
+        certain elements. The validation can be skipped for a set of elements and \
+        their descendants, if the function returns `True`, or definitively, raising \
+        a `XmlSchemaStopValidation` exception.
         :param allow_empty: for default providing a path argument empty selections \
         of XML data are allowed. Provide `False` to generate a validation error.
         :param use_location_hints: for default schema locations hints provided within \
@@ -1642,7 +1648,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         """
         for error in self.iter_errors(source, path, schema_path, use_defaults,
                                       namespaces, max_depth, extra_validator,
-                                      allow_empty, use_location_hints):
+                                      stop_validation, allow_empty, use_location_hints):
             raise error
 
     def is_valid(self, source: Union[XMLSourceType, XMLResource],
@@ -1652,6 +1658,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                  namespaces: Optional[NamespacesType] = None,
                  max_depth: Optional[int] = None,
                  extra_validator: Optional[ExtraValidatorType] = None,
+                 stop_validation: Optional[StopValidationType] = None,
                  allow_empty: bool = True,
                  use_location_hints: bool = False) -> bool:
         """
@@ -1660,7 +1667,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         """
         error = next(self.iter_errors(source, path, schema_path, use_defaults,
                                       namespaces, max_depth, extra_validator,
-                                      allow_empty, use_location_hints), None)
+                                      stop_validation, allow_empty, use_location_hints), None)
         return error is None
 
     def iter_errors(self, source: Union[XMLSourceType, XMLResource],
@@ -1670,6 +1677,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                     namespaces: Optional[NamespacesType] = None,
                     max_depth: Optional[int] = None,
                     extra_validator: Optional[ExtraValidatorType] = None,
+                    stop_validation: Optional[StopValidationType] = None,
                     allow_empty: bool = True,
                     use_location_hints: bool = False) \
             -> Iterator[XMLSchemaValidationError]:
@@ -1709,10 +1717,14 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         }
         if use_location_hints and not resource.is_lazy():
             kwargs['use_location_hints'] = True
+            if self.XSD_VERSION == '1.1':
+                kwargs['errors'] = []
         if max_depth is not None:
             kwargs['max_depth'] = max_depth
         if extra_validator is not None:
             kwargs['extra_validator'] = extra_validator
+        if stop_validation is not None:
+            kwargs['stop_validation'] = stop_validation
 
         if path:
             selector = resource.iterfind(path, namespaces, nsmap=namespaces,
@@ -1758,11 +1770,14 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                     yield schema.validation_error('lax', reason, elem, resource, namespaces)
                     return
 
-            for result in xsd_element.iter_decode(elem, **kwargs):
-                if isinstance(result, XMLSchemaValidationError):
-                    yield result
-                else:
-                    del result
+            try:
+                for result in xsd_element.iter_decode(elem, **kwargs):
+                    if isinstance(result, XMLSchemaValidationError):
+                        yield result
+                    else:
+                        del result
+            except XMLSchemaStopValidation:
+                pass
         else:
             if elem is None and not allow_empty:
                 assert path is not None
@@ -1930,6 +1945,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         )
         if use_location_hints and not resource.is_lazy():
             kwargs['use_location_hints'] = True
+            if self.XSD_VERSION == '1.1':
+                kwargs['errors'] = []
         if decimal_type is not None:
             kwargs['decimal_type'] = decimal_type
         if datetime_types:
