@@ -27,9 +27,9 @@ from .validators import (
     XMLSchemaValidatorError, XMLSchemaParseError, XMLSchemaNotBuiltError,
     XMLSchemaModelError, XMLSchemaModelDepthError, XMLSchemaValidationError,
     XMLSchemaDecodeError, XMLSchemaEncodeError, XMLSchemaChildrenValidationError,
-    XMLSchemaIncludeWarning, XMLSchemaImportWarning, XMLSchemaTypeTableWarning,
-    XsdGlobals, XMLSchemaBase, XMLSchema, XMLSchema10, XMLSchema11,
-    XsdComponent, XsdType, XsdElement, XsdAttribute
+    XMLSchemaStopValidation, XMLSchemaIncludeWarning, XMLSchemaImportWarning,
+    XMLSchemaTypeTableWarning, XsdGlobals, XMLSchemaBase, XMLSchema, XMLSchema10,
+    XMLSchema11, XsdComponent, XsdType, XsdElement, XsdAttribute
 )
 
 __version__ = '3.0.0'
@@ -50,8 +50,8 @@ __all__ = [
     'to_dict', 'to_json', 'to_etree', 'from_json', 'XmlDocument', 'XMLSchemaValidatorError',
     'XMLSchemaParseError', 'XMLSchemaNotBuiltError', 'XMLSchemaModelError',
     'XMLSchemaModelDepthError', 'XMLSchemaValidationError', 'XMLSchemaDecodeError',
-    'XMLSchemaEncodeError', 'XMLSchemaChildrenValidationError', 'XMLSchemaIncludeWarning',
-    'XMLSchemaImportWarning', 'XMLSchemaTypeTableWarning', 'XsdGlobals', 'XMLSchemaBase',
-    'XMLSchema', 'XMLSchema10', 'XMLSchema11', 'XsdComponent', 'XsdType', 'XsdElement',
-    'XsdAttribute',
+    'XMLSchemaEncodeError', 'XMLSchemaChildrenValidationError', 'XMLSchemaStopValidation',
+    'XMLSchemaIncludeWarning', 'XMLSchemaImportWarning', 'XMLSchemaTypeTableWarning',
+    'XsdGlobals', 'XMLSchemaBase', 'XMLSchema', 'XMLSchema10', 'XMLSchema11',
+    'XsdComponent', 'XsdType', 'XsdElement', 'XsdAttribute',
 ]

@@ -21,7 +21,7 @@ except ImportError:
     lxml_etree = None
 
 import xmlschema
-from xmlschema import XMLSchemaValidationError
+from xmlschema import XMLSchemaValidationError, XMLSchemaStopValidation
 
 from xmlschema.validators import XMLSchema11
 from xmlschema.testing import XsdValidatorTestCase
@@ -166,6 +166,27 @@ class TestValidation(XsdValidatorTestCase):
         with self.assertRaises(XMLSchemaValidationError) as ec:
             self.vh_schema.validate(self.vh_xml_file, extra_validator=bikes_validator)
         self.assertIn('Reason: not an Harley-Davidson', str(ec.exception))
+
+    def test_stop_validation_argument(self):
+        resource = xmlschema.XMLResource(
+            self.casepath('examples/collection/collection-1_error.xml')
+        )
+
+        with self.assertRaises(XMLSchemaValidationError) as ec:
+            self.col_schema.validate(resource)
+        self.assertIn('invalid literal for int() with base 10', str(ec.exception))
+
+        def stop_validation(e, _xsd_element):
+            if e is ec.exception.elem:
+                raise XMLSchemaStopValidation()
+            return False
+
+        self.assertIsNone(self.col_schema.validate(resource, stop_validation=stop_validation))
+
+        def skip_validation(e, _xsd_element):
+            return e is ec.exception.elem
+
+        self.assertIsNone(self.col_schema.validate(resource, stop_validation=skip_validation))
 
     def test_path_argument(self):
         schema = self.schema_class(self.casepath('examples/vehicles/vehicles.xsd'))
