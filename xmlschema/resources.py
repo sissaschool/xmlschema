@@ -1112,14 +1112,16 @@ class XMLResource:
     def get_namespaces(self, namespaces: Optional[NamespacesType] = None,
                        root_only: bool = True) -> NamespacesType:
         """
-        Extracts namespaces with related prefixes from the XML resource. If a duplicate
-        prefix declaration is encountered and the prefix maps a different namespace,
-        adds the namespace using a different generated prefix. The empty prefix '' is
-        used only if it's declared at root level to avoid erroneous mapping of local
-        names. In other cases uses 'default' prefix as substitute.
+        Extracts namespaces with related prefixes from the XML resource.
 
         :param namespaces: builds the namespace map starting over the dictionary provided.
-        :param root_only: if `True` extracts only the namespaces declared in the root element.
+        :param root_only: if `True` extracts only the namespaces declared in the root \
+        element, otherwise if a duplicate prefix declaration is encountered and the \
+        prefix maps to a different namespace, adds the namespace using a different \
+        generated prefix. The empty prefix '' is used only if it's declared at root \
+        level to avoid erroneous mapping of local names. In other cases it uses the \
+        prefix 'default' as substitute. A full namespace map can be useful for cases \
+        where the element context is not available.
         :return: a dictionary for mapping namespace prefixes to full URI.
         """
         if namespaces is None:

@@ -356,7 +356,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         root = self.source.root
 
         # Initialize schema's namespaces, the XML namespace is implicitly declared.
-        self.namespaces = self.source.get_namespaces({'xml': XML_NAMESPACE}, root_only=True)
+        self.namespaces = self.source.get_namespaces({'xml': XML_NAMESPACE})
 
         if 'targetNamespace' in root.attrib:
             self.target_namespace = root.attrib['targetNamespace'].strip()
@@ -420,7 +420,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                     self.include_schema(child.attrib['schemaLocation'], self.base_url)
             return  # Meta-schemas don't need to be checked and don't process imports
 
-        # Completes the namespaces map with internal declarations, remapping same prefixes.
+        # Complete the namespace map with internal declarations, remapping
+        # identical prefixes that refer to different namespaces.
         self.namespaces = self.source.get_namespaces(self.namespaces, root_only=False)
 
         if isinstance(locations, NamespaceResourcesMap):
@@ -1694,7 +1695,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         if not schema_path:
             schema_path = resource.get_absolute_path(path)
 
-        namespaces = resource.get_namespaces(namespaces, root_only=True)
+        namespaces = resource.get_namespaces(namespaces)
         namespace = resource.namespace or namespaces.get('', '')
 
         try:
@@ -1925,7 +1926,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         if not schema_path and path:
             schema_path = resource.get_absolute_path(path)
 
-        namespaces = resource.get_namespaces(namespaces, root_only=True)
+        namespaces = resource.get_namespaces(namespaces)
         namespace = resource.namespace or namespaces.get('', '')
 
         if process_namespaces:
