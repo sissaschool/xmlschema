@@ -22,7 +22,9 @@ if TYPE_CHECKING:
     from ..validators import XsdElement
 
 
-ElementData = namedtuple('ElementData', ['tag', 'text', 'content', 'attributes'])
+ElementData = namedtuple('ElementData',
+                         ['tag', 'text', 'content', 'attributes', 'xmlns'],
+                         defaults=(None, None, None, None))
 """
 Namedtuple for Element data interchange between decoders and converters.
 The field *tag* is a string containing the Element's tag, *text* can be `None`
@@ -30,7 +32,8 @@ or a string representing the Element's text, *content* can be `None`, a list
 containing the Element's children or a dictionary containing element name to
 list of element contents for the Element's children (used for unordered input
 data), *attributes* can be `None` or a dictionary containing the Element's
-attributes.
+attributes, *xmlns* can be `None` or a list of couples containing namespace
+declarations.
 """
 
 
@@ -165,8 +168,12 @@ class XMLSchemaConverter(NamespaceMapper):
         return False
 
     def copy(self, **kwargs: Any) -> 'XMLSchemaConverter':
+        namespaces = kwargs.get('namespaces')
+        if namespaces is None:
+            namespaces = {k: v for k, v in self._namespaces.items()}
+
         return type(self)(
-            namespaces=kwargs.get('namespaces', self._namespaces),
+            namespaces=namespaces,
             dict_class=kwargs.get('dict_class', self.dict),
             list_class=kwargs.get('list_class', self.list),
             etree_element_class=kwargs.get('etree_element_class'),
@@ -350,15 +357,16 @@ class XMLSchemaConverter(NamespaceMapper):
 
         if not isinstance(obj, MutableMapping):
             if xsd_element.type.simple_type is not None:
-                return ElementData(tag, obj, None, {})
+                return ElementData(tag, obj, None, {}, None)
             elif xsd_element.type.mixed and isinstance(obj, (str, bytes)):
-                return ElementData(tag, None, [(1, obj)], {})
+                return ElementData(tag, None, [(1, obj)], {}, None)
             else:
-                return ElementData(tag, None, obj, {})
+                return ElementData(tag, None, obj, {}, None)
 
         text = None
         content: List[Tuple[Union[int, str], Any]] = []
         attributes = {}
+        xmlns = []
 
         for name, value in obj.items():
             if name == self.text_key:
@@ -370,9 +378,12 @@ class XMLSchemaConverter(NamespaceMapper):
                 content.append((index, value))
             elif name == self.ns_prefix:
                 self[''] = value
+                xmlns.append(('', value))
             elif name.startswith(f'{self.ns_prefix}:'):
                 if not self.strip_namespaces:
-                    self[name[len(self.ns_prefix) + 1:]] = value
+                    ns_name = name[len(self.ns_prefix) + 1:]
+                    self[ns_name] = value
+                    xmlns.append((ns_name, value))
             elif self.attr_prefix and \
                     name.startswith(self.attr_prefix) and \
                     name != self.attr_prefix:
@@ -411,4 +422,4 @@ class XMLSchemaConverter(NamespaceMapper):
                     else:
                         content.append((ns_name, value))
 
-        return ElementData(tag, text, content, attributes)
+        return ElementData(tag, text, content, attributes, xmlns)
