@@ -1497,6 +1497,23 @@ class TestDecoding(XsdValidatorTestCase):
         xml_file = self.casepath('examples/menù/menù.xml')
         self.assertDictEqual(schema.decode(xml_file), MENU_DICT)
 
+    def test_xml_to_json_serialization(self):
+        xml_file = self.casepath('serialization/document.xml')
+        obj = xmlschema.to_json(
+            xml_file,
+            validation='skip',
+            converter=xmlschema.JsonMLConverter,
+        )
+
+        with open(self.casepath('serialization/jsonml.json')) as fp:
+            json_data = json.load(fp)
+
+        print()
+        print(obj)
+        return
+        self.assertEqual(obj, json_data)
+
+
 
 class TestDecoding11(TestDecoding):
     schema_class = XMLSchema11

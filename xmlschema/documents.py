@@ -357,8 +357,9 @@ def to_json(xml_document: Union[XMLSourceType, XMLResource],
     :raises: :exc:`XMLSchemaValidationError` if the object is not decodable by \
     the XSD component, or also if it's invalid when ``validation='strict'`` is provided.
     """
+    dummy_schema = validation == 'skip'
     source, _schema = get_context(xml_document, schema, cls, locations, base_url,
-                                  defuse, timeout, lazy, use_location_hints)
+                                  defuse, timeout, lazy, use_location_hints, dummy_schema)
     if json_options is None:
         json_options = {}
     if 'decimal_type' not in kwargs:
