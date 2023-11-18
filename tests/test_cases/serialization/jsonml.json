@@ -1,7 +1,8 @@
 [
     "reports",
     {
-        "xmlns" : "http://www.w3.org/2005/Atom"
+        "xmlns" : "http://www.w3.org/2005/Atom",
+        "xmlns:georss" : "http://www.georss.org/georss"
     },
     [
         "entry",
@@ -33,9 +34,6 @@
         ],
         [
             "georss:point",
-            {
-                "xmlns:georss" : "http://www.georss.org/georss"
-            },
             "40.7111 -73.9565"
         ],
         [
@@ -108,9 +106,6 @@
         ],
         [
             "georss:point",
-            {
-                "xmlns:georss" : "http://www.georss.org/georss"
-            },
             "40.7111 -73.9565"
         ],
         [
@@ -183,9 +178,6 @@
         ],
         [
             "georss:point",
-            {
-                "xmlns:georss" : "http://www.georss.org/georss"
-            },
             "40.7111 -73.9565"
         ],
         [

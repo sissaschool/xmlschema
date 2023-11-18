@@ -612,7 +612,7 @@ class XsdElement(XsdComponent, ParticleMixin,
             level = kwargs['level'] = 0
 
         try:
-            xmlns = kwargs['source'].get_ns_declarations(obj)
+            xmlns = kwargs['xmlns_getter'](obj)
         except KeyError:
             xmlns = None
 
@@ -994,6 +994,11 @@ class XsdElement(XsdComponent, ParticleMixin,
             yield self.validation_error(validation, err, obj, **kwargs)
             return
         else:
+            if element_data.xmlns:
+                converter = converter.copy()
+                converter.update(element_data.xmlns)
+                kwargs['converter'] = converter
+
             if not level:
                 if not self.is_matching(element_data.tag):
                     errors.append("data tag does not match XSD element name")

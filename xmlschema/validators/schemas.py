@@ -44,7 +44,8 @@ from ..aliases import ElementType, XMLSourceType, NamespacesType, LocationsType,
     EncodeType, BaseXsdType, ExtraValidatorType, StopValidationType, \
     SchemaGlobalType, FillerType, DepthFillerType, ValueHookType, ElementHookType
 from ..translation import gettext as _
-from ..helpers import prune_etree, get_namespace, get_qname, is_defuse_error
+from ..helpers import prune_etree, get_namespace, get_namespace_map, \
+    get_qname, is_defuse_error
 from ..namespaces import NamespaceResourcesMap, NamespaceView
 from ..locations import is_local_url, is_remote_url, url_path_is_file, \
     normalize_url, normalize_locations
@@ -1843,6 +1844,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                     validation: str = 'lax',
                     process_namespaces: bool = True,
                     namespaces: Optional[NamespacesType] = None,
+                    xmlns_usage: str = 'standard',
                     use_defaults: bool = True,
                     use_location_hints: bool = False,
                     decimal_type: Optional[Type[Any]] = None,
@@ -1875,7 +1877,15 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         :param process_namespaces: whether to use namespace information in the \
         decoding process, using the map provided with the argument *namespaces* \
         and the namespace declarations extracted from the XML document.
-        :param namespaces: is an optional mapping from namespace prefix to URI.
+        :param namespaces: is an optional mapping from namespace prefix to URI that \
+        integrate/override the root namespace declarations of the XML source.
+        :param xmlns_usage: defines the usage of the XML namespace declarations. \
+        The default is 'standard' that means each namespace declaration is applied \
+        for the element that contains the declaration and its descendants. Provide \
+        'collapse' to merge the namespace declarations in a unique namespace map, \
+        using alternative prefixes in case of collision. Provide 'ignore' to skip \
+        the processing of the namespace declarations, using only the ones provided \
+        through the argument *namespaces*.
         :param use_defaults: whether to use default values for filling missing data.
         :param use_location_hints: for default schema locations hints provided within \
         XML data are ignored in order to avoid the change of schema instance. Set this \
@@ -1926,7 +1936,16 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         if not schema_path and path:
             schema_path = resource.get_absolute_path(path)
 
-        namespaces = resource.get_namespaces(namespaces)
+        if xmlns_usage == 'standard':
+            kwargs['xmlns_getter'] = resource.get_ns_declarations
+            namespaces = resource.get_namespaces(namespaces)
+        elif xmlns_usage == 'collapse':
+            kwargs['xmlns_getter'] = lambda x: None
+            namespaces = resource.get_namespaces(namespaces, root_only=False)
+        else:
+            kwargs['xmlns_getter'] = lambda x: None
+            namespaces = get_namespace_map(namespaces)
+
         if process_namespaces:
             converter = self.get_converter(converter, namespaces=namespaces, **kwargs)
         else:
@@ -1934,8 +1953,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
         namespace = resource.namespace or namespaces.get('', '')
         schema = self.get_schema(namespace)
+
         kwargs.update(
-            level=0,
             converter=converter,
             namespaces=namespaces,
             source=resource,
@@ -1978,7 +1997,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         if path:
             selector = resource.iterfind(path, namespaces, nsmap=namespaces, thin_lazy=True)
         elif not resource.is_lazy():
-            selector = (resource.root,)
+            selector = iter((resource.root,))
         else:
             decoder = self.raw_decoder(
                 schema_path=resource.get_absolute_path(),
@@ -1987,7 +2006,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             )
             kwargs['depth_filler'] = lambda x: decoder
             kwargs['max_depth'] = resource.lazy_depth
-            selector = resource.iter_depth(mode=3, nsmap=namespaces)
+            selector = resource.iter_depth(mode=3)
 
         for elem in selector:
             xsd_element = schema.get_element(elem.tag, schema_path, namespaces)

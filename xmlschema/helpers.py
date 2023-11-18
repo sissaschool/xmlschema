@@ -16,7 +16,7 @@ from typing import Any, Callable, Iterable, Iterator, List, MutableMapping, \
 from xml.etree.ElementTree import ParseError
 
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
-from .names import XSI_SCHEMA_LOCATION, XSI_NONS_SCHEMA_LOCATION
+from .names import XML_NAMESPACE, XSI_SCHEMA_LOCATION, XSI_NONS_SCHEMA_LOCATION
 from .aliases import ElementType, NamespacesType, AtomicValueType, NumericValueType
 
 ###
@@ -178,6 +178,23 @@ def update_namespaces(namespaces: NamespacesType,
                 prefix += '0'
         else:
             namespaces[prefix] = uri
+
+
+def get_namespace_map(namespaces: Optional[NamespacesType],
+                      other: Optional[NamespacesType] = None) -> NamespacesType:
+    """
+    Returns a new and checked namespace map. Optionally the provided map
+    can be merged with another, discarding duplicate prefixes.
+    """
+    namespaces = {} if namespaces is None else {**namespaces}
+    if other:
+        namespaces.update((k, v) for k, v in other.items() if k not in namespaces)
+
+    if namespaces.get('xml', XML_NAMESPACE) != XML_NAMESPACE:
+        msg = "reserved prefix 'xml' can't be used for another namespace name"
+        raise XMLSchemaValueError(msg)
+
+    return namespaces
 
 
 ###

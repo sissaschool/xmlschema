@@ -62,13 +62,7 @@ class TestValidation(XsdValidatorTestCase):
         else:
             path_line = ''
 
-        if sys.version_info >= (3, 6):
-            self.assertEqual('Path: /vhx:vehicles/vhx:cars', path_line)
-        else:
-            self.assertTrue(
-                'Path: /vh:vehicles/vh:cars' == path_line or
-                'Path: /vhx:vehicles/vhx:cars', path_line
-            )  # Due to unordered dicts
+        self.assertEqual('Path: /vhx:vehicles/vhx:cars', path_line)
 
         # Issue #80
         vh_2_xt = ElementTree.parse(vh_2_file)

@@ -644,8 +644,10 @@ class XmlDocument(XMLResource):
         elif not namespaces:
             _namespaces = self._namespaces
         else:
-            _namespaces = copy.copy(self._namespaces)
-            _namespaces.update(namespaces)
+            _namespaces = copy.copy(namespaces)
+            _namespaces.update(
+                (k, v) for k, v in self._namespaces.items() if k not in namespaces
+            )
 
         return super().get_namespaces(_namespaces, root_only)
 

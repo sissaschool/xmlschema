@@ -649,7 +649,7 @@ xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" \
 xsi:schemaLocation="http://example.com/ns/collection collection.xsd">
                     <object id="b0836217463" available="true">
                         <position>2</position>
-                        <title/>
+                        <title />
                         <year>1925</year>
                         <author id="JM">
                             <name>Joan Miró</name>

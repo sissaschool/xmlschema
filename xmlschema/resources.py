@@ -7,7 +7,6 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-import copy
 import os.path
 from io import StringIO, BytesIO
 from pathlib import Path
@@ -23,11 +22,11 @@ from elementpath.etree import ElementTree, PyElementTree, SafeXMLParser, etree_t
 from elementpath.protocols import LxmlElementProtocol
 
 from .exceptions import XMLSchemaTypeError, XMLSchemaValueError, XMLResourceError
-from .names import XML_NAMESPACE, XSD_NAMESPACE
+from .names import XSD_NAMESPACE
 from .aliases import ElementType, NamespacesType, XMLSourceType, \
     NormalizedLocationsType, LocationsType, ParentMapType
-from .helpers import get_namespace, update_namespaces, is_etree_document, \
-    etree_iter_location_hints, etree_delete_preceding
+from .helpers import get_namespace, update_namespaces, get_namespace_map, \
+    is_etree_document, etree_iter_location_hints, etree_delete_preceding
 from .locations import LocationPath, is_url, is_remote_url, is_local_url, \
     normalize_url, normalize_locations
 
@@ -578,6 +577,10 @@ class XMLResource:
                 nsmap = {}
                 lxml_nsmap = None
                 for elem in cast(Any, self._root.iter()):
+                    if callable(elem.tag):
+                        self._nsmaps[elem] = {}
+                        continue
+
                     if lxml_nsmap != elem.nsmap:
                         nsmap = {k or '': v for k, v in elem.nsmap.items()}
 
@@ -1114,35 +1117,33 @@ class XMLResource:
         """
         Extracts namespaces with related prefixes from the XML resource.
 
-        :param namespaces: builds the namespace map starting over the dictionary provided.
+        :param namespaces: is an optional mapping from namespace prefix to URI that \
+        integrate/override the namespace declarations of the root element.
         :param root_only: if `True` extracts only the namespaces declared in the root \
-        element, otherwise if a duplicate prefix declaration is encountered and the \
-        prefix maps to a different namespace, adds the namespace using a different \
+        element, otherwise scan the whole tree for further namespace declarations. \
+        If a duplicate prefix is encountered in a non-root xmlns declaration, and this \
+        is mapped to a different namespace, adds the namespace using a different \
         generated prefix. The empty prefix '' is used only if it's declared at root \
         level to avoid erroneous mapping of local names. In other cases it uses the \
         prefix 'default' as substitute. A full namespace map can be useful for cases \
         where the element context is not available.
         :return: a dictionary for mapping namespace prefixes to full URI.
         """
-        if namespaces is None:
-            namespaces = {}
-        elif namespaces.get('xml', XML_NAMESPACE) != XML_NAMESPACE:
-            msg = "reserved prefix 'xml' can't be used for another namespace name"
-            raise XMLSchemaValueError(msg)
-        else:
-            namespaces = copy.copy(namespaces)
-
-        root_namespace = self.namespace
+        elements = self.iter(reversed_lazy=False)
         try:
-            for elem in self.iter(reversed_lazy=False):
+            root = next(elements)
+            namespaces = get_namespace_map(namespaces, self._nsmaps.get(root))
+            if root_only:
+                return namespaces
+
+            root_namespace = self.namespace
+            for elem in elements:
                 if elem in self._ns_declarations:
                     update_namespaces(namespaces, self._ns_declarations[elem], root_namespace)
-                if root_only:
-                    break
         except (ElementTree.ParseError, PyElementTree.ParseError, UnicodeEncodeError):
-            pass
-
-        return namespaces
+            return get_namespace_map(namespaces)  # a lazy resource with malformed XML data
+        else:
+            return namespaces
 
     def get_locations(self, locations: Optional[LocationsType] = None,
                       root_only: bool = True) -> NormalizedLocationsType:
@@ -1170,8 +1171,12 @@ class XMLResource:
                 for ns, url in etree_iter_location_hints(self._root)
             ])
         else:
-            location_hints.extend([
-                (ns, normalize_url(url, self.base_url))
-                for ns, url in self.iter_location_hints()
-            ])
+            try:
+                location_hints.extend([
+                    (ns, normalize_url(url, self.base_url))
+                    for ns, url in self.iter_location_hints()
+                ])
+            except (ElementTree.ParseError, PyElementTree.ParseError, UnicodeEncodeError):
+                pass  # a lazy resource containing malformed XML data after the first tag
+
         return location_hints

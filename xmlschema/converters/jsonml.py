@@ -8,7 +8,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from collections.abc import MutableSequence
-from typing import TYPE_CHECKING, Any, Optional, List, Dict, Type
+from typing import TYPE_CHECKING, Any, Optional, List, Dict, Tuple, Type
 
 from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from ..aliases import NamespacesType, BaseXsdType
@@ -82,6 +82,7 @@ class JsonMLConverter(XMLSchemaConverter):
 
     def element_encode(self, obj: Any, xsd_element: 'XsdElement', level: int = 0) -> ElementData:
         attributes: Dict[str, Any] = {}
+        xmlns: List[Tuple[str, str]] = []
 
         if not isinstance(obj, MutableSequence):
             msg = "The first argument must be a sequence, {} provided"
@@ -93,14 +94,17 @@ class JsonMLConverter(XMLSchemaConverter):
         if data_len == 1:
             if not xsd_element.is_matching(self.unmap_qname(obj[0]), self._namespaces.get('')):
                 raise XMLSchemaValueError("Unmatched tag")
-            return ElementData(xsd_element.name, None, None, attributes)
+            return ElementData(xsd_element.name, None, None, attributes, xmlns)
 
         try:
+            # TODO: full unmap of attributes
             for k, v in obj[1].items():
                 if k == 'xmlns':
                     self[''] = v
+                    xmlns.append(('', v))
                 elif k.startswith('xmlns:'):
                     self[k.split('xmlns:')[1]] = v
+                    xmlns.append((k.split('xmlns:')[1], v))
 
             for k, v in obj[1].items():
                 if k != 'xmlns' and not k.startswith('xmlns:'):
@@ -115,15 +119,15 @@ class JsonMLConverter(XMLSchemaConverter):
             raise XMLSchemaValueError("Unmatched tag")
 
         if data_len <= content_index:
-            return ElementData(xsd_element.name, None, [], attributes)
+            return ElementData(xsd_element.name, None, [], attributes, xmlns)
         elif data_len == content_index + 1 and \
                 (xsd_element.type.simple_type is not None or not
                  xsd_element.type.content and xsd_element.type.mixed):
-            return ElementData(xsd_element.name, obj[content_index], [], attributes)
+            return ElementData(xsd_element.name, obj[content_index], [], attributes, xmlns)
         else:
             cdata_num = iter(range(1, data_len))
             content = [
                 (self.unmap_qname(e[0]), e) if isinstance(e, MutableSequence)
                 else (next(cdata_num), e) for e in obj[content_index:]
             ]
-            return ElementData(xsd_element.name, None, content, attributes)
+            return ElementData(xsd_element.name, None, content, attributes, xmlns)
