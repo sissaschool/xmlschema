@@ -981,7 +981,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             raise XMLSchemaRuntimeError(_("meta-schema unavailable for %r") % cls)
 
         msg = f"check_schema() class method will be removed in v3.0, use " \
-              f"{cls.__name__}.meta_schema instead for validating XSD data."
+            f"{cls.__name__}.meta_schema instead for validating XSD data."
         warnings.warn(msg, DeprecationWarning, stacklevel=1)
 
         for error in cls.meta_schema.iter_errors(schema.source, namespaces=namespaces):
@@ -1874,7 +1874,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         'strict', 'lax' or 'skip'.
         :param process_namespaces: whether to use namespace information in the \
         decoding process, using the map provided with the argument *namespaces* \
-        and the map extracted from the XML document.
+        and the namespace declarations extracted from the XML document.
         :param namespaces: is an optional mapping from namespace prefix to URI.
         :param use_defaults: whether to use default values for filling missing data.
         :param use_location_hints: for default schema locations hints provided within \
@@ -1927,15 +1927,15 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             schema_path = resource.get_absolute_path(path)
 
         namespaces = resource.get_namespaces(namespaces)
-        namespace = resource.namespace or namespaces.get('', '')
-
         if process_namespaces:
             converter = self.get_converter(converter, namespaces=namespaces, **kwargs)
         else:
             converter = self.get_converter(converter, **kwargs)
 
+        namespace = resource.namespace or namespaces.get('', '')
         schema = self.get_schema(namespace)
         kwargs.update(
+            level=0,
             converter=converter,
             namespaces=namespaces,
             source=resource,
@@ -1944,6 +1944,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             identities={},
             inherited={},
         )
+        if not process_namespaces:
+            kwargs['process_namespaces'] = False
         if use_location_hints and not resource.is_lazy():
             kwargs['use_location_hints'] = True
             if self.XSD_VERSION == '1.1':
@@ -1976,7 +1978,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         if path:
             selector = resource.iterfind(path, namespaces, nsmap=namespaces, thin_lazy=True)
         elif not resource.is_lazy():
-            selector = resource.iter_depth(nsmap=namespaces)
+            selector = (resource.root,)
         else:
             decoder = self.raw_decoder(
                 schema_path=resource.get_absolute_path(),

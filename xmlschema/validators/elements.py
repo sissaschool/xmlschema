@@ -612,6 +612,11 @@ class XsdElement(XsdComponent, ParticleMixin,
             level = kwargs['level'] = 0
 
         try:
+            xmlns = kwargs['source'].get_ns_declarations(obj)
+        except KeyError:
+            xmlns = None
+
+        try:
             identities = kwargs['identities']
         except KeyError:
             identities = kwargs['identities'] = {}
@@ -630,9 +635,22 @@ class XsdElement(XsdComponent, ParticleMixin,
             if converter is not None and not isinstance(converter, XMLSchemaConverter):
                 converter = kwargs['converter'] = self.schema.get_converter(**kwargs)
 
-        # Use location hints for dynamic schema load
-        if level and kwargs.get('use_location_hints'):
-            yield from self.check_dynamic_context(obj, validation, options=kwargs)
+        if level:
+            if xmlns:
+                try:
+                    namespaces = kwargs['namespaces']
+                except KeyError:
+                    namespaces = kwargs['namespaces'] = {k: v for k, v in xmlns}
+                else:
+                    namespaces = kwargs['namespaces'] = _copy(namespaces)
+                    namespaces.update(xmlns)
+
+                if converter is not None and kwargs.get('process_namespaces', True):
+                    converter = kwargs['converter'] = converter.copy(namespaces=namespaces)
+
+            # Use location hints for dynamic schema load
+            if kwargs.get('use_location_hints'):
+                yield from self.check_dynamic_context(obj, validation, options=kwargs)
 
         inherited = kwargs.get('inherited')
         value = content = attributes = None
@@ -818,7 +836,7 @@ class XsdElement(XsdComponent, ParticleMixin,
                     value = str(value)
 
         if converter is not None:
-            element_data = ElementData(obj.tag, value, content, attributes)
+            element_data = ElementData(obj.tag, value, content, attributes, xmlns)
             if 'element_hook' in kwargs:
                 element_data = kwargs['element_hook'](element_data, self, xsd_type)
 
@@ -827,7 +845,7 @@ class XsdElement(XsdComponent, ParticleMixin,
             except (ValueError, TypeError) as err:
                 yield self.validation_error(validation, err, obj, **kwargs)
         elif not level:
-            yield ElementData(obj.tag, value, None, attributes)
+            yield ElementData(obj.tag, value, None, attributes, xmlns)
 
         if content is not None:
             del content
