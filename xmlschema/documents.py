@@ -8,7 +8,6 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import json
-import copy
 from io import IOBase, TextIOBase
 from typing import Any, Dict, List, Optional, Type, Union, Tuple, \
     IO, BinaryIO, TextIO, Iterator
@@ -20,7 +19,7 @@ from .names import XSD_NAMESPACE, XSI_TYPE, XSD_SCHEMA
 from .aliases import ElementType, XMLSourceType, NamespacesType, LocationsType, \
     LazyType, SchemaSourceType, ConverterType, DecodeType, EncodeType, \
     JsonDecodeType
-from .helpers import get_extended_qname, is_etree_document
+from .helpers import get_extended_qname, get_namespace_map, is_etree_document
 from .resources import fetch_schema_locations, XMLResource
 from .validators import XMLSchema10, XMLSchemaBase, XMLSchemaValidationError
 
@@ -639,17 +638,8 @@ class XmlDocument(XMLResource):
 
     def get_namespaces(self, namespaces: Optional[NamespacesType] = None,
                        root_only: bool = True) -> NamespacesType:
-        if not self._namespaces:
-            _namespaces = namespaces
-        elif not namespaces:
-            _namespaces = self._namespaces
-        else:
-            _namespaces = copy.copy(namespaces)
-            _namespaces.update(
-                (k, v) for k, v in self._namespaces.items() if k not in namespaces
-            )
-
-        return super().get_namespaces(_namespaces, root_only)
+        namespaces = get_namespace_map(namespaces, self._namespaces)
+        return super().get_namespaces(namespaces, root_only)
 
     def getroot(self) -> ElementType:
         """Get the root element of the XML document."""

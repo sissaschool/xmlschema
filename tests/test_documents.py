@@ -33,7 +33,7 @@ from xmlschema.names import XSD_NAMESPACE, XSI_NAMESPACE, XSD_SCHEMA
 from xmlschema.helpers import is_etree_element, is_etree_document
 from xmlschema.resources import XMLResource
 from xmlschema.documents import get_context
-from xmlschema.testing import etree_elements_assert_equal
+from xmlschema.testing import etree_elements_assert_equal, SKIP_REMOTE_TESTS
 
 
 TEST_CASES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_cases/')
@@ -94,6 +94,7 @@ class TestXmlDocuments(unittest.TestCase):
         collection = to_etree(data, path=root_tag)
         self.assertEqual(collection.tag, root_tag)
 
+    @unittest.skipIf(SKIP_REMOTE_TESTS, "Remote networks are not accessible")
     def test_to_etree_api_on_schema__issue_325(self):
         col_root = ElementTree.parse(self.col_xsd_file).getroot()
         kwargs = dict(use_defaults=False, converter=JsonMLConverter)
