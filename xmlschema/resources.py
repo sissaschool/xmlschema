@@ -8,7 +8,9 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import os.path
+from collections import deque
 from io import StringIO, BytesIO
+from itertools import zip_longest
 from pathlib import Path
 from typing import cast, Any, AnyStr, Dict, Optional, IO, Iterator, \
     List, MutableMapping, Union, Tuple
@@ -302,6 +304,37 @@ class XMLResource:
             if not url.startswith(normalize_url(self._base_url)):
                 raise XMLResourceError(f"block access to out of sandbox file {url}")
 
+    def _lazy_clear(self, elem: ElementType,
+                    ancestors: Optional[List[ElementType]] = None) -> None:
+
+        if ancestors:
+            # Delete preceding elements
+            for parent, child in zip_longest(ancestors, ancestors[1:]):
+                if child is None:
+                    child = elem
+
+                for k, e in enumerate(parent):
+                    if child is not e:
+                        if e in self._ns_declarations:
+                            del self._ns_declarations[e]
+                        del self._nsmaps[e]
+                    else:
+                        if k:
+                            del parent[:k]
+                        break
+
+        for e in elem.iter():
+            if elem is not e:
+                if e in self._ns_declarations:
+                    del self._ns_declarations[e]
+                del self._nsmaps[e]
+
+        del elem[:]  # delete children, keep attributes, text and tail.
+
+        # reset the whole XPath tree to let it still usable if other
+        # children are added to the root by ElementTree.iterparse().
+        self.xpath_root.children.clear()
+
     def _track_nsmap(self, elements: Iterator[ElementType],
                      nsmap: NamespacesType) -> Iterator[ElementType]:
         initial_nsmap = {k: v for k, v in nsmap.items()}
@@ -356,14 +389,6 @@ class XMLResource:
         try:
             for event, node in tree_iterator:
                 if event == 'start':
-                    if not root_started:
-                        self._root = node
-                        self._nsmaps[node] = {k: v for k, v in start_ns}
-                        self._xpath_root = LazyElementNode(
-                            self._root, nsmap=self._nsmaps[node]
-                        )
-                        root_started = True
-
                     if end_ns:
                         nsmap_stack.pop()
                         end_ns = False
@@ -379,6 +404,14 @@ class XMLResource:
                         if nsmap is not None:
                             nsmap.clear()
                             nsmap.update(nsmap_stack[-1])
+
+                    self._nsmaps[node] = nsmap_stack[-1]
+                    if not root_started:
+                        self._root = node
+                        self._xpath_root = LazyElementNode(
+                            self._root, nsmap=self._nsmaps[node]
+                        )
+                        root_started = True
 
                     yield event, node
 
@@ -858,8 +891,7 @@ class XMLResource:
         """Returns `True` if the XML text of the data source is loaded."""
         return self._text is not None
 
-    def iter(self, tag: Optional[str] = None, nsmap: Optional[NamespacesType] = None,
-             reversed_lazy: bool = True, thin_lazy: bool = False) -> Iterator[ElementType]:
+    def iter(self, tag: Optional[str] = None) -> Iterator[ElementType]:
         """
         XML resource tree iterator. If tag is not None or '*', only elements whose
         tag equals tag are returned from the iterator. Provide a *nsmap* dict for
@@ -871,44 +903,47 @@ class XMLResource:
         and removing the preceding elements during iteration. This option has the
         precedence over *reversed_lazy* option.
         """
-        if self._lazy:
+        if not self._lazy:
+            yield from self._root.iter(tag)
+        else:
             resource = self.open()
             tag = '*' if tag is None else tag.strip()
-            try:
-                if thin_lazy:
-                    ancestors = []
-                    for event, node in self._lazy_iterparse(resource, nsmap):
-                        if event == 'start':
-                            if tag == '*' or node.tag == tag:
-                                yield node
-                            ancestors.append(node)
-                        else:
-                            ancestors.pop()
-                            etree_delete_preceding(node, ancestors)
-                            node.clear()
+            subtree_level = int(self._lazy)
+            subtree_elements = deque()
+            ancestors = []
+            level = 0
 
-                elif reversed_lazy:
-                    for event, node in self._lazy_iterparse(resource, nsmap):
-                        if event == 'end':
+            try:
+                for event, node in self._lazy_iterparse(resource):
+                    if event == "start":
+                        if level < subtree_level:
+                            if level:
+                                ancestors.append(node)
                             if tag == '*' or node.tag == tag:
-                                yield node
-                            node.clear()
-                else:
-                    for event, node in self._lazy_iterparse(resource, nsmap):
-                        if event == 'start':
+                                yield node  # an incomplete element
+                        level += 1
+                    else:
+                        level -= 1
+                        if level < subtree_level:
+                            if level:
+                                ancestors.pop()
+                            continue  # pragma: no cover
+                        elif level > subtree_level:
                             if tag == '*' or node.tag == tag:
-                                yield node
-                        else:
-                            node.clear()
+                                subtree_elements.appendleft(node)
+                            continue  # pragma: no cover
+
+                        if tag == '*' or node.tag == tag:
+                            yield node  # a full element
+
+                        yield from subtree_elements
+                        subtree_elements.clear()
+
+                        self._lazy_clear(node, ancestors)
             finally:
                 # Close the resource only if it was originally opened by XMLResource
                 if resource is not self._source:
                     resource.close()
-
-        elif not self._nsmaps or nsmap is None:
-            yield from self._root.iter(tag)
-        else:
-            yield from self._track_nsmap(self._root.iter(tag), nsmap)
 
     def iter_location_hints(self, tag: Optional[str] = None) -> Iterator[Tuple[str, str]]:
         """
@@ -988,6 +1023,9 @@ class XMLResource:
                         if thin_lazy and ancestors:
                             etree_delete_preceding(node, ancestors)
 
+                    for e in node.iter():
+                        if e in self._ns_declarations:
+                            del self._ns_declarations[e]
                     del node[:]  # delete children, keep attributes, text and tail.
 
                     # reset the whole XPath tree to let it still usable if other
@@ -1074,7 +1112,7 @@ class XMLResource:
                                     node in self._select_elements(token, self.xpath_root):
                                 yield node
                         elif not subtree_level:
-                            continue
+                            continue  # why lazy!!
                         elif level != subtree_level:
                             if ancestors and level < subtree_level:
                                 ancestors.pop()
@@ -1129,7 +1167,7 @@ class XMLResource:
         where the element context is not available.
         :return: a dictionary for mapping namespace prefixes to full URI.
         """
-        elements = self.iter(reversed_lazy=False)
+        elements = self.iter()
         try:
             root = next(elements)
             namespaces = get_namespace_map(namespaces, self._nsmaps.get(root))
@@ -1180,3 +1218,15 @@ class XMLResource:
                 pass  # a lazy resource containing malformed XML data after the first tag
 
         return location_hints
+
+    def track_namespaces(self, selector: Iterator[ElementType],
+                         namespaces: NamespacesType) -> Iterator[ElementType]:
+        """Updates a namespace map for a selector of elements of the XML resource."""
+        initial_nsmap = {**namespaces}
+        for elem in selector:
+            namespaces.clear()
+            namespaces.update(initial_nsmap)
+            if elem in self._ns_declarations:
+                namespaces.update(self._ns_declarations[elem])
+
+            yield elem

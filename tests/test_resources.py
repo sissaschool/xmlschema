@@ -771,7 +771,7 @@ class TestResources(unittest.TestCase):
 
         lazy_tags = [x.tag for x in lazy_resource.iter()]
         self.assertEqual(len(lazy_tags), 1390)
-        self.assertEqual(lazy_tags[-1], '{%s}schema' % XSD_NAMESPACE)
+        self.assertEqual(lazy_tags[0], '{%s}schema' % XSD_NAMESPACE)
         self.assertNotEqual(tags, lazy_tags)
 
         tags = [x.tag for x in resource.iter('{%s}complexType' % XSD_NAMESPACE)]
@@ -970,9 +970,9 @@ class TestResources(unittest.TestCase):
         xsd_file = casepath('examples/collection/collection4.xsd')
         resource = XMLResource(xsd_file)
         root = resource.root
-        nsmap = {}
 
-        for elem in resource.iter(nsmap=nsmap):
+        for elem in resource.iter():
+            nsmap = resource.get_nsmap(elem)
             if elem is root[2][0] or elem in root[2][0]:
                 self.assertEqual(dict(nsmap), {'xs': 'http://www.w3.org/2001/XMLSchema',
                                                '': 'http://www.w3.org/2001/XMLSchema'})
@@ -980,22 +980,26 @@ class TestResources(unittest.TestCase):
                 self.assertEqual(dict(nsmap), {'xs': 'http://www.w3.org/2001/XMLSchema',
                                                '': 'http://example.com/ns/collection'})
 
-        nsmap.clear()
         resource._nsmaps.clear()
         resource._nsmaps[resource._root] = {}
 
-        for _ in resource.iter(nsmap=nsmap):
-            self.assertEqual(nsmap, {})
+        for elem in resource.iter():
+            nsmap = resource.get_nsmap(elem)
+            if elem is resource.root:
+                self.assertEqual(nsmap, {})
+            else:
+                self.assertIsNone(nsmap)
 
-        nsmap.clear()
         if lxml_etree is not None:
             tree = lxml_etree.parse(xsd_file)
             resource = XMLResource(tree)
             root = resource.root
 
-            for elem in resource.iter(nsmap=nsmap):
+            for elem in resource.iter():
                 if callable(elem.tag):
                     continue
+
+                nsmap = resource.get_nsmap(elem)
                 if elem is root[2][0] or elem in root[2][0]:
                     self.assertEqual(dict(nsmap), {'xs': 'http://www.w3.org/2001/XMLSchema',
                                                    '': 'http://www.w3.org/2001/XMLSchema'})
@@ -1003,10 +1007,14 @@ class TestResources(unittest.TestCase):
                     self.assertEqual(dict(nsmap), {'xs': 'http://www.w3.org/2001/XMLSchema',
                                                    '': 'http://example.com/ns/collection'})
 
-        nsmap = {}
         resource = XMLResource(xsd_file, lazy=True)
-        root = elem = resource.root
-        for elem in resource.iter(nsmap=nsmap):
+        root = resource.root
+        for k, elem in enumerate(resource.iter()):
+            if not k:
+                self.assertIs(elem, resource.root)
+                self.assertIsNot(root, resource.root)
+
+            nsmap = resource.get_nsmap(elem)
             try:
                 if elem is resource.root[2][0] or elem in resource.root[2][0]:
                     self.assertEqual(nsmap[''], 'http://www.w3.org/2001/XMLSchema')
@@ -1014,9 +1022,6 @@ class TestResources(unittest.TestCase):
                     self.assertEqual(nsmap[''], 'http://example.com/ns/collection')
             except IndexError:
                 self.assertEqual(nsmap[''], 'http://example.com/ns/collection')
-
-        self.assertIs(elem, resource.root)
-        self.assertIsNot(root, resource.root)
 
     def test_xml_resource_get_namespaces(self):
         with open(self.vh_xml_file) as schema_file:
