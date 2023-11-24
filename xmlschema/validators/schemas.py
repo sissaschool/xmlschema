@@ -1729,8 +1729,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             kwargs['stop_validation'] = stop_validation
 
         if path:
-            selector = resource.iterfind(path, namespaces, nsmap=namespaces,
-                                         ancestors=ancestors, thin_lazy=True)
+            selector = resource.iterfind(path, namespaces, ancestors=ancestors)
         else:
             selector = resource.iter_depth(mode=4, nsmap=namespaces, ancestors=ancestors)
 
@@ -1819,9 +1818,12 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             -> Iterator[Union[Any, XMLSchemaValidationError]]:
         """Returns a generator for decoding a resource."""
         if path:
-            selector = source.iterfind(path, namespaces, nsmap=namespaces, thin_lazy=True)
+            selector = source.iterfind(path, namespaces)
         else:
-            selector = source.iter_depth(mode=2, nsmap=namespaces)
+            selector = source.iter_depth(mode=2)
+
+        if kwargs.get('xmlns_usage') == 'standard':
+            selector = source.track_namespaces(selector, namespaces)
 
         for elem in selector:
             xsd_element = self.get_element(elem.tag, schema_path, namespaces)
@@ -1995,13 +1997,17 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             kwargs['element_hook'] = element_hook
 
         if path:
-            selector = resource.iterfind(path, namespaces, nsmap=namespaces, thin_lazy=True)
+            selector = resource.iterfind(path, namespaces)
+            if xmlns_usage == 'standard':
+                selector = resource.track_namespaces(selector, namespaces)
+
         elif not resource.is_lazy():
             selector = iter((resource.root,))
         else:
             decoder = self.raw_decoder(
                 schema_path=resource.get_absolute_path(),
                 validation=validation,
+                xmlns_usage=xmlns_usage,
                 **kwargs
             )
             kwargs['depth_filler'] = lambda x: decoder

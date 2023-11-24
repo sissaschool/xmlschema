@@ -168,6 +168,9 @@ class XMLResource:
     except in case the *source* argument is an Element or an ElementTree instance. A \
     positive integer also defines the depth at which the lazy resource can be better \
     iterated (`True` means 1).
+    :param thin_lazy: for default, in order to reduce the memory usage, during the \
+    iteration of a lazy resource at *lazy_depth* level, deletes also the preceding \
+    elements after the use.
     """
     # Protected attributes for data and resource location
     _source: XMLSourceType
@@ -186,7 +189,8 @@ class XMLResource:
                  allow: str = 'all',
                  defuse: str = 'remote',
                  timeout: int = 300,
-                 lazy: Union[bool, int] = False) -> None:
+                 lazy: Union[bool, int] = False,
+                 thin_lazy: bool = True) -> None:
 
         if isinstance(base_url, (str, bytes)):
             if not is_url(base_url):
@@ -224,6 +228,11 @@ class XMLResource:
             msg = "the argument 'timeout' must be a positive integer"
             raise XMLSchemaValueError(msg)
         self._timeout = timeout
+
+        if not isinstance(thin_lazy, bool):
+            msg = "invalid type %r for argument 'thin_lazy'"
+            raise XMLSchemaTypeError(msg % type(thin_lazy))
+        self._thin_lazy = thin_lazy
 
         self.parse(source, lazy)
 
@@ -307,7 +316,7 @@ class XMLResource:
     def _lazy_clear(self, elem: ElementType,
                     ancestors: Optional[List[ElementType]] = None) -> None:
 
-        if ancestors:
+        if ancestors and self._thin_lazy:
             # Delete preceding elements
             for parent, child in zip_longest(ancestors, ancestors[1:]):
                 if child is None:
@@ -871,6 +880,10 @@ class XMLResource:
         """Returns `True` if the XML resource is lazy."""
         return bool(self._lazy)
 
+    def is_thin(self) -> bool:
+        """Returns `True` if the XML resource is lazy and thin."""
+        return bool(self._lazy) and self._thin_lazy
+
     def is_remote(self) -> bool:
         """Returns `True` if the resource is related with remote XML data."""
         return is_remote_url(self._url)
@@ -882,8 +895,8 @@ class XMLResource:
     @property
     def lazy_depth(self) -> int:
         """
-        The optimal depth for validate this resource. Is a positive
-        integer for lazy resources and 0 for fully loaded XML trees.
+        The depth at which the XML tree of the resource is fully loaded during iterations
+        methods. Is a positive integer for lazy resources and 0 for fully loaded XML trees.
         """
         return int(self._lazy)
 
@@ -894,14 +907,9 @@ class XMLResource:
     def iter(self, tag: Optional[str] = None) -> Iterator[ElementType]:
         """
         XML resource tree iterator. If tag is not None or '*', only elements whose
-        tag equals tag are returned from the iterator. Provide a *nsmap* dict for
-        tracking the namespaces of yielded elements. For default the iteration of
-        lazy resources is in reverse order (top level element is the last) for having
-        fully build elements. Provide *reversed_lazy* as `False` for iterating lazy
-        resources in forward order. In this case the returned elements are incomplete.
-        Provide *thin_lazy* as `True` for iterating the lazy resource in forward order
-        and removing the preceding elements during iteration. This option has the
-        precedence over *reversed_lazy* option.
+        tag equals tag are returned from the iterator. In a lazy resource the yielded
+        elements are full over or at *lazy_depth* level, otherwise are incomplete and
+        thin for default.
         """
         if not self._lazy:
             yield from self._root.iter(tag)
@@ -1061,9 +1069,7 @@ class XMLResource:
 
     def iterfind(self, path: str,
                  namespaces: Optional[NamespacesType] = None,
-                 nsmap: Optional[NamespacesType] = None,
-                 ancestors: Optional[List[ElementType]] = None,
-                 thin_lazy: bool = False) -> Iterator[ElementType]:
+                 ancestors: Optional[List[ElementType]] = None) -> Iterator[ElementType]:
         """
         Apply XPath selection to XML resource that yields full subtrees.
 
@@ -1071,80 +1077,65 @@ class XMLResource:
         Selecting other values or nodes raise an error.
         :param namespaces: an optional mapping from namespace prefixes to URIs \
         used for parsing the XPath expression.
-        :param nsmap: provide a dict for tracking the namespaces of yielded elements.
         :param ancestors: provide a list for tracking the ancestors of yielded elements.
-        :param thin_lazy: provide *thin_lazy* as `True` for removing the preceding \
-        elements after each yielded one.
         """
         parser = XPath2Parser(namespaces, strict=False)
         token = parser.parse(path)
         selector: Any
 
-        if self._lazy:
-            path = path.replace(' ', '').replace('./', '')
+        if not self._lazy:
+            yield from self._select_elements(token, self.xpath_root, ancestors)
+        else:
             resource = self.open()
+            lazy_level = int(self._lazy)
             level = 0
+
+            path = path.replace(' ', '').replace('./', '')
             select_all = '*' in path and set(path).issubset({'*', '/'})
             if path == '.':
-                subtree_level = 0
+                path_level = 0
             elif path.startswith('/'):
-                subtree_level = path.count('/') - 1
+                path_level = path.count('/') - 1
             else:
-                subtree_level = path.count('/') + 1
+                path_level = path.count('/') + 1
+
+            if not path_level:
+                raise XMLResourceError(f"cannot use path {path!r} on a lazy resource")
+            elif path_level < lazy_level:
+                raise XMLResourceError(f"cannot use path {path!r} on a lazy resource "
+                                       f"with lazy_depth=={lazy_level}")
 
             if ancestors is not None:
                 ancestors.clear()
-            elif thin_lazy:
+            elif self._thin_lazy:
                 ancestors = []
 
             try:
-                for event, node in self._lazy_iterparse(resource, nsmap):
+                for event, node in self._lazy_iterparse(resource):
                     if event == "start":
-                        if ancestors is not None and level < subtree_level:
+                        if ancestors is not None and level < path_level:
                             ancestors.append(node)
                         level += 1
                     else:
                         level -= 1
-                        if not level:
-                            if subtree_level:
-                                pass
-                            elif select_all or \
-                                    node in self._select_elements(token, self.xpath_root):
-                                yield node
-                        elif not subtree_level:
-                            continue  # why lazy!!
-                        elif level != subtree_level:
-                            if ancestors and level < subtree_level:
+                        if level < path_level:
+                            if ancestors is not None:
                                 ancestors.pop()
-                            continue  # pragma: no cover
-                        elif select_all or \
-                                node in self._select_elements(token, self.xpath_root):
-                            yield node
-
-                        if thin_lazy and ancestors:
-                            etree_delete_preceding(node, ancestors)
-
-                        del node[:]  # delete children, keep attributes, text and tail.
-                        self.xpath_root.children.clear()  # reset XPath tree
-
+                            continue
+                        elif level == path_level:
+                            if select_all or \
+                                 node in self._select_elements(token, self.xpath_root):
+                                yield node
+                        if level == lazy_level:
+                            self._lazy_clear(node, ancestors)
             finally:
                 if self._source is not resource:
                     resource.close()
 
-        else:
-            selector = self._select_elements(token, self.xpath_root, ancestors)
-
-            if not self._nsmaps or nsmap is None:
-                yield from selector
-            else:
-                yield from self._track_nsmap(selector, nsmap)
-
     def find(self, path: str,
              namespaces: Optional[NamespacesType] = None,
-             nsmap: Optional[NamespacesType] = None,
-             ancestors: Optional[List[ElementType]] = None,
-             thin_lazy: bool = False) -> Optional[ElementType]:
-        return next(self.iterfind(path, namespaces, nsmap, ancestors, thin_lazy), None)
+             ancestors: Optional[List[ElementType]] = None) -> Optional[ElementType]:
+        return next(self.iterfind(path, namespaces, ancestors), None)
 
     def findall(self, path: str, namespaces: Optional[NamespacesType] = None) \
             -> List[ElementType]:
