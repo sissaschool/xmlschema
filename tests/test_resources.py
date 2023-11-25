@@ -654,12 +654,13 @@ class TestResources(unittest.TestCase):
         for _, elem in resource._lazy_iterparse(self.col_xml_file):
             self.assertTrue(is_etree_element(elem))
 
-        nsmap = {}
-        for _, elem in resource._lazy_iterparse(self.col_xml_file, nsmap=nsmap):
+        for _, elem in resource._lazy_iterparse(self.col_xml_file):
             self.assertTrue(is_etree_element(elem))
             self.assertDictEqual(
-                nsmap, {'col': 'http://example.com/ns/collection',
-                        'xsi': 'http://www.w3.org/2001/XMLSchema-instance'})
+                resource.get_nsmap(elem),
+                {'col': 'http://example.com/ns/collection',
+                 'xsi': 'http://www.w3.org/2001/XMLSchema-instance'}
+            )
 
         resource._defuse = 'always'
         for _, elem in resource._lazy_iterparse(self.col_xml_file):
@@ -787,15 +788,11 @@ class TestResources(unittest.TestCase):
         lazy_resource = XMLResource(XMLSchema.meta_schema.source.url, lazy=True)
         self.assertTrue(lazy_resource.is_lazy())
 
-        # Note: Element change with lazy resource so compare only tags
+        # Note: Elements change using a lazy resource so compare only tags
 
-        nsmap = {}
-        tags = [x.tag for x in resource.iter_depth(nsmap=nsmap)]
+        tags = [x.tag for x in resource.iter_depth()]
         self.assertEqual(len(tags), 1)
         self.assertEqual(tags[0], '{%s}schema' % XSD_NAMESPACE)
-        self.assertDictEqual(
-            nsmap, {'xs': 'http://www.w3.org/2001/XMLSchema',
-                    'hfp': 'http://www.w3.org/2001/XMLSchema-hasFacetAndProperty'})
 
         lazy_tags = [x.tag for x in lazy_resource.iter_depth()]
         self.assertEqual(len(lazy_tags), 156)
@@ -827,10 +824,9 @@ class TestResources(unittest.TestCase):
                           '</b1><b2><c3><d1/></c3></b2></a>')
         resource = XMLResource(source, lazy=3)
 
-        nsmap = {}
         ancestors = []
-        self.assertIs(next(resource.iter_depth(nsmap=nsmap, ancestors=ancestors)),
-                      resource.root[1][0][0])
+        self.assertIs(next(resource.iter_depth(ancestors=ancestors)), resource.root[1][0][0])
+        nsmap = resource.get_nsmap(resource.root[1][0][0])
         self.assertDictEqual(nsmap, {'tns0': 'http://example.com/ns0'})
         self.assertListEqual(ancestors, [resource.root, resource.root[1], resource.root[1][0]])
 
@@ -922,7 +918,7 @@ class TestResources(unittest.TestCase):
         ancestors = []
         self.assertIs(resource.find('*/c3', ancestors=ancestors),
                       resource.root[1][0])
-        nsmap = resource.get_nsmap(resource.root[0][1])
+        nsmap = resource.get_nsmap(resource.root[1][0])
         self.assertDictEqual(nsmap, {'tns0': 'http://example.com/ns0'})
         self.assertListEqual(ancestors, [resource.root, resource.root[1]])
 

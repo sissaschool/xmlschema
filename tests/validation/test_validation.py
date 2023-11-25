@@ -10,7 +10,6 @@
 #
 import unittest
 import os
-import sys
 import decimal
 from textwrap import dedent
 from xml.etree import ElementTree

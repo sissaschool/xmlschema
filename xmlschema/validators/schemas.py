@@ -1731,7 +1731,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         if path:
             selector = resource.iterfind(path, namespaces, ancestors=ancestors)
         else:
-            selector = resource.iter_depth(mode=4, nsmap=namespaces, ancestors=ancestors)
+            selector = resource.iter_depth(mode=4, ancestors=ancestors)
 
         elem: Optional[Element] = None
         for elem in selector:
@@ -1822,7 +1822,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         else:
             selector = source.iter_depth(mode=2)
 
-        if kwargs.get('xmlns_usage') == 'standard':
+        if kwargs.get('xmlns_usage') == 'standard' and namespaces is not None:
             selector = source.track_namespaces(selector, namespaces)
 
         for elem in selector:

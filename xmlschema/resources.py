@@ -7,6 +7,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+import sys
 import os.path
 from collections import deque
 from io import StringIO, BytesIO
@@ -28,9 +29,14 @@ from .names import XSD_NAMESPACE
 from .aliases import ElementType, NamespacesType, XMLSourceType, \
     NormalizedLocationsType, LocationsType, ParentMapType
 from .helpers import get_namespace, update_namespaces, get_namespace_map, \
-    is_etree_document, etree_iter_location_hints, etree_delete_preceding
+    is_etree_document, etree_iter_location_hints
 from .locations import LocationPath, is_url, is_remote_url, is_local_url, \
     normalize_url, normalize_locations
+
+if sys.version_info < (3, 9):
+    from typing import Deque
+else:
+    Deque = deque
 
 DEFUSE_MODES = frozenset(('never', 'remote', 'nonlocal', 'always'))
 SECURITY_MODES = frozenset(('all', 'remote', 'local', 'sandbox', 'none'))
@@ -344,26 +350,7 @@ class XMLResource:
         # children are added to the root by ElementTree.iterparse().
         self.xpath_root.children.clear()
 
-    def _track_nsmap(self, elements: Iterator[ElementType],
-                     nsmap: NamespacesType) -> Iterator[ElementType]:
-        initial_nsmap = {k: v for k, v in nsmap.items()}
-        elem_nsmap = None
-        root_namespace = self.namespace
-
-        for elem in elements:
-            try:
-                if elem_nsmap is not self._nsmaps[elem]:
-                    elem_nsmap = self._nsmaps[elem]
-                    nsmap.clear()
-                    nsmap.update(initial_nsmap)
-                    update_namespaces(nsmap, elem_nsmap.items(), root_namespace)
-            except KeyError:
-                pass
-
-            yield elem
-
-    def _lazy_iterparse(self, resource: IO[AnyStr], nsmap: Optional[NamespacesType] = None) \
-            -> Iterator[Tuple[str, ElementType]]:
+    def _lazy_iterparse(self, resource: IO[AnyStr]) -> Iterator[Tuple[str, ElementType]]:
         events: Tuple[str, ...]
 
         events = 'start-ns', 'end-ns', 'start', 'end'
@@ -401,18 +388,12 @@ class XMLResource:
                     if end_ns:
                         nsmap_stack.pop()
                         end_ns = False
-                        if nsmap is not None:
-                            nsmap.clear()
-                            nsmap.update(nsmap_stack[-1])
 
                     if start_ns:
                         nsmap_stack.append(nsmap_stack[-1].copy())
                         nsmap_stack[-1].update(start_ns)
                         self._ns_declarations[node] = start_ns
                         start_ns = []
-                        if nsmap is not None:
-                            nsmap.clear()
-                            nsmap.update(nsmap_stack[-1])
 
                     self._nsmaps[node] = nsmap_stack[-1]
                     if not root_started:
@@ -428,9 +409,6 @@ class XMLResource:
                     if end_ns:
                         nsmap_stack.pop()
                         end_ns = False
-                        if nsmap is not None:
-                            nsmap.clear()
-                            nsmap.update(nsmap_stack[-1])
 
                     yield event, node
 
@@ -699,7 +677,10 @@ class XMLResource:
         Returns the namespace map (nsmap) of the element. Returns `None` if no nsmap is
         found for the element. Lazy resources have only the nsmap for the root element.
         """
-        return self._nsmaps.get(elem)
+        try:
+            return self._nsmaps[elem]
+        except KeyError:
+            return getattr(elem, 'nsmap', None)  # an lxml element
 
     def get_ns_declarations(self, elem: ElementType) -> Optional[List[Tuple[str, str]]]:
         """
@@ -916,15 +897,15 @@ class XMLResource:
         else:
             resource = self.open()
             tag = '*' if tag is None else tag.strip()
-            subtree_level = int(self._lazy)
-            subtree_elements = deque()
+            lazy_depth = int(self._lazy)
+            subtree_elements: Deque[ElementType] = deque()
             ancestors = []
             level = 0
 
             try:
                 for event, node in self._lazy_iterparse(resource):
                     if event == "start":
-                        if level < subtree_level:
+                        if level < lazy_depth:
                             if level:
                                 ancestors.append(node)
                             if tag == '*' or node.tag == tag:
@@ -932,11 +913,11 @@ class XMLResource:
                         level += 1
                     else:
                         level -= 1
-                        if level < subtree_level:
+                        if level < lazy_depth:
                             if level:
                                 ancestors.pop()
                             continue  # pragma: no cover
-                        elif level > subtree_level:
+                        elif level > lazy_depth:
                             if tag == '*' or node.tag == tag:
                                 subtree_elements.appendleft(node)
                             continue  # pragma: no cover
@@ -962,8 +943,8 @@ class XMLResource:
         for elem in self.iter(tag):
             yield from etree_iter_location_hints(elem)
 
-    def iter_depth(self, mode: int = 1, nsmap: Optional[NamespacesType] = None,
-                   ancestors: Optional[List[ElementType]] = None) -> Iterator[ElementType]:
+    def iter_depth(self, mode: int = 1, ancestors: Optional[List[ElementType]] = None) \
+            -> Iterator[ElementType]:
         """
         Iterates XML subtrees. For fully loaded resources yields the root element.
         On lazy resources the argument *mode* can change the sequence and the
@@ -977,71 +958,58 @@ class XMLResource:
           5. An incomplete root at start, the elements at *depth_level* and a pruned root\n
 
         :param mode: an integer in range [1..5] that defines the iteration mode.
-        :param nsmap: provide a dict for tracking the namespaces of yielded elements.
         :param ancestors: provide a list for tracking the ancestors of yielded elements.
         """
+        if mode not in (1, 2, 3, 4, 5):
+            raise XMLSchemaValueError("invalid argument mode={!r}".format(mode))
+
         if ancestors is not None:
             ancestors.clear()
         elif mode <= 2:
             ancestors = []
 
         if not self._lazy:
-            if nsmap is not None and self._nsmaps:
-                root_namespace = self.namespace
-                for elem in self._root.iter():
-                    update_namespaces(nsmap, self._nsmaps[elem].items(), root_namespace)
-
             yield self._root
-            return
+        else:
+            resource = self.open()
+            level = 0
+            lazy_depth = int(self._lazy)
 
-        if mode not in (1, 2, 3, 4, 5):
-            raise XMLSchemaValueError("invalid argument mode={!r}".format(mode))
+            # boolean flags
+            incomplete_root = mode == 5
+            pruned_root = mode > 2
+            depth_level_elements = mode != 3
+            thin_lazy = mode <= 2
 
-        resource = self.open()
-        level = 0
-        subtree_level = int(self._lazy)
+            try:
+                for event, elem in self._lazy_iterparse(resource):
+                    if event == "start":
+                        if not level:
+                            if incomplete_root:
+                                yield elem
+                        if ancestors is not None and level < lazy_depth:
+                            ancestors.append(elem)
+                        level += 1
+                    else:
+                        level -= 1
+                        if not level:
+                            if pruned_root:
+                                yield elem
+                            continue
+                        elif level != lazy_depth:
+                            if ancestors is not None and level < lazy_depth:
+                                ancestors.pop()
+                            continue  # pragma: no cover
+                        elif depth_level_elements:
+                            yield elem
 
-        # boolean flags
-        incomplete_root = mode == 5
-        pruned_root = mode > 2
-        depth_level_elements = mode != 3
-        thin_lazy = mode <= 2
-
-        try:
-            for event, node in self._lazy_iterparse(resource, nsmap):
-                if event == "start":
-                    if not level:
-                        if incomplete_root:
-                            yield node
-                    if ancestors is not None and level < subtree_level:
-                        ancestors.append(node)
-                    level += 1
-                else:
-                    level -= 1
-                    if not level:
-                        if pruned_root:
-                            yield node
-                    elif level != subtree_level:
-                        if ancestors is not None and level < subtree_level:
-                            ancestors.pop()
-                        continue  # pragma: no cover
-                    elif depth_level_elements:
-                        yield node
-
-                        if thin_lazy and ancestors:
-                            etree_delete_preceding(node, ancestors)
-
-                    for e in node.iter():
-                        if e in self._ns_declarations:
-                            del self._ns_declarations[e]
-                    del node[:]  # delete children, keep attributes, text and tail.
-
-                    # reset the whole XPath tree to let it still usable if other
-                    # children are added to the root by ElementTree.iterparse().
-                    self.xpath_root.children.clear()
-        finally:
-            if self._source is not resource:
-                resource.close()
+                        if thin_lazy:
+                            self._lazy_clear(elem, ancestors)
+                        else:
+                            self._lazy_clear(elem)
+            finally:
+                if self._source is not resource:
+                    resource.close()
 
     def _select_elements(self, token: XPathToken,
                          node: ResourceNodeType,
@@ -1081,29 +1049,28 @@ class XMLResource:
         """
         parser = XPath2Parser(namespaces, strict=False)
         token = parser.parse(path)
-        selector: Any
 
         if not self._lazy:
             yield from self._select_elements(token, self.xpath_root, ancestors)
         else:
             resource = self.open()
-            lazy_level = int(self._lazy)
+            lazy_depth = int(self._lazy)
             level = 0
 
             path = path.replace(' ', '').replace('./', '')
             select_all = '*' in path and set(path).issubset({'*', '/'})
             if path == '.':
-                path_level = 0
+                path_depth = 0
             elif path.startswith('/'):
-                path_level = path.count('/') - 1
+                path_depth = path.count('/') - 1
             else:
-                path_level = path.count('/') + 1
+                path_depth = path.count('/') + 1
 
-            if not path_level:
+            if not path_depth:
                 raise XMLResourceError(f"cannot use path {path!r} on a lazy resource")
-            elif path_level < lazy_level:
+            elif path_depth < lazy_depth:
                 raise XMLResourceError(f"cannot use path {path!r} on a lazy resource "
-                                       f"with lazy_depth=={lazy_level}")
+                                       f"with lazy_depth=={lazy_depth}")
 
             if ancestors is not None:
                 ancestors.clear()
@@ -1113,20 +1080,20 @@ class XMLResource:
             try:
                 for event, node in self._lazy_iterparse(resource):
                     if event == "start":
-                        if ancestors is not None and level < path_level:
+                        if ancestors is not None and level < path_depth:
                             ancestors.append(node)
                         level += 1
                     else:
                         level -= 1
-                        if level < path_level:
+                        if level < path_depth:
                             if ancestors is not None:
                                 ancestors.pop()
                             continue
-                        elif level == path_level:
+                        elif level == path_depth:
                             if select_all or \
                                  node in self._select_elements(token, self.xpath_root):
                                 yield node
-                        if level == lazy_level:
+                        if level == lazy_depth:
                             self._lazy_clear(node, ancestors)
             finally:
                 if self._source is not resource:

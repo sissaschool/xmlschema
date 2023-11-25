@@ -148,7 +148,7 @@ def full_xml_resource(source, repeat=1):
 
 @profile
 def lazy_xml_resource(source, repeat=1):
-    xr = xmlschema.XMLResource(source, lazy=True)
+    xr = xmlschema.XMLResource(source, lazy=True, thin_lazy=False)
     for _ in range(repeat):
         for _ in xr.iter():
             pass
@@ -159,7 +159,7 @@ def lazy_xml_resource(source, repeat=1):
 def thin_lazy_xml_resource(source, repeat=1):
     xr = xmlschema.XMLResource(source, lazy=True)
     for _ in range(repeat):
-        for _ in xr.iter(thin_lazy=True):
+        for _ in xr.iter():
             pass
     del xr
 
