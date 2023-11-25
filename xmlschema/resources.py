@@ -9,6 +9,7 @@
 #
 import sys
 import os.path
+import threading
 from collections import deque
 from io import StringIO, BytesIO
 from itertools import zip_longest
@@ -157,13 +158,13 @@ class XMLResource:
     file like object or an ElementTree or an Element.
     :param base_url: is an optional base URL, used for the normalization of relative paths \
     when the URL of the resource can't be obtained from the source argument. For security \
-    access to a local file resource is always denied if the *base_url* is a remote URL.
+    the access to a local file resource is always denied if the *base_url* is a remote URL.
     :param allow: defines the security mode for accessing resource locations. Can be \
-    'all', 'remote', 'local', 'sandbox' or 'none'. Default is 'all' that means all types of \
-    URLs are allowed. With 'remote' only remote resource URLs are allowed. With 'local' \
+    'all', 'remote', 'local', 'sandbox' or 'none'. Default is 'all', which means all types
+    of URLs are allowed. With 'remote' only remote resource URLs are allowed. With 'local' \
     only file paths and URLs are allowed. With 'sandbox' only file paths and URLs that \
     are under the directory path identified by the *base_url* argument are allowed. \
-    If you provide 'none' no located resource is allowed.
+    If you provide 'none', no resources will be allowed from any location.
     :param defuse: defines when to defuse XML data using a `SafeXMLParser`. Can be \
     'always', 'remote', 'nonlocal' or 'never'. For default defuses only remote XML data. \
     With 'always' all the XML data that is not already parsed is defused. With 'nonlocal' \
@@ -189,6 +190,7 @@ class XMLResource:
     _base_url: Optional[str] = None
     _parent_map: Optional[ParentMapType] = None
     _lazy: Union[bool, int] = False
+    _lazy_lock: Optional[threading.Lock] = None
 
     def __init__(self, source: XMLSourceType,
                  base_url: Union[None, str, Path, bytes] = None,
@@ -241,6 +243,15 @@ class XMLResource:
         self._thin_lazy = thin_lazy
 
         self.parse(source, lazy)
+
+    def __getstate__(self) -> Dict[str, Any]:
+        state = self.__dict__.copy()
+        state.pop('_lazy_lock', None)
+        return state
+
+    def __setstate__(self, state: Dict[str, Any]) -> None:
+        self.__dict__.update(state)
+        self._lazy_lock = threading.Lock() if self._lazy else None
 
     def __repr__(self) -> str:
         return '%s(root=%r)' % (self.__class__.__name__, self._root)
@@ -304,6 +315,73 @@ class XMLResource:
     def timeout(self) -> int:
         """The timeout in seconds for accessing remote resources."""
         return self._timeout
+
+    @property
+    def lazy_depth(self) -> int:
+        """
+        The depth at which the XML tree of the resource is fully loaded during iterations
+        methods. Is a positive integer for lazy resources and 0 for fully loaded XML trees.
+        """
+        return int(self._lazy)
+
+    @property
+    def namespace(self) -> str:
+        """The namespace of the XML resource."""
+        return get_namespace(self._root.tag)
+
+    @property
+    def parent_map(self) -> Dict[ElementType, Optional[ElementType]]:
+        if self._lazy:
+            raise XMLResourceError("cannot create the parent map of a lazy XML resource")
+        if self._parent_map is None:
+            self._parent_map = {child: elem for elem in self._root.iter() for child in elem}
+            self._parent_map[self._root] = None
+        return self._parent_map
+
+    @property
+    def xpath_root(self) -> Union[ElementNode, DocumentNode]:
+        """The XPath root node."""
+        if self._xpath_root is None:
+            if hasattr(self._root, 'xpath'):
+                self._xpath_root = build_lxml_node_tree(cast(LxmlElementProtocol, self._root))
+            else:
+                try:
+                    _nsmap = self._nsmaps[self._root]
+                except KeyError:
+                    # A resource based on an ElementTree structure (no namespace maps)
+                    self._xpath_root = build_node_tree(self._root)
+                else:
+                    node_tree = build_node_tree(self._root, _nsmap)
+
+                    # Update namespace maps
+                    for node in node_tree.iter_descendants(with_self=False):
+                        if isinstance(node, ElementNode):
+                            nsmap = self._nsmaps[cast(ElementType, node.elem)]
+                            node.nsmap = {k or '': v for k, v in nsmap.items()}
+
+                    self._xpath_root = node_tree
+
+        return self._xpath_root
+
+    def is_lazy(self) -> bool:
+        """Returns `True` if the XML resource is lazy."""
+        return bool(self._lazy)
+
+    def is_thin(self) -> bool:
+        """Returns `True` if the XML resource is lazy and thin."""
+        return bool(self._lazy) and self._thin_lazy
+
+    def is_remote(self) -> bool:
+        """Returns `True` if the resource is related with remote XML data."""
+        return is_remote_url(self._url)
+
+    def is_local(self) -> bool:
+        """Returns `True` if the resource is related with local XML data."""
+        return is_local_url(self._url)
+
+    def is_loaded(self) -> bool:
+        """Returns `True` if the XML text of the data source is loaded."""
+        return self._text is not None
 
     def _access_control(self, url: str) -> None:
         if self._allow == 'all':
@@ -616,47 +694,9 @@ class XMLResource:
 
                     self._nsmaps[elem] = nsmap
 
+        self._lazy_lock = threading.Lock() if self._lazy else None
         self._parent_map = None
         self._source = source
-
-    @property
-    def namespace(self) -> str:
-        """The namespace of the XML resource."""
-        return get_namespace(self._root.tag)
-
-    @property
-    def parent_map(self) -> Dict[ElementType, Optional[ElementType]]:
-        if self._lazy:
-            raise XMLResourceError("cannot create the parent map of a lazy XML resource")
-        if self._parent_map is None:
-            self._parent_map = {child: elem for elem in self._root.iter() for child in elem}
-            self._parent_map[self._root] = None
-        return self._parent_map
-
-    @property
-    def xpath_root(self) -> Union[ElementNode, DocumentNode]:
-        """The XPath root node."""
-        if self._xpath_root is None:
-            if hasattr(self._root, 'xpath'):
-                self._xpath_root = build_lxml_node_tree(cast(LxmlElementProtocol, self._root))
-            else:
-                try:
-                    _nsmap = self._nsmaps[self._root]
-                except KeyError:
-                    # A resource based on an ElementTree structure (no namespace maps)
-                    self._xpath_root = build_node_tree(self._root)
-                else:
-                    node_tree = build_node_tree(self._root, _nsmap)
-
-                    # Update namespace maps
-                    for node in node_tree.iter_descendants(with_self=False):
-                        if isinstance(node, ElementNode):
-                            nsmap = self._nsmaps[cast(ElementType, node.elem)]
-                            node.nsmap = {k or '': v for k, v in nsmap.items()}
-
-                    self._xpath_root = node_tree
-
-        return self._xpath_root
 
     def get_xpath_node(self, elem: ElementType) -> ElementNode:
         """
@@ -857,34 +897,6 @@ class XMLResource:
 
         self._text = text
 
-    def is_lazy(self) -> bool:
-        """Returns `True` if the XML resource is lazy."""
-        return bool(self._lazy)
-
-    def is_thin(self) -> bool:
-        """Returns `True` if the XML resource is lazy and thin."""
-        return bool(self._lazy) and self._thin_lazy
-
-    def is_remote(self) -> bool:
-        """Returns `True` if the resource is related with remote XML data."""
-        return is_remote_url(self._url)
-
-    def is_local(self) -> bool:
-        """Returns `True` if the resource is related with local XML data."""
-        return is_local_url(self._url)
-
-    @property
-    def lazy_depth(self) -> int:
-        """
-        The depth at which the XML tree of the resource is fully loaded during iterations
-        methods. Is a positive integer for lazy resources and 0 for fully loaded XML trees.
-        """
-        return int(self._lazy)
-
-    def is_loaded(self) -> bool:
-        """Returns `True` if the XML text of the data source is loaded."""
-        return self._text is not None
-
     def iter(self, tag: Optional[str] = None) -> Iterator[ElementType]:
         """
         XML resource tree iterator. If tag is not None or '*', only elements whose
@@ -894,7 +906,10 @@ class XMLResource:
         """
         if not self._lazy:
             yield from self._root.iter(tag)
-        else:
+            return
+
+        assert self._lazy_lock is not None
+        with self._lazy_lock:
             resource = self.open()
             tag = '*' if tag is None else tag.strip()
             lazy_depth = int(self._lazy)
@@ -970,7 +985,10 @@ class XMLResource:
 
         if not self._lazy:
             yield self._root
-        else:
+            return
+
+        assert self._lazy_lock is not None
+        with self._lazy_lock:
             resource = self.open()
             level = 0
             lazy_depth = int(self._lazy)
@@ -1052,7 +1070,10 @@ class XMLResource:
 
         if not self._lazy:
             yield from self._select_elements(token, self.xpath_root, ancestors)
-        else:
+            return
+
+        assert self._lazy_lock is not None
+        with self._lazy_lock:
             resource = self.open()
             lazy_depth = int(self._lazy)
             level = 0
