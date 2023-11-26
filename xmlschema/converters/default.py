@@ -84,13 +84,13 @@ class XMLSchemaConverter(NamespaceMapper):
     :ivar force_list: force list for child elements
     """
     ns_prefix: str
-    dict: Type[Dict[str, Any]] = dict
-    list: Type[List[Any]] = list
+    dict: Type[Dict[str, Any]]
+    list: Type[List[Any]]
+    etree_element_class: Type[Element]
 
-    etree_element_class: Type[Element] = Element
-
-    __slots__ = ('text_key', 'ns_prefix', 'attr_prefix', 'cdata_prefix',
-                 'indent', 'preserve_root', 'force_dict', 'force_list')
+    __slots__ = ('dict', 'list', 'etree_element_class', 'text_key',
+                 'ns_prefix', 'attr_prefix', 'cdata_prefix', 'indent',
+                 'preserve_root', 'force_dict', 'force_list')
 
     def __init__(self, namespaces: Optional[NamespacesType] = None,
                  dict_class: Optional[Type[Dict[str, Any]]] = None,
@@ -100,20 +100,30 @@ class XMLSchemaConverter(NamespaceMapper):
                  attr_prefix: Optional[str] = '@',
                  cdata_prefix: Optional[str] = None,
                  indent: int = 4,
+                 process_namespaces: bool = True,
                  strip_namespaces: bool = False,
                  preserve_root: bool = False,
                  force_dict: bool = False,
                  force_list: bool = False,
                  **kwargs: Any) -> None:
 
-        super(XMLSchemaConverter, self).__init__(namespaces, strip_namespaces)
-
+        super(XMLSchemaConverter, self).__init__(
+            namespaces, process_namespaces, strip_namespaces
+        )
         if dict_class is not None:
             self.dict = dict_class
+        else:
+            self.dict = dict
+
         if list_class is not None:
             self.list = list_class
+        else:
+            self.list = list
+
         if etree_element_class is not None:
             self.etree_element_class = etree_element_class
+        else:
+            self.etree_element_class = Element
 
         self.text_key = text_key
         self.attr_prefix = attr_prefix
@@ -181,7 +191,8 @@ class XMLSchemaConverter(NamespaceMapper):
             attr_prefix=kwargs.get('attr_prefix', self.attr_prefix),
             cdata_prefix=kwargs.get('cdata_prefix', self.cdata_prefix),
             indent=kwargs.get('indent', self.indent),
-            strip_namespaces=kwargs.get('strip_namespaces', self.strip_namespaces),
+            process_namespaces=kwargs.get('process_namespaces', self._process_namespaces),
+            strip_namespaces=kwargs.get('strip_namespaces', self._strip_namespaces),
             preserve_root=kwargs.get('preserve_root', self.preserve_root),
             force_dict=kwargs.get('force_dict', self.force_dict),
             force_list=kwargs.get('force_list', self.force_list),
@@ -218,14 +229,13 @@ class XMLSchemaConverter(NamespaceMapper):
             return
 
         for name, value, xsd_child in content:
-            try:
-                if name[0] == '{':
-                    yield self.map_qname(name), value, xsd_child
-                else:
-                    yield name, value, xsd_child
-            except TypeError:
+            if isinstance(name, int):
                 if self.cdata_prefix is not None:
                     yield f'{self.cdata_prefix}{name}', value, xsd_child
+            elif name[0] == '{':
+                yield self.map_qname(name), value, xsd_child
+            else:
+                yield name, value, xsd_child
 
     def etree_element(self, tag: str,
                       text: Optional[str] = None,
@@ -279,7 +289,8 @@ class XMLSchemaConverter(NamespaceMapper):
         """
         xsd_type = xsd_type or xsd_element.type
         result_dict = self.dict()
-        if level == 0 and xsd_element.is_global() and not self.strip_namespaces and self:
+        if level == 0 and xsd_element.is_global() and not self._strip_namespaces \
+                and self._process_namespaces:
             schema_namespaces = set(xsd_element.namespaces.values())
             result_dict.update(
                 (f'{self.ns_prefix}:{k}' if k else self.ns_prefix, v)
@@ -350,7 +361,7 @@ class XMLSchemaConverter(NamespaceMapper):
             else:
                 tag = xsd_element.name
             if self.preserve_root and isinstance(obj, MutableMapping):
-                match_local_name = cast(bool, self.strip_namespaces or self.default_namespace)
+                match_local_name = cast(bool, self._strip_namespaces or self.default_namespace)
                 match = xsd_element.get_matching_item(obj, self.ns_prefix, match_local_name)
                 if match is not None:
                     obj = match
@@ -380,7 +391,7 @@ class XMLSchemaConverter(NamespaceMapper):
                 self[''] = value
                 xmlns.append(('', value))
             elif name.startswith(f'{self.ns_prefix}:'):
-                if not self.strip_namespaces:
+                if not self._strip_namespaces:
                     ns_name = name[len(self.ns_prefix) + 1:]
                     self[ns_name] = value
                     xmlns.append((ns_name, value))

@@ -42,7 +42,7 @@ class UnorderedConverter(XMLSchemaConverter):
         else:
             tag = xsd_element.qualified_name
             if self.preserve_root and isinstance(obj, MutableMapping):
-                match_local_name = cast(bool, self.strip_namespaces or self.default_namespace)
+                match_local_name = cast(bool, self._strip_namespaces or self.default_namespace)
                 match = xsd_element.get_matching_item(obj, self.ns_prefix, match_local_name)
                 if match is not None:
                     obj = match

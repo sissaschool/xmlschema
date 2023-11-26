@@ -645,7 +645,7 @@ class XsdElement(XsdComponent, ParticleMixin,
                     namespaces = kwargs['namespaces'] = _copy(namespaces)
                     namespaces.update(xmlns)
 
-                if converter is not None and kwargs.get('process_namespaces', True):
+                if converter is not None:
                     converter = kwargs['converter'] = converter.copy(namespaces=namespaces)
 
             # Use location hints for dynamic schema load

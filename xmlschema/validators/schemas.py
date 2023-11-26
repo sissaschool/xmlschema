@@ -1948,10 +1948,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             kwargs['xmlns_getter'] = lambda x: None
             namespaces = get_namespace_map(namespaces)
 
-        if process_namespaces:
-            converter = self.get_converter(converter, namespaces=namespaces, **kwargs)
-        else:
-            converter = self.get_converter(converter, **kwargs)
+        converter = self.get_converter(converter, namespaces=namespaces,
+                                       process_namespaces=process_namespaces, **kwargs)
 
         namespace = resource.namespace or namespaces.get('', '')
         schema = self.get_schema(namespace)
@@ -1965,8 +1963,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             identities={},
             inherited={},
         )
-        if not process_namespaces:
-            kwargs['process_namespaces'] = False
         if use_location_hints and not resource.is_lazy():
             kwargs['use_location_hints'] = True
             if self.XSD_VERSION == '1.1':

@@ -72,16 +72,31 @@ class TestNamespaceMapper(unittest.TestCase):
         mapper.clear()
         self.assertEqual(mapper, {})
 
+    def test_process_namespaces(self):
+        namespaces = dict(xs=XSD_NAMESPACE, xsi=XSI_NAMESPACE)
+
+        mapper = NamespaceMapper(namespaces, process_namespaces=True)
+        self.assertEqual(mapper.map_qname('{%s}name' % XSD_NAMESPACE), 'xs:name')
+        self.assertEqual(mapper.map_qname('{unknown}name'), '{unknown}name')
+
+        mapper = NamespaceMapper(namespaces, process_namespaces=False)
+        self.assertEqual(mapper.map_qname(f'{XSD_NAMESPACE}name'), f'{XSD_NAMESPACE}name')
+        self.assertEqual(mapper.map_qname('{unknown}name'), '{unknown}name')
+
     def test_strip_namespaces(self):
         namespaces = dict(xs=XSD_NAMESPACE, xsi=XSI_NAMESPACE)
-        mapper = NamespaceMapper(namespaces, strip_namespaces=True)
 
+        mapper = NamespaceMapper(namespaces, strip_namespaces=False)
+        self.assertEqual(mapper.map_qname('{%s}name' % XSD_NAMESPACE), 'xs:name')
+        self.assertEqual(mapper.map_qname('{unknown}name'), '{unknown}name')
+
+        mapper = NamespaceMapper(namespaces, strip_namespaces=True)
         self.assertEqual(mapper.map_qname('{%s}name' % XSD_NAMESPACE), 'name')
         self.assertEqual(mapper.map_qname('{unknown}name'), 'name')
 
-        mapper.strip_namespaces = False
-        self.assertEqual(mapper.map_qname('{%s}name' % XSD_NAMESPACE), 'xs:name')
-        self.assertEqual(mapper.map_qname('{unknown}name'), '{unknown}name')
+        mapper = NamespaceMapper(namespaces, process_namespaces=False, strip_namespaces=True)
+        self.assertEqual(mapper.map_qname('{%s}name' % XSD_NAMESPACE), 'name')
+        self.assertEqual(mapper.map_qname('{unknown}name'), 'name')
 
     def test_default_namespace(self):
         namespaces = dict(xs=XSD_NAMESPACE, xsi=XSI_NAMESPACE)
@@ -91,32 +106,11 @@ class TestNamespaceMapper(unittest.TestCase):
         mapper[''] = 'tns0'
         self.assertEqual(mapper.default_namespace, 'tns0')
 
-    def test_insert_item(self):
-        namespaces = dict(xs=XSD_NAMESPACE, xsi=XSI_NAMESPACE)
-        mapper = NamespaceMapper(namespaces)
-
-        mapper.insert_item('xs', XSD_NAMESPACE)
-        self.assertEqual(len(mapper), 2)
-
-        mapper.insert_item('', XSD_NAMESPACE)
-        self.assertEqual(len(mapper), 3)
-        mapper.insert_item('', XSD_NAMESPACE)
-        self.assertEqual(len(mapper), 3)
-        mapper.insert_item('', 'tns0')
-        self.assertEqual(len(mapper), 4)
-
-        mapper.insert_item('xs', XSD_NAMESPACE)
-        self.assertEqual(len(mapper), 4)
-        mapper.insert_item('xs', 'tns1')
-        self.assertEqual(len(mapper), 5)
-        mapper.insert_item('xs', 'tns2')
-        self.assertEqual(len(mapper), 6)
-
     def test_map_qname(self):
         namespaces = dict(xs=XSD_NAMESPACE, xsi=XSI_NAMESPACE)
         mapper = NamespaceMapper(namespaces)
 
-        mapper.insert_item('', XSD_NAMESPACE)
+        mapper[''] = XSD_NAMESPACE
         self.assertEqual(mapper.map_qname(''), '')
         self.assertEqual(mapper.map_qname('{%s}element' % XSD_NAMESPACE), 'xs:element')
         mapper.pop('xs')
@@ -164,8 +158,8 @@ class TestNamespaceMapper(unittest.TestCase):
         self.assertEqual(mapper.unmap_qname('element'), '{foo}element')
         self.assertEqual(mapper.unmap_qname('element', name_table=['element']), 'element')
 
-        mapper.strip_namespaces = True
-        self.assertEqual(mapper.unmap_qname('element'), 'element')
+        mapper._strip_namespaces = True  # don't do tricks, create a new instance ...
+        self.assertEqual(mapper.unmap_qname('element'), '{foo}element')
 
     def test_transfer(self):
         mapper = NamespaceMapper(namespaces={'xs': XSD_NAMESPACE, 'xsi': XSI_NAMESPACE})

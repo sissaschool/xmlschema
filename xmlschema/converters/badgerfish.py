@@ -49,7 +49,7 @@ class BadgerFishConverter(XMLSchemaConverter):
         dict_class = self.dict
 
         tag = self.map_qname(data.tag)
-        has_local_root = not self and not self.strip_namespaces
+        has_local_root = not self and not self._strip_namespaces
         result_dict = dict_class([t for t in self.map_attributes(data.attributes)])
         if has_local_root:
             result_dict['@xmlns'] = dict_class()
@@ -122,7 +122,7 @@ class BadgerFishConverter(XMLSchemaConverter):
     def element_encode(self, obj: Any, xsd_element: 'XsdElement', level: int = 0) -> ElementData:
         tag = xsd_element.qualified_name if level == 0 else xsd_element.name
 
-        if not self.strip_namespaces:
+        if not self._strip_namespaces:
             try:
                 self.update((k if k != '$' else '', v) for k, v in obj['@xmlns'].items())
             except KeyError:

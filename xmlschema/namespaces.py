@@ -10,7 +10,6 @@
 """
 This module contains classes for managing maps related to namespaces.
 """
-import re
 from typing import Any, Container, Dict, Iterator, List, Optional, MutableMapping, \
     Mapping, TypeVar
 
@@ -71,16 +70,23 @@ class NamespaceMapper(MutableMapping[str, str]):
     :param namespaces: initial data with namespace prefixes and URIs. \
     The provided dictionary is bound with the instance, otherwise a new \
     empty dictionary is used.
+    :param process_namespaces: whether to use namespace information in name \
+    mapping methods. If set to `False` the name mapping methods
+    decoding process, using the map provided with the argument *namespaces* \
+    and the namespace declarations extracted from the XML document.
     :param strip_namespaces: if set to `True` uses name mapping methods that strip \
     namespace information.
     """
-    __slots__ = '_namespaces', 'strip_namespaces', '__dict__'
+    __slots__ = '_namespaces', '_process_namespaces', '_strip_namespaces', '_use_xmlns'
     _namespaces: NamespacesType
 
     def __init__(self, namespaces: Optional[NamespacesType] = None,
+                 process_namespaces: bool = True,
                  strip_namespaces: bool = False):
         self._namespaces = {} if namespaces is None else namespaces
-        self.strip_namespaces = strip_namespaces
+        self._process_namespaces = process_namespaces
+        self._strip_namespaces = strip_namespaces
+        self._use_xmlns = bool(process_namespaces and not strip_namespaces)
 
     def __getitem__(self, prefix: str) -> str:
         return self._namespaces[prefix]
@@ -102,35 +108,19 @@ class NamespaceMapper(MutableMapping[str, str]):
         return self._namespaces
 
     @property
+    def process_namespaces(self) -> bool:
+        return self._process_namespaces
+
+    @property
+    def strip_namespaces(self) -> bool:
+        return self._strip_namespaces
+
+    @property
     def default_namespace(self) -> Optional[str]:
         return self._namespaces.get('')
 
     def clear(self) -> None:
         self._namespaces.clear()
-
-    def insert_item(self, prefix: str, uri: str) -> None:
-        """
-        A method for setting an item that checks the prefix before inserting.
-        In case of collision the prefix is changed adding a numerical suffix.
-        """
-        if not prefix:
-            if '' not in self._namespaces:
-                self._namespaces[prefix] = uri
-                return
-            elif self._namespaces[''] == uri:
-                return
-            prefix = 'default'
-
-        while prefix in self._namespaces:
-            if self._namespaces[prefix] == uri:
-                return
-            match = re.search(r'(\d+)$', prefix)
-            if match:
-                index = int(match.group()) + 1
-                prefix = prefix[:match.span()[0]] + str(index)
-            else:
-                prefix += '0'
-        self._namespaces[prefix] = uri
 
     def map_qname(self, qname: str) -> str:
         """
@@ -140,8 +130,8 @@ class NamespaceMapper(MutableMapping[str, str]):
         :param qname: a QName in extended format or a local name.
         :return: a QName in prefixed format or a local name.
         """
-        if self.strip_namespaces:
-            return local_name(qname)
+        if not self._use_xmlns:
+            return local_name(qname) if self._strip_namespaces else qname
 
         try:
             if qname[0] != '{' or not self._namespaces:
@@ -172,26 +162,27 @@ class NamespaceMapper(MutableMapping[str, str]):
         :param name_table: an optional lookup table for checking local names.
         :return: a QName in extended format or a local name.
         """
-        if self.strip_namespaces:
-            return local_name(qname)
+        if not self._use_xmlns:
+            return local_name(qname) if self._strip_namespaces else qname
 
         try:
             if qname[0] == '{' or not self._namespaces:
                 return qname
-            prefix, name = qname.split(':')
+            elif ':' in qname:
+                prefix, name = qname.split(':')
+            else:
+                default_namespace = self._namespaces.get('')
+                if not default_namespace:
+                    return qname
+                elif name_table is None or qname not in name_table:
+                    return f'{{{default_namespace}}}{qname}'
+                else:
+                    return qname
+
         except IndexError:
             return qname
         except ValueError:
-            if ':' in qname:
-                raise XMLSchemaValueError("the argument 'qname' has an invalid value %r" % qname)
-
-            default_namespace = self._namespaces.get('')
-            if not default_namespace:
-                return qname
-            elif name_table is None or qname not in name_table:
-                return f'{{{default_namespace}}}{qname}'
-            else:
-                return qname
+            raise XMLSchemaValueError("the argument 'qname' has an invalid value %r" % qname)
         except (TypeError, AttributeError):
             raise XMLSchemaTypeError("the argument 'qname' must be a string-like object")
         else:

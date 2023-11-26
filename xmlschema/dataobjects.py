@@ -486,7 +486,7 @@ class DataElementConverter(XMLSchemaConverter):
         return self.data_element_class(
             tag=data.tag,
             value=data.text,
-            nsmap=self.namespaces,
+            nsmap=self._namespaces if self._process_namespaces else None,
             xsd_element=xsd_element,
             xsd_type=xsd_type
         )
