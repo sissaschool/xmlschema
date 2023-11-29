@@ -1508,7 +1508,7 @@ class TestDecoding(XsdValidatorTestCase):
         with open(self.casepath('serialization/jsonml.json')) as fp:
             json_data = json.load(fp)
 
-        self.assertEqual(json.loads(obj), json_data)
+        self.assertListEqual(json.loads(obj), json_data)
 
 
 class TestDecoding11(TestDecoding):

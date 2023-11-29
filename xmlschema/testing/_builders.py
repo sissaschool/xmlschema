@@ -501,7 +501,7 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
 
             lxml_errors = []
             lxml_decoded_chunks = []
-            for obj in self.schema.iter_decode(xml_tree, namespaces=namespaces):
+            for obj in self.schema.iter_decode(xml_tree):
                 if isinstance(obj, xmlschema.XMLSchemaValidationError):
                     lxml_errors.append(obj)
                 else:
@@ -519,6 +519,7 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
                 options = {
                     'etree_element_class': lxml_etree_element,
                     'namespaces': namespaces,
+                    'xmlns_usage': 'collapse',
                 }
                 self.check_decode_encode(root, cdata_prefix='#', **options)  # Default converter
                 self.check_decode_encode(root, ParkerConverter, validation='lax', **options)

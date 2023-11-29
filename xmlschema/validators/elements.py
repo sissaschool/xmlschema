@@ -32,6 +32,7 @@ from ..aliases import ElementType, SchemaType, BaseXsdType, SchemaElementType, \
 from ..translation import gettext as _
 from ..helpers import get_qname, etree_iter_location_hints, \
     etree_iter_namespaces, raw_xml_encode, strictly_equal
+from ..namespaces import NamespaceMapper
 from ..locations import normalize_url
 from .. import dataobjects
 from ..converters import ElementData, XMLSchemaConverter
@@ -583,13 +584,15 @@ class XsdElement(XsdComponent, ParticleMixin,
             except (OSError, IOError):
                 continue
 
-    def iter_decode(self, obj: ElementType, validation: str = 'lax', **kwargs: Any) \
+    def iter_decode(self, obj: ElementType, validation: str = 'lax', *,
+                    xmlns: Optional[List[Tuple[str, str]]] = None, **kwargs: Any) \
             -> IterDecodeType[Any]:
         """
         Creates an iterator for decoding an Element instance.
 
         :param obj: the Element that has to be decoded.
         :param validation: the validation mode, can be 'lax', 'strict' or 'skip'.
+        :param xmlns: XML namespace declarations, pushed at model group level.
         :param kwargs: keyword arguments for the decoding process.
         :return: yields a decoded object, eventually preceded by a sequence of \
         validation or decoding errors.
@@ -612,11 +615,6 @@ class XsdElement(XsdComponent, ParticleMixin,
             level = kwargs['level'] = 0
 
         try:
-            xmlns = kwargs['xmlns_getter'](obj)
-        except KeyError:
-            xmlns = None
-
-        try:
             identities = kwargs['identities']
         except KeyError:
             identities = kwargs['identities'] = {}
@@ -632,22 +630,10 @@ class XsdElement(XsdComponent, ParticleMixin,
         except KeyError:
             converter = kwargs['converter'] = self.schema.get_converter(**kwargs)
         else:
-            if converter is not None and not isinstance(converter, XMLSchemaConverter):
+            if not isinstance(converter, NamespaceMapper):
                 converter = kwargs['converter'] = self.schema.get_converter(**kwargs)
 
         if level:
-            if xmlns:
-                try:
-                    namespaces = kwargs['namespaces']
-                except KeyError:
-                    namespaces = kwargs['namespaces'] = {k: v for k, v in xmlns}
-                else:
-                    namespaces = kwargs['namespaces'] = _copy(namespaces)
-                    namespaces.update(xmlns)
-
-                if converter is not None:
-                    converter = kwargs['converter'] = converter.copy(namespaces=namespaces)
-
             # Use location hints for dynamic schema load
             if kwargs.get('use_location_hints'):
                 yield from self.check_dynamic_context(obj, validation, options=kwargs)
@@ -661,11 +647,7 @@ class XsdElement(XsdComponent, ParticleMixin,
         if XSI_TYPE in obj.attrib and self.schema.meta_schema is not None:
             # Meta-schema elements ignore xsi:type (issue #350)
             type_name = obj.attrib[XSI_TYPE].strip()
-            try:
-                namespaces = kwargs['namespaces']
-            except KeyError:
-                namespaces = None
-
+            namespaces = converter.namespaces
             try:
                 xsd_type = self.maps.get_instance_type(type_name, xsd_type, namespaces)
             except (KeyError, TypeError) as err:
@@ -835,7 +817,7 @@ class XsdElement(XsdComponent, ParticleMixin,
                 if not kwargs.get('binary_types'):
                     value = str(value)
 
-        if converter is not None:
+        if isinstance(converter, XMLSchemaConverter):
             element_data = ElementData(obj.tag, value, content, attributes, xmlns)
             if 'element_hook' in kwargs:
                 element_data = kwargs['element_hook'](element_data, self, xsd_type)
@@ -845,7 +827,7 @@ class XsdElement(XsdComponent, ParticleMixin,
             except (ValueError, TypeError) as err:
                 yield self.validation_error(validation, err, obj, **kwargs)
         elif not level:
-            yield ElementData(obj.tag, value, None, attributes, xmlns)
+            yield ElementData(obj.tag, value, None, attributes, None)
 
         if content is not None:
             del content
@@ -995,7 +977,7 @@ class XsdElement(XsdComponent, ParticleMixin,
             return
         else:
             if element_data.xmlns:
-                converter = converter.copy()
+                converter = _copy(converter.copy())
                 converter.update(element_data.xmlns)
                 kwargs['converter'] = converter
 

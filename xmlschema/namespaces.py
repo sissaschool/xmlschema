@@ -10,6 +10,7 @@
 """
 This module contains classes for managing maps related to namespaces.
 """
+import copy
 from typing import Any, Container, Dict, Iterator, List, Optional, MutableMapping, \
     Mapping, TypeVar
 
@@ -77,7 +78,8 @@ class NamespaceMapper(MutableMapping[str, str]):
     :param strip_namespaces: if set to `True` uses name mapping methods that strip \
     namespace information.
     """
-    __slots__ = '_namespaces', '_process_namespaces', '_strip_namespaces', '_use_xmlns'
+    __slots__ = '_namespaces', '_process_namespaces', '_strip_namespaces', \
+        '_use_xmlns', '__dict__'
     _namespaces: NamespacesType
 
     def __init__(self, namespaces: Optional[NamespacesType] = None,
@@ -121,6 +123,16 @@ class NamespaceMapper(MutableMapping[str, str]):
 
     def clear(self) -> None:
         self._namespaces.clear()
+
+    def __copy__(self) -> 'NamespaceMapper':
+        mapper: 'NamespaceMapper' = object.__new__(self.__class__)
+
+        for cls in self.__class__.__mro__:
+            if hasattr(cls, '__slots__'):
+                for attr in cls.__slots__:
+                    setattr(mapper, attr, copy.copy(getattr(self, attr)))
+
+        return mapper
 
     def map_qname(self, qname: str) -> str:
         """

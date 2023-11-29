@@ -46,7 +46,7 @@ from ..aliases import ElementType, XMLSourceType, NamespacesType, LocationsType,
 from ..translation import gettext as _
 from ..helpers import prune_etree, get_namespace, get_namespace_map, \
     get_qname, is_defuse_error
-from ..namespaces import NamespaceResourcesMap, NamespaceView
+from ..namespaces import NamespaceResourcesMap, NamespaceMapper, NamespaceView
 from ..locations import is_local_url, is_remote_url, url_path_is_file, \
     normalize_url, normalize_locations
 from ..resources import XMLResource
@@ -1711,7 +1711,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             'level': resource.lazy_depth or bool(path),
             'source': resource,
             'namespaces': namespaces,
-            'converter': None,
+            'xmlns_getter': resource.get_ns_declarations,
+            'converter': NamespaceMapper(namespaces),
             'use_defaults': use_defaults,
             'id_map': Counter[str](),
             'identities': identities,
@@ -1734,7 +1735,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             selector = resource.iter_depth(mode=4, ancestors=ancestors)
 
         elem: Optional[Element] = None
-        for elem in selector:
+        for elem in resource.track_namespaces(selector, namespaces):
             if elem is resource.root:
                 if resource.lazy_depth:
                     kwargs['level'] = 0
@@ -1944,9 +1945,13 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         elif xmlns_usage == 'collapse':
             kwargs['xmlns_getter'] = lambda x: None
             namespaces = resource.get_namespaces(namespaces, root_only=False)
-        else:
+        elif xmlns_usage == 'ignore':
             kwargs['xmlns_getter'] = lambda x: None
             namespaces = get_namespace_map(namespaces)
+        elif isinstance(xmlns_usage, str):
+            raise XMLSchemaValueError("invalid value for argument 'xmlns_usage'")
+        else:
+            raise XMLSchemaValueError("invalid type for argument 'xmlns_usage'")
 
         converter = self.get_converter(converter, namespaces=namespaces,
                                        process_namespaces=process_namespaces, **kwargs)
@@ -2009,6 +2014,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             kwargs['depth_filler'] = lambda x: decoder
             kwargs['max_depth'] = resource.lazy_depth
             selector = resource.iter_depth(mode=3)
+            if xmlns_usage == 'standard':
+                selector = resource.track_namespaces(selector, namespaces)
 
         for elem in selector:
             xsd_element = schema.get_element(elem.tag, schema_path, namespaces)
@@ -2135,8 +2142,15 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                            "provide a valid 'path' argument.")
             raise XMLSchemaEncodeError(self, obj, self.elements, reason, namespaces=namespaces)
         else:
-            yield from xsd_element.iter_encode(obj, validation, use_defaults=use_defaults,
-                                               converter=converter, unordered=unordered, **kwargs)
+            yield from xsd_element.iter_encode(
+                obj,
+                validation,
+                use_defaults=use_defaults,
+                namespaces=converter,
+                converter=converter,
+                unordered=unordered,
+                **kwargs
+            )
 
     def encode(self, obj: Any, path: Optional[str] = None, validation: str = 'strict',
                *args: Any, **kwargs: Any) -> EncodeType[Any]:

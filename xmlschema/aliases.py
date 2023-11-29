@@ -16,8 +16,8 @@ so they are set with a common dummy subscriptable type to keep compatibility.
 from typing import TYPE_CHECKING, Optional, TypeVar
 
 __all__ = ['ElementType', 'ElementTreeType', 'XMLSourceType', 'NamespacesType',
-           'NormalizedLocationsType', 'LocationsType', 'NsmapType', 'ParentMapType',
-           'LazyType', 'SchemaType', 'BaseXsdType', 'SchemaElementType',
+           'NormalizedLocationsType', 'LocationsType', 'NsmapType', 'XmlnsGetterType',
+           'ParentMapType', 'LazyType', 'SchemaType', 'BaseXsdType', 'SchemaElementType',
            'SchemaAttributeType', 'SchemaGlobalType', 'GlobalMapType', 'ModelGroupType',
            'ModelParticleType', 'XPathElementType', 'AtomicValueType', 'NumericValueType',
            'DateTimeType', 'SchemaSourceType', 'ConverterType', 'ComponentClassType',
@@ -57,6 +57,7 @@ if TYPE_CHECKING:
     LocationsType = Union[Tuple[Tuple[str, str], ...], Dict[str, str],
                           NormalizedLocationsType, NamespaceResourcesMap]
     NsmapType = MutableMapping[str, str]
+    XmlnsGetterType = Callable[[ElementType], Optional[List[Tuple[str, str]]]]
     ParentMapType = Dict[ElementType, Optional[ElementType]]
     LazyType = Union[bool, int]
 

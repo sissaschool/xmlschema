@@ -139,7 +139,8 @@ def fetch_namespaces(source: XMLSourceType,
                      base_url: Optional[str] = None,
                      allow: str = 'all',
                      defuse: str = 'remote',
-                     timeout: int = 30) -> NamespacesType:
+                     timeout: int = 30,
+                     root_only: bool = False) -> NamespacesType:
     """
     Fetches namespaces information from the XML data source. The argument *source*
     can be a string containing the XML document or file path or an url or a file-like
@@ -147,7 +148,7 @@ def fetch_namespaces(source: XMLSourceType,
     namespace mappings is returned.
     """
     resource = XMLResource(source, base_url, allow, defuse, timeout, lazy=True)
-    return resource.get_namespaces(root_only=False)
+    return resource.get_namespaces(root_only=root_only)
 
 
 class XMLResource:

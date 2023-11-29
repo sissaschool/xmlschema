@@ -48,6 +48,8 @@ Ref.: https://www.w3.org/TR/xmlschema11-1/#key-va
 
 
 def check_validation_mode(validation: str) -> None:
+    if not isinstance(validation, str):
+        raise XMLSchemaValueError(_("validation mode must be a string"))
     if validation not in XSD_VALIDATION_MODES:
         raise XMLSchemaValueError(_("validation mode can be 'strict', "
                                     "'lax' or 'skip': %r") % validation)

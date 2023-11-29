@@ -939,14 +939,9 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
             self.validation_error('strict', reason, obj, **kwargs)
 
         try:
-            namespaces = kwargs['namespaces']
+            converter = kwargs['converter']
         except KeyError:
-            namespaces = default_namespace = None
-        else:
-            try:
-                default_namespace = namespaces.get('')
-            except AttributeError:
-                default_namespace = None
+            converter = kwargs['converter'] = self.schema.get_converter(**kwargs)
 
         errors: List[Tuple[int, ModelParticleType, int, Optional[List[SchemaElementType]]]]
         xsd_element: Optional[SchemaElementType]
@@ -959,6 +954,29 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         for index, child in enumerate(obj):
             if callable(child.tag):
                 continue  # child is a <class 'lxml.etree._Comment'>
+
+            # Handle xmlns declarations (level >=1)
+            try:
+                xmlns = kwargs['xmlns_getter'](child)
+            except KeyError:
+                kwargs['xmlns_getter'] = lambda x: None
+                _converter = converter
+                _kwargs = kwargs
+            else:
+                if not xmlns:
+                    _converter = converter
+                    _kwargs = kwargs
+                else:
+                    _converter = _copy(converter)
+                    _converter.update(xmlns)
+                    _kwargs = {k: v for k, v in kwargs.items()}
+                    _kwargs['xmlns'] = xmlns
+                    _kwargs['converter'] = _converter
+                    _kwargs['namespaces'] = _converter.namespaces
+
+            default_namespace = _converter.default_namespace
+            namespaces = _converter.namespaces
+            name = _converter.map_qname(child.tag)
 
             while model.element is not None:
                 if model.element.max_occurs == 0:
@@ -1006,27 +1024,27 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                         broken_model = True
 
             if xsd_element is None:
-                if kwargs.get('keep_unknown') and 'converter' in kwargs:
-                    for result in self.any_type.iter_decode(child, validation, **kwargs):
-                        result_list.append((child.tag, result, None))
+                if kwargs.get('keep_unknown') and 'converter' in _kwargs:
+                    for result in self.any_type.iter_decode(child, validation, **_kwargs):
+                        result_list.append((name, result, None))
                 continue
-            elif 'converter' not in kwargs:
+            elif 'converter' not in _kwargs:
                 # Validation-only mode: do not append results
-                for result in xsd_element.iter_decode(child, validation, **kwargs):
+                for result in xsd_element.iter_decode(child, validation, **_kwargs):
                     if isinstance(result, XMLSchemaValidationError):
                         yield result
                 continue
             elif over_max_depth:
-                if 'depth_filler' in kwargs:
-                    func = kwargs['depth_filler']
-                    result_list.append((child.tag, func(xsd_element), xsd_element))
+                if 'depth_filler' in _kwargs:
+                    func = _kwargs['depth_filler']
+                    result_list.append((name, func(xsd_element), xsd_element))
                 continue
 
-            for result in xsd_element.iter_decode(child, validation, **kwargs):
+            for result in xsd_element.iter_decode(child, validation, **_kwargs):
                 if isinstance(result, XMLSchemaValidationError):
                     yield result
                 else:
-                    result_list.append((child.tag, result, xsd_element))
+                    result_list.append((name, result, xsd_element))
 
             if cdata_index and child.tail is not None:
                 tail = str(child.tail.strip())
@@ -1045,6 +1063,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
 
         if errors:
             source = kwargs.get('source')
+            namespaces = converter.namespaces
             for index, particle, occurs, expected in errors:
                 error = XMLSchemaChildrenValidationError(
                     self, obj, index, particle, occurs, expected, source, namespaces
