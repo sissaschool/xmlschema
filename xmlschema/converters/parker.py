@@ -50,7 +50,8 @@ class ParkerConverter(XMLSchemaConverter):
                        xsd_type: Optional[BaseXsdType] = None, level: int = 0) -> Any:
         xsd_type = xsd_type or xsd_element.type
         preserve_root = self.preserve_root
-        if xsd_type.simple_type is not None:
+
+        if xsd_type.model_group is None or not data.content:
             if preserve_root:
                 return self.dict([(self.map_qname(data.tag), data.text)])
             else:

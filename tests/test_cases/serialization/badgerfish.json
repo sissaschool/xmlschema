@@ -30,7 +30,7 @@
                 "@label": "Damaged tree",
                 "@term": "tree-damage",
                 "@scheme": "https://open311.sfgov.org/dev/V1/categories/006.xml",
-                "$": 006
+                "$": "006"
             },
             "content": {
                 "@type": "xml",
@@ -38,7 +38,7 @@
                     "$": "http://open311.org/spec/georeport-v1"
                 },
                 "report_id": {
-                    "$": 637619
+                    "$": "637619"
                 },
                 "address": {
                     "$": "1600 Market St, San Francisco, CA 94103"
@@ -81,7 +81,7 @@
                 "@label": "Damaged tree",
                 "@term": "tree-damage",
                 "@scheme": "https://open311.sfgov.org/dev/V1/categories/006.xml",
-                "$": 006
+                "$": "006"
             },
             "content": {
                 "@type": "xml",
@@ -89,7 +89,7 @@
                     "$": "http://open311.org/spec/georeport-v1"
                 },
                 "report_id": {
-                    "$": 637620
+                    "$": "637620"
                 },
                 "address": {
                     "$": "56 Market St, San Francisco, CA 94103"
@@ -132,7 +132,7 @@
                 "@label": "Damaged tree",
                 "@term": "tree-damage",
                 "@scheme": "https://open311.sfgov.org/dev/V1/categories/006.xml",
-                "$": 006
+                "$": "006"
             },
             "content": {
                 "@type": "xml",
@@ -140,7 +140,7 @@
                     "$": "http://open311.org/spec/georeport-v1"
                 },
                 "report_id": {
-                    "$": 637621
+                    "$": "637621"
                 },
                 "address": {
                     "$": "1800 Market St, San Francisco, CA 94103"

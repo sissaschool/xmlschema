@@ -520,10 +520,14 @@ class TestConverters(unittest.TestCase):
 
         default_xml_filename = self.casepath('examples/collection/collection-default.xml')
         obj1 = col_schema.decode(default_xml_filename)
-        self.assertIn('@xmlns', obj1)
+        assert isinstance(obj1, dict)
+        self.assertIn('@xmlns', obj1['collection'])
         self.assertEqual(repr(obj1).count("'@xmlns'"), 1)
-        self.assertEqual(obj1['@xmlns'], {'$': 'http://example.com/ns/collection',
-                                          'xsi': 'http://www.w3.org/2001/XMLSchema-instance'})
+        self.assertEqual(
+            obj1['collection']['@xmlns'],
+            {'$': 'http://example.com/ns/collection',
+             'xsi': 'http://www.w3.org/2001/XMLSchema-instance'}
+        )
 
         root = col_schema.encode(obj1)
         default_xml_root = etree_parse(default_xml_filename).getroot()
@@ -604,11 +608,13 @@ class TestConverters(unittest.TestCase):
                 continue
 
             if k == 4:
-                self.assertEqual(obj, {'@xmlns': {'tst': 'http://xmlschema.test/ns'},
-                                       'tst:e1': {'@a1': 'foo', 'e2': [{}, {}], '$1': 'bar'}})
+                self.assertEqual(obj, {'tst:e1': {'@a1': 'foo',
+                                                  '@xmlns': {'tst': 'http://xmlschema.test/ns'},
+                                                  'e2': [{}, {}], '$1': 'bar'}})
             else:
-                self.assertEqual(obj, {'@xmlns': {'tst': 'http://xmlschema.test/ns'},
-                                       'tst:e1': {'@a1': 'foo', 'e2': [{}], '$1': 'bar'}})
+                self.assertEqual(obj, {'tst:e1': {'@a1': 'foo',
+                                                  '@xmlns': {'tst': 'http://xmlschema.test/ns'},
+                                                  'e2': [{}], '$1': 'bar'}})
 
             text = etree_tostring(root, namespaces={'tst': 'http://xmlschema.test/ns'})
             self.assertEqual(len(text.split('bar')), 2)

@@ -139,11 +139,11 @@ COLLECTION_PARKER_ROOT = {
                                    'year': '1925'}]}}
 
 COLLECTION_BADGERFISH = {
-    '@xmlns': {
-        'col': 'http://example.com/ns/collection',
-        'xsi': 'http://www.w3.org/2001/XMLSchema-instance'},
     'col:collection': {
         '@xsi:schemaLocation': 'http://example.com/ns/collection collection.xsd',
+        '@xmlns': {
+            'col': 'http://example.com/ns/collection',
+            'xsi': 'http://www.w3.org/2001/XMLSchema-instance'},
         'object': [{
             '@available': True,
             '@id': 'b0836217462',
@@ -1499,16 +1499,46 @@ class TestDecoding(XsdValidatorTestCase):
 
     def test_xml_to_json_serialization(self):
         xml_file = self.casepath('serialization/document.xml')
+
+        obj = xmlschema.to_json(
+            xml_file,
+            validation='skip',
+            converter=xmlschema.ParkerConverter,
+        )
+        with open(self.casepath('serialization/parker.json')) as fp:
+            json_data = json.load(fp)
+
+        self.assertDictEqual(json.loads(obj), json_data)
+
+        obj = xmlschema.to_json(
+            xml_file,
+            validation='skip',
+            converter=xmlschema.BadgerFishConverter,
+        )
+        with open(self.casepath('serialization/badgerfish.json')) as fp:
+            json_data = json.load(fp)
+
+        self.assertDictEqual(json.loads(obj), json_data)
+
         obj = xmlschema.to_json(
             xml_file,
             validation='skip',
             converter=xmlschema.JsonMLConverter,
         )
-
         with open(self.casepath('serialization/jsonml.json')) as fp:
             json_data = json.load(fp)
 
         self.assertListEqual(json.loads(obj), json_data)
+
+        obj = xmlschema.to_json(
+            xml_file,
+            validation='skip',
+            converter=xmlschema.ParkerConverter,
+        )
+        with open(self.casepath('serialization/parker.json')) as fp:
+            json_data = json.load(fp)
+
+        self.assertDictEqual(json.loads(obj), json_data)
 
 
 class TestDecoding11(TestDecoding):

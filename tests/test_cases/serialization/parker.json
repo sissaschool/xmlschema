@@ -1,5 +1,5 @@
 {
-  "reports":[
+  "entry":[
     {
       "id":"tag:open311.sfgov.org,2010-04-15:/dev/V1/reports/637619.xml",
       "title":"A large tree branch is blocking the road",
@@ -9,9 +9,9 @@
         "name":"John Doe"
       },
       "georss:point":"40.7111 -73.9565",
-      "category":006,
+      "category":"006",
       "content":{
-        "report_id":637619,
+        "report_id":"637619",
         "address":"1600 Market St, San Francisco, CA 94103",
         "description":"A large tree branch is blocking the road",
         "status":"created",
@@ -28,9 +28,9 @@
         "name":"John Doe"
       },
       "georss:point":"40.7111 -73.9565",
-      "category":006,
+      "category":"006",
       "content":{
-        "report_id":637620,
+        "report_id":"637620",
         "address":"56 Market St, San Francisco, CA 94103",
         "description":"A large tree branch is blocking the road",
         "status":"created",
@@ -47,9 +47,9 @@
         "name":"John Doe"
       },
       "georss:point":"40.7111 -73.9565",
-      "category":006,
+      "category":"006",
       "content":{
-        "report_id":637621,
+        "report_id":"637621",
         "address":"1800 Market St, San Francisco, CA 94103",
         "description":"A large tree branch is blocking the road",
         "status":"created",
