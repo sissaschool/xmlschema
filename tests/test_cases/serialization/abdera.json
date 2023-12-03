@@ -5,8 +5,10 @@
             "title": "A large tree branch is blocking the road",
             "updated": "2010-04-13T18:30:02-05:00",
             "link": {
-                "rel": "self",
-                "href": "http:\/\/open311.sfgov.org\/dev\/V1\/reports\/637619.xml"
+                "attributes": {
+                    "rel": "self",
+                    "href": "http:\/\/open311.sfgov.org\/dev\/V1\/reports\/637619.xml"
+                }
             },
             "author": {
                 "name": "John Doe"
@@ -39,8 +41,10 @@
             "title": "A large tree branch is blocking the road",
             "updated": "2010-04-13T18:30:02-05:00",
             "link": {
-                "rel": "self",
-                "href": "http:\/\/open311.sfgov.org\/dev\/V1\/reports\/637620.xml"
+                "attributes": {
+                    "rel": "self",
+                    "href": "http:\/\/open311.sfgov.org\/dev\/V1\/reports\/637620.xml"
+                }
             },
             "author": {
                 "name": "John Doe"
@@ -57,7 +61,7 @@
             "content": {
                 "children": [{
                     "report_id": "637620",
-                    "address": "1600 Market St, San Francisco, CA 94103",
+                    "address": "56 Market St, San Francisco, CA 94103",
                     "description": "A large tree branch is blocking the road",
                     "status": "created",
                     "status_notes": [],
@@ -69,12 +73,14 @@
             }
         },
         {
-            "id": "tag:open311.sfgov.org,2010-04-15:\/dev\/V1\/reports\/637620.xml",
+            "id": "tag:open311.sfgov.org,2010-04-15:\/dev\/V1\/reports\/637621.xml",
             "title": "A large tree branch is blocking the road",
             "updated": "2010-04-13T18:30:02-05:00",
             "link": {
-                "rel": "self",
-                "href": "http:\/\/open311.sfgov.org\/dev\/V1\/reports\/637620.xml"
+                "attributes": {
+                    "rel": "self",
+                    "href": "http:\/\/open311.sfgov.org\/dev\/V1\/reports\/637621.xml"
+                }
             },
             "author": {
                 "name": "John Doe"
@@ -90,8 +96,8 @@
             },
             "content": {
                 "children": [{
-                    "report_id": "637620",
-                    "address": "1600 Market St, San Francisco, CA 94103",
+                    "report_id": "637621",
+                    "address": "1800 Market St, San Francisco, CA 94103",
                     "description": "A large tree branch is blocking the road",
                     "status": "created",
                     "status_notes": [],

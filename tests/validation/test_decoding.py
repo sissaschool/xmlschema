@@ -176,46 +176,48 @@ COLLECTION_BADGERFISH = {
 }
 
 COLLECTION_ABDERA = {
-    'attributes': {
-        'xsi:schemaLocation': 'http://example.com/ns/collection collection.xsd'
-    },
-    'children': [
-        {
-            'object': [
-                {
-                    'attributes': {'available': True, 'id': 'b0836217462'},
-                    'children': [{
-                        'author': {
-                            'attributes': {'id': 'PAR'},
-                            'children': [{
-                                'born': '1841-02-25',
-                                'dead': '1919-12-03',
-                                'name': 'Pierre-Auguste Renoir',
-                                'qualification': 'painter'}
-                            ]},
-                        'estimation': 10000.0,
-                        'position': 1,
-                        'title': 'The Umbrellas',
-                        'year': '1886'}
-                    ]},
-                {
-                    'attributes': {'available': True, 'id': 'b0836217463'},
-                    'children': [{
-                        'author': {
-                            'attributes': {'id': 'JM'},
-                            'children': [{
-                                'born': '1893-04-20',
-                                'dead': '1983-12-25',
-                                'name': u'Joan Miró',
-                                'qualification': 'painter, sculptor and ceramicist'}
-                            ]},
-                        'position': 2,
-                        'title': [],
-                        'year': '1925'
+    'col:collection': {
+        'attributes': {
+            'xsi:schemaLocation': 'http://example.com/ns/collection collection.xsd'
+        },
+        'children': [
+            {
+                'object': [
+                    {
+                        'attributes': {'available': True, 'id': 'b0836217462'},
+                        'children': [{
+                            'author': {
+                                'attributes': {'id': 'PAR'},
+                                'children': [{
+                                    'born': '1841-02-25',
+                                    'dead': '1919-12-03',
+                                    'name': 'Pierre-Auguste Renoir',
+                                    'qualification': 'painter'}
+                                ]},
+                            'estimation': 10000.0,
+                            'position': 1,
+                            'title': 'The Umbrellas',
+                            'year': '1886'}
+                        ]},
+                    {
+                        'attributes': {'available': True, 'id': 'b0836217463'},
+                        'children': [{
+                            'author': {
+                                'attributes': {'id': 'JM'},
+                                'children': [{
+                                    'born': '1893-04-20',
+                                    'dead': '1983-12-25',
+                                    'name': u'Joan Miró',
+                                    'qualification': 'painter, sculptor and ceramicist'}
+                                ]},
+                            'position': 2,
+                            'title': [],
+                            'year': '1925'
+                        }]
                     }]
-                }]
-        }
-    ]}
+            }
+        ]}
+}
 
 COLLECTION_JSON_ML = [
     'col:collection',
@@ -1046,7 +1048,8 @@ class TestDecoding(XsdValidatorTestCase):
                 element_data.tag,
                 element_data.text,
                 element_data.content,
-                [x for x in element_data.attributes if x[0] != XSI_NIL]
+                [x for x in element_data.attributes if x[0] != XSI_NIL],
+                None
             )
 
         data = schema.decode(xml_file, element_hook=element_hook)
@@ -1439,7 +1442,8 @@ class TestDecoding(XsdValidatorTestCase):
                 element_data.tag,
                 element_data.text,
                 filled_content,
-                element_data.attributes
+                element_data.attributes,
+                None
             )
 
         expected = {'TEST_EL': [
@@ -1533,9 +1537,9 @@ class TestDecoding(XsdValidatorTestCase):
         obj = xmlschema.to_json(
             xml_file,
             validation='skip',
-            converter=xmlschema.ParkerConverter,
+            converter=xmlschema.AbderaConverter,
         )
-        with open(self.casepath('serialization/parker.json')) as fp:
+        with open(self.casepath('serialization/abdera.json')) as fp:
             json_data = json.load(fp)
 
         self.assertDictEqual(json.loads(obj), json_data)

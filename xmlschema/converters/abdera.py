@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any, Optional, List, Dict, Type, Union
 
 from ..exceptions import XMLSchemaValueError
 from ..aliases import NamespacesType, BaseXsdType
+from ..helpers import local_name
 from .default import ElementData, XMLSchemaConverter
 
 if TYPE_CHECKING:
@@ -67,21 +68,21 @@ class AbderaConverter(XMLSchemaConverter):
             if not children:
                 children = data.text
 
+        result: Union[List[Any], Dict[str, Any]]
         if data.attributes:
-            if children != []:
-                return self.dict([
-                    ('attributes',
-                     self.dict((k, v) for k, v in self.map_attributes(data.attributes))),
-                    ('children',
-                     self.list([children]) if children is not None else self.list())
-                ])
-            else:
-                return self.dict([
-                    ('attributes',
-                     self.dict((k, v) for k, v in self.map_attributes(data.attributes))),
-                ])
+            result = self.dict([
+                ('attributes',
+                 self.dict((k, v) for k, v in self.map_attributes(data.attributes)))
+            ])
+            if children is not None and children != []:
+                result['children'] = self.list([children])
+
+        elif children is not None:
+            result = children
         else:
-            return children if children is not None else self.list()
+            result = self.list()
+
+        return result if level else self.dict([(self.map_qname(data.tag), result)])
 
     def element_encode(self, obj: Any, xsd_element: 'XsdElement', level: int = 0) -> ElementData:
         tag = xsd_element.qualified_name if level == 0 else xsd_element.name
@@ -89,8 +90,22 @@ class AbderaConverter(XMLSchemaConverter):
         if not isinstance(obj, MutableMapping):
             if obj == []:
                 obj = None
-            return ElementData(tag, obj, None, {})
+            return ElementData(tag, obj, None, {}, None)
         else:
+            tag = xsd_element.name
+            if level or len(obj) != 1:
+                pass
+            elif tag in obj:
+                obj = obj[tag]
+            else:
+                try:
+                    obj = obj[self.map_qname(tag)]
+                except KeyError:
+                    for k, v in obj.items():
+                        if k.endswith(local_name(tag)):
+                            obj = v
+                            break
+
             attributes: Dict[str, Any] = {}
             children: Union[List[Any], MutableMapping[str, Any]]
 
@@ -137,4 +152,4 @@ class AbderaConverter(XMLSchemaConverter):
                         else:
                             content.append((ns_name, value))
 
-            return ElementData(tag, None, content, attributes)
+            return ElementData(tag, None, content, attributes, None)
