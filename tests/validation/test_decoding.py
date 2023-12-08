@@ -495,7 +495,9 @@ class TestDecoding(XsdValidatorTestCase):
         self.assertIn("Path: /root", str(ctx.exception))
 
         xml_data = '<root name="ns0:bar" xmlns:ns0="http://xmlschema.test/0">ns0:foo</root>'
-        self.assertEqual(schema.decode(xml_data), {'@name': 'ns0:bar', '$': 'ns0:foo'})
+        self.assertEqual(schema.decode(xml_data), {
+            '@xmlns:ns0': 'http://xmlschema.test/0', '@name': 'ns0:bar', '$': 'ns0:foo'
+        })
 
         # Check reverse encoding
         obj = schema.decode(xml_data, converter=JsonMLConverter)
@@ -692,9 +694,15 @@ class TestDecoding(XsdValidatorTestCase):
         self.assertEqual(xd['decimal_value'], ['abc'])
 
     def test_datatypes(self):
+        xd = self.st_schema.to_dict(self.casepath('features/decoder/data.xml'))
+        self.assertDictEqual(xd, DATA_DICT)
+
         xt = ElementTree.parse(self.casepath('features/decoder/data.xml'))
         xd = self.st_schema.to_dict(xt, namespaces=self.default_namespaces)
-        self.assertEqual(xd, DATA_DICT)
+        self.assertNotEqual(xd, DATA_DICT)
+        self.assertIn('@xmlns:xsi', xd)
+        self.assertIn('@xmlns:tns', xd)
+        self.assertIn('@xmlns:ns', xd)
 
     def test_datetime_types(self):
         xs = self.get_schema('<xs:element name="dt" type="xs:dateTime"/>')

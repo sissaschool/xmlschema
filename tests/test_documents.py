@@ -368,7 +368,9 @@ class TestXmlDocuments(unittest.TestCase):
         xml_document = XmlDocument(
             '<x:root xmlns:x="ns" a="true"><b1>10</b1><b2/></x:root>', validation='skip'
         )
-        self.assertEqual(xml_document.decode(), {'@a': 'true', 'b1': ['10'], 'b2': [None]})
+        self.assertEqual(xml_document.decode(), {
+            '@xmlns:x': 'ns', '@a': 'true', 'b1': ['10'], 'b2': [None]
+        })
 
     def test_xml_document_decode_with_xsi_type(self):
         xml_data = '<root xmlns:xsi="{}" xmlns:xs="{}" ' \

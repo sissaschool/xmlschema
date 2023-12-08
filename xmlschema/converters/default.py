@@ -14,7 +14,6 @@ from typing import TYPE_CHECKING, cast, Any, Dict, Iterator, Iterable, \
 from xml.etree.ElementTree import Element
 
 from ..exceptions import XMLSchemaTypeError
-from ..names import XSI_NAMESPACE
 from ..aliases import NamespacesType, BaseXsdType
 from ..namespaces import NamespaceMapper
 
@@ -275,6 +274,9 @@ class XMLSchemaConverter(NamespaceMapper):
 
         return elem
 
+    def get_xmlns_attr(self, prefix: str) -> str:
+        return f'{self.ns_prefix}:{prefix}' if prefix else self.ns_prefix
+
     def element_decode(self, data: ElementData, xsd_element: 'XsdElement',
                        xsd_type: Optional[BaseXsdType] = None, level: int = 0) -> Any:
         """
@@ -289,60 +291,47 @@ class XMLSchemaConverter(NamespaceMapper):
         """
         xsd_type = xsd_type or xsd_element.type
         result_dict = self.dict()
-        if level == 0 and xsd_element.is_global() and not self._strip_namespaces \
-                and self._process_namespaces:
-            schema_namespaces = set(xsd_element.namespaces.values())
-            result_dict.update(
-                (f'{self.ns_prefix}:{k}' if k else self.ns_prefix, v)
-                for k, v in self._namespaces.items()
-                if v in schema_namespaces or v == XSI_NAMESPACE
-            )
+
+        if self._use_xmlns:
+            if data.xmlns:
+                result_dict.update((self.get_xmlns_attr(k), v) for k, v in data.xmlns)
+            elif not level and xsd_element.is_global() and self:
+                result_dict.update((self.get_xmlns_attr(k), v) for k, v in self.items())
+
+        if data.attributes:
+            result_dict.update(self.map_attributes(data.attributes))
 
         xsd_group = xsd_type.model_group
-        if xsd_group is None:
+        if xsd_group is None or not data.content:
             if data.attributes or self.force_dict and not xsd_type.is_simple():
-                result_dict.update(self.map_attributes(data.attributes))
                 if data.text is not None and self.text_key is not None:
                     result_dict[self.text_key] = data.text
-                return result_dict
+            elif not level and self.preserve_root:
+                return self.dict([(self.map_qname(data.tag), data.text)])
             else:
                 return data.text
         else:
-            if data.attributes:
-                result_dict.update(self.map_attributes(data.attributes))
-
             has_single_group = xsd_group.is_single()
-            if data.content:
-                for name, value, xsd_child in self.map_content(data.content):
-                    try:
-                        result = result_dict[name]
-                    except KeyError:
-                        if xsd_child is None or has_single_group and xsd_child.is_single():
-                            result_dict[name] = self.list([value]) if self.force_list else value
-                        else:
-                            result_dict[name] = self.list([value])
+            for name, value, xsd_child in self.map_content(data.content):
+                try:
+                    result = result_dict[name]
+                except KeyError:
+                    if xsd_child is None or has_single_group and xsd_child.is_single():
+                        result_dict[name] = self.list([value]) if self.force_list else value
                     else:
-                        if not isinstance(result, MutableSequence) or not result:
-                            result_dict[name] = self.list([result, value])
-                        elif isinstance(result[0], MutableSequence) or \
-                                not isinstance(value, MutableSequence):
-                            result.append(value)
-                        else:
-                            result_dict[name] = self.list([result, value])
+                        result_dict[name] = self.list([value])
+                else:
+                    if not isinstance(result, MutableSequence) or not result:
+                        result_dict[name] = self.list([result, value])
+                    elif isinstance(result[0], MutableSequence) or \
+                            not isinstance(value, MutableSequence):
+                        result.append(value)
+                    else:
+                        result_dict[name] = self.list([result, value])
 
-            elif data.text is not None and self.text_key is not None:
-                result_dict[self.text_key] = data.text
-
-            if level == 0 and self.preserve_root:
-                return self.dict(
-                    [(self.map_qname(data.tag), result_dict if result_dict else None)]
-                )
-
-            if not result_dict:
-                return None
-            elif len(result_dict) == 1 and self.text_key in result_dict:
-                return result_dict[self.text_key]
-            return result_dict
+        if not level and self.preserve_root:
+            return self.dict([(self.map_qname(data.tag), result_dict or None)])
+        return result_dict or None
 
     def element_encode(self, obj: Any, xsd_element: 'XsdElement', level: int = 0) -> ElementData:
         """
@@ -353,26 +342,19 @@ class XMLSchemaConverter(NamespaceMapper):
         :param level: the level related to the encoding process (0 means the root).
         :return: an ElementData instance.
         """
-        if level != 0:
-            tag = xsd_element.name
-        else:
-            if xsd_element.is_global():
-                tag = xsd_element.qualified_name
-            else:
-                tag = xsd_element.name
-            if self.preserve_root and isinstance(obj, MutableMapping):
-                match_local_name = cast(bool, self._strip_namespaces or self.default_namespace)
-                match = xsd_element.get_matching_item(obj, self.ns_prefix, match_local_name)
-                if match is not None:
-                    obj = match
+        if not level and self.preserve_root and isinstance(obj, MutableMapping):
+            match_local_name = cast(bool, self._strip_namespaces or self.default_namespace)
+            match = xsd_element.get_matching_item(obj, self.ns_prefix, match_local_name)
+            if match is not None:
+                obj = match
 
         if not isinstance(obj, MutableMapping):
             if xsd_element.type.simple_type is not None:
-                return ElementData(tag, obj, None, {}, None)
+                return ElementData(xsd_element.name, obj, None, {}, None)
             elif xsd_element.type.mixed and isinstance(obj, (str, bytes)):
-                return ElementData(tag, None, [(1, obj)], {}, None)
+                return ElementData(xsd_element.name, None, [(1, obj)], {}, None)
             else:
-                return ElementData(tag, None, obj, {}, None)
+                return ElementData(xsd_element.name, None, obj, {}, None)
 
         text = None
         content: List[Tuple[Union[int, str], Any]] = []
@@ -388,10 +370,11 @@ class XMLSchemaConverter(NamespaceMapper):
                 index = int(name[len(self.cdata_prefix):])
                 content.append((index, value))
             elif name == self.ns_prefix:
-                self[''] = value
-                xmlns.append(('', value))
+                if self._use_xmlns:
+                    self[''] = value
+                    xmlns.append(('', value))
             elif name.startswith(f'{self.ns_prefix}:'):
-                if not self._strip_namespaces:
+                if self._use_xmlns:
                     ns_name = name[len(self.ns_prefix) + 1:]
                     self[ns_name] = value
                     xmlns.append((ns_name, value))
@@ -433,4 +416,4 @@ class XMLSchemaConverter(NamespaceMapper):
                     else:
                         content.append((ns_name, value))
 
-        return ElementData(tag, text, content, attributes, xmlns)
+        return ElementData(xsd_element.name, text, content, attributes, xmlns)

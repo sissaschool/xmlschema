@@ -37,34 +37,31 @@ class UnorderedConverter(XMLSchemaConverter):
         :param level: the level related to the encoding process (0 means the root).
         :return: an ElementData instance.
         """
-        if level:
-            tag = xsd_element.name
-        else:
-            tag = xsd_element.qualified_name
-            if self.preserve_root and isinstance(obj, MutableMapping):
-                match_local_name = cast(bool, self._strip_namespaces or self.default_namespace)
-                match = xsd_element.get_matching_item(obj, self.ns_prefix, match_local_name)
-                if match is not None:
-                    obj = match
+        if not level and self.preserve_root and isinstance(obj, MutableMapping):
+            match_local_name = cast(bool, self._strip_namespaces or self.default_namespace)
+            match = xsd_element.get_matching_item(obj, self.ns_prefix, match_local_name)
+            if match is not None:
+                obj = match
 
         if not isinstance(obj, MutableMapping):
             if xsd_element.type.simple_type is not None:
-                return ElementData(tag, obj, None, {})
+                return ElementData(xsd_element.name, obj, None, {}, None)
             elif xsd_element.type.mixed and isinstance(obj, (str, bytes)):
-                return ElementData(tag, None, [(1, obj)], {})
+                return ElementData(xsd_element.name, None, [(1, obj)], {}, None)
             else:
-                return ElementData(tag, None, obj, {})
+                return ElementData(xsd_element.name, None, obj, {}, None)
 
         text = None
         attributes = {}
+        xmlns = []
 
         # The unordered encoding mode assumes that the values of this dict will
         # all be lists where each item is the content of a single element. When
         # building content_lu, content which is not a list or lists to be placed
         # into a single element (element has a list content type) must be wrapped
         # in a list to retain that structure. Character data are not wrapped into
-        # lists because they because they are divided from the rest of the content
-        # into the unordered mode generator function of the ModelVisitor class.
+        # lists because they are divided from the rest of the content into the
+        # unordered mode generator function of the ModelVisitor class.
         content_lu: Dict[Union[int, str], Any] = {}
 
         for name, value in obj.items():
@@ -76,9 +73,14 @@ class UnorderedConverter(XMLSchemaConverter):
                 index = int(name[len(self.cdata_prefix):])
                 content_lu[index] = value
             elif name == self.ns_prefix:
-                self[''] = value
+                if self._use_xmlns:
+                    self[''] = value
+                    xmlns.append(('', value))
             elif name.startswith(f'{self.ns_prefix}:'):
-                self[name[len(self.ns_prefix) + 1:]] = value
+                if self._use_xmlns:
+                    ns_name = name[len(self.ns_prefix) + 1:]
+                    self[ns_name] = value
+                    xmlns.append((ns_name, value))
             elif self.attr_prefix and \
                     name.startswith(self.attr_prefix) and \
                     name != self.attr_prefix:
@@ -116,4 +118,4 @@ class UnorderedConverter(XMLSchemaConverter):
                     else:
                         content_lu[self.unmap_qname(name)] = [value]
 
-        return ElementData(tag, text, content_lu, attributes)
+        return ElementData(xsd_element.name, text, content_lu, attributes, xmlns)
