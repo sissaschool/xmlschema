@@ -55,7 +55,7 @@ class BadgerFishConverter(XMLSchemaConverter):
         if self._use_xmlns:
             if data.xmlns:
                 result_dict['@xmlns'] = self.dict((k or '$', v) for k, v in data.xmlns)
-            elif not level and self:
+            elif not level and xsd_element.is_global() and self:
                 result_dict['@xmlns'] = self.dict((k or '$', v) for k, v in self.items())
 
         xsd_group = xsd_type.model_group
@@ -109,10 +109,10 @@ class BadgerFishConverter(XMLSchemaConverter):
                 else:
                     element_data = obj
 
-            if not self._strip_namespaces and '@xmlns' in element_data:
-                self.update(
-                    (k if k != '$' else '', v) for k, v in element_data['@xmlns'].items()
-                )
+        if self._use_xmlns and '@xmlns' in element_data:
+            self._namespaces.update(
+                (k if k != '$' else '', v) for k, v in element_data['@xmlns'].items()
+            )
 
         text = None
         content: List[Tuple[Union[str, int], Any]] = []

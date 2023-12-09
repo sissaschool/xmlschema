@@ -46,6 +46,10 @@ class ParkerConverter(XMLSchemaConverter):
     def lossy(self) -> bool:
         return True
 
+    @property
+    def loss_xmlns(self):
+        return True
+
     def element_decode(self, data: ElementData, xsd_element: 'XsdElement',
                        xsd_type: Optional[BaseXsdType] = None, level: int = 0) -> Any:
         xsd_type = xsd_type or xsd_element.type
@@ -92,17 +96,17 @@ class ParkerConverter(XMLSchemaConverter):
             if obj == '':
                 obj = None
             if xsd_element.type.simple_type is not None:
-                return ElementData(xsd_element.name, obj, None, {})
+                return ElementData(xsd_element.name, obj, None, {}, None)
             else:
-                return ElementData(xsd_element.name, None, obj, {})
+                return ElementData(xsd_element.name, None, obj, {}, None)
         else:
             if not obj:
-                return ElementData(xsd_element.name, None, None, {})
+                return ElementData(xsd_element.name, None, None, {}, None)
             elif self.preserve_root:
                 try:
                     items = obj[self.map_qname(name)]
                 except KeyError:
-                    return ElementData(xsd_element.name, None, None, {})
+                    return ElementData(xsd_element.name, None, None, {}, None)
             else:
                 items = obj
 
@@ -133,6 +137,6 @@ class ParkerConverter(XMLSchemaConverter):
                             content.extend((ns_name, item) for item in value)
 
             except AttributeError:
-                return ElementData(xsd_element.name, items, None, {})
+                return ElementData(xsd_element.name, items, None, {}, None)
             else:
-                return ElementData(xsd_element.name, None, content, {})
+                return ElementData(xsd_element.name, None, content, {}, None)

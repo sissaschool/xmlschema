@@ -176,6 +176,11 @@ class XMLSchemaConverter(NamespaceMapper):
         """
         return False
 
+    @property
+    def loss_xmlns(self):
+        """The converter ignores XML namespace information during decoding/encoding."""
+        return not self._use_xmlns
+
     def copy(self, **kwargs: Any) -> 'XMLSchemaConverter':
         namespaces = kwargs.get('namespaces')
         if namespaces is None:

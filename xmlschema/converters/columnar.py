@@ -43,6 +43,10 @@ class ColumnarConverter(XMLSchemaConverter):
     def lossy(self) -> bool:
         return True  # Loss cdata parts
 
+    @property
+    def loss_xmlns(self):
+        return True
+
     def __setattr__(self, name: str, value: Any) -> None:
         if name != 'attr_prefix':
             super(ColumnarConverter, self).__setattr__(name, value)
@@ -127,11 +131,11 @@ class ColumnarConverter(XMLSchemaConverter):
 
         if not isinstance(obj, MutableMapping):
             if xsd_element.type.simple_type is not None:
-                return ElementData(xsd_element.name, obj, None, {})
+                return ElementData(xsd_element.name, obj, None, {}, None)
             elif xsd_element.type.mixed and not isinstance(obj, MutableSequence):
-                return ElementData(xsd_element.name, obj, None, {})
+                return ElementData(xsd_element.name, obj, None, {}, None)
             else:
-                return ElementData(xsd_element.name, None, obj, {})
+                return ElementData(xsd_element.name, None, obj, {}, None)
 
         text = None
         content: List[Tuple[Optional[str], MutableSequence[Any]]] = []
@@ -168,4 +172,4 @@ class ColumnarConverter(XMLSchemaConverter):
                 else:
                     content.append((ns_name, value))
 
-        return ElementData(xsd_element.name, text, content, attributes)
+        return ElementData(xsd_element.name, text, content, attributes, None)
