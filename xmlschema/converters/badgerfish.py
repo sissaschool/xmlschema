@@ -103,7 +103,7 @@ class BadgerFishConverter(XMLSchemaConverter):
                 element_data = obj[self.map_qname(tag)]
             except KeyError:
                 for k, v in obj.items():
-                    if k.endswith(local_name(tag)):
+                    if not k.startswith(('$', '@')) and local_name(k) == local_name(tag):
                         element_data = v
                         break
                 else:

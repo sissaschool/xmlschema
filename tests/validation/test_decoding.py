@@ -484,7 +484,8 @@ class TestDecoding(XsdValidatorTestCase):
             </xs:schema>""")
 
         xml_data = '<root xmlns:ns0="http://xmlschema.test/0">ns0:foo</root>'
-        self.assertEqual(schema.decode(xml_data), 'ns0:foo')
+        self.assertEqual(schema.decode(xml_data),
+                         {'@xmlns:ns0': 'http://xmlschema.test/0', '$': 'ns0:foo'})
 
         self.assertEqual(schema.decode('<root>foo</root>'), 'foo')
 
@@ -1082,7 +1083,9 @@ class TestDecoding(XsdValidatorTestCase):
           <xs:element name="foo" type="xs:string" />
         </xs:schema>""")
         self.assertEqual(xs.to_dict("""<foo xmlns="http://example.com/foo">bar</foo>""",
-                                    path='/foo', namespaces={'': 'http://example.com/foo'}), 'bar')
+                                    path='/foo', namespaces={'': 'http://example.com/foo'}),
+                         {'@xmlns': 'http://example.com/foo', '$': 'bar'})
+
         self.assertEqual(xs.to_dict("""<foo>bar</foo>""",
                                     path='/foo', namespaces={'': 'http://example.com/foo'}), None)
 

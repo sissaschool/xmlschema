@@ -497,7 +497,8 @@ class TestEncoding(XsdValidatorTestCase):
             </xs:schema>""")
 
         xml1 = """<a xmlns="http://xmlschema.test/ns">alpha</a>"""
-        self.assertEqual(schema.decode(xml1), 'alpha')
+        self.assertEqual(schema.decode(xml1),
+                         {'@xmlns': 'http://xmlschema.test/ns', '$': 'alpha'})
 
         xml2 = """<a xmlns="http://xmlschema.test/ns"
                      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"

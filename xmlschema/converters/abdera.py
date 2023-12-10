@@ -46,7 +46,7 @@ class AbderaConverter(XMLSchemaConverter):
         return True  # Loss cdata parts
 
     @property
-    def loss_xmlns(self):
+    def loss_xmlns(self) -> bool:
         return True
 
     def element_decode(self, data: ElementData, xsd_element: 'XsdElement',

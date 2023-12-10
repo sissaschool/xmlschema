@@ -363,7 +363,8 @@ class TestXmlDocuments(unittest.TestCase):
 
     def test_xml_document_decode_without_schema(self):
         xml_document = XmlDocument('<x:root xmlns:x="ns" />', validation='skip')
-        self.assertIsNone(xml_document.decode())
+        self.assertIsNone(xml_document.decode(strip_namespaces=True))
+        self.assertEqual(xml_document.decode(), {'@xmlns:x': 'ns'})
 
         xml_document = XmlDocument(
             '<x:root xmlns:x="ns" a="true"><b1>10</b1><b2/></x:root>', validation='skip'

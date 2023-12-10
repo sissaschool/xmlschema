@@ -250,7 +250,10 @@ class TestValidation(XsdValidatorTestCase):
         xml_data = '<ns0:root xmlns:ns0="http://xmlschema.test/0" >ns0:elem1</ns0:root>'
         self.check_validity(schema, xml_data, True)
 
-        self.assertEqual(schema.decode(xml_data), 'ns0:elem1')
+        self.assertEqual(schema.decode(xml_data),
+                         {'@xmlns:ns0': 'http://xmlschema.test/0', '$': 'ns0:elem1'})
+
+        self.assertEqual(schema.decode(xml_data, strip_namespaces=True), 'ns0:elem1')
 
         schema = self.schema_class("""
             <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"

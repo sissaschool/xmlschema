@@ -10,11 +10,12 @@
 from collections import namedtuple
 from collections.abc import MutableMapping, MutableSequence
 from typing import TYPE_CHECKING, cast, Any, Dict, Iterator, Iterable, \
-    List, Optional, Type, Tuple, Union
+    ItemsView, List, Optional, Type, Tuple, Union
 from xml.etree.ElementTree import Element
 
 from ..exceptions import XMLSchemaTypeError
 from ..aliases import NamespacesType, BaseXsdType
+from ..helpers import get_namespace
 from ..namespaces import NamespaceMapper
 
 if TYPE_CHECKING:
@@ -177,7 +178,7 @@ class XMLSchemaConverter(NamespaceMapper):
         return False
 
     @property
-    def loss_xmlns(self):
+    def loss_xmlns(self) -> bool:
         """The converter ignores XML namespace information during decoding/encoding."""
         return not self._use_xmlns
 
@@ -296,11 +297,38 @@ class XMLSchemaConverter(NamespaceMapper):
         """
         xsd_type = xsd_type or xsd_element.type
         result_dict = self.dict()
+        xmlns: Union[None, List[Tuple[str, str]], ItemsView[str, str]] = None
+
+        def keep_result_dict() -> bool:
+            """
+            Decide when to keep a result dict in case of an element with simple content.
+            """
+            if data.attributes or self.force_dict and xsd_type.is_complex():
+                return True
+            elif not xmlns:
+                return False
+
+            namespace = get_namespace(data.tag)
+            if any(x[1] == namespace for x in xmlns):
+                return True
+
+            if xsd_type.is_qname() and isinstance(data.text, str):
+                try:
+                    prefix = data.text.split(':')[0]
+                except IndexError:
+                    prefix = ''
+
+                if any(x[0] == prefix for x in xmlns):
+                    return True
+
+            return False
 
         if self._use_xmlns:
             if data.xmlns:
+                xmlns = data.xmlns
                 result_dict.update((self.get_xmlns_attr(k), v) for k, v in data.xmlns)
             elif not level and xsd_element.is_global() and self:
+                xmlns = self.items()
                 result_dict.update((self.get_xmlns_attr(k), v) for k, v in self.items())
 
         if data.attributes:
@@ -308,7 +336,8 @@ class XMLSchemaConverter(NamespaceMapper):
 
         xsd_group = xsd_type.model_group
         if xsd_group is None or not data.content:
-            if data.attributes or self.force_dict and not xsd_type.is_simple():
+            if keep_result_dict():
+                result_dict.update(self.map_attributes(data.attributes))
                 if data.text is not None and self.text_key is not None:
                     result_dict[self.text_key] = data.text
             elif not level and self.preserve_root:
@@ -316,6 +345,9 @@ class XMLSchemaConverter(NamespaceMapper):
             else:
                 return data.text
         else:
+            if data.attributes:
+                result_dict.update(self.map_attributes(data.attributes))
+
             has_single_group = xsd_group.is_single()
             for name, value, xsd_child in self.map_content(data.content):
                 try:

@@ -44,7 +44,7 @@ class ColumnarConverter(XMLSchemaConverter):
         return True  # Loss cdata parts
 
     @property
-    def loss_xmlns(self):
+    def loss_xmlns(self) -> bool:
         return True
 
     def __setattr__(self, name: str, value: Any) -> None:
