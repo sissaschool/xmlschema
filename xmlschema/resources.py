@@ -682,18 +682,20 @@ class XMLResource:
 
                     if lxml_nsmap != elem.nsmap:
                         nsmap = {k or '': v for k, v in elem.nsmap.items()}
-
-                        if lxml_nsmap is None:
-                            ns_declarations = [(k, v) for k, v in nsmap.items()]
-                        else:
-                            ns_declarations = [(k or '', v) for k, v in elem.nsmap.items()
-                                               if k not in lxml_nsmap or v != lxml_nsmap[k]]
-                        if ns_declarations:
-                            self._ns_declarations[elem] = ns_declarations
-
                         lxml_nsmap = elem.nsmap
 
+                    parent = elem.getparent()
+                    if parent is None:
+                        ns_declarations = [(k or '', v) for k, v in nsmap.items()]
+                    elif parent.nsmap != elem.nsmap:
+                        ns_declarations = [(k or '', v) for k, v in elem.nsmap.items()
+                                           if k not in parent.nsmap or v != parent.nsmap[k]]
+                    else:
+                        ns_declarations = None
+
                     self._nsmaps[elem] = nsmap
+                    if ns_declarations:
+                        self._ns_declarations[elem] = ns_declarations
 
         self._lazy_lock = threading.Lock() if self._lazy else None
         self._parent_map = None
@@ -766,7 +768,7 @@ class XMLResource:
         :param namespaces: is an optional mapping from namespace prefix to URI. \
         Provided namespaces are registered before serialization. Ignored if the \
         provided *elem* argument is a lxml Element instance.
-        :param indent: the base line indentation.
+        :param indent: the baseline indentation.
         :param max_lines: if truncate serialization after a number of lines \
         (default: do not truncate).
         :param spaces_for_tab: number of spaces for replacing tab characters. For \
