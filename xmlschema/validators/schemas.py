@@ -1823,7 +1823,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         else:
             selector = source.iter_depth(mode=2)
 
-        if kwargs.get('xmlns_usage') == 'standard' and namespaces is not None:
+        if kwargs.get('xmlns_usage') == 'exact' and namespaces is not None:
             selector = source.track_namespaces(selector, namespaces)
 
         for elem in selector:
@@ -1847,7 +1847,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                     validation: str = 'lax',
                     process_namespaces: bool = True,
                     namespaces: Optional[NamespacesType] = None,
-                    xmlns_usage: str = 'standard',
+                    xmlns_usage: str = 'exact',
                     use_defaults: bool = True,
                     use_location_hints: bool = False,
                     decimal_type: Optional[Type[Any]] = None,
@@ -1881,14 +1881,16 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         decoding process, using the map provided with the argument *namespaces* \
         and the namespace declarations extracted from the XML document.
         :param namespaces: is an optional mapping from namespace prefix to URI that \
-        integrate/override the root namespace declarations of the XML source.
+        integrate/override the root namespace declarations of the XML source. \
+        In case of prefix collision an alternate prefix is used for the root \
+        XML namespace declaration.
         :param xmlns_usage: defines the usage of the XML namespace declarations. \
-        The default is 'standard' that means each namespace declaration is applied \
-        for the element that contains the declaration and its descendants. Provide \
-        'collapse' to merge the namespace declarations in a unique namespace map, \
-        using alternative prefixes in case of collision. Provide 'ignore' to skip \
-        the processing of the namespace declarations, using only the ones provided \
-        through the argument *namespaces*.
+        The default is 'exact' which means that the loaded namespace declarations \
+        always match the ones defined in the XML document. Provide 'collapsed' for \
+        loading all namespace declarations of the XML source before decoding. \
+        Provide 'root-only' to use only the namespace declarations of the XML \
+        document root. \
+        Provide 'none' to not use any namespace declaration of the XML document.
         :param use_defaults: whether to use default values for filling missing data.
         :param use_location_hints: for default schema locations hints provided within \
         XML data are ignored in order to avoid the change of schema instance. Set this \
@@ -1939,19 +1941,21 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         if not schema_path and path:
             schema_path = resource.get_absolute_path(path)
 
-        if xmlns_usage == 'standard':
+        if xmlns_usage == 'exact':
             kwargs['xmlns_getter'] = resource.get_ns_declarations
             namespaces = resource.get_namespaces(namespaces)
-        elif xmlns_usage == 'collapse':
-            kwargs['xmlns_getter'] = lambda x: None
-            namespaces = resource.get_namespaces(namespaces, root_only=False)
-        elif xmlns_usage == 'ignore':
-            kwargs['xmlns_getter'] = lambda x: None
-            namespaces = get_namespace_map(namespaces)
-        elif isinstance(xmlns_usage, str):
-            raise XMLSchemaValueError("invalid value for argument 'xmlns_usage'")
         else:
-            raise XMLSchemaValueError("invalid type for argument 'xmlns_usage'")
+            kwargs['xmlns_getter'] = lambda x: None
+            if xmlns_usage == 'collapsed':
+                namespaces = resource.get_namespaces(namespaces, root_only=False)
+            elif xmlns_usage == 'root-only':
+                namespaces = resource.get_namespaces(namespaces, root_only=True)
+            elif xmlns_usage == 'none':
+                namespaces = get_namespace_map(namespaces)
+            elif isinstance(xmlns_usage, str):
+                raise XMLSchemaValueError("invalid value for argument 'xmlns_usage'")
+            else:
+                raise XMLSchemaValueError("invalid type for argument 'xmlns_usage'")
 
         converter = self.get_converter(converter, namespaces=namespaces,
                                        process_namespaces=process_namespaces, **kwargs)
@@ -1999,7 +2003,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
         if path:
             selector = resource.iterfind(path, namespaces)
-            if xmlns_usage == 'standard':
+            if xmlns_usage == 'exact':
                 selector = resource.track_namespaces(selector, namespaces)
 
         elif not resource.is_lazy():
@@ -2014,7 +2018,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             kwargs['depth_filler'] = lambda x: decoder
             kwargs['max_depth'] = resource.lazy_depth
             selector = resource.iter_depth(mode=3)
-            if xmlns_usage == 'standard':
+            if xmlns_usage == 'exact':
                 selector = resource.track_namespaces(selector, namespaces)
 
         for elem in selector:

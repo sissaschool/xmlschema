@@ -519,7 +519,6 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
                 options = {
                     'etree_element_class': lxml_etree_element,
                     'namespaces': namespaces,
-                    'xmlns_usage': 'collapse',
                 }
                 self.check_decode_encode(root, cdata_prefix='#', **options)  # Default converter
                 self.check_decode_encode(root, ParkerConverter, validation='lax', **options)
@@ -536,6 +535,13 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
                 self.check_json_serialization(root, AbderaConverter, **options)
                 self.check_json_serialization(root, JsonMLConverter, **options)
                 self.check_json_serialization(root, UnorderedConverter, **options)
+
+                options['xmlns_usage'] = 'collapsed'
+                self.check_decode_encode(root, cdata_prefix='#', **options)  # Default converter
+                self.check_decode_encode(root, BadgerFishConverter, **options)
+                self.check_decode_encode(root, AbderaConverter, **options)
+                self.check_decode_encode(root, JsonMLConverter, **options)
+                self.check_decode_encode(root, UnorderedConverter, cdata_prefix='#', **options)
 
         def check_validate_and_is_valid_api(self):
             if expected_errors:

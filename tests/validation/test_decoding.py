@@ -1519,6 +1519,7 @@ class TestDecoding(XsdValidatorTestCase):
             xml_file,
             validation='skip',
             converter=xmlschema.ParkerConverter,
+            xmlns_usage='exact',
         )
         with open(self.casepath('serialization/parker.json')) as fp:
             json_data = json.load(fp)
@@ -1529,6 +1530,7 @@ class TestDecoding(XsdValidatorTestCase):
             xml_file,
             validation='skip',
             converter=xmlschema.BadgerFishConverter,
+            xmlns_usage='exact',
         )
         with open(self.casepath('serialization/badgerfish.json')) as fp:
             json_data = json.load(fp)
@@ -1539,6 +1541,7 @@ class TestDecoding(XsdValidatorTestCase):
             xml_file,
             validation='skip',
             converter=xmlschema.JsonMLConverter,
+            xmlns_usage='exact',
         )
         with open(self.casepath('serialization/jsonml.json')) as fp:
             json_data = json.load(fp)
@@ -1549,6 +1552,7 @@ class TestDecoding(XsdValidatorTestCase):
             xml_file,
             validation='skip',
             converter=xmlschema.AbderaConverter,
+            xmlns_usage='exact',
         )
         with open(self.casepath('serialization/abdera.json')) as fp:
             json_data = json.load(fp)
