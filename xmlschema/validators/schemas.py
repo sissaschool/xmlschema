@@ -1711,7 +1711,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             'level': resource.lazy_depth or bool(path),
             'source': resource,
             'namespaces': namespaces,
-            'xmlns_getter': resource.get_ns_declarations,
+            'xmlns_getter': resource.get_xmlns,
             'converter': NamespaceMapper(namespaces),
             'use_defaults': use_defaults,
             'id_map': Counter[str](),
@@ -1942,7 +1942,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             schema_path = resource.get_absolute_path(path)
 
         if xmlns_usage == 'exact':
-            kwargs['xmlns_getter'] = resource.get_ns_declarations
+            kwargs['xmlns_getter'] = resource.get_xmlns
             namespaces = resource.get_namespaces(namespaces)
         else:
             kwargs['xmlns_getter'] = lambda x: None
