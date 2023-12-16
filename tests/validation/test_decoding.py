@@ -323,6 +323,150 @@ COLLECTION_COLUMNAR_ = {
     }
 }
 
+COLLECTION_XMLNS_USAGE_EXACT = {
+    '@xmlns:col1': 'http://example.com/ns/collection',
+    '@xmlns:col': 'http://xmlschema.test/ns',
+    '@xmlns': 'http://xmlschema.test/ns',
+    '@xmlns:xsi': 'http://www.w3.org/2001/XMLSchema-instance',
+    '@xsi:schemaLocation': 'http://example.com/ns/collection collection5.xsd',
+    'col:object': [
+        {'@xmlns:col': 'http://example.com/ns/collection',
+         '@id': 'b0836217462',
+         '@available': True,
+         'col:position': 1,
+         'col:title': 'The Umbrellas',
+         'col:year': '1886',
+         'col:author': {
+             '@id': 'PAR',
+             'col:name': 'Pierre-Auguste Renoir',
+             'col:born': '1841-02-25',
+             'col:dead': '1919-12-03',
+             'col:qualification': 'painter'
+         },
+         'col:estimation': Decimal('10000.00')}],
+    'object': [
+        {'@xmlns': 'http://example.com/ns/collection',
+         '@id': 'b0836217463',
+         '@available': True,
+         'position': 2,
+         'title': None,
+         'year': '1925',
+         'author': {
+            '@id': 'JM',
+            'name': 'Joan Miró',
+            'born': '1893-04-20',
+            'dead': '1983-12-25',
+            'qualification': 'painter, sculptor and ceramicist'
+         }}
+    ]
+}
+
+COLLECTION_XMLNS_USAGE_COLLAPSED = {
+    '@xmlns': 'http://xmlschema.test/ns',
+    '@xmlns:col': 'http://xmlschema.test/ns',
+    '@xmlns:col0': 'http://example.com/ns/collection',
+    '@xmlns:col1': 'http://example.com/ns/collection',
+    '@xmlns:default': 'http://example.com/ns/collection',
+    '@xmlns:xsi': 'http://www.w3.org/2001/XMLSchema-instance',
+    '@xsi:schemaLocation': 'http://example.com/ns/collection collection5.xsd',
+    'default:object': [
+        {'@id': 'b0836217462',
+         '@available': True,
+         'default:position': 1,
+         'default:title': 'The Umbrellas',
+         'default:year': '1886',
+         'default:author': {
+             '@id': 'PAR',
+             'default:name': 'Pierre-Auguste Renoir',
+             'default:born': '1841-02-25',
+             'default:dead': '1919-12-03',
+             'default:qualification': 'painter'
+         },
+         'default:estimation': Decimal('10000.00')},
+        {'@id': 'b0836217463',
+         '@available': True,
+         'default:position': 2,
+         'default:title': None,
+         'default:year': '1925',
+         'default:author': {
+            '@id': 'JM',
+            'default:name': 'Joan Miró',
+            'default:born': '1893-04-20',
+            'default:dead': '1983-12-25',
+            'default:qualification': 'painter, sculptor and ceramicist'
+         }}
+    ]
+}
+
+COLLECTION_XMLNS_USAGE_ROOT_ONLY = {
+    '@xmlns': 'http://xmlschema.test/ns',
+    '@xmlns:col': 'http://xmlschema.test/ns',
+    '@xmlns:col1': 'http://example.com/ns/collection',
+    '@xmlns:xsi': 'http://www.w3.org/2001/XMLSchema-instance',
+    '@xsi:schemaLocation': 'http://example.com/ns/collection collection5.xsd',
+    'col1:object': [
+        {'@id': 'b0836217462',
+         '@available': True,
+         'col1:position': 1,
+         'col1:title': 'The Umbrellas',
+         'col1:year': '1886',
+         'col1:author': {
+             '@id': 'PAR',
+             'col1:name': 'Pierre-Auguste Renoir',
+             'col1:born': '1841-02-25',
+             'col1:dead': '1919-12-03',
+             'col1:qualification': 'painter'
+         },
+         'col1:estimation': Decimal('10000.00')},
+        {'@id': 'b0836217463',
+         '@available': True,
+         'col1:position': 2,
+         'col1:title': None,
+         'col1:year': '1925',
+         'col1:author': {
+            '@id': 'JM',
+            'col1:name': 'Joan Miró',
+            'col1:born': '1893-04-20',
+            'col1:dead': '1983-12-25',
+            'col1:qualification': 'painter, sculptor and ceramicist'
+         }}
+    ]
+}
+
+
+COLLECTION_XMLNS_USAGE_NONE = {
+    '@xmlns:col-alt': 'http://example.com/ns/collection',
+    '@xmlns:xsi-alt': 'http://www.w3.org/2001/XMLSchema-instance',
+    '@xsi-alt:schemaLocation': 'http://example.com/ns/collection collection5.xsd',
+    'col-alt:object': [
+        {'@id': 'b0836217462',
+         '@available': True,
+         'col-alt:position': 1,
+         'col-alt:title': 'The Umbrellas',
+         'col-alt:year': '1886',
+         'col-alt:author': {
+             '@id': 'PAR',
+             'col-alt:name': 'Pierre-Auguste Renoir',
+             'col-alt:born': '1841-02-25',
+             'col-alt:dead': '1919-12-03',
+             'col-alt:qualification': 'painter'
+         },
+         'col-alt:estimation': Decimal('10000.00')},
+        {'@id': 'b0836217463',
+         '@available': True,
+         'col-alt:position': 2,
+         'col-alt:title': None,
+         'col-alt:year': '1925',
+         'col-alt:author': {
+            '@id': 'JM',
+            'col-alt:name': 'Joan Miró',
+            'col-alt:born': '1893-04-20',
+            'col-alt:dead': '1983-12-25',
+            'col-alt:qualification': 'painter, sculptor and ceramicist'
+         }}
+    ]
+}
+
 DATA_DICT = {
     '@xmlns:ns': 'ns',
     '@xmlns:xsi': 'http://www.w3.org/2001/XMLSchema-instance',
@@ -1558,6 +1702,33 @@ class TestDecoding(XsdValidatorTestCase):
             json_data = json.load(fp)
 
         self.assertDictEqual(json.loads(obj), json_data)
+
+    def test_xmlns_usage_argument(self):
+        xsd_file = self.casepath('examples/collection/collection5.xsd')
+        xml_file = self.casepath('examples/collection/collection-redef-xmlns.xml')
+
+        schema = self.schema_class(xsd_file)
+        self.assertTrue(schema.is_valid(xml_file))
+
+        obj = schema.decode(xml_file)
+        self.assertDictEqual(obj, COLLECTION_XMLNS_USAGE_EXACT)
+
+        obj = schema.decode(xml_file, xmlns_usage='collapsed')
+        self.assertDictEqual(obj, COLLECTION_XMLNS_USAGE_COLLAPSED)
+
+        obj = schema.decode(xml_file, xmlns_usage='root-only')
+        self.assertDictEqual(obj, COLLECTION_XMLNS_USAGE_ROOT_ONLY)
+
+        namespaces = {'xsi-alt': 'http://www.w3.org/2001/XMLSchema-instance',
+                      'col-alt': 'http://example.com/ns/collection'}
+        obj = schema.decode(xml_file, xmlns_usage='none', namespaces=namespaces)
+        self.assertDictEqual(obj, COLLECTION_XMLNS_USAGE_NONE)
+
+        with self.assertRaises(ValueError):
+            schema.decode(xml_file, xmlns_usage='precise')
+
+        with self.assertRaises(TypeError):
+            schema.decode(xml_file, xmlns_usage=None)
 
 
 class TestDecoding11(TestDecoding):

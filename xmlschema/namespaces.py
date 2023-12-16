@@ -156,7 +156,7 @@ class NamespaceMapper(MutableMapping[str, str]):
         except TypeError:
             raise XMLSchemaTypeError("the argument 'qname' must be a string-like object")
 
-        for prefix, uri in sorted(self._namespaces.items(), reverse=True):
+        for prefix, uri in reversed(self._namespaces.items()):
             if uri == namespace:
                 return f'{prefix}:{local_part}' if prefix else local_part
         else:

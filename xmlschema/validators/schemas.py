@@ -1955,7 +1955,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             elif isinstance(xmlns_usage, str):
                 raise XMLSchemaValueError("invalid value for argument 'xmlns_usage'")
             else:
-                raise XMLSchemaValueError("invalid type for argument 'xmlns_usage'")
+                raise XMLSchemaTypeError("invalid type for argument 'xmlns_usage'")
 
         converter = self.get_converter(converter, namespaces=namespaces,
                                        process_namespaces=process_namespaces, **kwargs)

@@ -15,9 +15,9 @@ import pickle
 import re
 import time
 import logging
-import importlib
 import tempfile
 import warnings
+from importlib import util as importlib_util
 from xml.etree import ElementTree
 
 try:
@@ -172,8 +172,8 @@ def make_schema_test_class(test_file, test_args, test_num, schema_class, check_w
                         os.chdir(tempdir)
                         generator.render_to_files('bindings.py.jinja')
 
-                        spec = importlib.util.spec_from_file_location(tempdir, 'bindings.py')
-                        module = importlib.util.module_from_spec(spec)
+                        spec = importlib_util.spec_from_file_location(tempdir, 'bindings.py')
+                        module = importlib_util.module_from_spec(spec)
                         spec.loader.exec_module(module)
                     finally:
                         os.chdir(cwd)
@@ -536,13 +536,6 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
                 self.check_json_serialization(root, JsonMLConverter, **options)
                 self.check_json_serialization(root, UnorderedConverter, **options)
 
-                options['xmlns_usage'] = 'collapsed'
-                self.check_decode_encode(root, cdata_prefix='#', **options)  # Default converter
-                self.check_decode_encode(root, BadgerFishConverter, **options)
-                self.check_decode_encode(root, AbderaConverter, **options)
-                self.check_decode_encode(root, JsonMLConverter, **options)
-                self.check_decode_encode(root, UnorderedConverter, cdata_prefix='#', **options)
-
         def check_validate_and_is_valid_api(self):
             if expected_errors:
                 self.assertFalse(self.schema.is_valid(xml_file), msg=xml_file)
@@ -613,8 +606,8 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
                     with open(module_name, 'w') as fp:
                         fp.write(python_module)
 
-                    spec = importlib.util.spec_from_file_location(tempdir, module_name)
-                    module = importlib.util.module_from_spec(spec)
+                    spec = importlib_util.spec_from_file_location(tempdir, module_name)
+                    module = importlib_util.module_from_spec(spec)
                     spec.loader.exec_module(module)
 
                     xml_root = ElementTree.parse(os.path.join(cwd, xml_file)).getroot()

@@ -112,9 +112,9 @@ class TestNamespaceMapper(unittest.TestCase):
 
         mapper[''] = XSD_NAMESPACE
         self.assertEqual(mapper.map_qname(''), '')
-        self.assertEqual(mapper.map_qname('{%s}element' % XSD_NAMESPACE), 'xs:element')
-        mapper.pop('xs')
         self.assertEqual(mapper.map_qname('{%s}element' % XSD_NAMESPACE), 'element')
+        mapper.pop('')
+        self.assertEqual(mapper.map_qname('{%s}element' % XSD_NAMESPACE), 'xs:element')
 
         with self.assertRaises(ValueError) as ctx:
             mapper.map_qname('{%selement' % XSD_NAMESPACE)

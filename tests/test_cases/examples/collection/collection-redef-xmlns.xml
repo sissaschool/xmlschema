@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<col1:collection xmlns:col1="http://example.com/ns/collection"
+			xmlns:col="http://xmlschema.test/ns"
+			xmlns="http://xmlschema.test/ns"
+            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+            xsi:schemaLocation="http://example.com/ns/collection collection5.xsd">
+	<col:object xmlns:col="http://example.com/ns/collection" id="b0836217462" available="true">
+		<col:position>1</col:position>
+		<col:title>The Umbrellas</col:title>
+		<col:year>1886</col:year>
+		<col:author id="PAR">
+			<col:name>Pierre-Auguste Renoir</col:name>
+			<col:born>1841-02-25</col:born>
+			<col:dead>1919-12-03</col:dead>
+			<col:qualification>painter</col:qualification>
+		</col:author>
+        <col:estimation>10000.00</col:estimation>
+	</col:object>
+	<object xmlns="http://example.com/ns/collection" id="b0836217463" available="true">
+		<position>2</position>
+		<title/>
+		<year>1925</year>
+		<author id="JM">
+			<name>Joan Miró</name>
+			<born>1893-04-20</born>
+			<dead>1983-12-25</dead>
+			<qualification>painter, sculptor and ceramicist</qualification>
+		</author>
+	</object>
+</col1:collection>
