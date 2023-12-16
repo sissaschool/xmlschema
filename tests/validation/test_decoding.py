@@ -61,6 +61,58 @@ VEHICLES_DICT_ALT = [
     {'@xsi:schemaLocation': 'http://example.com/vehicles vehicles.xsd'}
 ]
 
+VEHICLES_DICT_OVERRIDE_PREFIX_1 = {
+    '@xmlns:vh': 'http://example.com/vehicles',
+    '@xmlns:vh2': 'http://example.com/vehicles',
+    '@xmlns:xsi': 'http://www.w3.org/2001/XMLSchema-instance',
+    '@xsi:schemaLocation': 'http://example.com/vehicles vehicles.xsd',
+    'vh2:cars': {
+        'vh2:car': [
+            {'@make': 'Porsche', '@model': '911'},
+            {'@make': 'Porsche', '@model': '911'}
+        ]},
+    'vh2:bikes': {
+        'vh2:bike': [
+            {'@make': 'Harley-Davidson', '@model': 'WL'},
+            {'@make': 'Yamaha', '@model': 'XS650'}
+        ]}
+}
+
+VEHICLES_DICT_OVERRIDE_PREFIX_2 = {
+    '@xmlns': 'http://example.com/vehicles',
+    '@xmlns:vh': 'http://example.com/vehicles',
+    '@xmlns:vh-alt': 'http://example.com/vehicles',
+    '@xmlns:xsi': 'http://www.w3.org/2001/XMLSchema-instance',
+    '@xsi:schemaLocation': 'http://example.com/vehicles vehicles.xsd',
+    'vh-alt:cars': {
+        'vh-alt:car': [
+            {'@make': 'Porsche', '@model': '911'},
+            {'@make': 'Porsche', '@model': '911'}
+        ]},
+    'vh-alt:bikes': {
+        'vh-alt:bike': [
+            {'@make': 'Harley-Davidson', '@model': 'WL'},
+            {'@make': 'Yamaha', '@model': 'XS650'}
+        ]}
+}
+
+VEHICLES_DICT_OVERRIDE_PREFIX_3 = {
+    '@xmlns': 'http://example.com/vehicles',
+    '@xmlns:vh': 'http://example.com/vehicles',
+    '@xmlns:xsi': 'http://www.w3.org/2001/XMLSchema-instance',
+    '@xsi:schemaLocation': 'http://example.com/vehicles vehicles.xsd',
+    'cars': {
+        'car': [
+            {'@make': 'Porsche', '@model': '911'},
+            {'@make': 'Porsche', '@model': '911'}
+        ]},
+    'bikes': {
+        'bike': [
+            {'@make': 'Harley-Davidson', '@model': 'WL'},
+            {'@make': 'Yamaha', '@model': 'XS650'}
+        ]}
+}
+
 COLLECTION_DICT = {
     '@xmlns:col': 'http://example.com/ns/collection',
     '@xmlns:xsi': 'http://www.w3.org/2001/XMLSchema-instance',
@@ -256,7 +308,6 @@ COLLECTION_JSON_ML = [
      ]]
 ]
 
-
 COLLECTION_COLUMNAR = {
     'collection': {
         'collectionxsi:schemaLocation': 'http://example.com/ns/collection collection.xsd',
@@ -369,31 +420,31 @@ COLLECTION_XMLNS_USAGE_COLLAPSED = {
     '@xmlns:default': 'http://example.com/ns/collection',
     '@xmlns:xsi': 'http://www.w3.org/2001/XMLSchema-instance',
     '@xsi:schemaLocation': 'http://example.com/ns/collection collection5.xsd',
-    'default:object': [
+    'col1:object': [
         {'@id': 'b0836217462',
          '@available': True,
-         'default:position': 1,
-         'default:title': 'The Umbrellas',
-         'default:year': '1886',
-         'default:author': {
+         'col1:position': 1,
+         'col1:title': 'The Umbrellas',
+         'col1:year': '1886',
+         'col1:author': {
              '@id': 'PAR',
-             'default:name': 'Pierre-Auguste Renoir',
-             'default:born': '1841-02-25',
-             'default:dead': '1919-12-03',
-             'default:qualification': 'painter'
+             'col1:name': 'Pierre-Auguste Renoir',
+             'col1:born': '1841-02-25',
+             'col1:dead': '1919-12-03',
+             'col1:qualification': 'painter'
          },
-         'default:estimation': Decimal('10000.00')},
+         'col1:estimation': Decimal('10000.00')},
         {'@id': 'b0836217463',
          '@available': True,
-         'default:position': 2,
-         'default:title': None,
-         'default:year': '1925',
-         'default:author': {
+         'col1:position': 2,
+         'col1:title': None,
+         'col1:year': '1925',
+         'col1:author': {
             '@id': 'JM',
-            'default:name': 'Joan Miró',
-            'default:born': '1893-04-20',
-            'default:dead': '1983-12-25',
-            'default:qualification': 'painter, sculptor and ceramicist'
+            'col1:name': 'Joan Miró',
+            'col1:born': '1893-04-20',
+            'col1:dead': '1983-12-25',
+            'col1:qualification': 'painter, sculptor and ceramicist'
          }}
     ]
 }
@@ -1729,6 +1780,25 @@ class TestDecoding(XsdValidatorTestCase):
 
         with self.assertRaises(TypeError):
             schema.decode(xml_file, xmlns_usage=None)
+
+    def test_namespaces_argument(self):
+        namespaces = {'vh': 'http://example.com/vehicles'}
+        obj = self.vh_schema.decode(self.vh_xml_file, namespaces=namespaces)
+        self.maxDiff = None
+        self.assertDictEqual(obj, VEHICLES_DICT)
+
+        namespaces = {'vh2': 'http://example.com/vehicles'}
+        obj = self.vh_schema.decode(self.vh_xml_file, namespaces=namespaces)
+        self.assertDictEqual(obj, VEHICLES_DICT_OVERRIDE_PREFIX_1)
+
+        namespaces = {'vh-alt': 'http://example.com/vehicles',
+                      '': 'http://example.com/vehicles'}
+        obj = self.vh_schema.decode(self.vh_xml_file, namespaces=namespaces)
+        self.assertDictEqual(obj, VEHICLES_DICT_OVERRIDE_PREFIX_2)
+
+        namespaces = {'': 'http://example.com/vehicles'}
+        obj = self.vh_schema.decode(self.vh_xml_file, namespaces=namespaces)
+        self.assertDictEqual(obj, VEHICLES_DICT_OVERRIDE_PREFIX_3)
 
 
 class TestDecoding11(TestDecoding):

@@ -64,28 +64,26 @@ class NamespaceResourcesMap(MutableMapping[str, Any]):
 
 class NamespaceMapper(MutableMapping[str, str]):
     """
-    A class to map/unmap namespace prefixes to URIs. The mapped namespaces are
-    automatically registered when set. Namespaces can be updated overwriting
-    the existing registration or inserted using an alternative prefix.
+    A class to map/unmap namespace prefixes to URIs. An internal reverse mapping
+    from URI to prefix is also maintained for keep name mapping consistent within
+    updates.
 
-    :param namespaces: initial data with namespace prefixes and URIs. \
-    The provided dictionary is bound with the instance, otherwise a new \
-    empty dictionary is used.
-    :param process_namespaces: whether to use namespace information in name \
-    mapping methods. If set to `False` the name mapping methods
-    decoding process, using the map provided with the argument *namespaces* \
-    and the namespace declarations extracted from the XML document.
-    :param strip_namespaces: if set to `True` uses name mapping methods that strip \
-    namespace information.
+    :param namespaces: initial data with mapping of namespace prefixes to URIs.
+    :param process_namespaces: whether to use namespace information in name mapping \
+    methods. If set to `False` then the name mapping methods simply return the \
+    provided name.
+    :param strip_namespaces: if set to `True` then the name mapping methods return \
+    the local part of the provided name.
     """
-    __slots__ = '_namespaces', '_process_namespaces', '_strip_namespaces', \
-        '_use_xmlns', '__dict__'
+    __slots__ = '_namespaces', '_uri_to_prefix', '_process_namespaces', \
+        '_strip_namespaces', '_use_xmlns', '__dict__'
     _namespaces: NamespacesType
 
     def __init__(self, namespaces: Optional[NamespacesType] = None,
                  process_namespaces: bool = True,
                  strip_namespaces: bool = False):
         self._namespaces = {} if namespaces is None else namespaces
+        self._uri_to_prefix = {v: k for k, v in reversed(self._namespaces.items())}
         self._process_namespaces = process_namespaces
         self._strip_namespaces = strip_namespaces
         self._use_xmlns = bool(process_namespaces and not strip_namespaces)
@@ -95,9 +93,16 @@ class NamespaceMapper(MutableMapping[str, str]):
 
     def __setitem__(self, prefix: str, uri: str) -> None:
         self._namespaces[prefix] = uri
+        self._uri_to_prefix[uri] = prefix
 
     def __delitem__(self, prefix: str) -> None:
-        del self._namespaces[prefix]
+        uri = self._namespaces.pop(prefix)
+        del self._uri_to_prefix[uri]
+
+        for k in reversed(self._namespaces.keys()):
+            if self._namespaces[k] == uri:
+                self._uri_to_prefix[uri] = k
+                break
 
     def __iter__(self) -> Iterator[str]:
         return iter(self._namespaces)
@@ -156,11 +161,12 @@ class NamespaceMapper(MutableMapping[str, str]):
         except TypeError:
             raise XMLSchemaTypeError("the argument 'qname' must be a string-like object")
 
-        for prefix, uri in reversed(self._namespaces.items()):
-            if uri == namespace:
-                return f'{prefix}:{local_part}' if prefix else local_part
-        else:
+        try:
+            prefix = self._uri_to_prefix[namespace]
+        except KeyError:
             return qname
+        else:
+            return f'{prefix}:{local_part}' if prefix else local_part
 
     def unmap_qname(self, qname: str,
                     name_table: Optional[Container[Optional[str]]] = None) -> str:
