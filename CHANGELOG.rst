@@ -2,6 +2,11 @@
 CHANGELOG
 *********
 
+`v2.5.1`_ (2023-12-19)
+======================
+* Fix slowness of key selectors introduced by v2.5.0 (issue #378)
+* Remove redundant wheel dep from pyproject.toml and unnecessary build deps from tox.ini (PR #368)
+
 `v2.5.0`_ (2023-09-21)
 ======================
 * Fix identity keys tracking with additional full XPath checks on XML data
@@ -640,3 +645,4 @@ v0.9.6 (2017-05-05)
 .. _v2.3.1: https://github.com/brunato/xmlschema/compare/v2.3.0...v2.3.1
 .. _v2.4.0: https://github.com/brunato/xmlschema/compare/v2.3.1...v2.4.0
 .. _v2.5.0: https://github.com/brunato/xmlschema/compare/v2.4.0...v2.5.0
+.. _v2.5.1: https://github.com/brunato/xmlschema/compare/v2.5.0...v2.5.1
