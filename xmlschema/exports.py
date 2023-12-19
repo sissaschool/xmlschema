@@ -10,7 +10,7 @@
 import re
 import pathlib
 from itertools import chain
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Optional, List
 from urllib.parse import unquote, urlsplit
 
 from .exceptions import XMLSchemaValueError
@@ -28,7 +28,9 @@ def replace_location(text: str, location: str, repl_location: str) -> str:
 
 
 def export_schema(obj: 'XMLSchemaBase', target_dir: str,
-                  save_remote: bool = False, remove_residuals: bool = True) -> None:
+                  save_remote: bool = False,
+                  remove_residuals: bool = True,
+                  exclude_locations: Optional[List[str]] = None) -> None:
 
     target_path = pathlib.Path(target_dir)
     if target_path.is_dir():
@@ -48,6 +50,8 @@ def export_schema(obj: 'XMLSchemaBase', target_dir: str,
     name = obj.name or 'schema.xsd'
     exports: Any = {obj: [LocationPath(unquote(name)), obj.get_text(), False]}
     path: Any
+    if exclude_locations is None:
+        exclude_locations = []
 
     while True:
         current_length = len(exports)
@@ -59,7 +63,7 @@ def export_schema(obj: 'XMLSchemaBase', target_dir: str,
 
             dir_path = exports[schema][0].parent
             imports_items = [(x.url, x) for x in schema.imports.values()
-                             if x is not None]
+                             if x is not None and x.meta_schema is not None]
 
             pattern = r'\bschemaLocation\s*=\s*[\'\"](.*)[\'"]'
             schema_locations = set(
@@ -67,6 +71,8 @@ def export_schema(obj: 'XMLSchemaBase', target_dir: str,
             )
 
             for location, ref_schema in chain(schema.includes.items(), imports_items):
+                if location in exclude_locations:
+                    continue
 
                 # Find matching schema location
                 if location in schema_locations:
@@ -150,7 +156,10 @@ def export_schema(obj: 'XMLSchemaBase', target_dir: str,
 
             if remove_residuals:
                 # Deactivate residual redundant imports
-                for location in filter(lambda x: x not in schema.includes, schema_locations):
+                for location in filter(
+                        lambda x: x not in schema.includes and x not in exclude_locations,
+                        schema_locations
+                ):
                     exports[schema][1] = replace_location(exports[schema][1], location, '')
 
         if current_length == len(exports):

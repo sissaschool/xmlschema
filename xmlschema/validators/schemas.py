@@ -1453,8 +1453,10 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             build=build,
         )
 
-    def export(self, target: str, save_remote: bool = False,
-               remove_residuals: bool = True) -> None:
+    def export(self, target: str,
+               save_remote: bool = False,
+               remove_residuals: bool = True,
+               exclude_locations: Optional[List[str]] = None) -> None:
         """
         Exports a schema instance. The schema instance is exported to a
         directory with also the hierarchy of imported/included schemas.
@@ -1463,9 +1465,11 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         :param save_remote: if `True` is provided saves also remote schemas.
         :param remove_residuals: for default removes residual schema locations \
         from redundant import statements.
+        :param exclude_locations: explicitly exclude schema locations from \
+        substitution or removal.
         """
         from ..exports import export_schema
-        export_schema(self, target, save_remote, remove_residuals)
+        export_schema(self, target, save_remote, remove_residuals, exclude_locations)
 
     def version_check(self, elem: ElementType) -> bool:
         """
