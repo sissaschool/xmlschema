@@ -893,14 +893,14 @@ class XsdElement(XsdComponent, ParticleMixin,
                 if not counter.enabled or not identity.elements:
                     continue
 
-            # Apply selector on Element ancestor for discard false matches
-            root_node = resource.get_xpath_node(counter.elem)
-            context = XPathContext(root_node)
+            if counter.elements is None:
+                # Apply selector on Element ancestor for obtain the selected elements
+                root_node = resource.get_xpath_node(counter.elem)
+                context = XPathContext(root_node)
+                assert identity.selector is not None and identity.selector.token is not None
+                counter.elements = set(identity.selector.token.select_results(context))
 
-            for item in identity.selector.token.select_results(context):  # type: ignore
-                if item is elem:
-                    break
-            else:
+            if elem not in counter.elements:
                 continue
 
             try:

@@ -473,6 +473,7 @@ class IdentityCounter:
         self.identity = identity
         self.elem = elem
         self.enabled = True
+        self.elements = None
 
     def __repr__(self) -> str:
         return "%s%r" % (self.__class__.__name__[:-7], self.counter)
@@ -481,6 +482,7 @@ class IdentityCounter:
         self.counter.clear()
         self.elem = elem
         self.enabled = True
+        self.elements = None
 
     def increase(self, fields: IdentityCounterType) -> None:
         self.counter[fields] += 1
