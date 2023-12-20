@@ -44,7 +44,7 @@ from .exceptions import XMLSchemaNotBuiltError, XMLSchemaValidationError, \
     XMLSchemaParseError, XMLSchemaStopValidation, XMLSchemaTypeTableWarning
 from .helpers import get_xsd_derivation_attribute
 from .xsdbase import XSD_TYPE_DERIVATIONS, XSD_ELEMENT_DERIVATIONS, \
-    XsdComponent, ValidationMixin
+    XSD_VALIDATION_MODES, XsdComponent, ValidationMixin
 from .particles import ParticleMixin, OccursCalculator
 from .identities import XsdIdentity, XsdKey, XsdUnique, \
     XsdKeyref, KeyrefCounter, IdentityCounterType
@@ -604,10 +604,14 @@ class XsdElement(XsdComponent, ParticleMixin,
             reason = _("cannot use an abstract element for validation")
             yield self.validation_error(validation, reason, obj, **kwargs)
 
-        # Stop/skip validation on element and its descendants
-        if 'stop_validation' in kwargs:
-            if kwargs['stop_validation'](obj, self):
-                validation = 'skip'
+        # Control validation on element and its descendants or stop validation
+        if 'validation_hook' in kwargs:
+            value = kwargs['validation_hook'](obj, self)
+            if value:
+                if isinstance(value, str) and value in XSD_VALIDATION_MODES:
+                    validation = value
+                else:
+                    return
 
         try:
             level = kwargs['level']
@@ -1448,7 +1452,7 @@ class Xsd11Element(XsdElement):
                         raise XMLSchemaStopValidation()
                     return False
 
-                errors = list(schema.iter_errors(source, stop_validation=stop_validation))
+                errors = list(schema.iter_errors(source, validation_hook=stop_validation))
                 if len(options['errors']) != len(errors) or \
                         any(e1.elem is not e2.elem for e1, e2 in zip(options['errors'], errors)):
                     reason = _(f"adding schema at {url} change the "

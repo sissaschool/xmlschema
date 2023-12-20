@@ -161,7 +161,7 @@ class XMLResource:
     when the URL of the resource can't be obtained from the source argument. For security \
     the access to a local file resource is always denied if the *base_url* is a remote URL.
     :param allow: defines the security mode for accessing resource locations. Can be \
-    'all', 'remote', 'local', 'sandbox' or 'none'. Default is 'all', which means all types
+    'all', 'remote', 'local', 'sandbox' or 'none'. Default is 'all', which means all types \
     of URLs are allowed. With 'remote' only remote resource URLs are allowed. With 'local' \
     only file paths and URLs are allowed. With 'sandbox' only file paths and URLs that \
     are under the directory path identified by the *base_url* argument are allowed. \

@@ -1800,6 +1800,20 @@ class TestDecoding(XsdValidatorTestCase):
         obj = self.vh_schema.decode(self.vh_xml_file, namespaces=namespaces)
         self.assertDictEqual(obj, VEHICLES_DICT_OVERRIDE_PREFIX_3)
 
+    def test_validation_hook_argument(self):
+        tags_num = 1
+
+        def stop_decoding(_e, _xsd_element):
+            nonlocal tags_num
+            if tags_num >= 10:
+                return True
+            tags_num += 1
+            return False
+
+        obj = self.col_schema.decode(self.col_xml_file, validation_hook=stop_decoding)
+        self.assertIn('object', obj)
+        self.assertEqual(len(obj['object']), 1)
+
 
 class TestDecoding11(TestDecoding):
     schema_class = XMLSchema11

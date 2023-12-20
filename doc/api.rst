@@ -24,6 +24,7 @@ Errors and exceptions
 .. autoexception:: xmlschema.XMLSchemaEncodeError
 .. autoexception:: xmlschema.XMLSchemaChildrenValidationError
 
+.. autoexception:: xmlschema.XMLSchemaStopValidation
 .. autoexception:: xmlschema.XMLSchemaIncludeWarning
 .. autoexception:: xmlschema.XMLSchemaImportWarning
 .. autoexception:: xmlschema.XMLSchemaTypeTableWarning

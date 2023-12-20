@@ -41,7 +41,7 @@ from ..names import VC_MIN_VERSION, VC_MAX_VERSION, VC_TYPE_AVAILABLE, \
     XSD_ANY_SIMPLE_TYPE, XSD_UNION, XSD_LIST, XSD_RESTRICTION
 from ..aliases import ElementType, XMLSourceType, NamespacesType, LocationsType, \
     SchemaType, SchemaSourceType, ConverterType, ComponentClassType, DecodeType, \
-    EncodeType, BaseXsdType, ExtraValidatorType, StopValidationType, \
+    EncodeType, BaseXsdType, ExtraValidatorType, ValidationHookType, \
     SchemaGlobalType, FillerType, DepthFillerType, ValueHookType, ElementHookType
 from ..translation import gettext as _
 from ..helpers import prune_etree, get_namespace, get_namespace_map, \
@@ -1618,7 +1618,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                  namespaces: Optional[NamespacesType] = None,
                  max_depth: Optional[int] = None,
                  extra_validator: Optional[ExtraValidatorType] = None,
-                 stop_validation: Optional[StopValidationType] = None,
+                 validation_hook: Optional[ValidationHookType] = None,
                  allow_empty: bool = True,
                  use_location_hints: bool = False) -> None:
         """
@@ -1641,10 +1641,15 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         element, with the XML element as 1st argument and the corresponding XSD \
         element as 2nd argument. It can be also a generator function and has to \
         raise/yield :exc:`XMLSchemaValidationError` exceptions.
-        :param stop_validation: on optional function for stopping validation at \
-        certain elements. The validation can be skipped for a set of elements and \
-        their descendants, if the function returns `True`, or definitively, raising \
-        a `XmlSchemaStopValidation` exception.
+        :param validation_hook: an optional function for stopping or changing \
+        validation at element level. The provided function must accept two arguments, \
+        the XML element and the matching XSD element. If the value returned by this \
+        function is evaluated to false then the validation process continues without \
+        changes, otherwise the validation process is stopped or changed. If the value \
+        returned is a validation mode the validation process continues changing the \
+        current validation mode to the returned value, otherwise the element and its \
+        content are not processed. The function can also stop validation suddenly \
+        raising a `XmlSchemaStopValidation` exception.
         :param allow_empty: for default providing a path argument empty selections \
         of XML data are allowed. Provide `False` to generate a validation error.
         :param use_location_hints: for default schema locations hints provided within \
@@ -1654,7 +1659,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         """
         for error in self.iter_errors(source, path, schema_path, use_defaults,
                                       namespaces, max_depth, extra_validator,
-                                      stop_validation, allow_empty, use_location_hints):
+                                      validation_hook, allow_empty, use_location_hints):
             raise error
 
     def is_valid(self, source: Union[XMLSourceType, XMLResource],
@@ -1664,7 +1669,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                  namespaces: Optional[NamespacesType] = None,
                  max_depth: Optional[int] = None,
                  extra_validator: Optional[ExtraValidatorType] = None,
-                 stop_validation: Optional[StopValidationType] = None,
+                 validation_hook: Optional[ValidationHookType] = None,
                  allow_empty: bool = True,
                  use_location_hints: bool = False) -> bool:
         """
@@ -1673,7 +1678,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         """
         error = next(self.iter_errors(source, path, schema_path, use_defaults,
                                       namespaces, max_depth, extra_validator,
-                                      stop_validation, allow_empty, use_location_hints), None)
+                                      validation_hook, allow_empty, use_location_hints), None)
         return error is None
 
     def iter_errors(self, source: Union[XMLSourceType, XMLResource],
@@ -1683,7 +1688,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                     namespaces: Optional[NamespacesType] = None,
                     max_depth: Optional[int] = None,
                     extra_validator: Optional[ExtraValidatorType] = None,
-                    stop_validation: Optional[StopValidationType] = None,
+                    validation_hook: Optional[ValidationHookType] = None,
                     allow_empty: bool = True,
                     use_location_hints: bool = False) \
             -> Iterator[XMLSchemaValidationError]:
@@ -1730,8 +1735,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             kwargs['max_depth'] = max_depth
         if extra_validator is not None:
             kwargs['extra_validator'] = extra_validator
-        if stop_validation is not None:
-            kwargs['stop_validation'] = stop_validation
+        if validation_hook is not None:
+            kwargs['validation_hook'] = validation_hook
 
         if path:
             selector = resource.iterfind(path, namespaces, ancestors=ancestors)
@@ -1865,6 +1870,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                     process_skipped: bool = False,
                     max_depth: Optional[int] = None,
                     depth_filler: Optional[DepthFillerType] = None,
+                    extra_validator: Optional[ExtraValidatorType] = None,
+                    validation_hook: Optional[ValidationHookType] = None,
                     value_hook: Optional[ValueHookType] = None,
                     element_hook: Optional[ElementHookType] = None,
                     **kwargs: Any) -> Iterator[Union[Any, XMLSchemaValidationError]]:
@@ -1925,6 +1932,19 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         :param depth_filler: an optional callback function to replace data over the \
         *max_depth* level. The callback function must accept one positional argument, that \
         can be an XSD Element. If not provided deeper data are replaced with `None` values.
+        :param extra_validator: an optional function for performing non-standard \
+        validations on XML data. The provided function is called for each traversed \
+        element, with the XML element as 1st argument and the corresponding XSD \
+        element as 2nd argument. It can be also a generator function and has to \
+        raise/yield :exc:`XMLSchemaValidationError` exceptions.
+        :param validation_hook: an optional function for stopping or changing \
+        validated decoding at element level. The provided function must accept two \
+        arguments, the XML element and the matching XSD element. If the value returned \
+        by this function is evaluated to false then the decoding process continues \
+        without changes, otherwise the decoding process is stopped or changed. If the \
+        value returned is a validation mode the decoding process continues changing the \
+        current validation mode to the returned value, otherwise the element and its \
+        content are not decoded.
         :param value_hook: an optional function that will be called with any decoded \
         atomic value and the XSD type used for decoding. The return value will be used \
         instead of the original value.
@@ -2000,6 +2020,10 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             kwargs['max_depth'] = max_depth
         if depth_filler is not None:
             kwargs['depth_filler'] = depth_filler
+        if extra_validator is not None:
+            kwargs['extra_validator'] = extra_validator
+        if validation_hook is not None:
+            kwargs['validation_hook'] = validation_hook
         if value_hook is not None:
             kwargs['value_hook'] = value_hook
         if element_hook is not None:

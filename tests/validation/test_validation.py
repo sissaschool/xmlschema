@@ -160,7 +160,7 @@ class TestValidation(XsdValidatorTestCase):
             self.vh_schema.validate(self.vh_xml_file, extra_validator=bikes_validator)
         self.assertIn('Reason: not an Harley-Davidson', str(ec.exception))
 
-    def test_stop_validation_argument(self):
+    def test_validation_hook_argument(self):
         resource = xmlschema.XMLResource(
             self.casepath('examples/collection/collection-1_error.xml')
         )
@@ -174,12 +174,12 @@ class TestValidation(XsdValidatorTestCase):
                 raise XMLSchemaStopValidation()
             return False
 
-        self.assertIsNone(self.col_schema.validate(resource, stop_validation=stop_validation))
+        self.assertIsNone(self.col_schema.validate(resource, validation_hook=stop_validation))
 
         def skip_validation(e, _xsd_element):
             return e is ec.exception.elem
 
-        self.assertIsNone(self.col_schema.validate(resource, stop_validation=skip_validation))
+        self.assertIsNone(self.col_schema.validate(resource, validation_hook=skip_validation))
 
     def test_path_argument(self):
         schema = self.schema_class(self.casepath('examples/vehicles/vehicles.xsd'))

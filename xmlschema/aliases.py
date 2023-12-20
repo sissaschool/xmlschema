@@ -21,7 +21,7 @@ __all__ = ['ElementType', 'ElementTreeType', 'XMLSourceType', 'NamespacesType',
            'SchemaAttributeType', 'SchemaGlobalType', 'GlobalMapType', 'ModelGroupType',
            'ModelParticleType', 'XPathElementType', 'AtomicValueType', 'NumericValueType',
            'DateTimeType', 'SchemaSourceType', 'ConverterType', 'ComponentClassType',
-           'ExtraValidatorType', 'StopValidationType', 'DecodeType', 'IterDecodeType',
+           'ExtraValidatorType', 'ValidationHookType', 'DecodeType', 'IterDecodeType',
            'JsonDecodeType', 'EncodeType', 'IterEncodeType', 'DecodedValueType',
            'EncodedValueType', 'FillerType', 'DepthFillerType', 'ValueHookType',
            'ElementHookType']
@@ -93,7 +93,7 @@ if TYPE_CHECKING:
     ConverterType = Union[Type[XMLSchemaConverter], XMLSchemaConverter]
     ExtraValidatorType = Callable[[ElementType, XsdElement],
                                   Optional[Iterator[XMLSchemaValidationError]]]
-    StopValidationType = Callable[[ElementType, XsdElement], bool]
+    ValidationHookType = Callable[[ElementType, XsdElement], Union[bool, str]]
 
     D = TypeVar('D')
     DecodeType = Union[Optional[D], Tuple[Optional[D], List[XMLSchemaValidationError]]]

@@ -429,9 +429,9 @@ For instance you can use the *Badgerfish* converter for a schema instance:
     >>> xml_document = 'tests/test_cases/examples/vehicles/vehicles.xml'
     >>> xs = xmlschema.XMLSchema(xml_schema, converter=xmlschema.BadgerFishConverter)
     >>> pprint(xs.to_dict(xml_document, dict_class=dict), indent=4)
-    {   '@xmlns': {   'vh': 'http://example.com/vehicles',
-                      'xsi': 'http://www.w3.org/2001/XMLSchema-instance'},
-        'vh:vehicles': {   '@xsi:schemaLocation': 'http://example.com/vehicles '
+    {   'vh:vehicles': {   '@xmlns': {   'vh': 'http://example.com/vehicles',
+                                         'xsi': 'http://www.w3.org/2001/XMLSchema-instance'},
+                           '@xsi:schemaLocation': 'http://example.com/vehicles '
                                                   'vehicles.xsd',
                            'vh:bikes': {   'vh:bike': [   {   '@make': 'Harley-Davidson',
                                                               '@model': 'WL'},
@@ -531,11 +531,31 @@ Control the decoding depth
 max_depth
     maximum level of decoding, for default there is no limit. With lazy resources
     is automatically set to *source.lazy_depth* for managing lazy decoding.
+    Available also for validation methods.
 
 depth_filler
     a callback function for replacing data over the *max_depth* level. The callback
     function must accept one positional argument, that can be an XSD Element. For
     default deeper data is replaced with `None` values when *max_depth* is provided.
+
+Control the validation
+----------------------
+
+extra_validator
+    an optional function for performing non-standard validations on XML data. The
+    provided function is called for each traversed element, with the XML element as
+    1st argument and the corresponding XSD element as 2nd argument. It can be also a
+    generator function and has to raise/yield `XMLSchemaValidationError` exceptions.
+
+validation_hook
+    an optional function for stopping or changing validation/decoding at element level.
+    The provided function must accept two arguments, the XML element and the matching
+    XSD element. If the value returned by this function is evaluated to false then the
+    validation/decoding process continues without changes, otherwise it's stopped or
+    changed. If the value returned is a validation mode the validation/decoding process
+    continues changing the current validation mode to the returned value, otherwise the
+    element and its content are not processed. For validation only this function can
+    also stop validation suddenly raising a `XMLSchemaStopValidation` exception.
 
 
 Decoding to JSON
@@ -698,6 +718,7 @@ Furthermore also decode and encode methods can be applied on XSD files or source
      '@elementFormDefault': 'qualified',
      '@finalDefault': [],
      '@targetNamespace': 'http://example.com/vehicles',
+     '@xmlns:vh': 'http://example.com/vehicles',
      '@xmlns:xs': 'http://www.w3.org/2001/XMLSchema',
      'xs:attribute': {'@name': 'step', '@type': 'xs:positiveInteger'},
      'xs:element': {'@abstract': False,
