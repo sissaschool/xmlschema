@@ -20,7 +20,8 @@ except ImportError:
     lxml_etree = None
 
 import xmlschema
-from xmlschema import XMLSchemaValidationError, XMLSchemaStopValidation
+from xmlschema import XMLSchemaValidationError, XMLSchemaStopValidation, \
+    XMLSchemaChildrenValidationError
 
 from xmlschema.validators import XMLSchema11
 from xmlschema.testing import XsdValidatorTestCase
@@ -547,6 +548,27 @@ class TestValidation11(TestValidation):
 
         self.assertIn("change the assessment outcome of previous items",
                       str(ctx.exception))
+
+    def test_incorrect_validation_errors__issue_372(self):
+        schema = self.schema_class(self.casepath('issues/issue_372/issue_372.xsd'))
+
+        xml_file = self.casepath('issues/issue_372/issue_372-1.xml')
+        errors = list(schema.iter_errors(xml_file))
+        self.assertEqual(len(errors), 1)
+
+        err = errors[0]
+        self.assertIsInstance(err, XMLSchemaChildrenValidationError)
+        self.assertEqual(err.invalid_child, err.elem[err.index])
+        self.assertEqual(err.invalid_tag, 'invalidTag')
+
+        xml_file = self.casepath('issues/issue_372/issue_372-2.xml')
+        errors = list(schema.iter_errors(xml_file))
+        self.assertEqual(len(errors), 1)
+
+        err = errors[0]
+        self.assertIsInstance(err, XMLSchemaChildrenValidationError)
+        self.assertEqual(err.invalid_child, err.elem[err.index])
+        self.assertEqual(err.invalid_tag, 'optionalSecondChildTag')
 
 
 if __name__ == '__main__':

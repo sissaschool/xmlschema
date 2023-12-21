@@ -323,6 +323,9 @@ class XMLSchemaChildrenValidationError(XMLSchemaValidationError):
     :param source: the XML resource that contains the error.
     :param namespaces: is an optional mapping from namespace prefix to URI.
     """
+    invalid_tag: Optional[str]
+    """The tag of the invalid child element, `None` in case of an incomplete content."""
+
     def __init__(self, validator: 'XsdValidator',
                  elem: ElementType,
                  index: int,
@@ -337,12 +340,14 @@ class XMLSchemaChildrenValidationError(XMLSchemaValidationError):
         self.occurs = occurs
         self.expected = expected
 
-        tag = get_prefixed_qname(elem.tag, validator.namespaces, use_empty=False)
         if index >= len(elem):
+            self.invalid_tag = None
+            tag = get_prefixed_qname(elem.tag, validator.namespaces, use_empty=False)
             reason = _("The content of element %r is not complete.") % tag
         else:
-            child_tag = get_prefixed_qname(elem[index].tag, validator.namespaces, use_empty=False)
-            reason = _("Unexpected child with tag %r at position %d.") % (child_tag, index + 1)
+            self.invalid_tag = elem[index].tag
+            tag = get_prefixed_qname(self.invalid_tag, validator.namespaces, use_empty=False)
+            reason = _("Unexpected child with tag %r at position %d.") % (tag, index + 1)
 
         if occurs and particle.is_missing(occurs):
             reason += " The particle %r occurs %d times but the minimum is %d." % (
@@ -380,6 +385,17 @@ class XMLSchemaChildrenValidationError(XMLSchemaValidationError):
 
         super(XMLSchemaChildrenValidationError, self).\
             __init__(validator, elem, reason, source, namespaces)
+
+    @property
+    def invalid_child(self) -> Optional[ElementType]:
+        """
+        The invalid child element, if any, `None` otherwise. It's `None` in case of
+        incomplete content or if the parent has been cleared during lazy validation.
+        """
+        try:
+            return self.elem[self.index] if self.elem is not None else None
+        except IndexError:
+            return None  # in case of incomplete content or lazy trees
 
 
 class XMLSchemaStopValidation(XMLSchemaException):
