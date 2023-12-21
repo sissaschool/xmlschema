@@ -184,6 +184,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     argument *global_maps* is provided.
     :param use_fallback: if `True` the schema processor uses the validator fallback \
     location hints to load well-known namespaces (e.g. xhtml).
+    :param use_xpath3: if `True` an XSD 1.1 schema instance uses the XPath 3 processor \
+    for assertions. For default a full XPath 2.0 processor is used for XSD 1.1 assertions.
     :param loglevel: for setting a different logging level for schema initialization \
     and building. For default is WARNING (30). For INFO level set it with 20, for \
     DEBUG level with 10. The default loglevel is restored after schema building, \
@@ -291,6 +293,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     default_attributes: Optional[Union[str, XsdAttributeGroup]] = None
     default_open_content = None
     override: Optional['XMLSchemaBase'] = None
+    use_xpath3: bool = False
 
     # Store XPath constructors tokens (for schema and its assertions)
     xpath_tokens: Optional[Dict[str, Type[XPathToken]]] = None
@@ -308,6 +311,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                  build: bool = True,
                  use_meta: bool = True,
                  use_fallback: bool = True,
+                 use_xpath3: bool = False,
                  loglevel: Optional[Union[str, int]] = None) -> None:
 
         super(XMLSchemaBase, self).__init__(validation)
@@ -454,6 +458,9 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             self.maps = self.meta_schema.maps.copy(self, validation)
         else:
             self.maps = XsdGlobals(self, validation)
+
+        if use_xpath3 and self.XSD_VERSION > '1.0':
+            self.use_xpath3 = True
 
         if any(ns == VC_NAMESPACE for ns in self.namespaces.values()):
             # For XSD 1.1+ apply versioning filter to schema tree. See the paragraph
@@ -1255,6 +1262,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 defuse=self.defuse,
                 timeout=self.timeout,
                 build=build,
+                use_xpath3=self.use_xpath3,
             )
 
         if schema is self:
@@ -1411,6 +1419,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             defuse=self.defuse,
             timeout=self.timeout,
             build=build,
+            use_xpath3=self.use_xpath3,
         )
         if schema.target_namespace != namespace:
             msg = _('imported schema {0!r} has an unmatched namespace {1!r}')
@@ -1451,6 +1460,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             defuse=self.defuse,
             timeout=self.timeout,
             build=build,
+            use_xpath3=self.use_xpath3,
         )
 
     def export(self, target: str,

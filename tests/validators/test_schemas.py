@@ -978,6 +978,14 @@ class TestXMLSchema10(XsdValidatorTestCase):
         self.assertIn("global element with name='elem1' is already defined",
                       str(ctx.exception))
 
+    def test_use_xpath3(self):
+        schema = self.schema_class(dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:element name="root"/>
+            </xs:schema>"""), use_xpath3=True)
+
+        self.assertFalse(schema.use_xpath3)
+
 
 class TestXMLSchema11(TestXMLSchema10):
 
@@ -1012,6 +1020,37 @@ class TestXMLSchema11(TestXMLSchema10):
                     <xs:element name="root"/>
                 </xs:schema>"""))
         self.assertEqual("prefix 'x' not found in namespace map", ctx.exception.message)
+
+    def test_use_xpath3(self):
+        schema = self.schema_class(dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:element name="root"/>
+            </xs:schema>"""), use_xpath3=True)
+
+        self.assertTrue(schema.use_xpath3)
+
+        schema = self.schema_class(dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:element name="root" type="rootType"/>
+                <xs:complexType name="rootType">
+                                  <xs:assert test="let $foo := 'bar' return $foo"/>
+
+                </xs:complexType>
+            </xs:schema>"""), use_xpath3=True)
+
+        self.assertTrue(schema.use_xpath3)
+
+        with self.assertRaises(XMLSchemaParseError) as ctx:
+            self.schema_class(dedent("""\
+                <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                    <xs:element name="root" type="rootType"/>
+                    <xs:complexType name="rootType">
+                                      <xs:assert test="let $foo := 'bar' return $foo"/>
+
+                    </xs:complexType>
+                </xs:schema>"""))
+
+        self.assertIn('XPST0003', str(ctx.exception))
 
 
 class TestXMLSchemaMeta(unittest.TestCase):

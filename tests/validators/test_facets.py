@@ -1308,6 +1308,32 @@ class TestXsd11Identities(TestXsdFacets):
         self.assertIn("missing attribute 'test'", str(schema.all_errors[0]))
         self.assertIn("[err:XPST0003] unexpected '?' symbol", str(schema.all_errors[1]))
 
+    def test_use_xpath3(self):
+        schema = self.schema_class(dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:element name="root" type="rootType"/>
+                <xs:simpleType name="rootType">
+                    <xs:restriction base="xs:string">
+                        <xs:assertion test="let $foo := 'bar' return $foo"/>
+                    </xs:restriction>
+                </xs:simpleType>
+            </xs:schema>"""), use_xpath3=True)
+
+        self.assertTrue(schema.use_xpath3)
+
+        with self.assertRaises(XMLSchemaParseError) as ctx:
+            self.schema_class(dedent("""\
+                <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                    <xs:element name="root" type="rootType"/>
+                    <xs:simpleType name="rootType">
+                        <xs:restriction base="xs:string">
+                            <xs:assertion test="let $foo := 'bar' return $foo"/>
+                        </xs:restriction>
+                    </xs:simpleType>
+                </xs:schema>"""))
+
+        self.assertIn('XPST0003', str(ctx.exception))
+
 
 if __name__ == '__main__':
     import platform

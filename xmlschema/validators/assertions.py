@@ -8,7 +8,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import threading
-from typing import TYPE_CHECKING, cast, Any, Dict, Iterator, Optional, Union
+from typing import TYPE_CHECKING, cast, Any, Dict, Iterator, Optional, Union, Type
 from elementpath import ElementPathError, XPath2Parser, XPathContext, XPathToken, \
     LazyElementNode, SchemaElementNode, build_schema_node_tree
 
@@ -92,9 +92,15 @@ class XsdAssert(XsdComponent, ElementPathMixin[Union['XsdAssert', SchemaElementT
         return self.parser is not None and self.token is not None
 
     def build(self) -> None:
+        if self.schema.use_xpath3:
+            from ..xpath3 import XPath3Parser
+            parser_class: Union[Type[XPath2Parser], Type[XPath3Parser]] = XPath3Parser
+        else:
+            parser_class = XPath2Parser
+
         # Assert requires a schema bound parser because select
         # is on XML elements and with XSD type decoded values
-        self.parser = XPath2Parser(
+        self.parser = parser_class(
             namespaces=self.namespaces,
             variable_types={'value': self.base_type.sequence_type},
             strict=False,

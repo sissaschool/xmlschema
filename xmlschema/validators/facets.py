@@ -15,7 +15,7 @@ import math
 import operator
 from abc import abstractmethod
 from typing import TYPE_CHECKING, cast, Any, List, Optional, Pattern, Union, \
-    MutableSequence, overload, Tuple
+    MutableSequence, overload, Tuple, Type
 from xml.etree.ElementTree import Element
 
 from elementpath import XPath2Parser, XPathContext, ElementPathError, \
@@ -802,7 +802,15 @@ class XsdAssertionFacet(XsdFacet):
         else:
             self.xpath_default_namespace = self.schema.xpath_default_namespace
 
-        self.parser = XsdAssertionXPathParser(
+        if self.schema.use_xpath3:
+            from ..xpath3 import XsdAssertionXPath3Parser
+            parser_class: Union[
+                Type[XsdAssertionXPathParser], Type[XsdAssertionXPath3Parser]
+            ] = XsdAssertionXPath3Parser
+        else:
+            parser_class = XsdAssertionXPathParser
+
+        self.parser = parser_class(
             namespaces=self.namespaces,
             strict=False,
             variable_types={'value': value},
