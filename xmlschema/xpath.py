@@ -10,10 +10,9 @@
 """
 This module defines a proxy class and a mixin class for enabling XPath on schemas.
 """
-import sys
 from abc import abstractmethod
 from typing import cast, overload, Any, Dict, Iterator, List, Optional, \
-    Sequence, Set, TypeVar, Union
+    Sequence, Set, TypeVar, Union, runtime_checkable, Protocol
 import re
 
 from elementpath import XPath2Parser, XPathSchemaContext, \
@@ -21,23 +20,17 @@ from elementpath import XPath2Parser, XPathSchemaContext, \
 
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from .names import XSD_NAMESPACE
-from .aliases import NamespacesType, SchemaType, BaseXsdType, XPathElementType
+from .aliases import NamespacesType, SchemaType, BaseXsdType
 from .helpers import get_qname, local_name, get_prefixed_qname
 
-if sys.version_info < (3, 8):  # pragma: no cover
-    XsdSchemaProtocol = SchemaType
-    XsdElementProtocol = XPathElementType
-    XsdTypeProtocol = BaseXsdType
-else:
-    from typing import runtime_checkable, Protocol
+XsdTypeProtocol = protocols.XsdTypeProtocol
+XsdSchemaProtocol = protocols.XsdSchemaProtocol
 
-    XsdTypeProtocol = protocols.XsdTypeProtocol
-    XsdSchemaProtocol = protocols.XsdSchemaProtocol
 
-    @runtime_checkable
-    class XsdElementProtocol(protocols.XsdElementProtocol, Protocol):
-        schema: XsdSchemaProtocol
-        attributes: Dict[str, Any]
+@runtime_checkable
+class XsdElementProtocol(protocols.XsdElementProtocol, Protocol):
+    schema: XsdSchemaProtocol
+    attributes: Dict[str, Any]
 
 
 _REGEX_TAG_POSITION = re.compile(r'\b\[\d+]')

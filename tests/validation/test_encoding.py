@@ -8,7 +8,6 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-import sys
 import os
 import unittest
 from textwrap import dedent
@@ -319,12 +318,8 @@ class TestEncoding(XsdValidatorTestCase):
 
         self.assertTrue(message_lines, msg="Empty error message!")
         self.assertEqual(message_lines[-4], 'Instance:')
-        if sys.version_info < (3, 8):
-            text = '<tns:rotation xmlns:tns="http://www.example.org/Rotation/" ' \
-                   'pitch="0.0" roll="0.0" yaw="-1.0" />'
-        else:
-            text = '<tns:rotation xmlns:tns="http://www.example.org/Rotation/" ' \
-                   'roll="0.0" pitch="0.0" yaw="-1.0" />'
+        text = '<tns:rotation xmlns:tns="http://www.example.org/Rotation/" ' \
+               'roll="0.0" pitch="0.0" yaw="-1.0" />'
         self.assertEqual(message_lines[-2].strip(), text)
 
         # With 'lax' validation a dummy resource is assigned to source attribute

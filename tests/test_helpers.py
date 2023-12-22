@@ -10,7 +10,6 @@
 #
 """Tests on internal helper functions"""
 import unittest
-import sys
 import decimal
 from collections import OrderedDict
 from xml.etree import ElementTree
@@ -142,9 +141,8 @@ class TestHelpers(unittest.TestCase):
         self.assertFalse(strictly_equal(10, 10.0))
 
     def test_iter_nested_items_function(self):
-        if sys.version_info >= (3, 6):
-            self.assertListEqual(list(iter_nested_items({'a': 10, 'b': 20})), [10, 20])
-            self.assertListEqual(list(iter_nested_items([{'a': 10, 'b': 20}, 30])), [10, 20, 30])
+        self.assertListEqual(list(iter_nested_items({'a': 10, 'b': 20})), [10, 20])
+        self.assertListEqual(list(iter_nested_items([{'a': 10, 'b': 20}, 30])), [10, 20, 30])
 
         with self.assertRaises(TypeError):
             list(iter_nested_items({'a': 10, 'b': 20}, dict_class=OrderedDict))
