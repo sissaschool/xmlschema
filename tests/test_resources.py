@@ -1316,6 +1316,25 @@ class TestResources(unittest.TestCase):
         self.assertEqual(schema.maps.namespaces[''][1].name, 'issue_237a.xsd')
         self.assertEqual(schema.maps.namespaces[''][2].name, 'issue_237b.xsd')
 
+    def test_uri_mapper(self):
+        urn = 'urn:example:xmlschema:vehicles.xsd'
+        uri_mapper = {urn: self.vh_xsd_file}
+
+        with self.assertRaises(URLError):
+            XMLResource(urn)
+
+        resource = XMLResource(urn, uri_mapper=uri_mapper)
+        self.assertEqual(resource.url[-30:], 'examples/vehicles/vehicles.xsd')
+
+        vh_schema = XMLSchema(self.vh_xsd_file, uri_mapper=uri_mapper)
+        self.assertTrue(vh_schema.is_valid(self.vh_xml_file))
+
+        def uri_mapper(uri):
+            return self.vh_xsd_file if uri == urn else uri
+
+        resource = XMLResource(urn, uri_mapper=uri_mapper)
+        self.assertEqual(resource.url[-30:], 'examples/vehicles/vehicles.xsd')
+
 
 if __name__ == '__main__':
     header_template = "Test xmlschema's XML resources with Python {} on platform {}"

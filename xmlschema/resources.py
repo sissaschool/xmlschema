@@ -16,7 +16,7 @@ from itertools import zip_longest
 from pathlib import Path
 from typing import cast, Any, AnyStr, Dict, Optional, IO, Iterator, \
     List, MutableMapping, Union, Tuple
-from urllib.request import urlopen as urlopen
+from urllib.request import urlopen
 from urllib.parse import urlsplit
 from urllib.error import URLError
 
@@ -28,7 +28,7 @@ from elementpath.protocols import LxmlElementProtocol
 from .exceptions import XMLSchemaTypeError, XMLSchemaValueError, XMLResourceError
 from .names import XSD_NAMESPACE
 from .aliases import ElementType, NamespacesType, XMLSourceType, \
-    NormalizedLocationsType, LocationsType, ParentMapType
+    NormalizedLocationsType, LocationsType, ParentMapType, UriMapperType
 from .helpers import get_namespace, update_namespaces, get_namespace_map, \
     is_etree_document, etree_iter_location_hints
 from .locations import LocationPath, is_url, is_remote_url, is_local_url, \
@@ -78,6 +78,7 @@ def fetch_schema_locations(source: Union['XMLResource', XMLSourceType],
                            allow: str = 'all',
                            defuse: str = 'remote',
                            timeout: int = 30,
+                           uri_mapper: Optional[UriMapperType] = None,
                            root_only: bool = True) -> Tuple[str, NormalizedLocationsType]:
     """
     Fetches schema location hints from an XML data source and a list of location hints.
@@ -93,6 +94,7 @@ def fetch_schema_locations(source: Union['XMLResource', XMLSourceType],
     applied to location hints only.
     :param defuse: the same argument of the :class:`XMLResource`.
     :param timeout: the same argument of the :class:`XMLResource` but with a reduced default.
+    :param uri_mapper: an optional argument for building the schema from location hints.
     :param root_only: if `True` extracts from the XML source only the location hints \
     of the root element.
     :return: A 2-tuple with the URL referring to the first reachable schema resource \
@@ -110,7 +112,8 @@ def fetch_schema_locations(source: Union['XMLResource', XMLSourceType],
     namespace = resource.namespace
     for ns, location in sorted(locations, key=lambda x: x[0] != namespace):
         try:
-            resource = XMLResource(location, base_url, allow, defuse, timeout, lazy=True)
+            resource = XMLResource(location, base_url, allow, defuse, timeout,
+                                   lazy=True, uri_mapper=uri_mapper)
         except (XMLResourceError, URLError, ElementTree.ParseError):
             continue
 
@@ -126,13 +129,14 @@ def fetch_schema(source: Union['XMLResource', XMLSourceType],
                  allow: str = 'all',
                  defuse: str = 'remote',
                  timeout: int = 30,
+                 uri_mapper: Optional[UriMapperType] = None,
                  root_only: bool = True) -> str:
     """
     Like :meth:`fetch_schema_locations` but returns only the URL of a loadable XSD
     schema from location hints fetched from the source or provided by argument.
     """
     return fetch_schema_locations(source, locations, base_url, allow,
-                                  defuse, timeout, root_only)[0]
+                                  defuse, timeout, uri_mapper, root_only)[0]
 
 
 def fetch_namespaces(source: XMLSourceType,
@@ -179,6 +183,9 @@ class XMLResource:
     :param thin_lazy: for default, in order to reduce the memory usage, during the \
     iteration of a lazy resource at *lazy_depth* level, deletes also the preceding \
     elements after the use.
+    :param uri_mapper: an optional URI mapper for using relocated or URN-addressed \
+    resources. Can be a dictionary or a function that takes the URI string and returns \
+    a URL, or the argument if there is no mapping for it.
     """
     # Protected attributes for data and resource location
     _source: XMLSourceType
@@ -199,7 +206,8 @@ class XMLResource:
                  defuse: str = 'remote',
                  timeout: int = 300,
                  lazy: Union[bool, int] = False,
-                 thin_lazy: bool = True) -> None:
+                 thin_lazy: bool = True,
+                 uri_mapper: Optional[UriMapperType] = None) -> None:
 
         if isinstance(base_url, (str, bytes)):
             if not is_url(base_url):
@@ -242,6 +250,12 @@ class XMLResource:
             msg = "invalid type %r for argument 'thin_lazy'"
             raise XMLSchemaTypeError(msg % type(thin_lazy))
         self._thin_lazy = thin_lazy
+
+        if uri_mapper is not None and not callable(uri_mapper) \
+                and not isinstance(uri_mapper, MutableMapping):
+            msg = "invalid type %r for argument 'uri_mapper'"
+            raise XMLSchemaTypeError(msg % type(uri_mapper))
+        self._uri_mapper = uri_mapper
 
         self.parse(source, lazy)
 
@@ -316,6 +330,11 @@ class XMLResource:
     def timeout(self) -> int:
         """The timeout in seconds for accessing remote resources."""
         return self._timeout
+
+    @property
+    def uri_mapper(self) -> Optional[UriMapperType]:
+        """The optional URI mapper argument for relocating addressed resources."""
+        return self._uri_mapper
 
     @property
     def lazy_depth(self) -> int:
@@ -575,6 +594,17 @@ class XMLResource:
             self._url = _url
             raise
 
+    def _get_parsed_url(self, url: str) -> str:
+        if isinstance(self._uri_mapper, MutableMapping):
+            if url in self._uri_mapper:
+                url = self._uri_mapper[url]
+        elif callable(self._uri_mapper):
+            url = self._uri_mapper(url)
+
+        url = normalize_url(url, self._base_url)
+        self._access_control(url)
+        return url
+
     def parse(self, source: XMLSourceType, lazy: Union[bool, int] = False) -> None:
         if isinstance(lazy, bool):
             pass
@@ -589,8 +619,7 @@ class XMLResource:
         if isinstance(source, str):
             if is_url(source):
                 # source is a string containing a URL or a file path
-                url = normalize_url(source, self._base_url)
-                self._access_control(url)
+                url = self._get_parsed_url(source.strip())
 
                 with urlopen(url, timeout=self._timeout) as resource:
                     self._parse_resource(resource, url, lazy)
@@ -606,8 +635,8 @@ class XMLResource:
 
         elif isinstance(source, bytes):
             if is_url(source):
-                url = normalize_url(source.decode(), self._base_url)
-                self._access_control(url)
+                # source is a byte-string containing a URL or a file path
+                url = self._get_parsed_url(source.decode().strip())
 
                 with urlopen(url, timeout=self._timeout) as resource:
                     self._parse_resource(resource, url, lazy)
@@ -622,8 +651,7 @@ class XMLResource:
                 self._lazy = False
 
         elif isinstance(source, Path):
-            url = normalize_url(str(source), self._base_url)
-            self._access_control(url)
+            url = self._get_parsed_url(str(source))
 
             with urlopen(url, timeout=self._timeout) as resource:
                 self._parse_resource(resource, url, lazy)

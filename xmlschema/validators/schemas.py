@@ -41,7 +41,7 @@ from ..names import VC_MIN_VERSION, VC_MAX_VERSION, VC_TYPE_AVAILABLE, \
     XSD_ANY_SIMPLE_TYPE, XSD_UNION, XSD_LIST, XSD_RESTRICTION
 from ..aliases import ElementType, XMLSourceType, NamespacesType, LocationsType, \
     SchemaType, SchemaSourceType, ConverterType, ComponentClassType, DecodeType, \
-    EncodeType, BaseXsdType, ExtraValidatorType, ValidationHookType, \
+    EncodeType, BaseXsdType, ExtraValidatorType, ValidationHookType, UriMapperType, \
     SchemaGlobalType, FillerType, DepthFillerType, ValueHookType, ElementHookType
 from ..translation import gettext as _
 from ..helpers import prune_etree, get_namespace, get_namespace_map, \
@@ -177,6 +177,9 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     :param defuse: defines when to defuse XML data using a `SafeXMLParser`. Can be \
     'always', 'remote' or 'never'. For default defuses only remote XML data.
     :param timeout: the timeout in seconds for fetching resources. Default is `300`.
+    :param uri_mapper: an optional URI mapper for using relocated or URN-addressed \
+    resources. Can be a dictionary or a function that takes the URI string and returns \
+    a URL, or the argument if there is no mapping for it.
     :param build: defines whether build the schema maps. Default is `True`.
     :param use_meta: if `True` the schema processor uses the validator meta-schema, \
     otherwise a new meta-schema is added at the end. In the latter case the meta-schema \
@@ -308,6 +311,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                  allow: str = 'all',
                  defuse: str = 'remote',
                  timeout: int = 300,
+                 uri_mapper: Optional[UriMapperType] = None,
                  build: bool = True,
                  use_meta: bool = True,
                  use_fallback: bool = True,
@@ -347,7 +351,9 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         if isinstance(source, XMLResource):
             self.source = source
         else:
-            self.source = XMLResource(source, base_url, allow, defuse, timeout)
+            self.source = XMLResource(
+                source, base_url, allow, defuse, timeout, uri_mapper=uri_mapper
+            )
 
         logger.debug("Read schema from %r", self.source.url or self.source.source)
 
@@ -626,6 +632,11 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     def timeout(self) -> int:
         """Timeout in seconds for fetching resources."""
         return self.source.timeout
+
+    @property
+    def uri_mapper(self) -> Optional[UriMapperType]:
+        """The optional URI mapper argument for relocating addressed resources."""
+        return self.source.uri_mapper
 
     @property
     def use_meta(self) -> bool:
@@ -1261,6 +1272,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 allow=self.allow,
                 defuse=self.defuse,
                 timeout=self.timeout,
+                uri_mapper=self.uri_mapper,
                 build=build,
                 use_xpath3=self.use_xpath3,
             )
@@ -1418,6 +1430,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             allow=self.allow,
             defuse=self.defuse,
             timeout=self.timeout,
+            uri_mapper=self.uri_mapper,
             build=build,
             use_xpath3=self.use_xpath3,
         )
@@ -1459,6 +1472,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             allow=self.allow,
             defuse=self.defuse,
             timeout=self.timeout,
+            uri_mapper=self.uri_mapper,
             build=build,
             use_xpath3=self.use_xpath3,
         )

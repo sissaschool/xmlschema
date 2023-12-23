@@ -24,7 +24,7 @@ __all__ = ['ElementType', 'ElementTreeType', 'XMLSourceType', 'NamespacesType',
            'ExtraValidatorType', 'ValidationHookType', 'DecodeType', 'IterDecodeType',
            'JsonDecodeType', 'EncodeType', 'IterEncodeType', 'DecodedValueType',
            'EncodedValueType', 'FillerType', 'DepthFillerType', 'ValueHookType',
-           'ElementHookType']
+           'ElementHookType', 'UriMapperType']
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -60,6 +60,7 @@ if TYPE_CHECKING:
     XmlnsGetterType = Callable[[ElementType], Optional[List[Tuple[str, str]]]]
     ParentMapType = Dict[ElementType, Optional[ElementType]]
     LazyType = Union[bool, int]
+    UriMapperType = Union[MutableMapping[str, str], Callable[[str], str]]
 
     ##
     # Type aliases for XSD components
