@@ -66,9 +66,11 @@ class JsonMLConverter(XMLSchemaConverter):
 
         if self._use_xmlns:
             if data.xmlns:
-                attributes.update((self.get_xmlns_attr(k), v) for k, v in data.xmlns)
+                attributes.update((f'{self.ns_prefix}:{k}' if k else self.ns_prefix, v)
+                                  for k, v in data.xmlns)
             elif not level and xsd_element.is_global() and self:
-                attributes.update((self.get_xmlns_attr(k), v) for k, v in self.items())
+                attributes.update((f'{self.ns_prefix}:{k}' if k else self.ns_prefix, v)
+                                  for k, v in self.items())
 
         if attributes:
             result_list.insert(1, attributes)

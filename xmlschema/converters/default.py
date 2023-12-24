@@ -191,7 +191,7 @@ class XMLSchemaConverter(NamespaceMapper):
             namespaces=namespaces,
             dict_class=kwargs.get('dict_class', self.dict),
             list_class=kwargs.get('list_class', self.list),
-            etree_element_class=kwargs.get('etree_element_class'),
+            etree_element_class=kwargs.get('etree_element_class', self.etree_element_class),
             text_key=kwargs.get('text_key', self.text_key),
             attr_prefix=kwargs.get('attr_prefix', self.attr_prefix),
             cdata_prefix=kwargs.get('cdata_prefix', self.cdata_prefix),
@@ -280,8 +280,24 @@ class XMLSchemaConverter(NamespaceMapper):
 
         return elem
 
-    def get_xmlns_attr(self, prefix: str) -> str:
-        return f'{self.ns_prefix}:{prefix}' if prefix else self.ns_prefix
+    def is_xmlns(self, name: str) -> bool:
+        """Returns `True` if the name is an xmlns declaration."""
+        return name.startswith(self.ns_prefix) and \
+            (name == self.ns_prefix or name.startswith(f'{self.ns_prefix}:'))
+
+    def get_xmlns(self, obj: Any) -> Optional[List[Tuple[str, str]]]:
+        """Returns the XML declarations from decoded element data."""
+        if not self._use_xmlns or not isinstance(obj, MutableMapping):
+            return None
+
+        xmlns = []
+        for name, value in obj.items():
+            if name == self.ns_prefix:
+                xmlns.append(('', value))
+            elif name.startswith(f'{self.ns_prefix}:'):
+                xmlns.append((name[len(self.ns_prefix) + 1:], value))
+
+        return xmlns
 
     def element_decode(self, data: ElementData, xsd_element: 'XsdElement',
                        xsd_type: Optional[BaseXsdType] = None, level: int = 0) -> Any:
@@ -326,10 +342,12 @@ class XMLSchemaConverter(NamespaceMapper):
         if self._use_xmlns:
             if data.xmlns:
                 xmlns = data.xmlns
-                result_dict.update((self.get_xmlns_attr(k), v) for k, v in data.xmlns)
+                result_dict.update((f'{self.ns_prefix}:{k}' if k else self.ns_prefix, v)
+                                   for k, v in data.xmlns)
             elif not level and xsd_element.is_global() and self:
                 xmlns = self.items()
-                result_dict.update((self.get_xmlns_attr(k), v) for k, v in self.items())
+                result_dict.update((f'{self.ns_prefix}:{k}' if k else self.ns_prefix, v)
+                                   for k, v in self.items())
 
         if data.attributes:
             result_dict.update(self.map_attributes(data.attributes))
@@ -398,7 +416,7 @@ class XMLSchemaConverter(NamespaceMapper):
         attributes = {}
         xmlns = []
 
-        for name, value in obj.items():
+        for name, value in sorted(obj.items(), key=lambda x: not self.is_xmlns(x[0])):
             if name == self.text_key:
                 text = value
             elif self.cdata_prefix is not None and \
@@ -422,9 +440,9 @@ class XMLSchemaConverter(NamespaceMapper):
                 ns_name = self.unmap_qname(attr_name, xsd_element.attributes)
                 attributes[ns_name] = value
             elif not isinstance(value, MutableSequence) or not value:
-                content.append((self.unmap_qname(name), value))
+                content.append((self.unmap_qname(name, xmlns=self.get_xmlns(value)), value))
             elif isinstance(value[0], (MutableMapping, MutableSequence)):
-                ns_name = self.unmap_qname(name)
+                ns_name = self.unmap_qname(name, xmlns=self.get_xmlns(value[0]))
                 content.extend((ns_name, item) for item in value)
             else:
                 xsd_group = xsd_element.type.model_group

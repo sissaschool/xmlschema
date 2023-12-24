@@ -64,7 +64,7 @@ class UnorderedConverter(XMLSchemaConverter):
         # unordered mode generator function of the ModelVisitor class.
         content_lu: Dict[Union[int, str], Any] = {}
 
-        for name, value in obj.items():
+        for name, value in sorted(obj.items(), key=lambda x: not self.is_xmlns(x[0])):
             if name == self.text_key:
                 text = value
             elif self.cdata_prefix is not None and \

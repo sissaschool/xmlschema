@@ -12,7 +12,7 @@ This module contains classes for managing maps related to namespaces.
 """
 import copy
 from typing import Any, Container, Dict, Iterator, List, Optional, MutableMapping, \
-    Mapping, TypeVar
+    Mapping, Tuple, TypeVar
 
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from .helpers import local_name
@@ -169,7 +169,8 @@ class NamespaceMapper(MutableMapping[str, str]):
             return f'{prefix}:{local_part}' if prefix else local_part
 
     def unmap_qname(self, qname: str,
-                    name_table: Optional[Container[Optional[str]]] = None) -> str:
+                    name_table: Optional[Container[Optional[str]]] = None,
+                    xmlns: Optional[List[Tuple[str, str]]] = None) -> str:
         """
         Converts a QName in prefixed format or a local name to the extended QName format.
         Local names are converted only if a default namespace is included in the instance.
@@ -178,18 +179,26 @@ class NamespaceMapper(MutableMapping[str, str]):
 
         :param qname: a QName in prefixed format or a local name
         :param name_table: an optional lookup table for checking local names.
+        :param xmlns: an optional list of namespace declarations that integrate \
+        or override the namespace map.
         :return: a QName in extended format or a local name.
         """
         if not self._use_xmlns:
             return local_name(qname) if self._strip_namespaces else qname
 
+        if xmlns:
+            namespaces = {**self._namespaces}
+            namespaces.update(xmlns)
+        else:
+            namespaces = self._namespaces
+
         try:
-            if qname[0] == '{' or not self._namespaces:
+            if qname[0] == '{' or not namespaces:
                 return qname
             elif ':' in qname:
                 prefix, name = qname.split(':')
             else:
-                default_namespace = self._namespaces.get('')
+                default_namespace = namespaces.get('')
                 if not default_namespace:
                     return qname
                 elif name_table is None or qname not in name_table:
@@ -205,7 +214,7 @@ class NamespaceMapper(MutableMapping[str, str]):
             raise XMLSchemaTypeError("the argument 'qname' must be a string-like object")
         else:
             try:
-                uri = self._namespaces[prefix]
+                uri = namespaces[prefix]
             except KeyError:
                 return qname
             else:
