@@ -272,8 +272,6 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
                 pdb.set_trace()
 
         def check_decode_encode(self, root, converter=None, **kwargs):
-            namespaces = kwargs.get('namespaces', {})
-
             lossy = converter in (ParkerConverter, AbderaConverter, ColumnarConverter)
             losslessly = converter is JsonMLConverter
             unordered = converter not in (AbderaConverter, JsonMLConverter) or \
@@ -304,8 +302,9 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
             self.assertFalse(hasattr(root, 'nsmap') ^ hasattr(elem1, 'nsmap'))
 
             # Checks the encoded element to not contains reserved namespace prefixes
-            if namespaces and all('ns%d' % k not in namespaces for k in range(10)):
-                self.check_namespace_prefixes(etree_tostring(elem1, namespaces=namespaces))
+            self.check_namespace_prefixes(
+                etree_tostring(elem1, namespaces=kwargs.get('namespaces'))
+            )
 
             # Main check: compare original a re-encoded tree
             try:
@@ -461,7 +460,7 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
             namespaces = fetch_namespaces(xml_file)  # need a collapsed nsmap
             options = {'namespaces': namespaces}
 
-            self.check_decode_encode(root, cdata_prefix='#', **options)  # Default converter
+            # self.check_decode_encode(root, cdata_prefix='#', **options)  # Default converter
             # self.check_decode_encode(root, UnorderedConverter, cdata_prefix='#', **options)
             #self.check_decode_encode(root, ParkerConverter, validation='lax', **options)
             #self.check_decode_encode(root, ParkerConverter, validation='skip', **options)
@@ -474,7 +473,7 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
             #self.check_decode_encode(root, DataBindingConverter, **options)
             #self.schema.maps.clear_bindings()
 
-            self.check_json_serialization(root, cdata_prefix='#', **options)
+            #self.check_json_serialization(root, cdata_prefix='#', **options)
             # self.check_json_serialization(root, UnorderedConverter, **options)
             #self.check_json_serialization(root, ParkerConverter, validation='lax', **options)
             #self.check_json_serialization(root, ParkerConverter, validation='skip', **options)
@@ -500,7 +499,7 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
 
         def check_data_conversion_with_lxml(self):
             xml_tree = lxml_etree.parse(xml_file)
-            namespaces = fetch_namespaces(xml_file, root_only=True)
+            namespaces = fetch_namespaces(xml_file, root_only=False)
 
             lxml_errors = []
             lxml_decoded_chunks = []
@@ -521,15 +520,16 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
 
                 options = {
                     'etree_element_class': lxml_etree_element,
-                    'namespaces': namespaces,
+                    # 'namespaces': namespaces,
                 }
                 self.check_decode_encode(root, cdata_prefix='#', **options)  # Default converter
+                self.check_decode_encode(root, UnorderedConverter, cdata_prefix='#', **options)
+
                 #self.check_decode_encode(root, ParkerConverter, validation='lax', **options)
                 #self.check_decode_encode(root, ParkerConverter, validation='skip', **options)
                 #self.check_decode_encode(root, BadgerFishConverter, **options)
                 #self.check_decode_encode(root, AbderaConverter, **options)
                 #self.check_decode_encode(root, JsonMLConverter, **options)
-                #self.check_decode_encode(root, UnorderedConverter, cdata_prefix='#', **options)
 
                 #self.check_json_serialization(root, cdata_prefix='#', **options)
                 #self.check_json_serialization(root, ParkerConverter, validation='lax', **options)

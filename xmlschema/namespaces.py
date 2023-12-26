@@ -187,7 +187,7 @@ class NamespaceMapper(MutableMapping[str, str]):
             return local_name(qname) if self._strip_namespaces else qname
 
         if xmlns:
-            namespaces = {**self._namespaces}
+            namespaces: MutableMapping[str, str] = {**self._namespaces}
             namespaces.update(xmlns)
         else:
             namespaces = self._namespaces

@@ -8,8 +8,9 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from collections.abc import MutableMapping, MutableSequence
-from typing import TYPE_CHECKING, cast, Any, Dict, Union
+from typing import TYPE_CHECKING, Any, Dict, Union
 
+from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from .default import ElementData, XMLSchemaConverter
 
 if TYPE_CHECKING:
@@ -37,11 +38,14 @@ class UnorderedConverter(XMLSchemaConverter):
         :param level: the level related to the encoding process (0 means the root).
         :return: an ElementData instance.
         """
-        if not level and self.preserve_root and isinstance(obj, MutableMapping):
-            match_local_name = cast(bool, self._strip_namespaces or self.default_namespace)
-            match = xsd_element.get_matching_item(obj, self.ns_prefix, match_local_name)
-            if match is not None:
-                obj = match
+        if level or not self.preserve_root:
+            element_name = None
+        elif not isinstance(obj, MutableMapping):
+            raise XMLSchemaTypeError(f"A dictionary expected, got {type(obj)} instead.")
+        elif len(obj) != 1:
+            raise XMLSchemaValueError("The dictionary must have exactly one element.")
+        else:
+            element_name, obj = next(iter(obj.items()))
 
         if not isinstance(obj, MutableMapping):
             if xsd_element.type.simple_type is not None:
@@ -53,7 +57,7 @@ class UnorderedConverter(XMLSchemaConverter):
 
         text = None
         attributes = {}
-        xmlns = []
+        xmlns = None
 
         # The unordered encoding mode assumes that the values of this dict will
         # all be lists where each item is the content of a single element. When
@@ -64,7 +68,17 @@ class UnorderedConverter(XMLSchemaConverter):
         # unordered mode generator function of the ModelVisitor class.
         content_lu: Dict[Union[int, str], Any] = {}
 
-        for name, value in sorted(obj.items(), key=lambda x: not self.is_xmlns(x[0])):
+        if self._use_xmlns:
+            xmlns = self.get_xmlns(obj)
+            if xmlns:
+                self._push_namespaces(level, xmlns)
+
+        if element_name is not None:
+            tag = self.unmap_qname(element_name)
+            if not xsd_element.is_matching(tag, self.default_namespace):
+                raise XMLSchemaValueError("data tag does not match XSD element name")
+
+        for name, value in obj.items():
             if name == self.text_key:
                 text = value
             elif self.cdata_prefix is not None and \
@@ -72,15 +86,8 @@ class UnorderedConverter(XMLSchemaConverter):
                     name[len(self.cdata_prefix):].isdigit():
                 index = int(name[len(self.cdata_prefix):])
                 content_lu[index] = value
-            elif name == self.ns_prefix:
-                if self._use_xmlns:
-                    self[''] = value
-                    xmlns.append(('', value))
-            elif name.startswith(f'{self.ns_prefix}:'):
-                if self._use_xmlns:
-                    ns_name = name[len(self.ns_prefix) + 1:]
-                    self[ns_name] = value
-                    xmlns.append((ns_name, value))
+            elif self.is_xmlns(name):
+                continue
             elif self.attr_prefix and \
                     name.startswith(self.attr_prefix) and \
                     name != self.attr_prefix:
@@ -88,9 +95,11 @@ class UnorderedConverter(XMLSchemaConverter):
                 ns_name = self.unmap_qname(attr_name, xsd_element.attributes)
                 attributes[ns_name] = value
             elif not isinstance(value, MutableSequence) or not value:
-                content_lu[self.unmap_qname(name)] = [value]
+                ns_name = self.unmap_qname(name, xmlns=self.get_xmlns(value))
+                content_lu[ns_name] = [value]
             elif isinstance(value[0], (MutableMapping, MutableSequence)):
-                content_lu[self.unmap_qname(name)] = value
+                ns_name = self.unmap_qname(name, xmlns=self.get_xmlns(value[0]))
+                content_lu[ns_name] = value
             else:
                 xsd_group = xsd_element.type.model_group
                 if xsd_group is None:

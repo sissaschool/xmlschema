@@ -979,20 +979,11 @@ class XsdElement(XsdComponent, ParticleMixin,
         except (ValueError, TypeError) as err:
             yield self.validation_error(validation, err, obj, **kwargs)
             return
-        else:
-            if element_data.xmlns:
-                converter = _copy(converter.copy())
-                converter.update(element_data.xmlns)
-                kwargs['converter'] = converter
 
-            if not level:
-                if not self.is_matching(element_data.tag):
-                    errors.append("data tag does not match XSD element name")
-
-                if 'max_depth' in kwargs and kwargs['max_depth'] == 0:
-                    for e in errors:
-                        yield self.validation_error(validation, e, **kwargs)
-                    return
+        if 'max_depth' in kwargs and kwargs['max_depth'] == 0 and not level:
+            for e in errors:
+                yield self.validation_error(validation, e, **kwargs)
+            return
 
         text = None
         children = element_data.content
