@@ -302,9 +302,10 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
             self.assertFalse(hasattr(root, 'nsmap') ^ hasattr(elem1, 'nsmap'))
 
             # Checks the encoded element to not contains reserved namespace prefixes
-            self.check_namespace_prefixes(
-                etree_tostring(elem1, namespaces=kwargs.get('namespaces'))
-            )
+            if 'namespaces' in kwargs:
+                self.check_namespace_prefixes(
+                    etree_tostring(elem1, namespaces=kwargs['namespaces'])
+                )
 
             # Main check: compare original a re-encoded tree
             try:
@@ -458,33 +459,33 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
         def check_data_conversion_with_element_tree(self):
             root = ElementTree.parse(xml_file).getroot()
             namespaces = fetch_namespaces(xml_file)  # need a collapsed nsmap
-            options = {'namespaces': namespaces}
+            options = {'namespaces': namespaces, 'xmlns_usage': 'none'}
 
-            # self.check_decode_encode(root, cdata_prefix='#', **options)  # Default converter
-            # self.check_decode_encode(root, UnorderedConverter, cdata_prefix='#', **options)
-            #self.check_decode_encode(root, ParkerConverter, validation='lax', **options)
-            #self.check_decode_encode(root, ParkerConverter, validation='skip', **options)
-            #self.check_decode_encode(root, BadgerFishConverter, **options)
-            #self.check_decode_encode(root, AbderaConverter, **options)
-            #self.check_decode_encode(root, JsonMLConverter, **options)
-            #self.check_decode_encode(root, ColumnarConverter, validation='lax', **options)
+            self.check_decode_encode(root, cdata_prefix='#', **options)  # Default converter
+            self.check_decode_encode(root, UnorderedConverter, cdata_prefix='#', **options)
+            self.check_decode_encode(root, ParkerConverter, validation='lax', **options)
+            self.check_decode_encode(root, ParkerConverter, validation='skip', **options)
+            self.check_decode_encode(root, BadgerFishConverter, **options)
+            self.check_decode_encode(root, AbderaConverter, **options)
+            self.check_decode_encode(root, JsonMLConverter, **options)
+            self.check_decode_encode(root, ColumnarConverter, validation='lax', **options)
 
-            #self.check_decode_encode(root, DataElementConverter, **options)
-            #self.check_decode_encode(root, DataBindingConverter, **options)
-            #self.schema.maps.clear_bindings()
+            self.check_decode_encode(root, DataElementConverter, **options)
+            self.check_decode_encode(root, DataBindingConverter, **options)
+            self.schema.maps.clear_bindings()
 
-            #self.check_json_serialization(root, cdata_prefix='#', **options)
-            # self.check_json_serialization(root, UnorderedConverter, **options)
-            #self.check_json_serialization(root, ParkerConverter, validation='lax', **options)
-            #self.check_json_serialization(root, ParkerConverter, validation='skip', **options)
-            #self.check_json_serialization(root, BadgerFishConverter, **options)
-            #self.check_json_serialization(root, AbderaConverter, **options)
-            #self.check_json_serialization(root, JsonMLConverter, **options)
-            #self.check_json_serialization(root, ColumnarConverter, validation='lax', **options)
+            self.check_json_serialization(root, cdata_prefix='#', **options)
+            self.check_json_serialization(root, UnorderedConverter, **options)
+            self.check_json_serialization(root, ParkerConverter, validation='lax', **options)
+            self.check_json_serialization(root, ParkerConverter, validation='skip', **options)
+            self.check_json_serialization(root, BadgerFishConverter, **options)
+            self.check_json_serialization(root, AbderaConverter, **options)
+            self.check_json_serialization(root, JsonMLConverter, **options)
+            self.check_json_serialization(root, ColumnarConverter, validation='lax', **options)
 
-            #self.check_decode_to_objects(root)
-            #self.check_decode_to_objects(root, with_bindings=True)
-            #self.schema.maps.clear_bindings()
+            self.check_decode_to_objects(root)
+            self.check_decode_to_objects(root, with_bindings=True)
+            self.schema.maps.clear_bindings()
 
         def check_decode_to_objects(self, root, with_bindings=False):
             data_element = self.schema.to_objects(xml_file, with_bindings)
@@ -499,7 +500,6 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
 
         def check_data_conversion_with_lxml(self):
             xml_tree = lxml_etree.parse(xml_file)
-            namespaces = fetch_namespaces(xml_file, root_only=False)
 
             lxml_errors = []
             lxml_decoded_chunks = []
@@ -514,30 +514,39 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
 
             if not lxml_errors:
                 root = xml_tree.getroot()
+
+                options = {
+                    'etree_element_class': lxml_etree_element,
+                }
+                self.check_decode_encode(root, cdata_prefix='#', **options)  # Default converter
+                self.check_decode_encode(root, UnorderedConverter, cdata_prefix='#', **options)
+                self.check_decode_encode(root, BadgerFishConverter, **options)
+                self.check_decode_encode(root, JsonMLConverter, **options)
+
+                # Tests with converters that loss namespace information and JSON
+                # serialization: need to provide a full namespace map and don't
+                # update that map.
+                namespaces = fetch_namespaces(xml_file, root_only=False)
                 if namespaces.get(''):
                     # Add a not empty prefix for encoding to avoid the use of reserved prefix ns0
                     namespaces['tns0'] = namespaces['']
 
                 options = {
                     'etree_element_class': lxml_etree_element,
-                    # 'namespaces': namespaces,
+                    'namespaces': namespaces,
+                    'xmlns_usage': 'none'
                 }
-                self.check_decode_encode(root, cdata_prefix='#', **options)  # Default converter
-                self.check_decode_encode(root, UnorderedConverter, cdata_prefix='#', **options)
+                self.check_decode_encode(root, ParkerConverter, validation='lax', **options)
+                self.check_decode_encode(root, ParkerConverter, validation='skip', **options)
+                self.check_decode_encode(root, AbderaConverter, **options)
 
-                #self.check_decode_encode(root, ParkerConverter, validation='lax', **options)
-                #self.check_decode_encode(root, ParkerConverter, validation='skip', **options)
-                #self.check_decode_encode(root, BadgerFishConverter, **options)
-                #self.check_decode_encode(root, AbderaConverter, **options)
-                #self.check_decode_encode(root, JsonMLConverter, **options)
-
-                #self.check_json_serialization(root, cdata_prefix='#', **options)
-                #self.check_json_serialization(root, ParkerConverter, validation='lax', **options)
-                #self.check_json_serialization(root, ParkerConverter, validation='skip', **options)
-                #self.check_json_serialization(root, BadgerFishConverter, **options)
-                #self.check_json_serialization(root, AbderaConverter, **options)
-                #self.check_json_serialization(root, JsonMLConverter, **options)
-                #self.check_json_serialization(root, UnorderedConverter, **options)
+                self.check_json_serialization(root, cdata_prefix='#', **options)
+                self.check_json_serialization(root, UnorderedConverter, **options)
+                self.check_json_serialization(root, ParkerConverter, validation='lax', **options)
+                self.check_json_serialization(root, ParkerConverter, validation='skip', **options)
+                self.check_json_serialization(root, BadgerFishConverter, **options)
+                self.check_json_serialization(root, AbderaConverter, **options)
+                self.check_json_serialization(root, JsonMLConverter, **options)
 
         def check_validate_and_is_valid_api(self):
             if expected_errors:

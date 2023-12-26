@@ -7,7 +7,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from collections.abc import MutableSequence
+from collections.abc import MutableMapping, MutableSequence
 from typing import TYPE_CHECKING, Any, Optional, List, Dict, Tuple, Type
 
 from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
@@ -48,6 +48,20 @@ class JsonMLConverter(XMLSchemaConverter):
     def losslessly(self) -> bool:
         return True
 
+    def get_xmlns(self, obj: Any) -> Optional[List[Tuple[str, str]]]:
+        if not self._use_xmlns or not isinstance(obj, MutableSequence) \
+                or len(obj) < 2 or not isinstance(obj[1], MutableMapping):
+            return None
+
+        xmlns = []
+        for k, v in obj[1].items():
+            if k == 'xmlns':
+                xmlns.append(('', v))
+            elif k.startswith('xmlns:'):
+                xmlns.append((k.split('xmlns:')[1], v))
+
+        return xmlns
+
     def element_decode(self, data: ElementData, xsd_element: 'XsdElement',
                        xsd_type: Optional[BaseXsdType] = None, level: int = 0) -> Any:
         xsd_type = xsd_type or xsd_element.type
@@ -78,8 +92,8 @@ class JsonMLConverter(XMLSchemaConverter):
         return result_list
 
     def element_encode(self, obj: Any, xsd_element: 'XsdElement', level: int = 0) -> ElementData:
-        attributes: Dict[str, Any] = {}
-        xmlns: List[Tuple[str, str]] = []
+        if self._ns_stack:
+            self._pop_namespaces(level)
 
         if not isinstance(obj, MutableSequence):
             msg = "The first argument must be a sequence, {} provided"
@@ -91,25 +105,20 @@ class JsonMLConverter(XMLSchemaConverter):
         if data_len == 1:
             if not xsd_element.is_matching(self.unmap_qname(obj[0]), self._namespaces.get('')):
                 raise XMLSchemaValueError("Unmatched tag")
-            return ElementData(xsd_element.name, None, None, attributes, xmlns)
+            return ElementData(xsd_element.name, None, None, {}, None)
 
-        try:
-            for k, v in obj[1].items():
-                if k == 'xmlns':
-                    self[''] = v
-                    xmlns.append(('', v))
-                elif k.startswith('xmlns:'):
-                    self[k.split('xmlns:')[1]] = v
-                    xmlns.append((k.split('xmlns:')[1], v))
+        xmlns = self.get_xmlns(obj)
+        if xmlns:
+            self._push_namespaces(level, xmlns)
 
+        attributes: Dict[str, Any] = {}
+        if isinstance(obj[1], MutableMapping):
+            content_index = 2
             for k, v in obj[1].items():
                 if k != 'xmlns' and not k.startswith('xmlns:'):
                     attributes[self.unmap_qname(k, xsd_element.attributes)] = v
-
-        except AttributeError:
-            content_index = 1
         else:
-            content_index = 2
+            content_index = 1
 
         if not xsd_element.is_matching(self.unmap_qname(obj[0]), self._namespaces.get('')):
             raise XMLSchemaValueError("Unmatched tag")
@@ -123,7 +132,8 @@ class JsonMLConverter(XMLSchemaConverter):
         else:
             cdata_num = iter(range(1, data_len))
             content = [
-                (self.unmap_qname(e[0]), e) if isinstance(e, MutableSequence)
+                (self.unmap_qname(e[0], xmlns=self.get_xmlns(e)), e)
+                if isinstance(e, MutableSequence)
                 else (next(cdata_num), e) for e in obj[content_index:]
             ]
             return ElementData(xsd_element.name, None, content, attributes, xmlns)

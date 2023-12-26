@@ -47,6 +47,9 @@ class ColumnarConverter(XMLSchemaConverter):
     def loss_xmlns(self) -> bool:
         return True
 
+    def get_xmlns(self, obj: Any) -> Optional[List[Tuple[str, str]]]:
+        return None
+
     def __setattr__(self, name: str, value: Any) -> None:
         if name != 'attr_prefix':
             super(ColumnarConverter, self).__setattr__(name, value)

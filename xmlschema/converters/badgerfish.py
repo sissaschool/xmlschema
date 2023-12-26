@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any, Optional, List, Dict, Type, Union, Tuple
 from ..aliases import NamespacesType, BaseXsdType
 from ..names import XSD_ANY_TYPE
 from ..helpers import local_name
+from ..exceptions import XMLSchemaTypeError
 from .default import ElementData, XMLSchemaConverter
 
 if TYPE_CHECKING:
@@ -44,6 +45,11 @@ class BadgerFishConverter(XMLSchemaConverter):
     @property
     def lossy(self) -> bool:
         return False
+
+    def get_xmlns(self, obj: Any) -> Optional[List[Tuple[str, str]]]:
+        if not self._use_xmlns or not isinstance(obj, MutableMapping) or '@xmlns' not in obj:
+            return None
+        return [(k if k != '$' else '', v) for k, v in obj['@xmlns'].items()]
 
     def element_decode(self, data: ElementData, xsd_element: 'XsdElement',
                        xsd_type: Optional[BaseXsdType] = None, level: int = 0) -> Any:
@@ -91,10 +97,13 @@ class BadgerFishConverter(XMLSchemaConverter):
         return self.dict([(tag, result_dict)])
 
     def element_encode(self, obj: Any, xsd_element: 'XsdElement', level: int = 0) -> ElementData:
-        assert isinstance(obj, MutableMapping)
+        if self._ns_stack:
+            self._pop_namespaces(level)
 
         tag = xsd_element.name
-        if len(obj) != 1 or '$' in obj:
+        if not isinstance(obj, MutableMapping):
+            raise XMLSchemaTypeError(f"A dictionary expected, got {type(obj)} instead.")
+        elif len(obj) != 1 or '$' in obj:
             element_data = obj
         elif tag in obj:
             element_data = obj[tag]
@@ -109,19 +118,17 @@ class BadgerFishConverter(XMLSchemaConverter):
                 else:
                     element_data = obj
 
-        if self._use_xmlns and '@xmlns' in element_data:
-            self._namespaces.update(
-                (k if k != '$' else '', v) for k, v in element_data['@xmlns'].items()
-            )
-
         text = None
         content: List[Tuple[Union[str, int], Any]] = []
         attributes = {}
-        xmlns: List[Tuple[str, str]] = []
+
+        xmlns = self.get_xmlns(element_data)
+        if xmlns:
+            self._push_namespaces(level, xmlns)
 
         for name, value in element_data.items():
             if name == '@xmlns':
-                xmlns.extend((k if k != '$' else '', v) for k, v in value.items())
+                continue
             elif name == '$':
                 text = value
             elif name[0] == '$' and name[1:].isdigit():
@@ -131,9 +138,10 @@ class BadgerFishConverter(XMLSchemaConverter):
                 ns_name = self.unmap_qname(attr_name, xsd_element.attributes)
                 attributes[ns_name] = value
             elif not isinstance(value, MutableSequence) or not value:
-                content.append((self.unmap_qname(name), value))
+                ns_name = self.unmap_qname(name, xmlns=self.get_xmlns(value))
+                content.append((ns_name, value))
             elif isinstance(value[0], (MutableMapping, MutableSequence)):
-                ns_name = self.unmap_qname(name)
+                ns_name = self.unmap_qname(name, xmlns=self.get_xmlns(value[0]))
                 for item in value:
                     content.append((ns_name, item))
             else:

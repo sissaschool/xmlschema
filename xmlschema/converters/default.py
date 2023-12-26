@@ -7,7 +7,6 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-import sys
 from collections import namedtuple
 from collections.abc import MutableMapping, MutableSequence
 from typing import TYPE_CHECKING, Any, Dict, Iterator, Iterable, \
@@ -415,7 +414,6 @@ class XMLSchemaConverter(NamespaceMapper):
         :param level: the level related to the encoding process (0 means the root).
         :return: an ElementData instance.
         """
-
         if self._ns_stack:
             self._pop_namespaces(level)
 
@@ -439,12 +437,10 @@ class XMLSchemaConverter(NamespaceMapper):
         text = None
         content: List[Tuple[Union[int, str], Any]] = []
         attributes = {}
-        xmlns = None
 
-        if self._use_xmlns:
-            xmlns = self.get_xmlns(obj)
-            if xmlns:
-                self._push_namespaces(level, xmlns)
+        xmlns = self.get_xmlns(obj)
+        if xmlns:
+            self._push_namespaces(level, xmlns)
 
         if element_name is not None:
             tag = self.unmap_qname(element_name)
