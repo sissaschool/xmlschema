@@ -821,13 +821,13 @@ class XsdElement(XsdComponent, ParticleMixin,
                 if not kwargs.get('binary_types'):
                     value = str(value)
 
+        if not xmlns:
+            converter.pop_namespaces(level)
+
         if isinstance(converter, XMLSchemaConverter):
             element_data = ElementData(obj.tag, value, content, attributes, xmlns)
             if 'element_hook' in kwargs:
                 element_data = kwargs['element_hook'](element_data, self, xsd_type)
-
-            if not xmlns:
-                converter.pop_namespaces(level)
 
             try:
                 yield converter.element_decode(element_data, self, xsd_type, level)

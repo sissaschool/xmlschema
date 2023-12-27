@@ -950,12 +950,16 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         model = ModelVisitor(self)
         errors = []
         broken_model = False
+        xmlns = None
 
         for index, child in enumerate(obj):
             if callable(child.tag):
-                continue  # child is a <class 'lxml.etree._Comment'>
+                continue  # child is a comment or PI
 
             # Handle xmlns declarations (level >=1)
+            if xmlns:
+                converter.pop_namespaces(level)
+
             try:
                 xmlns = kwargs['xmlns_getter'](child)
             except KeyError:
@@ -1020,15 +1024,9 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                         broken_model = True
 
             if xsd_element is None:
-                if kwargs.get('keep_unknown') and 'converter' in _kwargs:
+                if kwargs.get('keep_unknown'):
                     for result in self.any_type.iter_decode(child, validation, **_kwargs):
                         result_list.append((name, result, None))
-                continue
-            elif 'converter' not in _kwargs:
-                # Validation-only mode: do not append results
-                for result in xsd_element.iter_decode(child, validation, **_kwargs):
-                    if isinstance(result, XMLSchemaValidationError):
-                        yield result
                 continue
             elif over_max_depth:
                 if 'depth_filler' in _kwargs:
