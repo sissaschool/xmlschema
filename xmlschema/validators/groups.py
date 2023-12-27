@@ -960,23 +960,19 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                 xmlns = kwargs['xmlns_getter'](child)
             except KeyError:
                 kwargs['xmlns_getter'] = lambda x: None
-                _converter = converter
                 _kwargs = kwargs
             else:
                 if not xmlns:
-                    _converter = converter
                     _kwargs = kwargs
                 else:
-                    _converter = _copy(converter)
-                    _converter.update(xmlns)
+                    converter.push_namespaces(level, xmlns)
                     _kwargs = {k: v for k, v in kwargs.items()}
                     _kwargs['xmlns'] = xmlns
-                    _kwargs['converter'] = _converter
-                    _kwargs['namespaces'] = _converter.namespaces
+                    _kwargs['namespaces'] = converter.namespaces
 
-            default_namespace = _converter.default_namespace
-            namespaces = _converter.namespaces
-            name = _converter.map_qname(child.tag)
+            default_namespace = converter.default_namespace
+            namespaces = converter.namespaces
+            name = converter.map_qname(child.tag)
 
             while model.element is not None:
                 if model.element.max_occurs == 0:

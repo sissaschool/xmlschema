@@ -161,32 +161,6 @@ class TestNamespaceMapper(unittest.TestCase):
         mapper._strip_namespaces = True  # don't do tricks, create a new instance ...
         self.assertEqual(mapper.unmap_qname('element'), '{foo}element')
 
-    def test_transfer(self):
-        mapper = NamespaceMapper(namespaces={'xs': XSD_NAMESPACE, 'xsi': XSI_NAMESPACE})
-
-        namespaces = {'xs': 'foo'}
-        mapper.transfer(namespaces)
-        self.assertEqual(len(mapper), 2)
-        self.assertEqual(len(namespaces), 1)
-
-        namespaces = {'xs': XSD_NAMESPACE}
-        mapper.transfer(namespaces)
-        self.assertEqual(len(mapper), 2)
-        self.assertEqual(len(namespaces), 0)
-
-        namespaces = {'xs': XSI_NAMESPACE, 'tns0': 'http://xmlschema.test/ns'}
-        mapper.transfer(namespaces)
-        self.assertEqual(len(mapper), 3)
-        self.assertIn('tns0', mapper)
-        self.assertEqual(len(namespaces), 1)
-        self.assertIn('xs', namespaces)
-
-        mapper = NamespaceMapper()
-        namespaces = {'xs': XSD_NAMESPACE}
-        mapper.transfer(namespaces)
-        self.assertEqual(mapper, {'xs': XSD_NAMESPACE})
-        self.assertEqual(namespaces, {})
-
 
 class TestNamespaceView(unittest.TestCase):
 

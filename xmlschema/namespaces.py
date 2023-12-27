@@ -75,14 +75,17 @@ class NamespaceMapper(MutableMapping[str, str]):
     :param strip_namespaces: if set to `True` then the name mapping methods return \
     the local part of the provided name.
     """
-    __slots__ = '_namespaces', '_uri_to_prefix', '_process_namespaces', \
-        '_strip_namespaces', '_use_xmlns', '__dict__'
+    __slots__ = '_namespaces', '_ns_stack', '_uri_to_prefix', \
+        '_process_namespaces', '_strip_namespaces', '_use_xmlns', '__dict__'
+
     _namespaces: NamespacesType
+    _ns_stack: List[Tuple[int, Dict[str, str], Dict[str, str], List[Tuple[str, str]]]]
 
     def __init__(self, namespaces: Optional[NamespacesType] = None,
                  process_namespaces: bool = True,
                  strip_namespaces: bool = False):
         self._namespaces = {} if namespaces is None else namespaces
+        self._ns_stack = []
         self._uri_to_prefix = {v: k for k, v in reversed(self._namespaces.items())}
         self._process_namespaces = process_namespaces
         self._strip_namespaces = strip_namespaces
@@ -126,9 +129,6 @@ class NamespaceMapper(MutableMapping[str, str]):
     def default_namespace(self) -> Optional[str]:
         return self._namespaces.get('')
 
-    def clear(self) -> None:
-        self._namespaces.clear()
-
     def __copy__(self) -> 'NamespaceMapper':
         mapper: 'NamespaceMapper' = object.__new__(self.__class__)
 
@@ -138,6 +138,31 @@ class NamespaceMapper(MutableMapping[str, str]):
                     setattr(mapper, attr, copy.copy(getattr(self, attr)))
 
         return mapper
+
+    def clear(self) -> None:
+        self._namespaces.clear()
+        self._ns_stack.clear()
+
+    def pop_namespaces(self, level: int) -> None:
+        while self._ns_stack:
+            if level > self._ns_stack[-1][0]:
+                return
+            self._namespaces, self._uri_to_prefix = self._ns_stack.pop()[1:3]
+
+    def push_namespaces(self, level: int, xmlns: List[Tuple[str, str]]) -> None:
+        while self._ns_stack:
+            if level > self._ns_stack[-1][0]:
+                break
+            self._namespaces = self._ns_stack.pop()[1]
+
+        self._ns_stack.append((
+            level,
+            {k: v for k, v in self._namespaces.items()},
+            {k: v for k, v in self._uri_to_prefix.items()},
+            xmlns[:]
+        ))
+        self._namespaces.update(xmlns)
+        self._uri_to_prefix.update((v, k) for k, v in xmlns)
 
     def map_qname(self, qname: str) -> str:
         """
@@ -219,25 +244,6 @@ class NamespaceMapper(MutableMapping[str, str]):
                 return qname
             else:
                 return f'{{{uri}}}{name}' if uri else name
-
-    def transfer(self, namespaces: NamespacesType) -> None:
-        """
-        Transfers compatible prefix/namespace registrations from a dictionary.
-        Registrations added to namespace mapper instance are deleted from argument.
-
-        :param namespaces: a dictionary containing prefix/namespace registrations.
-        """
-        transferred = []
-        for k, v in namespaces.items():
-            if k in self._namespaces:
-                if v != self._namespaces[k]:
-                    continue
-            else:
-                self[k] = v
-            transferred.append(k)
-
-        for k in transferred:
-            del namespaces[k]
 
 
 T = TypeVar('T')

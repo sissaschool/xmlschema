@@ -19,7 +19,8 @@ from .names import XSD_NAMESPACE, XSI_TYPE, XSD_SCHEMA
 from .aliases import ElementType, XMLSourceType, NamespacesType, LocationsType, \
     LazyType, UriMapperType, SchemaSourceType, ConverterType, DecodeType, EncodeType, \
     JsonDecodeType
-from .helpers import get_extended_qname, get_namespace_map, is_etree_document
+from .helpers import get_extended_qname, update_namespaces, get_namespace_map, \
+    is_etree_document
 from .resources import fetch_schema_locations, XMLResource
 from .validators import XMLSchema10, XMLSchemaBase, XMLSchemaValidationError
 
@@ -612,7 +613,7 @@ class XmlDocument(XMLResource):
         if cls is None:
             cls = XMLSchema10
         self.validation = validation
-        self._namespaces = namespaces
+        self._namespaces = get_namespace_map(namespaces)
         super(XmlDocument, self).__init__(source, base_url, allow, defuse,
                                           timeout, lazy, thin_lazy)
 
@@ -681,7 +682,8 @@ class XmlDocument(XMLResource):
 
     def get_namespaces(self, namespaces: Optional[NamespacesType] = None,
                        root_only: bool = True) -> NamespacesType:
-        namespaces = get_namespace_map(namespaces, self._namespaces)
+        namespaces = get_namespace_map(namespaces)
+        update_namespaces(namespaces, self._namespaces.items(), self.namespace)
         return super().get_namespaces(namespaces, root_only)
 
     def getroot(self) -> ElementType:

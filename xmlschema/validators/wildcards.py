@@ -575,6 +575,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
         except KeyError:
             level = 0
 
+        converter.pop_namespaces(level)
         try:
             element_data = converter.element_encode(value, xsd_element, level)
         except (ValueError, TypeError) as err:

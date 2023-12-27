@@ -97,9 +97,6 @@ class BadgerFishConverter(XMLSchemaConverter):
         return self.dict([(tag, result_dict)])
 
     def element_encode(self, obj: Any, xsd_element: 'XsdElement', level: int = 0) -> ElementData:
-        if self._ns_stack:
-            self._pop_namespaces(level)
-
         tag = xsd_element.name
         if not isinstance(obj, MutableMapping):
             raise XMLSchemaTypeError(f"A dictionary expected, got {type(obj)} instead.")
@@ -124,7 +121,7 @@ class BadgerFishConverter(XMLSchemaConverter):
 
         xmlns = self.get_xmlns(element_data)
         if xmlns:
-            self._push_namespaces(level, xmlns)
+            self.push_namespaces(level, xmlns)
 
         for name, value in element_data.items():
             if name == '@xmlns':

@@ -57,7 +57,6 @@ class UnorderedConverter(XMLSchemaConverter):
 
         text = None
         attributes = {}
-        xmlns = None
 
         # The unordered encoding mode assumes that the values of this dict will
         # all be lists where each item is the content of a single element. When
@@ -68,10 +67,9 @@ class UnorderedConverter(XMLSchemaConverter):
         # unordered mode generator function of the ModelVisitor class.
         content_lu: Dict[Union[int, str], Any] = {}
 
-        if self._use_xmlns:
-            xmlns = self.get_xmlns(obj)
-            if xmlns:
-                self._push_namespaces(level, xmlns)
+        xmlns = self.get_xmlns(obj)
+        if xmlns:
+            self.push_namespaces(level, xmlns)
 
         if element_name is not None:
             tag = self.unmap_qname(element_name)

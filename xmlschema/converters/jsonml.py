@@ -92,9 +92,6 @@ class JsonMLConverter(XMLSchemaConverter):
         return result_list
 
     def element_encode(self, obj: Any, xsd_element: 'XsdElement', level: int = 0) -> ElementData:
-        if self._ns_stack:
-            self._pop_namespaces(level)
-
         if not isinstance(obj, MutableSequence):
             msg = "The first argument must be a sequence, {} provided"
             raise XMLSchemaTypeError(msg.format(type(obj)))
@@ -109,7 +106,7 @@ class JsonMLConverter(XMLSchemaConverter):
 
         xmlns = self.get_xmlns(obj)
         if xmlns:
-            self._push_namespaces(level, xmlns)
+            self.push_namespaces(level, xmlns)
 
         attributes: Dict[str, Any] = {}
         if isinstance(obj[1], MutableMapping):

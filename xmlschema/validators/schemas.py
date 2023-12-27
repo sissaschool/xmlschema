@@ -44,8 +44,7 @@ from ..aliases import ElementType, XMLSourceType, NamespacesType, LocationsType,
     EncodeType, BaseXsdType, ExtraValidatorType, ValidationHookType, UriMapperType, \
     SchemaGlobalType, FillerType, DepthFillerType, ValueHookType, ElementHookType
 from ..translation import gettext as _
-from ..helpers import prune_etree, get_namespace, get_namespace_map, \
-    get_qname, is_defuse_error
+from ..helpers import prune_etree, get_namespace, get_qname, is_defuse_error
 from ..namespaces import NamespaceResourcesMap, NamespaceMapper, NamespaceView
 from ..locations import is_local_url, is_remote_url, url_path_is_file, \
     normalize_url, normalize_locations
@@ -1999,7 +1998,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             elif xmlns_usage == 'root-only':
                 namespaces = resource.get_namespaces(namespaces, root_only=True)
             elif xmlns_usage == 'none':
-                namespaces = get_namespace_map(namespaces)
+                namespaces = {k: v for k, v in namespaces.items()} if namespaces else {}
             elif isinstance(xmlns_usage, str):
                 raise XMLSchemaValueError("invalid value for argument 'xmlns_usage'")
             else:

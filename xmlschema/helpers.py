@@ -179,18 +179,11 @@ def update_namespaces(namespaces: NamespacesType,
             namespaces[prefix] = uri
 
 
-def get_namespace_map(namespaces: Optional[NamespacesType],
-                      other: Optional[NamespacesType] = None) -> NamespacesType:
-    """
-    Returns a new and checked namespace map. Optionally the provided map
-    can be merged with another, discarding duplicate prefixes.
-    """
-    namespaces = {} if namespaces is None else {**namespaces}
-    if other:
-        namespaces.update((k, v) for k, v in other.items() if k not in namespaces)
-
+def get_namespace_map(namespaces: Optional[NamespacesType]) -> NamespacesType:
+    """Returns a new and checked namespace map."""
+    namespaces = {k: v for k, v in namespaces.items()} if namespaces else {}
     if namespaces.get('xml', XML_NAMESPACE) != XML_NAMESPACE:
-        msg = "reserved prefix 'xml' can't be used for another namespace name"
+        msg = f"reserved prefix 'xml' can be used only for {XML_NAMESPACE!r} namespace"
         raise XMLSchemaValueError(msg)
 
     return namespaces

@@ -83,13 +83,12 @@ class XMLSchemaConverter(NamespaceMapper):
     :ivar force_dict: force dictionary for complex elements with simple content
     :ivar force_list: force list for child elements
     """
-    _ns_stack: List[Tuple[int, NamespacesType]]
     ns_prefix: str
     dict: Type[Dict[str, Any]]
     list: Type[List[Any]]
     etree_element_class: Type[Element]
 
-    __slots__ = ('_ns_stack', 'dict', 'list', 'etree_element_class',
+    __slots__ = ('dict', 'list', 'etree_element_class',
                  'text_key', 'ns_prefix', 'attr_prefix', 'cdata_prefix',
                  'indent', 'preserve_root', 'force_dict', 'force_list')
 
@@ -111,8 +110,6 @@ class XMLSchemaConverter(NamespaceMapper):
         super(XMLSchemaConverter, self).__init__(
             namespaces, process_namespaces, strip_namespaces
         )
-        self._ns_stack = []
-
         if dict_class is not None:
             self.dict = dict_class
         else:
@@ -184,20 +181,6 @@ class XMLSchemaConverter(NamespaceMapper):
     def loss_xmlns(self) -> bool:
         """The converter ignores XML namespace information during decoding/encoding."""
         return not self._use_xmlns
-
-    def clear(self) -> None:
-        self._namespaces.clear()
-        self._ns_stack.clear()
-
-    def _pop_namespaces(self, level: int) -> None:
-        while self._ns_stack:
-            if level > self._ns_stack[-1][0]:
-                return
-            self._namespaces = self._ns_stack.pop()[1]
-
-    def _push_namespaces(self, level: int, xmlns: List[Tuple[str, str]]) -> None:
-        self._ns_stack.append((level, {**self._namespaces}))
-        self._namespaces.update(xmlns)
 
     def copy(self, **kwargs: Any) -> 'XMLSchemaConverter':
         namespaces = kwargs.get('namespaces')
@@ -414,9 +397,6 @@ class XMLSchemaConverter(NamespaceMapper):
         :param level: the level related to the encoding process (0 means the root).
         :return: an ElementData instance.
         """
-        if self._ns_stack:
-            self._pop_namespaces(level)
-
         if level or not self.preserve_root:
             element_name = None
         elif not isinstance(obj, MutableMapping):
@@ -440,7 +420,7 @@ class XMLSchemaConverter(NamespaceMapper):
 
         xmlns = self.get_xmlns(obj)
         if xmlns:
-            self._push_namespaces(level, xmlns)
+            self.push_namespaces(level, xmlns)
 
         if element_name is not None:
             tag = self.unmap_qname(element_name)

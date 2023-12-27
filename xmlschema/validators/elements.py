@@ -826,6 +826,9 @@ class XsdElement(XsdComponent, ParticleMixin,
             if 'element_hook' in kwargs:
                 element_data = kwargs['element_hook'](element_data, self, xsd_type)
 
+            if not xmlns:
+                converter.pop_namespaces(level)
+
             try:
                 yield converter.element_decode(element_data, self, xsd_type, level)
             except (ValueError, TypeError) as err:
@@ -974,6 +977,7 @@ class XsdElement(XsdComponent, ParticleMixin,
         except KeyError:
             level = kwargs['level'] = 0
 
+        converter.pop_namespaces(level)
         try:
             element_data = converter.element_encode(obj, self, level)
         except (ValueError, TypeError) as err:

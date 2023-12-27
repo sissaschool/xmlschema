@@ -1164,32 +1164,32 @@ class XMLResource:
                        root_only: bool = True) -> NamespacesType:
         """
         Extracts namespaces with related prefixes from the XML resource.
+        If a duplicate prefix is encountered in a xmlns declaration, and
+        this is mapped to a different namespace, adds the namespace using
+        a different generated prefix. The empty prefix '' is used only if
+        it's declared at root level to avoid erroneous mapping of local
+        names. In other cases it uses the prefix 'default' as substitute.
 
         :param namespaces: is an optional mapping from namespace prefix to URI that \
         integrate/override the namespace declarations of the root element.
         :param root_only: if `True` extracts only the namespaces declared in the root \
         element, otherwise scan the whole tree for further namespace declarations. \
-        If a duplicate prefix is encountered in a non-root xmlns declaration, and this \
-        is mapped to a different namespace, adds the namespace using a different \
-        generated prefix. The empty prefix '' is used only if it's declared at root \
-        level to avoid erroneous mapping of local names. In other cases it uses the \
-        prefix 'default' as substitute. A full namespace map can be useful for cases \
-        where the element context is not available.
+        A full namespace map can be useful for cases where the element context is \
+        not available.
+
         :return: a dictionary for mapping namespace prefixes to full URI.
         """
-        elements = self.iter()
-        try:
-            root = next(elements)
-            namespaces = get_namespace_map(namespaces, self._nsmaps.get(root))
-            if root_only:
-                return namespaces
+        namespaces = get_namespace_map(namespaces)
+        root_namespace = self.namespace
 
-            root_namespace = self.namespace
-            for elem in elements:
+        try:
+            for elem in self.iter():
                 if elem in self._xmlns:
                     update_namespaces(namespaces, self._xmlns[elem], root_namespace)
+                if root_only:
+                    break
         except (ElementTree.ParseError, PyElementTree.ParseError, UnicodeEncodeError):
-            return get_namespace_map(namespaces)  # a lazy resource with malformed XML data
+            return namespaces  # a lazy resource with malformed XML data
         else:
             return namespaces
 

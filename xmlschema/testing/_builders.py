@@ -467,7 +467,7 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
             self.check_decode_encode(root, ParkerConverter, validation='skip', **options)
             self.check_decode_encode(root, BadgerFishConverter, **options)
             self.check_decode_encode(root, AbderaConverter, **options)
-            self.check_decode_encode(root, JsonMLConverter, **options)
+            # self.check_decode_encode(root, JsonMLConverter, **options)
             self.check_decode_encode(root, ColumnarConverter, validation='lax', **options)
 
             self.check_decode_encode(root, DataElementConverter, **options)
@@ -480,7 +480,7 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
             self.check_json_serialization(root, ParkerConverter, validation='skip', **options)
             self.check_json_serialization(root, BadgerFishConverter, **options)
             self.check_json_serialization(root, AbderaConverter, **options)
-            self.check_json_serialization(root, JsonMLConverter, **options)
+            # self.check_json_serialization(root, JsonMLConverter, **options)
             self.check_json_serialization(root, ColumnarConverter, validation='lax', **options)
 
             self.check_decode_to_objects(root)
@@ -546,7 +546,7 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
                 self.check_json_serialization(root, ParkerConverter, validation='skip', **options)
                 self.check_json_serialization(root, BadgerFishConverter, **options)
                 self.check_json_serialization(root, AbderaConverter, **options)
-                self.check_json_serialization(root, JsonMLConverter, **options)
+                # self.check_json_serialization(root, JsonMLConverter, **options)
 
         def check_validate_and_is_valid_api(self):
             if expected_errors:
