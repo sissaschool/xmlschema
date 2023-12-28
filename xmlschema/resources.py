@@ -1228,15 +1228,3 @@ class XMLResource:
                 pass  # a lazy resource containing malformed XML data after the first tag
 
         return location_hints
-
-    def track_namespaces(self, selector: Iterator[ElementType],
-                         namespaces: NamespacesType) -> Iterator[ElementType]:
-        """Updates a namespace map for a selector of elements of the XML resource."""
-        initial_nsmap = {**namespaces}
-        for elem in selector:
-            namespaces.clear()
-            namespaces.update(initial_nsmap)
-            if elem in self._xmlns:
-                namespaces.update(self._xmlns[elem])
-
-            yield elem

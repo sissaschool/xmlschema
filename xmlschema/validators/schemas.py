@@ -1739,12 +1739,13 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         identities: Dict[XsdIdentity, IdentityCounter] = {}
         ancestors: List[ElementType] = []
         prev_ancestors: List[ElementType] = []
+        converter = NamespaceMapper(namespaces)
         kwargs: Dict[Any, Any] = {
             'level': resource.lazy_depth or bool(path),
             'source': resource,
             'namespaces': namespaces,
             'xmlns_getter': resource.get_xmlns,
-            'converter': NamespaceMapper(namespaces),
+            'converter': converter,
             'use_defaults': use_defaults,
             'id_map': Counter[str](),
             'identities': identities,
@@ -1767,7 +1768,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             selector = resource.iter_depth(mode=4, ancestors=ancestors)
 
         elem: Optional[Element] = None
-        for elem in resource.track_namespaces(selector, namespaces):
+        for elem in selector:
             if elem is resource.root:
                 if resource.lazy_depth:
                     kwargs['level'] = 0
@@ -1781,7 +1782,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                             break
 
                     path_ = f"{'/'.join(e.tag for e in ancestors)}/ancestor-or-self::node()"
-                    xsd_ancestors = cast(List[XsdElement], schema.findall(path_, namespaces)[1:])
+                    xsd_ancestors = cast(List[XsdElement], schema.findall(path_, converter.namespaces)[1:])
 
                     # Clear identity constraints counters
                     for k, e in enumerate(xsd_ancestors[k:], start=k):
@@ -1854,9 +1855,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             selector = source.iterfind(path, namespaces)
         else:
             selector = source.iter_depth(mode=2)
-
-        if kwargs.get('xmlns_usage') == 'exact' and namespaces is not None:
-            selector = source.track_namespaces(selector, namespaces)
 
         for elem in selector:
             xsd_element = self.get_element(elem.tag, schema_path, namespaces)
@@ -2054,9 +2052,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
         if path:
             selector = resource.iterfind(path, namespaces)
-            if xmlns_usage == 'exact':
-                selector = resource.track_namespaces(selector, namespaces)
-
         elif not resource.is_lazy():
             selector = iter((resource.root,))
         else:
@@ -2069,8 +2064,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             kwargs['depth_filler'] = lambda x: decoder
             kwargs['max_depth'] = resource.lazy_depth
             selector = resource.iter_depth(mode=3)
-            if xmlns_usage == 'exact':
-                selector = resource.track_namespaces(selector, namespaces)
 
         for elem in selector:
             xsd_element = schema.get_element(elem.tag, schema_path, namespaces)
