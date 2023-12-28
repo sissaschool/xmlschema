@@ -2010,7 +2010,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
         kwargs.update(
             converter=converter,
-            namespaces=namespaces,
+            namespaces=converter.namespaces,
             source=resource,
             use_defaults=use_defaults,
             id_map=Counter[str](),
@@ -2194,7 +2194,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 obj,
                 validation,
                 use_defaults=use_defaults,
-                namespaces=converter,
+                namespaces=converter.namespaces,
                 converter=converter,
                 unordered=unordered,
                 **kwargs

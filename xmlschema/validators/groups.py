@@ -948,6 +948,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         expected: Optional[List[SchemaElementType]]
 
         model = ModelVisitor(self)
+        namespaces = converter.namespaces
         errors = []
         broken_model = False
         xmlns = None
@@ -972,10 +973,8 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                     converter.push_namespaces(level, xmlns)
                     _kwargs = {k: v for k, v in kwargs.items()}
                     _kwargs['xmlns'] = xmlns
-                    _kwargs['namespaces'] = converter.namespaces
 
             default_namespace = converter.default_namespace
-            namespaces = converter.namespaces
             name = converter.map_qname(child.tag)
 
             while model.element is not None:
@@ -1058,9 +1057,17 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         if errors:
             source = kwargs.get('source')
             namespaces = converter.namespaces
+
             for index, particle, occurs, expected in errors:
                 error = XMLSchemaChildrenValidationError(
-                    self, obj, index, particle, occurs, expected, source, namespaces
+                    validator=self,
+                    elem=obj,
+                    index=index,
+                    particle=particle,
+                    occurs=occurs,
+                    expected=expected,
+                    source=source,
+                    namespaces=namespaces,
                 )
                 if validation == 'strict':
                     raise error
@@ -1204,6 +1211,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         if errors or cdata_not_allowed or wrong_content_type:
             attrib = {k: raw_xml_encode(v) for k, v in obj.attributes.items()}
             elem = converter.etree_element(obj.tag, text, children, attrib)
+            namespaces = converter.namespaces
 
             if wrong_content_type:
                 reason = _("wrong content type {!r}").format(type(obj.content))
@@ -1221,7 +1229,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                     particle=particle,
                     occurs=occurs,
                     expected=expected,
-                    namespaces=converter.namespaces,
+                    namespaces=namespaces,
                 )
                 if validation == 'strict':
                     raise error

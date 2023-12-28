@@ -146,14 +146,22 @@ class NamespaceMapper(MutableMapping[str, str]):
     def pop_namespaces(self, level: int) -> None:
         while self._ns_stack:
             if level > self._ns_stack[-1][0]:
-                return
-            self._namespaces, self._uri_to_prefix = self._ns_stack.pop()[1:3]
+                break
+            namespaces, uri_to_prefix = self._ns_stack.pop()[1:3]
+            self._namespaces.clear()
+            self._namespaces.update(namespaces)
+            self._uri_to_prefix.clear()
+            self._uri_to_prefix.update(uri_to_prefix)
 
     def push_namespaces(self, level: int, xmlns: List[Tuple[str, str]]) -> None:
         while self._ns_stack:
             if level > self._ns_stack[-1][0]:
                 break
-            self._namespaces = self._ns_stack.pop()[1]
+            namespaces, uri_to_prefix = self._ns_stack.pop()[1:3]
+            self._namespaces.clear()
+            self._namespaces.update(namespaces)
+            self._uri_to_prefix.clear()
+            self._uri_to_prefix.update(uri_to_prefix)
 
         self._ns_stack.append((
             level,
