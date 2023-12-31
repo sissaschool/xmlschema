@@ -310,7 +310,7 @@ class TestHelpers(unittest.TestCase):
         update_namespaces(nsmap, [('', 'http://example.com/ns')])
         self.assertEqual(nsmap, {'default': 'http://www.w3.org/2001/XMLSchema',
                                  'default0': 'http://example.com/ns'})
-        update_namespaces(nsmap, [('', 'http://example.com/ns2')], root_namespace='foo')
+        update_namespaces(nsmap, [('', 'http://example.com/ns2')], root_declarations=True)
         self.assertEqual(nsmap, {'default': 'http://www.w3.org/2001/XMLSchema',
                                  'default0': 'http://example.com/ns',
                                  '': 'http://example.com/ns2'})

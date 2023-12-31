@@ -144,22 +144,27 @@ def get_extended_qname(qname: str, namespaces: Optional[MutableMapping[str, str]
 
 
 def update_namespaces(namespaces: NamespacesType,
-                      ns_declarations: Iterable[Tuple[str, str]],
-                      root_namespace: Optional[str] = None) -> None:
+                      xmlns: Iterable[Tuple[str, str]],
+                      root_declarations: bool = False) -> None:
     """
     Update a namespace map without overwriting existing declarations.
+    If a duplicate prefix is encountered in a xmlns declaration, and
+    this is mapped to a different namespace, adds the namespace using
+    a different generated prefix. The empty prefix '' is used only if
+    it's declared at root level to avoid erroneous mapping of local
+    names. In other cases it uses the prefix 'default' as substitute.
 
     :param namespaces: the target namespace map.
-    :param ns_declarations: an iterable containing couples of namespace declarations.
-    :param root_namespace: the namespace of the root element of the XML tree, for \
-    deciding if the empty prefix can be used.
+    :param xmlns: an iterable containing couples of namespace declarations.
+    :param root_declarations: provide `True` if the namespace declarations \
+    belong to the root element, `False` otherwise (default).
     """
-    for prefix, uri in ns_declarations:
+    for prefix, uri in xmlns:
         if not prefix:
             if not uri:
                 continue
             elif '' not in namespaces:
-                if root_namespace:
+                if root_declarations:
                     namespaces[''] = uri
                     continue
             elif namespaces[''] == uri:

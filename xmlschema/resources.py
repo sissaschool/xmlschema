@@ -1180,12 +1180,11 @@ class XMLResource:
         :return: a dictionary for mapping namespace prefixes to full URI.
         """
         namespaces = get_namespace_map(namespaces)
-        root_namespace = self.namespace
 
         try:
             for elem in self.iter():
                 if elem in self._xmlns:
-                    update_namespaces(namespaces, self._xmlns[elem], root_namespace)
+                    update_namespaces(namespaces, self._xmlns[elem], elem is self._root)
                 if root_only:
                     break
         except (ElementTree.ParseError, PyElementTree.ParseError, UnicodeEncodeError):

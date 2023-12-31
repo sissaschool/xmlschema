@@ -683,7 +683,7 @@ class XmlDocument(XMLResource):
     def get_namespaces(self, namespaces: Optional[NamespacesType] = None,
                        root_only: bool = True) -> NamespacesType:
         namespaces = get_namespace_map(namespaces)
-        update_namespaces(namespaces, self._namespaces.items(), self.namespace)
+        update_namespaces(namespaces, self._namespaces.items(), root_declarations=True)
         return super().get_namespaces(namespaces, root_only)
 
     def getroot(self) -> ElementType:
