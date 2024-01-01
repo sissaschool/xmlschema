@@ -98,15 +98,13 @@ class JsonMLConverter(XMLSchemaConverter):
         elif not obj:
             raise XMLSchemaValueError("The first argument is an empty sequence")
 
+        xmlns = self.set_context(obj, level)
+
         data_len = len(obj)
         if data_len == 1:
             if not xsd_element.is_matching(self.unmap_qname(obj[0]), self._namespaces.get('')):
                 raise XMLSchemaValueError("Unmatched tag")
             return ElementData(xsd_element.name, None, None, {}, None)
-
-        xmlns = self.get_xmlns_from_data(obj)
-        if xmlns:
-            self.push_namespaces(level, xmlns)
 
         attributes: Dict[str, Any] = {}
         if isinstance(obj[1], MutableMapping):

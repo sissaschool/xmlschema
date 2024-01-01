@@ -821,8 +821,10 @@ class XsdElement(XsdComponent, ParticleMixin,
                 if not kwargs.get('binary_types'):
                     value = str(value)
 
-        if not xmlns:
-            converter.pop_namespaces(level)
+        if level:
+            xmlns = converter.set_context(obj, level)
+        else:
+            converter.set_context(obj, level)
 
         if isinstance(converter, XMLSchemaConverter):
             element_data = ElementData(obj.tag, value, content, attributes, xmlns)
@@ -977,7 +979,6 @@ class XsdElement(XsdComponent, ParticleMixin,
         except KeyError:
             level = kwargs['level'] = 0
 
-        converter.pop_namespaces(level)
         try:
             element_data = converter.element_encode(obj, self, level)
         except (ValueError, TypeError) as err:

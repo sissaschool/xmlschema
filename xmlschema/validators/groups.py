@@ -951,19 +951,12 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         namespaces = converter.namespaces
         errors = []
         broken_model = False
-        xmlns = None
 
         for index, child in enumerate(obj):
             if callable(child.tag):
                 continue  # child is a comment or PI
 
-            xmlns = converter.set_context(child, level)
-            if not xmlns:
-                _kwargs = kwargs
-            else:
-                _kwargs = {k: v for k, v in kwargs.items()}
-                _kwargs['xmlns'] = xmlns
-
+            converter.set_context(child, level)
             default_namespace = converter.default_namespace
             name = converter.map_qname(child.tag)
 
@@ -1014,16 +1007,16 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
 
             if xsd_element is None:
                 if kwargs.get('keep_unknown'):
-                    for result in self.any_type.iter_decode(child, validation, **_kwargs):
+                    for result in self.any_type.iter_decode(child, validation, **kwargs):
                         result_list.append((name, result, None))
                 continue
             elif over_max_depth:
-                if 'depth_filler' in _kwargs:
-                    func = _kwargs['depth_filler']
+                if 'depth_filler' in kwargs:
+                    func = kwargs['depth_filler']
                     result_list.append((name, func(xsd_element), xsd_element))
                 continue
 
-            for result in xsd_element.iter_decode(child, validation, **_kwargs):
+            for result in xsd_element.iter_decode(child, validation, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
                     yield result
                 else:
