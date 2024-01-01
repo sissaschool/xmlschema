@@ -225,15 +225,13 @@ class DataElement(MutableSequence['DataElement']):
         """
         namespaces = copy(namespaces) if namespaces is not None else {}
         if root_only:
-            update_namespaces(namespaces, self.nsmap.items(), self.namespace)
+            update_namespaces(namespaces, self.nsmap.items(), root_declarations=True)
         else:
             nsmap = None
-            root_namespace = self.namespace
-
             for elem in self.iter():
                 if nsmap is not elem.nsmap:
                     nsmap = elem.nsmap
-                    update_namespaces(namespaces, nsmap.items(), root_namespace)
+                    update_namespaces(namespaces, nsmap.items(), elem is self)
 
         return namespaces
 

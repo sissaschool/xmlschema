@@ -459,7 +459,7 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
         def check_data_conversion_with_element_tree(self):
             root = ElementTree.parse(xml_file).getroot()
             namespaces = fetch_namespaces(xml_file)  # need a collapsed nsmap
-            options = {'namespaces': namespaces, 'xmlns_usage': 'none'}
+            options = {'namespaces': namespaces, 'xmlns_processing': 'none'}
 
             self.check_decode_encode(root, cdata_prefix='#', **options)  # Default converter
             self.check_decode_encode(root, UnorderedConverter, cdata_prefix='#', **options)
@@ -534,7 +534,7 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
                 options = {
                     'etree_element_class': lxml_etree_element,
                     'namespaces': namespaces,
-                    'xmlns_usage': 'none'
+                    'xmlns_processing': 'none'
                 }
                 self.check_decode_encode(root, ParkerConverter, validation='lax', **options)
                 self.check_decode_encode(root, ParkerConverter, validation='skip', **options)

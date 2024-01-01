@@ -957,22 +957,12 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
             if callable(child.tag):
                 continue  # child is a comment or PI
 
-            # Handle xmlns declarations (level >=1)
-            if xmlns:
-                converter.pop_namespaces(level)
-
-            try:
-                xmlns = kwargs['xmlns_getter'](child)
-            except KeyError:
-                kwargs['xmlns_getter'] = lambda x: None
+            xmlns = converter.set_context(child, level)
+            if not xmlns:
                 _kwargs = kwargs
             else:
-                if not xmlns:
-                    _kwargs = kwargs
-                else:
-                    converter.push_namespaces(level, xmlns)
-                    _kwargs = {k: v for k, v in kwargs.items()}
-                    _kwargs['xmlns'] = xmlns
+                _kwargs = {k: v for k, v in kwargs.items()}
+                _kwargs['xmlns'] = xmlns
 
             default_namespace = converter.default_namespace
             name = converter.map_qname(child.tag)

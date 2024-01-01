@@ -46,8 +46,8 @@ class BadgerFishConverter(XMLSchemaConverter):
     def lossy(self) -> bool:
         return False
 
-    def get_xmlns(self, obj: Any) -> Optional[List[Tuple[str, str]]]:
-        if not self._use_xmlns or not isinstance(obj, MutableMapping) or '@xmlns' not in obj:
+    def get_xmlns_from_data(self, obj: Any) -> Optional[List[Tuple[str, str]]]:
+        if not self._use_namespaces or not isinstance(obj, MutableMapping) or '@xmlns' not in obj:
             return None
         return [(k if k != '$' else '', v) for k, v in obj['@xmlns'].items()]
 
@@ -58,7 +58,7 @@ class BadgerFishConverter(XMLSchemaConverter):
         tag = self.map_qname(data.tag)
         result_dict = self.dict([t for t in self.map_attributes(data.attributes)])
 
-        if self._use_xmlns:
+        if self._use_namespaces:
             if data.xmlns:
                 result_dict['@xmlns'] = self.dict((k or '$', v) for k, v in data.xmlns)
             elif not level and xsd_element.is_global() and self:
@@ -119,7 +119,7 @@ class BadgerFishConverter(XMLSchemaConverter):
         content: List[Tuple[Union[str, int], Any]] = []
         attributes = {}
 
-        xmlns = self.get_xmlns(element_data)
+        xmlns = self.get_xmlns_from_data(element_data)
         if xmlns:
             self.push_namespaces(level, xmlns)
 
@@ -135,10 +135,10 @@ class BadgerFishConverter(XMLSchemaConverter):
                 ns_name = self.unmap_qname(attr_name, xsd_element.attributes)
                 attributes[ns_name] = value
             elif not isinstance(value, MutableSequence) or not value:
-                ns_name = self.unmap_qname(name, xmlns=self.get_xmlns(value))
+                ns_name = self.unmap_qname(name, xmlns=self.get_xmlns_from_data(value))
                 content.append((ns_name, value))
             elif isinstance(value[0], (MutableMapping, MutableSequence)):
-                ns_name = self.unmap_qname(name, xmlns=self.get_xmlns(value[0]))
+                ns_name = self.unmap_qname(name, xmlns=self.get_xmlns_from_data(value[0]))
                 for item in value:
                     content.append((ns_name, item))
             else:

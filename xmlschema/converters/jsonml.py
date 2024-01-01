@@ -48,8 +48,8 @@ class JsonMLConverter(XMLSchemaConverter):
     def losslessly(self) -> bool:
         return True
 
-    def get_xmlns(self, obj: Any) -> Optional[List[Tuple[str, str]]]:
-        if not self._use_xmlns or not isinstance(obj, MutableSequence) \
+    def get_xmlns_from_data(self, obj: Any) -> Optional[List[Tuple[str, str]]]:
+        if not self._use_namespaces or not isinstance(obj, MutableSequence) \
                 or len(obj) < 2 or not isinstance(obj[1], MutableMapping):
             return None
 
@@ -78,7 +78,7 @@ class JsonMLConverter(XMLSchemaConverter):
 
         attributes = self.dict(self.map_attributes(data.attributes))
 
-        if self._use_xmlns:
+        if self._use_namespaces:
             if data.xmlns:
                 attributes.update((f'{self.ns_prefix}:{k}' if k else self.ns_prefix, v)
                                   for k, v in data.xmlns)
@@ -104,7 +104,7 @@ class JsonMLConverter(XMLSchemaConverter):
                 raise XMLSchemaValueError("Unmatched tag")
             return ElementData(xsd_element.name, None, None, {}, None)
 
-        xmlns = self.get_xmlns(obj)
+        xmlns = self.get_xmlns_from_data(obj)
         if xmlns:
             self.push_namespaces(level, xmlns)
 
@@ -129,7 +129,7 @@ class JsonMLConverter(XMLSchemaConverter):
         else:
             cdata_num = iter(range(1, data_len))
             content = [
-                (self.unmap_qname(e[0], xmlns=self.get_xmlns(e)), e)
+                (self.unmap_qname(e[0], xmlns=self.get_xmlns_from_data(e)), e)
                 if isinstance(e, MutableSequence)
                 else (next(cdata_num), e) for e in obj[content_index:]
             ]

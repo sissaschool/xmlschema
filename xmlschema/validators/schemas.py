@@ -1728,7 +1728,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         if not schema_path:
             schema_path = resource.get_absolute_path(path)
 
-        namespaces = resource.get_namespaces(namespaces)
+        converter = NamespaceMapper(namespaces, source=resource)
+        namespaces = converter.namespaces
         namespace = resource.namespace or namespaces.get('', '')
 
         try:
@@ -1739,12 +1740,10 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         identities: Dict[XsdIdentity, IdentityCounter] = {}
         ancestors: List[ElementType] = []
         prev_ancestors: List[ElementType] = []
-        converter = NamespaceMapper(namespaces)
         kwargs: Dict[Any, Any] = {
             'level': resource.lazy_depth or bool(path),
             'source': resource,
             'namespaces': namespaces,
-            'xmlns_getter': resource.get_xmlns,
             'converter': converter,
             'use_defaults': use_defaults,
             'id_map': Counter[str](),
@@ -1782,7 +1781,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                             break
 
                     path_ = f"{'/'.join(e.tag for e in ancestors)}/ancestor-or-self::node()"
-                    xsd_ancestors = cast(List[XsdElement], schema.findall(path_, converter.namespaces)[1:])
+                    xsd_ancestors = cast(List[XsdElement],
+                                         schema.findall(path_, converter.namespaces)[1:])
 
                     # Clear identity constraints counters
                     for k, e in enumerate(xsd_ancestors[k:], start=k):
@@ -1877,7 +1877,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                     validation: str = 'lax',
                     process_namespaces: bool = True,
                     namespaces: Optional[NamespacesType] = None,
-                    xmlns_usage: str = 'exact',
+                    xmlns_usage: Optional[str] = None,
                     use_defaults: bool = True,
                     use_location_hints: bool = False,
                     decimal_type: Optional[Type[Any]] = None,
@@ -1895,6 +1895,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                     validation_hook: Optional[ValidationHookType] = None,
                     value_hook: Optional[ValueHookType] = None,
                     element_hook: Optional[ElementHookType] = None,
+                    errors: Optional[List[XMLSchemaValidationError]] = None,
                     **kwargs: Any) -> Iterator[Union[Any, XMLSchemaValidationError]]:
         """
         Creates an iterator for decoding an XML source to a data structure.
@@ -1916,13 +1917,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         integrate/override the root namespace declarations of the XML source. \
         In case of prefix collision an alternate prefix is used for the root \
         XML namespace declaration.
-        :param xmlns_usage: defines the usage of the XML namespace declarations. \
-        The default is 'exact' which means that the loaded namespace declarations \
-        always match the ones defined in the XML document. Provide 'collapsed' for \
-        loading all namespace declarations of the XML source before decoding. \
-        Provide 'root-only' to use only the namespace declarations of the XML \
-        document root. \
-        Provide 'none' to not use any namespace declaration of the XML document.
         :param use_defaults: whether to use default values for filling missing data.
         :param use_location_hints: for default schema locations hints provided within \
         XML data are ignored in order to avoid the change of schema instance. Set this \
@@ -1973,7 +1967,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         data before calling the converter decode method. Takes an `ElementData` \
         instance plus optionally the XSD element and the XSD type, and returns a \
         new `ElementData` instance.
-        :param kwargs: keyword arguments with other options for converter and decoder.
+        :param errors: optional internal collector for validation errors.
+        :param kwargs: keyword arguments with other options for converters.
         :return: yields a decoded data object, eventually preceded by a sequence of \
         validation or decoding errors.
         """
@@ -1986,37 +1981,27 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         if not schema_path and path:
             schema_path = resource.get_absolute_path(path)
 
-        if xmlns_usage == 'exact':
-            kwargs['xmlns_getter'] = resource.get_xmlns
-            namespaces = resource.get_namespaces(namespaces)
-        else:
-            kwargs['xmlns_getter'] = lambda x: None
-            if xmlns_usage == 'collapsed':
-                namespaces = resource.get_namespaces(namespaces, root_only=False)
-            elif xmlns_usage == 'root-only':
-                namespaces = resource.get_namespaces(namespaces, root_only=True)
-            elif xmlns_usage == 'none':
-                namespaces = {k: v for k, v in namespaces.items()} if namespaces else {}
-            elif isinstance(xmlns_usage, str):
-                raise XMLSchemaValueError("invalid value for argument 'xmlns_usage'")
-            else:
-                raise XMLSchemaTypeError("invalid type for argument 'xmlns_usage'")
+        converter = self.get_converter(
+            converter,
+            namespaces=namespaces,
+            process_namespaces=process_namespaces,
+            source=resource,
+            **kwargs
+        )
 
-        converter = self.get_converter(converter, namespaces=namespaces,
-                                       process_namespaces=process_namespaces, **kwargs)
-
+        namespaces = converter.namespaces
         namespace = resource.namespace or namespaces.get('', '')
         schema = self.get_schema(namespace)
 
-        kwargs.update(
-            converter=converter,
-            namespaces=converter.namespaces,
-            source=resource,
-            use_defaults=use_defaults,
-            id_map=Counter[str](),
-            identities={},
-            inherited={},
-        )
+        kwargs = {
+            'converter': converter,
+            'namespaces': namespaces,
+            'source': resource,
+            'use_defaults': use_defaults,
+            'id_map': Counter[str](),
+            'identities': {},
+            'inherited': {},
+        }
         if use_location_hints and not resource.is_lazy():
             kwargs['use_location_hints'] = True
             if self.XSD_VERSION == '1.1':
@@ -2049,6 +2034,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             kwargs['value_hook'] = value_hook
         if element_hook is not None:
             kwargs['element_hook'] = element_hook
+        if errors is not None:
+            kwargs['errors'] = errors
 
         if path:
             selector = resource.iterfind(path, namespaces)
@@ -2058,7 +2045,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             decoder = self.raw_decoder(
                 schema_path=resource.get_absolute_path(),
                 validation=validation,
-                xmlns_usage=xmlns_usage,
                 **kwargs
             )
             kwargs['depth_filler'] = lambda x: decoder

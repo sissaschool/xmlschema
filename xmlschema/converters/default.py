@@ -17,6 +17,7 @@ from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from ..aliases import NamespacesType, BaseXsdType
 from ..helpers import get_namespace
 from ..namespaces import NamespaceMapper
+from ..resources import XMLResource
 
 if TYPE_CHECKING:
     from ..validators import XsdElement
@@ -102,13 +103,15 @@ class XMLSchemaConverter(NamespaceMapper):
                  indent: int = 4,
                  process_namespaces: bool = True,
                  strip_namespaces: bool = False,
+                 xmlns_processing: Optional[str] = None,
+                 source: Optional[Union[XMLResource, Any]] = None,
                  preserve_root: bool = False,
                  force_dict: bool = False,
                  force_list: bool = False,
                  **kwargs: Any) -> None:
 
         super(XMLSchemaConverter, self).__init__(
-            namespaces, process_namespaces, strip_namespaces
+            namespaces, process_namespaces, strip_namespaces, xmlns_processing, source
         )
         if dict_class is not None:
             self.dict = dict_class
@@ -180,7 +183,7 @@ class XMLSchemaConverter(NamespaceMapper):
     @property
     def loss_xmlns(self) -> bool:
         """The converter ignores XML namespace information during decoding/encoding."""
-        return not self._use_xmlns
+        return not self._use_namespaces
 
     def copy(self, **kwargs: Any) -> 'XMLSchemaConverter':
         namespaces = kwargs.get('namespaces')
@@ -198,6 +201,8 @@ class XMLSchemaConverter(NamespaceMapper):
             indent=kwargs.get('indent', self.indent),
             process_namespaces=kwargs.get('process_namespaces', self._process_namespaces),
             strip_namespaces=kwargs.get('strip_namespaces', self._strip_namespaces),
+            xmlns_processing=kwargs.get('xmlns_processing', self._xmlns_processing),
+            source=kwargs.get('source', self._source),
             preserve_root=kwargs.get('preserve_root', self.preserve_root),
             force_dict=kwargs.get('force_dict', self.force_dict),
             force_list=kwargs.get('force_list', self.force_list),
@@ -285,9 +290,9 @@ class XMLSchemaConverter(NamespaceMapper):
         return name.startswith(self.ns_prefix) and \
             (name == self.ns_prefix or name.startswith(f'{self.ns_prefix}:'))
 
-    def get_xmlns(self, obj: Any) -> Optional[List[Tuple[str, str]]]:
+    def get_xmlns_from_data(self, obj: Any) -> Optional[List[Tuple[str, str]]]:
         """Returns the XML declarations from decoded element data."""
-        if not self._use_xmlns or not isinstance(obj, MutableMapping):
+        if not self._use_namespaces or not isinstance(obj, MutableMapping):
             return None
 
         xmlns = []
@@ -339,7 +344,7 @@ class XMLSchemaConverter(NamespaceMapper):
 
             return False
 
-        if self._use_xmlns:
+        if self._use_namespaces:
             if data.xmlns:
                 xmlns = data.xmlns
                 result_dict.update((f'{self.ns_prefix}:{k}' if k else self.ns_prefix, v)
@@ -418,7 +423,7 @@ class XMLSchemaConverter(NamespaceMapper):
         content: List[Tuple[Union[int, str], Any]] = []
         attributes = {}
 
-        xmlns = self.get_xmlns(obj)
+        xmlns = self.get_xmlns_from_data(obj)
         if xmlns:
             self.push_namespaces(level, xmlns)
 
@@ -444,10 +449,10 @@ class XMLSchemaConverter(NamespaceMapper):
                 ns_name = self.unmap_qname(attr_name, xsd_element.attributes)
                 attributes[ns_name] = value
             elif not isinstance(value, MutableSequence) or not value:
-                ns_name = self.unmap_qname(name, xmlns=self.get_xmlns(value))
+                ns_name = self.unmap_qname(name, xmlns=self.get_xmlns_from_data(value))
                 content.append((ns_name, value))
             elif isinstance(value[0], (MutableMapping, MutableSequence)):
-                ns_name = self.unmap_qname(name, xmlns=self.get_xmlns(value[0]))
+                ns_name = self.unmap_qname(name, xmlns=self.get_xmlns_from_data(value[0]))
                 content.extend((ns_name, item) for item in value)
             else:
                 xsd_group = xsd_element.type.model_group

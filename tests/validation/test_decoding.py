@@ -374,7 +374,7 @@ COLLECTION_COLUMNAR_ = {
     }
 }
 
-COLLECTION_XMLNS_USAGE_EXACT = {
+COLLECTION_XMLNS_USAGE_DYNAMIC = {
     '@xmlns:col1': 'http://example.com/ns/collection',
     '@xmlns:col': 'http://xmlschema.test/ns',
     '@xmlns': 'http://xmlschema.test/ns',
@@ -1714,7 +1714,7 @@ class TestDecoding(XsdValidatorTestCase):
             xml_file,
             validation='skip',
             converter=xmlschema.ParkerConverter,
-            xmlns_usage='exact',
+            xmlns_processing='stacked',
         )
         with open(self.casepath('serialization/parker.json')) as fp:
             json_data = json.load(fp)
@@ -1725,7 +1725,7 @@ class TestDecoding(XsdValidatorTestCase):
             xml_file,
             validation='skip',
             converter=xmlschema.BadgerFishConverter,
-            xmlns_usage='exact',
+            xmlns_processing='stacked',
         )
         with open(self.casepath('serialization/badgerfish.json')) as fp:
             json_data = json.load(fp)
@@ -1736,7 +1736,7 @@ class TestDecoding(XsdValidatorTestCase):
             xml_file,
             validation='skip',
             converter=xmlschema.JsonMLConverter,
-            xmlns_usage='exact',
+            xmlns_processing='stacked',
         )
         with open(self.casepath('serialization/jsonml.json')) as fp:
             json_data = json.load(fp)
@@ -1747,14 +1747,14 @@ class TestDecoding(XsdValidatorTestCase):
             xml_file,
             validation='skip',
             converter=xmlschema.AbderaConverter,
-            xmlns_usage='exact',
+            xmlns_processing='stacked',
         )
         with open(self.casepath('serialization/abdera.json')) as fp:
             json_data = json.load(fp)
 
         self.assertDictEqual(json.loads(obj), json_data)
 
-    def test_xmlns_usage_argument(self):
+    def test_xmlns_processing_argument(self):
         xsd_file = self.casepath('examples/collection/collection5.xsd')
         xml_file = self.casepath('examples/collection/collection-redef-xmlns.xml')
 
@@ -1762,29 +1762,28 @@ class TestDecoding(XsdValidatorTestCase):
         self.assertTrue(schema.is_valid(xml_file))
 
         obj = schema.decode(xml_file)
-        self.assertDictEqual(obj, COLLECTION_XMLNS_USAGE_EXACT)
+        self.assertDictEqual(obj, COLLECTION_XMLNS_USAGE_DYNAMIC)
 
-        obj = schema.decode(xml_file, xmlns_usage='collapsed')
+        obj = schema.decode(xml_file, xmlns_processing='collapsed')
         self.assertDictEqual(obj, COLLECTION_XMLNS_USAGE_COLLAPSED)
 
-        obj = schema.decode(xml_file, xmlns_usage='root-only')
+        obj = schema.decode(xml_file, xmlns_processing='root-only')
         self.assertDictEqual(obj, COLLECTION_XMLNS_USAGE_ROOT_ONLY)
 
         namespaces = {'xsi-alt': 'http://www.w3.org/2001/XMLSchema-instance',
                       'col-alt': 'http://example.com/ns/collection'}
-        obj = schema.decode(xml_file, xmlns_usage='none', namespaces=namespaces)
+        obj = schema.decode(xml_file, xmlns_processing='none', namespaces=namespaces)
         self.assertDictEqual(obj, COLLECTION_XMLNS_USAGE_NONE)
 
         with self.assertRaises(ValueError):
-            schema.decode(xml_file, xmlns_usage='precise')
+            schema.decode(xml_file, xmlns_processing='precise')
 
         with self.assertRaises(TypeError):
-            schema.decode(xml_file, xmlns_usage=None)
+            schema.decode(xml_file, xmlns_processing=True)
 
     def test_namespaces_argument(self):
         namespaces = {'vh': 'http://example.com/vehicles'}
         obj = self.vh_schema.decode(self.vh_xml_file, namespaces=namespaces)
-        self.maxDiff = None
         self.assertDictEqual(obj, VEHICLES_DICT)
 
         namespaces = {'vh2': 'http://example.com/vehicles'}

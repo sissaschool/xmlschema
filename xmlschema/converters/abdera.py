@@ -8,7 +8,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from collections.abc import MutableMapping, MutableSequence
-from typing import TYPE_CHECKING, Any, Optional, List, Dict, Type, Union, Tuple
+from typing import TYPE_CHECKING, Any, Optional, List, Dict, Type, Union
 
 from ..exceptions import XMLSchemaValueError
 from ..aliases import NamespacesType, BaseXsdType
@@ -48,9 +48,6 @@ class AbderaConverter(XMLSchemaConverter):
     @property
     def loss_xmlns(self) -> bool:
         return True
-
-    def get_xmlns(self, obj: Any) -> Optional[List[Tuple[str, str]]]:
-        return None
 
     def element_decode(self, data: ElementData, xsd_element: 'XsdElement',
                        xsd_type: Optional[BaseXsdType] = None, level: int = 0) -> Any:
