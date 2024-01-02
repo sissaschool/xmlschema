@@ -58,11 +58,8 @@ class BadgerFishConverter(XMLSchemaConverter):
         tag = self.map_qname(data.tag)
         result_dict = self.dict([t for t in self.map_attributes(data.attributes)])
 
-        if self._use_namespaces:
-            if data.xmlns:
-                result_dict['@xmlns'] = self.dict((k or '$', v) for k, v in data.xmlns)
-            elif not level and xsd_element.is_global() and self:
-                result_dict['@xmlns'] = self.dict((k or '$', v) for k, v in self.items())
+        if self._use_namespaces and data.xmlns:
+            result_dict['@xmlns'] = self.dict((k or '$', v) for k, v in data.xmlns)
 
         xsd_group = xsd_type.model_group
         if xsd_group is None or not data.content:

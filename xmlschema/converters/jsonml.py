@@ -66,7 +66,17 @@ class JsonMLConverter(XMLSchemaConverter):
                        xsd_type: Optional[BaseXsdType] = None, level: int = 0) -> Any:
         xsd_type = xsd_type or xsd_element.type
         result_list = self.list()
+
         result_list.append(self.map_qname(data.tag))
+
+        attributes = self.dict(self.map_attributes(data.attributes))
+        if data.xmlns and self._use_namespaces:
+            attributes.update(
+                (f'{self.ns_prefix}:{k}' if k else self.ns_prefix, v) for k, v in data.xmlns
+            )
+        if attributes:
+            result_list.append(attributes)
+
         if data.text is not None:
             result_list.append(data.text)
 
@@ -75,19 +85,6 @@ class JsonMLConverter(XMLSchemaConverter):
                 value if value is not None else self.list([name])
                 for name, value, _ in self.map_content(data.content)
             ])
-
-        attributes = self.dict(self.map_attributes(data.attributes))
-
-        if self._use_namespaces:
-            if data.xmlns:
-                attributes.update((f'{self.ns_prefix}:{k}' if k else self.ns_prefix, v)
-                                  for k, v in data.xmlns)
-            elif not level and xsd_element.is_global() and self:
-                attributes.update((f'{self.ns_prefix}:{k}' if k else self.ns_prefix, v)
-                                  for k, v in self.items())
-
-        if attributes:
-            result_list.insert(1, attributes)
 
         return result_list
 

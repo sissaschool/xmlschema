@@ -635,10 +635,12 @@ class XsdElement(XsdComponent, ParticleMixin,
             if not isinstance(converter, NamespaceMapper):
                 converter = kwargs['converter'] = self.schema.get_converter(**kwargs)
 
-        if level:
+        if not level:
+            # Need to set base context with the right object (the resource can be lazy)
+            converter.set_context(obj, level)
+        elif kwargs.get('use_location_hints'):
             # Use location hints for dynamic schema load
-            if kwargs.get('use_location_hints'):
-                yield from self.check_dynamic_context(obj, validation, options=kwargs)
+            yield from self.check_dynamic_context(obj, validation, options=kwargs)
 
         inherited = kwargs.get('inherited')
         value = content = attributes = None
@@ -819,11 +821,7 @@ class XsdElement(XsdComponent, ParticleMixin,
                 if not kwargs.get('binary_types'):
                     value = str(value)
 
-        if level:
-            xmlns = converter.set_context(obj, level)
-        else:
-            xmlns = None
-            converter.set_context(obj, level)
+        xmlns = converter.set_context(obj, level, self)  # Purge existing sub-contexts
 
         if isinstance(converter, XMLSchemaConverter):
             element_data = ElementData(obj.tag, value, content, attributes, xmlns)

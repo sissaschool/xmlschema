@@ -10,7 +10,7 @@
 from collections import namedtuple
 from collections.abc import MutableMapping, MutableSequence
 from typing import TYPE_CHECKING, Any, Dict, Iterator, Iterable, \
-    ItemsView, List, Optional, Type, Tuple, Union
+    List, Optional, Type, Tuple, Union
 from xml.etree.ElementTree import Element
 
 from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
@@ -103,8 +103,8 @@ class XMLSchemaConverter(NamespaceMapper):
                  indent: int = 4,
                  process_namespaces: bool = True,
                  strip_namespaces: bool = False,
-                 xmlns_processing: Optional[str] = None,
-                 source: Optional[Union[XMLResource, Any]] = None,
+                 xmlns_processing: str = 'stacked',
+                 source: Optional[XMLResource] = None,
                  preserve_root: bool = False,
                  force_dict: bool = False,
                  force_list: bool = False,
@@ -318,7 +318,6 @@ class XMLSchemaConverter(NamespaceMapper):
         """
         xsd_type = xsd_type or xsd_element.type
         result_dict = self.dict()
-        xmlns: Union[None, List[Tuple[str, str]], ItemsView[str, str]] = None
 
         def keep_result_dict() -> bool:
             """
@@ -326,11 +325,11 @@ class XMLSchemaConverter(NamespaceMapper):
             """
             if data.attributes or self.force_dict and xsd_type.is_complex():
                 return True
-            elif not xmlns:
+            elif not data.xmlns or not self._use_namespaces:
                 return False
 
             namespace = get_namespace(data.tag)
-            if any(x[1] == namespace for x in xmlns):
+            if any(x[1] == namespace for x in data.xmlns):
                 return True
 
             if xsd_type.is_qname() and isinstance(data.text, str):
@@ -339,20 +338,15 @@ class XMLSchemaConverter(NamespaceMapper):
                 except IndexError:
                     prefix = ''
 
-                if any(x[0] == prefix for x in xmlns):
+                if any(x[0] == prefix for x in data.xmlns):
                     return True
 
             return False
 
-        if self._use_namespaces:
-            if data.xmlns:
-                xmlns = data.xmlns
-                result_dict.update((f'{self.ns_prefix}:{k}' if k else self.ns_prefix, v)
-                                   for k, v in data.xmlns)
-            elif not level and xsd_element.is_global() and self:
-                xmlns = self.items()
-                result_dict.update((f'{self.ns_prefix}:{k}' if k else self.ns_prefix, v)
-                                   for k, v in self.items())
+        if self._use_namespaces and data.xmlns:
+            result_dict.update(
+                (f'{self.ns_prefix}:{k}' if k else self.ns_prefix, v) for k, v in data.xmlns
+            )
 
         if data.attributes:
             result_dict.update(self.map_attributes(data.attributes))
