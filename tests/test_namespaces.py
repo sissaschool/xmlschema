@@ -122,43 +122,6 @@ class TestNamespaceMapper(unittest.TestCase):
         mapper[''] = 'tns0'
         self.assertEqual(mapper.default_namespace, 'tns0')
 
-    def test_push_and_pop_namespaces(self):
-        namespaces = dict(xs=XSD_NAMESPACE, xsi=XSI_NAMESPACE)
-        mapper = NamespaceMapper(namespaces)
-
-        self.assertEqual(len(mapper._namespaces), 2)
-        self.assertEqual(len(mapper._contexts), 0)
-
-        mapper.pop_namespaces(0)
-
-        internal_map = mapper.namespaces
-        self.assertDictEqual(internal_map, {'xs': XSD_NAMESPACE, 'xsi': XSI_NAMESPACE})
-
-        mapper.push_namespaces(3, [('tns0', XSD_NAMESPACE)])
-        self.assertDictEqual(
-            internal_map, {'xs': XSD_NAMESPACE, 'xsi': XSI_NAMESPACE, 'tns0': XSD_NAMESPACE}
-        )
-        self.assertIs(internal_map, mapper.namespaces)
-        self.assertDictEqual(
-            mapper._reverse, {XSD_NAMESPACE: 'tns0', XSI_NAMESPACE: 'xsi'}
-        )
-
-        self.assertEqual(len(mapper._contexts), 1)
-        mapper.pop_namespaces(5)
-        self.assertEqual(len(mapper._contexts), 1)
-        mapper.pop_namespaces(3)
-        self.assertEqual(len(mapper._contexts), 0)
-
-        mapper.push_namespaces(3, [('tns0', XSD_NAMESPACE)])
-        self.assertEqual(len(mapper._contexts), 1)
-        mapper.push_namespaces(5, [('tns1', 'foo')])
-        self.assertEqual(len(mapper._contexts), 2)
-        mapper.push_namespaces(6, [('tns2', 'bar')])
-        self.assertEqual(len(mapper._contexts), 3)
-
-        mapper.push_namespaces(4, [('tns3', 'foo')])
-        self.assertEqual(len(mapper._contexts), 2)
-
     def test_map_qname(self):
         namespaces = dict(xs=XSD_NAMESPACE, xsi=XSI_NAMESPACE)
         mapper = NamespaceMapper(namespaces)

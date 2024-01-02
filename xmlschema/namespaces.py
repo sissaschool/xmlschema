@@ -12,12 +12,11 @@ This module contains classes for managing maps related to namespaces.
 """
 import re
 import copy
-from collections import namedtuple
-from typing import TYPE_CHECKING, cast, Any, Callable, Container, Dict, Iterator, \
-    List, Optional, MutableMapping, Mapping, Tuple, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Container, Dict, Iterator, \
+    List, Optional, MutableMapping, Mapping, NamedTuple, Union, Tuple, TypeVar
 
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
-from .helpers import local_name, get_namespace_map, is_etree_element
+from .helpers import local_name, get_namespace_map
 from .aliases import NamespacesType, XmlnsType, ElementType
 from .resources import XMLResource
 
@@ -25,15 +24,15 @@ if TYPE_CHECKING:
     from .validators import XsdElement
 
 
-NamespaceMapperContext = namedtuple(
-    'NamespaceMapperContext', ['obj', 'level', 'xmlns', 'nsmap', 'reverse']
-)
+class NamespaceMapperContext(NamedTuple):
+    obj: Union[ElementType, Any]
+    level: int
+    xmlns: XmlnsType
+    namespaces: NamespacesType
+    reverse: NamespacesType
+
 
 XMLNS_PROCESSING_MODES = frozenset(('stacked', 'collapsed', 'root-only', 'none'))
-
-
-def dummy_xmlns_getter(_elem: ElementType) -> XmlnsType:
-    return None
 
 
 class NamespaceMapper(MutableMapping[str, str]):
@@ -56,18 +55,15 @@ class NamespaceMapper(MutableMapping[str, str]):
     declarations of the XML source before decoding. Provide 'root-only' to use \
     only the namespace declarations of the XML document root. Provide 'none' to \
     not use any namespace declaration of the XML document.
-    :param source: the origin of XML data. Con be an `XMLResource` instance or \
-    a generic decoded data.
+    :param source: the origin of XML data. Con be an `XMLResource` instance or `None`.
     """
     __slots__ = '_namespaces', '_reverse', '_contexts', \
         'process_namespaces', 'strip_namespaces', '_use_namespaces', \
-        'xmlns_processing', 'source', 'get_xmlns_from_elem'
+        'xmlns_processing', 'source', '_xmlns_getter', '__dict__'
 
     _namespaces: NamespacesType
     _contexts: List[NamespaceMapperContext]
-
-    get_xmlns_from_elem: Callable[[ElementType], XmlnsType]
-    """Returns the XML declarations from decoded element data."""
+    _xmlns_getter: Optional[Callable[[ElementType], XmlnsType]]
 
     def __init__(self, namespaces: Optional[NamespacesType] = None,
                  process_namespaces: bool = True,
@@ -86,17 +82,13 @@ class NamespaceMapper(MutableMapping[str, str]):
         self.xmlns_processing = xmlns_processing
         self.source = source
 
-        if isinstance(source, XMLResource):
-            self.get_xmlns_from_elem = source.get_xmlns
-            if xmlns_processing != 'none':
-                namespaces = source.get_namespaces(namespaces)
-            else:
-                namespaces = get_namespace_map(namespaces)
+        if isinstance(source, XMLResource) and xmlns_processing != 'none':
+            self._xmlns_getter = source.get_xmlns
+            self._namespaces = source.get_namespaces(namespaces)
         else:
-            namespaces = get_namespace_map(namespaces)
-            self.get_xmlns_from_elem = dummy_xmlns_getter
+            self._xmlns_getter = None
+            self._namespaces = get_namespace_map(namespaces)
 
-        self._namespaces = namespaces
         self._reverse = {v: k for k, v in reversed(self._namespaces.items())}
         self._contexts = []
 
@@ -152,30 +144,31 @@ class NamespaceMapper(MutableMapping[str, str]):
     def set_context(self, obj: Any, level: int, xsd_element: Optional['XsdElement'] = None) \
             -> XmlnsType:
         if self._contexts:
-            # Clear contexts of sibling or descendant elements
-            namespaces = uri_to_prefix = None
+            # Remove contexts of sibling or descendant elements
+            namespaces = reverse = None
             while self._contexts:
                 context = self._contexts[-1]
                 if level > context.level:
                     break
                 elif level == context.level and context.obj is obj:
+                    # The context for (obj, level) already exists
                     if level or xsd_element is None or not xsd_element.is_global():
-                        return cast(List[Tuple[str, str]], context.xmlns) if level else None
+                        return context.xmlns if level else None
                     else:
-                        return context.nsmap.items()
+                        return [x for x in context.namespaces.items()]
 
-                namespaces, uri_to_prefix = self._contexts.pop()[-2:]
+                namespaces, reverse = self._contexts.pop()[-2:]
 
-            if namespaces is not None and uri_to_prefix is not None:
+            if namespaces is not None and reverse is not None:
                 self._namespaces.clear()
                 self._namespaces.update(namespaces)
                 self._reverse.clear()
-                self._reverse.update(uri_to_prefix)
+                self._reverse.update(reverse)
 
-        if self.xmlns_processing == 'none':
+        if self._xmlns_getter:
+            xmlns = self._xmlns_getter(obj)
+        elif self.xmlns_processing == 'none':
             xmlns = None
-        elif is_etree_element(obj):
-            xmlns = self.get_xmlns_from_elem(obj)
         else:
             xmlns = self.get_xmlns_from_data(obj)
 
@@ -232,36 +225,6 @@ class NamespaceMapper(MutableMapping[str, str]):
             return xmlns if level else None
         else:
             return [x for x in self._namespaces.items()]
-
-    def pop_namespaces(self, level: int) -> None:
-        while self._contexts:
-            if level > self._contexts[-1][1]:
-                break
-            namespaces, uri_to_prefix = self._contexts.pop()[-2:]
-            self._namespaces.clear()
-            self._namespaces.update(namespaces)
-            self._reverse.clear()
-            self._reverse.update(uri_to_prefix)
-
-    def push_namespaces(self, level: int, xmlns: List[Tuple[str, str]]) -> None:
-        while self._contexts:
-            if level > self._contexts[-1][1]:
-                break
-            namespaces, uri_to_prefix = self._contexts.pop()[-2:]
-            self._namespaces.clear()
-            self._namespaces.update(namespaces)
-            self._reverse.clear()
-            self._reverse.update(uri_to_prefix)
-
-        self._contexts.append(NamespaceMapperContext(
-            None,
-            level,
-            xmlns[:],
-            {k: v for k, v in self._namespaces.items()},
-            {k: v for k, v in self._reverse.items()},
-        ))
-        self._namespaces.update(xmlns)
-        self._reverse.update((v, k) for k, v in xmlns)
 
     def map_qname(self, qname: str) -> str:
         """

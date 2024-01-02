@@ -30,7 +30,7 @@ if TYPE_CHECKING:
     from pathlib import Path
     from decimal import Decimal
     from typing import Any, Callable, Dict, List, IO, Iterator, \
-        MutableMapping, Optional, Tuple, Type, Union
+        MutableMapping, Tuple, Type, Union
     from xml.etree import ElementTree
 
     from elementpath.datatypes import NormalizedString, QName, Float10, Integer, \
