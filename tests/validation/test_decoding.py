@@ -374,7 +374,7 @@ COLLECTION_COLUMNAR_ = {
     }
 }
 
-COLLECTION_XMLNS_USAGE_DYNAMIC = {
+COLLECTION_XMLNS_PROCESSING_STACKED = {
     '@xmlns:col1': 'http://example.com/ns/collection',
     '@xmlns:col': 'http://xmlschema.test/ns',
     '@xmlns': 'http://xmlschema.test/ns',
@@ -412,7 +412,7 @@ COLLECTION_XMLNS_USAGE_DYNAMIC = {
     ]
 }
 
-COLLECTION_XMLNS_USAGE_COLLAPSED = {
+COLLECTION_XMLNS_PROCESSING_COLLAPSED = {
     '@xmlns': 'http://xmlschema.test/ns',
     '@xmlns:col': 'http://xmlschema.test/ns',
     '@xmlns:col0': 'http://example.com/ns/collection',
@@ -449,7 +449,7 @@ COLLECTION_XMLNS_USAGE_COLLAPSED = {
     ]
 }
 
-COLLECTION_XMLNS_USAGE_ROOT_ONLY = {
+COLLECTION_XMLNS_PROCESSING_ROOT_ONLY = {
     '@xmlns': 'http://xmlschema.test/ns',
     '@xmlns:col': 'http://xmlschema.test/ns',
     '@xmlns:col1': 'http://example.com/ns/collection',
@@ -485,7 +485,7 @@ COLLECTION_XMLNS_USAGE_ROOT_ONLY = {
 }
 
 
-COLLECTION_XMLNS_USAGE_NONE = {
+COLLECTION_XMLNS_PROCESSING_NONE = {
     '@xmlns:col-alt': 'http://example.com/ns/collection',
     '@xmlns:xsi-alt': 'http://www.w3.org/2001/XMLSchema-instance',
     '@xsi-alt:schemaLocation': 'http://example.com/ns/collection collection5.xsd',
@@ -1762,18 +1762,18 @@ class TestDecoding(XsdValidatorTestCase):
         self.assertTrue(schema.is_valid(xml_file))
 
         obj = schema.decode(xml_file)
-        self.assertDictEqual(obj, COLLECTION_XMLNS_USAGE_DYNAMIC)
+        self.assertDictEqual(obj, COLLECTION_XMLNS_PROCESSING_STACKED)
 
         obj = schema.decode(xml_file, xmlns_processing='collapsed')
-        self.assertDictEqual(obj, COLLECTION_XMLNS_USAGE_COLLAPSED)
+        self.assertDictEqual(obj, COLLECTION_XMLNS_PROCESSING_COLLAPSED)
 
         obj = schema.decode(xml_file, xmlns_processing='root-only')
-        self.assertDictEqual(obj, COLLECTION_XMLNS_USAGE_ROOT_ONLY)
+        self.assertDictEqual(obj, COLLECTION_XMLNS_PROCESSING_ROOT_ONLY)
 
         namespaces = {'xsi-alt': 'http://www.w3.org/2001/XMLSchema-instance',
                       'col-alt': 'http://example.com/ns/collection'}
         obj = schema.decode(xml_file, xmlns_processing='none', namespaces=namespaces)
-        self.assertDictEqual(obj, COLLECTION_XMLNS_USAGE_NONE)
+        self.assertDictEqual(obj, COLLECTION_XMLNS_PROCESSING_NONE)
 
         with self.assertRaises(ValueError):
             schema.decode(xml_file, xmlns_processing='precise')

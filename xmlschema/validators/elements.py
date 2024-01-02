@@ -584,15 +584,13 @@ class XsdElement(XsdComponent, ParticleMixin,
             except (OSError, IOError):
                 continue
 
-    def iter_decode(self, obj: ElementType, validation: str = 'lax', *,
-                    xmlns: Optional[List[Tuple[str, str]]] = None, **kwargs: Any) \
+    def iter_decode(self, obj: ElementType, validation: str = 'lax', **kwargs: Any) \
             -> IterDecodeType[Any]:
         """
         Creates an iterator for decoding an Element instance.
 
         :param obj: the Element that has to be decoded.
         :param validation: the validation mode, can be 'lax', 'strict' or 'skip'.
-        :param xmlns: XML namespace declarations, pushed at model group level.
         :param kwargs: keyword arguments for the decoding process.
         :return: yields a decoded object, eventually preceded by a sequence of \
         validation or decoding errors.
@@ -824,6 +822,7 @@ class XsdElement(XsdComponent, ParticleMixin,
         if level:
             xmlns = converter.set_context(obj, level)
         else:
+            xmlns = None
             converter.set_context(obj, level)
 
         if isinstance(converter, XMLSchemaConverter):
