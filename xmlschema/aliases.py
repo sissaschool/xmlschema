@@ -16,7 +16,7 @@ so they are set with a common dummy subscriptable type to keep compatibility.
 from typing import TYPE_CHECKING, Optional, TypeVar
 
 __all__ = ['ElementType', 'ElementTreeType', 'XMLSourceType', 'NamespacesType',
-           'NormalizedLocationsType', 'LocationsType', 'NsmapType', 'XmlnsGetterType',
+           'NormalizedLocationsType', 'LocationsType', 'NsmapType', 'XmlnsType',
            'ParentMapType', 'LazyType', 'SchemaType', 'BaseXsdType', 'SchemaElementType',
            'SchemaAttributeType', 'SchemaGlobalType', 'GlobalMapType', 'ModelGroupType',
            'ModelParticleType', 'XPathElementType', 'AtomicValueType', 'NumericValueType',
@@ -29,8 +29,8 @@ __all__ = ['ElementType', 'ElementTreeType', 'XMLSourceType', 'NamespacesType',
 if TYPE_CHECKING:
     from pathlib import Path
     from decimal import Decimal
-    from typing import Any, Callable, Dict, List, IO, Iterator, MutableMapping, \
-        Tuple, Type, Union
+    from typing import Any, Callable, Dict, List, IO, Iterator, \
+        MutableMapping, Optional, Tuple, Type, Union
     from xml.etree import ElementTree
 
     from elementpath.datatypes import NormalizedString, QName, Float10, Integer, \
@@ -57,7 +57,7 @@ if TYPE_CHECKING:
     LocationsType = Union[Tuple[Tuple[str, str], ...], Dict[str, str],
                           NormalizedLocationsType, NamespaceResourcesMap]
     NsmapType = MutableMapping[str, str]
-    XmlnsGetterType = Callable[[ElementType], Optional[List[Tuple[str, str]]]]
+    XmlnsType = Optional[List[Tuple[str, str]]]
     ParentMapType = Dict[ElementType, Optional[ElementType]]
     LazyType = Union[bool, int]
     UriMapperType = Union[MutableMapping[str, str], Callable[[str], str]]
