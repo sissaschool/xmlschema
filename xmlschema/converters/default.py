@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, Any, Dict, Iterator, Iterable, \
 from xml.etree.ElementTree import Element
 
 from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
-from ..aliases import NamespacesType, BaseXsdType
+from ..aliases import NamespacesType, XmlnsType, BaseXsdType
 from ..helpers import get_namespace
 from ..namespaces import NamespaceMapper
 from ..resources import XMLResource
@@ -290,6 +290,21 @@ class XMLSchemaConverter(NamespaceMapper):
         return name.startswith(self.ns_prefix) and \
             (name == self.ns_prefix or name.startswith(f'{self.ns_prefix}:'))
 
+    def get_effective_xmlns(self, xmlns: XmlnsType, level: int,
+                            xsd_element: Optional['XsdElement'] = None) -> XmlnsType:
+        """
+        Returns the effective xmlns for element decoding/encoding, considering the
+        level and the matching XSD element. At level 0, that is the root of the
+        single decoding/encoding process, all the defined namespaces are returned
+        only if the XSD element is global, otherwise no namespace is returned.
+        """
+        if level:
+            return xmlns
+        elif xsd_element is None or not xsd_element.is_global():
+            return None
+        else:
+            return [x for x in self._namespaces.items()]
+
     def get_xmlns_from_data(self, obj: Any) -> Optional[List[Tuple[str, str]]]:
         """Returns the XML declarations from decoded element data."""
         if not self._use_namespaces or not isinstance(obj, MutableMapping):
@@ -318,6 +333,7 @@ class XMLSchemaConverter(NamespaceMapper):
         """
         xsd_type = xsd_type or xsd_element.type
         result_dict = self.dict()
+        xmlns = self.get_effective_xmlns(data.xmlns, level, xsd_element)
 
         def keep_result_dict() -> bool:
             """
@@ -325,11 +341,11 @@ class XMLSchemaConverter(NamespaceMapper):
             """
             if data.attributes or self.force_dict and xsd_type.is_complex():
                 return True
-            elif not data.xmlns or not self._use_namespaces:
+            elif not xmlns or not self._use_namespaces:
                 return False
 
             namespace = get_namespace(data.tag)
-            if any(x[1] == namespace for x in data.xmlns):
+            if any(x[1] == namespace for x in xmlns):
                 return True
 
             if xsd_type.is_qname() and isinstance(data.text, str):
@@ -338,14 +354,14 @@ class XMLSchemaConverter(NamespaceMapper):
                 except IndexError:
                     prefix = ''
 
-                if any(x[0] == prefix for x in data.xmlns):
+                if any(x[0] == prefix for x in xmlns):
                     return True
 
             return False
 
-        if self._use_namespaces and data.xmlns:
+        if self._use_namespaces and xmlns:
             result_dict.update(
-                (f'{self.ns_prefix}:{k}' if k else self.ns_prefix, v) for k, v in data.xmlns
+                (f'{self.ns_prefix}:{k}' if k else self.ns_prefix, v) for k, v in xmlns
             )
 
         if data.attributes:

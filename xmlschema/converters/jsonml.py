@@ -66,13 +66,14 @@ class JsonMLConverter(XMLSchemaConverter):
                        xsd_type: Optional[BaseXsdType] = None, level: int = 0) -> Any:
         xsd_type = xsd_type or xsd_element.type
         result_list = self.list()
+        xmlns = self.get_effective_xmlns(data.xmlns, level, xsd_element)
 
         result_list.append(self.map_qname(data.tag))
 
         attributes = self.dict(self.map_attributes(data.attributes))
-        if data.xmlns and self._use_namespaces:
+        if xmlns and self._use_namespaces:
             attributes.update(
-                (f'{self.ns_prefix}:{k}' if k else self.ns_prefix, v) for k, v in data.xmlns
+                (f'{self.ns_prefix}:{k}' if k else self.ns_prefix, v) for k, v in xmlns
             )
         if attributes:
             result_list.append(attributes)

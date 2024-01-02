@@ -821,7 +821,7 @@ class XsdElement(XsdComponent, ParticleMixin,
                 if not kwargs.get('binary_types'):
                     value = str(value)
 
-        xmlns = converter.set_context(obj, level, self)  # Purge existing sub-contexts
+        xmlns = converter.set_context(obj, level)  # Purge existing sub-contexts
 
         if isinstance(converter, XMLSchemaConverter):
             element_data = ElementData(obj.tag, value, content, attributes, xmlns)
