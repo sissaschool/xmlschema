@@ -9,8 +9,8 @@
 #
 from collections import namedtuple
 from collections.abc import MutableMapping, MutableSequence
-from typing import TYPE_CHECKING, Any, Dict, Iterator, Iterable, \
-    List, Optional, Type, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, Iterator, Iterable, \
+    List, Optional, ParamSpec, Tuple, Type, TypeVar, Union
 from xml.etree.ElementTree import Element
 
 from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
@@ -37,6 +37,15 @@ attributes, *xmlns* can be `None` or a list of couples containing namespace
 declarations.
 """
 
+P = ParamSpec('P')
+T = TypeVar('T')
+
+
+def stackable(method: Callable[P, T]) -> Callable[P, T]:
+    """Mark if a converter object method supports 'stacked' xmlns processing mode."""
+    method.stackable = True  # type: ignore[attr-defined]
+    return method
+
 
 class XMLSchemaConverter(NamespaceMapper):
     """
@@ -62,8 +71,17 @@ class XMLSchemaConverter(NamespaceMapper):
     of a mixed content, that are labeled with an integer instead of a string. \
     Character data parts are ignored if this argument is `None`.
     :param indent: number of spaces for XML indentation (default is 4).
+    :param process_namespaces: whether to use namespace information in name mapping \
+    methods. If set to `False` then the name mapping methods simply return the \
+    provided name.
     :param strip_namespaces: if set to `True` removes namespace declarations from data and \
     namespace information from names, during decoding or encoding. Defaults to `False`.
+    :param xmlns_processing: defines the processing mode of XML namespace declarations. \
+    Can be 'stacked', 'collapsed', 'root-only' or 'none', with the meaning defined for \
+    the `NamespaceMapper` base class. For default the xmlns processing mode is chosen \
+    between 'stacked' and 'collapsed', depending on the capabilities and the settings \
+    of the converter instance.
+    :param source: the origin of XML data. Con be an `XMLResource` instance or `None`.
     :param preserve_root: if set to `True` the root element is preserved, wrapped into a \
     single-item dictionary. Applicable only to default converter, to \
     :class:`UnorderedConverter` and to :class:`ParkerConverter`.
@@ -103,7 +121,7 @@ class XMLSchemaConverter(NamespaceMapper):
                  indent: int = 4,
                  process_namespaces: bool = True,
                  strip_namespaces: bool = False,
-                 xmlns_processing: str = 'stacked',
+                 xmlns_processing: Optional[str] = None,
                  source: Optional[XMLResource] = None,
                  preserve_root: bool = False,
                  force_dict: bool = False,
@@ -165,6 +183,23 @@ class XMLSchemaConverter(NamespaceMapper):
                 raise XMLSchemaTypeError(msg % {'name': name, 'type': type(value)})
 
         super(XMLSchemaConverter, self).__setattr__(name, value)
+
+    @property
+    def xmlns_processing_default(self) -> str:
+        """
+        Returns the default of the xmlns processing mode, used if `None` is provided.
+        """
+        if self.loss_xmlns:
+            return 'stacked'
+        elif isinstance(self.source, XMLResource):
+            if getattr(self.element_decode, 'stackable', False):
+                return 'stacked'
+            else:
+                return 'collapsed'
+        elif getattr(self.element_encode, 'stackable', False):
+            return 'stacked'
+        else:
+            return 'collapsed'
 
     @property
     def lossy(self) -> bool:
@@ -319,6 +354,7 @@ class XMLSchemaConverter(NamespaceMapper):
 
         return xmlns
 
+    @stackable
     def element_decode(self, data: ElementData, xsd_element: 'XsdElement',
                        xsd_type: Optional[BaseXsdType] = None, level: int = 0) -> Any:
         """
@@ -403,6 +439,7 @@ class XMLSchemaConverter(NamespaceMapper):
             return self.dict([(self.map_qname(data.tag), result_dict or None)])
         return result_dict or None
 
+    @stackable
     def element_encode(self, obj: Any, xsd_element: 'XsdElement', level: int = 0) -> ElementData:
         """
         Extracts XML decoded data from a data structure for encoding into an ElementTree.

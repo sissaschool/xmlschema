@@ -65,19 +65,22 @@ class NamespaceMapper(MutableMapping[str, str]):
     def __init__(self, namespaces: Optional[NamespacesType] = None,
                  process_namespaces: bool = True,
                  strip_namespaces: bool = False,
-                 xmlns_processing: str = 'stacked',
+                 xmlns_processing: Optional[str] = None,
                  source: Optional[XMLResource] = None) -> None:
-
-        if not isinstance(xmlns_processing, str):
-            raise XMLSchemaTypeError("invalid type for argument 'xmlns_processing'")
-        elif xmlns_processing not in XMLNS_PROCESSING_MODES:
-            raise XMLSchemaValueError("invalid value for argument 'xmlns_processing'")
 
         self.process_namespaces = process_namespaces
         self.strip_namespaces = strip_namespaces
         self._use_namespaces = bool(process_namespaces and not strip_namespaces)
-        self.xmlns_processing = xmlns_processing
         self.source = source
+
+        if xmlns_processing is None:
+            xmlns_processing = self.xmlns_processing_default
+        elif not isinstance(xmlns_processing, str):
+            raise XMLSchemaTypeError("invalid type for argument 'xmlns_processing'")
+
+        if xmlns_processing not in XMLNS_PROCESSING_MODES:
+            raise XMLSchemaValueError("invalid value for argument 'xmlns_processing'")
+        self.xmlns_processing = xmlns_processing
 
         if isinstance(source, XMLResource) and xmlns_processing != 'none':
             self._xmlns_getter = source.get_xmlns
@@ -118,6 +121,10 @@ class NamespaceMapper(MutableMapping[str, str]):
     @property
     def default_namespace(self) -> Optional[str]:
         return self._namespaces.get('')
+
+    @property
+    def xmlns_processing_default(self) -> str:
+        return 'stacked'
 
     def __copy__(self) -> 'NamespaceMapper':
         mapper: 'NamespaceMapper' = object.__new__(self.__class__)

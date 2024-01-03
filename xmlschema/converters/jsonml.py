@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Any, Optional, List, Dict, Tuple, Type
 
 from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from ..aliases import NamespacesType, BaseXsdType
-from .default import ElementData, XMLSchemaConverter
+from .default import ElementData, stackable, XMLSchemaConverter
 
 if TYPE_CHECKING:
     from ..validators import XsdElement
@@ -62,6 +62,7 @@ class JsonMLConverter(XMLSchemaConverter):
 
         return xmlns
 
+    @stackable
     def element_decode(self, data: ElementData, xsd_element: 'XsdElement',
                        xsd_type: Optional[BaseXsdType] = None, level: int = 0) -> Any:
         xsd_type = xsd_type or xsd_element.type
@@ -89,6 +90,7 @@ class JsonMLConverter(XMLSchemaConverter):
 
         return result_list
 
+    @stackable
     def element_encode(self, obj: Any, xsd_element: 'XsdElement', level: int = 0) -> ElementData:
         if not isinstance(obj, MutableSequence):
             msg = "The first argument must be a sequence, {} provided"

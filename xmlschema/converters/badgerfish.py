@@ -14,7 +14,7 @@ from ..aliases import NamespacesType, BaseXsdType
 from ..names import XSD_ANY_TYPE
 from ..helpers import local_name
 from ..exceptions import XMLSchemaTypeError
-from .default import ElementData, XMLSchemaConverter
+from .default import ElementData, stackable, XMLSchemaConverter
 
 if TYPE_CHECKING:
     from ..validators import XsdElement
@@ -51,6 +51,7 @@ class BadgerFishConverter(XMLSchemaConverter):
             return None
         return [(k if k != '$' else '', v) for k, v in obj['@xmlns'].items()]
 
+    @stackable
     def element_decode(self, data: ElementData, xsd_element: 'XsdElement',
                        xsd_type: Optional[BaseXsdType] = None, level: int = 0) -> Any:
         xsd_type = xsd_type or xsd_element.type
@@ -94,6 +95,7 @@ class BadgerFishConverter(XMLSchemaConverter):
 
         return self.dict([(tag, result_dict)])
 
+    @stackable
     def element_encode(self, obj: Any, xsd_element: 'XsdElement', level: int = 0) -> ElementData:
         tag = xsd_element.name
         if not isinstance(obj, MutableMapping):

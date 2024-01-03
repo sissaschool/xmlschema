@@ -1764,6 +1764,9 @@ class TestDecoding(XsdValidatorTestCase):
         obj = schema.decode(xml_file)
         self.assertDictEqual(obj, COLLECTION_XMLNS_PROCESSING_STACKED)
 
+        obj = schema.decode(xml_file, xmlns_processing='stacked')
+        self.assertDictEqual(obj, COLLECTION_XMLNS_PROCESSING_STACKED)
+
         obj = schema.decode(xml_file, xmlns_processing='collapsed')
         self.assertDictEqual(obj, COLLECTION_XMLNS_PROCESSING_COLLAPSED)
 

@@ -11,7 +11,7 @@ from collections.abc import MutableMapping, MutableSequence
 from typing import TYPE_CHECKING, Any, Dict, Union
 
 from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
-from .default import ElementData, XMLSchemaConverter
+from .default import ElementData, stackable, XMLSchemaConverter
 
 if TYPE_CHECKING:
     from ..validators import XsdElement
@@ -29,6 +29,7 @@ class UnorderedConverter(XMLSchemaConverter):
     """
     __slots__ = ()
 
+    @stackable
     def element_encode(self, obj: Any, xsd_element: 'XsdElement', level: int = 0) -> ElementData:
         """
         Extracts XML decoded data from a data structure for encoding into an ElementTree.
