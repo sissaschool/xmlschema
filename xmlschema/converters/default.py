@@ -175,12 +175,12 @@ class XMLSchemaConverter(NamespaceMapper):
         elif name == 'dict':
             if not issubclass(value, MutableMapping):
                 msg = "%(name)r must be a MutableMapping object, not %(type)r"
-                raise XMLSchemaTypeError(msg % {'name': name, 'type': type(value)})
+                raise XMLSchemaTypeError(msg % {'name': 'dict_class', 'type': type(value)})
 
         elif name == 'list':
             if not issubclass(value, MutableSequence):
                 msg = "%(name)r must be a MutableSequence object, not %(type)r"
-                raise XMLSchemaTypeError(msg % {'name': name, 'type': type(value)})
+                raise XMLSchemaTypeError(msg % {'name': 'list_class', 'type': type(value)})
 
         super(XMLSchemaConverter, self).__setattr__(name, value)
 

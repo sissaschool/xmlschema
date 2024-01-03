@@ -36,7 +36,8 @@ def iter_nested_items(items: Union[Dict[Any, Any], List[Any]],
 
 def etree_elements_assert_equal(elem: Element, other: Element,
                                 strict: bool = True, skip_comments: bool = True,
-                                unordered: bool = False) -> None:
+                                unordered: bool = False,
+                                check_nsmap: bool = False) -> None:
     """
     Tests the equality of two XML Element trees.
 
@@ -45,6 +46,7 @@ def etree_elements_assert_equal(elem: Element, other: Element,
     :param strict: asserts strictly equality. `True` for default.
     :param skip_comments: skip comments from comparison.
     :param unordered: children may have different order.
+    :param check_nsmap: if to check namespace maps.
     :raise: an AssertionError containing information about first difference encountered.
     """
     children: Union[Element, List[Element]]
@@ -95,6 +97,19 @@ def etree_elements_assert_equal(elem: Element, other: Element,
                         except (ValueError, TypeError):
                             msg = "%r != %r: attribute %r values differ: %r != %r"
                             raise AssertionError(msg % (e1, e2, k, a1, a2)) from None
+
+        # Namespace maps
+        if check_nsmap:
+            nsmap1 = getattr(e1, 'nsmap', None)
+            nsmap2 = getattr(e2, 'nsmap', None)
+            if nsmap1 != nsmap2:
+                if strict or (nsmap1 or None) != (nsmap2 or None):
+                    if (nsmap1 is None) ^ (nsmap2 is None):
+                        msg = "{!r} != {!r}: different ElementTree implementations"
+                        raise AssertionError(msg.format(e1, e2))
+                    else:
+                        msg = "{!r} != {!r}: nsmaps differ: {!r} != {!r}"
+                        raise AssertionError(msg.format(e1, e2, nsmap1, nsmap2))
 
         # Number of children
         if skip_comments:

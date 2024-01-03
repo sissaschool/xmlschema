@@ -53,6 +53,9 @@ class TestConverters(unittest.TestCase):
         else:
             cls.col_lxml_root = None
 
+        cls.vh_xsd_filename = cls.casepath('examples/vehicles/vehicles.xsd')
+        cls.vh_xml_filename = cls.casepath('examples/vehicles/vehicles.xml')
+
     @classmethod
     def casepath(cls, relative_path):
         return str(Path(__file__).parent.joinpath('test_cases', relative_path))
@@ -95,6 +98,38 @@ class TestConverters(unittest.TestCase):
         col_schema = XMLSchema(col_xsd_filename, converter=converter)
         self.assertIn('@xmlns:', str(col_schema.decode(col_xml_filename, strip_namespaces=False)))
         self.assertNotIn('@xmlns:', str(col_schema.decode(col_xml_filename)))
+
+    def test_arguments_with_wrong_types(self):
+
+        with self.assertRaises(TypeError) as ctx:
+            XMLSchemaConverter(cdata_prefix=1)
+        self.assertTrue(str(ctx.exception).startswith(
+            "'cdata_prefix' must be a <class 'str'> instance or None")
+        )
+
+        with self.assertRaises(TypeError) as ctx:
+            XMLSchemaConverter(preserve_root=1)
+        self.assertTrue(str(ctx.exception).startswith(
+            "'preserve_root' must be a <class 'bool'> instance")
+        )
+
+        with self.assertRaises(TypeError) as ctx:
+            XMLSchemaConverter(indent='no')
+        self.assertTrue(str(ctx.exception).startswith(
+            "'indent' must be a <class 'int'> instance")
+        )
+
+        with self.assertRaises(TypeError) as ctx:
+            XMLSchemaConverter(dict_class=list)
+        self.assertTrue(str(ctx.exception).startswith(
+            "'dict_class' must be a MutableMapping object")
+        )
+
+        with self.assertRaises(TypeError) as ctx:
+            XMLSchemaConverter(list_class=dict)
+        self.assertTrue(str(ctx.exception).startswith(
+            "'list_class' must be a MutableSequence object")
+        )
 
     def test_lossy_property(self):
         self.assertTrue(XMLSchemaConverter().lossy)
@@ -272,6 +307,24 @@ class TestConverters(unittest.TestCase):
 
         root = col_schema.encode(obj2, preserve_root=True)  # No namespace unmap is required
         self.assertIsNone(etree_elements_assert_equal(self.col_xml_root, root, strict=False))
+
+    @unittest.skipIf(lxml_etree is None, 'lxml is not available')
+    def test_decode_encode_default_converter_with_lxml(self):
+        vh_schema = XMLSchema(self.vh_xsd_filename)
+        vh_lxml_root = lxml_etree.parse(self.vh_xml_filename).getroot()
+        etree_element_class = cast(Type[Element], lxml_etree.Element)
+
+        # Decode from XML file
+        obj1 = vh_schema.decode(vh_lxml_root, process_namespaces=False)
+        self.assertNotIn("'@xmlns:vh'", repr(obj1))
+
+        obj1 = vh_schema.decode(vh_lxml_root)
+        self.assertIn("'@xmlns:vh'", repr(obj1))
+
+        root = vh_schema.encode(obj1, etree_element_class=etree_element_class)
+        self.assertIsNone(
+            etree_elements_assert_equal(vh_lxml_root, root, strict=False, check_nsmap=True)
+        )
 
     def test_decode_encode_unordered_converter(self):
         col_schema = XMLSchema(self.col_xsd_filename, converter=UnorderedConverter)
