@@ -150,7 +150,7 @@ class NamespaceMapper(MutableMapping[str, str]):
             # Remove contexts of sibling or descendant elements
             xmlns = namespaces = reverse = None
 
-            while self._contexts:
+            while self._contexts:  # pragma: no cover
                 context = self._contexts[-1]
                 if level > context.level:
                     break
@@ -269,11 +269,13 @@ class NamespaceMapper(MutableMapping[str, str]):
         or override the namespace map.
         :return: a QName in extended format or a local name.
         """
+        namespaces: MutableMapping[str, str]
+
         if not self._use_namespaces:
             return local_name(qname) if self.strip_namespaces else qname
 
         if xmlns:
-            namespaces: MutableMapping[str, str] = {**self._namespaces}
+            namespaces = {k: v for k, v in self._namespaces.items()}
             namespaces.update(xmlns)
         else:
             namespaces = self._namespaces
