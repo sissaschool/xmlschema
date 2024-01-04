@@ -1745,11 +1745,12 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             'source': resource,
             'namespaces': namespaces,
             'converter': converter,
-            'use_defaults': use_defaults,
             'id_map': Counter[str](),
             'identities': identities,
             'inherited': {},
         }
+        if not use_defaults:
+            kwargs['use_defaults'] = False
         if use_location_hints and not resource.is_lazy():
             kwargs['use_location_hints'] = True
             if self.XSD_VERSION == '1.1':
@@ -1877,7 +1878,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                     validation: str = 'lax',
                     process_namespaces: bool = True,
                     namespaces: Optional[NamespacesType] = None,
-                    xmlns_usage: Optional[str] = None,
                     use_defaults: bool = True,
                     use_location_hints: bool = False,
                     decimal_type: Optional[Type[Any]] = None,
@@ -1997,11 +1997,12 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             'converter': converter,
             'namespaces': namespaces,
             'source': resource,
-            'use_defaults': use_defaults,
             'id_map': Counter[str](),
             'identities': {},
             'inherited': {},
         }
+        if not use_defaults:
+            kwargs['use_defaults'] = False
         if use_location_hints and not resource.is_lazy():
             kwargs['use_location_hints'] = True
             if self.XSD_VERSION == '1.1':
@@ -2009,19 +2010,19 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         if decimal_type is not None:
             kwargs['decimal_type'] = decimal_type
         if datetime_types:
-            kwargs['datetime_types'] = datetime_types
+            kwargs['datetime_types'] = True
         if binary_types:
-            kwargs['binary_types'] = binary_types
+            kwargs['binary_types'] = True
         if filler is not None:
             kwargs['filler'] = filler
         if fill_missing:
-            kwargs['fill_missing'] = fill_missing
+            kwargs['fill_missing'] = True
         if keep_empty:
-            kwargs['keep_empty'] = keep_empty
+            kwargs['keep_empty'] = True
         if keep_unknown:
-            kwargs['keep_unknown'] = keep_unknown
+            kwargs['keep_unknown'] = True
         if process_skipped:
-            kwargs['process_skipped'] = process_skipped
+            kwargs['process_skipped'] = True
         if max_depth is not None:
             kwargs['max_depth'] = max_depth
         if depth_filler is not None:
@@ -2111,9 +2112,15 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             return self.decode(source, converter=dataobjects.DataBindingConverter, **kwargs)
         return self.decode(source, converter=dataobjects.DataElementConverter, **kwargs)
 
-    def iter_encode(self, obj: Any, path: Optional[str] = None, validation: str = 'lax',
-                    namespaces: Optional[NamespacesType] = None, use_defaults: bool = True,
-                    converter: Optional[ConverterType] = None, unordered: bool = False,
+    def iter_encode(self, obj: Any,
+                    path: Optional[str] = None,
+                    validation: str = 'lax',
+                    namespaces: Optional[NamespacesType] = None,
+                    use_defaults: bool = True,
+                    converter: Optional[ConverterType] = None,
+                    unordered: bool = False,
+                    process_skipped: bool = False,
+                    max_depth: Optional[int] = None,
                     **kwargs: Any) -> Iterator[Union[ElementType, XMLSchemaValidationError]]:
         """
         Creates an iterator for encoding a data structure to an ElementTree's Element.
@@ -2130,8 +2137,11 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         :param unordered: a flag for explicitly activating unordered encoding mode for \
         content model data. This mode uses content models for a reordered-by-model \
         iteration of the child elements.
-        :param kwargs: keyword arguments with other options for encoding and for \
-        building the converter instance.
+        :param process_skipped: process XML decoded data that match a wildcard with \
+        `processContents='skip'`.
+        :param max_depth: maximum level of encoding, for default there is no limit.
+        :param kwargs: keyword arguments with other options for building the \
+        converter instance.
         :return: yields an Element instance/s or validation/encoding errors.
         """
         self.check_validator(validation)
@@ -2139,12 +2149,24 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             msg = _("encoding needs at least one XSD element declaration")
             raise XMLSchemaValueError(msg)
 
-        if namespaces is None:
-            namespaces = {}
-        else:
-            namespaces = {k: v for k, v in namespaces.items()}
+        converter = self.get_converter(
+            converter, namespaces=namespaces, source=obj, **kwargs
+        )
+        namespaces = converter.namespaces
 
-        converter = self.get_converter(converter, namespaces=namespaces, **kwargs)
+        kwargs = {
+            'level': 0,
+            'converter': converter,
+            'namespaces': namespaces,
+        }
+        if not use_defaults:
+            kwargs['use_defaults'] = False
+        if unordered:
+            kwargs['unordered'] = True
+        if process_skipped:
+            kwargs['process_skipped'] = process_skipped
+        if max_depth is not None:
+            kwargs['max_depth'] = max_depth
 
         xsd_element = None
         if path is not None:
@@ -2176,15 +2198,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                            "provide a valid 'path' argument.")
             raise XMLSchemaEncodeError(self, obj, self.elements, reason, namespaces=namespaces)
         else:
-            yield from xsd_element.iter_encode(
-                obj,
-                validation,
-                use_defaults=use_defaults,
-                namespaces=converter.namespaces,
-                converter=converter,
-                unordered=unordered,
-                **kwargs
-            )
+            yield from xsd_element.iter_encode(obj, validation, **kwargs)
 
     def encode(self, obj: Any, path: Optional[str] = None, validation: str = 'strict',
                *args: Any, **kwargs: Any) -> EncodeType[Any]:

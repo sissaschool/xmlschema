@@ -942,13 +942,15 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
             converter = kwargs['converter']
         except KeyError:
             converter = kwargs['converter'] = self.schema.get_converter(**kwargs)
+            namespaces = kwargs['namespaces'] = converter.namespaces
+        else:
+            namespaces = converter.namespaces
 
         errors: List[Tuple[int, ModelParticleType, int, Optional[List[SchemaElementType]]]]
         xsd_element: Optional[SchemaElementType]
         expected: Optional[List[SchemaElementType]]
 
         model = ModelVisitor(self)
-        namespaces = converter.namespaces
         errors = []
         broken_model = False
 
@@ -1079,17 +1081,12 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
             level = kwargs['level'] = 1
 
         try:
-            indent = kwargs['indent']
-        except KeyError:
-            indent = 4
-
-        padding = '\n' + ' ' * indent * level
-
-        try:
             converter = kwargs['converter']
         except KeyError:
             converter = kwargs['converter'] = self.schema.get_converter(**kwargs)
+            kwargs['namespaces'] = converter.namespaces
 
+        padding = '\n' + ' ' * converter.indent * level
         default_namespace = converter.get('')
         model = ModelVisitor(self)
         index = cdata_index = 0
@@ -1184,9 +1181,11 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
 
         if children:
             if children[-1].tail is None:
-                children[-1].tail = padding[:-indent] or '\n'
+                children[-1].tail = padding[:-converter.indent] or '\n'
             else:
-                children[-1].tail = children[-1].tail.strip() + (padding[:-indent] or '\n')
+                children[-1].tail = children[-1].tail.strip() + (
+                        padding[:-converter.indent] or '\n'
+                )
 
         cdata_not_allowed = not self.mixed and text and text.strip() and self and \
             (len(self) > 1 or not isinstance(self[0], XsdAnyElement))

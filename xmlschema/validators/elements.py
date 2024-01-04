@@ -631,9 +631,11 @@ class XsdElement(XsdComponent, ParticleMixin,
             converter = kwargs['converter']
         except KeyError:
             converter = kwargs['converter'] = self.schema.get_converter(**kwargs)
+            kwargs['namespaces'] = converter.namespaces
         else:
             if not isinstance(converter, NamespaceMapper):
                 converter = kwargs['converter'] = self.schema.get_converter(**kwargs)
+                kwargs['namespaces'] = converter.namespaces
 
         if not level:
             # Need to set base context with the right object (the resource can be lazy)
@@ -967,9 +969,11 @@ class XsdElement(XsdComponent, ParticleMixin,
             converter = kwargs['converter']
         except KeyError:
             converter = kwargs['converter'] = self.schema.get_converter(**kwargs)
+            kwargs['namespaces'] = converter.namespaces
         else:
             if not isinstance(converter, XMLSchemaConverter):
                 converter = kwargs['converter'] = self.schema.get_converter(**kwargs)
+                kwargs['namespaces'] = converter.namespaces
 
         try:
             level = kwargs['level']

@@ -11,7 +11,7 @@ import re
 from collections import Counter
 from decimal import Decimal
 from typing import Any, Callable, Iterable, Iterator, List, MutableMapping, \
-    Optional, Tuple, Union
+    MutableSequence, Optional, Tuple, Union
 from xml.etree.ElementTree import ParseError
 
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
@@ -409,3 +409,19 @@ def is_defuse_error(err: Exception) -> bool:
     return "Entities are forbidden" in msg or \
         "Unparsed entities are forbidden" in msg or \
         "External references are forbidden" in msg
+
+
+def iter_decoded_data(obj: Any, level: int = 0) \
+        -> Iterator[Tuple[Union[MutableMapping[Any, Any], MutableSequence[Any]], int]]:
+    """
+    Iterates a nested object composed by lists and dictionaries,
+    pairing with the level depth.
+    """
+    if isinstance(obj, MutableMapping):
+        yield obj, level
+        for value in obj.values():
+            yield from iter_decoded_data(value, level + 1)
+    elif isinstance(obj, MutableSequence):
+        yield obj, level
+        for item in obj:
+            yield from iter_decoded_data(item, level + 1)

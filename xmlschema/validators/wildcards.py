@@ -569,11 +569,12 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
             converter = kwargs['converter']
         except KeyError:
             converter = kwargs['converter'] = self.schema.get_converter(**kwargs)
+            kwargs['namespaces'] = converter.namespaces
 
         try:
             level = kwargs['level']
         except KeyError:
-            level = 0
+            level = kwargs['level'] = 0
 
         try:
             element_data = converter.element_encode(value, xsd_element, level)
