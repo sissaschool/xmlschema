@@ -220,11 +220,15 @@ class XMLSchemaConverter(NamespaceMapper):
         """The converter ignores XML namespace information during decoding/encoding."""
         return not self._use_namespaces
 
-    def copy(self, **kwargs: Any) -> 'XMLSchemaConverter':
-        namespaces = kwargs.get('namespaces')
-        if namespaces is None:
-            namespaces = {k: v for k, v in self._namespaces.items()}
+    def copy(self, keep_namespaces: bool = True, **kwargs: Any) -> 'XMLSchemaConverter':
+        """
+        Creates a new converter instance from the existing, replacing options provided
+        with keyword arguments.
 
+        :param keep_namespaces: whether to keep the namespaces of the converter \
+        if they are not replaced by a keyword argument.
+        """
+        namespaces = kwargs.get('namespaces', self._namespaces if keep_namespaces else None)
         return type(self)(
             namespaces=namespaces,
             dict_class=kwargs.get('dict_class', self.dict),

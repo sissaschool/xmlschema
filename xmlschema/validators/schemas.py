@@ -1141,7 +1141,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             converter = self.converter
 
         if isinstance(converter, XMLSchemaConverter):
-            return converter.copy(**kwargs)
+            return converter.copy(keep_namespaces=False, **kwargs)
         elif issubclass(converter, XMLSchemaConverter):
             # noinspection PyCallingNonCallable
             return converter(**kwargs)
