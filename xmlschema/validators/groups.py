@@ -941,10 +941,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         try:
             converter = kwargs['converter']
         except KeyError:
-            converter = kwargs['converter'] = self.schema.get_converter(**kwargs)
-            namespaces = kwargs['namespaces'] = converter.namespaces
-        else:
-            namespaces = converter.namespaces
+            converter = self._get_converter(obj, kwargs)
 
         errors: List[Tuple[int, ModelParticleType, int, Optional[List[SchemaElementType]]]]
         xsd_element: Optional[SchemaElementType]
@@ -953,6 +950,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         model = ModelVisitor(self)
         errors = []
         broken_model = False
+        namespaces = converter.namespaces
 
         for index, child in enumerate(obj):
             if callable(child.tag):
@@ -1080,12 +1078,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         except KeyError:
             level = kwargs['level'] = 1
 
-        try:
-            converter = kwargs['converter']
-        except KeyError:
-            converter = kwargs['converter'] = self.schema.get_converter(**kwargs)
-            kwargs['namespaces'] = converter.namespaces
-
+        converter = kwargs['converter']
         padding = '\n' + ' ' * converter.indent * level
         default_namespace = converter.get('')
         model = ModelVisitor(self)

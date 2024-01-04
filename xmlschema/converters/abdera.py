@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any, Optional, List, Dict, Type, Union
 from ..exceptions import XMLSchemaValueError
 from ..aliases import NamespacesType, BaseXsdType
 from ..helpers import local_name
+from ..resources import XMLResource
 from .default import ElementData, XMLSchemaConverter
 
 if TYPE_CHECKING:
@@ -40,6 +41,10 @@ class AbderaConverter(XMLSchemaConverter):
         super(AbderaConverter, self).__init__(
             namespaces, dict_class, list_class, **kwargs
         )
+
+    @property
+    def xmlns_processing_default(self) -> str:
+        return 'stacked' if isinstance(self.source, XMLResource) else 'none'
 
     @property
     def lossy(self) -> bool:
@@ -127,7 +132,7 @@ class AbderaConverter(XMLSchemaConverter):
                 if len(children) > 1:
                     raise XMLSchemaValueError("Element %r should have only one child" % tag)
                 else:
-                    return ElementData(tag, children[0], None, attributes)
+                    return ElementData(tag, children[0], None, attributes, None)
 
             content = []
             for child in children:

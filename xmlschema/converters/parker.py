@@ -11,6 +11,7 @@ from collections.abc import MutableMapping, MutableSequence
 from typing import TYPE_CHECKING, Any, Optional, List, Dict, Type
 
 from ..aliases import NamespacesType, BaseXsdType
+from ..resources import XMLResource
 from .default import ElementData, XMLSchemaConverter
 
 if TYPE_CHECKING:
@@ -41,6 +42,10 @@ class ParkerConverter(XMLSchemaConverter):
             namespaces, dict_class, list_class,
             preserve_root=preserve_root, **kwargs
         )
+
+    @property
+    def xmlns_processing_default(self) -> str:
+        return 'stacked' if isinstance(self.source, XMLResource) else 'none'
 
     @property
     def lossy(self) -> bool:

@@ -79,8 +79,8 @@ class XMLSchemaConverter(NamespaceMapper):
     :param xmlns_processing: defines the processing mode of XML namespace declarations. \
     Can be 'stacked', 'collapsed', 'root-only' or 'none', with the meaning defined for \
     the `NamespaceMapper` base class. For default the xmlns processing mode is chosen \
-    between 'stacked' and 'collapsed', depending on the capabilities and the settings \
-    of the converter instance.
+    between 'stacked', 'collapsed' and 'none', depending on the provided XML source \
+    and the capabilities and the settings of the converter instance.
     :param source: the origin of XML data. Con be an `XMLResource` instance or `None`.
     :param preserve_root: if set to `True` the root element is preserved, wrapped into a \
     single-item dictionary. Applicable only to default converter, to \
@@ -128,9 +128,6 @@ class XMLSchemaConverter(NamespaceMapper):
                  force_list: bool = False,
                  **kwargs: Any) -> None:
 
-        super(XMLSchemaConverter, self).__init__(
-            namespaces, process_namespaces, strip_namespaces, xmlns_processing, source
-        )
         if dict_class is not None:
             self.dict = dict_class
         else:
@@ -155,6 +152,10 @@ class XMLSchemaConverter(NamespaceMapper):
         self.preserve_root = preserve_root
         self.force_dict = force_dict
         self.force_list = force_list
+
+        super(XMLSchemaConverter, self).__init__(
+            namespaces, process_namespaces, strip_namespaces, xmlns_processing, source
+        )
 
     def __setattr__(self, name: str, value: Any) -> None:
         if name in {'attr_prefix', 'text_key', 'cdata_prefix'}:
@@ -189,13 +190,13 @@ class XMLSchemaConverter(NamespaceMapper):
         """
         Returns the default of the xmlns processing mode, used if `None` is provided.
         """
-        if self.loss_xmlns:
-            return 'stacked'
-        elif isinstance(self.source, XMLResource):
+        if isinstance(self.source, XMLResource):
             if getattr(self.element_decode, 'stackable', False):
                 return 'stacked'
             else:
                 return 'collapsed'
+        elif self.source is None:
+            return 'none'
         elif getattr(self.element_encode, 'stackable', False):
             return 'stacked'
         else:
@@ -229,6 +230,8 @@ class XMLSchemaConverter(NamespaceMapper):
         if they are not replaced by a keyword argument.
         """
         namespaces = kwargs.get('namespaces', self._namespaces if keep_namespaces else None)
+        xmlns_processing = None if 'source' in kwargs else self.xmlns_processing
+
         return type(self)(
             namespaces=namespaces,
             dict_class=kwargs.get('dict_class', self.dict),
@@ -240,7 +243,7 @@ class XMLSchemaConverter(NamespaceMapper):
             indent=kwargs.get('indent', self.indent),
             process_namespaces=kwargs.get('process_namespaces', self.process_namespaces),
             strip_namespaces=kwargs.get('strip_namespaces', self.strip_namespaces),
-            xmlns_processing=kwargs.get('xmlns_processing', self.xmlns_processing),
+            xmlns_processing=kwargs.get('xmlns_processing', xmlns_processing),
             source=kwargs.get('source', self.source),
             preserve_root=kwargs.get('preserve_root', self.preserve_root),
             force_dict=kwargs.get('force_dict', self.force_dict),

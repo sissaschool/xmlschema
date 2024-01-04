@@ -16,7 +16,8 @@ from typing import Any, Callable, Container, Dict, Iterator, List, \
     Optional, MutableMapping, Mapping, NamedTuple, Union, Tuple, TypeVar
 
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
-from .helpers import local_name, get_namespace_map
+from .helpers import local_name, update_namespaces, get_namespace_map, \
+    iter_decoded_data
 from .aliases import NamespacesType, XmlnsType, ElementType
 from .resources import XMLResource
 
@@ -45,14 +46,17 @@ class NamespaceMapper(MutableMapping[str, str]):
     :param strip_namespaces: if set to `True` then the name mapping methods return \
     the local part of the provided name.
     :param xmlns_processing: defines the processing mode of XML namespace declarations. \
-    For default the xmlns processing mode is 'stacked', the mode that processes the \
-    namespace declarations using a stack of contexts related with elements and levels. \
+    The preferred mode is 'stacked', the mode that processes the namespace declarations \
+    using a stack of contexts related with elements and levels. \
     This is the processing mode that always matches the XML namespace declarations \
     defined in the XML document. Provide 'collapsed' for loading all namespace \
-    declarations of the XML source before decoding. Provide 'root-only' to use \
-    only the namespace declarations of the XML document root. Provide 'none' to \
-    not use any namespace declaration of the XML document.
-    :param source: the origin of XML data. Con be an `XMLResource` instance or `None`.
+    declarations of the XML source in a single map, renaming colliding prefixes. \
+    Provide 'root-only' to use only the namespace declarations of the XML document root. \
+    Provide 'none' to not use any namespace declaration of the XML document. \
+    For default the xmlns processing mode is 'stacked' if the XML source is an \
+    `XMLResource` instance, otherwise is 'none'.
+    :param source: the origin of XML data. Con be an `XMLResource` instance, an XML \
+    decoded data or `None`.
     """
     __slots__ = '_namespaces', '_reverse', '_contexts', \
         'process_namespaces', 'strip_namespaces', '_use_namespaces', \
@@ -66,7 +70,7 @@ class NamespaceMapper(MutableMapping[str, str]):
                  process_namespaces: bool = True,
                  strip_namespaces: bool = False,
                  xmlns_processing: Optional[str] = None,
-                 source: Optional[XMLResource] = None) -> None:
+                 source: Optional[Any] = None) -> None:
 
         self.process_namespaces = process_namespaces
         self.strip_namespaces = strip_namespaces
@@ -82,13 +86,14 @@ class NamespaceMapper(MutableMapping[str, str]):
             raise XMLSchemaValueError("invalid value for argument 'xmlns_processing'")
         self.xmlns_processing = xmlns_processing
 
-        if isinstance(source, XMLResource) and xmlns_processing != 'none':
-            self._xmlns_getter = source.get_xmlns
-            self._namespaces = source.get_namespaces(namespaces)
-        else:
+        if source is None or xmlns_processing == 'none':
             self._xmlns_getter = None
-            self._namespaces = get_namespace_map(namespaces)
+        elif isinstance(source, XMLResource):
+            self._xmlns_getter = source.get_xmlns
+        else:
+            self._xmlns_getter = self.get_xmlns_from_data
 
+        self._namespaces = self.get_namespaces(namespaces)
         self._reverse = {v: k for k, v in reversed(self._namespaces.items())}
         self._contexts = []
 
@@ -124,7 +129,7 @@ class NamespaceMapper(MutableMapping[str, str]):
 
     @property
     def xmlns_processing_default(self) -> str:
-        return 'stacked'
+        return 'stacked' if isinstance(self.source, XMLResource) else 'none'
 
     def __copy__(self) -> 'NamespaceMapper':
         mapper: 'NamespaceMapper' = object.__new__(self.__class__)
@@ -145,10 +150,42 @@ class NamespaceMapper(MutableMapping[str, str]):
         """Returns the XML declarations from decoded element data."""
         return None
 
+    def get_namespaces(self, namespaces: Optional[NamespacesType] = None,
+                       root_only: bool = True) -> NamespacesType:
+        """
+        Extracts namespaces with related prefixes from the XML source. It the XML
+        source is an `XMLResource` instance delegates the extraction to it.
+        With XML decoded data iterates the source try to extract xmlns information
+        using the implementation of *get_xmlns_from_data()*. If xmlns processing
+        mode is 'none', no namespace declaration is retrieved from the XML source.
+        Arguments and return type are identical to the ones defined for the method
+        *get_namespaces()* of `XMLResource` class.
+        """
+        if self._xmlns_getter is None:
+            return get_namespace_map(namespaces)
+        elif isinstance(self.source, XMLResource):
+            return self.source.get_namespaces(namespaces, root_only)
+
+        namespaces = get_namespace_map(namespaces)
+        for obj, level in iter_decoded_data(self.source):
+            if level and root_only:
+                break
+            xmlns = self.get_xmlns_from_data(obj)
+            if xmlns:
+                update_namespaces(namespaces, xmlns, not level)
+
+        return namespaces
+
     def set_context(self, obj: Any, level: int) -> XmlnsType:
+        """
+        Set the right context for the XML data and its level, updating the namespace
+        map if necessary. Returns the xmlns declarations of the provided XML data.
+        """
+        xmlns = None
+
         if self._contexts:
             # Remove contexts of sibling or descendant elements
-            xmlns = namespaces = reverse = None
+            namespaces = reverse = None
 
             while self._contexts:  # pragma: no cover
                 context = self._contexts[-1]
@@ -167,16 +204,10 @@ class NamespaceMapper(MutableMapping[str, str]):
                 self._reverse.clear()
                 self._reverse.update(reverse)
 
-            if xmlns:
-                return xmlns
+        if xmlns or not self._xmlns_getter:
+            return xmlns
 
-        if self._xmlns_getter:
-            xmlns = self._xmlns_getter(obj)
-        elif self.xmlns_processing == 'none':
-            xmlns = None
-        else:
-            xmlns = self.get_xmlns_from_data(obj)
-
+        xmlns = self._xmlns_getter(obj)
         if xmlns:
             if self.xmlns_processing == 'stacked':
                 context = NamespaceMapperContext(

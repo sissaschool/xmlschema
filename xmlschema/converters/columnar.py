@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any, Optional, List, Dict, Type, Tuple
 
 from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from ..aliases import NamespacesType, BaseXsdType
+from ..resources import XMLResource
 from .default import ElementData, XMLSchemaConverter
 
 if TYPE_CHECKING:
@@ -38,6 +39,10 @@ class ColumnarConverter(XMLSchemaConverter):
         kwargs.update(text_key=None, cdata_prefix=None)
         super(ColumnarConverter, self).__init__(namespaces, dict_class, list_class,
                                                 attr_prefix=attr_prefix, **kwargs)
+
+    @property
+    def xmlns_processing_default(self) -> str:
+        return 'stacked' if isinstance(self.source, XMLResource) else 'none'
 
     @property
     def lossy(self) -> bool:

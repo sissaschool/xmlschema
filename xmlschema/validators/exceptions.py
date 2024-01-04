@@ -14,9 +14,9 @@ from ..exceptions import XMLSchemaException, XMLSchemaWarning, XMLSchemaValueErr
 from ..aliases import ElementType, NamespacesType, SchemaElementType, ModelParticleType
 from ..helpers import get_prefixed_qname, etree_getpath, is_etree_element
 from ..translation import gettext as _
+from ..resources import XMLResource
 
 if TYPE_CHECKING:
-    from ..resources import XMLResource
     from .xsdbase import XsdValidator
     from .groups import XsdGroup
 
@@ -38,7 +38,7 @@ class XMLSchemaValidatorError(XMLSchemaException):
     def __init__(self, validator: ValidatorType,
                  message: str,
                  elem: Optional[ElementType] = None,
-                 source: Optional['XMLResource'] = None,
+                 source: Optional[Any] = None,
                  namespaces: Optional[NamespacesType] = None) -> None:
         self._path = None
         self.validator = validator
@@ -74,7 +74,7 @@ class XMLSchemaValidatorError(XMLSchemaException):
                 raise XMLSchemaValueError(
                     "'elem' attribute requires an Element, not %r." % type(value)
                 )
-            if self.source is not None:
+            if isinstance(self.source, XMLResource):
                 self._path = etree_getpath(
                     elem=value,
                     root=self.source.root,
@@ -94,9 +94,9 @@ class XMLSchemaValidatorError(XMLSchemaException):
     @property
     def root(self) -> Optional[ElementType]:
         """The XML resource root element if *source* is set."""
-        try:
-            return self.source.root  # type: ignore[union-attr]
-        except AttributeError:
+        if isinstance(self.source, XMLResource):
+            return self.source.root
+        else:
             return None
 
     @property
@@ -124,7 +124,7 @@ class XMLSchemaValidatorError(XMLSchemaException):
     @property
     def path(self) -> Optional[str]:
         """The XPath of the element, if it's not `None` and the XML resource is set."""
-        if self.elem is None or self.source is None:
+        if self.elem is None or not isinstance(self.source, XMLResource):
             return self._path
 
         return etree_getpath(

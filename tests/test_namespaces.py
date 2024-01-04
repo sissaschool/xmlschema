@@ -120,24 +120,32 @@ class TestNamespaceMapper(unittest.TestCase):
 
     def test_xmlns_processing_argument(self):
         namespaces = dict(xs=XSD_NAMESPACE, xsi=XSI_NAMESPACE)
+        resource = XMLResource('<root/>')
 
-        mapper = NamespaceMapper(namespaces)
+        kwargs = {
+            'namespaces': namespaces,
+            'source': resource,
+        }
+        mapper = NamespaceMapper(**kwargs)
         self.assertEqual(mapper.xmlns_processing, 'stacked')
 
-        mapper = NamespaceMapper(namespaces, xmlns_processing='collapsed')
+        mapper = NamespaceMapper(namespaces)
+        self.assertEqual(mapper.xmlns_processing, 'none')
+
+        mapper = NamespaceMapper(xmlns_processing='collapsed', **kwargs)
         self.assertEqual(mapper.xmlns_processing, 'collapsed')
 
-        mapper = NamespaceMapper(namespaces, xmlns_processing='root-only')
+        mapper = NamespaceMapper(xmlns_processing='root-only', **kwargs)
         self.assertEqual(mapper.xmlns_processing, 'root-only')
 
-        mapper = NamespaceMapper(namespaces, xmlns_processing='none')
+        mapper = NamespaceMapper(xmlns_processing='none', **kwargs)
         self.assertEqual(mapper.xmlns_processing, 'none')
 
         with self.assertRaises(ValueError):
-            NamespaceMapper(namespaces, xmlns_processing='nothing')
+            NamespaceMapper(xmlns_processing='nothing', **kwargs)
 
         with self.assertRaises(TypeError):
-            NamespaceMapper(namespaces, xmlns_processing=False)
+            NamespaceMapper(xmlns_processing=False, **kwargs)
 
     def test_source_argument(self):
         resource = XMLResource('<root/>')

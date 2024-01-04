@@ -26,8 +26,10 @@ from ..aliases import ElementType, NamespacesType, SchemaType, BaseXsdType, \
     ComponentClassType, ExtraValidatorType, DecodeType, IterDecodeType, \
     EncodeType, IterEncodeType
 from ..translation import gettext as _
-from ..helpers import get_qname, local_name, get_prefixed_qname
+from ..helpers import get_qname, local_name, get_prefixed_qname, \
+    is_etree_document
 from ..resources import XMLResource
+from ..converters import XMLSchemaConverter
 from .exceptions import XMLSchemaParseError, XMLSchemaValidationError
 
 if TYPE_CHECKING:
@@ -485,6 +487,19 @@ class XsdComponent(XsdValidator):
             self.name = local_name(self.name)
         else:
             self.name = f'{{{self._target_namespace}}}{local_name(self.name)}'
+
+    def _get_converter(self, source: Any, kwargs: Dict[str, Any]) -> XMLSchemaConverter:
+        if 'source' not in kwargs:
+            if isinstance(source, XMLResource):
+                kwargs['source'] = source
+            elif is_etree_element(source) or is_etree_document(source):
+                kwargs['source'] = XMLResource(source)
+            else:
+                kwargs['source'] = source
+
+        converter = kwargs['converter'] = self.schema.get_converter(**kwargs)
+        kwargs['namespaces'] = converter.namespaces
+        return converter
 
     @property
     def local_name(self) -> Optional[str]:
