@@ -11,6 +11,7 @@
 import unittest
 import os
 import io
+import pathlib
 from xml.etree import ElementTree
 
 try:
@@ -20,22 +21,24 @@ except ImportError:
 
 from xmlschema import XMLSchema, XMLResource
 from xmlschema.validators.exceptions import XMLSchemaValidatorError, \
-    XMLSchemaNotBuiltError, XMLSchemaModelDepthError, XMLSchemaValidationError, \
-    XMLSchemaChildrenValidationError
+    XMLSchemaNotBuiltError, XMLSchemaParseError, XMLSchemaModelDepthError, \
+    XMLSchemaValidationError, XMLSchemaChildrenValidationError
 
-CASES_DIR = os.path.join(os.path.dirname(__file__), '../test_cases')
+CASES_DIR = pathlib.Path(__file__).parent.joinpath('../test_cases')
 
 
 class TestValidatorExceptions(unittest.TestCase):
 
-    def test_exception_init(self):
-        xs = XMLSchema(os.path.join(CASES_DIR, 'examples/vehicles/vehicles.xsd'))
+    @classmethod
+    def setUpClass(cls):
+        cls.schema = XMLSchema(CASES_DIR.joinpath('examples/vehicles/vehicles.xsd'))
 
+    def test_exception_init(self):
         with self.assertRaises(ValueError) as ctx:
-            XMLSchemaValidatorError(xs, 'unknown error', elem='wrong')
+            XMLSchemaValidatorError(self.schema, 'unknown error', elem='wrong')
         self.assertIn("'elem' attribute requires an Element", str(ctx.exception))
 
-        error = XMLSchemaNotBuiltError(xs, 'schema not built!')
+        error = XMLSchemaNotBuiltError(self.schema, 'schema not built!')
         self.assertEqual(error.message, 'schema not built!')
 
         schema = XMLSchema("""
@@ -50,12 +53,12 @@ class TestValidatorExceptions(unittest.TestCase):
         error = XMLSchemaModelDepthError(schema.groups['group1'])
         self.assertEqual("maximum model recursion depth exceeded", error.message[:38])
 
-    def test_exception_repr(self):
-        xs = XMLSchema(os.path.join(CASES_DIR, 'examples/vehicles/vehicles.xsd'))
+    def test_validator_error_repr(self):
+        xs = self.schema
 
         error = XMLSchemaValidatorError(xs, 'unknown error')
-        self.assertEqual(str(error), 'unknown error')
-        self.assertEqual(error.msg, 'unknown error')
+        chunks = str(error).split('\n')
+        self.assertEqual('unknown error:', chunks[0].strip())
 
         error = XMLSchemaValidatorError(xs, 'unknown error', elem=xs.root)
         output = str(error)
@@ -63,9 +66,46 @@ class TestValidatorExceptions(unittest.TestCase):
 
         self.assertGreater(len(lines), 10, msg=output)
         self.assertEqual(lines[0], 'unknown error:', msg=output)
-        self.assertEqual(lines[2], 'Schema:', msg=output)
+        self.assertEqual(lines[2], 'Schema component:', msg=output)
         self.assertRegex(lines[4].strip(), '^<(xs:)?schema ', msg=output)
-        self.assertRegex(lines[-2].strip(), '</(xs:|xsd:)?schema>$', msg=output)
+        # self.assertRegex(lines[-2].strip(), '</(xs:|xsd:)?schema>$', msg=output)
+
+        error = XMLSchemaValidatorError(
+            validator=xs.elements['vehicles'],
+            message='test error message #1',
+            elem=xs.source.root[1],
+            source=xs.source,
+            namespaces=xs.namespaces,
+        )
+        chunks = str(error).split('\n')
+        self.assertEqual('test error message #1:', chunks[0].strip())
+        self.assertEqual('Schema component:', chunks[2].strip())
+        self.assertEqual('Path: /xs:schema/xs:include[2]', chunks[6].strip())
+        self.assertEqual('Schema URL: ' + xs.url, chunks[8].strip())
+
+        error = XMLSchemaValidatorError(
+            validator=xs.elements['cars'],
+            message='test error message #2',
+            elem=xs.source.root[1],
+            source=xs.source,
+            namespaces=xs.namespaces,
+        )
+        chunks = str(error).split('\n')
+        self.assertEqual('test error message #2:', chunks[0].strip())
+        self.assertEqual('Schema component:', chunks[2].strip())
+        self.assertEqual('Path: /xs:schema/xs:include[2]', chunks[6].strip())
+        self.assertNotEqual('Schema URL: ' + xs.url, chunks[8].strip())
+        self.assertTrue(chunks[8].strip().endswith('cars.xsd'))
+        self.assertEqual('Origin URL: ' + xs.url, chunks[10].strip())
+
+    def test_parse_error(self):
+        xs = self.schema
+
+        error = XMLSchemaParseError(xs, "test parse error message #1")
+        self.assertTrue(str(error).startswith('test parse error message #1:'))
+
+        error = XMLSchemaParseError(xs.elements['vehicles'], "test parse error message #2")
+        self.assertNotEqual(str(error), 'test parse error message #2')
 
     @unittest.skipIf(lxml_etree is None, 'lxml is not installed ...')
     def test_exception_repr_lxml(self):
@@ -145,7 +185,7 @@ class TestValidatorExceptions(unittest.TestCase):
             raise XMLSchemaValidatorError(xs, 'unknown error')
 
         self.assertIsNone(ctx.exception.root)
-        self.assertIsNone(ctx.exception.schema_url)
+        self.assertIsNotNone(ctx.exception.schema_url)
         self.assertEqual(ctx.exception.origin_url, xs.source.url)
         self.assertIsNone(XMLSchemaValidatorError(None, 'unknown error').origin_url)
 

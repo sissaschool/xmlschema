@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING, cast, Any, Dict, Generic, List, Iterator, Opti
 from xml.etree import ElementTree
 
 from elementpath import select
-from elementpath.etree import is_etree_element, etree_tostring
+from elementpath.etree import etree_tostring
 
 from ..exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from ..names import XSD_ANNOTATION, XSD_APPINFO, XSD_DOCUMENTATION, \
@@ -27,7 +27,7 @@ from ..aliases import ElementType, NamespacesType, SchemaType, BaseXsdType, \
     EncodeType, IterEncodeType
 from ..translation import gettext as _
 from ..helpers import get_qname, local_name, get_prefixed_qname, \
-    is_etree_document
+    is_etree_element, is_etree_document
 from ..resources import XMLResource
 from ..converters import XMLSchemaConverter
 from .exceptions import XMLSchemaParseError, XMLSchemaValidationError
@@ -196,7 +196,7 @@ class XsdValidator:
     def validation_error(self, validation: str,
                          error: Union[str, Exception],
                          obj: Any = None,
-                         source: Optional[XMLResource] = None,
+                         source: Optional[Any] = None,
                          namespaces: Optional[NamespacesType] = None,
                          **kwargs: Any) -> XMLSchemaValidationError:
         """
@@ -206,7 +206,7 @@ class XsdValidator:
         :param validation: an error-compatible validation mode: can be 'lax' or 'strict'.
         :param error: an error instance or the detailed reason of failed validation.
         :param obj: the instance related to the error.
-        :param source: the XML resource related to the validation process.
+        :param source: the XML resource or data related to the validation process.
         :param namespaces: is an optional mapping from namespace prefix to URI.
         :param kwargs: other keyword arguments of the validation process.
         """

@@ -30,7 +30,7 @@ class XMLSchemaValidatorError(XMLSchemaException):
     :param validator: the XSD validator.
     :param message: the error message.
     :param elem: the element that contains the error.
-    :param source: the XML resource that contains the error.
+    :param source: the XML resource or the decoded data that contains the error.
     :param namespaces: is an optional mapping from namespace prefix to URI.
     """
     _path: Optional[str]
@@ -48,21 +48,23 @@ class XMLSchemaValidatorError(XMLSchemaException):
         self.elem = elem
 
     def __str__(self) -> str:
-        if self.elem is None:
-            return self.message
-
-        msg = ['%s:\n' % self.message]
-        elem_as_string = cast(str, etree_tostring(self.elem, self.namespaces, '  ', 20))
-        msg.append("Schema:\n\n%s\n" % elem_as_string)
+        chunks = ['%s:\n' % self.message]
+        if self.elem is not None:
+            elem_as_string = cast(
+                str, etree_tostring(self.elem, self.namespaces, '  ', 20)
+            )
+            chunks.append("Schema component:\n\n%s\n" % elem_as_string)
 
         path = self.path
         if path is not None:
-            msg.append("Path: %s\n" % path)
+            chunks.append("Path: %s\n" % path)
+
         if self.schema_url is not None:
-            msg.append("Schema URL: %s\n" % self.schema_url)
+            chunks.append("Schema URL: %s\n" % self.schema_url)
             if self.origin_url not in (None, self.schema_url):
-                msg.append("Origin URL: %s\n" % self.origin_url)
-        return '\n'.join(msg)
+                chunks.append("Origin URL: %s\n" % self.origin_url)
+
+        return '\n'.join(chunks) if len(chunks) > 1 else chunks[0][:-2]
 
     @property
     def msg(self) -> str:
@@ -106,7 +108,7 @@ class XMLSchemaValidatorError(XMLSchemaException):
         try:
             url = self.validator.schema.source.url  # type: ignore[union-attr]
         except AttributeError:
-            return None
+            return getattr(self.validator, 'url', None)  # it's the schema
         else:
             return url
 
