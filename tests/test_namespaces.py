@@ -14,10 +14,9 @@ import os
 import copy
 from textwrap import dedent
 
-from xmlschema import XMLResource
+from xmlschema import XMLResource, XMLSchemaConverter
 from xmlschema.names import XSD_NAMESPACE, XSI_NAMESPACE
 from xmlschema.namespaces import NamespaceResourcesMap, NamespaceMapper, NamespaceView
-
 
 CASES_DIR = os.path.join(os.path.dirname(__file__), '../test_cases')
 
@@ -118,7 +117,7 @@ class TestNamespaceMapper(unittest.TestCase):
         self.assertEqual(mapper.map_qname('{%s}name' % XSD_NAMESPACE), 'name')
         self.assertEqual(mapper.map_qname('{unknown}name'), 'name')
 
-    def test_xmlns_processing_argument(self):
+    def test_xmlns_processing_argument_with_resource(self):
         namespaces = dict(xs=XSD_NAMESPACE, xsi=XSI_NAMESPACE)
         resource = XMLResource('<root/>')
 
@@ -128,24 +127,46 @@ class TestNamespaceMapper(unittest.TestCase):
         }
         mapper = NamespaceMapper(**kwargs)
         self.assertEqual(mapper.xmlns_processing, 'stacked')
+        self.assertIsNotNone(mapper._xmlns_getter)
 
         mapper = NamespaceMapper(namespaces)
         self.assertEqual(mapper.xmlns_processing, 'none')
+        self.assertIsNone(mapper._xmlns_getter)
 
         mapper = NamespaceMapper(xmlns_processing='collapsed', **kwargs)
         self.assertEqual(mapper.xmlns_processing, 'collapsed')
+        self.assertIsNotNone(mapper._xmlns_getter)
 
         mapper = NamespaceMapper(xmlns_processing='root-only', **kwargs)
         self.assertEqual(mapper.xmlns_processing, 'root-only')
+        self.assertIsNotNone(mapper._xmlns_getter)
 
         mapper = NamespaceMapper(xmlns_processing='none', **kwargs)
         self.assertEqual(mapper.xmlns_processing, 'none')
+        self.assertIsNone(mapper._xmlns_getter)
 
+    def test_xmlns_processing_argument_with_data_source(self):
+        namespaces = dict(xs=XSD_NAMESPACE, xsi=XSI_NAMESPACE)
+
+        mapper = NamespaceMapper(namespaces, source=dict())
+        self.assertEqual(mapper.xmlns_processing, 'none')
+        self.assertIsNone(mapper._xmlns_getter)
+
+        mapper = NamespaceMapper(namespaces, xmlns_processing='collapsed', source=dict())
+        self.assertEqual(mapper.xmlns_processing, 'collapsed')
+        self.assertIsNotNone(mapper._xmlns_getter)
+
+        # None can be a valid decoded value in certain cases
+        mapper = NamespaceMapper(namespaces, xmlns_processing='collapsed', source=None)
+        self.assertEqual(mapper.xmlns_processing, 'collapsed')
+        self.assertIsNotNone(mapper._xmlns_getter)
+
+    def test_invalid_xmlns_processing_argument(self):
         with self.assertRaises(ValueError):
-            NamespaceMapper(xmlns_processing='nothing', **kwargs)
+            NamespaceMapper(xmlns_processing='nothing')
 
         with self.assertRaises(TypeError):
-            NamespaceMapper(xmlns_processing=False, **kwargs)
+            NamespaceMapper(xmlns_processing=False)
 
     def test_source_argument(self):
         resource = XMLResource('<root/>')
@@ -159,6 +180,43 @@ class TestNamespaceMapper(unittest.TestCase):
 
     def test_get_xmlns_from_data(self):
         self.assertIsNone(NamespaceMapper().get_xmlns_from_data({}))
+
+    def test_get_namespaces(self):
+        namespaces = dict(xs=XSD_NAMESPACE, xsi=XSI_NAMESPACE)
+        resource = XMLResource('<root xmlns="http://example.test/foo"/>')
+        data = {'@xmlns:xs': "http://example.test/foo", 'value': [1, 2]}
+
+        mapper = NamespaceMapper(namespaces)
+        self.assertEqual(mapper.get_namespaces(), {})
+
+        mapper = NamespaceMapper(namespaces)
+        self.assertEqual(mapper.get_namespaces(namespaces), namespaces)
+
+        mapper = NamespaceMapper(namespaces, xmlns_processing='stacked')
+        self.assertEqual(mapper.get_namespaces(), {})
+
+        mapper = NamespaceMapper(namespaces, xmlns_processing='stacked')
+        self.assertEqual(mapper.get_namespaces(namespaces), namespaces)
+
+        mapper = NamespaceMapper(namespaces, xmlns_processing='stacked', source=data)
+        self.assertEqual(mapper.get_namespaces(), {})
+
+        mapper = NamespaceMapper(namespaces, xmlns_processing='stacked', source=data)
+        self.assertEqual(mapper.get_namespaces(namespaces), namespaces)
+
+        mapper = NamespaceMapper(namespaces, xmlns_processing='stacked', source=resource)
+        self.assertEqual(mapper.get_namespaces(), {'': 'http://example.test/foo'})
+
+        mapper = NamespaceMapper(namespaces, xmlns_processing='stacked', source=resource)
+        self.assertEqual(mapper.get_namespaces(namespaces),
+                         {**namespaces, **{'': 'http://example.test/foo'}})
+
+        mapper = XMLSchemaConverter(namespaces, xmlns_processing='stacked', source=data)
+        self.assertEqual(mapper.get_namespaces(), {'xs': 'http://example.test/foo'})
+
+        mapper = XMLSchemaConverter(namespaces, xmlns_processing='stacked', source=data)
+        self.assertEqual(mapper.get_namespaces(namespaces),
+                         {**namespaces, **{'xs0': 'http://example.test/foo'}})
 
     def test_copy(self):
         namespaces = dict(xs=XSD_NAMESPACE, xsi=XSI_NAMESPACE)
@@ -287,6 +345,16 @@ class TestNamespaceMapper(unittest.TestCase):
         mapper.set_context(resource.root[1], 1)
         self.assertEqual(len(mapper._contexts), 2)
         self.assertIs(mapper._contexts[-1].obj, resource.root[1])
+
+        resource = XMLResource('<root/>')
+
+        mapper = NamespaceMapper(source=resource)
+        self.assertEqual(mapper.xmlns_processing, 'stacked')
+        self.assertEqual(len(mapper._contexts), 0)
+
+        xmlns = mapper.set_context(resource.root, 0)
+        self.assertEqual(len(mapper._contexts), 0)
+        self.assertIsNone(xmlns)
 
     def test_set_context_with_collapsed_xmlns_processing(self):
         resource = XMLResource(io.StringIO(self.xml_data))

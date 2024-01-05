@@ -86,7 +86,7 @@ class NamespaceMapper(MutableMapping[str, str]):
             raise XMLSchemaValueError("invalid value for argument 'xmlns_processing'")
         self.xmlns_processing = xmlns_processing
 
-        if source is None or xmlns_processing == 'none':
+        if xmlns_processing == 'none':
             self._xmlns_getter = None
         elif isinstance(source, XMLResource):
             self._xmlns_getter = source.get_xmlns
