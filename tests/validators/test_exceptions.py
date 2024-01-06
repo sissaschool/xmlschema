@@ -20,9 +20,11 @@ except ImportError:
     lxml_etree = None
 
 from xmlschema import XMLSchema, XMLResource
+from xmlschema.helpers import is_etree_element
 from xmlschema.validators.exceptions import XMLSchemaValidatorError, \
     XMLSchemaNotBuiltError, XMLSchemaParseError, XMLSchemaModelDepthError, \
-    XMLSchemaValidationError, XMLSchemaChildrenValidationError
+    XMLSchemaValidationError, XMLSchemaDecodeError, XMLSchemaEncodeError, \
+    XMLSchemaChildrenValidationError
 
 CASES_DIR = pathlib.Path(__file__).parent.joinpath('../test_cases')
 
@@ -59,6 +61,7 @@ class TestValidatorExceptions(unittest.TestCase):
         error = XMLSchemaValidatorError(xs, 'unknown error')
         chunks = str(error).split('\n')
         self.assertEqual('unknown error:', chunks[0].strip())
+        self.assertEqual(error.get_elem_as_string(indent='  '), '  None')
 
         error = XMLSchemaValidatorError(xs, 'unknown error', elem=xs.root)
         output = str(error)
@@ -68,7 +71,7 @@ class TestValidatorExceptions(unittest.TestCase):
         self.assertEqual(lines[0], 'unknown error:', msg=output)
         self.assertEqual(lines[2], 'Schema component:', msg=output)
         self.assertRegex(lines[4].strip(), '^<(xs:)?schema ', msg=output)
-        # self.assertRegex(lines[-2].strip(), '</(xs:|xsd:)?schema>$', msg=output)
+        self.assertRegex(lines[-4].strip(), '</(xs:|xsd:)?schema>$', msg=output)
 
         error = XMLSchemaValidatorError(
             validator=xs.elements['vehicles'],
@@ -82,6 +85,8 @@ class TestValidatorExceptions(unittest.TestCase):
         self.assertEqual('Schema component:', chunks[2].strip())
         self.assertEqual('Path: /xs:schema/xs:include[2]', chunks[6].strip())
         self.assertEqual('Schema URL: ' + xs.url, chunks[8].strip())
+
+        self.assertTrue(error.get_elem_as_string().startswith('<xs:include'))
 
         error = XMLSchemaValidatorError(
             validator=xs.elements['cars'],
@@ -97,6 +102,18 @@ class TestValidatorExceptions(unittest.TestCase):
         self.assertNotEqual('Schema URL: ' + xs.url, chunks[8].strip())
         self.assertTrue(chunks[8].strip().endswith('cars.xsd'))
         self.assertEqual('Origin URL: ' + xs.url, chunks[10].strip())
+
+    def test_validator_error_repr_no_urls(self):
+        schema = XMLSchema("""
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:element name="root" type="xs:integer"/>
+            </xs:schema>""")
+
+        error = XMLSchemaValidatorError(validator=schema, message='test error message #3')
+        self.assertEqual(str(error), "test error message #3")
+        self.assertIsNone(error.schema_url)
+        self.assertIsNone(error.origin_url)
+        self.assertEqual(str(error), error.msg)
 
     def test_parse_error(self):
         xs = self.schema
@@ -122,8 +139,8 @@ class TestValidatorExceptions(unittest.TestCase):
         lines = str(ctx.exception).split('\n')
         self.assertEqual(lines[0], "failed validating {'a': '10'} with XsdAttributeGroup():")
         self.assertEqual(lines[2], "Reason: 'a' attribute not allowed for element")
-        self.assertEqual(lines[8], "Instance (line 1):")
-        self.assertEqual(lines[12], "Path: /root")
+        self.assertEqual(lines[10], "Instance (line 1):")
+        self.assertEqual(lines[14], "Path: /root")
 
         self.assertEqual(repr(ctx.exception), "XMLSchemaValidationError(reason=\"'a' "
                                               "attribute not allowed for element\")")
@@ -131,14 +148,55 @@ class TestValidatorExceptions(unittest.TestCase):
         error = XMLSchemaValidationError(schema.elements['root'], root)
         self.assertIsNone(error.reason)
         self.assertNotIn("Reason:", str(error))
-        self.assertIn("Schema:", str(error))
+        self.assertIn("Schema component:", str(error))
+        self.assertEqual(error.get_obj_as_string(), '<root a="10"/>')
 
         error = XMLSchemaValidationError(schema, root)
         self.assertNotIn("Reason:", str(error))
-        self.assertNotIn("Schema:", str(error))
+        self.assertNotIn("Schema component:", str(error))
 
         error = XMLSchemaValidationError(schema, 10)
-        self.assertEqual(str(error), "failed validating 10 with XMLSchema10(namespace='')")
+        lines = str(error).split('\n')
+        self.assertEqual(lines[0], "failed validating 10 with XMLSchema10(namespace=''):")
+        self.assertEqual(lines[2], "Instance type: <class 'int'>")
+        self.assertEqual(error.get_obj_as_string(), '10')
+
+        error = XMLSchemaValidationError(schema, 'a' * 201)
+        lines = str(error).split('\n')
+        self.assertEqual(lines[0], "failed validating <class 'str'> instance "
+                                   "with XMLSchema10(namespace=''):")
+        self.assertEqual(lines[2], "Instance type: <class 'str'>")
+        self.assertEqual(lines[6], '  ' + repr('a' * 201))
+
+    def test_get_obj_as_string(self):
+        schema = XMLSchema("""
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:element name="root" type="xs:integer"/>
+            </xs:schema>""")
+
+        error = XMLSchemaValidationError(schema, 'alpha\n')
+        self.assertEqual(error.get_obj_as_string(indent='  '), "  'alpha\\n'")
+
+        error = XMLSchemaValidationError(schema, 'alpha\nalpha\n')
+        self.assertEqual(error.get_obj_as_string(indent='  '), "  'alpha\\nalpha\\n'")
+
+        error = XMLSchemaValidationError(schema, 'alpha\n' * 2)
+        self.assertEqual(error.get_obj_as_string(' '), " 'alpha\\nalpha\\n'")
+
+        error = XMLSchemaValidationError(schema, 'alpha\n' * 200)
+        obj_as_string = error.get_obj_as_string(' ')
+        self.assertTrue(obj_as_string.startswith(" ('alpha\\n'"))
+        self.assertEqual(len(obj_as_string.splitlines()), 200)
+
+        obj_as_string = error.get_obj_as_string(max_lines=20)
+        self.assertTrue(obj_as_string.startswith("('alpha\\n'"))
+        self.assertTrue(obj_as_string.endswith("...\n..."))
+        self.assertEqual(len(obj_as_string.splitlines()), 20)
+
+        obj_as_string = error.get_obj_as_string(indent='  ', max_lines=30)
+        self.assertTrue(obj_as_string.startswith("  ('alpha\\n'"))
+        self.assertTrue(obj_as_string.endswith("  ...\n  ..."))
+        self.assertEqual(len(obj_as_string.splitlines()), 30)
 
     def test_setattr(self):
         schema = XMLSchema("""
@@ -188,6 +246,28 @@ class TestValidatorExceptions(unittest.TestCase):
         self.assertIsNotNone(ctx.exception.schema_url)
         self.assertEqual(ctx.exception.origin_url, xs.source.url)
         self.assertIsNone(XMLSchemaValidatorError(None, 'unknown error').origin_url)
+
+    def test_decode_error(self):
+        error = XMLSchemaDecodeError(
+            validator=XMLSchema.meta_schema.types['int'],
+            obj='10.0',
+            decoder=int,
+            reason="invalid literal for int() with base 10: '10.0'",
+        )
+        self.assertIs(error.decoder, int)
+        self.assertIn("Reason: invalid literal for int() with base 10: '10.0'", error.msg)
+        self.assertIn('Schema component:', error.msg)
+
+    def test_encode_error(self):
+        error = XMLSchemaEncodeError(
+            validator=XMLSchema.meta_schema.types['string'],
+            obj=10,
+            encoder=str,
+            reason="10 is not an instance of <class 'str'>",
+        )
+        self.assertIs(error.encoder, str)
+        self.assertIn('Reason: 10 is not an instance of', error.msg)
+        self.assertIn('Schema component:', error.msg)
 
     def test_children_validation_error(self):
         schema = XMLSchema("""
@@ -263,6 +343,44 @@ class TestValidatorExceptions(unittest.TestCase):
 
         lines = str(ctx.exception).split('\n')
         self.assertTrue(lines[2].endswith("Tag 'b2' expected."))
+
+    def test_invalid_child_property(self):
+        schema = XMLSchema("""
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+              <xs:element name="a">
+                <xs:complexType>
+                  <xs:choice>
+                    <xs:element name="b1" type="bType"/>
+                    <xs:element name="b2" type="bType"/>
+                  </xs:choice>
+                </xs:complexType>
+              </xs:element>
+              <xs:complexType name="bType">
+                <xs:sequence>
+                  <xs:element name="c1" type="xs:string"/>
+                  <xs:element name="c2" type="xs:string"/>
+                </xs:sequence>
+              </xs:complexType>
+            </xs:schema>""")
+
+        with self.assertRaises(XMLSchemaChildrenValidationError) as ctx:
+            schema.validate('<a><c1/></a>')
+
+        lines = str(ctx.exception).split('\n')
+        self.assertTrue(lines[2].endswith("Tag ('b1' | 'b2') expected."))
+
+        invalid_child = ctx.exception.invalid_child
+        self.assertTrue(is_etree_element(invalid_child))
+        self.assertEqual(invalid_child.tag, 'c1')
+
+        xml_source = '<a><b1></b1><b2><c1/><c1/></b2></a>'
+        resource = XMLResource(xml_source, lazy=True)
+        errors = list(schema.iter_errors(resource))
+        self.assertEqual(len(errors), 4)
+        self.assertIsNone(errors[0].invalid_child)
+        self.assertIsNone(errors[1].invalid_child)
+        self.assertIsNotNone(errors[2].invalid_child)
+        self.assertIsNotNone(errors[3].invalid_child)
 
 
 if __name__ == '__main__':
