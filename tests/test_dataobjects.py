@@ -223,6 +223,52 @@ class TestDataObjects(unittest.TestCase):
             col_data.xsd_type = col_data[0].xsd_type
         self.assertEqual(str(ec.exception), "the instance is already bound to another XSD type")
 
+    def test_xmlns_processing_argument(self):
+        xsd_file = self.casepath('examples/collection/collection5.xsd')
+        xml_file = self.casepath('examples/collection/collection-redef-xmlns.xml')
+
+        xmlns0 = [('col1', 'http://example.com/ns/collection'),
+                  ('col', 'http://xmlschema.test/ns'),
+                  ('', 'http://xmlschema.test/ns'),
+                  ('xsi', 'http://www.w3.org/2001/XMLSchema-instance')]
+        nsmap0 = dict(xmlns0)
+        xmlns1 = [('col', 'http://example.com/ns/collection')]
+        nsmap1 = dict(xmlns0)
+        nsmap1.update(xmlns1)
+        schema = self.schema_class(xsd_file)
+        self.assertTrue(schema.is_valid(xml_file))
+
+        resource = XMLResource(xml_file)
+        obj = schema.decode(resource, converter=self.converter)
+        self.assertListEqual(obj.xmlns, xmlns0)
+        self.assertDictEqual(obj.nsmap, nsmap0)
+        self.assertListEqual(obj[0].xmlns, xmlns1)
+        self.assertDictEqual(obj[0].nsmap, nsmap1)
+        root = schema.encode(obj, converter=self.converter)
+        self.assertTrue(is_etree_element(root))
+
+        obj = schema.decode(resource, converter=self.converter, xmlns_processing='stacked')
+        self.assertListEqual(obj.xmlns, xmlns0)
+        self.assertDictEqual(obj.nsmap, nsmap0)
+        self.assertListEqual(obj[0].xmlns, xmlns1)
+        self.assertDictEqual(obj[0].nsmap, nsmap1)
+        root = schema.encode(obj, converter=self.converter, xmlns_processing='stacked')
+        self.assertTrue(is_etree_element(root))
+
+        obj = schema.decode(resource, converter=self.converter, xmlns_processing='collapsed')
+        root = schema.encode(obj, converter=self.converter, xmlns_processing='collapsed')
+        self.assertTrue(is_etree_element(root))
+
+        obj = schema.decode(resource, converter=self.converter, xmlns_processing='root-only')
+        root = schema.encode(obj, converter=self.converter, xmlns_processing='root-only')
+        self.assertTrue(is_etree_element(root))
+
+        obj = schema.decode(resource, converter=self.converter, xmlns_processing='none')
+        root = schema.encode(obj, converter=self.converter, xmlns_processing='none')
+        self.assertTrue(is_etree_element(root))
+        for data_element in obj.iter():
+            self.assertDictEqual(data_element.nsmap, {})
+
     def test_encode_to_element_tree(self):
         col_data = self.col_schema.decode(self.col_xml_filename)
 

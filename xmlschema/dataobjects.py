@@ -18,7 +18,7 @@ from elementpath.etree import etree_tostring
 from .exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, XMLSchemaValueError
 from .aliases import ElementType, XMLSourceType, NamespacesType, BaseXsdType, DecodeType
 from .helpers import get_namespace, get_prefixed_qname, local_name, update_namespaces, \
-    raw_xml_encode
+    raw_xml_encode, get_namespace_map
 from .converters import ElementData, XMLSchemaConverter
 from .resources import XMLResource
 from . import validators
@@ -46,6 +46,7 @@ class DataElement(MutableSequence['DataElement']):
 
     value: Optional[Any] = None
     tail: Optional[str] = None
+    xmlns: Optional[List[Tuple[str, str]]] = None
     xsd_element: Optional['XsdElement'] = None
     xsd_type: Optional[BaseXsdType] = None
     _encoder: Optional['XsdElement'] = None
@@ -54,6 +55,7 @@ class DataElement(MutableSequence['DataElement']):
                  value: Optional[Any] = None,
                  attrib: Optional[Dict[str, Any]] = None,
                  nsmap: Optional[MutableMapping[str, str]] = None,
+                 xmlns: Optional[List[Tuple[str, str]]] = None,
                  xsd_element: Optional['XsdElement'] = None,
                  xsd_type: Optional[BaseXsdType] = None) -> None:
 
@@ -69,6 +71,8 @@ class DataElement(MutableSequence['DataElement']):
             self.attrib.update(attrib)
         if nsmap is not None:
             self.nsmap.update(nsmap)
+        if xmlns is not None:
+            self.xmlns = xmlns
 
         if xsd_element is not None:
             self.xsd_element = xsd_element
@@ -184,6 +188,12 @@ class DataElement(MutableSequence['DataElement']):
     def prefixed_name(self) -> str:
         """The prefixed name, or the tag if no prefix is defined for its namespace."""
         return get_prefixed_qname(self.tag, self.nsmap)
+
+    @property
+    def display_name(self) -> str:
+        """The prefixed name, or the tag if it's associated with the default namespace."""
+        prefixed_name = self.prefixed_name
+        return self.name if ':' not in prefixed_name else prefixed_name
 
     @property
     def local_name(self) -> str:
@@ -467,6 +477,28 @@ class DataElementConverter(XMLSchemaConverter):
         super(DataElementConverter, self).__init__(namespaces, **kwargs)
 
     @property
+    def xmlns_processing_default(self) -> str:
+        return 'stacked'
+
+    def get_xmlns_from_data(self, obj: Any) -> Optional[List[Tuple[str, str]]]:
+        return obj.xmlns if isinstance(obj, DataElement) else None
+
+    def get_namespaces(self, namespaces: Optional[NamespacesType] = None,
+                       root_only: bool = True) -> NamespacesType:
+        if not isinstance(self.source, DataElement) or self._xmlns_getter is None:
+            return super().get_namespaces(namespaces, root_only)
+
+        namespaces = get_namespace_map(namespaces)
+        for obj in self.source.iter():
+            xmlns = self.get_xmlns_from_data(obj)
+            if xmlns:
+                update_namespaces(namespaces, xmlns, obj is self.source)
+            if root_only:
+                break
+
+        return namespaces
+
+    @property
     def lossy(self) -> bool:
         return False
 
@@ -479,19 +511,23 @@ class DataElementConverter(XMLSchemaConverter):
         obj.data_element_class = kwargs.get('data_element_class', self.data_element_class)
         return obj
 
-    def get_data_element(self, data: ElementData, xsd_element: 'XsdElement',
-                         xsd_type: Optional[BaseXsdType] = None) -> DataElement:
+    def get_data_element(self, data: ElementData,
+                         xsd_element: 'XsdElement',
+                         xsd_type: Optional[BaseXsdType] = None,
+                         level: int = 0) -> DataElement:
+        xmlns = self.get_effective_xmlns(data.xmlns, level, xsd_element)
         return self.data_element_class(
             tag=data.tag,
             value=data.text,
-            nsmap=self._namespaces if self.process_namespaces else None,
+            nsmap=self._namespaces if self._use_namespaces else None,
+            xmlns=xmlns,
             xsd_element=xsd_element,
             xsd_type=xsd_type
         )
 
     def element_decode(self, data: ElementData, xsd_element: 'XsdElement',
                        xsd_type: Optional[BaseXsdType] = None, level: int = 0) -> 'DataElement':
-        data_element = self.get_data_element(data, xsd_element, xsd_type)
+        data_element = self.get_data_element(data, xsd_element, xsd_type, level)
         if self.map_attribute_names:
             data_element.attrib.update(self.map_attributes(data.attributes))
         elif data.attributes:
@@ -511,7 +547,7 @@ class DataElementConverter(XMLSchemaConverter):
 
     def element_encode(self, data_element: 'DataElement', xsd_element: 'XsdElement',
                        level: int = 0) -> ElementData:
-        self.namespaces.update(data_element.nsmap)
+        xmlns = self.set_context(data_element, level)
         if not xsd_element.is_matching(data_element.tag):
             raise XMLSchemaValueError("Unmatched tag")
 
@@ -520,7 +556,7 @@ class DataElementConverter(XMLSchemaConverter):
 
         data_len = len(data_element)
         if not data_len:
-            return ElementData(data_element.tag, data_element.value, None, attributes)
+            return ElementData(data_element.tag, data_element.value, None, attributes, xmlns)
 
         content: List[Tuple[Union[str, int], Any]] = []
         cdata_num = count(1)
@@ -532,7 +568,7 @@ class DataElementConverter(XMLSchemaConverter):
             if e.tail is not None:
                 content.append((next(cdata_num), e.tail))
 
-        return ElementData(data_element.tag, None, content, attributes)
+        return ElementData(data_element.tag, None, content, attributes, xmlns)
 
 
 class DataBindingConverter(DataElementConverter):
@@ -544,12 +580,16 @@ class DataBindingConverter(DataElementConverter):
     """
     __slots__ = ()
 
-    def get_data_element(self, data: ElementData, xsd_element: 'XsdElement',
-                         xsd_type: Optional[BaseXsdType] = None) -> DataElement:
+    def get_data_element(self, data: ElementData,
+                         xsd_element: 'XsdElement',
+                         xsd_type: Optional[BaseXsdType] = None,
+                         level: int = 0) -> DataElement:
+        xmlns = self.get_effective_xmlns(data.xmlns, level, xsd_element)
         cls = xsd_element.get_binding(self.data_element_class)
         return cls(
             tag=data.tag,
             value=data.text,
-            nsmap=self.namespaces,
+            nsmap=self._namespaces if self._use_namespaces else None,
+            xmlns=xmlns,
             xsd_type=xsd_type
         )
