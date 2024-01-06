@@ -20,15 +20,25 @@ try:
 except ImportError:
     lxml_etree = None
 
+from xmlschema import DataElement, XMLResource, XMLSchemaConverter, JsonMLConverter
 from xmlschema.validators import XsdValidator, XsdComponent, XMLSchema10, XMLSchema11, \
     XMLSchemaParseError, XMLSchemaValidationError, XsdAnnotation, XsdGroup, XsdSimpleType
+from xmlschema.validators.xsdbase import check_validation_mode
 from xmlschema.names import XSD_NAMESPACE, XSD_ELEMENT, XSD_ANNOTATION, XSD_ANY_TYPE
-from xmlschema.dataobjects import DataElement
 
 CASES_DIR = os.path.join(os.path.dirname(__file__), '../test_cases')
 
 
 class TestXsdValidator(unittest.TestCase):
+
+    def test_check_validation_mode(self):
+        self.assertIsNone(check_validation_mode('strict'))
+        self.assertIsNone(check_validation_mode('lax'))
+        self.assertIsNone(check_validation_mode('skip'))
+
+        self.assertRaises(ValueError, check_validation_mode, 'none')
+        self.assertRaises(ValueError, check_validation_mode, ' strict ')
+        self.assertRaises(TypeError, check_validation_mode, None)
 
     def test_initialization(self):
         validator = XsdValidator()
@@ -547,6 +557,41 @@ class TestXsdComponent(unittest.TestCase):
         xsd_element = schema.elements['root']
         self.assertIn('The root element', str(xsd_element.annotation))
         self.assertIsNone(xsd_element.attributes.annotation)
+
+    def test_get_converter(self):
+        schema = XMLSchema10(dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:element name="root"/>
+            </xs:schema>"""))
+
+        resource = XMLResource('<root xmlns:tns="http://example.test/ns1"/>')
+        namespaces = {'tns': 'http://example.test/ns0'}
+        obj = {'root': {'@xmlns:tns="http://example.test/ns1'}}
+
+        kwargs = {'preserve_root': True, 'namespaces': namespaces}
+        converter = schema.elements['root']._get_converter(resource, kwargs)
+        self.assertIsInstance(converter, XMLSchemaConverter)
+        self.assertDictEqual(
+            kwargs['namespaces'],
+            {'tns': 'http://example.test/ns0', 'tns0': 'http://example.test/ns1'}
+        )
+        self.assertIs(converter, kwargs['converter'])
+        self.assertIs(converter.namespaces, kwargs['namespaces'])
+        self.assertTrue(converter.preserve_root)
+        self.assertIs(resource, kwargs['source'])
+
+        kwargs = {'converter': JsonMLConverter}
+        converter = schema.elements['root']._get_converter(resource.root, kwargs)
+        self.assertIsInstance(converter, JsonMLConverter)
+        self.assertIsNot(resource, kwargs['source'])
+
+        kwargs = {'preserve_root': True}
+        converter = schema.elements['root']._get_converter(obj, kwargs)
+        self.assertIs(converter.source, obj)
+
+        kwargs = {'preserve_root': True, 'source': obj}
+        converter = schema.elements['root']._get_converter(resource, kwargs)
+        self.assertIs(converter.source, obj)
 
 
 class TestXsdType(unittest.TestCase):

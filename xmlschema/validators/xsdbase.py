@@ -51,7 +51,7 @@ Ref.: https://www.w3.org/TR/xmlschema11-1/#key-va
 
 def check_validation_mode(validation: str) -> None:
     if not isinstance(validation, str):
-        raise XMLSchemaValueError(_("validation mode must be a string"))
+        raise XMLSchemaTypeError(_("validation mode must be a string"))
     if validation not in XSD_VALIDATION_MODES:
         raise XMLSchemaValueError(_("validation mode can be 'strict', "
                                     "'lax' or 'skip': %r") % validation)
@@ -488,14 +488,14 @@ class XsdComponent(XsdValidator):
         else:
             self.name = f'{{{self._target_namespace}}}{local_name(self.name)}'
 
-    def _get_converter(self, source: Any, kwargs: Dict[str, Any]) -> XMLSchemaConverter:
+    def _get_converter(self, obj: Any, kwargs: Dict[str, Any]) -> XMLSchemaConverter:
         if 'source' not in kwargs:
-            if isinstance(source, XMLResource):
-                kwargs['source'] = source
-            elif is_etree_element(source) or is_etree_document(source):
-                kwargs['source'] = XMLResource(source)
+            if isinstance(obj, XMLResource):
+                kwargs['source'] = obj
+            elif is_etree_element(obj) or is_etree_document(obj):
+                kwargs['source'] = XMLResource(obj)
             else:
-                kwargs['source'] = source
+                kwargs['source'] = obj
 
         converter = kwargs['converter'] = self.schema.get_converter(**kwargs)
         kwargs['namespaces'] = converter.namespaces
@@ -515,6 +515,17 @@ class XsdComponent(XsdValidator):
     def prefixed_name(self) -> Optional[str]:
         """The name of the component in prefixed format, or `None` if the name is `None`."""
         return None if self.name is None else get_prefixed_qname(self.name, self.namespaces)
+
+    @property
+    def display_name(self) -> Optional[str]:
+        """
+        The name of the component to display when you have to refer to it with a
+        simple unambiguous format.
+        """
+        prefixed_name = self.prefixed_name
+        if prefixed_name is None:
+            return None
+        return self.name if ':' not in prefixed_name else prefixed_name
 
     @property
     def id(self) -> Optional[str]:
