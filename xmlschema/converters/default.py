@@ -10,7 +10,7 @@
 from collections import namedtuple
 from collections.abc import MutableMapping, MutableSequence
 from typing import TYPE_CHECKING, Any, Callable, Dict, Iterator, Iterable, \
-    List, Optional, ParamSpec, Tuple, Type, TypeVar, Union
+    List, Optional, Tuple, Type, TypeVar, Union
 from xml.etree.ElementTree import Element
 
 from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
@@ -37,11 +37,10 @@ attributes, *xmlns* can be `None` or a list of couples containing namespace
 declarations.
 """
 
-P = ParamSpec('P')
 T = TypeVar('T')
 
 
-def stackable(method: Callable[P, T]) -> Callable[P, T]:
+def stackable(method: Callable[..., T]) -> Callable[..., T]:
     """Mark if a converter object method supports 'stacked' xmlns processing mode."""
     method.stackable = True  # type: ignore[attr-defined]
     return method
