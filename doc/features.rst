@@ -79,28 +79,36 @@ With version 3.0 the processing of namespace information of the XML document has
 been improved, with the default of maintaining an exact namespace mapping between
 the XML source and the decoded data.
 
-For the decoding API the argument *xmlns_usage* has been added, in order to change
-the usage mode of the XML namespace declarations of the document.
+The feature is available both with the decoding and encoding API with the new converter
+option *xmlns_processing*, that permits to change the processing mode of the namespace
+declarations of the XML document.
 
-The default of this option is *'exact'* which means that the loaded namespace declarations
-always match the ones defined in the XML document. In this case the namespace map is
-updated dynamically, adding and removing the XML declarations found in internal elements.
-This choice provide the most accurate mapping of the namespace information of the XML
-document.
+The preferred mode is *'stacked'*, the mode that maintains a stack of namespace mapping
+contexts, with the active context that always match the namespace declarations defined
+in the XML document. In this case the namespace map is updated dynamically, adding and
+removing the XML declarations found in internal elements. This choice provide the most
+accurate mapping of the namespace information of the XML document.
 
-Use the option value *'collapsed'* for loading all namespace declarations of the XML
-source before decoding. In this case The declarations are merged into a static namespace
-map, using alternative prefixes in case of collision. This is the legacy behaviour of
-versions prior to 3 of the library.
+Use the option value *'collapsed'* for loading all namespace declarations in a single
+map. In this case the declarations are merged into the namespace map of the converter,
+using alternative prefixes in case of collision.
+This is the legacy behaviour of versions prior to 3 of the library.
 
 With *'root-only'* only the namespace declarations of the XML document root are loaded.
-In this case you are expected to provided the internal namespace information with
+In this case you are expected to provide the internal namespace information with
 *namespaces* argument.
 
 Use *'none'* to not load any namespace declaration of the XML document. Use this
 option if you don't want to map namespaces to prefixes or you want to provide a
 fully custom namespace mapping.
 
+For default *xmlns_processing* option is set automatically depending by the converter
+class capability and the XML data source. The option is available also for
+encoding with updated converter classes that can retrieve xmlns declarations from
+decoded data (e.g. :class:`xmlschema.JsonMLConverter` or the default converter).
+For decoding the default is set to *'stacked'* or *'collapsed'*, for encoding the
+default can be also *'none'* if no namespace declaration can be retrieved from XML
+data (e.g. :class:`xmlschema.ParkerConverter`).
 
 Lazy validation
 ===============

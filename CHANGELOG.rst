@@ -2,10 +2,10 @@
 CHANGELOG
 *********
 
-`v3.0.0`_ (2023-XX-XX)
+`v3.0.0`_ (2024-01-07)
 ======================
-* XML declaration processing options
-* Decode/validate with dynamic schema load
+* XML declaration processing option *xmlns_processing* for converters
+* Decode/validate from XML document with dynamic schema load
 * XMLResource enhancement for a better XML resources processing
 * Improve lazy resources iteration removing preceding elements (*thin_mode* option)
 * Drop support for Python 3.7
@@ -654,3 +654,4 @@ v0.9.6 (2017-05-05)
 .. _v2.4.0: https://github.com/brunato/xmlschema/compare/v2.3.1...v2.4.0
 .. _v2.5.0: https://github.com/brunato/xmlschema/compare/v2.4.0...v2.5.0
 .. _v2.5.1: https://github.com/brunato/xmlschema/compare/v2.5.0...v2.5.1
+.. _v3.0.0: https://github.com/brunato/xmlschema/compare/v2.5.1...v3.0.0

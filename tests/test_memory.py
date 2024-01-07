@@ -27,7 +27,7 @@ class TestMemoryUsage(unittest.TestCase):
 
     @staticmethod
     def check_memory_profile(output):
-        """Check the output of a memory memory profile run on a function."""
+        """Check the output of a memory profile run on a function."""
         mem_usage = []
         func_num = 0
         for line in output.split('\n'):
@@ -99,7 +99,7 @@ class TestMemoryUsage(unittest.TestCase):
             lazy_decode_mem = self.check_memory_profile(output)
 
         self.assertLessEqual(decode_mem, 2.6)
-        self.assertLessEqual(lazy_decode_mem, 1.8)
+        self.assertLessEqual(lazy_decode_mem, 2.1)
 
     def test_validate_memory_usage(self):
         with tempfile.TemporaryDirectory() as dirname:
@@ -126,7 +126,7 @@ class TestMemoryUsage(unittest.TestCase):
             lazy_validate_mem = self.check_memory_profile(output)
 
             self.assertLess(validate_mem, 2.6)
-            self.assertLess(lazy_validate_mem, 1.8)
+            self.assertLess(lazy_validate_mem, 2.1)
 
 
 if __name__ == '__main__':

@@ -194,8 +194,6 @@ class XMLSchemaConverter(NamespaceMapper):
                 return 'stacked'
             else:
                 return 'collapsed'
-        elif self.source is None:
-            return 'none'
         elif getattr(self.element_encode, 'stackable', False):
             return 'stacked'
         else:

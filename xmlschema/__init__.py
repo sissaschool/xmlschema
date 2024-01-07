@@ -35,7 +35,7 @@ from .validators import (
 __version__ = '3.0.0'
 __author__ = "Davide Brunato"
 __contact__ = "brunato@sissa.it"
-__copyright__ = "Copyright 2016-2023, SISSA"
+__copyright__ = "Copyright 2016-2024, SISSA"
 __license__ = "MIT"
 __status__ = "Production/Stable"
 
