@@ -1,8 +1,10 @@
-build:
-  image: latest
+version: 2
 
-python:
-  version: 3.8
-  pip_install: true
-  extra_requirements:
-    - docs
+build:
+  os: ubuntu-22.04
+  tools:
+    python: "3.12"
+
+sphinx:
+  configuration: doc/conf.py
+   - pdf
