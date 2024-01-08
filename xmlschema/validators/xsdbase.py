@@ -31,6 +31,7 @@ from ..helpers import get_qname, local_name, get_prefixed_qname, \
 from ..resources import XMLResource
 from ..converters import XMLSchemaConverter
 from .exceptions import XMLSchemaParseError, XMLSchemaValidationError
+from .helpers import get_xsd_annotation_child
 
 if TYPE_CHECKING:
     from .simple_types import XsdSimpleType
@@ -293,7 +294,7 @@ class XsdComponent(XsdValidator):
     _annotation = None
     _target_namespace: Optional[str]
 
-    def __init__(self, elem: ElementTree.Element,
+    def __init__(self, elem: ElementType,
                  schema: SchemaType,
                  parent: Optional['XsdComponent'] = None,
                  name: Optional[str] = None) -> None:
@@ -378,13 +379,9 @@ class XsdComponent(XsdValidator):
     @property
     def annotation(self) -> Optional['XsdAnnotation']:
         if '_annotation' not in self.__dict__:
-            for child in self.elem:
-                if child.tag == XSD_ANNOTATION:
-                    self._annotation = XsdAnnotation(child, self.schema, self)
-                    break
-                elif not callable(child.tag):
-                    self._annotation = None
-                    break
+            child = get_xsd_annotation_child(self.elem)
+            if child is not None:
+                self._annotation = XsdAnnotation(child, self.schema, self)
             else:
                 self._annotation = None
 
@@ -694,6 +691,19 @@ class XsdAnnotation(XsdComponent):
     _ADMITTED_TAGS = {XSD_ANNOTATION}
 
     annotation = None
+
+    def __init__(self, elem: ElementType,
+                 schema: SchemaType,
+                 parent: Optional[XsdComponent] = None,
+                 parent_elem: Optional[ElementType] = None) -> None:
+
+        super().__init__(elem, schema, parent)
+        if parent_elem is not None:
+            self.parent_elem = parent_elem
+        elif parent is not None:
+            self.parent_elem = parent.elem
+        else:
+            self.parent_elem = schema.source.root
 
     def __repr__(self) -> str:
         return '%s(%r)' % (self.__class__.__name__, str(self)[:40])

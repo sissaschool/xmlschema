@@ -13,6 +13,8 @@ from typing import Optional, Set, SupportsFloat, Union
 from xml.etree.ElementTree import Element
 from elementpath import datatypes
 
+from ..aliases import ElementType
+from ..names import XSD_ANNOTATION
 from ..exceptions import XMLSchemaValueError
 from ..translation import gettext as _
 from .exceptions import XMLSchemaValidationError
@@ -43,6 +45,20 @@ def get_xsd_derivation_attribute(elem: Element, attribute: str,
     elif not all(s in values for s in items):
         raise ValueError(_("wrong value %r for attribute %r") % (value, attribute))
     return value
+
+
+def get_xsd_annotation_child(elem: ElementType) -> Optional[ElementType]:
+    """
+    Returns the child element of the annotation associated to an XSD component,
+    `None` if it doesn't exist.
+    """
+    for child in elem:
+        if child.tag == XSD_ANNOTATION:
+            return child
+        elif not callable(child.tag):
+            return None
+    else:
+        return None
 
 
 #
