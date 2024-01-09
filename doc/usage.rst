@@ -118,7 +118,7 @@ or similarly to the previous example one can use the method :meth:`xmlschema.XML
 
 
 .. note::
-    Anyway, the advice is to build intermediate XSD schemas instead of loading
+    Anyway, the advice is to build intermediate XSD schemas instead for loading
     all the schemas needed in a standard way, because XSD mechanisms of imports,
     includes, redefines, and overrides are usually supported when you submit your
     schemas to other XSD validators.
