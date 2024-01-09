@@ -31,7 +31,7 @@ setup(
             'xmlschema-json2xml=xmlschema.cli:json2xml',
         ]
     },
-    python_requires='>=3.7',
+    python_requires='>=3.8',
     install_requires=['elementpath>=4.1.5, <5.0.0'],
     extras_require={
         'codegen': ['elementpath>=4.1.5, <5.0.0', 'jinja2'],
