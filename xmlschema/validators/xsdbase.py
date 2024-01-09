@@ -285,13 +285,14 @@ class XsdComponent(XsdValidator):
     _REGEX_SPACES = re.compile(r'\s+')
     _ADMITTED_TAGS: Union[Set[str], Tuple[str, ...], Tuple[()]] = ()
 
-    elem: ElementTree.Element
+    elem: ElementType
     parent = None
     name = None
     ref: Optional['XsdComponent'] = None
     qualified = True
     redefine = None
     _annotation = None
+    _annotations: List['XsdAnnotation']
     _target_namespace: Optional[str]
 
     def __init__(self, elem: ElementType,
@@ -378,6 +379,10 @@ class XsdComponent(XsdValidator):
 
     @property
     def annotation(self) -> Optional['XsdAnnotation']:
+        """
+        The primary annotation of the XSD component, if any. This is the annotation
+        defined in the first child of the element where the component is defined.
+        """
         if '_annotation' not in self.__dict__:
             child = get_xsd_annotation_child(self.elem)
             if child is not None:
@@ -386,6 +391,27 @@ class XsdComponent(XsdValidator):
                 self._annotation = None
 
         return self._annotation
+
+    @property
+    def annotations(self) -> List['XsdAnnotation']:
+        """A list containing all the annotations of the XSD component."""
+        if '_annotations' not in self.__dict__:
+            self._annotations = []
+            components = self.schema.components
+            parent_map = self.schema.source.parent_map
+
+            for elem in self.elem.iter():
+                if elem is self.elem:
+                    annotation = self.annotation
+                    if annotation is not None:
+                        self._annotations.append(annotation)
+                elif elem in components:
+                    break
+                elif elem.tag == XSD_ANNOTATION:
+                    parent_elem = parent_map[elem]
+                    self._annotations.append(XsdAnnotation(elem, self.schema, self, parent_elem))
+
+        return self._annotations
 
     def __repr__(self) -> str:
         if self.ref is not None:
@@ -1042,7 +1068,7 @@ class ValidationMixin(Generic[ST, DT]):
         Creates an iterator for decoding an XML source to a Python object.
 
         :param obj: the XML data.
-        :param validation: the validation mode. Can be 'lax', 'strict' or 'skip.
+        :param validation: the validation mode. Can be 'lax', 'strict' or 'skip'.
         :param kwargs: keyword arguments for the decoder API.
         :return: Yields a decoded object, eventually preceded by a sequence of \
         validation or decoding errors.

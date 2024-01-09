@@ -118,7 +118,7 @@ class XsdElement(XsdComponent, ParticleMixin,
 
     binding: Optional[DataBindingType] = None
 
-    def __init__(self, elem: Element,
+    def __init__(self, elem: ElementType,
                  schema: SchemaType,
                  parent: Optional[XsdComponent] = None,
                  build: bool = True) -> None:

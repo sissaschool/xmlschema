@@ -264,7 +264,9 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     meta_schema: Optional['XMLSchemaBase'] = None
     BASE_SCHEMAS: Dict[str, str] = {}
     fallback_locations: Dict[str, str] = LOCATION_HINTS.copy()
-    _annotations = None
+    _annotations: Optional[List[XsdAnnotation]] = None
+    _components = None
+    _root_elements: Optional[Set[str]] = None
     _xpath_node: Optional[SchemaElementNode]
 
     # XSD components classes
@@ -360,7 +362,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         self._import_statements = set()
         self.includes = {}
         self.warnings = []
-        self._root_elements: Optional[Set[str]] = None
 
         self.name = self.source.name
         root = self.source.root
@@ -719,12 +720,21 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                         annotation = XsdAnnotation(child, self, parent_elem=elem)
                         self._annotations.append(annotation)
                 elif elem.tag in (XSD_REDEFINE, XSD_OVERRIDE):
-                    for child in self.elem:
+                    for child in elem:
                         if child.tag == XSD_ANNOTATION:
                             annotation = XsdAnnotation(child, self, parent_elem=elem)
                             self._annotations.append(annotation)
 
         return self._annotations
+
+    @property
+    def components(self) -> Dict[ElementType, XsdComponent]:
+        if self._components is None:
+            self.check_validator(self.validation)
+            self._components = {
+                c.elem: c for c in self.iter_components() if isinstance(c, XsdComponent)
+            }
+        return self._components
 
     @property
     def root_elements(self) -> List[XsdElement]:
@@ -1778,7 +1788,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         else:
             selector = resource.iter_depth(mode=4, ancestors=ancestors)
 
-        elem: Optional[Element] = None
+        elem: Optional[ElementType] = None
         for elem in selector:
             if elem is resource.root:
                 if resource.lazy_depth:
