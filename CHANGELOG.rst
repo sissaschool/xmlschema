@@ -2,6 +2,12 @@
 CHANGELOG
 *********
 
+`v3.0.1`_ (2024-01-09)
+======================
+* Hotfix release for broken requirement
+* Set python-requires metadata to >=3.8 (pull request #382)
+* Upgrade GitHub Actions (pull request #381)
+
 `v3.0.0`_ (2024-01-07)
 ======================
 * XML declaration processing option *xmlns_processing* for converters
@@ -655,3 +661,4 @@ v0.9.6 (2017-05-05)
 .. _v2.5.0: https://github.com/brunato/xmlschema/compare/v2.4.0...v2.5.0
 .. _v2.5.1: https://github.com/brunato/xmlschema/compare/v2.5.0...v2.5.1
 .. _v3.0.0: https://github.com/brunato/xmlschema/compare/v2.5.1...v3.0.0
+.. _v3.0.1: https://github.com/brunato/xmlschema/compare/v3.0.0...v3.0.1
