@@ -9,12 +9,12 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import unittest
+from textwrap import dedent
 from typing import Any, Union, List, Optional
 
-from xmlschema import XMLSchemaModelError, XMLSchemaModelDepthError
+from xmlschema import XMLSchema, XMLSchemaModelError, XMLSchemaModelDepthError
 from xmlschema.exceptions import XMLSchemaValueError
-from xmlschema.validators.particles import ParticleMixin
-from xmlschema.validators.groups import XsdGroup
+from xmlschema.validators import ParticleMixin, XsdGroup, XsdElement
 
 
 class ModelGroup(XsdGroup):
@@ -339,6 +339,56 @@ class TestXsdGroups(unittest.TestCase):
         self.assertEqual(root_group.overall_max_occurs(group), 6)
         root_group[1].max_occurs = None
         self.assertIsNone(root_group.overall_max_occurs(group))
+
+    def test_model_group_composition_in_a_sequence__issue_384(self):
+        schema = XMLSchema(dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:element name="root" type="type1"/>
+                <xs:complexType name="type1">
+                    <xs:sequence>
+                      <xs:element name="elem1" type="xs:string"/>
+                      <xs:group ref="group1"/>
+                    </xs:sequence>
+                </xs:complexType>
+                <xs:group name="group1">
+                    <xs:choice>
+                      <xs:element name="elem2" type="xs:string"/>
+                      <xs:element name="elem3" type="xs:string"/>
+                    </xs:choice>
+                </xs:group>
+            </xs:schema>"""))
+
+        xsd_type = schema.types['type1']
+        self.assertIsInstance(xsd_type.content, XsdGroup)
+        self.assertEqual(xsd_type.content.model, 'sequence')
+        self.assertEqual(len(xsd_type.content), 2)
+        self.assertEqual(xsd_type.content[0].name, 'elem1')
+        self.assertIsInstance(xsd_type.content[0], XsdElement)
+        self.assertIsInstance(xsd_type.content[1], XsdGroup)
+        self.assertEqual(xsd_type.content[1].model, 'choice')
+
+        xsd_group = schema.groups['group1']
+        self.assertEqual(xsd_group.model, 'choice')
+        self.assertIs(xsd_type.content[1].ref, xsd_group)
+        self.assertEqual(len(xsd_group), 2)
+        self.assertEqual(xsd_group[0].name, 'elem2')
+        self.assertIsInstance(xsd_group[0], XsdElement)
+        self.assertEqual(xsd_group[1].name, 'elem3')
+        self.assertIsInstance(xsd_group[1], XsdElement)
+
+        self.assertTrue(schema.is_valid('<root><elem1>a</elem1><elem2>b</elem2></root>'))
+        self.assertTrue(schema.is_valid('<root><elem1>a</elem1><elem3>c</elem3></root>'))
+
+        self.assertFalse(schema.is_valid('<root><elem1>a</elem1></root>'))
+        self.assertFalse(schema.is_valid('<root><elem2>b</elem2></root>'))
+        self.assertFalse(schema.is_valid('<root><elem3>c</elem3></root>'))
+
+        self.assertFalse(schema.is_valid(
+            '<root><elem1>a</elem1><elem2>b</elem2><elem3>c</elem3></root>'
+        ))
+        self.assertFalse(schema.is_valid(
+            '<root><elem1>a</elem1><elem3>c</elem3><elem2>b</elem2></root>'
+        ))
 
 
 if __name__ == '__main__':
