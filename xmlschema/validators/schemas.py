@@ -581,7 +581,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     def xpath_node(self) -> SchemaElementNode:
         if self._xpath_node is None:
             self._xpath_node = build_schema_node_tree(
-                cast(Union[XsdSchemaProtocol], self)
+                root=cast(Union[XsdSchemaProtocol], self),
+                uri=self.url
             )
         return self._xpath_node
 

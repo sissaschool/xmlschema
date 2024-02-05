@@ -1,0 +1,21 @@
+<foods>
+<food type="meat">
+    <name>Chicken</name>
+</food>
+<food type="meat">
+    <name>Beef</name>
+</food>
+<food type="meat">
+    <name>Pork</name>
+</food>
+<food type="fruit">
+    <name>Banana</name>
+</food>
+<food type="fruit">
+    <name>Apple</name>
+</food>
+<food type="vegetable">
+    <name>Carrot</name>
+</food>
+<recon vegetables="1" fruits="2" meats="3"/>
+</foods>

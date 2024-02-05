@@ -1,0 +1,35 @@
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:vc="http://www.w3.org/2007/XMLSchema-versioning" elementFormDefault="qualified" attributeFormDefault="unqualified" vc:minVersion="1.1">
+<xs:element name="food" type="foodType"/>
+<xs:complexType name="foodType">
+    <xs:sequence>
+        <xs:element name="name" type="xs:string"/>
+    </xs:sequence>
+    <xs:attribute name="type">
+        <xs:simpleType>
+            <xs:restriction base="xs:string">
+                <xs:enumeration value="meat"/>
+                <xs:enumeration value="vegetable"/>
+                <xs:enumeration value="fruit"/>
+            </xs:restriction>
+        </xs:simpleType>
+    </xs:attribute>
+</xs:complexType>
+<xs:element name="foods">
+    <xs:annotation>
+        <xs:documentation>Comment describing your root element</xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+        <xs:sequence>
+            <xs:element ref="food" maxOccurs="unbounded"/>
+            <xs:element ref="recon"/>
+        </xs:sequence>
+        <xs:assert test="count(./food[@type='fruit']) eq ./recon/@fruits"/>
+    </xs:complexType>
+</xs:element>
+<xs:element name="recon" type="reconType"/>
+<xs:complexType name="reconType">
+    <xs:attribute name="fruits" type="xs:integer"/>
+    <xs:attribute name="vegetables" type="xs:integer"/>
+    <xs:attribute name="meats" type="xs:integer"/>
+</xs:complexType>
+</xs:schema>

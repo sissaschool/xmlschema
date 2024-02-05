@@ -71,11 +71,13 @@ class XMLSchemaProxy(AbstractSchemaProxy):
         parser.symbol_table.update(self._schema.xpath_tokens)
 
     def get_context(self) -> XPathSchemaContext:
-        return XPathSchemaContext(
+        context = XPathSchemaContext(
             root=self._schema.xpath_node,
             namespaces=dict(self._schema.namespaces),
             item=self._base_element
         )
+        context.item.uri = self._schema.url
+        return context
 
     def is_instance(self, obj: Any, type_qname: str) -> bool:
         # FIXME: use elementpath.datatypes for checking atomic datatypes
