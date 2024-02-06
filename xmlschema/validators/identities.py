@@ -67,7 +67,7 @@ def iter_root_elements(token: XPathToken) -> Iterator[XPathToken]:
 
 class IdentityXPathParser(XPath2Parser):
     symbol_table = {
-        k: v for k, v in XPath2Parser.symbol_table.items()  # type: ignore[misc]
+        k: v for k, v in XPath2Parser.symbol_table.items()
         if k in XSD_IDENTITY_XPATH_SYMBOLS
     }
     SYMBOLS = XSD_IDENTITY_XPATH_SYMBOLS

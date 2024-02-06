@@ -20,6 +20,7 @@ from xml.etree.ElementTree import Element
 
 from elementpath import XPath2Parser, XPathContext, ElementPathError, \
     translate_pattern, RegexError, ElementNode
+from elementpath.datatypes import AnyAtomicType
 
 from ..names import XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_ENUMERATION, \
     XSD_INTEGER, XSD_WHITE_SPACE, XSD_PATTERN, XSD_MAX_INCLUSIVE, XSD_MAX_EXCLUSIVE, \
@@ -823,7 +824,7 @@ class XsdAssertionFacet(XsdFacet):
             self.parse_error(err)
             self.token = self.parser.parse('true()')
 
-    def __call__(self, value: AtomicValueType) -> None:
+    def __call__(self, value: AnyAtomicType) -> None:
         context = XPathContext(self._root, variables={'value': value})
         try:
             if not self.token.evaluate(context):

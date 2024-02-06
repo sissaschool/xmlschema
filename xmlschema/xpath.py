@@ -59,7 +59,7 @@ class XMLSchemaProxy(AbstractSchemaProxy):
 
     def bind_parser(self, parser: XPath2Parser) -> None:
         parser.schema = self
-        parser.symbol_table = dict(parser.__class__.symbol_table)  # type: ignore[arg-type]
+        parser.symbol_table = dict(parser.__class__.symbol_table)
 
         with self._schema.lock:
             if self._schema.xpath_tokens is None:
@@ -71,13 +71,11 @@ class XMLSchemaProxy(AbstractSchemaProxy):
         parser.symbol_table.update(self._schema.xpath_tokens)
 
     def get_context(self) -> XPathSchemaContext:
-        context = XPathSchemaContext(
+        return XPathSchemaContext(
             root=self._schema.xpath_node,
-            namespaces=dict(self._schema.namespaces),
+            namespaces={k: v for k, v in self._schema.namespaces.items()},
             item=self._base_element
         )
-        context.item.uri = self._schema.url
-        return context
 
     def is_instance(self, obj: Any, type_qname: str) -> bool:
         # FIXME: use elementpath.datatypes for checking atomic datatypes
