@@ -2,6 +2,10 @@
 CHANGELOG
 *********
 
+`v3.0.2`_ (2024-01-06)
+======================
+* Use XPath subtree as fragment for xs:assert (issue #386)
+
 `v3.0.1`_ (2024-01-09)
 ======================
 * Hotfix release for broken requirement
@@ -662,3 +666,4 @@ v0.9.6 (2017-05-05)
 .. _v2.5.1: https://github.com/brunato/xmlschema/compare/v2.5.0...v2.5.1
 .. _v3.0.0: https://github.com/brunato/xmlschema/compare/v2.5.1...v3.0.0
 .. _v3.0.1: https://github.com/brunato/xmlschema/compare/v3.0.0...v3.0.1
+.. _v3.0.2: https://github.com/brunato/xmlschema/compare/v3.0.1...v3.0.2
