@@ -8,18 +8,20 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import threading
+import warnings
 from typing import TYPE_CHECKING, cast, Any, Dict, Iterator, Optional, Union, Type
 
-import elementpath
-from elementpath import ElementPathError, XPath2Parser, XPathContext, XPathToken, \
+from elementpath import ElementPathError, XPath2Parser, XPathContext, \
     LazyElementNode, SchemaElementNode, build_schema_node_tree
 
 from ..names import XSD_ASSERT
 from ..aliases import ElementType, SchemaType, SchemaElementType, NamespacesType
 from ..translation import gettext as _
-from ..xpath import XsdSchemaProtocol, XsdElementProtocol, ElementPathMixin, XMLSchemaProxy
+from ..xpath import XsdSchemaProtocol, XsdElementProtocol, ElementPathMixin, \
+    XMLSchemaProxy
 
-from .exceptions import XMLSchemaNotBuiltError, XMLSchemaValidationError
+from .exceptions import XMLSchemaNotBuiltError, XMLSchemaValidationError, \
+    XMLSchemaAssertPathWarning
 from .xsdbase import XsdComponent
 from .groups import XsdGroup
 
@@ -30,6 +32,8 @@ if TYPE_CHECKING:
     from .complex_types import XsdComplexType
     from .elements import XsdElement
     from .wildcards import XsdAnyElement
+
+warnings.filterwarnings(action="always", category=XMLSchemaAssertPathWarning)
 
 
 class XsdAssert(XsdComponent, ElementPathMixin[Union['XsdAssert', SchemaElementType]]):
@@ -46,8 +50,8 @@ class XsdAssert(XsdComponent, ElementPathMixin[Union['XsdAssert', SchemaElementT
     """
     parent: 'XsdComplexType'
     _ADMITTED_TAGS = {XSD_ASSERT}
-    token: Optional[XPathToken] = None
-    parser: Optional[XPath2Parser] = None
+    token = None
+    parser = None
     path = 'true()'
 
     def __init__(self, elem: ElementType,
@@ -96,7 +100,8 @@ class XsdAssert(XsdComponent, ElementPathMixin[Union['XsdAssert', SchemaElementT
     def build(self) -> None:
         if self.schema.use_xpath3:
             from ..xpath3 import XPath3Parser
-            parser_class: Union[Type[XPath2Parser], Type[XPath3Parser]] = XPath3Parser
+            parser_class: Union[Type[XPath2Parser], Type[XPath3Parser]]
+            parser_class = XPath3Parser
         else:
             parser_class = XPath2Parser
 
@@ -115,6 +120,14 @@ class XsdAssert(XsdComponent, ElementPathMixin[Union['XsdAssert', SchemaElementT
         except ElementPathError as err:
             self.parse_error(err)
             self.token = self.parser.parse('true()')
+        else:
+            if any(len(tk) < 2 for tk in self.token.iter('/', '//')):
+                msg = (
+                    f"The XPath expression of {self} contains absolute location paths "
+                    f"/ or //, but an assert XPath tree is rooted at a parentless elem"
+                    f"ent so these operators will return empty sequences."
+                )
+                warnings.warn(msg, category=XMLSchemaAssertPathWarning, stacklevel=4)
         finally:
             if self.parser.variable_types:
                 self.parser.variable_types.clear()
@@ -138,14 +151,11 @@ class XsdAssert(XsdComponent, ElementPathMixin[Union['XsdAssert', SchemaElementT
             _namespaces = dict(namespaces)
 
         variables = {'value': None if value is None else self.base_type.text_decode(value)}
-        if elementpath.__version__ >= '4.2.0':
-            context_kwargs: Dict[str, Any] = {
-                'uri': source.url if source is not None else None,
-                'fragment': True,
-                'variables': variables,
-            }
-        else:
-            context_kwargs = {'variables': variables}
+        context_kwargs: Dict[str, Any] = {
+            'uri': source.url if source is not None else None,
+            'fragment': True,
+            'variables': variables,
+        }
 
         if source is not None:
             context = XPathContext(

@@ -9,6 +9,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import unittest
+import warnings
 from textwrap import dedent
 from xml.etree.ElementTree import Element
 
@@ -770,7 +771,13 @@ class TestXsd11ComplexType(TestXsdComplexType):
     def test_rooted_expression_in_assertion__issue_386(self):
         # absolute expression in assertion
         xsd_file = self.casepath('tests/test_cases/issues/issue_386/issue_386.xsd')
-        schema = XMLSchema11(xsd_file)
+
+        with warnings.catch_warnings(record=True) as ctx:
+            self.schema_class(xsd_file)
+            schema = self.schema_class(xsd_file)
+
+            self.assertEqual(len(ctx), 2, "Expected two assert warnings")
+            self.assertIn("absolute location path", str(ctx[0].message))
 
         xml_file = self.casepath('tests/test_cases/issues/issue_386/issue_386-1.xml')
         self.assertFalse(schema.is_valid(xml_file))

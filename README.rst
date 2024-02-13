@@ -17,7 +17,7 @@ xmlschema
 .. xmlschema-introduction-start
 
 The *xmlschema* library is an implementation of `XML Schema <http://www.w3.org/2001/XMLSchema>`_
-for Python (supports Python 3.7+).
+for Python (supports Python 3.8+).
 
 This library arises from the needs of a solid Python layer for processing XML
 Schema based files for

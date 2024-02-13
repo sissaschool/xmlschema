@@ -15,11 +15,11 @@ import os
 import pathlib
 from xml.etree import ElementTree
 
-from elementpath import XPath1Parser, XPath2Parser, Selector
+from elementpath import XPath1Parser, XPath2Parser, Selector, LazyElementNode
 
 from xmlschema import XMLSchema10, XMLSchema11
 from xmlschema.names import XSD_NAMESPACE
-from xmlschema.xpath import XMLSchemaProxy, LazyElementNode, XPathElement
+from xmlschema.xpath import XMLSchemaProxy, XPathElement
 from xmlschema.validators import XsdAtomic, XsdAtomicRestriction
 
 CASES_DIR = os.path.join(os.path.dirname(__file__), 'test_cases/')

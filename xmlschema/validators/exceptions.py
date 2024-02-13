@@ -448,3 +448,7 @@ class XMLSchemaImportWarning(XMLSchemaWarning):
 
 class XMLSchemaTypeTableWarning(XMLSchemaWarning):
     """Not equivalent type table found in model."""
+
+
+class XMLSchemaAssertPathWarning(XMLSchemaWarning):
+    """An improper XPath expression found in XSD 1.1 assertion."""

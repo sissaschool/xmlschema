@@ -14,7 +14,7 @@ import re
 import math
 from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Pattern, \
     Set, Tuple, Union, Counter
-from elementpath import XPath2Parser, ElementPathError, XPathToken, XPathContext, \
+from elementpath import ElementPathError, XPathToken, XPathContext, \
     ElementNode, translate_pattern, datatypes
 
 from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
@@ -22,6 +22,7 @@ from ..names import XSD_QNAME, XSD_UNIQUE, XSD_KEY, XSD_KEYREF, XSD_SELECTOR, XS
 from ..translation import gettext as _
 from ..helpers import get_qname, get_extended_qname
 from ..aliases import ElementType, SchemaType, NamespacesType, AtomicValueType
+from ..xpath import IdentityXPathParser
 from .exceptions import XMLSchemaNotBuiltError
 from .xsdbase import XsdComponent
 from .attributes import XsdAttribute
@@ -35,16 +36,6 @@ IdentityFieldItemType = Union[AtomicValueType, XsdAttribute, Tuple[Any, ...], No
 IdentityCounterType = Tuple[IdentityFieldItemType, ...]
 IdentityMapType = Dict[Union['XsdKey', 'XsdKeyref', str, None],
                        Union['IdentityCounter', 'KeyrefCounter']]
-
-XSD_IDENTITY_XPATH_SYMBOLS = frozenset((
-    'processing-instruction', 'following-sibling', 'preceding-sibling',
-    'ancestor-or-self', 'attribute', 'following', 'namespace', 'preceding',
-    'ancestor', 'position', 'comment', 'parent', 'child', 'false', 'text', 'node',
-    'true', 'last', 'not', 'and', 'mod', 'div', 'or', '..', '//', '!=', '<=', '>=',
-    '(', ')', '[', ']', '.', '@', ',', '/', '|', '*', '-', '=', '+', '<', '>', ':',
-    '(end)', '(unknown)', '(invalid)', '(name)', '(string)', '(float)', '(decimal)',
-    '(integer)', '::', '{', '}',
-))
 
 
 # XSD identities use a restricted XPath 2.0 parser. The XMLSchemaProxy is
@@ -63,14 +54,6 @@ def iter_root_elements(token: XPathToken) -> Iterator[XPathToken]:
     elif token.symbol in '|':
         for tk in token:
             yield from iter_root_elements(tk)
-
-
-class IdentityXPathParser(XPath2Parser):
-    symbol_table = {
-        k: v for k, v in XPath2Parser.symbol_table.items()
-        if k in XSD_IDENTITY_XPATH_SYMBOLS
-    }
-    SYMBOLS = XSD_IDENTITY_XPATH_SYMBOLS
 
 
 class XsdSelector(XsdComponent):

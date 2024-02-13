@@ -2,7 +2,7 @@
 CHANGELOG
 *********
 
-`v3.0.2`_ (2024-01-06)
+`v3.0.2`_ (2024-02-10)
 ======================
 * Use XPath subtree as fragment for xs:assert (issue #386)
 
