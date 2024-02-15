@@ -173,10 +173,12 @@ class XsdValidator:
             raise XMLSchemaTypeError(msg.format(elem))
 
         if isinstance(error, XMLSchemaParseError):
-            error.validator = self
-            error.namespaces = getattr(self, 'namespaces', None)
-            error.elem = elem
-            error.source = getattr(self, 'source', None)
+            if error.namespaces is None:
+                error.namespaces = getattr(self, 'namespaces', None)
+            if error.elem is None:
+                error.elem = elem
+            if error.source is None:
+                error.source = getattr(self, 'source', None)
         elif isinstance(error, Exception):
             message = str(error).strip()
             if message[0] in '\'"' and message[0] == message[-1]:
