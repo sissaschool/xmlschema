@@ -9,7 +9,8 @@
 #
 from typing import cast, Any, Dict, Iterator, Optional, runtime_checkable, Protocol
 
-from elementpath import XPath2Parser, XPathSchemaContext, AbstractSchemaProxy, protocols
+from elementpath import XPath2Parser, XPathSchemaContext, AbstractSchemaProxy, \
+    SchemaElementNode, protocols
 
 from ..exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from ..names import XSD_NAMESPACE
@@ -60,10 +61,16 @@ class XMLSchemaProxy(AbstractSchemaProxy):
         parser.symbol_table.update(self._schema.xpath_tokens)
 
     def get_context(self) -> XPathSchemaContext:
+        item: Optional[SchemaElementNode]
+        if self._base_element is not None:
+            item = self._base_element.xpath_node
+        else:
+            item = None
+
         return XPathSchemaContext(
             root=self._schema.xpath_node,
-            namespaces={k: v for k, v in self._schema.namespaces.items()},
-            item=self._base_element
+            namespaces=self._schema.namespaces,
+            item=item,
         )
 
     def is_instance(self, obj: Any, type_qname: str) -> bool:

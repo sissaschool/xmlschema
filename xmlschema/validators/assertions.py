@@ -199,6 +199,7 @@ class XsdAssert(XsdComponent, ElementPathMixin[Union['XsdAssert', SchemaElementT
 
         return build_schema_node_tree(
             root=cast(XsdElementProtocol, self),
+            uri=schema_node.uri,
             elements=schema_node.elements,
             global_elements=schema_node.children,
         )
