@@ -2,9 +2,14 @@
 CHANGELOG
 *********
 
-`v3.0.2`_ (2024-02-10)
+`v3.0.2`_ (2024-02-18)
 ======================
 * Use XPath subtree as fragment for xs:assert (issue #386)
+* Fix in XMLSchemaProxy definition and usage for providing
+  a base-uri to schema nodes (issue #379)
+* Module xpath.py splitted to a subpackage for including all the
+  custom XPath 1.0/2.0 parsers and related classes to XPath
+* Add support for Python 3.13 (pre-releases)
 
 `v3.0.1`_ (2024-01-09)
 ======================
