@@ -185,6 +185,7 @@ class XsdAssert(XsdComponent, ElementPathMixin[Union['XsdAssert', SchemaElementT
 
     @property
     def xpath_proxy(self) -> 'XMLSchemaProxy':
+        # FIXME: need a fix in elementpath protocols (use generic)
         return XMLSchemaProxy(
             schema=cast(XsdSchemaProtocol, self.schema),
             base_element=cast(XsdElementProtocol, self)

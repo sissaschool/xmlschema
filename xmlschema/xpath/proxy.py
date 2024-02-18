@@ -7,28 +7,20 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from typing import cast, Any, Dict, Iterator, Optional, runtime_checkable, Protocol
+from typing import cast, Any, Iterator, Optional
 
 from elementpath import XPath2Parser, XPathSchemaContext, AbstractSchemaProxy, \
-    SchemaElementNode, protocols
+    SchemaElementNode
 
 from ..exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from ..names import XSD_NAMESPACE
-from ..aliases import SchemaType
-
-XsdTypeProtocol = protocols.XsdTypeProtocol
-XsdSchemaProtocol = protocols.XsdSchemaProtocol
-
-
-@runtime_checkable
-class XsdElementProtocol(protocols.XsdElementProtocol, Protocol):
-    schema: XsdSchemaProtocol
-    attributes: Dict[str, Any]
+from .protocols import XsdSchemaProtocol, XsdTypeProtocol, XsdElementProtocol
 
 
 class XMLSchemaProxy(AbstractSchemaProxy):
     """XPath schema proxy for the *xmlschema* library."""
-    _schema: SchemaType  # type: ignore[assignment]
+    _schema: XsdSchemaProtocol
+    _base_element: XsdElementProtocol
 
     def __init__(self, schema: Optional[XsdSchemaProtocol] = None,
                  base_element: Optional[XsdElementProtocol] = None) -> None:
@@ -75,7 +67,7 @@ class XMLSchemaProxy(AbstractSchemaProxy):
 
     def is_instance(self, obj: Any, type_qname: str) -> bool:
         # FIXME: use elementpath.datatypes for checking atomic datatypes
-        xsd_type = self._schema.maps.types[type_qname]
+        xsd_type = cast(XsdTypeProtocol, self._schema.maps.types[type_qname])
         if isinstance(xsd_type, tuple):  # pragma: no cover
             from ..validators import XMLSchemaNotBuiltError
             schema = xsd_type[1]
@@ -98,7 +90,7 @@ class XMLSchemaProxy(AbstractSchemaProxy):
         return xsd_type.decode(obj)
 
     def iter_atomic_types(self) -> Iterator[XsdTypeProtocol]:
-        for xsd_type in self._schema.maps.types.values():
+        for xsd_type in cast(Iterator[XsdTypeProtocol], self._schema.maps.types.values()):
             if not isinstance(xsd_type, tuple) and \
                     xsd_type.target_namespace != XSD_NAMESPACE and \
                     hasattr(xsd_type, 'primitive_type'):

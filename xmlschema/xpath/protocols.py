@@ -7,15 +7,37 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from typing import Any, Dict, runtime_checkable, Protocol
+from typing import Any, Dict, runtime_checkable, Optional, Protocol, Type
+import threading
 
-from elementpath import protocols
+from elementpath import protocols, XPathToken, SchemaElementNode
 
-XsdTypeProtocol = protocols.XsdTypeProtocol
-XsdSchemaProtocol = protocols.XsdSchemaProtocol
+from ..aliases import NamespacesType
+
+###
+# FIXME!!: Defined protocols are incorrect, need a fix in elementpath protocols (use generic)
+
+
+@runtime_checkable
+class XsdSchemaProtocol(protocols.XsdSchemaProtocol, Protocol):
+    target_namespace: Optional[str]
+    namespaces: NamespacesType
+    xpath_node: SchemaElementNode
+    lock: threading.Lock
+    xpath_tokens: Optional[Dict[str, Type[XPathToken]]]
+
+
+@runtime_checkable
+class XsdTypeProtocol(protocols.XsdTypeProtocol, Protocol):
+    target_namespace: Optional[str]
+    schema: XsdSchemaProtocol
+
+    def encode(self, obj: Any, validation: str = 'strict', **kwargs: Any) -> Any: ...
 
 
 @runtime_checkable
 class XsdElementProtocol(protocols.XsdElementProtocol, Protocol):
+    target_namespace: Optional[str]
     schema: XsdSchemaProtocol
     attributes: Dict[str, Any]
+    xpath_node: SchemaElementNode
