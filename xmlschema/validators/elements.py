@@ -674,13 +674,13 @@ class XsdElement(XsdComponent, ParticleMixin,
                         )
 
                         for e in identity.selector.token.select_results(context):
-                            if not isinstance(e, (XsdElement, XsdAnyElement)):
+                            if isinstance(e, XsdElement):
+                                if e not in identity.elements:
+                                    identity.elements[e] = None
+                                    e.selected_by.add(identity)
+                            elif not isinstance(e, XsdAnyElement):
                                 reason = _("selector xpath expression can only select elements")
                                 yield self.validation_error(validation, reason, e, **kwargs)
-                            elif e not in identity.elements:
-                                identity.elements[e] = None
-                                if isinstance(e, XsdElement):
-                                    e.selected_by.add(identity)
 
             if xsd_type.is_blocked(self):
                 reason = _("usage of %r is blocked") % xsd_type

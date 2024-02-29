@@ -215,14 +215,15 @@ class XsdIdentity(XsdComponent):
         self.elements = {}
 
         for e in self.selector.token.select_results(context):
-            if not isinstance(e, (elements.XsdElement, XsdAnyElement)):
+            if isinstance(e, elements.XsdElement):
+                if e.name is not None:
+                    if e.ref is not None:
+                        e = e.ref
+                    self.elements[e] = None  # XSD fields must be added during validation
+                    e.selected_by.add(self)
+            elif not isinstance(e, XsdAnyElement):
                 msg = _("selector xpath expression can only select elements")
                 self.parse_error(msg)
-            elif e.name is not None:
-                if e.ref is not None:
-                    e = e.ref
-                self.elements[e] = None  # XSD fields must be added during validation
-                e.selected_by.add(self)
 
         if not self.elements:
             # Try to detect target XSD elements extracting QNames
