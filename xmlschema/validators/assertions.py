@@ -13,12 +13,12 @@ from typing import TYPE_CHECKING, cast, Any, Dict, Iterator, Optional, Union, Ty
 
 from elementpath import ElementPathError, XPath2Parser, XPathContext, \
     LazyElementNode, SchemaElementNode, build_schema_node_tree
+from elementpath.protocols import XsdElementProtocol
 
 from ..names import XSD_ASSERT
 from ..aliases import ElementType, SchemaType, SchemaElementType, NamespacesType
 from ..translation import gettext as _
-from ..xpath import XsdSchemaProtocol, XsdElementProtocol, ElementPathMixin, \
-    XMLSchemaProxy
+from ..xpath import ElementPathMixin, XMLSchemaProxy
 
 from .exceptions import XMLSchemaNotBuiltError, XMLSchemaValidationError, \
     XMLSchemaAssertPathWarning
@@ -28,7 +28,7 @@ from .groups import XsdGroup
 
 if TYPE_CHECKING:
     from ..resources import XMLResource
-    from .attributes import XsdAttributeGroup
+    from .attributes import XsdAttribute, XsdAttributeGroup
     from .complex_types import XsdComplexType
     from .elements import XsdElement
     from .wildcards import XsdAnyElement
@@ -185,11 +185,7 @@ class XsdAssert(XsdComponent, ElementPathMixin[Union['XsdAssert', SchemaElementT
 
     @property
     def xpath_proxy(self) -> 'XMLSchemaProxy':
-        # FIXME: need a fix in elementpath protocols (use generic)
-        return XMLSchemaProxy(
-            schema=cast(XsdSchemaProtocol, self.schema),
-            base_element=cast(XsdElementProtocol, self)
-        )
+        return XMLSchemaProxy(self.schema, self)
 
     @property
     def xpath_node(self) -> SchemaElementNode:

@@ -7,29 +7,41 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from typing import cast, Any, Iterator, Optional
+from typing import cast, Any, Iterator, Optional, Union, TYPE_CHECKING
 
 from elementpath import XPath2Parser, XPathSchemaContext, AbstractSchemaProxy, \
-    SchemaElementNode
+    SchemaElementNode, LazyElementNode
+from elementpath.protocols import XsdSchemaProtocol, XsdTypeProtocol, XsdElementProtocol
 
 from ..exceptions import XMLSchemaValueError, XMLSchemaTypeError
+from ..aliases import SchemaType
 from ..names import XSD_NAMESPACE
-from .protocols import XsdSchemaProtocol, XsdTypeProtocol, XsdElementProtocol
+
+if TYPE_CHECKING:
+    from ..validators import XsdElement, XsdAssert, XsdAnyElement
+    from .mixin import XPathElement
+
+    BaseElementType = Union[XsdElement, XsdAnyElement, XPathElement]
+else:
+    BaseElementType = Any
 
 
 class XMLSchemaProxy(AbstractSchemaProxy):
     """XPath schema proxy for the *xmlschema* library."""
-    _schema: XsdSchemaProtocol
-    _base_element: XsdElementProtocol
+    _schema: SchemaType
+    _base_element: BaseElementType
 
-    def __init__(self, schema: Optional[XsdSchemaProtocol] = None,
-                 base_element: Optional[XsdElementProtocol] = None) -> None:
+    def __init__(self, schema: Optional[SchemaType] = None,
+                 base_element: Optional[BaseElementType] = None) -> None:
 
         if schema is None:
             from xmlschema import XMLSchema10
-            schema = cast(XsdSchemaProtocol, getattr(XMLSchema10, 'meta_schema', None))
+            schema = getattr(XMLSchema10, 'meta_schema', None)
 
-        super(XMLSchemaProxy, self).__init__(schema, base_element)
+        super(XMLSchemaProxy, self).__init__(
+            cast(XsdSchemaProtocol, schema),
+            cast(Optional[XsdElementProtocol], base_element)
+        )
 
         if base_element is not None:
             try:
@@ -53,7 +65,7 @@ class XMLSchemaProxy(AbstractSchemaProxy):
         parser.symbol_table.update(self._schema.xpath_tokens)
 
     def get_context(self) -> XPathSchemaContext:
-        item: Optional[SchemaElementNode]
+        item: Union[None, SchemaElementNode, LazyElementNode]
         if self._base_element is not None:
             item = self._base_element.xpath_node
         else:
@@ -67,7 +79,7 @@ class XMLSchemaProxy(AbstractSchemaProxy):
 
     def is_instance(self, obj: Any, type_qname: str) -> bool:
         # FIXME: use elementpath.datatypes for checking atomic datatypes
-        xsd_type = cast(XsdTypeProtocol, self._schema.maps.types[type_qname])
+        xsd_type = self._schema.maps.types[type_qname]
         if isinstance(xsd_type, tuple):  # pragma: no cover
             from ..validators import XMLSchemaNotBuiltError
             schema = xsd_type[1]
@@ -90,7 +102,7 @@ class XMLSchemaProxy(AbstractSchemaProxy):
         return xsd_type.decode(obj)
 
     def iter_atomic_types(self) -> Iterator[XsdTypeProtocol]:
-        for xsd_type in cast(Iterator[XsdTypeProtocol], self._schema.maps.types.values()):
+        for xsd_type in self._schema.maps.types.values():
             if not isinstance(xsd_type, tuple) and \
                     xsd_type.target_namespace != XSD_NAMESPACE and \
                     hasattr(xsd_type, 'primitive_type'):

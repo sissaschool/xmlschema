@@ -21,6 +21,7 @@ from xml.etree.ElementTree import Element, ParseError
 from elementpath import XPath2Parser, ElementPathError, XPathContext, XPathToken, \
     ElementNode, LazyElementNode, SchemaElementNode, build_schema_node_tree
 from elementpath.datatypes import AbstractDateTime, Duration, AbstractBinary
+from elementpath.protocols import XsdElementProtocol
 
 from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from ..names import XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE, XSD_ALTERNATIVE, \
@@ -36,8 +37,7 @@ from ..namespaces import NamespaceMapper
 from ..locations import normalize_url
 from .. import dataobjects
 from ..converters import ElementData, XMLSchemaConverter
-from ..xpath import XsdSchemaProtocol, XsdElementProtocol, XMLSchemaProxy, \
-    ElementPathMixin, XPathElement
+from ..xpath import XMLSchemaProxy, ElementPathMixin, XPathElement
 from ..resources import XMLResource
 
 from .exceptions import XMLSchemaNotBuiltError, XMLSchemaValidationError, \
@@ -394,10 +394,7 @@ class XsdElement(XsdComponent, ParticleMixin,
 
     @property
     def xpath_proxy(self) -> XMLSchemaProxy:
-        return XMLSchemaProxy(
-            schema=cast(XsdSchemaProtocol, self.schema),
-            base_element=cast(XsdElementProtocol, self)
-        )
+        return XMLSchemaProxy(self.schema, self)
 
     @property
     def xpath_node(self) -> SchemaElementNode:

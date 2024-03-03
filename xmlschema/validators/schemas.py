@@ -575,7 +575,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
     @property
     def xpath_proxy(self) -> XMLSchemaProxy:
-        return XMLSchemaProxy(cast(XsdSchemaProtocol, self))
+        return XMLSchemaProxy(self)
 
     @property
     def xpath_node(self) -> SchemaElementNode:

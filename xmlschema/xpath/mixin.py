@@ -9,22 +9,25 @@
 #
 from abc import abstractmethod
 from typing import cast, overload, Any, Dict, Iterator, List, Optional, \
-    Sequence, Set, TypeVar, Union
+    Sequence, Set, TypeVar, Union, TYPE_CHECKING
 import re
 
 from elementpath import XPath2Parser, XPathSchemaContext, LazyElementNode, SchemaElementNode
+from elementpath.protocols import XsdElementProtocol
 
 from ..aliases import NamespacesType, SchemaType, BaseXsdType
 from ..helpers import get_qname, local_name, get_prefixed_qname
-from .protocols import XsdSchemaProtocol, XsdElementProtocol
 from .proxy import XMLSchemaProxy
+
+if TYPE_CHECKING:
+    from ..validators import XsdGlobals
 
 _REGEX_TAG_POSITION = re.compile(r'\b\[\d+]')
 
-E = TypeVar('E', bound='ElementPathMixin[Any]')
+E_co = TypeVar('E_co', covariant=True, bound='ElementPathMixin[Any]')
 
 
-class ElementPathMixin(Sequence[E]):
+class ElementPathMixin(Sequence[E_co]):
     """
     Mixin abstract class for enabling ElementTree and XPath 2.0 API on XSD components.
 
@@ -40,22 +43,22 @@ class ElementPathMixin(Sequence[E]):
     _xpath_node: Optional[Union[SchemaElementNode, LazyElementNode]] = None
 
     @abstractmethod
-    def __iter__(self) -> Iterator[E]:
+    def __iter__(self) -> Iterator[E_co]:
         raise NotImplementedError
 
     @overload
-    def __getitem__(self, i: int) -> E: ...  # pragma: no cover
+    def __getitem__(self, i: int) -> E_co: ...  # pragma: no cover
 
     @overload
-    def __getitem__(self, s: slice) -> Sequence[E]: ...  # pragma: no cover
+    def __getitem__(self, s: slice) -> Sequence[E_co]: ...  # pragma: no cover
 
-    def __getitem__(self, i: Union[int, slice]) -> Union[E, Sequence[E]]:
+    def __getitem__(self, i: Union[int, slice]) -> Union[E_co, Sequence[E_co]]:
         try:
             return [e for e in self][i]
         except IndexError:
             raise IndexError('child index out of range')
 
-    def __reversed__(self) -> Iterator[E]:
+    def __reversed__(self) -> Iterator[E_co]:
         return reversed([e for e in self])
 
     def __len__(self) -> int:
@@ -106,7 +109,7 @@ class ElementPathMixin(Sequence[E]):
         else:
             return self.name == f'{{{default_namespace}}}{name}'
 
-    def find(self, path: str, namespaces: Optional[NamespacesType] = None) -> Optional[E]:
+    def find(self, path: str, namespaces: Optional[NamespacesType] = None) -> Optional[E_co]:
         """
         Finds the first XSD subelement matching the path.
 
@@ -119,9 +122,9 @@ class ElementPathMixin(Sequence[E]):
         parser = XPath2Parser(namespaces, strict=False)
         context = XPathSchemaContext(self.xpath_node)
 
-        return cast(Optional[E], next(parser.parse(path).select_results(context), None))
+        return cast(Optional[E_co], next(parser.parse(path).select_results(context), None))
 
-    def findall(self, path: str, namespaces: Optional[NamespacesType] = None) -> List[E]:
+    def findall(self, path: str, namespaces: Optional[NamespacesType] = None) -> List[E_co]:
         """
         Finds all XSD subelements matching the path.
 
@@ -135,9 +138,9 @@ class ElementPathMixin(Sequence[E]):
         parser = XPath2Parser(namespaces, strict=False)
         context = XPathSchemaContext(self.xpath_node)
 
-        return cast(List[E], parser.parse(path).get_results(context))
+        return cast(List[E_co], parser.parse(path).get_results(context))
 
-    def iterfind(self, path: str, namespaces: Optional[NamespacesType] = None) -> Iterator[E]:
+    def iterfind(self, path: str, namespaces: Optional[NamespacesType] = None) -> Iterator[E_co]:
         """
         Creates and iterator for all XSD subelements matching the path.
 
@@ -150,16 +153,16 @@ class ElementPathMixin(Sequence[E]):
         parser = XPath2Parser(namespaces, strict=False)
         context = XPathSchemaContext(self.xpath_node)
 
-        return cast(Iterator[E], parser.parse(path).select_results(context))
+        return cast(Iterator[E_co], parser.parse(path).select_results(context))
 
-    def iter(self, tag: Optional[str] = None) -> Iterator[E]:
+    def iter(self, tag: Optional[str] = None) -> Iterator[E_co]:
         """
         Creates an iterator for the XSD element and its subelements. If tag is not `None` or '*',
         only XSD elements whose matches tag are returned from the iterator. Local elements are
         expanded without repetitions. Element references are not expanded because the global
         elements are not descendants of other elements.
         """
-        def safe_iter(elem: Any) -> Iterator[E]:
+        def safe_iter(elem: Any) -> Iterator[E_co]:
             if tag is None or elem.is_matching(tag):
                 yield elem
             for child in elem:
@@ -174,10 +177,10 @@ class ElementPathMixin(Sequence[E]):
 
         if tag == '*':
             tag = None
-        local_elements: Set[E] = set()
+        local_elements: Set[E_co] = set()
         return safe_iter(self)
 
-    def iterchildren(self, tag: Optional[str] = None) -> Iterator[E]:
+    def iterchildren(self, tag: Optional[str] = None) -> Iterator[E_co]:
         """
         Creates an iterator for the child elements of the XSD component. If *tag* is not `None`
         or '*', only XSD elements whose name matches tag are returned from the iterator.
@@ -192,6 +195,7 @@ class ElementPathMixin(Sequence[E]):
 class XPathElement(ElementPathMixin['XPathElement']):
     """An element node for making XPath operations on schema types."""
     name: str
+    ref = None
     parent = None
     _xpath_node: Optional[LazyElementNode]
 
@@ -205,11 +209,16 @@ class XPathElement(ElementPathMixin['XPathElement']):
             yield from self.type.content.iter_elements()  # type: ignore[union-attr,misc]
 
     @property
+    def xsd_version(self) -> str:
+        return self.type.xsd_version
+
+    @property
+    def maps(self) -> 'XsdGlobals':
+        return self.type.maps
+
+    @property
     def xpath_proxy(self) -> XMLSchemaProxy:
-        return XMLSchemaProxy(
-            cast(XsdSchemaProtocol, self.schema),
-            cast(XsdElementProtocol, self)
-        )
+        return XMLSchemaProxy(self.schema, self)
 
     @property
     def xpath_node(self) -> LazyElementNode:

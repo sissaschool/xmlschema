@@ -15,7 +15,7 @@ import math
 import operator
 from abc import abstractmethod
 from typing import TYPE_CHECKING, cast, Any, List, Optional, Pattern, Union, \
-    MutableSequence, overload, Tuple, Type
+    MutableSequence, overload, Tuple, Type, Dict
 from xml.etree.ElementTree import Element
 
 from elementpath import XPathContext, ElementPathError, \
@@ -814,7 +814,7 @@ class XsdAssertionFacet(XsdFacet):
             raise XMLSchemaValidationError(self, value, reason=str(err)) from None
 
 
-XSD_10_FACETS_BUILDERS = {
+XSD_10_FACETS_BUILDERS: Dict[str, Type[XsdFacet]] = {
     XSD_WHITE_SPACE: XsdWhiteSpaceFacet,
     XSD_LENGTH: XsdLengthFacet,
     XSD_MIN_LENGTH: XsdMinLengthFacet,
@@ -829,7 +829,7 @@ XSD_10_FACETS_BUILDERS = {
     XSD_PATTERN: XsdPatternFacets
 }
 
-XSD_11_FACETS_BUILDERS = XSD_10_FACETS_BUILDERS.copy()
+XSD_11_FACETS_BUILDERS: Dict[str, Type[XsdFacet]] = XSD_10_FACETS_BUILDERS.copy()
 XSD_11_FACETS_BUILDERS.update({
     XSD_ASSERTION: XsdAssertionFacet,
     XSD_EXPLICIT_TIMEZONE: XsdExplicitTimezoneFacet
