@@ -18,7 +18,7 @@ from .resources import fetch_resource, fetch_namespaces, fetch_schema_locations,
 from .xpath import ElementPathMixin
 from .converters import ElementData, XMLSchemaConverter, \
     UnorderedConverter, ParkerConverter, BadgerFishConverter, \
-    AbderaConverter, JsonMLConverter, ColumnarConverter
+    AbderaConverter, JsonMLConverter, ColumnarConverter, GData
 from .dataobjects import DataElement, DataElementConverter, DataBindingConverter
 from .documents import validate, is_valid, iter_errors, iter_decode, \
     to_dict, to_json, to_etree, from_json, XmlDocument
@@ -44,7 +44,7 @@ __all__ = [
     'XMLSchemaNamespaceError', 'etree_tostring', 'normalize_url', 'normalize_locations',
     'fetch_resource', 'fetch_namespaces', 'fetch_schema_locations', 'fetch_schema',
     'XMLResource', 'ElementPathMixin', 'ElementData', 'XMLSchemaConverter',
-    'UnorderedConverter', 'ParkerConverter', 'BadgerFishConverter', 'AbderaConverter',
+    'UnorderedConverter', 'ParkerConverter', 'BadgerFishConverter', 'GData', 'AbderaConverter',
     'JsonMLConverter', 'ColumnarConverter', 'DataElement', 'DataElementConverter',
     'DataBindingConverter', 'validate', 'is_valid', 'iter_errors', 'iter_decode',
     'to_dict', 'to_json', 'to_etree', 'from_json', 'XmlDocument', 'XMLSchemaValidatorError',

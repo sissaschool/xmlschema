@@ -26,6 +26,7 @@ CONVERTERS_MAP = {
     'unordered': xmlschema.UnorderedConverter,
     'parker': xmlschema.ParkerConverter,
     'badgerfish': xmlschema.BadgerFishConverter,
+    'gdata': xmlschema.GData,
     'abdera': xmlschema.AbderaConverter,
     'jsonml': xmlschema.JsonMLConverter,
     'columnar': xmlschema.ColumnarConverter,
