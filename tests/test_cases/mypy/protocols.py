@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 
 def main() -> None:
-    from typing import Iterator, Union, cast
+    from typing import Union, cast
 
-    from xmlschema import XMLSchema
-    from xmlschema.validators import XsdSimpleType, XsdComplexType, XsdAnyElement
+    from xmlschema import XMLSchema, XMLSchema11
+    from xmlschema.validators import XsdSimpleType, XsdComplexType, \
+        XsdAnyElement
     from xmlschema.xpath import XPathElement
 
     from elementpath.protocols import XsdTypeProtocol, XsdElementProtocol, \
@@ -73,6 +74,23 @@ def main() -> None:
     check_attr_type(b)
 
     check_elem_type(XPathElement('elem4', xsd_type=a))
+
+    schema11 = XMLSchema11("""
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+            <xs:element name="elem1" type="xs:string"/>
+            <xs:complexType name="type1">
+                <xs:sequence>
+                    <xs:any processContents="lax"/>
+                </xs:sequence>
+                <xs:assert test="true()"/>
+            </xs:complexType>
+        </xs:schema>""")
+
+    type1 = cast(XsdComplexType, schema11.types['type1'])
+    if type1.assertions:
+        assertion = type1.assertions[0]
+
+    check_elem_type(assertion)
 
 
 if __name__ == '__main__':

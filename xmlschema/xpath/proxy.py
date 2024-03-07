@@ -18,7 +18,7 @@ from ..aliases import SchemaType
 from ..names import XSD_NAMESPACE
 
 if TYPE_CHECKING:
-    from ..validators import XsdElement, XsdAssert, XsdAnyElement
+    from ..validators import XsdElement, XsdAnyElement
     from .mixin import XPathElement
 
     BaseElementType = Union[XsdElement, XsdAnyElement, XPathElement]

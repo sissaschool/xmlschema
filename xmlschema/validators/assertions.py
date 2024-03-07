@@ -28,7 +28,7 @@ from .groups import XsdGroup
 
 if TYPE_CHECKING:
     from ..resources import XMLResource
-    from .attributes import XsdAttribute, XsdAttributeGroup
+    from .attributes import XsdAttributeGroup
     from .complex_types import XsdComplexType
     from .elements import XsdElement
     from .wildcards import XsdAnyElement
@@ -176,7 +176,7 @@ class XsdAssert(XsdComponent, ElementPathMixin[Union['XsdAssert', SchemaElementT
             yield from self.parent.content.iter_elements()
 
     @property
-    def attrib(self) -> 'XsdAttributeGroup':
+    def attrib(self) -> 'XsdAttributeGroup':  # FIXME: protocol Dict[str, ...] is needed
         return self.parent.attributes
 
     @property
@@ -185,7 +185,7 @@ class XsdAssert(XsdComponent, ElementPathMixin[Union['XsdAssert', SchemaElementT
 
     @property
     def xpath_proxy(self) -> 'XMLSchemaProxy':
-        return XMLSchemaProxy(self.schema, self)
+        return XMLSchemaProxy(self.schema, self)  # type: ignore[arg-type]
 
     @property
     def xpath_node(self) -> SchemaElementNode:
