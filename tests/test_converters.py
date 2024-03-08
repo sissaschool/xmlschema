@@ -443,7 +443,7 @@ class TestConverters(unittest.TestCase):
         col_schema = XMLSchema(self.col_xsd_filename, converter=GData)
 
         obj1 = col_schema.decode(self.col_xml_filename)
-        self.assertIn("'@xmlns'", repr(obj1))
+        self.assertIn("'xmlns'", repr(obj1))
 
         root = col_schema.encode(obj1, path='./col:collection', namespaces=self.col_nsmap)
         self.assertIsNone(etree_elements_assert_equal(self.col_xml_root, root, strict=False))
@@ -453,7 +453,7 @@ class TestConverters(unittest.TestCase):
 
         # With ElementTree namespaces are not mapped
         obj2 = col_schema.decode(self.col_xml_root)
-        self.assertNotIn("'@xmlns'", repr(obj2))
+        self.assertNotIn("'xmlns'", repr(obj2))
         self.assertNotEqual(obj1, obj2)
         self.assertEqual(obj1, col_schema.decode(self.col_xml_root, namespaces=self.col_nsmap))
 

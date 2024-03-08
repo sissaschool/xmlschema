@@ -9,6 +9,7 @@
 #
 from collections.abc import MutableMapping, MutableSequence
 from typing import TYPE_CHECKING, Any, Optional, List, Dict, Type, Union, Tuple
+from decimal import Decimal
 
 from ..aliases import NamespacesType, BaseXsdType
 from ..names import XSD_ANY_TYPE
@@ -47,9 +48,9 @@ class BadgerFishConverter(XMLSchemaConverter):
         return False
 
     def get_xmlns_from_data(self, obj: Any) -> Optional[List[Tuple[str, str]]]:
-        if not self._use_namespaces or not isinstance(obj, MutableMapping) or '@xmlns' not in obj:
+        if not self._use_namespaces or not isinstance(obj, MutableMapping) or f'{self.attr_prefix}xmlns' not in obj:
             return None
-        return [(k if k != '$' else '', v) for k, v in obj['@xmlns'].items()]
+        return [(k if k != '$' else '', v) for k, v in obj[f'{self.attr_prefix}xmlns'].items()]
 
     @stackable
     def element_decode(self, data: ElementData, xsd_element: 'XsdElement',
@@ -61,12 +62,12 @@ class BadgerFishConverter(XMLSchemaConverter):
 
         xmlns = self.get_effective_xmlns(data.xmlns, level, xsd_element)
         if self._use_namespaces and xmlns:
-            result_dict['@xmlns'] = self.dict((k or '$', v) for k, v in xmlns)
+            result_dict[f'{self.attr_prefix}xmlns'] = self.dict((k or '$', v) for k, v in xmlns)
 
         xsd_group = xsd_type.model_group
         if xsd_group is None or not data.content:
             if data.text is not None:
-                result_dict['$'] = data.text
+                result_dict[self.text_key] = data.text
         else:
             has_single_group = xsd_group.is_single()
             for name, item, xsd_child in self.map_content(data.content):
@@ -100,7 +101,7 @@ class BadgerFishConverter(XMLSchemaConverter):
         tag = xsd_element.name
         if not isinstance(obj, MutableMapping):
             raise XMLSchemaTypeError(f"A dictionary expected, got {type(obj)} instead.")
-        elif len(obj) != 1 or '$' in obj:
+        elif len(obj) != 1 or self.text_key in obj:
             element_data = obj
         elif tag in obj:
             element_data = obj[tag]
@@ -109,7 +110,7 @@ class BadgerFishConverter(XMLSchemaConverter):
                 element_data = obj[self.map_qname(tag)]
             except KeyError:
                 for k, v in obj.items():
-                    if not k.startswith(('$', '@')) and local_name(k) == local_name(tag):
+                    if not k.startswith((self.attr_prefix, self.cdata_prefix)) and local_name(k) == local_name(tag):
                         element_data = v
                         break
                 else:
@@ -122,14 +123,15 @@ class BadgerFishConverter(XMLSchemaConverter):
         xmlns = self.set_context(element_data, level)
 
         for name, value in element_data.items():
-            if name == '@xmlns':
+            if name == f'{self.attr_prefix}xmlns':
                 continue
-            elif name == '$':
+            elif name == self.text_key:
                 text = value
-            elif name[0] == '$' and name[1:].isdigit():
+            elif name[0] == self.cdata_prefix and name[1:].isdigit():
                 content.append((int(name[1:]), value))
-            elif name[0] == '@':
-                attr_name = name[1:]
+            elif (self.attr_prefix and name[0] == self.attr_prefix) \
+                    or (not self.attr_prefix and isinstance(value, (str, bool, int, Decimal))):
+                attr_name = name[1:] if self.attr_prefix else name
                 ns_name = self.unmap_qname(attr_name, xsd_element.attributes)
                 attributes[ns_name] = value
             elif not isinstance(value, MutableSequence) or not value:
