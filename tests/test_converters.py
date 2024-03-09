@@ -9,9 +9,9 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import unittest
-from xml.etree.ElementTree import Element, parse as etree_parse
 from pathlib import Path
 from typing import cast, MutableMapping, Optional, Type
+from xml.etree.ElementTree import Element, parse as etree_parse
 
 try:
     import lxml.etree as lxml_etree
@@ -26,7 +26,7 @@ from xmlschema.testing import etree_elements_assert_equal
 
 from xmlschema.converters import XMLSchemaConverter, UnorderedConverter, \
     ParkerConverter, BadgerFishConverter, AbderaConverter, JsonMLConverter, \
-    ColumnarConverter
+    ColumnarConverter, GData
 from xmlschema.dataobjects import DataElementConverter
 
 
@@ -439,6 +439,34 @@ class TestConverters(unittest.TestCase):
         root = col_schema.encode(obj2)  # No namespace unmap is required
         self.assertIsNone(etree_elements_assert_equal(self.col_xml_root, root, strict=False))
 
+    def test_decode_encode_gdata_converter(self):
+        col_schema = XMLSchema(self.col_xsd_filename, converter=GData)
+
+        obj1 = col_schema.decode(self.col_xml_filename)
+        self.assertIn("'@xmlns'", repr(obj1))
+
+        root = col_schema.encode(obj1, path='./col:collection', namespaces=self.col_nsmap)
+        self.assertIsNone(etree_elements_assert_equal(self.col_xml_root, root, strict=False))
+
+        root = col_schema.encode(obj1)
+        self.assertIsNone(etree_elements_assert_equal(self.col_xml_root, root, strict=False))
+
+        # With ElementTree namespaces are not mapped
+        obj2 = col_schema.decode(self.col_xml_root)
+        self.assertNotIn("'@xmlns'", repr(obj2))
+        self.assertNotEqual(obj1, obj2)
+        self.assertEqual(obj1, col_schema.decode(self.col_xml_root, namespaces=self.col_nsmap))
+
+        # With lxml.etree namespaces are mapped
+        if self.col_lxml_root is not None:
+            self.assertEqual(obj1, col_schema.decode(self.col_lxml_root))
+
+        root = col_schema.encode(obj2, path='./col:collection', namespaces=self.col_nsmap)
+        self.assertIsNone(etree_elements_assert_equal(self.col_xml_root, root, strict=False))
+
+        root = col_schema.encode(obj2)  # No namespace unmap is required
+        self.assertIsNone(etree_elements_assert_equal(self.col_xml_root, root, strict=False))
+
     def test_decode_encode_abdera_converter(self):
         col_schema = XMLSchema(self.col_xsd_filename, converter=AbderaConverter)
 
@@ -675,6 +703,7 @@ class TestConverters(unittest.TestCase):
 
 if __name__ == '__main__':
     import platform
+
     header_template = "Test xmlschema converters with Python {} on {}"
     header = header_template.format(platform.python_version(), platform.platform())
     print('{0}\n{1}\n{0}'.format("*" * len(header), header))

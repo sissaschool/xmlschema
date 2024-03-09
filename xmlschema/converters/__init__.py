@@ -11,10 +11,11 @@ from .default import ElementData, XMLSchemaConverter
 from .unordered import UnorderedConverter
 from .parker import ParkerConverter
 from .badgerfish import BadgerFishConverter
+from .gdata import GData
 from .abdera import AbderaConverter
 from .jsonml import JsonMLConverter
 from .columnar import ColumnarConverter
 
 __all__ = ['XMLSchemaConverter', 'UnorderedConverter', 'ParkerConverter',
            'BadgerFishConverter', 'AbderaConverter', 'JsonMLConverter',
-           'ColumnarConverter', 'ElementData']
+           'ColumnarConverter', 'ElementData', 'GData']
