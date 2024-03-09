@@ -11,12 +11,10 @@
 This package defines a proxy class and a mixin class for enabling XPath on schemas,
 and custom parser for identities and assertions.
 """
-from .protocols import XsdTypeProtocol, XsdSchemaProtocol, XsdElementProtocol
 from .proxy import XMLSchemaProxy
 from .mixin import ElementPathMixin, XPathElement
 from .assertion_parser import XsdAssertionXPathParser
 from .identity_parser import IdentityXPathParser
 
-__all__ = ['XsdTypeProtocol', 'XsdSchemaProtocol', 'XsdElementProtocol',
-           'XMLSchemaProxy', 'ElementPathMixin', 'XPathElement',
+__all__ = ['XMLSchemaProxy', 'ElementPathMixin', 'XPathElement',
            'XsdAssertionXPathParser', 'IdentityXPathParser']

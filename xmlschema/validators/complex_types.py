@@ -123,7 +123,7 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
                 self.parse_error(err)
 
         if 'mixed' in self.elem.attrib:
-            if self.elem.attrib['mixed'].strip() in {'true', '1'}:
+            if self.elem.attrib['mixed'].strip() in ('true', '1'):
                 self.mixed = True
 
         try:

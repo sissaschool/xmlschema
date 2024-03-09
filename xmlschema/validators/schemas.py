@@ -28,6 +28,7 @@ from typing import cast, Callable, ItemsView, List, Optional, Dict, Any, \
 from xml.etree.ElementTree import Element, ParseError
 
 from elementpath import XPathToken, SchemaElementNode, build_schema_node_tree
+from elementpath.protocols import XsdSchemaProtocol
 
 from ..exceptions import XMLSchemaTypeError, XMLSchemaKeyError, XMLSchemaRuntimeError, \
     XMLSchemaValueError, XMLSchemaNamespaceError
@@ -50,7 +51,7 @@ from ..locations import is_local_url, is_remote_url, url_path_is_file, \
     normalize_url, normalize_locations
 from ..resources import XMLResource
 from ..converters import XMLSchemaConverter
-from ..xpath import XsdSchemaProtocol, XMLSchemaProxy, ElementPathMixin
+from ..xpath import XMLSchemaProxy, ElementPathMixin
 from .. import dataobjects
 
 from .exceptions import XMLSchemaParseError, XMLSchemaValidationError, \
