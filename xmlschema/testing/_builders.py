@@ -33,7 +33,7 @@ from elementpath.etree import PyElementTree, etree_tostring
 import xmlschema
 from xmlschema import XMLSchemaBase, XMLSchema11, XMLSchemaValidationError, \
     XMLSchemaParseError, UnorderedConverter, ParkerConverter, BadgerFishConverter, \
-    AbderaConverter, JsonMLConverter, ColumnarConverter, GData
+    AbderaConverter, JsonMLConverter, ColumnarConverter, GDataConverter
 from xmlschema.names import XSD_IMPORT
 from xmlschema.helpers import local_name
 from xmlschema.resources import fetch_namespaces
@@ -466,7 +466,7 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
             self.check_decode_encode(root, ParkerConverter, validation='lax', **options)
             self.check_decode_encode(root, ParkerConverter, validation='skip', **options)
             self.check_decode_encode(root, BadgerFishConverter, **options)
-            self.check_decode_encode(root, GData, **options)
+            self.check_decode_encode(root, GDataConverter, **options)
             self.check_decode_encode(root, AbderaConverter, **options)
             # self.check_decode_encode(root, JsonMLConverter, **options)
             self.check_decode_encode(root, ColumnarConverter, validation='lax', **options)
@@ -480,7 +480,7 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
             self.check_json_serialization(root, ParkerConverter, validation='lax', **options)
             self.check_json_serialization(root, ParkerConverter, validation='skip', **options)
             self.check_json_serialization(root, BadgerFishConverter, **options)
-            self.check_json_serialization(root, GData, **options)
+            self.check_json_serialization(root, GDataConverter, **options)
             self.check_json_serialization(root, AbderaConverter, **options)
             # self.check_json_serialization(root, JsonMLConverter, **options)
             self.check_json_serialization(root, ColumnarConverter, validation='lax', **options)
@@ -523,7 +523,7 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
                 self.check_decode_encode(root, cdata_prefix='#', **options)  # Default converter
                 self.check_decode_encode(root, UnorderedConverter, cdata_prefix='#', **options)
                 self.check_decode_encode(root, BadgerFishConverter, **options)
-                self.check_decode_encode(root, GData, **options)
+                self.check_decode_encode(root, GDataConverter, **options)
                 self.check_decode_encode(root, JsonMLConverter, **options)
 
                 # Tests with converters that loss namespace information and JSON
@@ -548,7 +548,7 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
                 self.check_json_serialization(root, ParkerConverter, validation='lax', **options)
                 self.check_json_serialization(root, ParkerConverter, validation='skip', **options)
                 self.check_json_serialization(root, BadgerFishConverter, **options)
-                self.check_json_serialization(root, GData, **options)
+                self.check_json_serialization(root, GDataConverter, **options)
                 self.check_json_serialization(root, AbderaConverter, **options)
                 # self.check_json_serialization(root, JsonMLConverter, **options)
 

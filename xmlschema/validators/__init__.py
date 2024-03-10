@@ -11,7 +11,8 @@ from .exceptions import XMLSchemaValidatorError, XMLSchemaParseError, \
     XMLSchemaModelError, XMLSchemaModelDepthError, XMLSchemaValidationError, \
     XMLSchemaDecodeError, XMLSchemaEncodeError, XMLSchemaNotBuiltError, \
     XMLSchemaChildrenValidationError, XMLSchemaStopValidation, \
-    XMLSchemaIncludeWarning, XMLSchemaImportWarning, XMLSchemaTypeTableWarning
+    XMLSchemaIncludeWarning, XMLSchemaImportWarning, \
+    XMLSchemaTypeTableWarning, XMLSchemaAssertPathWarning
 
 from .xsdbase import XsdValidator, XsdComponent, XsdAnnotation, XsdType, \
     ValidationMixin
@@ -42,8 +43,8 @@ __all__ = [
     'XMLSchemaValidatorError', 'XMLSchemaParseError', 'XMLSchemaModelError',
     'XMLSchemaModelDepthError', 'XMLSchemaValidationError', 'XMLSchemaDecodeError',
     'XMLSchemaEncodeError', 'XMLSchemaNotBuiltError', 'XMLSchemaChildrenValidationError',
-    'XMLSchemaStopValidation', 'XMLSchemaIncludeWarning',
-    'XMLSchemaImportWarning', 'XMLSchemaTypeTableWarning',
+    'XMLSchemaStopValidation', 'XMLSchemaIncludeWarning', 'XMLSchemaImportWarning',
+    'XMLSchemaTypeTableWarning', 'XMLSchemaAssertPathWarning',
     'XsdValidator', 'XsdComponent', 'XsdAnnotation', 'XsdType', 'ValidationMixin',
     'ParticleMixin', 'XsdAssert', 'XsdNotation', 'XsdSelector', 'XsdFieldSelector',
     'XsdIdentity', 'XsdKeyref', 'XsdKey', 'XsdUnique', 'Xsd11Keyref', 'Xsd11Key',

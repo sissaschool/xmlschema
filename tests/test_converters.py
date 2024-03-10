@@ -26,7 +26,7 @@ from xmlschema.testing import etree_elements_assert_equal
 
 from xmlschema.converters import XMLSchemaConverter, UnorderedConverter, \
     ParkerConverter, BadgerFishConverter, AbderaConverter, JsonMLConverter, \
-    ColumnarConverter, GData
+    ColumnarConverter, GDataConverter
 from xmlschema.dataobjects import DataElementConverter
 
 
@@ -440,10 +440,10 @@ class TestConverters(unittest.TestCase):
         self.assertIsNone(etree_elements_assert_equal(self.col_xml_root, root, strict=False))
 
     def test_decode_encode_gdata_converter(self):
-        col_schema = XMLSchema(self.col_xsd_filename, converter=GData)
+        col_schema = XMLSchema(self.col_xsd_filename, converter=GDataConverter)
 
         obj1 = col_schema.decode(self.col_xml_filename)
-        self.assertIn("'@xmlns'", repr(obj1))
+        self.assertIn("'xmlns$col'", repr(obj1))
 
         root = col_schema.encode(obj1, path='./col:collection', namespaces=self.col_nsmap)
         self.assertIsNone(etree_elements_assert_equal(self.col_xml_root, root, strict=False))
