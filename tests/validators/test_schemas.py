@@ -218,6 +218,9 @@ class TestXMLSchema10(XsdValidatorTestCase):
         self.assertIsNotNone(xsd_type._annotation)  # xs:simpleType annotations are not lazy parsed
         self.assertEqual(str(xsd_type.annotation), ' stuff ')
 
+    def test_components(self):
+        print(self.col_schema.components)
+
     def test_annotation_string(self):
         schema = self.check_schema("""
             <xs:element name='A'>

@@ -57,7 +57,7 @@ from .. import dataobjects
 from .exceptions import XMLSchemaParseError, XMLSchemaValidationError, \
     XMLSchemaEncodeError, XMLSchemaNotBuiltError, XMLSchemaStopValidation, \
     XMLSchemaIncludeWarning, XMLSchemaImportWarning
-from .helpers import get_xsd_derivation_attribute
+from .helpers import get_xsd_derivation_attribute, get_xsd_annotation_child
 from .xsdbase import check_validation_mode, XsdValidator, XsdComponent, XsdAnnotation
 from .notations import XsdNotation
 from .identities import XsdIdentity, XsdKey, XsdKeyref, XsdUnique, \
@@ -241,7 +241,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     :ivar elements: `xsd:element` global declarations.
     :vartype elements: NamespaceView
     """
-    # Instance attributes annotations
+    # Instance attributes type annotations
     source: XMLResource
     namespaces: NamespacesType
     converter: Union[ConverterType]
@@ -265,7 +265,9 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     meta_schema: Optional['XMLSchemaBase'] = None
     BASE_SCHEMAS: Dict[str, str] = {}
     fallback_locations: Dict[str, str] = LOCATION_HINTS.copy()
-    _annotations = None
+    _annotations: Optional[List[XsdAnnotation]] = None
+    _components = None
+    _root_elements: Optional[Set[str]] = None
     _xpath_node: Optional[SchemaElementNode]
 
     # XSD components classes
@@ -361,7 +363,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         self._import_statements = set()
         self.includes = {}
         self.warnings = []
-        self._root_elements: Optional[Set[str]] = None
 
         self.name = self.source.name
         root = self.source.root
@@ -711,11 +712,31 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     @property
     def annotations(self) -> List[XsdAnnotation]:
         if self._annotations is None:
-            self._annotations = [
-                XsdAnnotation(child, self) for child in self.source.root
-                if child.tag == XSD_ANNOTATION
-            ]
+            self._annotations = []
+            for elem in self.source.root:
+                if elem.tag == XSD_ANNOTATION:
+                    self._annotations.append(XsdAnnotation(elem, self))
+                elif elem.tag in (XSD_IMPORT, XSD_INCLUDE, XSD_DEFAULT_OPEN_CONTENT):
+                    child = get_xsd_annotation_child(elem)
+                    if child is not None:
+                        annotation = XsdAnnotation(child, self, parent_elem=elem)
+                        self._annotations.append(annotation)
+                elif elem.tag in (XSD_REDEFINE, XSD_OVERRIDE):
+                    for child in elem:
+                        if child.tag == XSD_ANNOTATION:
+                            annotation = XsdAnnotation(child, self, parent_elem=elem)
+                            self._annotations.append(annotation)
+
         return self._annotations
+
+    @property
+    def components(self) -> Dict[ElementType, XsdComponent]:
+        if self._components is None:
+            self.check_validator(self.validation)
+            self._components = {
+                c.elem: c for c in self.iter_components() if isinstance(c, XsdComponent)
+            }
+        return self._components
 
     @property
     def root_elements(self) -> List[XsdElement]:
@@ -1769,7 +1790,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         else:
             selector = resource.iter_depth(mode=4, ancestors=ancestors)
 
-        elem: Optional[Element] = None
+        elem: Optional[ElementType] = None
         for elem in selector:
             if elem is resource.root:
                 if resource.lazy_depth:
