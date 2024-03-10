@@ -25,7 +25,8 @@ from xml.etree.ElementTree import Element
 import xmlschema
 from xmlschema import XMLSchemaParseError, XMLSchemaIncludeWarning, XMLSchemaImportWarning
 from xmlschema.names import XML_NAMESPACE, LOCATION_HINTS, SCHEMAS_DIR, XSD_ELEMENT, XSI_TYPE
-from xmlschema.validators import XMLSchemaBase, XMLSchema10, XMLSchema11, XsdGlobals
+from xmlschema.validators import XMLSchemaBase, XMLSchema10, XMLSchema11, \
+    XsdGlobals, XsdComponent
 from xmlschema.testing import SKIP_REMOTE_TESTS, XsdValidatorTestCase
 from xmlschema.validators.schemas import logger
 
@@ -219,7 +220,13 @@ class TestXMLSchema10(XsdValidatorTestCase):
         self.assertEqual(str(xsd_type.annotation), ' stuff ')
 
     def test_components(self):
-        print(self.col_schema.components)
+        components = self.col_schema.components
+        self.assertIsInstance(components, dict)
+        self.assertEqual(len(components), 25)
+
+        for elem, component in components.items():
+            self.assertIsInstance(component, XsdComponent)
+            self.assertIs(elem, component.elem)
 
     def test_annotation_string(self):
         schema = self.check_schema("""

@@ -581,6 +581,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
     @property
     def xpath_node(self) -> SchemaElementNode:
+        """Returns an XPath node for processing an XPath expression on the schema instance."""
         if self._xpath_node is None:
             self._xpath_node = build_schema_node_tree(
                 root=cast(Union[XsdSchemaProtocol], self),
@@ -711,6 +712,10 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
     @property
     def annotations(self) -> List[XsdAnnotation]:
+        """
+        Annotations related to schema object. This list includes the annotations
+        of xs:include, xs:import, xs:redefine and xs:override elements.
+        """
         if self._annotations is None:
             self._annotations = []
             for elem in self.source.root:
@@ -731,6 +736,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
     @property
     def components(self) -> Dict[ElementType, XsdComponent]:
+        """A map from XSD ElementTree elements to their schema components."""
         if self._components is None:
             self.check_validator(self.validation)
             self._components = {
@@ -1051,6 +1057,9 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         """Clears the schema's XSD global maps."""
         self.maps.clear()
         self._xpath_node = None
+        self._annotations = None
+        self._components = None
+        self._root_elements = None
 
     @property
     def built(self) -> bool:
