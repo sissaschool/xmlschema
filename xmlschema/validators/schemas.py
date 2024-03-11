@@ -28,7 +28,6 @@ from typing import cast, Callable, ItemsView, List, Optional, Dict, Any, \
 from xml.etree.ElementTree import Element, ParseError
 
 from elementpath import XPathToken, SchemaElementNode, build_schema_node_tree
-from elementpath.protocols import XsdSchemaProtocol
 
 from ..exceptions import XMLSchemaTypeError, XMLSchemaKeyError, XMLSchemaRuntimeError, \
     XMLSchemaValueError, XMLSchemaNamespaceError
@@ -583,10 +582,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     def xpath_node(self) -> SchemaElementNode:
         """Returns an XPath node for processing an XPath expression on the schema instance."""
         if self._xpath_node is None:
-            self._xpath_node = build_schema_node_tree(
-                root=cast(Union[XsdSchemaProtocol], self),
-                uri=self.url
-            )
+            self._xpath_node = build_schema_node_tree(root=self, uri=self.url)
         return self._xpath_node
 
     @property

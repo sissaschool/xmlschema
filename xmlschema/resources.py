@@ -688,7 +688,6 @@ class XMLResource:
             self._nsmaps = {}
             self._xmlns = {}
 
-            # TODO for Python 3.8+: need a Protocol for checking this with isinstance()
             if hasattr(self._root, 'xpath'):
                 nsmap = {}
                 lxml_nsmap = None

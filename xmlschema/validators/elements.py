@@ -21,7 +21,6 @@ from xml.etree.ElementTree import Element, ParseError
 from elementpath import XPath2Parser, ElementPathError, XPathContext, XPathToken, \
     ElementNode, LazyElementNode, SchemaElementNode, build_schema_node_tree
 from elementpath.datatypes import AbstractDateTime, Duration, AbstractBinary
-from elementpath.protocols import XsdElementProtocol
 
 from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from ..names import XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE, XSD_ALTERNATIVE, \
@@ -399,12 +398,12 @@ class XsdElement(XsdComponent, ParticleMixin,
     @property
     def xpath_node(self) -> SchemaElementNode:
         schema_node = self.schema.xpath_node
-        node = schema_node.get_element_node(cast(XsdElementProtocol, self))
+        node = schema_node.get_element_node(self)
         if isinstance(node, SchemaElementNode):
             return node
 
         return build_schema_node_tree(
-            root=cast(XsdElementProtocol, self),
+            root=self,
             elements=schema_node.elements,
             global_elements=schema_node.children,
         )
@@ -665,10 +664,7 @@ class XsdElement(XsdComponent, ParticleMixin,
                                 identity, "identity selector is not built"
                             )
 
-                        context = XPathContext(
-                            root=self.schema.xpath_node,
-                            item=cast(XsdElementProtocol, xpath_element)
-                        )
+                        context = XPathContext(root=self.schema.xpath_node, item=xpath_element)
 
                         for e in identity.selector.token.select_results(context):
                             if isinstance(e, XsdElement):

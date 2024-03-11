@@ -12,7 +12,8 @@ from copy import copy
 from itertools import count
 from typing import TYPE_CHECKING, cast, overload, Any, Dict, List, Iterator, \
     Optional, Union, Tuple, Type, MutableMapping, MutableSequence
-from elementpath import XPathContext, XPath2Parser, build_node_tree, protocols
+
+from elementpath import XPathContext, XPath2Parser, build_node_tree
 from elementpath.etree import etree_tostring
 
 from .exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, XMLSchemaValueError
@@ -368,7 +369,7 @@ class DataElement(MutableSequence['DataElement']):
         return _string
 
     def _get_xpath_context(self) -> XPathContext:
-        xpath_root = build_node_tree(cast(protocols.ElementProtocol, self))
+        xpath_root = build_node_tree(self)
         return XPathContext(xpath_root)
 
     def find(self, path: str,

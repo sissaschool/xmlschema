@@ -9,11 +9,10 @@
 #
 import threading
 import warnings
-from typing import TYPE_CHECKING, cast, Any, Dict, Iterator, Optional, Union, Type
+from typing import TYPE_CHECKING, Any, Dict, Iterator, Optional, Union, Type
 
 from elementpath import ElementPathError, XPath2Parser, XPathContext, \
     LazyElementNode, SchemaElementNode, build_schema_node_tree
-from elementpath.protocols import XsdElementProtocol
 
 from ..names import XSD_ASSERT
 from ..aliases import ElementType, SchemaType, SchemaElementType, NamespacesType
@@ -176,7 +175,7 @@ class XsdAssert(XsdComponent, ElementPathMixin[Union['XsdAssert', SchemaElementT
             yield from self.parent.content.iter_elements()
 
     @property
-    def attrib(self) -> 'XsdAttributeGroup':  # FIXME: protocol Dict[str, ...] is needed
+    def attrib(self) -> 'XsdAttributeGroup':
         return self.parent.attributes
 
     @property
@@ -185,17 +184,17 @@ class XsdAssert(XsdComponent, ElementPathMixin[Union['XsdAssert', SchemaElementT
 
     @property
     def xpath_proxy(self) -> 'XMLSchemaProxy':
-        return XMLSchemaProxy(self.schema, self)  # type: ignore[arg-type]
+        return XMLSchemaProxy(self.schema, self)
 
     @property
     def xpath_node(self) -> SchemaElementNode:
         schema_node = self.schema.xpath_node
-        node = schema_node.get_element_node(cast(XsdElementProtocol, self))
+        node = schema_node.get_element_node(self)
         if isinstance(node, SchemaElementNode):
             return node
 
         return build_schema_node_tree(
-            root=cast(XsdElementProtocol, self),
+            root=self,
             uri=schema_node.uri,
             elements=schema_node.elements,
             global_elements=schema_node.children,

@@ -10,11 +10,10 @@
 """
 This module contains classes for XML Schema wildcards.
 """
-from typing import cast, Any, Callable, Dict, Iterable, Iterator, List, Optional, \
+from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, \
     Tuple, Union, Counter
 
 from elementpath import SchemaElementNode, build_schema_node_tree
-from elementpath.protocols import XsdElementProtocol
 
 from ..exceptions import XMLSchemaValueError
 from ..names import XSI_NAMESPACE, XSD_ANY, XSD_ANY_ATTRIBUTE, \
@@ -431,12 +430,12 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
     @property
     def xpath_node(self) -> SchemaElementNode:
         schema_node = self.schema.xpath_node
-        node = schema_node.get_element_node(cast(XsdElementProtocol, self))
+        node = schema_node.get_element_node(self)
         if isinstance(node, SchemaElementNode):
             return node
 
         return build_schema_node_tree(
-            root=cast(XsdElementProtocol, self),
+            root=self,
             elements=schema_node.elements,
             global_elements=schema_node.children,
         )

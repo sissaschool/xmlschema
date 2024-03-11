@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 def main() -> None:
-    from typing import Union, cast
+    from typing import Union, cast, Any
 
     from xmlschema import XMLSchema, XMLSchema11
     from xmlschema.validators import XsdSimpleType, XsdComplexType, \
@@ -9,7 +9,7 @@ def main() -> None:
     from xmlschema.xpath import XPathElement
 
     from elementpath.protocols import XsdTypeProtocol, XsdElementProtocol, \
-        XsdAttributeProtocol, GlobalMapsProtocol, XsdSchemaProtocol
+        XsdAttributeProtocol, GlobalMapsProtocol, XsdSchemaProtocol, XsdAttributeGroupProtocol
 
     ###
     # Test protocols for XSD type annotations
@@ -43,6 +43,9 @@ def main() -> None:
     def check_xsd_schema(s: XsdSchemaProtocol) -> None:
         assert s is not None
 
+    def get_attribute(attributes: XsdAttributeGroupProtocol, name: str) -> Any:
+        return attributes.get(name)
+
     schema = XMLSchema("""
         <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
             <xs:element name="elem1" type="xs:string"/>
@@ -74,6 +77,10 @@ def main() -> None:
     check_attr_type(b)
 
     check_elem_type(XPathElement('elem4', xsd_type=a))
+
+    attribute_group = schema.maps.attribute_groups['{http://www.w3.org/2001/XMLSchema}occurs']
+    if not isinstance(attribute_group, tuple):
+        get_attribute(attribute_group, 'foo')
 
     schema11 = XMLSchema11("""
         <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">

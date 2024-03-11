@@ -11,17 +11,17 @@ from typing import cast, Any, Iterator, Optional, Union, TYPE_CHECKING
 
 from elementpath import XPath2Parser, XPathSchemaContext, AbstractSchemaProxy, \
     SchemaElementNode, LazyElementNode
-from elementpath.protocols import XsdSchemaProtocol, XsdTypeProtocol, XsdElementProtocol
+from elementpath.protocols import XsdTypeProtocol
 
 from ..exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from ..aliases import SchemaType
 from ..names import XSD_NAMESPACE
 
 if TYPE_CHECKING:
-    from ..validators import XsdElement, XsdAnyElement
+    from ..validators import XsdElement, XsdAnyElement, XsdAssert
     from .mixin import XPathElement
 
-    BaseElementType = Union[XsdElement, XsdAnyElement, XPathElement]
+    BaseElementType = Union[XsdElement, XsdAnyElement, XPathElement, XsdAssert]
 else:
     BaseElementType = Any
 
@@ -37,10 +37,10 @@ class XMLSchemaProxy(AbstractSchemaProxy):
         if schema is None:
             from xmlschema import XMLSchema10
             schema = getattr(XMLSchema10, 'meta_schema', None)
+            assert schema is not None
 
         super(XMLSchemaProxy, self).__init__(
-            cast(XsdSchemaProtocol, schema),
-            cast(Optional[XsdElementProtocol], base_element)
+            schema, base_element
         )
 
         if base_element is not None:
