@@ -269,5 +269,8 @@ def validate():
             else:
                 tot_errors += len(errors)
                 sys.stderr.write(f"{filepath} is not valid\n")
+                if args.verbosity > 0:
+                    for error in errors:
+                        sys.stderr.write(f"{error}\n")
 
     sys.exit(tot_errors)
