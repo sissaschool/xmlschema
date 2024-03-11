@@ -261,13 +261,13 @@ def validate():
                                       locations=args.locations, lazy=args.lazy, defuse=args.defuse))
         except (xmlschema.XMLSchemaException, URLError) as err:
             tot_errors += 1
-            print(str(err))
+            sys.stderr.write(f"{err}\n")
             continue
         else:
             if not errors:
-                print("{} is valid".format(filepath))
+                sys.stdout.write(f"{filepath} is valid\n")
             else:
                 tot_errors += len(errors)
-                print("{} is not valid".format(filepath))
+                sys.stderr.write(f"{filepath} is not valid\n")
 
     sys.exit(tot_errors)
