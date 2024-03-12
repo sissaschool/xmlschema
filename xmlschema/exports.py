@@ -38,9 +38,9 @@ def export_schema(obj: 'XMLSchemaBase', target_dir: str,
                   remove_residuals: bool = True,
                   exclude_locations: Optional[List[str]] = None) -> None:
 
-    def residuals_filter(x: str) -> Any:
+    def residuals_filter(x: str) -> bool:
         return is_remote_url(x) and x not in schema.includes and \
-            exclude_locations and x not in exclude_locations
+            (exclude_locations is None or x not in exclude_locations)
 
     target_path = pathlib.Path(target_dir)
     if target_path.is_dir():

@@ -70,33 +70,33 @@ class TestConsoleScripts(unittest.TestCase):
     @patch('sys.stdout', new_callable=io.StringIO)
     def test_validate_command_03(self, mock_out, mock_err):
         self.run_validate('vehicles-2_errors.xml')
-        self.assertEqual(mock_err.getvalue(), '')
-        self.assertEqual("vehicles-2_errors.xml is not valid\n", mock_out.getvalue())
+        self.assertEqual(mock_out.getvalue(), '')
+        self.assertEqual("vehicles-2_errors.xml is not valid\n", mock_err.getvalue())
         self.assertEqual('2', str(self.ctx.exception))
 
     @patch('sys.stderr', new_callable=io.StringIO)
     @patch('sys.stdout', new_callable=io.StringIO)
     def test_validate_command_04(self, mock_out, mock_err):
         self.run_validate('unknown.xml')
-        self.assertEqual(mock_err.getvalue(), '')
-        output = mock_out.getvalue()
+        self.assertEqual(mock_out.getvalue(), '')
+        stderr = mock_err.getvalue()
         if platform.system() == 'Windows':
-            self.assertIn("The system cannot find the file specified", output)
+            self.assertIn("The system cannot find the file specified", stderr)
         else:
-            self.assertIn("No such file or directory", output)
+            self.assertIn("No such file or directory", stderr)
         self.assertEqual('1', str(self.ctx.exception))
 
     @patch('sys.stderr', new_callable=io.StringIO)
     @patch('sys.stdout', new_callable=io.StringIO)
     def test_validate_command_05(self, mock_out, mock_err):
         self.run_validate(*glob.glob('vehicles*.xml'))
-        self.assertEqual(mock_err.getvalue(), '')
-        output = mock_out.getvalue()
-        self.assertIn("vehicles.xml is valid", output)
-        self.assertIn("vehicles-3_errors.xml is not valid", output)
-        self.assertIn("vehicles-1_error.xml is not valid", output)
-        self.assertIn("vehicles2.xml is valid", output)
-        self.assertIn("vehicles-2_errors.xml is not valid", output)
+        stderr = mock_err.getvalue()
+        stdout = mock_out.getvalue()
+        self.assertIn("vehicles.xml is valid", stdout)
+        self.assertIn("vehicles-3_errors.xml is not valid", stderr)
+        self.assertIn("vehicles-1_error.xml is not valid", stderr)
+        self.assertIn("vehicles2.xml is valid", stdout)
+        self.assertIn("vehicles-2_errors.xml is not valid", stderr)
         self.assertEqual('6', str(self.ctx.exception))
 
     @patch('sys.stderr', new_callable=io.StringIO)
