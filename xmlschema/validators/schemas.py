@@ -44,8 +44,8 @@ from ..aliases import ElementType, XMLSourceType, NamespacesType, LocationsType,
     EncodeType, BaseXsdType, ExtraValidatorType, ValidationHookType, UriMapperType, \
     SchemaGlobalType, FillerType, DepthFillerType, ValueHookType, ElementHookType
 from ..translation import gettext as _
-from ..helpers import set_logging_level, prune_etree, get_namespace, get_qname, \
-    is_defuse_error
+from ..helpers import set_logging_level, logged, prune_etree, get_namespace, \
+    get_qname, is_defuse_error
 from ..namespaces import NamespaceResourcesMap, NamespaceMapper, NamespaceView
 from ..locations import is_local_url, is_remote_url, url_path_is_file, \
     normalize_url, normalize_locations
@@ -1501,19 +1501,28 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     def export(self, target: str,
                save_remote: bool = False,
                remove_residuals: bool = True,
-               exclude_locations: Optional[List[str]] = None) -> None:
+               exclude_locations: Optional[List[str]] = None,
+               loglevel: Optional[Union[str, int]] = None) -> None:
         """
         Exports a schema instance. The schema instance is exported to a
         directory with also the hierarchy of imported/included schemas.
 
         :param target: a path to a local empty directory.
         :param save_remote: if `True` is provided saves also remote schemas.
-        :param remove_residuals: for default removes residual schema locations \
-        from redundant import statements.
+        :param remove_residuals: for default removes residual remote schema \
+        locations from redundant import statements.
         :param exclude_locations: explicitly exclude schema locations from \
         substitution or removal.
+        :param loglevel: for setting a different logging level for schema export.
         """
-        export_schema(self, target, save_remote, remove_residuals, exclude_locations)
+        logged(export_schema)(
+            obj=self,
+            target_dir=target,
+            save_remote=save_remote,
+            remove_residuals=remove_residuals,
+            exclude_locations=exclude_locations,
+            loglevel=loglevel
+        )
 
     def version_check(self, elem: ElementType) -> bool:
         """

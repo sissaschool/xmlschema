@@ -843,6 +843,16 @@ class TestXMLSchema10(XsdValidatorTestCase):
 
         self.assertFalse(os.path.isdir(dirname))
 
+        # Test with DEBUG logging level
+        with tempfile.TemporaryDirectory() as dirname:
+            with self.assertLogs('xmlschema', level='DEBUG') as ctx:
+                vh_schema.export(target=dirname, save_remote=True, loglevel='DEBUG')
+                self.assertGreater(len(ctx.output), 0)
+                self.assertTrue(any('Write modified XSD' in line for line in ctx.output))
+                self.assertTrue(any('Write unchanged XSD' in line for line in ctx.output))
+
+        self.assertFalse(os.path.isdir(dirname))
+
     @unittest.skipIf(platform.system() == 'Windows', 'skip, Windows systems save with <CR><LF>')
     def test_export_other_encoding(self):
         schema_file = self.casepath('examples/menù/menù.xsd')

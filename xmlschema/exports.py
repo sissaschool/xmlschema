@@ -9,6 +9,7 @@
 #
 import re
 import pathlib
+import logging
 from itertools import chain
 from typing import TYPE_CHECKING, Any, Optional, List
 from urllib.parse import unquote, urlsplit
@@ -20,10 +21,15 @@ from .translation import gettext as _
 if TYPE_CHECKING:
     from .validators import XMLSchemaBase
 
+logger = logging.getLogger('xmlschema')
+
+FIND_PATTERN = r'\bschemaLocation\s*=\s*[\'"]([^\'"]*)[\'"]'
+REPLACE_PATTERN = r'\bschemaLocation\s*=\s*[\'"]\s*{0}\s*[\'"]'
+
 
 def replace_location(text: str, location: str, repl_location: str) -> str:
     repl = 'schemaLocation="{}"'.format(repl_location)
-    pattern = r'\bschemaLocation\s*=\s*[\'\"].*%s.*[\'"]' % re.escape(location)
+    pattern = REPLACE_PATTERN.format(re.escape(location))
     return re.sub(pattern, repl, text)
 
 
@@ -31,6 +37,10 @@ def export_schema(obj: 'XMLSchemaBase', target_dir: str,
                   save_remote: bool = False,
                   remove_residuals: bool = True,
                   exclude_locations: Optional[List[str]] = None) -> None:
+
+    def residuals_filter(x: str) -> Any:
+        return is_remote_url(x) and x not in schema.includes and \
+            exclude_locations and x not in exclude_locations
 
     target_path = pathlib.Path(target_dir)
     if target_path.is_dir():
@@ -50,8 +60,12 @@ def export_schema(obj: 'XMLSchemaBase', target_dir: str,
     name = obj.name or 'schema.xsd'
     exports: Any = {obj: [LocationPath(unquote(name)), obj.get_text(), False]}
     path: Any
+    modified_schemas: Any = set()
+
     if exclude_locations is None:
         exclude_locations = []
+
+    logger.debug("Start export of schema %r", name)
 
     while True:
         current_length = len(exports)
@@ -61,17 +75,19 @@ def export_schema(obj: 'XMLSchemaBase', target_dir: str,
                 continue  # Skip already processed schemas
             exports[schema][2] = True
 
+            logger.debug("Process schema instance %r", schema)
+
             dir_path = exports[schema][0].parent
             imports_items = [(x.url, x) for x in schema.imports.values()
                              if x is not None and x.meta_schema is not None]
 
-            pattern = r'\bschemaLocation\s*=\s*[\'\"](.*)[\'"]'
             schema_locations = set(
-                x.strip() for x in re.findall(pattern, exports[schema][1])
+                x.strip() for x in re.findall(FIND_PATTERN, exports[schema][1])
             )
 
             for location, ref_schema in chain(schema.includes.items(), imports_items):
                 if location in exclude_locations:
+                    logger.debug("Location %r is excluded by argument", location)
                     continue
 
                 # Find matching schema location
@@ -86,6 +102,7 @@ def export_schema(obj: 'XMLSchemaBase', target_dir: str,
                         location = matching_items[0]
                         schema_locations.remove(location)
                     elif not matching_items:
+                        logger.debug("Unmatched location %r, skip ...", location)
                         continue
                     else:
                         for item in matching_items:
@@ -97,6 +114,8 @@ def export_schema(obj: 'XMLSchemaBase', target_dir: str,
                         else:
                             location = matching_items[0]
                             schema_locations.remove(location)
+
+                    logger.debug("Matched location %r", location)
 
                 if is_remote_url(location):
                     if not save_remote:
@@ -150,18 +169,20 @@ def export_schema(obj: 'XMLSchemaBase', target_dir: str,
                         repl_path = LocationPath(prefix).joinpath(repl_path)
 
                 repl = repl_path.as_posix()
+                logger.debug("Replace location %r with %r", location, repl)
+
                 exports[schema][1] = replace_location(exports[schema][1], location, repl)
+                modified_schemas.add(schema)
+
                 if ref_schema not in exports:
                     exports[ref_schema] = [path, ref_schema.get_text(), False]
 
             if remove_residuals:
                 # Deactivate residual redundant imports from remote URLs
-                for location in filter(
-                        lambda x: x not in schema.includes and x not in exclude_locations,
-                        schema_locations
-                ):
-                    if is_remote_url(location):
-                        exports[schema][1] = replace_location(exports[schema][1], location, '')
+                for location in filter(residuals_filter, schema_locations):
+                    logger.debug("Clear residual remote location %r", location)
+                    exports[schema][1] = replace_location(exports[schema][1], location, '')
+                    modified_schemas.add(schema)
 
         if current_length == len(exports):
             break
@@ -189,6 +210,11 @@ def export_schema(obj: 'XMLSchemaBase', target_dir: str,
             re_match = re.search('(?<=encoding=["\'])[^"\']+', xml_declaration)
             if re_match is not None:
                 encoding = re_match.group(0).lower()
+
+        if schema in modified_schemas:
+            logger.debug("Write modified XSD source to %s", filepath)
+        else:
+            logger.debug("Write unchanged XSD source to %s", filepath)
 
         with filepath.open(mode='w', encoding=encoding) as fp:
             fp.write(text)
