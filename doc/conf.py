@@ -46,7 +46,7 @@ nitpick_ignore = [
     ('py:class', 'xml.etree.ElementTree.Element'),
     ('py:class', 'xmlschema.aliases.T'),
     ('py:class', 'xmlschema.namespaces.T'),
-    ('py:class', 'xmlschema.xpath.mixin.E'),
+    ('py:class', 'xmlschema.xpath.mixin.E_co'),
     ('py:class', 'xmlschema.validators.xsdbase.DT'),
     ('py:class', 'xmlschema.validators.xsdbase.ST'),
     ('py:class', 'XsdValidator'),

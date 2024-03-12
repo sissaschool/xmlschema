@@ -48,5 +48,5 @@ jobs:
           flake8 xmlschema --max-line-length=100 --statistics
       - name: Lint with mypy
         run: |
-          pip install mypy==1.8.0 elementpath==4.3.1 lxml-stubs
+          pip install mypy==1.9.0 elementpath==4.4.0 lxml-stubs
           mypy --show-error-codes --strict xmlschema
