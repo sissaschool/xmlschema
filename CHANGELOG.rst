@@ -2,6 +2,12 @@
 CHANGELOG
 *********
 
+`v3.1.0`_ (2024-03-13)
+======================
+* Add GData converter (issue #388/PR #391)
+* Fix typing protocols usage
+* Extend XSD annotations parsing (issue #366)
+
 `v3.0.2`_ (2024-02-18)
 ======================
 * Use XPath subtree as fragment for xs:assert (issue #386)
@@ -672,3 +678,4 @@ v0.9.6 (2017-05-05)
 .. _v3.0.0: https://github.com/brunato/xmlschema/compare/v2.5.1...v3.0.0
 .. _v3.0.1: https://github.com/brunato/xmlschema/compare/v3.0.0...v3.0.1
 .. _v3.0.2: https://github.com/brunato/xmlschema/compare/v3.0.1...v3.0.2
+.. _v3.1.0: https://github.com/brunato/xmlschema/compare/v3.0.2...v3.1.0

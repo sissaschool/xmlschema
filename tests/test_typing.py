@@ -52,6 +52,15 @@ class TestTyping(unittest.TestCase):
         ])
         self.assertEqual(result[2], 0, msg=result[1] or result[0])
 
+    def test_protocols(self):
+        result = mypy_api.run([
+            '--strict',
+            '--no-warn-unused-ignores',
+            '--config-file', str(self.config_file),
+            str(self.cases_dir.joinpath('protocols.py'))
+        ])
+        self.assertEqual(result[2], 0, msg=result[1] or result[0])
+
     def test_extra_validator__issue_291(self):
         result = mypy_api.run([
             '--strict',
