@@ -44,13 +44,15 @@ from ..aliases import ElementType, XMLSourceType, NamespacesType, LocationsType,
     EncodeType, BaseXsdType, ExtraValidatorType, ValidationHookType, UriMapperType, \
     SchemaGlobalType, FillerType, DepthFillerType, ValueHookType, ElementHookType
 from ..translation import gettext as _
-from ..helpers import prune_etree, get_namespace, get_qname, is_defuse_error
+from ..helpers import set_logging_level, prune_etree, get_namespace, get_qname, \
+    is_defuse_error
 from ..namespaces import NamespaceResourcesMap, NamespaceMapper, NamespaceView
 from ..locations import is_local_url, is_remote_url, url_path_is_file, \
     normalize_url, normalize_locations
 from ..resources import XMLResource
 from ..converters import XMLSchemaConverter
 from ..xpath import XMLSchemaProxy, ElementPathMixin
+from ..exports import export_schema
 from .. import dataobjects
 
 from .exceptions import XMLSchemaParseError, XMLSchemaValidationError, \
@@ -323,15 +325,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         self.lock = threading.Lock()  # Lock for build operations
 
         if loglevel is not None:
-            if isinstance(loglevel, str):
-                level = loglevel.strip().upper()
-                if level not in {'DEBUG', 'INFO', 'WARN', 'WARNING', 'ERROR', 'CRITICAL'}:
-                    raise XMLSchemaValueError(
-                        _("{!r} is not a valid loglevel").format(loglevel)
-                    )
-                logger.setLevel(getattr(logging, level))
-            else:
-                logger.setLevel(loglevel)
+            set_logging_level(loglevel)
         elif build and global_maps is None:
             logger.setLevel(logging.WARNING)
 
@@ -1519,7 +1513,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         :param exclude_locations: explicitly exclude schema locations from \
         substitution or removal.
         """
-        from ..exports import export_schema
         export_schema(self, target, save_remote, remove_residuals, exclude_locations)
 
     def version_check(self, elem: ElementType) -> bool:

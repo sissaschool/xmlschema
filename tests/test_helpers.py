@@ -11,6 +11,7 @@
 """Tests on internal helper functions"""
 import unittest
 import decimal
+import logging
 from collections import OrderedDict
 from xml.etree import ElementTree
 
@@ -25,7 +26,7 @@ from xmlschema.names import XSD_NAMESPACE, XSI_NAMESPACE, XSD_SCHEMA, \
 from xmlschema.helpers import prune_etree, get_namespace, get_qname, \
     local_name, get_prefixed_qname, get_extended_qname, raw_xml_encode, \
     count_digits, strictly_equal, etree_iterpath, etree_getpath, \
-    etree_iter_location_hints, update_namespaces
+    etree_iter_location_hints, update_namespaces, set_logging_level, logged
 from xmlschema.testing import iter_nested_items, etree_elements_assert_equal
 from xmlschema.validators.exceptions import XMLSchemaValidationError
 from xmlschema.validators.helpers import get_xsd_derivation_attribute, \
@@ -595,6 +596,54 @@ class TestHelpers(unittest.TestCase):
             error_type_validator('alpha')
         with self.assertRaises(XMLSchemaValidationError):
             error_type_validator(0)
+
+    def test_set_logging_level(self):
+        logger = logging.getLogger('xmlschema')
+        current_level = logger.level
+        try:
+            self.assertRaises(TypeError, set_logging_level, None)
+            self.assertEqual(logger.level, current_level)
+
+            set_logging_level(logging.DEBUG)
+            self.assertEqual(logger.level, logging.DEBUG)
+
+            set_logging_level('ERROR')
+            self.assertEqual(logger.level, logging.ERROR)
+
+            self.assertRaises(ValueError, set_logging_level, 'WRONG')
+        finally:
+            logger.setLevel(current_level)
+
+    def test_logged_decorator(self):
+        logger = logging.getLogger('xmlschema')
+
+        def func():
+            logger.warning('Warning log line')
+            logger.info('Info log line')
+            logger.debug('Debug log line')
+
+        with self.assertLogs('xmlschema', level='DEBUG') as ctx:
+            logged(func)(loglevel='ERROR')
+            self.assertEqual(logger.level, logging.DEBUG)
+            self.assertEqual(len(ctx.output), 0)
+
+            logged(func)(loglevel='WARNING')
+            self.assertEqual(logger.level, logging.DEBUG)
+            self.assertEqual(len(ctx.output), 1)
+            self.assertIn("Warning log line", ctx.output[-1])
+
+            logged(func)(loglevel='INFO')
+            self.assertEqual(logger.level, logging.DEBUG)
+            self.assertEqual(len(ctx.output), 3)
+            self.assertIn("Warning log line", ctx.output[-2])
+            self.assertIn("Info log line", ctx.output[-1])
+
+            logged(func)()
+            self.assertEqual(logger.level, logging.DEBUG)
+            self.assertEqual(len(ctx.output), 6)
+            self.assertIn("Warning log line", ctx.output[-3])
+            self.assertIn("Info log line", ctx.output[-2])
+            self.assertIn("Debug log line", ctx.output[-1])
 
 
 if __name__ == '__main__':

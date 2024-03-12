@@ -8,8 +8,10 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import re
+import logging
 from collections import Counter
 from decimal import Decimal
+from functools import wraps
 from typing import Any, Callable, Iterable, Iterator, List, MutableMapping, \
     MutableSequence, Optional, Tuple, Union
 from xml.etree.ElementTree import ParseError
@@ -17,6 +19,51 @@ from xml.etree.ElementTree import ParseError
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from .names import XML_NAMESPACE, XSI_SCHEMA_LOCATION, XSI_NONS_SCHEMA_LOCATION
 from .aliases import ElementType, NamespacesType, AtomicValueType, NumericValueType
+from .translation import gettext as _
+
+###
+# Helper functions for logging
+
+logger = logging.getLogger('xmlschema')
+
+LOG_LEVELS = {'DEBUG', 'INFO', 'WARN', 'WARNING', 'ERROR', 'CRITICAL'}
+
+
+def set_logging_level(level: Union[str, int]) -> None:
+    """Set logging level of xmlschema's logger."""
+    if isinstance(level, str):
+        _level = level.strip().upper()
+        if _level not in LOG_LEVELS:
+            raise XMLSchemaValueError(
+                _("{!r} is not a valid loglevel").format(level)
+            )
+        logger.setLevel(getattr(logging, _level))
+    else:
+        logger.setLevel(level)
+
+
+def logged(func: Callable[..., Any]) -> Callable[..., Any]:
+    """
+    A decorator for activating a logging level for a function. The keyword
+    argument 'loglevel' is popped from the keyword arguments and used by the
+    wrapper function to set the logging level of the decorated function and
+    to restore the original level after the call.
+    """
+    @wraps(func)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        loglevel: Optional[Union[int, str]] = kwargs.pop('loglevel', None)
+        if loglevel is None:
+            return func(*args, **kwargs)
+        else:
+            current_level = logger.level
+            set_logging_level(loglevel)
+            try:
+                return func(*args, **kwargs)
+            finally:
+                logger.setLevel(current_level)
+
+    return wrapper
+
 
 ###
 # Helper functions for QNames and namespaces

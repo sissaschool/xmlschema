@@ -155,12 +155,13 @@ def export_schema(obj: 'XMLSchemaBase', target_dir: str,
                     exports[ref_schema] = [path, ref_schema.get_text(), False]
 
             if remove_residuals:
-                # Deactivate residual redundant imports
+                # Deactivate residual redundant imports from remote URLs
                 for location in filter(
                         lambda x: x not in schema.includes and x not in exclude_locations,
                         schema_locations
                 ):
-                    exports[schema][1] = replace_location(exports[schema][1], location, '')
+                    if is_remote_url(location):
+                        exports[schema][1] = replace_location(exports[schema][1], location, '')
 
         if current_length == len(exports):
             break
