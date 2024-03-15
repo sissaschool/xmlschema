@@ -1003,27 +1003,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
     __copy__ = copy
 
-    @classmethod
-    def check_schema(cls, schema: SchemaType,
-                     namespaces: Optional[NamespacesType] = None) -> None:
-        """
-        Validates the given schema against the XSD meta-schema (:attr:`meta_schema`).
-
-        :param schema: the schema instance that has to be validated.
-        :param namespaces: is an optional mapping from namespace prefix to URI.
-
-        :raises: :exc:`XMLSchemaValidationError` if the schema is invalid.
-        """
-        if cls.meta_schema is None:
-            raise XMLSchemaRuntimeError(_("meta-schema unavailable for %r") % cls)
-
-        msg = f"check_schema() class method will be removed in v3.0, use " \
-            f"{cls.__name__}.meta_schema instead for validating XSD data."
-        warnings.warn(msg, DeprecationWarning, stacklevel=1)
-
-        for error in cls.meta_schema.iter_errors(schema.source, namespaces=namespaces):
-            raise error
-
     def check_validator(self, validation: str = 'strict') -> None:
         """Checks the status of a schema validator against a validation mode."""
         check_validation_mode(validation)

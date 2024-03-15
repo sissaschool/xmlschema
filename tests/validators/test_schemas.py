@@ -940,19 +940,11 @@ class TestXMLSchema10(XsdValidatorTestCase):
             pickle.dumps(schema)
         self.assertIn("Can't pickle", str(ec.exception))
 
-    def test_deprecated_check_schema_method(self):
+    def test_meta_schema_validation(self):
+        self.assertTrue(self.schema_class.meta_schema.is_valid(self.vh_xsd_file))
 
-        with warnings.catch_warnings(record=True) as ctx:
-            warnings.simplefilter("always")
-
-            self.schema_class.check_schema(self.vh_schema)
-
-            self.assertEqual(len(ctx), 1, "Expected one import warning")
-            self.assertIn("check_schema() class method will be removed in v3.0",
-                          str(ctx[0].message))
-
-        with self.assertRaises(RuntimeError):
-            self.schema_class.meta_schema.check_schema(self.vh_schema)
+        invalid_xsd = self.casepath('examples/vehicles/invalid.xsd')
+        self.assertFalse(self.schema_class.meta_schema.is_valid(invalid_xsd))
 
     def test_default_namespace_mapping__issue_266(self):
         schema_file = self.casepath('issues/issue_266/issue_266b-1.xsd')
