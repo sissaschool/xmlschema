@@ -10,13 +10,15 @@
 import re
 import pathlib
 import logging
+from dataclasses import dataclass
 from itertools import chain
-from typing import TYPE_CHECKING, Any, Optional, List
+from typing import TYPE_CHECKING, Any, Optional, List, Set, Union
 from urllib.parse import unquote, urlsplit
 
 from .exceptions import XMLSchemaValueError
 from .locations import LocationPath, is_remote_url
 from .translation import gettext as _
+from .resources import XMLResource
 
 if TYPE_CHECKING:
     from .validators import XMLSchemaBase
@@ -27,10 +29,23 @@ FIND_PATTERN = r'\bschemaLocation\s*=\s*[\'"]([^\'"]*)[\'"]'
 REPLACE_PATTERN = r'\bschemaLocation\s*=\s*[\'"]\s*{0}\s*[\'"]'
 
 
-def replace_location(text: str, location: str, repl_location: str) -> str:
-    repl = 'schemaLocation="{}"'.format(repl_location)
-    pattern = REPLACE_PATTERN.format(re.escape(location))
-    return re.sub(pattern, repl, text)
+@dataclass
+class SchemaSource:
+    """Class for keeping track of an XSD schema source."""
+    path: LocationPath
+    text: str
+    processed: bool = False
+    modified: bool = False
+
+    def replace_location(self, location: str, repl_location: str) -> None:
+        repl = 'schemaLocation="{}"'.format(repl_location)
+        pattern = REPLACE_PATTERN.format(re.escape(location))
+        self.text = re.sub(pattern, repl, self.text)
+        self.modified = True
+
+    @property
+    def schema_locations(self) -> Set[str]:
+        return set(x.strip() for x in re.findall(FIND_PATTERN, self.text))
 
 
 def export_schema(obj: 'XMLSchemaBase', target_dir: str,
@@ -42,25 +57,11 @@ def export_schema(obj: 'XMLSchemaBase', target_dir: str,
         return is_remote_url(x) and x not in schema.includes and \
             (exclude_locations is None or x not in exclude_locations)
 
-    target_path = pathlib.Path(target_dir)
-    if target_path.is_dir():
-        if list(target_path.iterdir()):
-            msg = _("target directory {} is not empty")
-            raise XMLSchemaValueError(msg.format(target_dir))
-    elif target_path.exists():
-        msg = _("target {} is not a directory")
-        raise XMLSchemaValueError(msg.format(target_path.parent))
-    elif not target_path.parent.exists():
-        msg = _("target parent directory {} does not exist")
-        raise XMLSchemaValueError(msg.format(target_path.parent))
-    elif not target_path.parent.is_dir():
-        msg = _("target parent {} is not a directory")
-        raise XMLSchemaValueError(msg.format(target_path.parent))
-
     name = obj.name or 'schema.xsd'
-    exports: Any = {obj: [LocationPath(unquote(name)), obj.get_text(), False]}
+    exports = {
+        obj: SchemaSource(LocationPath(unquote(name)), obj.get_text())
+    }
     path: Any
-    modified_schemas: Any = set()
 
     if exclude_locations is None:
         exclude_locations = []
@@ -71,19 +72,19 @@ def export_schema(obj: 'XMLSchemaBase', target_dir: str,
         current_length = len(exports)
 
         for schema in list(exports):
-            if exports[schema][2]:
+            schema_source = exports[schema]
+            if schema_source.processed:
                 continue  # Skip already processed schemas
-            exports[schema][2] = True
+
+            schema_source.processed = True
 
             logger.debug("Process schema instance %r", schema)
 
-            dir_path = exports[schema][0].parent
+            dir_path = schema_source.path.parent
+            schema_locations = schema_source.schema_locations
+
             imports_items = [(x.url, x) for x in schema.imports.values()
                              if x is not None and x.meta_schema is not None]
-
-            schema_locations = set(
-                x.strip() for x in re.findall(FIND_PATTERN, exports[schema][1])
-            )
 
             for location, ref_schema in chain(schema.includes.items(), imports_items):
                 if location in exclude_locations:
@@ -136,7 +137,7 @@ def export_schema(obj: 'XMLSchemaBase', target_dir: str,
                         if not str(path).startswith('..'):
                             # A relative path that doesn't exceed the loading schema dir
                             if ref_schema not in exports:
-                                exports[ref_schema] = [path, ref_schema.get_text(), False]
+                                exports[ref_schema] = SchemaSource(path, ref_schema.get_text())
                             continue
 
                         # Use the absolute schema path
@@ -171,50 +172,67 @@ def export_schema(obj: 'XMLSchemaBase', target_dir: str,
                 repl = repl_path.as_posix()
                 logger.debug("Replace location %r with %r", location, repl)
 
-                exports[schema][1] = replace_location(exports[schema][1], location, repl)
-                modified_schemas.add(schema)
+                schema_source.replace_location(location, repl)
 
                 if ref_schema not in exports:
-                    exports[ref_schema] = [path, ref_schema.get_text(), False]
+                    exports[ref_schema] = SchemaSource(path, ref_schema.get_text())
 
             if remove_residuals:
                 # Deactivate residual redundant imports from remote URLs
                 for location in filter(residuals_filter, schema_locations):
                     logger.debug("Clear residual remote location %r", location)
-                    exports[schema][1] = replace_location(exports[schema][1], location, '')
-                    modified_schemas.add(schema)
+                    schema_source.replace_location(location, '')
 
         if current_length == len(exports):
             break
 
-    for schema, (path, text, processed) in exports.items():
-        assert processed
+    save_schema_sources(target_dir, exports.values())
 
-        filepath = target_path.joinpath(path)
+
+def save_schema_sources(target_dir, schema_sources) -> None:
+    target_path = pathlib.Path(target_dir)
+    if target_path.is_dir():
+        if list(target_path.iterdir()):
+            msg = _("target directory {} is not empty")
+            raise XMLSchemaValueError(msg.format(target_dir))
+    elif target_path.exists():
+        msg = _("target {} is not a directory")
+        raise XMLSchemaValueError(msg.format(target_path.parent))
+    elif not target_path.parent.exists():
+        msg = _("target parent directory {} does not exist")
+        raise XMLSchemaValueError(msg.format(target_path.parent))
+    elif not target_path.parent.is_dir():
+        msg = _("target parent {} is not a directory")
+        raise XMLSchemaValueError(msg.format(target_path.parent))
+
+    for source in schema_sources:
+        assert source.processed
+
+        filepath = target_path.joinpath(source.path)
 
         # Safety check: raise error if filepath is not inside the target path
         try:
             filepath.resolve(strict=False).relative_to(target_path.resolve(strict=False))
         except ValueError:
             msg = _("target directory {} violation for exported path {}, {}")
-            raise XMLSchemaValueError(msg.format(target_dir, str(path), str(filepath)))
+            raise XMLSchemaValueError(msg.format(target_dir, str(source.path), str(filepath)))
 
         if not filepath.parent.exists():
             filepath.parent.mkdir(parents=True)
 
         encoding = 'utf-8'  # default encoding for XML 1.0
 
-        if text.startswith('<?'):
+        if source.text.startswith('<?'):
             # Get the encoding from XML declaration
-            xml_declaration = text.split('\n', maxsplit=1)[0]
+            xml_declaration = source.text.split('\n', maxsplit=1)[0]
             re_match = re.search('(?<=encoding=["\'])[^"\']+', xml_declaration)
             if re_match is not None:
                 encoding = re_match.group(0).lower()
 
-        if schema in modified_schemas:
+        if source.modified:
             logger.debug("Write modified XSD source to %s", filepath)
         else:
             logger.debug("Write unchanged XSD source to %s", filepath)
 
         with filepath.open(mode='w', encoding=encoding) as fp:
-            fp.write(text)
+            fp.write(source.text)
