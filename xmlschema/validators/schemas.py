@@ -23,6 +23,7 @@ import re
 import sys
 from copy import copy as _copy, deepcopy
 from operator import attrgetter
+from pathlib import Path
 from typing import cast, Callable, ItemsView, List, Optional, Dict, Any, \
     Set, Union, Tuple, Type, Iterator, Counter
 from xml.etree.ElementTree import Element, ParseError
@@ -1477,7 +1478,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             use_xpath3=self.use_xpath3,
         )
 
-    def export(self, target: str,
+    def export(self, target: Union[str, Path],
                save_remote: bool = False,
                remove_residuals: bool = True,
                exclude_locations: Optional[List[str]] = None,
@@ -1495,8 +1496,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         :param loglevel: for setting a different logging level for schema export.
         """
         logged(export_schema)(
-            obj=self,
-            target_dir=target,
+            schema=self,
+            target=target,
             save_remote=save_remote,
             remove_residuals=remove_residuals,
             exclude_locations=exclude_locations,

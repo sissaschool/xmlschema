@@ -22,6 +22,7 @@ from .converters import ElementData, XMLSchemaConverter, \
 from .dataobjects import DataElement, DataElementConverter, DataBindingConverter
 from .documents import validate, is_valid, iter_errors, iter_decode, \
     to_dict, to_json, to_etree, from_json, XmlDocument
+from .exports import download_schemas
 
 from .validators import (
     XMLSchemaValidatorError, XMLSchemaParseError, XMLSchemaNotBuiltError,
@@ -46,8 +47,9 @@ __all__ = [
     'XMLResource', 'ElementPathMixin', 'ElementData', 'XMLSchemaConverter',
     'UnorderedConverter', 'ParkerConverter', 'BadgerFishConverter', 'GDataConverter',
     'AbderaConverter', 'JsonMLConverter', 'ColumnarConverter', 'DataElement',
-    'DataElementConverter', 'DataBindingConverter', 'validate', 'is_valid', 'iter_errors',
-    'iter_decode', 'to_dict', 'to_json', 'to_etree', 'from_json', 'XmlDocument',
+    'DataElementConverter', 'DataBindingConverter', 'validate', 'is_valid',
+    'iter_errors', 'iter_decode', 'to_dict', 'to_json', 'to_etree', 'from_json',
+    'XmlDocument', 'download_schemas',
     'XMLSchemaValidatorError', 'XMLSchemaParseError', 'XMLSchemaNotBuiltError',
     'XMLSchemaModelError', 'XMLSchemaModelDepthError', 'XMLSchemaValidationError',
     'XMLSchemaDecodeError', 'XMLSchemaEncodeError', 'XMLSchemaChildrenValidationError',

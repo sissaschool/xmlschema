@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import cast, Any, AnyStr, Dict, Optional, IO, Iterator, \
     List, MutableMapping, Union, Tuple
 from urllib.request import urlopen
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, unquote
 from urllib.error import URLError
 
 from elementpath import XPathToken, XPathContext, XPath2Parser, ElementNode, \
@@ -280,7 +280,7 @@ class XMLResource:
         """
         The source name, is `None` if the instance is created from an Element or a string.
         """
-        return None if self._url is None else os.path.basename(self._url)
+        return None if self._url is None else os.path.basename(unquote(self._url))
 
     @property
     def url(self) -> Optional[str]:

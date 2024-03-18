@@ -848,8 +848,8 @@ class TestXMLSchema10(XsdValidatorTestCase):
             with self.assertLogs('xmlschema', level='DEBUG') as ctx:
                 vh_schema.export(target=dirname, save_remote=True, loglevel='DEBUG')
                 self.assertGreater(len(ctx.output), 0)
-                self.assertTrue(any('Write modified XSD' in line for line in ctx.output))
-                self.assertTrue(any('Write unchanged XSD' in line for line in ctx.output))
+                self.assertTrue(any('Write modified ' in line for line in ctx.output))
+                self.assertTrue(any('Write unchanged ' in line for line in ctx.output))
 
         self.assertFalse(os.path.isdir(dirname))
 
