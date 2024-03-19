@@ -39,7 +39,7 @@ from ..names import VC_MIN_VERSION, VC_MAX_VERSION, VC_TYPE_AVAILABLE, \
     XSD_ANY_ATTRIBUTE, XSD_ANY_TYPE, XSD_NAMESPACE, XML_NAMESPACE, XSI_NAMESPACE, \
     VC_NAMESPACE, SCHEMAS_DIR, LOCATION_HINTS, XSD_ANNOTATION, XSD_INCLUDE, \
     XSD_IMPORT, XSD_REDEFINE, XSD_OVERRIDE, XSD_DEFAULT_OPEN_CONTENT, \
-    XSD_ANY_SIMPLE_TYPE, XSD_UNION, XSD_LIST, XSD_RESTRICTION
+    XSD_ANY_SIMPLE_TYPE, XSD_UNION, XSD_LIST, XSD_RESTRICTION, XMLNS_NAMESPACE
 from ..aliases import ElementType, XMLSourceType, NamespacesType, LocationsType, \
     SchemaType, SchemaSourceType, ConverterType, ComponentClassType, DecodeType, \
     EncodeType, BaseXsdType, ExtraValidatorType, ValidationHookType, UriMapperType, \
@@ -383,6 +383,11 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         elif '' not in self.namespaces:
             # If not declared map the default namespace to no namespace
             self.namespaces[''] = ''
+
+        if self.target_namespace == XMLNS_NAMESPACE:
+            # https://www.w3.org/TR/xmlschema11-1/#sec-nss-special
+            msg = _(f"The namespace {XMLNS_NAMESPACE} cannot be used as 'targetNamespace'")
+            raise XMLSchemaValueError(msg)
 
         logger.debug("Schema targetNamespace is %r", self.target_namespace)
         logger.debug("Declared namespaces: %r", self.namespaces)
@@ -2204,7 +2209,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             if path is not None:
                 reason = _("the path %r doesn't match any element of the schema!") % path
             else:
-                reason = _("unable to select an element for decoding data, "
+                reason = _("unable to select an element for encoding data, "
                            "provide a valid 'path' argument.")
             raise XMLSchemaEncodeError(self, obj, self.elements, reason, namespaces=namespaces)
         else:

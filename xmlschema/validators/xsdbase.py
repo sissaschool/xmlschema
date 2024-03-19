@@ -21,7 +21,7 @@ from elementpath.etree import etree_tostring
 from ..exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from ..names import XSD_ANNOTATION, XSD_APPINFO, XSD_DOCUMENTATION, \
     XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_ID, \
-    XSD_QNAME, XSD_OVERRIDE, XSD_NOTATION_TYPE, XSD_DECIMAL
+    XSD_QNAME, XSD_OVERRIDE, XSD_NOTATION_TYPE, XSD_DECIMAL, XMLNS_NAMESPACE
 from ..aliases import ElementType, NamespacesType, SchemaType, BaseXsdType, \
     ComponentClassType, ExtraValidatorType, DecodeType, IterDecodeType, \
     EncodeType, IterEncodeType
@@ -484,6 +484,11 @@ class XsdComponent(XsdValidator):
             return
 
         self._target_namespace = self.elem.attrib['targetNamespace'].strip()
+        if self._target_namespace == XMLNS_NAMESPACE:
+            # https://www.w3.org/TR/xmlschema11-1/#sec-nss-special
+            msg = _(f"The namespace {XMLNS_NAMESPACE} cannot be used as 'targetNamespace'")
+            raise XMLSchemaValueError(msg)
+
         if 'name' not in self.elem.attrib:
             msg = _("attribute 'name' must be present when "
                     "'targetNamespace' attribute is provided")

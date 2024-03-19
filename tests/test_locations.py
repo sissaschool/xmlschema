@@ -8,8 +8,6 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-"""Tests concerning XML resources"""
-
 import unittest
 import os
 import pathlib
@@ -383,7 +381,7 @@ class TestLocations(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    header_template = "Test xmlschema's locations with Python {} on platform {}"
+    header_template = "Test xmlschema locations.py module with Python {} on platform {}"
     header = header_template.format(platform.python_version(), platform.platform())
     print('{0}\n{1}\n{0}'.format("*" * len(header), header))
 

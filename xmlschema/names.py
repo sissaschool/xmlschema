@@ -23,6 +23,12 @@ XSI_NAMESPACE = 'http://www.w3.org/2001/XMLSchema-instance'
 XML_NAMESPACE = 'http://www.w3.org/XML/1998/namespace'
 "URI of the XML namespace (xml)"
 
+XMLNS_NAMESPACE = 'http://www.w3.org/2000/xmlns/'
+"""
+Special namespace, reserved for making xmlns declarations with the use of extended
+names. Can't be used as a target namespace for a schema or for its components.
+"""
+
 XHTML_NAMESPACE = 'http://www.w3.org/1999/xhtml'
 XHTML_DATATYPES_NAMESPACE = 'http://www.w3.org/1999/xhtml/datatypes/'
 "URIs of the Extensible Hypertext Markup Language namespace (html)"

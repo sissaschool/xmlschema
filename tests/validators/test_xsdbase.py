@@ -352,6 +352,23 @@ class TestXsdComponent(unittest.TestCase):
             </xs:schema>""")
         self.assertEqual(schema.elements['root'].type.content[0].name, 'node')
 
+    def test_xmlns_namespace_forbidden(self):
+        source = dedent("""\
+          <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+            <xs:element name="root">
+              <xs:complexType>
+                <xs:sequence>
+                  <xs:element name="node" targetNamespace="http://www.w3.org/2000/xmlns/"/>
+                </xs:sequence>
+              </xs:complexType>
+            </xs:element>
+          </xs:schema>""")
+
+        with self.assertRaises(ValueError) as ctx:
+            XMLSchema11(source)
+
+        self.assertIn('http://www.w3.org/2000/xmlns/', str(ctx.exception))
+
     def test_id_property(self):
         name = '{%s}motorbikes' % self.schema.target_namespace
         elem = ElementTree.Element(XSD_ELEMENT, name=name, id='1999')
