@@ -172,9 +172,9 @@ def save_sources(target: Union[str, Path],
                 encoding = re_match.group(0).lower()
 
         if src.modified:
-            logger.debug("Write modified XSD source to %s", filepath)
+            logger.info("Write modified XSD source to %s", filepath)
         else:
-            logger.debug("Write unchanged XSD source to %s", filepath)
+            logger.info("Write unchanged XSD source to %s", filepath)
 
         if src.substitutions:
             for location, repl_location in src.substitutions:
@@ -189,6 +189,7 @@ def save_sources(target: Union[str, Path],
 
     if save_locations:
         with target_path.joinpath('__init__.py').open('w') as fp:
+            logger.info("Write LOCATION_MAP to %s", fp.name)
             fp.write(f'LOCATION_MAP = {pprint.pformat(location_map)}')
 
     return location_map
@@ -210,7 +211,7 @@ def export_schema(schema: 'XMLSchemaBase',
             (exclude_locations is None or x not in exclude_locations)
 
     if loglevel is not None:
-        logger.info("Export schema using loglevel %s", loglevel)
+        logger.info("Export schema using loglevel %r", loglevel)
 
     name = schema.name or 'schema.xsd'
     exports = {schema: XsdSource(LocationPath(name), schema.get_text())}
@@ -270,6 +271,7 @@ def export_schema(schema: 'XMLSchemaBase',
     return save_sources(target, exports.values())
 
 
+@logged
 def download_schemas(url: str,
                      target: Union[str, Path],
                      save_remote: bool = True,
@@ -298,9 +300,10 @@ def download_schemas(url: str,
     :return: a dictionary containing the map of modified locations.
     """
     if loglevel is not None:
-        logger.info("Download schemas using loglevel %s", loglevel)
+        logger.info("Download schemas using loglevel %r", loglevel)
 
     resource = XMLResource(url, defuse=defuse, timeout=timeout)
+    logger.info("Downloaded XML resource from %s", url)
     if resource.root.tag != XSD_SCHEMA:
         raise XMLSchemaValueError(f'Resource referred by {url} is not a XSD schema')
 
@@ -344,6 +347,8 @@ def download_schemas(url: str,
                 except ElementTree.ParseError as err:
                     logger.error('Error parsing XML resource at URL %s: %s', url, err)
                     continue
+                else:
+                    logger.info("Downloaded XML resource from %s", url)
 
                 if ref_resource.root.tag != XSD_SCHEMA:
                     logger.error('XML resource at URL %s is not an XSD schema', url)

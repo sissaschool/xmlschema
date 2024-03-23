@@ -287,12 +287,33 @@ class TestDownloads(unittest.TestCase):
         cls.vh_xsd_file = casepath('examples/vehicles/vehicles.xsd')
         cls.vh_xml_file = casepath('examples/vehicles/vehicles.xml')
 
+    def test_download_local_schemas(self):
+        with tempfile.TemporaryDirectory() as dirname:
+            location_map = download_schemas(self.vh_xsd_file, target=dirname, modify=True)
+
+            self.assertEqual(location_map, {})
+
+            xsd_path = pathlib.Path(dirname).joinpath('vehicles.xsd')
+            schema = XMLSchema10(xsd_path)
+            for xs in schema.maps.namespaces['http://example.com/vehicles']:
+                self.assertTrue(xs.url.startswith('file://'))
+
+            self.assertTrue(pathlib.Path(dirname).joinpath('__init__.py').is_file())
+
     @unittest.skipIf(SKIP_REMOTE_TESTS, "Remote networks are not accessible.")
-    def test_download_schema(self):
+    def test_download_local_and_remote_schemas(self):
         vh_schema_file = casepath('issues/issue_187/issue_187_2.xsd')
+        url_common = ('raw.githubusercontent.com/brunato/xmlschema/master/'
+                      'tests/test_cases/examples/vehicles')
+        url_map = {
+            f'https://{url_common}/bikes.xsd': f'https/{url_common}/bikes.xsd',
+            f'https://{url_common}/cars.xsd': f'https/{url_common}/cars.xsd'
+        }
 
         with tempfile.TemporaryDirectory() as dirname:
-            download_schemas(vh_schema_file, target=dirname, modify=True)
+            location_map = download_schemas(vh_schema_file, target=dirname, modify=True)
+
+            self.assertEqual(location_map, url_map)
 
             xsd_path = pathlib.Path(dirname).joinpath('issue_187_2.xsd')
             schema = XMLSchema10(xsd_path)
@@ -302,7 +323,9 @@ class TestDownloads(unittest.TestCase):
             self.assertTrue(pathlib.Path(dirname).joinpath('__init__.py').is_file())
 
         with tempfile.TemporaryDirectory() as dirname:
-            download_schemas(vh_schema_file, target=dirname)
+            location_map = download_schemas(vh_schema_file, target=dirname)
+
+            self.assertEqual(location_map, url_map)
 
             xsd_path = pathlib.Path(dirname).joinpath('issue_187_2.xsd')
             schema = XMLSchema10(xsd_path)
@@ -311,6 +334,38 @@ class TestDownloads(unittest.TestCase):
                     self.assertTrue(xs.url.startswith('https://'))
                 else:
                     self.assertTrue(xs.url.startswith('file://'))
+
+    @unittest.skipIf(SKIP_REMOTE_TESTS, "Remote networks are not accessible.")
+    def test_download_remote_schemas(self):
+        url = ("https://raw.githubusercontent.com/brewpoo/"
+               "BeerXML-Standard/master/schema/BeerXML.xsd")
+
+        with tempfile.TemporaryDirectory() as dirname:
+            location_map = download_schemas(url, target=dirname, modify=True)
+            self.assertEqual(location_map, {})
+
+            xsd_files = set(x.name for x in pathlib.Path(dirname).glob('*.xsd'))
+            self.assertSetEqual(xsd_files, {
+                'BeerXML.xsd', 'measureable_units.xsd', 'hops.xsd',
+                'yeast.xsd', 'mash.xsd', 'style.xsd', 'water.xsd',
+                'grain.xsd', 'misc.xsd', 'recipes.xsd', 'mash_step.xsd'
+            })
+
+            xsd_path = pathlib.Path(dirname).joinpath('BeerXML.xsd')
+            schema = XMLSchema10(xsd_path)
+            for ns in schema.maps.namespaces:
+                if ns.startswith('urn:beerxml:'):
+                    for k, xs in enumerate(schema.maps.namespaces[ns]):
+                        self.assertEqual(k, 0)
+                        self.assertTrue(xs.url.startswith('file://'))
+
+    def test_download_with_loglevel(self):
+        with tempfile.TemporaryDirectory() as dirname:
+            with self.assertLogs('xmlschema', level='DEBUG') as ctx:
+                download_schemas(self.vh_xsd_file, target=dirname, loglevel='debug')
+                self.assertGreater(len(ctx.output), 10)
+                self.assertFalse(any('Write modified ' in line for line in ctx.output))
+                self.assertTrue(any('Write unchanged ' in line for line in ctx.output))
 
 
 if __name__ == '__main__':
