@@ -45,7 +45,7 @@ from ..aliases import ElementType, XMLSourceType, NamespacesType, LocationsType,
     EncodeType, BaseXsdType, ExtraValidatorType, ValidationHookType, UriMapperType, \
     SchemaGlobalType, FillerType, DepthFillerType, ValueHookType, ElementHookType
 from ..translation import gettext as _
-from ..helpers import set_logging_level, logged, prune_etree, get_namespace, \
+from ..helpers import set_logging_level, prune_etree, get_namespace, \
     get_qname, is_defuse_error
 from ..namespaces import NamespaceResourcesMap, NamespaceMapper, NamespaceView
 from ..locations import is_local_url, is_remote_url, url_path_is_file, \
@@ -1487,7 +1487,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                save_remote: bool = False,
                remove_residuals: bool = True,
                exclude_locations: Optional[List[str]] = None,
-               loglevel: Optional[Union[str, int]] = None) -> None:
+               loglevel: Optional[Union[str, int]] = None) -> Dict[str, str]:
         """
         Exports a schema instance. The schema instance is exported to a
         directory with also the hierarchy of imported/included schemas.
@@ -1499,8 +1499,9 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         :param exclude_locations: explicitly exclude schema locations from \
         substitution or removal.
         :param loglevel: for setting a different logging level for schema export.
+        :return: a dictionary containing the map of modified locations.
         """
-        logged(export_schema)(
+        return export_schema(
             schema=self,
             target=target,
             save_remote=save_remote,

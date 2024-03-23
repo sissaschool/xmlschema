@@ -14,7 +14,7 @@ import platform
 import string
 from collections.abc import MutableMapping
 from pathlib import Path, PurePath, PurePosixPath, PureWindowsPath
-from typing import Optional
+from typing import Optional, Iterable
 from urllib.parse import urlsplit, urlunsplit, unquote, quote_from_bytes
 
 from .exceptions import XMLSchemaValueError
@@ -29,9 +29,13 @@ class LocationPath(PurePath):
     A version of pathlib.PurePath with an enhanced URI conversion and for
     the normalization of location paths.
 
-    A system independent path normalization without resolution is essential
-    for processing resource locations, so the use or base class internals
-    can be necessary for using pathlib.
+    A system independent path normalization without resolution is essential for
+    processing resource locations, so the use or base class internals can be
+    necessary for using pathlib. Despite the URL path has to be considered
+    case-sensitive (ref. https://www.w3.org/TR/WD-html40-970708/htmlweb.html)
+    this not always happen. On the other hand the initial source is often a
+    filepath, so the better choice is to maintain location paths still related
+    to the operating system.
     """
     _path_module = os.path
 
@@ -262,3 +266,36 @@ def normalize_locations(locations: LocationsType,
             [(ns, normalize_url(url, base_url, keep_relative)) for ns, url in locations]
         )
     return normalized_locations
+
+
+def match_location(url: str, locations: Iterable[str]) -> Optional[str]:
+    """
+    Match a URL against a group of locations. Give priority to exact matches,
+    then to the match with the highest score after filtering out the locations
+    that are not compatible with provided url. The score of a location path is
+    determined by the number of path levels minus the number of parent steps.
+    If no match is found returns `None`.
+    """
+    def is_compatible(loc: str) -> bool:
+        parts = urlsplit(loc)
+        return not parts.scheme or scheme == parts.scheme and netloc == parts.netloc
+
+    if url in locations:
+        return url
+
+    scheme, netloc = urlsplit(url)[:2]
+    path = LocationPath.from_uri(url).normalize()
+    matching_url = None
+    matching_score = None
+
+    for other_url in filter(is_compatible, locations):
+        other_path = LocationPath.from_uri(other_url).normalize()
+        pattern = other_path.as_posix().replace('..', '*')
+
+        if path.match(pattern):
+            score = pattern.count('/') - pattern.count('*')
+            if matching_score is None or matching_score < score:
+                matching_score = score
+                matching_url = other_url
+
+    return matching_url

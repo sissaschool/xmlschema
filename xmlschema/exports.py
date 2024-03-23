@@ -19,7 +19,8 @@ from xml.etree import ElementTree
 
 from .exceptions import XMLResourceError, XMLSchemaValueError
 from .names import XSD_SCHEMA
-from .locations import LocationPath, is_remote_url, normalize_url
+from .helpers import logged
+from .locations import LocationPath, is_remote_url, normalize_url, match_location
 from .translation import gettext as _
 from .resources import XMLResource
 
@@ -125,27 +126,6 @@ class XsdSource:
         return path
 
 
-def match_location(location: str, schema_locations: Set[str]) -> Optional[str]:
-    if location in schema_locations:
-        return location
-    else:
-        name = LocationPath(location).name
-        assert isinstance(name, str)
-
-        matching_items = [x for x in schema_locations if x.endswith(name)]
-        if len(matching_items) == 1:
-            return matching_items[0]
-        elif not matching_items:
-            return None
-        else:
-            for item in matching_items:
-                item_path = LocationPath.from_uri(item)
-                if location.endswith(str(item_path).lstrip('.')):
-                    return item
-            else:
-                return matching_items[0]
-
-
 def save_sources(target: Union[str, Path],
                  sources: Iterable[XsdSource],
                  save_locations: bool = False) -> Dict[str, str]:
@@ -214,20 +194,26 @@ def save_sources(target: Union[str, Path],
     return location_map
 
 
+@logged
 def export_schema(schema: 'XMLSchemaBase',
                   target: Union[str, Path],
                   save_remote: bool = False,
                   remove_residuals: bool = True,
-                  exclude_locations: Optional[List[str]] = None) -> None:
-
+                  exclude_locations: Optional[List[str]] = None,
+                  loglevel: Optional[Union[str, int]] = None) -> Dict[str, str]:
+    """
+    Export XSD sources used by a schema instance to a target directory.
+    Don't use this function directly, use XMLSchema.export() method instead.
+    """
     def residuals_filter(x: str) -> bool:
         return is_remote_url(x) and x not in schema.includes and \
             (exclude_locations is None or x not in exclude_locations)
 
+    if loglevel is not None:
+        logger.info("Export schema using loglevel %s", loglevel)
+
     name = schema.name or 'schema.xsd'
-    exports = {
-        schema: XsdSource(LocationPath(name), schema.get_text())
-    }
+    exports = {schema: XsdSource(LocationPath(name), schema.get_text())}
     path: Any
 
     if exclude_locations is None:
@@ -281,7 +267,7 @@ def export_schema(schema: 'XMLSchemaBase',
         if current_length == len(exports):
             break
 
-    save_sources(target, exports.values())
+    return save_sources(target, exports.values())
 
 
 def download_schemas(url: str,
@@ -291,7 +277,8 @@ def download_schemas(url: str,
                      modify: bool = False,
                      defuse: str = 'remote',
                      timeout: int = 300,
-                     exclude_locations: Optional[List[str]] = None) -> Dict[str, str]:
+                     exclude_locations: Optional[List[str]] = None,
+                     loglevel: Optional[Union[str, int]] = None) -> Dict[str, str]:
     """
     Download one or more schemas from a URL and save them in a target directory. All the
     referred locations in schema sources are downloaded and stored in the target directory.
@@ -307,8 +294,12 @@ def download_schemas(url: str,
     :param defuse: when to defuse XML data before loading, defaults to `'remote'`.
     :param timeout: the timeout in seconds for the connection attempt in case of remote data.
     :param exclude_locations: provide a list of locations to skip.
+    :param loglevel: for setting a different logging level for schema downloads call.
     :return: a dictionary containing the map of modified locations.
     """
+    if loglevel is not None:
+        logger.info("Download schemas using loglevel %s", loglevel)
+
     resource = XMLResource(url, defuse=defuse, timeout=timeout)
     if resource.root.tag != XSD_SCHEMA:
         raise XMLSchemaValueError(f'Resource referred by {url} is not a XSD schema')

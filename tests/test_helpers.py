@@ -617,7 +617,7 @@ class TestHelpers(unittest.TestCase):
     def test_logged_decorator(self):
         logger = logging.getLogger('xmlschema')
 
-        def func():
+        def func(*args, **kwargs):
             logger.warning('Warning log line')
             logger.info('Info log line')
             logger.debug('Debug log line')

@@ -13,7 +13,7 @@ from collections import Counter
 from decimal import Decimal
 from functools import wraps
 from typing import Any, Callable, Iterable, Iterator, List, MutableMapping, \
-    MutableSequence, Optional, Tuple, Union
+    MutableSequence, Optional, Tuple, TypeVar, Union
 from xml.etree.ElementTree import ParseError
 
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
@@ -42,16 +42,19 @@ def set_logging_level(level: Union[str, int]) -> None:
         logger.setLevel(level)
 
 
-def logged(func: Callable[..., Any]) -> Callable[..., Any]:
+RT = TypeVar('RT')
+
+
+def logged(func: Callable[..., RT]) -> Callable[..., RT]:
     """
     A decorator for activating a logging level for a function. The keyword
-    argument 'loglevel' is popped from the keyword arguments and used by the
+    argument 'loglevel' is obtained from the keyword arguments and used by the
     wrapper function to set the logging level of the decorated function and
     to restore the original level after the call.
     """
     @wraps(func)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
-        loglevel: Optional[Union[int, str]] = kwargs.pop('loglevel', None)
+        loglevel: Optional[Union[int, str]] = kwargs.get('loglevel')
         if loglevel is None:
             return func(*args, **kwargs)
         else:
