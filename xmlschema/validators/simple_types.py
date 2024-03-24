@@ -346,6 +346,15 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
         return 'empty' if self.max_length == 0 else 'simple'
 
     @property
+    def root_type(self) -> BaseXsdType:
+        if self.base_type is None:
+            return self
+        elif isinstance(self.base_type, XsdAtomic):
+            return self.base_type.primitive_type
+        else:
+            return self.base_type.root_type
+
+    @property
     def sequence_type(self) -> str:
         if self.is_empty():
             return 'empty-sequence()'

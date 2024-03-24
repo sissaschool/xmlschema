@@ -27,7 +27,7 @@ from .helpers import get_xsd_derivation_attribute
 from .xsdbase import XSD_TYPE_DERIVATIONS, XsdComponent, XsdType, ValidationMixin
 from .attributes import XsdAttributeGroup
 from .assertions import XsdAssert
-from .simple_types import FacetsValueType, XsdSimpleType, XsdUnion
+from .simple_types import FacetsValueType, XsdSimpleType, XsdUnion, XsdAtomic
 from .groups import XsdGroup
 from .wildcards import XsdOpenContent, XsdDefaultOpenContent
 
@@ -537,18 +537,21 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
             return 'element-only'
 
     @property
+    def root_type(self) -> BaseXsdType:
+        if self.attributes or self.base_type is None:
+            return cast('XsdComplexType', self.maps.types[XSD_ANY_TYPE])
+        else:
+            return self.base_type.root_type
+
+    @property
     def sequence_type(self) -> str:
         if self.is_empty():
             return 'empty-sequence()'
-        elif not self.has_simple_content():
-            st = 'xs:untypedAtomic'
+        elif isinstance(self.content, XsdAtomic):
+            name = self.content.primitive_type.local_name
+            st = 'item()' if name is None else f'xs:{name}'
         else:
-            try:
-                name = self.content.primitive_type.local_name  # type: ignore[union-attr]
-            except AttributeError:
-                st = 'xs:untypedAtomic'
-            else:
-                st = 'item()' if name is None else f'xs:{name}'
+            st = 'xs:untypedAtomic'
 
         return f"{st}{'*' if self.is_emptiable() else '+'}"
 

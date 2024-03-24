@@ -791,24 +791,7 @@ class XsdType(XsdComponent):
         is the primitive type. For a list is the primitive type of the item.
         For a union is the base union type. For a complex type is xs:anyType.
         """
-        if getattr(self, 'attributes', None):
-            return cast('XsdComplexType', self.maps.types[XSD_ANY_TYPE])
-        elif self.base_type is None:
-            if self.is_simple():
-                return cast('XsdSimpleType', self)
-            return cast('XsdComplexType', self.maps.types[XSD_ANY_TYPE])
-
-        primitive_type: BaseXsdType
-        try:
-            if self.base_type.is_simple():
-                primitive_type = self.base_type.primitive_type  # type: ignore[union-attr]
-            else:
-                primitive_type = self.base_type.content.primitive_type  # type: ignore[union-attr]
-        except AttributeError:
-            # The type has complex or XsdList content
-            return self.base_type.root_type
-        else:
-            return primitive_type
+        raise NotImplementedError()
 
     @property
     def simple_type(self) -> Optional['XsdSimpleType']:
