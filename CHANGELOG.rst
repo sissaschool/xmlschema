@@ -2,6 +2,11 @@
 CHANGELOG
 *********
 
+`v3.2.0`_ (2024-03-25)
+======================
+* Add *download_schemas()* to package API (#387)
+* Fix issue with facets on list types (#396)
+
 `v3.1.0`_ (2024-03-13)
 ======================
 * Add GData converter (issue #388/PR #391)
@@ -679,3 +684,4 @@ v0.9.6 (2017-05-05)
 .. _v3.0.1: https://github.com/brunato/xmlschema/compare/v3.0.0...v3.0.1
 .. _v3.0.2: https://github.com/brunato/xmlschema/compare/v3.0.1...v3.0.2
 .. _v3.1.0: https://github.com/brunato/xmlschema/compare/v3.0.2...v3.1.0
+.. _v3.2.0: https://github.com/brunato/xmlschema/compare/v3.1.0...v3.2.0

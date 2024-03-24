@@ -131,6 +131,9 @@ Sometimes, it is advantageous to validate XML files using an XSD schema located
 at a remote location while also having the option to store the same schema
 locally for offline use.
 
+The first option is to build a schema and then export the XSD sources to a local
+directory:
+
 .. code-block:: py
 
     import xmlschema
@@ -156,6 +159,17 @@ becomes
 .. code-block:: xml
 
     <xsd:import namespace="http://www.w3.org/1999/xhtml" schemaLocation="my_schemas/www.omg.org/spec/ReqIF/20110402/driver.xsd"/>
+
+The alternative option is to download the XSD resources directly:
+
+.. code-block:: py
+
+    from xmlschema import download_schemas
+    download_schemas("https://www.omg.org/spec/ReqIF/20110401/reqif.xsd", target='my_schemas')
+
+For default the original XSD schemas are not changed and a location map is returned. This map
+is also written to a LOCATION_MAP dictionary in the target directory as the module `__init__.py`,
+so can be used after as *uri_mapper* argument for building the schema instance.
 
 .. note::
 

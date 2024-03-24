@@ -14,8 +14,8 @@ import re
 import math
 import operator
 from abc import abstractmethod
-from typing import TYPE_CHECKING, cast, Any, List, Optional, Pattern, Union, \
-    MutableSequence, overload, Tuple, Type, Dict
+from typing import TYPE_CHECKING, cast, overload, Any, Dict, List, \
+    MutableSequence, Optional, Pattern, Union, Tuple, Type
 from xml.etree.ElementTree import Element
 
 from elementpath import XPathContext, ElementPathError, \
@@ -54,6 +54,7 @@ class XsdFacet(XsdComponent):
                  parent: Union['XsdList', 'XsdAtomicRestriction'],
                  base_type: Optional[BaseXsdType]) -> None:
         self.base_type = base_type
+        self._validator = self._skip_validation
         super(XsdFacet, self).__init__(elem, schema, parent)
 
     def __repr__(self) -> str:
@@ -66,8 +67,7 @@ class XsdFacet(XsdComponent):
             reason = _("invalid type {!r} provided").format(type(value))
             raise XMLSchemaValidationError(self, value, reason) from None
 
-    @staticmethod
-    def _validator(_: Any) -> None:
+    def _skip_validation(self, value: Any) -> None:
         return
 
     def _parse(self) -> None:
@@ -102,16 +102,16 @@ class XsdFacet(XsdComponent):
         """
         base_type: Optional[BaseXsdType] = self.base_type
         tag = self.elem.tag
-        while True:
-            if base_type is None:
-                return None
+        while base_type is not None:
             try:
                 base_facet = base_type.facets[tag]  # type: ignore[union-attr]
             except (AttributeError, KeyError):
                 base_type = base_type.base_type
             else:
-                assert isinstance(base_facet, self.__class__)
+                assert isinstance(base_facet, XsdFacet)
                 return base_facet
+        else:
+            return None
 
 
 class XsdWhiteSpaceFacet(XsdFacet):
@@ -132,11 +132,11 @@ class XsdWhiteSpaceFacet(XsdFacet):
     def _parse_value(self, elem: ElementType) -> None:
         self.value = elem.attrib['value']
         if self.value == 'collapse':
-            self._validator = self.collapse_white_space_validator  # type: ignore[assignment]
+            self._validator = self.collapse_white_space_validator
         elif self.value == 'replace':
             if self.base_value == 'collapse':
                 self.parse_error(_("facet value can be only 'collapse'"))
-            self._validator = self.replace_white_space_validator  # type: ignore[assignment]
+            self._validator = self.replace_white_space_validator
         elif self.base_value == 'collapse':
             self.parse_error(_("facet value can be only 'collapse'"))
         elif self.base_value == 'replace':
@@ -181,9 +181,9 @@ class XsdLengthFacet(XsdFacet):
         primitive_type = getattr(self.base_type, 'primitive_type', None)
         if primitive_type is None or primitive_type.name not in {XSD_QNAME, XSD_NOTATION_TYPE}:
             # See: https://www.w3.org/Bugs/Public/show_bug.cgi?id=4009
-            self._validator = self._length_validator  # type: ignore[assignment]
+            self._validator = self.length_validator
 
-    def _length_validator(self, value: Any) -> None:
+    def length_validator(self, value: Any) -> None:
         if len(value) != self.value:
             reason = _("length has to be {!r}").format(self.value)
             raise XMLSchemaValidationError(self, value, reason)
@@ -215,9 +215,9 @@ class XsdMinLengthFacet(XsdFacet):
         primitive_type = getattr(self.base_type, 'primitive_type', None)
         if primitive_type is None or primitive_type.name not in {XSD_QNAME, XSD_NOTATION_TYPE}:
             # See: https://www.w3.org/Bugs/Public/show_bug.cgi?id=4009
-            self._validator = self._min_length_validator  # type: ignore[assignment]
+            self._validator = self.min_length_validator
 
-    def _min_length_validator(self, value: Any) -> None:
+    def min_length_validator(self, value: Any) -> None:
         if len(value) < self.value:
             reason = _("value length cannot be lesser than {!r}").format(self.value)
             raise XMLSchemaValidationError(self, value, reason)
@@ -249,9 +249,9 @@ class XsdMaxLengthFacet(XsdFacet):
         primitive_type = getattr(self.base_type, 'primitive_type', None)
         if primitive_type is None or primitive_type.name not in {XSD_QNAME, XSD_NOTATION_TYPE}:
             # See: https://www.w3.org/Bugs/Public/show_bug.cgi?id=4009
-            self._validator = self._max_length_validator  # type: ignore[assignment]
+            self._validator = self.max_length_validator
 
-    def _max_length_validator(self, value: Any) -> None:
+    def max_length_validator(self, value: Any) -> None:
         if len(value) > self.value:
             reason = _("value length cannot be greater than {!r}").format(self.value)
             raise XMLSchemaValidationError(self, value, reason)
@@ -509,9 +509,9 @@ class XsdExplicitTimezoneFacet(XsdFacet):
     def _parse_value(self, elem: ElementType) -> None:
         self.value = elem.attrib['value']
         if self.value == 'prohibited':
-            self._validator = self._prohibited_timezone_validator  # type: ignore[assignment]
+            self._validator = self.prohibited_timezone_validator
         elif self.value == 'required':
-            self._validator = self._required_timezone_validator  # type: ignore[assignment]
+            self._validator = self.required_timezone_validator
         elif self.value != 'optional':
             self.value = 'optional'  # Error already detected by meta-schema validation
 
@@ -520,12 +520,12 @@ class XsdExplicitTimezoneFacet(XsdFacet):
             msg = _("invalid restriction from {!r}")
             self.parse_error(msg.format(facet.value))
 
-    def _required_timezone_validator(self, value: Any) -> None:
+    def required_timezone_validator(self, value: Any) -> None:
         if value.tzinfo is None:
             reason = _("time zone required for value {!r}").format(self.value)
             raise XMLSchemaValidationError(self, value, reason)
 
-    def _prohibited_timezone_validator(self, value: Any) -> None:
+    def prohibited_timezone_validator(self, value: Any) -> None:
         if value.tzinfo is not None:
             reason = _("time zone prohibited for value {!r}").format(self.value)
             raise XMLSchemaValidationError(self, value, reason)

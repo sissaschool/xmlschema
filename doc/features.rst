@@ -10,7 +10,7 @@ alternative classes or module parameters.
 XSD 1.0 and 1.1 support
 =======================
 
-From release v1.0.14 XSD 1.1 support has been added to the library through the class
+Since release v1.0.14 XSD 1.1 support has been added to the library through the class
 :class:`xmlschema.XMLSchema11`. You have to use this class for XSD 1.1 schemas instead the default
 class :class:`xmlschema.XMLSchema`, that is linked to XSD 1.0 validator :class:`xmlschema.XMLSchema10`.
 
