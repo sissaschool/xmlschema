@@ -796,7 +796,7 @@ class XsdList(XsdSimpleType):
           Content: (annotation?, simpleType?)
         </list>
     """
-    base_type: XsdSimpleType
+    item_type: XsdSimpleType
     _ADMITTED_TAGS = {XSD_LIST}
     _white_space_elem = ElementTree.Element(
         XSD_WHITE_SPACE, attrib={'value': 'collapse', 'fixed': 'true'}
@@ -813,7 +813,7 @@ class XsdList(XsdSimpleType):
 
     def __repr__(self) -> str:
         if self.name is None:
-            return '%s(item_type=%r)' % (self.__class__.__name__, self.base_type)
+            return '%s(item_type=%r)' % (self.__class__.__name__, self.item_type)
         else:
             return '%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
 
@@ -827,26 +827,26 @@ class XsdList(XsdSimpleType):
             raise XMLSchemaValueError(
                 "a {0!r} definition required for {1!r}".format(XSD_LIST, self)
             )
-        elif name == 'base_type':
+        elif name == 'item_type':
             if not value.is_atomic():
                 raise XMLSchemaValueError(
-                    _("%r: a list must be based on atomic data types") % self
+                    _("%r: a list must be based on atomic data types") % value
                 )
         elif name == 'white_space' and value is None:
             value = 'collapse'
         super(XsdList, self).__setattr__(name, value)
 
     def _parse(self) -> None:
-        base_type: Any
+        item_type: Any
 
         child = self._parse_child_component(self.elem)
         if child is not None:
             # Case of a local simpleType declaration inside the list tag
             try:
-                base_type = self.schema.simple_type_factory(child, parent=self)
+                item_type = self.schema.simple_type_factory(child, parent=self)
             except XMLSchemaParseError as err:
                 self.parse_error(err)
-                base_type = self.any_atomic_type
+                item_type = self.any_atomic_type
 
             if 'itemType' in self.elem.attrib:
                 self.parse_error(_("ambiguous list type declaration"))
@@ -860,35 +860,35 @@ class XsdList(XsdSimpleType):
                     self.parse_error(_("missing list type declaration"))
                 else:
                     self.parse_error(err)
-                base_type = self.any_atomic_type
+                item_type = self.any_atomic_type
             else:
                 try:
-                    base_type = self.maps.lookup_type(item_qname)
+                    item_type = self.maps.lookup_type(item_qname)
                 except KeyError:
                     msg = _("unknown type {!r}")
                     self.parse_error(msg.format(self.elem.attrib['itemType']))
-                    base_type = self.any_atomic_type
+                    item_type = self.any_atomic_type
                 else:
-                    if isinstance(base_type, tuple):
+                    if isinstance(item_type, tuple):
                         msg = _("circular definition found for type {!r}")
                         self.parse_error(msg.format(item_qname))
-                        base_type = self.any_atomic_type
+                        item_type = self.any_atomic_type
 
-        if base_type.final == '#all' or 'list' in base_type.final:
+        if item_type.final == '#all' or 'list' in item_type.final:
             msg = _("'final' value of the itemType %r forbids derivation by list")
-            self.parse_error(msg % base_type)
+            self.parse_error(msg % item_type)
 
-        if base_type.name == XSD_ANY_ATOMIC_TYPE:
+        if item_type.name == XSD_ANY_ATOMIC_TYPE:
             msg = _("cannot use xs:anyAtomicType as base type of a user-defined type")
             self.parse_error(msg)
 
         try:
-            self.base_type = base_type
+            self.item_type = item_type
         except XMLSchemaValueError as err:
             self.parse_error(err)
-            self.base_type = self.any_atomic_type
+            self.item_type = self.any_atomic_type
         else:
-            if not base_type.allow_empty and self.min_length != 0:
+            if not item_type.allow_empty and self.min_length != 0:
                 self.allow_empty = False
 
     @property
@@ -900,8 +900,8 @@ class XsdList(XsdSimpleType):
         return XSD_10_LIST_FACETS if self.xsd_version == '1.0' else XSD_11_LIST_FACETS
 
     @property
-    def item_type(self) -> BaseXsdType:
-        return self.base_type
+    def root_type(self) -> BaseXsdType:
+        return self.item_type.root_type
 
     def is_atomic(self) -> bool:
         return False
@@ -920,7 +920,7 @@ class XsdList(XsdSimpleType):
             return False
         elif other.name in self._special_types:
             return derivation != 'extension'
-        elif self.base_type is other:
+        elif self.item_type is other:
             return True
         else:
             return False
@@ -929,8 +929,8 @@ class XsdList(XsdSimpleType):
             -> Iterator[XsdComponent]:
         if xsd_classes is None or isinstance(self, xsd_classes):
             yield self
-        if self.base_type.parent is not None:
-            yield from self.base_type.iter_components(xsd_classes)
+        if self.item_type.parent is not None:
+            yield from self.item_type.iter_components(xsd_classes)
 
     def iter_decode(self, obj: Union[str, bytes],
                     validation: str = 'lax', **kwargs: Any) \
@@ -938,7 +938,7 @@ class XsdList(XsdSimpleType):
                               List[Optional[AtomicValueType]]]]:
         items = []
         for chunk in self.normalize(obj).split():
-            for result in self.base_type.iter_decode(chunk, validation, **kwargs):
+            for result in self.item_type.iter_decode(chunk, validation, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
                     yield result
                 else:
@@ -954,7 +954,7 @@ class XsdList(XsdSimpleType):
 
         encoded_items: List[Any] = []
         for item in obj:
-            for result in self.base_type.iter_encode(item, validation, **kwargs):
+            for result in self.item_type.iter_encode(item, validation, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
                     yield result
                 else:

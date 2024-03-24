@@ -605,6 +605,10 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
     def is_list(self) -> bool:
         return isinstance(self.content, XsdSimpleType) and self.content.is_list()
 
+    def is_dynamic_consistent(self, other: Any) -> bool:
+        return other.name == XSD_ANY_TYPE or self.is_derived(other) or \
+            isinstance(other, XsdUnion) and any(self.is_derived(mt) for mt in other.member_types)
+
     def validate(self, obj: Union[ElementType, str, bytes],
                  use_defaults: bool = True,
                  namespaces: Optional[NamespacesType] = None,

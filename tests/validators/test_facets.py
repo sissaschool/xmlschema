@@ -1143,6 +1143,42 @@ class TestXsdFacets(unittest.TestCase):
 
         self.assertIn("'maxLength' facet value is fixed to 30", str(ec.exception))
 
+    def test_restriction_on_list__issue_396(self):
+        schema = self.schema_class(dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+              <xs:element name="list_of_strings">
+                <xs:simpleType>
+                  <xs:restriction>
+                    <xs:simpleType>
+                      <xs:list>
+                        <xs:simpleType>
+                          <xs:restriction base="xs:string">
+                            <xs:minLength value="5"/>
+                            <xs:maxLength value="6"/>
+                          </xs:restriction>
+                        </xs:simpleType>
+                      </xs:list>
+                    </xs:simpleType>
+                    <xs:minLength value="1"/>
+                    <xs:maxLength value="6"/>
+                  </xs:restriction>
+                </xs:simpleType>
+              </xs:element>
+            </xs:schema>"""))
+
+        self.assertTrue(schema.is_valid('<list_of_strings>abcde</list_of_strings>'))
+        self.assertTrue(schema.is_valid('<list_of_strings>abcdef</list_of_strings>'))
+        self.assertFalse(schema.is_valid('<list_of_strings>abcd</list_of_strings>'))
+        self.assertFalse(schema.is_valid('<list_of_strings>abcdefg</list_of_strings>'))
+        self.assertFalse(schema.is_valid('<list_of_strings>     </list_of_strings>'))
+
+        self.assertTrue(schema.is_valid('<list_of_strings>abcde abcde abcde '
+                                        'abcde abcde abcde</list_of_strings>'))
+        self.assertFalse(schema.is_valid('<list_of_strings>abcde abcde abcde '
+                                         'abcde abcd abcde</list_of_strings>'))
+        self.assertFalse(schema.is_valid('<list_of_strings>abcde abcde abcde '
+                                         'abcde abcde abcde abcde</list_of_strings>'))
+
 
 class TestXsd11Identities(TestXsdFacets):
 
