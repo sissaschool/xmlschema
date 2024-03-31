@@ -570,6 +570,64 @@ class TestValidation11(TestValidation):
         self.assertEqual(err.invalid_child, err.elem[err.index])
         self.assertEqual(err.invalid_tag, 'optionalSecondChildTag')
 
+    def test_invalid_default_open_content__issue_397(self):
+        schema = self.schema_class('''\
+        <xs:schema elementFormDefault="qualified" attributeFormDefault="unqualified"
+            vc:minVersion="1.1"
+            xmlns:xs="http://www.w3.org/2001/XMLSchema"
+            xmlns:vc="http://www.w3.org/2007/XMLSchema-versioning" xmlns="urn:us:mil:nga:ntb:soddxa"
+            targetNamespace="urn:us:mil:nga:ntb:soddxa">
+            <xs:defaultOpenContent mode="interleave">
+                <xs:any />
+            </xs:defaultOpenContent>
+            <xs:complexType name="SecurityDataType">
+                <xs:sequence>
+                    <xs:element name="smRestrictedCollection" type="xs:boolean" minOccurs="0" />
+                    <xs:element name="accmClassification" type="xs:string" minOccurs="0" />
+                </xs:sequence>
+            </xs:complexType>
+
+            <xs:element name="spaceObjectDescriptionData">
+                <xs:complexType>
+                    <xs:sequence>
+                        <xs:element name="securityData" type="SecurityDataType" />
+                    </xs:sequence>
+                </xs:complexType>
+            </xs:element>
+        </xs:schema>''')
+
+        self.assertTrue(schema.is_valid('''\
+            <spaceObjectDescriptionData xmlns="urn:us:mil:nga:ntb:soddxa">
+                <securityData>
+                    <smRestrictedCollection>false</smRestrictedCollection>
+                    <accmClassification>text</accmClassification>
+                </securityData>
+            </spaceObjectDescriptionData>'''))
+
+        self.assertTrue(schema.is_valid('''
+            <spaceObjectDescriptionData xmlns="urn:us:mil:nga:ntb:soddxa">
+                <securityData>
+                    <accmClassification>text</accmClassification>
+                </securityData>
+            </spaceObjectDescriptionData>
+        '''))
+
+    def test_all_model_with_emptiable_particles(self):
+        schema = self.schema_class('''
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+            <xs:element name="doc">
+              <xs:complexType>
+                <xs:all>
+                  <xs:element name="a" maxOccurs="2"/>
+                  <xs:element name="b" minOccurs="0"/>
+                  <xs:element name="c" minOccurs="0"/>
+                </xs:all>
+              </xs:complexType>
+            </xs:element>
+        </xs:schema>
+        ''')
+        self.assertFalse(schema.is_valid('<doc>\n<c/>\n<b/>\n</doc>'))
+
 
 if __name__ == '__main__':
     import platform

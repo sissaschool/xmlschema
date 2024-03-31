@@ -7,6 +7,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+import copy
 from typing import cast, Any, Callable, Iterator, List, Optional, Tuple, Union
 
 from elementpath.datatypes import AnyAtomicType
@@ -852,8 +853,16 @@ class Xsd11ComplexType(XsdComplexType):
                     msg = _("openContent mismatch between type and model group")
                     self.parse_error(msg)
             elif self.open_content.mode == 'interleave':
-                self.content.interleave = self.content.suffix \
-                    = self.open_content.any_element
+                interleave = self.schema.create_empty_content_group(
+                    parent=self, model='all'
+                )
+                interleave.append(self.content)
+                wildcard = copy.copy(self.open_content.any_element)
+                wildcard.min_occurs = 0
+                wildcard.max_occurs = None
+                wildcard.parent = self.content.interleave
+                interleave.append(wildcard)
+                self.content.interleave = interleave
             elif self.open_content.mode == 'suffix':
                 self.content.suffix = self.open_content.any_element
 

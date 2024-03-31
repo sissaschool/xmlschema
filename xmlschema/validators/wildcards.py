@@ -495,7 +495,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
                 return
 
         namespace = get_namespace(obj.tag)
-        if not self.maps.load_namespace(namespace):
+        if namespace not in self.maps.namespaces and not self.maps.load_namespace(namespace):
             reason = f"unavailable namespace {namespace!r}"
         else:
             try:
