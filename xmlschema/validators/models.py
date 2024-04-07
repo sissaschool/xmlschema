@@ -11,12 +11,14 @@
 This module contains a function and a class for validating XSD content models,
 plus a set of functions for manipulating encoded content.
 """
-from collections import defaultdict, deque
-from typing import Any, Counter, Dict, Iterable, Iterator, List, \
+from collections import defaultdict, deque, Counter
+from operator import attrgetter
+from typing import Any, Dict, Iterable, Iterator, List, \
     MutableMapping, MutableSequence, Optional, Tuple, Union
 
 from ..exceptions import XMLSchemaValueError
-from ..aliases import ModelGroupType, ModelParticleType, SchemaElementType
+from ..aliases import ModelGroupType, ModelParticleType, SchemaElementType, \
+    OccursCounterType
 from ..translation import gettext as _
 from .. import limits
 from .exceptions import XMLSchemaModelError, XMLSchemaModelDepthError
@@ -26,6 +28,8 @@ from . import groups
 AdvanceYieldedType = Tuple[ModelParticleType, int, List[SchemaElementType]]
 ContentItemType = Tuple[Union[int, str], Any]
 EncodedContentType = Union[MutableMapping[Union[int, str], Any], Iterable[ContentItemType]]
+
+get_occurs = attrgetter('min_occurs', 'max_occurs')
 
 
 def distinguishable_paths(path1: List[ModelParticleType], path2: List[ModelParticleType]) -> bool:
@@ -184,13 +188,14 @@ class ModelVisitor:
     """
     _groups: List[Tuple[ModelGroupType, Iterator[ModelParticleType], bool]]
     element: Optional[SchemaElementType]
+    occurs: OccursCounterType
 
     __slots__ = '_groups', 'root', 'occurs', 'element', 'group', 'items', 'match'
 
     def __init__(self, root: ModelGroupType) -> None:
         self._groups = []
         self.root = root
-        self.occurs = Counter[Union[ModelParticleType, Tuple[ModelParticleType]]]()
+        self.occurs = Counter()
         self.element = None
         self.group = root
         self.items = self.iter_group()
@@ -226,26 +231,8 @@ class ModelVisitor:
 
     @property
     def expected(self) -> List[SchemaElementType]:
-        """
-        Returns the expected elements of the current and descendant groups.
-        """
-        expected: List[SchemaElementType] = []
-        items: Union[ModelGroupType, Iterator[ModelParticleType]]
-
-        if self.group.model == 'choice':
-            items = self.group
-        elif self.group.model == 'all':
-            items = (e for e in self.group if e.min_occurs > self.occurs[e])
-        else:
-            items = (e for e in self.group if e.min_occurs > self.occurs[e])
-
-        for e in items:
-            if isinstance(e, groups.XsdGroup):
-                expected.extend(e.iter_elements())
-            else:
-                expected.append(e)
-                expected.extend(e.maps.substitution_groups.get(e.name or '', ()))
-        return expected
+        """Returns the expected elements of the current and descendant groups."""
+        return self.group.get_expected(self.occurs)
 
     def restart(self) -> None:
         self.clear()
@@ -263,7 +250,7 @@ class ModelVisitor:
         elif self.group.model != 'all':
             return iter(self.group)
         else:
-            return (e for e in self.group.iter_elements() if not e.is_over(self.occurs[e]))
+            return (e for e in self.group.iter_elements() if not e.is_over(self.occurs))
 
     def advance(self, match: bool = False) -> Iterator[AdvanceYieldedType]:
         """
@@ -272,97 +259,115 @@ class ModelVisitor:
 
         :param match: provides current element match.
         """
-        def stop_item(item: ModelParticleType) -> bool:
+        item: ModelParticleType
+        item_occurs: int
+
+        def stop_item() -> bool:
             """
             Stops element or group matching, incrementing current group counter.
 
             :return: `True` if the item has violated the minimum occurrences for itself \
             or for the current group, `False` otherwise.
             """
+            nonlocal item
+            nonlocal item_occurs
+
+            item_occurs = occurs[item]
             if isinstance(item, groups.XsdGroup):
                 self.group, self.items, self.match = self._groups.pop()
 
             if self.group.model == 'choice':
-                item_occurs = occurs[item]
                 if not item_occurs:
                     return False
-                item_max_occurs = occurs[(item,)] or item_occurs
 
-                if item.max_occurs is None:
-                    min_group_occurs = 1
-                elif item_occurs % item.max_occurs:
-                    min_group_occurs = 1 + item_occurs // item.max_occurs
+                high_occurs = occurs[item.oid] or item_occurs
+                min_occurs, max_occurs = get_occurs(item)
+
+                if max_occurs is None:
+                    occurs[self.group] += 1
+                elif item_occurs % max_occurs:
+                    occurs[self.group] += 1 + item_occurs // max_occurs
                 else:
-                    min_group_occurs = item_occurs // item.max_occurs
+                    occurs[self.group] += item_occurs // max_occurs
 
-                max_group_occurs = max(1, item_max_occurs // (item.min_occurs or 1))
+                occurs[self.group.oid] += (high_occurs // (min_occurs or 1)) or 1
 
-                occurs[self.group] += min_group_occurs
-                occurs[(self.group,)] += max_group_occurs
-                occurs[item] = 0
-
+                occurs[item] = occurs[item.oid] = 0
                 self.items = self.iter_group()
                 self.match = False
-                return item.is_missing(item_max_occurs)
+                return min_occurs > high_occurs  # type: ignore[no-any-return]
 
             elif self.group.model == 'all':
-                return False
+                return False  # 'all' models can only be checked at the end
             elif self.match:
                 pass
-            elif occurs[item]:
+            elif item_occurs:
                 self.match = True
             elif item.is_emptiable():
                 return False
             elif self._groups:
-                return stop_item(self.group)
-            elif self.group.min_occurs <= max(occurs[self.group], occurs[(self.group,)]):
-                return stop_item(self.group)
-            else:
+                item = self.group
+                return stop_item()
+            elif self.group.is_missing(occurs):
                 return True
+            else:
+                item = self.group
+                return stop_item()
 
             if item is self.group[-1]:
                 for k, item2 in enumerate(self.group, start=1):  # pragma: no cover
-                    item_occurs = occurs[item2]
-                    if not item_occurs:
+                    low_occurs = occurs[item2]
+                    if not low_occurs:
                         continue
 
-                    item_max_occurs = occurs[(item2,)] or item_occurs
-                    if item_max_occurs == 1 or any(not x.is_emptiable() for x in self.group[k:]):
+                    high_occurs = occurs[item2.oid] or low_occurs
+                    if high_occurs == 1 or any(not x.is_emptiable() for x in self.group[k:]):
                         occurs[self.group] += 1
+                        occurs[self.group.oid] += 1
                         break
 
-                    min_group_occurs = max(1, item_occurs // (item2.max_occurs or item_occurs))
-                    max_group_occurs = max(1, item_max_occurs // (item2.min_occurs or 1))
-
-                    occurs[self.group] += min_group_occurs
-                    occurs[(self.group,)] += max_group_occurs
+                    occurs[self.group] += (low_occurs // (item2.max_occurs or low_occurs)) or 1
+                    occurs[self.group.oid] += (high_occurs // (item2.min_occurs or 1)) or 1
                     break
 
-            return item.is_missing(max(occurs[item], occurs[(item,)]))
+            return item.is_missing(occurs)
 
-        occurs = self.occurs
+        def model_error_tuple() -> AdvanceYieldedType:
+            if occurs[item]:
+                expected = item.get_expected(occurs)
+            else:
+                occurs[item] = item_occurs
+                expected = item.get_expected(occurs)
+                occurs[item] = 0
+
+            return item, item_occurs, expected
+
         if self.element is None:
             raise XMLSchemaValueError("cannot advance, %r is ended!" % self)
 
+        item = self.element
+        occurs = self.occurs
+        item_occurs = occurs[item]
+
         if match:
-            occurs[self.element] += 1
+            occurs[item] += 1
             self.match = True
             if self.group.model == 'all':
-                self.items = (e for e in self.group.iter_elements() if not e.is_over(occurs[e]))
-            elif not self.element.is_over(occurs[self.element]):
+                self.items = (e for e in self.group.iter_elements() if not e.is_over(occurs))
+            elif not item.is_over(occurs):
                 return
-            elif self.group.model == 'choice' and self.element.is_ambiguous():
+            elif self.group.model == 'choice' and item.is_ambiguous():
                 return
 
         obj = None
         try:
-            element_occurs = occurs[self.element]
-            if stop_item(self.element):
-                yield self.element, element_occurs, [self.element]
+            if stop_item():
+                yield model_error_tuple()
 
             while True:
-                while self.group.is_over(max(occurs[self.group], occurs[(self.group,)])):
-                    stop_item(self.group)
+                while self.group.is_over(occurs):
+                    item = self.group
+                    stop_item()
 
                 obj = next(self.items, None)
                 if isinstance(obj, groups.XsdGroup):
@@ -371,7 +376,7 @@ class ModelVisitor:
                     self.group = obj
                     self.items = self.iter_group()
                     self.match = False
-                    occurs[obj] = occurs[(obj,)] = 0
+                    occurs[obj] = occurs[obj.oid] = 0
 
                 elif obj is not None:
                     # XsdElement or XsdAnyElement
@@ -385,9 +390,9 @@ class ModelVisitor:
                         if all(e.min_occurs <= occurs[e] for e in self.group.iter_elements()):
                             occurs[self.group] = 1
 
-                    group, expected = self.group, self.expected
-                    if stop_item(group) and expected:
-                        yield group, occurs[group], expected
+                    item = self.group
+                    if stop_item():
+                        yield model_error_tuple()
 
                 elif self.group.model != 'all':
                     self.items, self.match = self.iter_group(), False
@@ -395,7 +400,7 @@ class ModelVisitor:
                     if not self.group.min_occurs:
                         yield self.group, occurs[self.group], self.expected
                     self.group, self.items, self.match = self._groups.pop()
-                elif any(not e.is_over(occurs[e]) for e in self.group):
+                elif any(not e.is_over(occurs) for e in self.group):
                     self.items = self.iter_group()
                     self.match = False
                 else:
@@ -404,7 +409,7 @@ class ModelVisitor:
         except IndexError:
             # Model visit ended
             self.element = None
-            if self.group.is_missing(max(occurs[self.group], occurs[(self.group,)])):
+            if self.group.is_missing(occurs):
                 if self.group.model == 'choice':
                     yield self.group, occurs[self.group], self.expected
                 elif self.group.model == 'sequence':

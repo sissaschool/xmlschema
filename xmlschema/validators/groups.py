@@ -22,7 +22,8 @@ from ..exceptions import XMLSchemaValueError
 from ..names import XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ELEMENT, \
     XSD_ANY, XSI_TYPE, XSD_ANY_TYPE, XSD_ANNOTATION
 from ..aliases import ElementType, NamespacesType, SchemaType, IterDecodeType, \
-    IterEncodeType, ModelParticleType, SchemaElementType, ComponentClassType
+    IterEncodeType, ModelParticleType, SchemaElementType, ComponentClassType, \
+    OccursCounterType
 from ..translation import gettext as _
 from ..helpers import get_qname, local_name, raw_xml_encode
 from ..converters import ElementData
@@ -108,6 +109,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                  parent: Optional[Union['XsdComplexType', 'XsdGroup']] = None) -> None:
 
         self._group: List[ModelParticleType] = []
+        self.oid = (self,)
         if parent is not None and parent.mixed:
             self.mixed = parent.mixed
         super(XsdGroup, self).__init__(elem, schema, parent)
@@ -410,6 +412,41 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                 max_occurs *= group.max_occurs
 
         return max_occurs
+
+    def is_missing(self, occurs: Union[OccursCounterType, int]) -> bool:
+        try:
+            value = occurs[self.oid] or occurs[self]  # type: ignore[index]
+        except TypeError:
+            value = occurs
+
+        return not self.is_emptiable() if value == 0 else self.min_occurs > value
+
+    def get_expected(self, occurs: OccursCounterType) -> List[SchemaElementType]:
+        """
+        Returns the expected elements of the current and descendant groups
+        given a counter of occurrences. Returns an empty list if the group
+        reached the maximum number of occurrences.
+        """
+        expected: List[SchemaElementType] = []
+        items: Union['XsdGroup', Iterator[ModelParticleType]]
+
+        if self.is_over(occurs):
+            return expected
+        elif self.model == 'choice':
+            items = self
+        else:
+            items = (p for p in self._group if p.min_occurs > occurs[p])
+
+        for p in items:
+            if isinstance(p, XsdGroup):
+                expected.extend(
+                    e for e in p.iter_elements() if e.min_occurs > occurs[e]
+                )
+            else:
+                expected.append(p)
+                if p.name in p.maps.substitution_groups:
+                    expected.extend(p.maps.substitution_groups[p.name])
+        return expected
 
     def copy(self) -> 'XsdGroup':
         group: XsdGroup = object.__new__(self.__class__)

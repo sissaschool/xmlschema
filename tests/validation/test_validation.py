@@ -626,7 +626,53 @@ class TestValidation11(TestValidation):
             </xs:element>
         </xs:schema>
         ''')
-        self.assertFalse(schema.is_valid('<doc>\n<c/>\n<b/>\n</doc>'))
+
+        with self.assertRaises(XMLSchemaValidationError) as ec:
+            schema.validate('<doc>\n<c/>\n<b/>\n</doc>')
+
+        self.assertEqual(
+            ec.exception.reason,
+            "The content of element 'doc' is not complete. Tag 'a' expected."
+        )
+
+    def test_nested_all_groups_and_wildcard(self):
+        schema = self.schema_class('''
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+        <xs:group name="group1">
+          <xs:all>
+            <xs:element name="a" maxOccurs="2"/>
+            <xs:element name="b" minOccurs="0"/>
+            <xs:element name="c" minOccurs="0"/>
+          </xs:all>
+        </xs:group>
+
+        <xs:element name="doc">
+          <xs:complexType>
+            <xs:all>
+              <xs:group ref="group1"/>
+              <xs:any namespace="http://open.com/" processContents="lax"
+                  minOccurs="0" maxOccurs="unbounded"/>
+            </xs:all>
+              </xs:complexType>
+            </xs:element>
+
+            </xs:schema>''')
+
+        with self.assertRaises(XMLSchemaValidationError) as ec:
+            schema.validate('''
+                <doc>
+                  <c/>
+                  <b/>
+                  <extra xmlns="http://open.com/">42</extra>
+                  <extra xmlns="http://open.com/">97</extra>
+                </doc>
+                ''')
+
+        self.assertEqual(
+            ec.exception.reason,
+            "The content of element 'doc' is not complete. Tag 'a' expected."
+        )
 
 
 if __name__ == '__main__':

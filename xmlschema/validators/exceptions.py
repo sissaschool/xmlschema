@@ -388,11 +388,11 @@ class XMLSchemaChildrenValidationError(XMLSchemaValidationError):
             tag = get_prefixed_qname(self.invalid_tag, validator.namespaces, use_empty=False)
             reason = _("Unexpected child with tag %r at position %d.") % (tag, index + 1)
 
-        if occurs and particle.is_missing(occurs):
+        if occurs and particle.min_occurs > occurs:
             reason += " The particle %r occurs %d times but the minimum is %d." % (
                 particle, occurs, particle.min_occurs
             )
-        elif particle.is_over(occurs):
+        elif particle.max_occurs is not None and particle.max_occurs < occurs:
             reason += " The particle %r occurs %r times but the maximum is %r." % (
                 particle, occurs, particle.max_occurs
             )

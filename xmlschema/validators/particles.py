@@ -7,10 +7,11 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from typing import Any, Optional, Tuple, Union
+from typing import cast, Any, List, Optional, Tuple, Union
 
 from ..exceptions import XMLSchemaValueError
-from ..aliases import ElementType, ModelParticleType
+from ..aliases import ElementType, ModelGroupType, ModelParticleType, \
+    OccursCounterType, SchemaElementType
 from ..translation import gettext as _
 
 
@@ -24,12 +25,16 @@ class ParticleMixin:
     :ivar min_occurs: the minOccurs property of the XSD particle. Defaults to 1.
     :ivar max_occurs: the maxOccurs property of the XSD particle. Defaults to 1, \
     a `None` value means 'unbounded'.
+    :cvar oid: an optional secondary unique identifier for tracking occurs. Is \
+    set to a unique tuple for XsdGroup instances for tracking higher occurrence \
+    in choice and choice-compatible models.
     """
     name: Any
     maps: Any
 
     min_occurs: int = 1
     max_occurs: Optional[int] = 1
+    oid: Optional[Tuple[ModelGroupType]] = None
 
     def __init__(self, min_occurs: int = 1, max_occurs: Optional[int] = 1) -> None:
         self.min_occurs = min_occurs
@@ -93,13 +98,25 @@ class ParticleMixin:
         """Tests if min_occurs == max_occurs."""
         return self.min_occurs == self.max_occurs
 
-    def is_missing(self, occurs: int) -> bool:
-        """Tests if provided occurrences are under the minimum."""
-        return not self.is_emptiable() if occurs == 0 else self.min_occurs > occurs
+    def is_missing(self, occurs: Union[OccursCounterType, int]) -> bool:
+        """Tests if the particle occurrences are under the minimum."""
+        try:
+            return self.min_occurs > occurs[self]  # type: ignore[index]
+        except TypeError:
+            return self.min_occurs > occurs  # type: ignore[operator]
 
-    def is_over(self, occurs: int) -> bool:
-        """Tests if provided occurrences are over the maximum."""
-        return self.max_occurs is not None and self.max_occurs <= occurs
+    def is_over(self, occurs: Union[OccursCounterType, int]) -> bool:
+        """Tests if particle occurrences are over the maximum."""
+        if self.max_occurs is None:
+            return False
+
+        try:
+            return self.max_occurs <= occurs[self]  # type: ignore[index]
+        except TypeError:
+            return self.max_occurs <= occurs  # type: ignore[operator]
+
+    def get_expected(self, occurs: OccursCounterType) -> List[SchemaElementType]:
+        return [cast(SchemaElementType, self)] if self.min_occurs > occurs[self] else []
 
     def has_occurs_restriction(self, other: Union[ModelParticleType, 'OccursCalculator']) -> bool:
         if self.min_occurs < other.min_occurs:
