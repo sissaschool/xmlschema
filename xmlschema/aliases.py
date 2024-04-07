@@ -27,10 +27,9 @@ __all__ = ['ElementType', 'ElementTreeType', 'XMLSourceType', 'NamespacesType',
            'ElementHookType', 'UriMapperType', 'OccursCounterType']
 
 if TYPE_CHECKING:
-    from collections import Counter
     from decimal import Decimal
     from pathlib import Path
-    from typing import Any, Callable, Dict, List, IO, Iterator, \
+    from typing import Any, Callable, Counter, Dict, List, IO, Iterator, \
         MutableMapping, Tuple, Type, Union
     from xml.etree import ElementTree
 
