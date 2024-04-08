@@ -19,4 +19,6 @@ Support
 
 This software is hosted on GitHub, refer to the
 `xmlschema's project page <https://github.com/brunato/xmlschema>`_
-for source code and for an issue tracker.
+for source code and the issue tracker. For questions, info and announcements refer also to
+`the discussion section of the project page <https://github.com/sissaschool/xmlschema/discussions>`_
+instead of open a new issue.
