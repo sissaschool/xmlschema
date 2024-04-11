@@ -108,7 +108,7 @@ issues/issue_026/issue_026-3.xml --errors=1
 issues/issue_028/issue_028-1.xml
 issues/issue_028/issue_028-2.xml --errors=1
 issues/issue_029/issue_029-1.xml
-issues/issue_029/issue_029-2.xml --errors=2
+issues/issue_029/issue_029-2.xml --errors=1
 issues/issue_029/issue_029-3.xml --errors=1
 issues/issue_035/dates.xsd
 issues/issue_035/dates.xml --errors=1

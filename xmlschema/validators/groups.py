@@ -421,6 +421,23 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
 
         return not self.is_emptiable() if value == 0 else self.min_occurs > value
 
+    def has_missing_elements(self, occurs: OccursCounterType) -> bool:
+        return not all(e.min_occurs <= occurs[e] for e in self.iter_elements())
+
+    def has_not_over_elements(self, occurs: OccursCounterType) -> bool:
+        return any(
+            e.max_occurs is None or e.max_occurs > occurs[self] for e in self.iter_elements()
+        )
+
+    def has_valid_occurrences(self, occurs: OccursCounterType) -> bool:
+        if self.max_occurs is not None and self.max_occurs < occurs[self]:
+            return False
+        elif self.model != 'all':
+            return not self.is_missing(occurs)
+        else:
+            return not self.min_occurs or occurs[self] and \
+                all(e.min_occurs > occurs[e] for e in self)
+
     def get_expected(self, occurs: OccursCounterType) -> List[SchemaElementType]:
         """
         Returns the expected elements of the current and descendant groups
@@ -1068,6 +1085,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
             index = len(obj)
             for particle, occurs, expected in model.stop():
                 errors.append((index, particle, occurs, expected))
+                break
 
         if errors:
             source = kwargs.get('source')
@@ -1199,6 +1217,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         if model.element is not None:
             for particle, occurs, expected in model.stop():
                 errors.append((index - cdata_index + 1, particle, occurs, expected))
+                break
 
         if children:
             if children[-1].tail is None:

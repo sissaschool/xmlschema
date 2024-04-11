@@ -376,12 +376,12 @@ class TestValidatorExceptions(unittest.TestCase):
         xml_source = '<a><b1></b1><b2><c1/><c1/></b2></a>'
         resource = XMLResource(xml_source, lazy=True)
         errors = list(schema.iter_errors(resource))
-        self.assertEqual(len(errors), 4)
+        self.assertEqual(len(errors), 3)
         self.assertIsNone(errors[0].invalid_child)
-        self.assertIsNone(errors[1].invalid_child)
-        self.assertIsNotNone(errors[2].invalid_child)
-        self.assertIsNotNone(errors[3].invalid_child)
-
+        self.assertTrue(is_etree_element(errors[1].invalid_child))
+        self.assertEqual(errors[1].invalid_child.tag, 'c1')
+        self.assertTrue(is_etree_element(errors[2].invalid_child))
+        self.assertEqual(errors[2].invalid_child.tag, 'b2')
 
 if __name__ == '__main__':
     import platform
