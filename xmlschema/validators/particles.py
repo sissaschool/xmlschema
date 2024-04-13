@@ -106,14 +106,22 @@ class ParticleMixin:
             return self.min_occurs > occurs  # type: ignore[operator]
 
     def is_over(self, occurs: Union[OccursCounterType, int]) -> bool:
-        """Tests if particle occurrences are over the maximum."""
+        """Tests if particle occurrences are equal or over the maximum."""
         if self.max_occurs is None:
             return False
-
         try:
             return self.max_occurs <= occurs[self]  # type: ignore[index]
         except TypeError:
             return self.max_occurs <= occurs  # type: ignore[operator]
+
+    def is_exceeded(self, occurs: Union[OccursCounterType, int]) -> bool:
+        """Tests if particle occurrences are over the maximum."""
+        if self.max_occurs is None:
+            return False
+        try:
+            return self.max_occurs < occurs[self]  # type: ignore[index]
+        except TypeError:
+            return self.max_occurs < occurs  # type: ignore[operator]
 
     def get_expected(self, occurs: OccursCounterType) -> List[SchemaElementType]:
         return [cast(SchemaElementType, self)] if self.min_occurs > occurs[self] else []

@@ -543,7 +543,12 @@ class TestModelValidation(XsdValidatorTestCase):
 
         model = ModelVisitor(group)
         self.assertEqual(model.element, group[0][0])
-        self.check_stop(model, [(group[0], 0, [group[0][0]])])
+        print(list(model.stop()))
+        print([(group[0], 0, [group[0][0]]), (group, 0, [group[0][1]])])
+        model = ModelVisitor(group)
+        self.check_stop(
+            model, [(group[0], 0, [group[0][0]]), (group[0], 0, [group[0][1]])]
+        )
 
         group = self.models_schema.types['complexType7_emptiable'].content
 

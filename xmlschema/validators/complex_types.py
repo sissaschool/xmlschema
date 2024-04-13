@@ -7,7 +7,6 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-import copy
 from typing import cast, Any, Callable, Iterator, List, Optional, Tuple, Union
 
 from elementpath.datatypes import AnyAtomicType
@@ -849,22 +848,11 @@ class Xsd11ComplexType(XsdComplexType):
         # Add open content to a complex content type
         if isinstance(self.content, XsdGroup):
             if self.open_content is None:
-                if self.content.interleave is not None or self.content.suffix is not None:
+                if self.content.open_content is not None:
                     msg = _("openContent mismatch between type and model group")
                     self.parse_error(msg)
-            elif self.open_content.mode == 'interleave':
-                interleave = self.schema.create_empty_content_group(
-                    parent=self, model='all'
-                )
-                interleave.append(self.content)
-                wildcard = copy.copy(self.open_content.any_element)
-                wildcard.min_occurs = 0
-                wildcard.max_occurs = None
-                wildcard.parent = self.content.interleave
-                interleave.append(wildcard)
-                self.content.interleave = interleave
-            elif self.open_content.mode == 'suffix':
-                self.content.suffix = self.open_content.any_element
+            elif self.open_content:
+                self.content.open_content = self.open_content
 
         # Add inheritable attributes
         if isinstance(self.base_type, XsdComplexType):

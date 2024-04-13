@@ -34,8 +34,9 @@ from .exceptions import XMLSchemaModelError, XMLSchemaModelDepthError, \
 from .xsdbase import ValidationMixin, XsdComponent, XsdType
 from .particles import ParticleMixin, OccursCalculator
 from .elements import XsdElement, XsdAlternative
-from .wildcards import XsdAnyElement, Xsd11AnyElement
-from .models import ModelVisitor, iter_unordered_content, iter_collapsed_content
+from .wildcards import XsdAnyElement, Xsd11AnyElement, XsdOpenContent
+from .models import ModelVisitor, InterleavedModelVisitor, SuffixedModelVisitor, \
+    iter_unordered_content, iter_collapsed_content
 
 if TYPE_CHECKING:
     from .complex_types import XsdComplexType
@@ -99,8 +100,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
     restriction: Optional['XsdGroup'] = None
 
     # For XSD 1.1 openContent processing
-    interleave: Optional['XsdGroup'] = None  # if openContent with mode='interleave'
-    suffix: Optional[Xsd11AnyElement] = None  # if openContent with mode='suffix'/'interleave'
+    open_content: Optional[XsdOpenContent] = None
 
     _ADMITTED_TAGS = {XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE}
 
@@ -420,23 +420,6 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
             value = occurs
 
         return not self.is_emptiable() if value == 0 else self.min_occurs > value
-
-    def has_missing_elements(self, occurs: OccursCounterType) -> bool:
-        return not all(e.min_occurs <= occurs[e] for e in self.iter_elements())
-
-    def has_not_over_elements(self, occurs: OccursCounterType) -> bool:
-        return any(
-            e.max_occurs is None or e.max_occurs > occurs[self] for e in self.iter_elements()
-        )
-
-    def has_valid_occurrences(self, occurs: OccursCounterType) -> bool:
-        if self.max_occurs is not None and self.max_occurs < occurs[self]:
-            return False
-        elif self.model != 'all':
-            return not self.is_missing(occurs)
-        else:
-            return not self.min_occurs or occurs[self] and \
-                all(e.min_occurs > occurs[e] for e in self)
 
     def get_expected(self, occurs: OccursCounterType) -> List[SchemaElementType]:
         """
@@ -1001,7 +984,13 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         xsd_element: Optional[SchemaElementType]
         expected: Optional[List[SchemaElementType]]
 
-        model = ModelVisitor(self.interleave or self)
+        if self.open_content is None:
+            model = ModelVisitor(self)
+        elif self.open_content.mode == 'interleave':
+            model = InterleavedModelVisitor(self, self.open_content.any_element)
+        else:
+            model = SuffixedModelVisitor(self, self.open_content.any_element)
+
         errors = []
         broken_model = False
         namespaces = converter.namespaces
@@ -1011,7 +1000,6 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                 continue  # child is a comment or PI
 
             converter.set_context(child, level)
-            default_namespace = converter.default_namespace
             name = converter.map_qname(child.tag)
 
             while model.element is not None:
@@ -1042,17 +1030,13 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                     errors.append((index, particle, occurs, expected))
                 break
             else:
-                if self.suffix is not None and \
-                        self.suffix.is_matching(child.tag, default_namespace, self):
-                    xsd_element = self.suffix
-                else:
-                    xsd_element = self.match_element(child.tag)
-                    if xsd_element is None:
-                        errors.append((index, self, 0, None))
-                        broken_model = True
-                    elif not broken_model:
-                        errors.append((index, xsd_element, 0, []))
-                        broken_model = True
+                xsd_element = self.match_element(child.tag)
+                if xsd_element is None:
+                    errors.append((index, self, 0, None))
+                    broken_model = True
+                elif not broken_model:
+                    errors.append((index, xsd_element, 0, []))
+                    broken_model = True
 
             if xsd_element is None:
                 if kwargs.get('keep_unknown'):
@@ -1131,7 +1115,14 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         converter = kwargs['converter']
         padding = '\n' + ' ' * converter.indent * level
         default_namespace = converter.get('')
-        model = ModelVisitor(self.interleave or self)
+
+        if self.open_content is None:
+            model = ModelVisitor(self)
+        elif self.open_content.mode == 'interleave':
+            model = InterleavedModelVisitor(self, self.open_content.any_element)
+        else:
+            model = SuffixedModelVisitor(self, self.open_content.any_element)
+
         index = cdata_index = 0
         wrong_content_type = False
         over_max_depth = 'max_depth' in kwargs and kwargs['max_depth'] <= level
@@ -1186,24 +1177,20 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                     errors.append((index - cdata_index, particle, occurs, expected))
                 break
             else:
-                if self.suffix and self.suffix.is_matching(name, default_namespace, group=self):
-                    xsd_element = self.suffix
+                errors.append((index - cdata_index, self, 0, []))
+                xsd_element = self.match_element(name)
+                if isinstance(xsd_element, XsdAnyElement):
                     value = get_qname(default_namespace, name), value
-                else:
-                    errors.append((index - cdata_index, self, 0, []))
-                    xsd_element = self.match_element(name)
-                    if isinstance(xsd_element, XsdAnyElement):
-                        value = get_qname(default_namespace, name), value
-                    elif xsd_element is None:
-                        if name.startswith('{') or ':' not in name:
-                            reason = _('{!r} does not match any declared element '
-                                       'of the model group').format(name)
-                        else:
-                            reason = _('{0} has an unknown prefix {1!r}').format(
-                                name, name.split(':')[0]
-                            )
-                        yield self.validation_error(validation, reason, value, **kwargs)
-                        continue
+                elif xsd_element is None:
+                    if name.startswith('{') or ':' not in name:
+                        reason = _('{!r} does not match any declared element '
+                                   'of the model group').format(name)
+                    else:
+                        reason = _('{0} has an unknown prefix {1!r}').format(
+                            name, name.split(':')[0]
+                        )
+                    yield self.validation_error(validation, reason, value, **kwargs)
+                    continue
 
             if over_max_depth:
                 continue
