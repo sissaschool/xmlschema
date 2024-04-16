@@ -195,6 +195,10 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
             return True
 
     @property
+    def open_content_mode(self) -> str:
+        return 'none' if self.open_content is None else self.open_content.mode
+
+    @property
     def effective_min_occurs(self) -> int:
         if not self.min_occurs or not self:
             return 0

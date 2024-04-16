@@ -770,9 +770,7 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
             value = obj
 
         xsd_type: BaseXsdType
-        if isinstance(value, list):
-            xsd_type = self.any_simple_type
-        elif isinstance(value, AnyAtomicType):
+        if isinstance(value, AnyAtomicType):
             xsd_type = self.any_atomic_type
         else:
             xsd_type = self.any_type

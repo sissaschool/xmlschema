@@ -160,21 +160,14 @@ class ColumnarConverter(XMLSchemaConverter):
                 ns_name = self.unmap_qname(name)
                 content.extend((ns_name, item) for item in value)
             else:
-                xsd_group = xsd_element.type.model_group
-                if xsd_group is None:
-                    xsd_group = xsd_element.any_type.model_group
-                    assert xsd_group is not None
-
                 ns_name = self.unmap_qname(name)
-                for xsd_child in xsd_group.iter_elements():
-                    matched_element = xsd_child.match(ns_name, resolve=True)
-                    if matched_element is not None:
-                        if matched_element.type and matched_element.type.is_list():
-                            content.append((xsd_child.name, value))
-                        else:
-                            content.extend((xsd_child.name, item) for item in value)
-                        break
+                xsd_child = xsd_element.match_child(ns_name)
+                if xsd_child is not None:
+                    if xsd_child.type and xsd_child.type.is_list():
+                        content.append((ns_name, value))
+                    else:
+                        content.extend((ns_name, item) for item in value)
                 else:
-                    content.append((ns_name, value))
+                    content.extend((ns_name, item) for item in value)
 
         return ElementData(xsd_element.name, text, content, attributes, None)

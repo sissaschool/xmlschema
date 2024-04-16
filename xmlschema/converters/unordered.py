@@ -98,30 +98,17 @@ class UnorderedConverter(XMLSchemaConverter):
                 ns_name = self.unmap_qname(name, xmlns=self.get_xmlns_from_data(value[0]))
                 content_lu[ns_name] = value
             else:
-                xsd_group = xsd_element.type.model_group
-                if xsd_group is None:
-                    xsd_group = xsd_element.any_type.model_group
-                    assert xsd_group is not None
-
                 # `value` is a list but not a list of lists or list of dicts.
                 ns_name = self.unmap_qname(name)
-                for xsd_child in xsd_group.iter_elements():
-                    matched_element = xsd_child.match(ns_name, resolve=True)
-                    if matched_element is not None:
-                        if matched_element.type and matched_element.type.is_list():
-                            content_lu[self.unmap_qname(name)] = [value]
-                        else:
-                            content_lu[self.unmap_qname(name)] = value
-                        break
-                else:
-                    if self.attr_prefix == '' and ns_name not in attributes:
-                        for xsd_attribute in xsd_element.attributes.values():
-                            if xsd_attribute.is_matching(ns_name):
-                                attributes[ns_name] = value
-                                break
-                        else:
-                            content_lu[self.unmap_qname(name)] = [value]
+                xsd_child = xsd_element.match_child(ns_name)
+                if xsd_child is not None:
+                    if xsd_child.type and xsd_child.type.is_list():
+                        content_lu[ns_name] = [value]
                     else:
-                        content_lu[self.unmap_qname(name)] = [value]
+                        content_lu[ns_name] = value
+                elif self.attr_prefix == '' and ns_name in xsd_element.attributes:
+                    attributes[ns_name] = value
+                else:
+                    content_lu[ns_name] = value
 
         return ElementData(xsd_element.name, text, content_lu, attributes, xmlns)

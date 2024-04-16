@@ -1110,6 +1110,22 @@ class XsdElement(XsdComponent, ParticleMixin,
                     return xsd_element
         return None
 
+    def match_child(self, name: str) -> Optional['XsdElement']:
+        xsd_group = self.type.model_group
+        if xsd_group is None:
+            # fallback to xs:anyType encoder for matching extra content
+            xsd_group = self.any_type.model_group
+            assert xsd_group is not None
+
+        for xsd_child in xsd_group.iter_elements():
+            matched_element = xsd_child.match(name, resolve=True)
+            if isinstance(matched_element, XsdElement):
+                return matched_element
+        else:
+            if name in self.maps.elements and xsd_group.open_content_mode != 'none':
+                return self.maps.lookup_element(name)
+            return None
+
     def is_restriction(self, other: ModelParticleType, check_occurs: bool = True) -> bool:
         e: ModelParticleType
 
