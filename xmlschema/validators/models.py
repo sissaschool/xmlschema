@@ -252,7 +252,7 @@ class ModelVisitor:
         elif self.group.max_occurs == 0:
             return
         else:
-            yield from self.group
+            yield from self.group.content
 
     def match_element(self, tag: str) -> Optional[SchemaElementType]:
         if self.element is None:
@@ -332,14 +332,15 @@ class ModelVisitor:
                 item = self.group
                 return stop_item()
 
-            if item is self.group[-1]:
-                for k, item2 in enumerate(self.group, start=1):  # pragma: no cover
+            if item is self.group.content[-1]:
+                for k, item2 in enumerate(self.group.content, start=1):  # pragma: no cover
                     low_occurs = occurs[item2]
                     if not low_occurs:
                         continue
 
                     high_occurs = occurs[item2.oid] or low_occurs
-                    if high_occurs == 1 or any(not x.is_emptiable() for x in self.group[k:]):
+                    if high_occurs == 1 or \
+                            any(not x.is_emptiable() for x in self.group.content[k:]):
                         occurs[self.group] += 1
                         occurs[self.group.oid] += 1
                         break

@@ -96,7 +96,8 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
     parent: Optional[Union['XsdComplexType', 'XsdGroup']]
     model: str
     mixed: bool = False
-    ref: Optional['XsdGroup']
+    ref: Optional['XsdGroup']  # Not None if the instance is a ref to a global group
+    content: List[ModelParticleType]  # Direct access to children also from a ref group
     restriction: Optional['XsdGroup'] = None
 
     # For XSD 1.1 openContent processing
@@ -109,6 +110,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                  parent: Optional[Union['XsdComplexType', 'XsdGroup']] = None) -> None:
 
         self._group: List[ModelParticleType] = []
+        self.content = self._group
         self.oid = (self,)
         if parent is not None and parent.mixed:
             self.mixed = parent.mixed
@@ -494,6 +496,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                         self.parse_error(msg)
                 self._group.append(xsd_group)
                 self.ref = xsd_group
+                self.content = xsd_group._group
             else:
                 # Disallowed circular definition, substitute with any content group.
                 msg = _("Circular definition detected for group %r")

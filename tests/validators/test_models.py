@@ -33,6 +33,7 @@ class ModelGroup(XsdGroup):
         if model not in {'sequence', 'choice', 'all'}:
             raise XMLSchemaValueError("invalid model {!r} for a group".format(model))
         self._group: List[Union[ParticleMixin, 'ModelGroup']] = []
+        self.content = self._group
         self.model: str = model
 
     def __repr__(self) -> str:
@@ -174,7 +175,9 @@ class TestModelValidation(XsdValidatorTestCase):
         self.assertIsNone(model.element)
 
         model = ModelVisitor(group)
-        self.check_advance_false(model, [(group[0], 0, [group[0]])])  # <not-a-car>
+        self.check_advance_false(
+            model, [(group[0], 0, [group[0]]), (group, 0, [group[0]])]
+        )  # <not-a-car>
         self.assertIsNone(model.element)
 
     def test_person_type_model(self):
@@ -543,11 +546,8 @@ class TestModelValidation(XsdValidatorTestCase):
 
         model = ModelVisitor(group)
         self.assertEqual(model.element, group[0][0])
-        print(list(model.stop()))
-        print([(group[0], 0, [group[0][0]]), (group, 0, [group[0][1]])])
-        model = ModelVisitor(group)
         self.check_stop(
-            model, [(group[0], 0, [group[0][0]]), (group[0], 0, [group[0][1]])]
+            model, [(group[0][0], 0, [group[0][0]]), (group, 0, [group[0][0]])]
         )
 
         group = self.models_schema.types['complexType7_emptiable'].content
