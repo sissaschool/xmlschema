@@ -1003,13 +1003,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
             name = converter.map_qname(child.tag)
 
             while model.element is not None:
-                if model.element.max_occurs == 0:
-                    xsd_element = None
-                else:
-                    xsd_element = model.element.match(
-                        child.tag, group=self, occurs=model.occurs
-                    )
-
+                xsd_element = model.match_element(child.tag)
                 if xsd_element is None:
                     for particle, occurs, expected in model.advance(False):
                         errors.append((index, particle, occurs, expected))
@@ -1159,13 +1153,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
 
             xsd_element: Optional[SchemaElementType]
             while model.element is not None:
-                if model.element.max_occurs == 0:
-                    xsd_element = None
-                else:
-                    xsd_element = model.element.match(
-                        name, group=self, occurs=model.occurs
-                    )
-
+                xsd_element = model.match_element(name)
                 if xsd_element is None:
                     for particle, occurs, expected in model.advance():
                         errors.append((index - cdata_index, particle, occurs, expected))

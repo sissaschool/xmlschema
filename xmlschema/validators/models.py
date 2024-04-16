@@ -254,6 +254,22 @@ class ModelVisitor:
         else:
             yield from self.group
 
+    def match_element(self, tag: str) -> Optional[SchemaElementType]:
+        if self.element is None:
+            raise XMLSchemaValueError("cannot match, %r is ended!" % self)
+        elif self.element.max_occurs == 0:
+            return None
+        elif self.element.name is None:
+            return self.element.match(tag, group=self.root, occurs=self.occurs)
+        elif tag == self.element.name:
+            return self.element
+        else:
+            for xsd_element in self.element.iter_substitutes():
+                if tag == xsd_element.name:
+                    return xsd_element
+            else:
+                return None
+
     def advance(self, match: bool = False) -> Iterator[AdvanceYieldedType]:
         """
         Generator function for advance to the next element. Yields tuples with
@@ -417,7 +433,7 @@ class ModelVisitor:
                     stack.append((group, particles))
                     particles = iter(item if item.ref is None else item.ref)
                     if len(stack) > limits.MAX_MODEL_DEPTH:
-                        raise XMLSchemaModelDepthError(self)
+                        raise XMLSchemaModelDepthError(self.group)
                     break
 
                 if item.is_missing(occurs) or item.is_exceeded(occurs):
@@ -454,56 +470,72 @@ class ModelVisitor:
 
 
 class InterleavedModelVisitor(ModelVisitor):
-
-    __slots__ = 'wildcard', '_element', '_advance_on_false'
+    """
+    A visitor for openContent interleaved models. Memorizes an internal state
+    for deciding when to advance the model. The model doesn't advance if the
+    last match_element() call is with the wildcard.
+    """
+    __slots__ = 'wildcard', '_advance_model'
 
     def __init__(self, root: ModelGroupType, wildcard: XsdAnyElement) -> None:
         super().__init__(root)
         self.wildcard = wildcard
-        self._element = self.element
-        self._advance_on_false = False
+        self._advance_model = True
         if self.element is None:
             self.element = wildcard
 
+    def clear(self) -> None:
+        super().clear()
+        self._advance_model = True
+        if self.element is None:
+            self.element = self.wildcard
+
+    def match_element(self, tag: str) -> Optional[SchemaElementType]:
+        xsd_element = super().match_element(tag)
+        if xsd_element is not None or self.element is self.wildcard:
+            return xsd_element
+        elif not self.wildcard.is_matching(tag, group=self.root, occurs=self.occurs):
+            return None
+
+        for xsd_element in self.group.iter_elements():
+            if xsd_element.is_matching(tag, group=self.root, occurs=self.occurs):
+                if not xsd_element.is_over(self.occurs):
+                    return None
+        else:
+            if self.wildcard.process_contents != 'strict' or tag in self.root.maps.elements:
+                self._advance_model = False
+                return self.wildcard
+            return None
+
     def advance(self, match: bool = False) -> Iterator[AdvanceYieldedType]:
-        # print(self.element, self._element, match)
-        # breakpoint()
         if self.element is None:
             yield from super().advance(match)
-        elif match:
-            self._advance_on_false = False
-            if self.element is not self.wildcard:
-                yield from super().advance(match)
-                if self.element is None:
-                    self._element = None
-                    self.element = self.wildcard
-                    self._advance_on_false = True
-            elif self._element is not None:
-                self.element = self._element
-
-        elif self._element is None:
-            self.element = None
-            yield from super().advance(match)
-        elif self._advance_on_false:
-            self._advance_on_false = False
-            yield from super().advance(match)
         elif self.element is self.wildcard:
-            self.element = self._element
-            self._advance_on_false = True
+            if not match:
+                self.element = None
+        elif not self._advance_model:
+            self._advance_model = True
         else:
-            self._element = self.element
-            self.element = self.wildcard
+            yield from super().advance(match)
+            if self.element is None:
+                self.element = self.wildcard
 
 
 class SuffixedModelVisitor(ModelVisitor):
+    """A visitor for openContent suffixed models."""
 
-    __slots__ = 'wildcard'
+    __slots__ = 'wildcard',
 
     def __init__(self, root: ModelGroupType, wildcard: XsdAnyElement) -> None:
         super().__init__(root)
         self.wildcard = wildcard
         if self.element is None:
             self.element = wildcard
+
+    def clear(self) -> None:
+        super().clear()
+        if self.element is None:
+            self.element = self.wildcard
 
     def advance(self, match: bool = False) -> Iterator[AdvanceYieldedType]:
         if self.element is None:
