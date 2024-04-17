@@ -15,6 +15,7 @@ from collections import defaultdict, deque, Counter
 from operator import attrgetter
 from typing import Any, Dict, Iterable, Iterator, List, \
     MutableMapping, MutableSequence, Optional, Tuple, Union
+import warnings
 
 from ..exceptions import XMLSchemaValueError
 from ..aliases import ModelGroupType, ModelParticleType, SchemaElementType, \
@@ -465,12 +466,26 @@ class ModelVisitor:
     def iter_unordered_content(
             self, content: EncodedContentType,
             default_namespace: Optional[str] = None) -> Iterator[ContentItemType]:
-        return iter_unordered_content(content, self.root, default_namespace)
+
+        msg = f"{self.__class__.__name__}.iter_unordered_content() method will " \
+              "be removed in v4.0, use iter_unordered_content() function instead."
+        if default_namespace is not None:
+            msg += " Don't provide default_namespace argument, it's ignored."
+        warnings.warn(msg, DeprecationWarning, stacklevel=2)
+
+        return iter_unordered_content(content, self.root)
 
     def iter_collapsed_content(
             self, content: Iterable[ContentItemType],
             default_namespace: Optional[str] = None) -> Iterator[ContentItemType]:
-        return iter_collapsed_content(content, self.root, default_namespace)
+
+        msg = f"{self.__class__.__name__}.iter_collapsed_content() method will " \
+              "be removed in v4.0, use iter_collapsed_content() function instead."
+        if default_namespace is not None:
+            msg += " Don't provide default_namespace argument, it's ignored."
+        warnings.warn(msg, DeprecationWarning, stacklevel=2)
+
+        return iter_collapsed_content(content, self.root)
 
 
 class InterleavedModelVisitor(ModelVisitor):
@@ -555,10 +570,8 @@ class SuffixedModelVisitor(ModelVisitor):
 #
 # Functions for manipulating encoded content
 
-def iter_unordered_content(
-        content: EncodedContentType,
-        group: ModelGroupType,
-        default_namespace: Optional[str] = None) -> Iterator[ContentItemType]:
+def iter_unordered_content(content: EncodedContentType, group: ModelGroupType) \
+        -> Iterator[ContentItemType]:
     """
     Takes an unordered content stored in a dictionary of lists and yields the
     content elements sorted with the ordering defined by the model group. Character
@@ -574,7 +587,6 @@ def iter_unordered_content(
     dictionary the values must be lists where each item is the content \
     of a single element.
     :param group: the model group related to content.
-    :param default_namespace: the default namespace to apply for matching names.
     """
     consumable_content: Dict[str, Any]
 
@@ -624,16 +636,13 @@ def iter_unordered_content(
         yield cdata_content.pop()
 
 
-def sort_content(content: EncodedContentType,
-                 group: ModelGroupType,
-                 default_namespace: Optional[str] = None) -> List[ContentItemType]:
-    return [x for x in iter_unordered_content(content, group, default_namespace)]
+def sort_content(content: EncodedContentType, group: ModelGroupType) \
+        -> List[ContentItemType]:
+    return [x for x in iter_unordered_content(content, group)]
 
 
-def iter_collapsed_content(
-        content: Iterable[ContentItemType],
-        group: ModelGroupType,
-        default_namespace: Optional[str] = None) -> Iterator[ContentItemType]:
+def iter_collapsed_content(content: Iterable[ContentItemType], group: ModelGroupType) \
+        -> Iterator[ContentItemType]:
     """
     Iterates a content stored in a sequence of couples *(name, value)*, yielding
     items in the same order of the sequence, except for repetitions of the same
@@ -647,7 +656,6 @@ def iter_collapsed_content(
 
     :param content: an iterable containing couples of names and values.
     :param group: the model group related to content.
-    :param default_namespace: the default namespace to apply for matching names.
     """
     prev_name = None
     unordered_content: Dict[str, Any] = defaultdict(deque)
@@ -689,7 +697,7 @@ def iter_collapsed_content(
             yield name, value
             prev_name = name
 
-    # Add the remaining consumable content onto the end of the data.
+    # Yields the remaining consumable content after the end of the data.
     for name, values in unordered_content.items():
         for v in values:
             yield name, v

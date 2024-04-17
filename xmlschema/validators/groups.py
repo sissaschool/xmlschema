@@ -1137,7 +1137,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         if not obj.content:
             content = []
         elif isinstance(obj.content, MutableMapping) or kwargs.get('unordered'):
-            content = iter_unordered_content(obj.content, self, default_namespace)
+            content = iter_unordered_content(obj.content, self)
         elif not isinstance(obj.content, MutableSequence):
             wrong_content_type = True
             content = []
@@ -1150,7 +1150,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         elif converter.losslessly:
             content = obj.content
         else:
-            content = iter_collapsed_content(obj.content, self, default_namespace)
+            content = iter_collapsed_content(obj.content, self)
 
         for index, (name, value) in enumerate(content):
             if isinstance(name, int):
