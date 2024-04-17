@@ -2,6 +2,11 @@
 CHANGELOG
 *********
 
+`v3.3.0`_ (2024-04-17)
+======================
+* Rewrite the validation of openContent using InterleavedModelVisitor and SuffixedModelVisitor
+* Fix validation of XSD 1.1 'all' nested models
+
 `v3.2.1`_ (2024-04-07)
 ======================
 * Improve ModelVisitor and particle occurs checking
@@ -692,3 +697,4 @@ v0.9.6 (2017-05-05)
 .. _v3.1.0: https://github.com/brunato/xmlschema/compare/v3.0.2...v3.1.0
 .. _v3.2.0: https://github.com/brunato/xmlschema/compare/v3.1.0...v3.2.0
 .. _v3.2.1: https://github.com/brunato/xmlschema/compare/v3.2.0...v3.2.1
+.. _v3.3.0: https://github.com/brunato/xmlschema/compare/v3.2.1...v3.3.0
