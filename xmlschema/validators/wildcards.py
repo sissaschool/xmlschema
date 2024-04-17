@@ -891,10 +891,7 @@ class XsdOpenContent(XsdComponent):
         elif child is None or child.tag != XSD_ANY:
             self.parse_error(_("an <xs:any> child declaration is required"))
         else:
-            any_element = Xsd11AnyElement(child, self.schema, self)
-            any_element.min_occurs = 0
-            any_element.max_occurs = None
-            self.any_element = any_element
+            self.any_element = Xsd11AnyElement(child, self.schema, self)
 
     @property
     def built(self) -> bool:

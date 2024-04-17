@@ -382,8 +382,8 @@ class TestXsd11Wildcards(TestXsdWildcards):
           </xs:complexType>
         </xs:element>""")
         self.assertEqual(schema.elements['Book'].type.open_content.mode, 'interleave')
-        self.assertEqual(schema.elements['Book'].type.open_content.any_element.min_occurs, 0)
-        self.assertIsNone(schema.elements['Book'].type.open_content.any_element.max_occurs)
+        self.assertEqual(schema.elements['Book'].type.open_content.any_element.min_occurs, 1)
+        self.assertEqual(schema.elements['Book'].type.open_content.any_element.max_occurs, 1)
 
         schema = self.check_schema("""
         <xs:complexType name="name">
@@ -421,8 +421,8 @@ class TestXsd11Wildcards(TestXsdWildcards):
           </xs:sequence>
         </xs:complexType>""")
         self.assertEqual(schema.types['name'].open_content.mode, 'suffix')
-        self.assertEqual(schema.types['name'].open_content.any_element.min_occurs, 0)
-        self.assertIsNone(schema.types['name'].open_content.any_element.max_occurs)
+        self.assertEqual(schema.types['name'].open_content.any_element.min_occurs, 1)
+        self.assertEqual(schema.types['name'].open_content.any_element.max_occurs, 1)
 
         self.check_schema("""
         <xs:complexType name="name">
