@@ -431,8 +431,11 @@ class ModelVisitor:
                     occurs[group] = 1
 
                 if isinstance(item, groups.XsdGroup):
+                    if item.max_occurs == 0:
+                        continue
+
                     stack.append((group, particles))
-                    particles = iter(item if item.ref is None else item.ref)
+                    particles = iter(item.content)
                     if len(stack) > limits.MAX_MODEL_DEPTH:
                         raise XMLSchemaModelDepthError(self.group)
                     break

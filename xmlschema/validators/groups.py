@@ -352,8 +352,11 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         while True:
             for item in particles:
                 if isinstance(item, XsdGroup):
+                    if item.max_occurs == 0:
+                        continue
+
                     iterators.append(particles)
-                    particles = iter(item)
+                    particles = iter(item.content)
                     if len(iterators) > limits.MAX_MODEL_DEPTH:
                         raise XMLSchemaModelDepthError(self)
                     break
@@ -459,6 +462,8 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         group.__dict__.update(self.__dict__)
         group.errors = self.errors[:]
         group._group = self._group[:]
+        if self.ref is None:
+            group.content = group._group
         return group
 
     __copy__ = copy

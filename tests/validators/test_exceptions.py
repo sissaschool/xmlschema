@@ -383,6 +383,7 @@ class TestValidatorExceptions(unittest.TestCase):
         self.assertTrue(is_etree_element(errors[2].invalid_child))
         self.assertEqual(errors[2].invalid_child.tag, 'b2')
 
+
 if __name__ == '__main__':
     import platform
     header_template = "Test xmlschema's validator exceptions with Python {} on {}"

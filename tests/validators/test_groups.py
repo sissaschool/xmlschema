@@ -25,6 +25,7 @@ class ModelGroup(XsdGroup):
         if model not in {'sequence', 'choice', 'all'}:
             raise XMLSchemaValueError("invalid model {!r} for a group".format(model))
         self._group: List[Union[ParticleMixin, 'ModelGroup']] = []
+        self.content = self._group
         self.model: str = model
 
     def __repr__(self) -> str:
