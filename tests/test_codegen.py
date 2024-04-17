@@ -189,11 +189,11 @@ class TestAbstractGenerator(unittest.TestCase):
 
         self.assertIs(generator.schema, self.schema)
         self.assertIsInstance(generator._env, jinja2.Environment)
-        self.assertEqual(repr(generator), "{}(namespace={!r})".format(class_name, namespace))
+        self.assertEqual(repr(generator), f"{class_name}(namespace={namespace!r})")
 
         generator = self.generator_class(self.col_xsd_file)
         self.assertIsInstance(generator.schema, XMLSchema11)
-        self.assertEqual(repr(generator), "{}(schema='collection.xsd')".format(class_name))
+        self.assertEqual(repr(generator), f"{class_name}(schema='collection.xsd')")
 
     def test_searchpath_argument(self):
         class DemoGenerator2(AbstractGenerator):
@@ -239,7 +239,7 @@ class TestAbstractGenerator(unittest.TestCase):
         template_dir = Path(__file__).parent.joinpath('templates')
         language = self.generator_class.formal_language.lower()
 
-        templates = set(x.name for x in template_dir.glob('{}/*'.format(language)))
+        templates = {x.name for x in template_dir.glob(f'{language}/*')}
         templates.update(x.name for x in template_dir.glob('filters/*'))
         self.assertSetEqual(set(self.generator.list_templates()), templates)
 

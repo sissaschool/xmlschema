@@ -138,7 +138,7 @@ COLLECTION_DICT = {
                 '@id': 'JM',
                 'born': '1893-04-20',
                 'dead': '1983-12-25',
-                'name': u'Joan Miró',
+                'name': 'Joan Miró',
                 'qualification': 'painter, sculptor and ceramicist'
             },
             'position': 2,
@@ -167,7 +167,7 @@ COLLECTION_PARKER = {
                 'year': '1886'},
                {'author': {'born': '1893-04-20',
                            'dead': '1983-12-25',
-                           'name': u'Joan Miró',
+                           'name': 'Joan Miró',
                            'qualification': 'painter, sculptor and ceramicist'},
                 'position': 2,
                 'title': None,
@@ -184,7 +184,7 @@ COLLECTION_PARKER_ROOT = {
                                    'year': '1886'},
                                   {'author': {'born': '1893-04-20',
                                               'dead': '1983-12-25',
-                                              'name': u'Joan Miró',
+                                              'name': 'Joan Miró',
                                               'qualification': 'painter, sculptor and ceramicist'},
                                    'position': 2,
                                    'title': None,
@@ -216,7 +216,7 @@ COLLECTION_BADGERFISH = {
                     '@id': 'JM',
                     'born': {'$': '1893-04-20'},
                     'dead': {'$': '1983-12-25'},
-                    'name': {'$': u'Joan Miró'},
+                    'name': {'$': 'Joan Miró'},
                     'qualification': {
                         '$': 'painter, sculptor and ceramicist'}
                 },
@@ -259,7 +259,7 @@ COLLECTION_ABDERA = {
                                 'children': [{
                                     'born': '1893-04-20',
                                     'dead': '1983-12-25',
-                                    'name': u'Joan Miró',
+                                    'name': 'Joan Miró',
                                     'qualification': 'painter, sculptor and ceramicist'}
                                 ]},
                             'position': 2,
@@ -301,7 +301,7 @@ COLLECTION_JSON_ML = [
      [
          'author',
          {'id': 'JM'},
-         ['name', u'Joan Miró'],
+         ['name', 'Joan Miró'],
          ['born', '1893-04-20'],
          ['dead', '1983-12-25'],
          ['qualification', 'painter, sculptor and ceramicist']
@@ -1118,11 +1118,11 @@ class TestDecoding(XsdValidatorTestCase):
         # Element
         xs = self.get_schema('<xs:element name="b64" type="xs:base64Binary"/>')
 
-        obj = xs.decode('<b64>{}</b64>'.format(base64_value.decode()))
+        obj = xs.decode(f'<b64>{base64_value.decode()}</b64>')
         self.assertEqual(obj, str(expected_value))
         self.assertIsInstance(obj, str)
 
-        obj = xs.decode('<b64>{}</b64>'.format(base64_value.decode()), binary_types=True)
+        obj = xs.decode(f'<b64>{base64_value.decode()}</b64>', binary_types=True)
         self.assertEqual(obj, expected_value)
         self.assertIsInstance(obj, datatypes.Base64Binary)
 
@@ -1130,13 +1130,13 @@ class TestDecoding(XsdValidatorTestCase):
                           datatypes.Base64Binary('YWJjZWZnaA=='))
         self.check_decode(base64_code_type, b' Y  W J j ZWZ\t\tn\na A= =',
                           datatypes.Base64Binary('Y W J j ZWZ n a A= ='))
-        self.check_decode(base64_code_type, u' Y  W J j ZWZ\t\tn\na A= =',
+        self.check_decode(base64_code_type, ' Y  W J j ZWZ\t\tn\na A= =',
                           datatypes.Base64Binary('Y W J j ZWZ n a A= ='))
         self.check_decode(base64_code_type, base64.b64encode(b'abcefghi'),
                           datatypes.Base64Binary('YWJjZWZnaGk='))
 
-        self.check_decode(base64_code_type, u'YWJjZWZnaA=', XMLSchemaValidationError)
-        self.check_decode(base64_code_type, u'YWJjZWZna$==', XMLSchemaValidationError)
+        self.check_decode(base64_code_type, 'YWJjZWZnaA=', XMLSchemaValidationError)
+        self.check_decode(base64_code_type, 'YWJjZWZna$==', XMLSchemaValidationError)
 
         base64_length4_type = self.st_schema.types['base64Length4']
         self.check_decode(base64_length4_type, base64.b64encode(b'abc'),
@@ -1295,7 +1295,7 @@ class TestDecoding(XsdValidatorTestCase):
     def test_union_types__issue_103(self):
         decimal_or_nan = self.st_schema.types['myType']
         self.check_decode(decimal_or_nan, '95.0', Decimal('95.0'))
-        self.check_decode(decimal_or_nan, 'NaN', u'NaN')
+        self.check_decode(decimal_or_nan, 'NaN', 'NaN')
 
     def test_default_values__issue_108(self):
         # From issue #108
@@ -1369,22 +1369,22 @@ class TestDecoding(XsdValidatorTestCase):
         self.assertFalse(schema.is_valid(self.casepath('issues/issue_204/issue_204_2.xml')))
 
         data = schema.decode(self.casepath('issues/issue_204/issue_204_2.xml'), validation='lax')
-        self.assertEqual(set(x for x in data[0] if x[0] != '@'), {'child2', 'child5'})
+        self.assertEqual({x for x in data[0] if x[0] != '@'}, {'child2', 'child5'})
 
         data = schema.decode(self.casepath('issues/issue_204/issue_204_3.xml'), validation='lax')
-        self.assertEqual(set(x for x in data[0] if x[0] != '@'), {'child2', 'child5'})
+        self.assertEqual({x for x in data[0] if x[0] != '@'}, {'child2', 'child5'})
 
         data = schema.decode(self.casepath('issues/issue_204/issue_204_3.xml'),
                              validation='lax', keep_unknown=True)
-        self.assertEqual(set(x for x in data[0] if x[0] != '@'), {'child2', 'unknown', 'child5'})
+        self.assertEqual({x for x in data[0] if x[0] != '@'}, {'child2', 'unknown', 'child5'})
         self.assertEqual(data[0]['unknown'], {'a': ['1'], 'b': [None]})
 
         data = schema.decode(self.casepath('issues/issue_204/issue_204_2.xml'), validation='skip')
-        self.assertEqual(set(x for x in data if x[0] != '@'), {'child2', 'child5'})
+        self.assertEqual({x for x in data if x[0] != '@'}, {'child2', 'child5'})
 
         data = schema.decode(self.casepath('issues/issue_204/issue_204_3.xml'),
                              validation='skip', keep_unknown=True)
-        self.assertEqual(set(x for x in data if x[0] != '@'), {'child2', 'unknown', 'child5'})
+        self.assertEqual({x for x in data if x[0] != '@'}, {'child2', 'unknown', 'child5'})
         self.assertEqual(data['unknown'], {'a': ['1'], 'b': [None]})
 
     def test_error_message__issue_115(self):

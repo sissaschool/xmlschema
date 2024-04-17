@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 #
 # xmlschema documentation build configuration file, created by
 # sphinx-quickstart on Fri Jan 12 09:05:46 2018.

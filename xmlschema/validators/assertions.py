@@ -60,13 +60,13 @@ class XsdAssert(XsdComponent, ElementPathMixin[Union['XsdAssert', SchemaElementT
 
         self._xpath_lock = threading.Lock()
         self.base_type = base_type
-        super(XsdAssert, self).__init__(elem, schema, parent)
+        super().__init__(elem, schema, parent)
 
     def __repr__(self) -> str:
         if len(self.path) < 40:
-            return '%s(test=%r)' % (self.__class__.__name__, self.path)
+            return '{}(test={!r})'.format(self.__class__.__name__, self.path)
         else:
-            return '%s(test=%r)' % (self.__class__.__name__, self.path[:37] + '...')
+            return '{}(test={!r})'.format(self.__class__.__name__, self.path[:37] + '...')
 
     def __getstate__(self) -> Dict[str, Any]:
         state = self.__dict__.copy()

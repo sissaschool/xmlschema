@@ -69,7 +69,7 @@ if __name__ == '__main__':
                '--from-code=UTF-8',
                '-o', str(template_file)]
         cmd.extend(str(path) for path in package_dir.glob('**/*.py'))
-        process = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        process = subprocess.run(cmd, capture_output=True)
 
         stderr = process.stderr.decode('utf-8').strip()
         if stderr:
@@ -106,7 +106,7 @@ if __name__ == '__main__':
                        '-l', f'{lang}',
                        '-o', str(po_file),
                        '-i', str(template_file)]
-                process = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                process = subprocess.run(cmd, capture_output=True)
 
                 stderr = process.stderr.decode('utf-8').strip()
                 if stderr:
@@ -115,7 +115,7 @@ if __name__ == '__main__':
                 print(f'  ... file {str(po_file)} initialized\n')
 
             cmd = [msgmerge_cmd, '-o', str(po_file), str(po_file), str(template_file)]
-            process = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            process = subprocess.run(cmd, capture_output=True)
 
             stderr = process.stderr.decode('utf-8').strip()
             if 'done' not in stderr:
@@ -138,7 +138,7 @@ if __name__ == '__main__':
                 sys.exit(1)
 
             cmd = [msgfmt_cmd, '-o', str(mo_file), str(po_file)]
-            process = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            process = subprocess.run(cmd, capture_output=True)
 
             stderr = process.stderr.decode('utf-8').strip()
             if stderr:

@@ -55,10 +55,10 @@ class XsdFacet(XsdComponent):
                  base_type: Optional[BaseXsdType]) -> None:
         self.base_type = base_type
         self._validator = self._skip_validation
-        super(XsdFacet, self).__init__(elem, schema, parent)
+        super().__init__(elem, schema, parent)
 
     def __repr__(self) -> str:
-        return '%s(value=%r, fixed=%r)' % (self.__class__.__name__, self.value, self.fixed)
+        return '{}(value={!r}, fixed={!r})'.format(self.__class__.__name__, self.value, self.fixed)
 
     def __call__(self, value: Any) -> None:
         try:
@@ -454,7 +454,7 @@ class XsdFractionDigitsFacet(XsdFacet):
                  parent: 'XsdAtomicRestriction',
                  base_type: BaseXsdType) -> None:
 
-        super(XsdFractionDigitsFacet, self).__init__(elem, schema, parent, base_type)
+        super().__init__(elem, schema, parent, base_type)
         if not base_type.is_derived(self.maps.types[XSD_DECIMAL]):
             msg = _("fractionDigits facet can be applied only to types derived from xs:decimal")
             self.parse_error(msg)
@@ -608,11 +608,11 @@ class XsdEnumerationFacets(MutableSequence[ElementType], XsdFacet):
 
     def __repr__(self) -> str:
         if len(self.enumeration) > 5:
-            return '%s(%s)' % (
+            return '{}({})'.format(
                 self.__class__.__name__, '[%s, ...]' % ', '.join(map(repr, self.enumeration[:5]))
             )
         else:
-            return '%s(%r)' % (self.__class__.__name__, self.enumeration)
+            return '{}({!r})'.format(self.__class__.__name__, self.enumeration)
 
     def __call__(self, value: Any) -> None:
         if value in self.enumeration:
@@ -718,9 +718,9 @@ class XsdPatternFacets(MutableSequence[ElementType], XsdFacet):
     def __repr__(self) -> str:
         s = repr(self.regexps)
         if len(s) < 70:
-            return '%s(%s)' % (self.__class__.__name__, s)
+            return '{}({})'.format(self.__class__.__name__, s)
         else:
-            return '%s(%s...\'])' % (self.__class__.__name__, s[:70])
+            return '{}({}...\'])'.format(self.__class__.__name__, s[:70])
 
     def __call__(self, text: str) -> None:
         try:
@@ -763,7 +763,7 @@ class XsdAssertionFacet(XsdFacet):
     _root = ElementNode(elem=Element('root'))
 
     def __repr__(self) -> str:
-        return '%s(test=%r)' % (self.__class__.__name__, self.path)
+        return '{}(test={!r})'.format(self.__class__.__name__, self.path)
 
     def _parse(self) -> None:
         try:

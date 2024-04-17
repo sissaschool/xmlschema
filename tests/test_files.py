@@ -72,7 +72,7 @@ if __name__ == '__main__':
         else:
             continue
 
-        print("Add test %r for file %r ..." % (test_class.__name__, test_file))
+        print("Add test {!r} for file {!r} ...".format(test_class.__name__, test_file))
         test_suite.addTest(test_loader.loadTestsFromTestCase(test_class))
 
     if test_num == 1:

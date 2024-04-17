@@ -356,10 +356,10 @@ class XsdAttributeGroup(
 
     def __repr__(self) -> str:
         if self.name is not None:
-            return '%s(name=%r)' % (self.__class__.__name__, self.name)
+            return '{}(name={!r})'.format(self.__class__.__name__, self.name)
         elif self:
             names = [a if a.name is None else a.name for a in self.values()]
-            return '%s(%r)' % (self.__class__.__name__, names)
+            return '{}({!r})'.format(self.__class__.__name__, names)
         else:
             return '%s()' % self.__class__.__name__
 

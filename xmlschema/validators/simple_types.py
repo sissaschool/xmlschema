@@ -79,12 +79,12 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
                  name: Optional[str] = None,
                  facets: Optional[Dict[Optional[str], FacetsValueType]] = None) -> None:
 
-        super(XsdSimpleType, self).__init__(elem, schema, parent, name)
+        super().__init__(elem, schema, parent, name)
         if not hasattr(self, 'facets'):
             self.facets = facets if facets is not None else {}
 
     def __setattr__(self, name: str, value: Any) -> None:
-        super(XsdSimpleType, self).__setattr__(name, value)
+        super().__setattr__(name, value)
         if name == 'facets':
             if not isinstance(self, XsdAtomicBuiltin):
                 self._parse_facets(value)
@@ -511,18 +511,18 @@ class XsdAtomic(XsdSimpleType):
             self.primitive_type = self
         else:
             self.base_type = base_type
-        super(XsdAtomic, self).__init__(elem, schema, parent, name, facets)
+        super().__init__(elem, schema, parent, name, facets)
 
     def __repr__(self) -> str:
         if self.name is None:
-            return '%s(primitive_type=%r)' % (
+            return '{}(primitive_type={!r})'.format(
                 self.__class__.__name__, self.primitive_type.local_name
             )
         else:
-            return '%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
+            return '{}(name={!r})'.format(self.__class__.__name__, self.prefixed_name)
 
     def __setattr__(self, name: str, value: Any) -> None:
-        super(XsdAtomic, self).__setattr__(name, value)
+        super().__setattr__(name, value)
         if name == 'base_type':
             if not hasattr(self, 'white_space'):
                 try:
@@ -605,13 +605,13 @@ class XsdAtomicBuiltin(XsdAtomic):
                                       "a not empty set of a primitive type")
         self._admitted_facets = admitted_facets
 
-        super(XsdAtomicBuiltin, self).__init__(elem, schema, None, name, facets, base_type)
+        super().__init__(elem, schema, None, name, facets, base_type)
         self.python_type = python_type
         self.to_python = to_python if to_python is not None else python_type
         self.from_python = from_python if from_python is not None else str
 
     def __repr__(self) -> str:
-        return '%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
+        return '{}(name={!r})'.format(self.__class__.__name__, self.prefixed_name)
 
     @property
     def admitted_facets(self) -> Set[str]:
@@ -809,23 +809,23 @@ class XsdList(XsdSimpleType):
         facets: Optional[Dict[Optional[str], FacetsValueType]] = {
             XSD_WHITE_SPACE: XsdWhiteSpaceFacet(self._white_space_elem, schema, self, self)
         }
-        super(XsdList, self).__init__(elem, schema, parent, name, facets)
+        super().__init__(elem, schema, parent, name, facets)
 
     def __repr__(self) -> str:
         if self.name is None:
-            return '%s(item_type=%r)' % (self.__class__.__name__, self.item_type)
+            return '{}(item_type={!r})'.format(self.__class__.__name__, self.item_type)
         else:
-            return '%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
+            return '{}(name={!r})'.format(self.__class__.__name__, self.prefixed_name)
 
     def __setattr__(self, name: str, value: Any) -> None:
         if name == 'elem' and value is not None and value.tag != XSD_LIST:
             if value.tag == XSD_SIMPLE_TYPE:
                 for child in value:
                     if child.tag == XSD_LIST:
-                        super(XsdList, self).__setattr__(name, child)
+                        super().__setattr__(name, child)
                         return
             raise XMLSchemaValueError(
-                "a {0!r} definition required for {1!r}".format(XSD_LIST, self)
+                f"a {XSD_LIST!r} definition required for {self!r}"
             )
         elif name == 'item_type':
             if not value.is_atomic():
@@ -834,7 +834,7 @@ class XsdList(XsdSimpleType):
                 )
         elif name == 'white_space' and value is None:
             value = 'collapse'
-        super(XsdList, self).__setattr__(name, value)
+        super().__setattr__(name, value)
 
     def _parse(self) -> None:
         item_type: Any
@@ -983,23 +983,23 @@ class XsdUnion(XsdSimpleType):
                  schema: SchemaType,
                  parent: Optional[XsdComponent],
                  name: Optional[str] = None) -> None:
-        super(XsdUnion, self).__init__(elem, schema, parent, name, facets=None)
+        super().__init__(elem, schema, parent, name, facets=None)
 
     def __repr__(self) -> str:
         if self.name is None:
-            return '%s(member_types=%r)' % (self.__class__.__name__, self.member_types)
+            return '{}(member_types={!r})'.format(self.__class__.__name__, self.member_types)
         else:
-            return '%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
+            return '{}(name={!r})'.format(self.__class__.__name__, self.prefixed_name)
 
     def __setattr__(self, name: str, value: Any) -> None:
         if name == 'elem' and value is not None and value.tag != XSD_UNION:
             if value.tag == XSD_SIMPLE_TYPE:
                 for child in value:
                     if child.tag == XSD_UNION:
-                        super(XsdUnion, self).__setattr__(name, child)
+                        super().__setattr__(name, child)
                         return
             raise XMLSchemaValueError(
-                "a {0!r} definition required for {1!r}".format(XSD_UNION, self)
+                f"a {XSD_UNION!r} definition required for {self!r}"
             )
 
         elif name == 'white_space':
@@ -1007,7 +1007,7 @@ class XsdUnion(XsdSimpleType):
                 msg = _("wrong value %r for attribute 'white_space'")
                 raise XMLSchemaValueError(msg % value)
             value = 'collapse'
-        super(XsdUnion, self).__setattr__(name, value)
+        super().__setattr__(name, value)
 
     def _parse(self) -> None:
         mt: Any
@@ -1210,7 +1210,7 @@ class XsdAtomicRestriction(XsdAtomic):
                     raise XMLSchemaValueError(
                         "an xs:restriction definition required for %r." % self
                     )
-        super(XsdAtomicRestriction, self).__setattr__(name, value)
+        super().__setattr__(name, value)
 
     def _parse(self) -> None:
         elem = self.elem

@@ -415,7 +415,7 @@ class NamespaceView(Mapping[str, T]):
                     yield k[k.rindex('}') + 1:]
 
     def __repr__(self) -> str:
-        return '%s(%s)' % (self.__class__.__name__, str(self.as_dict()))
+        return '{}({})'.format(self.__class__.__name__, str(self.as_dict()))
 
     def __contains__(self, key: object) -> bool:
         if isinstance(key, str):

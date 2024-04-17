@@ -99,7 +99,7 @@ def make_schema_test_class(test_file, test_args, test_num, schema_class, check_w
             self.errors.extend(schema.maps.all_errors)
 
             if inspect:
-                components_ids = set([id(c) for c in schema.maps.iter_components()])
+                components_ids = {id(c) for c in schema.maps.iter_components()}
                 components_ids.update(id(c) for c in schema.meta_schema.iter_components())
                 missing = [
                     c for c in SchemaObserver.components if id(c) not in components_ids
@@ -221,7 +221,7 @@ def make_schema_test_class(test_file, test_args, test_num, schema_class, check_w
                 self.check_xsd_file_with_lxml(xmlschema_time=time.time() - start_time)
             self.check_errors(xsd_file, expected_errors)
 
-    TestSchema.__name__ = TestSchema.__qualname__ = str('TestSchema{0:03}'.format(test_num))
+    TestSchema.__name__ = TestSchema.__qualname__ = str(f'TestSchema{test_num:03}')
     return TestSchema
 
 
@@ -667,5 +667,5 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
 
                 self.check_validation_with_generated_code()
 
-    TestValidator.__name__ = TestValidator.__qualname__ = 'TestValidator{0:03}'.format(test_num)
+    TestValidator.__name__ = TestValidator.__qualname__ = f'TestValidator{test_num:03}'
     return TestValidator

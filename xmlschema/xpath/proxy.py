@@ -39,7 +39,7 @@ class XMLSchemaProxy(AbstractSchemaProxy):
             schema = getattr(XMLSchema10, 'meta_schema', None)
             assert schema is not None
 
-        super(XMLSchemaProxy, self).__init__(
+        super().__init__(
             schema, base_element
         )
 

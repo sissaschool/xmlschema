@@ -38,7 +38,7 @@ class BadgerFishConverter(XMLSchemaConverter):
                  list_class: Optional[Type[List[Any]]] = None,
                  **kwargs: Any) -> None:
         kwargs.update(attr_prefix='@', text_key='$', cdata_prefix='$')
-        super(BadgerFishConverter, self).__init__(
+        super().__init__(
             namespaces, dict_class, list_class, **kwargs
         )
 

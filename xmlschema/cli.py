@@ -63,7 +63,7 @@ def get_converter(name):
     try:
         return CONVERTERS_MAP[name.lower()]
     except KeyError:
-        raise ValueError("--converter must be in {!r}".format(tuple(CONVERTERS_MAP)))
+        raise ValueError(f"--converter must be in {tuple(CONVERTERS_MAP)!r}")
 
 
 def xml2json():
@@ -117,13 +117,13 @@ def xml2json():
     if not base_path.exists():
         base_path.mkdir()
     elif not base_path.is_dir():
-        raise XMLSchemaValueError("{!r} is not a directory".format(str(base_path)))
+        raise XMLSchemaValueError(f"{str(base_path)!r} is not a directory")
 
     tot_errors = 0
     for xml_path in map(pathlib.Path, args.files):
         json_path = base_path.joinpath(xml_path.name).with_suffix('.json')
         if json_path.exists() and not args.force:
-            print("skip {}: the destination file exists!".format(str(json_path)))
+            print(f"skip {str(json_path)}: the destination file exists!")
             continue
 
         with open(str(json_path), 'w') as fp:
@@ -141,11 +141,11 @@ def xml2json():
                 )
             except (xmlschema.XMLSchemaException, URLError) as err:
                 tot_errors += 1
-                print("error with {}: {}".format(str(xml_path), str(err)))
+                print(f"error with {str(xml_path)}: {str(err)}")
                 continue
             else:
                 if not errors:
-                    print("{} converted to {}".format(str(xml_path), str(json_path)))
+                    print(f"{str(xml_path)} converted to {str(json_path)}")
                 else:
                     tot_errors += len(errors)
                     print("{} converted to {} with {} errors".format(
@@ -193,13 +193,13 @@ def json2xml():
     if not base_path.exists():
         base_path.mkdir()
     elif not base_path.is_dir():
-        raise XMLSchemaValueError("{!r} is not a directory".format(str(base_path)))
+        raise XMLSchemaValueError(f"{str(base_path)!r} is not a directory")
 
     tot_errors = 0
     for json_path in map(pathlib.Path, args.files):
         xml_path = base_path.joinpath(json_path.name).with_suffix('.xml')
         if xml_path.exists() and not args.force:
-            print("skip {}: the destination file exists!".format(str(xml_path)))
+            print(f"skip {str(xml_path)}: the destination file exists!")
             continue
 
         with open(str(json_path)) as fp:
@@ -213,11 +213,11 @@ def json2xml():
                 )
             except (xmlschema.XMLSchemaException, URLError) as err:
                 tot_errors += 1
-                print("error with {}: {}".format(str(xml_path), str(err)))
+                print(f"error with {str(xml_path)}: {str(err)}")
                 continue
             else:
                 if not errors:
-                    print("{} converted to {}".format(str(json_path), str(xml_path)))
+                    print(f"{str(json_path)} converted to {str(xml_path)}")
                 else:
                     tot_errors += len(errors)
                     print("{} converted to {} with {} errors".format(

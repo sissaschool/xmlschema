@@ -64,7 +64,7 @@ class XsdSource:
             return
 
         logger.debug("Replace location %r with %r", location, repl_location)
-        repl = 'schemaLocation="{}"'.format(repl_location)
+        repl = f'schemaLocation="{repl_location}"'
         pattern = REPLACE_PATTERN.format(re.escape(location))
         self.text = re.sub(pattern, repl, self.text)
         self.modified = True
@@ -353,7 +353,7 @@ def download_schemas(url: str,
 
                 try:
                     ref_resource = XMLResource(url, defuse=defuse, timeout=timeout)
-                except (OSError, IOError, XMLResourceError) as err:
+                except (OSError, XMLResourceError) as err:
                     logger.error('Error accessing resource at URL %s: %s', url, err)
                     continue
                 except ElementTree.ParseError as err:

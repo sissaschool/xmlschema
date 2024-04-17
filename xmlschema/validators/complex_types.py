@@ -88,16 +88,16 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
                 self._block = kwargs['block']
             if 'final' in kwargs:
                 self._final = kwargs['final']
-        super(XsdComplexType, self).__init__(elem, schema, parent, name)
+        super().__init__(elem, schema, parent, name)
         assert self.content is not None
 
     def __repr__(self) -> str:
         if self.name is not None:
-            return '%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
+            return '{}(name={!r})'.format(self.__class__.__name__, self.prefixed_name)
         elif not hasattr(self, 'content') or not hasattr(self, 'attributes'):
-            return '%s(id=%r)' % (self.__class__.__name__, id(self))
+            return '{}(id={!r})'.format(self.__class__.__name__, id(self))
         else:
-            return '%s(content=%r, attributes=%r)' % (
+            return '{}(content={!r}, attributes={!r})'.format(
                 self.__class__.__name__, self.content_type_label,
                 [a if a.name is None else a.prefixed_name for a in self.attributes.values()]
             )
@@ -621,7 +621,7 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
             'extra_validator': extra_validator
         }
         if not isinstance(obj, (str, bytes)):
-            super(XsdComplexType, self).validate(obj, **kwargs)
+            super().validate(obj, **kwargs)
         elif isinstance(self.content, XsdSimpleType):
             self.content.validate(obj, **kwargs)
         elif not self.mixed and self.base_type is not None:
@@ -639,7 +639,7 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
             'extra_validator': extra_validator
         }
         if not isinstance(obj, (str, bytes)):
-            return super(XsdComplexType, self).is_valid(obj, **kwargs)
+            return super().is_valid(obj, **kwargs)
         elif isinstance(self.content, XsdSimpleType):
             return self.content.is_valid(obj, **kwargs)
         else:
@@ -716,7 +716,7 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
     def decode(self, obj: Union[ElementType, str, bytes], *args: Any, **kwargs: Any) \
             -> DecodeType[Any]:
         if not isinstance(obj, (str, bytes)):
-            return super(XsdComplexType, self).decode(obj, *args, **kwargs)
+            return super().decode(obj, *args, **kwargs)
         elif isinstance(self.content, XsdSimpleType):
             return self.content.decode(obj, *args, **kwargs)
         else:
@@ -834,7 +834,7 @@ class Xsd11ComplexType(XsdComplexType):
             return self.schema.default_open_content
 
     def _parse(self) -> None:
-        super(Xsd11ComplexType, self)._parse()
+        super()._parse()
 
         if self.base_type and self.base_type.base_type is self.any_simple_type and \
                 self.base_type.derivation == 'extension' and not self.attributes:

@@ -69,54 +69,54 @@ class TestEncoding(XsdValidatorTestCase):
         ))
 
     def test_string_based_builtin_types(self):
-        self.check_encode(self.xsd_types['string'], 'sample string ', u'sample string ')
-        self.check_encode(self.xsd_types['normalizedString'], ' sample string ', u' sample string ')
+        self.check_encode(self.xsd_types['string'], 'sample string ', 'sample string ')
+        self.check_encode(self.xsd_types['normalizedString'], ' sample string ', ' sample string ')
         self.check_encode(self.xsd_types['normalizedString'],
-                          '\n\r sample\tstring\n', u'   sample string ')
-        self.check_encode(self.xsd_types['token'], '\n\r sample\t\tstring\n ', u'sample string')
+                          '\n\r sample\tstring\n', '   sample string ')
+        self.check_encode(self.xsd_types['token'], '\n\r sample\t\tstring\n ', 'sample string')
         self.check_encode(self.xsd_types['language'], 'sample string', XMLSchemaValidationError)
-        self.check_encode(self.xsd_types['language'], ' en ', u'en')
-        self.check_encode(self.xsd_types['Name'], 'first_name', u'first_name')
-        self.check_encode(self.xsd_types['Name'], ' first_name ', u'first_name')
+        self.check_encode(self.xsd_types['language'], ' en ', 'en')
+        self.check_encode(self.xsd_types['Name'], 'first_name', 'first_name')
+        self.check_encode(self.xsd_types['Name'], ' first_name ', 'first_name')
         self.check_encode(self.xsd_types['Name'], 'first name', XMLSchemaValidationError)
         self.check_encode(self.xsd_types['Name'], '1st_name', XMLSchemaValidationError)
-        self.check_encode(self.xsd_types['Name'], 'first_name1', u'first_name1')
-        self.check_encode(self.xsd_types['Name'], 'first:name', u'first:name')
-        self.check_encode(self.xsd_types['NCName'], 'first_name', u'first_name')
+        self.check_encode(self.xsd_types['Name'], 'first_name1', 'first_name1')
+        self.check_encode(self.xsd_types['Name'], 'first:name', 'first:name')
+        self.check_encode(self.xsd_types['NCName'], 'first_name', 'first_name')
         self.check_encode(self.xsd_types['NCName'], 'first:name', XMLSchemaValidationError)
         self.check_encode(self.xsd_types['ENTITY'], 'first:name', XMLSchemaValidationError)
         self.check_encode(self.xsd_types['ID'], 'first:name', XMLSchemaValidationError)
         self.check_encode(self.xsd_types['IDREF'], 'first:name', XMLSchemaValidationError)
 
     def test_decimal_based_builtin_types(self):
-        self.check_encode(self.xsd_types['decimal'], -99.09, u'-99.09')
-        self.check_encode(self.xsd_types['decimal'], '-99.09', u'-99.09')
-        self.check_encode(self.xsd_types['integer'], 1000, u'1000')
+        self.check_encode(self.xsd_types['decimal'], -99.09, '-99.09')
+        self.check_encode(self.xsd_types['decimal'], '-99.09', '-99.09')
+        self.check_encode(self.xsd_types['integer'], 1000, '1000')
         self.check_encode(self.xsd_types['integer'], 100.0, XMLSchemaEncodeError)
-        self.check_encode(self.xsd_types['integer'], 100.0, u'100', validation='lax')
-        self.check_encode(self.xsd_types['short'], 1999, u'1999')
+        self.check_encode(self.xsd_types['integer'], 100.0, '100', validation='lax')
+        self.check_encode(self.xsd_types['short'], 1999, '1999')
         self.check_encode(self.xsd_types['short'], 10000000, XMLSchemaValidationError)
-        self.check_encode(self.xsd_types['float'], 100.0, u'100.0')
+        self.check_encode(self.xsd_types['float'], 100.0, '100.0')
         self.check_encode(self.xsd_types['float'], 'hello', XMLSchemaEncodeError)
-        self.check_encode(self.xsd_types['double'], -4531.7, u'-4531.7')
+        self.check_encode(self.xsd_types['double'], -4531.7, '-4531.7')
         self.check_encode(self.xsd_types['positiveInteger'], -1, XMLSchemaValidationError)
         self.check_encode(self.xsd_types['positiveInteger'], 0, XMLSchemaValidationError)
-        self.check_encode(self.xsd_types['nonNegativeInteger'], 0, u'0')
+        self.check_encode(self.xsd_types['nonNegativeInteger'], 0, '0')
         self.check_encode(self.xsd_types['nonNegativeInteger'], -1, XMLSchemaValidationError)
-        self.check_encode(self.xsd_types['negativeInteger'], -100, u'-100')
+        self.check_encode(self.xsd_types['negativeInteger'], -100, '-100')
         self.check_encode(self.xsd_types['nonPositiveInteger'], 7, XMLSchemaValidationError)
-        self.check_encode(self.xsd_types['unsignedLong'], 101, u'101')
+        self.check_encode(self.xsd_types['unsignedLong'], 101, '101')
         self.check_encode(self.xsd_types['unsignedLong'], -101, XMLSchemaValidationError)
         self.check_encode(self.xsd_types['nonPositiveInteger'], 7, XMLSchemaValidationError)
 
     def test_list_builtin_types(self):
-        self.check_encode(self.xsd_types['IDREFS'], ['first_name'], u'first_name')
+        self.check_encode(self.xsd_types['IDREFS'], ['first_name'], 'first_name')
         self.check_encode(self.xsd_types['IDREFS'],
-                          'first_name', u'first_name')  # Transform data to list
-        self.check_encode(self.xsd_types['IDREFS'], ['one', 'two', 'three'], u'one two three')
+                          'first_name', 'first_name')  # Transform data to list
+        self.check_encode(self.xsd_types['IDREFS'], ['one', 'two', 'three'], 'one two three')
         self.check_encode(self.xsd_types['IDREFS'], [1, 'two', 'three'], XMLSchemaValidationError)
-        self.check_encode(self.xsd_types['NMTOKENS'], ['one', 'two', 'three'], u'one two three')
-        self.check_encode(self.xsd_types['ENTITIES'], ('mouse', 'cat', 'dog'), u'mouse cat dog')
+        self.check_encode(self.xsd_types['NMTOKENS'], ['one', 'two', 'three'], 'one two three')
+        self.check_encode(self.xsd_types['ENTITIES'], ('mouse', 'cat', 'dog'), 'mouse cat dog')
 
     def test_datetime_builtin_type(self):
         xs = self.get_schema('<xs:element name="dt" type="xs:dateTime"/>')
@@ -206,24 +206,24 @@ class TestEncoding(XsdValidatorTestCase):
 
     def test_union_types(self):
         integer_or_float = self.st_schema.types['integer_or_float']
-        self.check_encode(integer_or_float, -95, u'-95')
-        self.check_encode(integer_or_float, -95.0, u'-95.0')
+        self.check_encode(integer_or_float, -95, '-95')
+        self.check_encode(integer_or_float, -95.0, '-95.0')
         self.check_encode(integer_or_float, True, XMLSchemaEncodeError)
-        self.check_encode(integer_or_float, True, u'1', validation='lax')
+        self.check_encode(integer_or_float, True, '1', validation='lax')
 
         integer_or_string = self.st_schema.types['integer_or_string']
-        self.check_encode(integer_or_string, 89, u'89')
-        self.check_encode(integer_or_string, 89.0, u'89', validation='lax')
+        self.check_encode(integer_or_string, 89, '89')
+        self.check_encode(integer_or_string, 89.0, '89', validation='lax')
         self.check_encode(integer_or_string, 89.0, XMLSchemaEncodeError)
         self.check_encode(integer_or_string, False, XMLSchemaEncodeError)
-        self.check_encode(integer_or_string, "Venice ", u'Venice ')
+        self.check_encode(integer_or_string, "Venice ", 'Venice ')
 
         boolean_or_integer_or_string = self.st_schema.types['boolean_or_integer_or_string']
-        self.check_encode(boolean_or_integer_or_string, 89, u'89')
-        self.check_encode(boolean_or_integer_or_string, 89.0, u'89', validation='lax')
+        self.check_encode(boolean_or_integer_or_string, 89, '89')
+        self.check_encode(boolean_or_integer_or_string, 89.0, '89', validation='lax')
         self.check_encode(boolean_or_integer_or_string, 89.0, XMLSchemaEncodeError)
-        self.check_encode(boolean_or_integer_or_string, False, u'false')
-        self.check_encode(boolean_or_integer_or_string, "Venice ", u'Venice ')
+        self.check_encode(boolean_or_integer_or_string, False, 'false')
+        self.check_encode(boolean_or_integer_or_string, "Venice ", 'Venice ')
 
     def test_simple_elements(self):
         elem = ElementTree.Element('A')
@@ -294,7 +294,7 @@ class TestEncoding(XsdValidatorTestCase):
         self.check_encode(
             xsd_component=schema.elements['A'],
             data=dict([('B1', 'abc'), ('B2', 10), ('B3', False)]),
-            expected=u'<A>\n<B1>abc</B1>\n<B2>10</B2>\n<B3>false</B3>\n</A>',
+            expected='<A>\n<B1>abc</B1>\n<B2>10</B2>\n<B3>false</B3>\n</A>',
             indent=0,
         )
         self.check_encode(schema.elements['A'], {'B1': 'abc', 'B2': 10, 'B4': False},
@@ -384,7 +384,7 @@ class TestEncoding(XsdValidatorTestCase):
         self.check_encode(
             xsd_component=schema.elements['A'],
             data=dict([('B2', 10), ('B1', 'abc'), ('B3', True)]),
-            expected=u'<A>\n<B1>abc</B1>\n<B2>10</B2>\n<B3>true</B3>\n</A>',
+            expected='<A>\n<B1>abc</B1>\n<B2>10</B2>\n<B3>true</B3>\n</A>',
             indent=0, cdata_prefix='#', converter=UnorderedConverter
         )
 
@@ -397,7 +397,7 @@ class TestEncoding(XsdValidatorTestCase):
         self.check_encode(
             xsd_component=schema.elements['A'],
             data=dict([('B1', 'abc'), ('B2', 10), ('#1', 'hello'), ('B3', True)]),
-            expected=u'<A>\n<B1>abc</B1>\n<B2>10</B2>\nhello\n<B3>true</B3>\n</A>',
+            expected='<A>\n<B1>abc</B1>\n<B2>10</B2>\nhello\n<B3>true</B3>\n</A>',
             indent=0, cdata_prefix='#'
         )
         self.check_encode(
@@ -423,13 +423,13 @@ class TestEncoding(XsdValidatorTestCase):
         self.check_encode(
             xsd_component=schema.elements['A'],
             data=dict([('B2', 10), ('B1', 'abc'), ('B3', True)]),
-            expected=u'<A>\n<B1>abc</B1>\n<B2>10</B2>\n<B3>true</B3>\n</A>',
+            expected='<A>\n<B1>abc</B1>\n<B2>10</B2>\n<B3>true</B3>\n</A>',
             indent=0, cdata_prefix='#'
         )
         self.check_encode(
             xsd_component=schema.elements['A'],
             data=dict([('B1', 'abc'), ('B2', 10), ('#1', 'hello'), ('B3', True)]),
-            expected=u'<A>\nhello<B1>abc</B1>\n<B2>10</B2>\n<B3>true</B3>\n</A>',
+            expected='<A>\nhello<B1>abc</B1>\n<B2>10</B2>\n<B3>true</B3>\n</A>',
             indent=0, cdata_prefix='#'
         )
         self.check_encode(

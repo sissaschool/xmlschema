@@ -27,9 +27,9 @@ def iter_nested_items(items: Union[Dict[Any, Any], List[Any]],
         for item in items:
             yield from iter_nested_items(item, dict_class, list_class)
     elif isinstance(items, dict):
-        raise TypeError("%r: is a dict() instead of %r." % (items, dict_class))
+        raise TypeError("{!r}: is a dict() instead of {!r}.".format(items, dict_class))
     elif isinstance(items, list):
-        raise TypeError("%r: is a list() instead of %r." % (items, list_class))
+        raise TypeError("{!r}: is a list() instead of {!r}.".format(items, list_class))
     else:
         yield items
 
@@ -69,15 +69,15 @@ def etree_elements_assert_equal(elem: Element, other: Element,
             if not skip_comments or not callable(e2.tag):
                 break
         else:
-            raise AssertionError("Node %r has more children than %r" % (elem, other))
+            raise AssertionError("Node {!r} has more children than {!r}".format(elem, other))
 
         if strict or e1 is elem:
             if e1.tag != e2.tag:
-                raise AssertionError("%r != %r: tags differ" % (e1, e2))
+                raise AssertionError("{!r} != {!r}: tags differ".format(e1, e2))
         else:
             namespace = get_namespace(e1.tag) or namespace
             if get_qname(namespace, e1.tag) != get_qname(namespace, e2.tag):
-                raise AssertionError("%r != %r: tags differ." % (e1, e2))
+                raise AssertionError("{!r} != {!r}: tags differ.".format(e1, e2))
 
         # Attributes
         if e1.attrib != e2.attrib:
@@ -124,7 +124,7 @@ def etree_elements_assert_equal(elem: Element, other: Element,
 
         # Text
         if e1.text != e2.text:
-            message = "%r != %r: texts differ: %r != %r" % (e1, e2, e1.text, e2.text)
+            message = "{!r} != {!r}: texts differ: {!r} != {!r}".format(e1, e2, e1.text, e2.text)
             if strict:
                 raise AssertionError(message)
             elif e1.text is None:
@@ -161,7 +161,7 @@ def etree_elements_assert_equal(elem: Element, other: Element,
 
         # Tail
         if e1.tail != e2.tail:
-            message = "%r != %r: tails differ: %r != %r" % (e1, e2, e1.tail, e2.tail)
+            message = "{!r} != {!r}: tails differ: {!r} != {!r}".format(e1, e2, e1.tail, e2.tail)
             if strict:
                 raise AssertionError(message)
             elif e1.tail is None:
@@ -180,4 +180,4 @@ def etree_elements_assert_equal(elem: Element, other: Element,
     except StopIteration:
         pass
     else:
-        raise AssertionError("Node %r has lesser children than %r." % (elem, other))
+        raise AssertionError("Node {!r} has lesser children than {!r}.".format(elem, other))

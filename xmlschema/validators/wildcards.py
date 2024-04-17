@@ -46,11 +46,11 @@ class XsdWildcard(XsdComponent):
 
     def __repr__(self) -> str:
         if self.not_namespace:
-            return '%s(not_namespace=%r, process_contents=%r)' % (
+            return '{}(not_namespace={!r}, process_contents={!r})'.format(
                 self.__class__.__name__, self.not_namespace, self.process_contents
             )
         else:
-            return '%s(namespace=%r, process_contents=%r)' % (
+            return '{}(namespace={!r}, process_contents={!r})'.format(
                 self.__class__.__name__, self.namespace, self.process_contents
             )
 
@@ -409,16 +409,16 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
 
     def __init__(self, elem: ElementType, schema: SchemaType, parent: XsdComponent) -> None:
         self.precedences = {}
-        super(XsdAnyElement, self).__init__(elem, schema, parent)
+        super().__init__(elem, schema, parent)
 
     def __repr__(self) -> str:
         if self.namespace:
-            return '%s(namespace=%r, process_contents=%r, occurs=%r)' % (
+            return '{}(namespace={!r}, process_contents={!r}, occurs={!r})'.format(
                 self.__class__.__name__, self.namespace,
                 self.process_contents, list(self.occurs)
             )
         else:
-            return '%s(not_namespace=%r, process_contents=%r, occurs=%r)' % (
+            return '{}(not_namespace={!r}, process_contents={!r}, occurs={!r})'.format(
                 self.__class__.__name__, self.not_namespace,
                 self.process_contents, list(self.occurs)
             )
@@ -441,7 +441,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
         )
 
     def _parse(self) -> None:
-        super(XsdAnyElement, self)._parse()
+        super()._parse()
         self._parse_particle(self.elem)
 
     def match(self, name: Optional[str], default_namespace: Optional[str] = None,
@@ -746,7 +746,7 @@ class Xsd11AnyElement(XsdAnyElement):
         </any>
     """
     def _parse(self) -> None:
-        super(Xsd11AnyElement, self)._parse()
+        super()._parse()
         self._parse_not_constraints()
 
     def is_matching(self, name: Optional[str],
@@ -823,7 +823,7 @@ class Xsd11AnyAttribute(XsdAnyAttribute):
         </anyAttribute>
     """
     def _parse(self) -> None:
-        super(Xsd11AnyAttribute, self)._parse()
+        super()._parse()
         self._parse_not_constraints()
 
     def is_matching(self, name: Optional[str],
@@ -866,13 +866,13 @@ class XsdOpenContent(XsdComponent):
     any_element = None  # type: Xsd11AnyElement
 
     def __init__(self, elem: ElementType, schema: SchemaType, parent: XsdComponent) -> None:
-        super(XsdOpenContent, self).__init__(elem, schema, parent)
+        super().__init__(elem, schema, parent)
 
     def __repr__(self) -> str:
-        return '%s(mode=%r)' % (self.__class__.__name__, self.mode)
+        return '{}(mode={!r})'.format(self.__class__.__name__, self.mode)
 
     def _parse(self) -> None:
-        super(XsdOpenContent, self)._parse()
+        super()._parse()
         try:
             self.mode = self.elem.attrib['mode']
         except KeyError:
@@ -925,7 +925,7 @@ class XsdDefaultOpenContent(XsdOpenContent):
         super(XsdOpenContent, self).__init__(elem, schema)
 
     def _parse(self) -> None:
-        super(XsdDefaultOpenContent, self)._parse()
+        super()._parse()
         if self.parent is not None:
             msg = _("defaultOpenContent must be a child of the schema")
             self.parse_error(msg)

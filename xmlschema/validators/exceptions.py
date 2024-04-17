@@ -89,7 +89,7 @@ class XMLSchemaValidatorError(XMLSchemaException):
                 )
                 if self.source.is_lazy():
                     value = None  # Don't save the element of a lazy resource
-        super(XMLSchemaValidatorError, self).__setattr__(name, value)
+        super().__setattr__(name, value)
 
     @property
     def sourceline(self) -> Any:
@@ -162,7 +162,7 @@ class XMLSchemaNotBuiltError(XMLSchemaValidatorError, RuntimeError):
     :param message: the error message.
     """
     def __init__(self, validator: 'XsdValidator', message: str) -> None:
-        super(XMLSchemaNotBuiltError, self).__init__(
+        super().__init__(
             validator=validator,
             message=message,
             elem=getattr(validator, 'elem', None),
@@ -181,7 +181,7 @@ class XMLSchemaParseError(XMLSchemaValidatorError, SyntaxError):  # type: ignore
     """
     def __init__(self, validator: 'XsdValidator', message: str,
                  elem: Optional[ElementType] = None) -> None:
-        super(XMLSchemaParseError, self).__init__(
+        super().__init__(
             validator=validator,
             message=message,
             elem=elem if elem is not None else getattr(validator, 'elem', None),
@@ -198,7 +198,7 @@ class XMLSchemaModelError(XMLSchemaValidatorError, ValueError):
     :param message: the error message.
     """
     def __init__(self, group: 'XsdGroup', message: str) -> None:
-        super(XMLSchemaModelError, self).__init__(
+        super().__init__(
             validator=group,
             message=message,
             elem=getattr(group, 'elem', None),
@@ -210,8 +210,8 @@ class XMLSchemaModelError(XMLSchemaValidatorError, ValueError):
 class XMLSchemaModelDepthError(XMLSchemaModelError):
     """Raised when recursion depth is exceeded while iterating a model group."""
     def __init__(self, group: 'XsdGroup') -> None:
-        msg = "maximum model recursion depth exceeded while iterating {!r}".format(group)
-        super(XMLSchemaModelDepthError, self).__init__(group, message=msg)
+        msg = f"maximum model recursion depth exceeded while iterating {group!r}"
+        super().__init__(group, message=msg)
 
 
 class XMLSchemaValidationError(XMLSchemaValidatorError, ValueError):
@@ -242,9 +242,9 @@ class XMLSchemaValidationError(XMLSchemaValidatorError, ValueError):
         if len(obj_repr) > 200:
             obj_repr = f"{type(obj)} instance"
 
-        super(XMLSchemaValidationError, self).__init__(
+        super().__init__(
             validator=validator,
-            message="failed validating {} with {!r}".format(obj_repr, validator),
+            message=f"failed validating {obj_repr} with {validator!r}",
             elem=obj if is_etree_element(obj) else None,
             source=source,
             namespaces=namespaces,
@@ -253,7 +253,7 @@ class XMLSchemaValidationError(XMLSchemaValidatorError, ValueError):
         self.reason = reason
 
     def __repr__(self) -> str:
-        return '%s(reason=%r)' % (self.__class__.__name__, self.reason)
+        return '{}(reason={!r})'.format(self.__class__.__name__, self.reason)
 
     def __str__(self) -> str:
         chunks = ['%s:\n' % self.message]
@@ -274,7 +274,7 @@ class XMLSchemaValidationError(XMLSchemaValidatorError, ValueError):
 
         if hasattr(self.elem, 'sourceline'):
             line = getattr(self.elem, 'sourceline')
-            chunks.append("Instance (line %r):\n\n%s\n" % (line, instance_as_string))
+            chunks.append("Instance (line {!r}):\n\n{}\n".format(line, instance_as_string))
         else:
             chunks.append("Instance:\n\n%s\n" % instance_as_string)
 
@@ -322,7 +322,7 @@ class XMLSchemaDecodeError(XMLSchemaValidationError):
                  reason: Optional[str] = None,
                  source: Optional[Any] = None,
                  namespaces: Optional[NamespacesType] = None) -> None:
-        super(XMLSchemaDecodeError, self).__init__(validator, obj, reason, source, namespaces)
+        super().__init__(validator, obj, reason, source, namespaces)
         self.decoder = decoder
 
 
@@ -345,7 +345,7 @@ class XMLSchemaEncodeError(XMLSchemaValidationError):
                  reason: Optional[str] = None,
                  source: Optional[Any] = None,
                  namespaces: Optional[NamespacesType] = None) -> None:
-        super(XMLSchemaEncodeError, self).__init__(validator, obj, reason, source, namespaces)
+        super().__init__(validator, obj, reason, source, namespaces)
         self.encoder = encoder
 
 
@@ -393,7 +393,7 @@ class XMLSchemaChildrenValidationError(XMLSchemaValidationError):
                 particle, occurs, particle.min_occurs
             )
         elif particle.max_occurs is not None and particle.max_occurs < occurs:
-            reason += " The particle %r occurs %r times but the maximum is %r." % (
+            reason += " The particle {!r} occurs {!r} times but the maximum is {!r}.".format(
                 particle, occurs, particle.max_occurs
             )
 
@@ -419,7 +419,7 @@ class XMLSchemaChildrenValidationError(XMLSchemaValidationError):
             else:
                 reason += _(" Tag %r expected.") % expected_tags[0]
 
-        super(XMLSchemaChildrenValidationError, self).\
+        super().\
             __init__(validator, elem, reason, source, namespaces)
 
     @property

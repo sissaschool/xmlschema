@@ -60,7 +60,7 @@ class DataElement(MutableSequence['DataElement']):
                  xsd_element: Optional['XsdElement'] = None,
                  xsd_type: Optional[BaseXsdType] = None) -> None:
 
-        super(DataElement, self).__init__()
+        super().__init__()
         self._children = []
         self.tag = tag
         self.attrib = {}
@@ -107,7 +107,7 @@ class DataElement(MutableSequence['DataElement']):
         self._children.insert(i, child)
 
     def __repr__(self) -> str:
-        return '%s(tag=%r)' % (self.__class__.__name__, self.tag)
+        return '{}(tag={!r})'.format(self.__class__.__name__, self.tag)
 
     def __iter__(self) -> Iterator['DataElement']:
         yield from self._children
@@ -136,7 +136,7 @@ class DataElement(MutableSequence['DataElement']):
             else:
                 self._encoder = self.xsd_element
 
-        super(DataElement, self).__setattr__(key, value)
+        super().__setattr__(key, value)
 
     @property
     def text(self) -> Optional[str]:
@@ -158,7 +158,7 @@ class DataElement(MutableSequence['DataElement']):
             elif ':' in key:
                 try:
                     _prefix, _local_name = key.split(':')
-                    key = '{%s}%s' % (self.nsmap[_prefix], _local_name)
+                    key = '{{{}}}{}'.format(self.nsmap[_prefix], _local_name)
                 except (ValueError, KeyError):
                     pass
                 else:
@@ -432,13 +432,13 @@ class DataBindingMeta(ABCMeta):
             raise XMLSchemaAttributeError(msg) from None
 
         if not isinstance(xsd_element, validators.XsdElement):
-            raise XMLSchemaTypeError("{!r} is not an XSD element".format(xsd_element))
+            raise XMLSchemaTypeError(f"{xsd_element!r} is not an XSD element")
 
         attrs['__module__'] = None
-        return super(DataBindingMeta, mcs).__new__(mcs, name, bases, attrs)
+        return super().__new__(mcs, name, bases, attrs)
 
     def __init__(cls, name: str, bases: Tuple[Type[Any], ...], attrs: Dict[str, Any]) -> None:
-        super(DataBindingMeta, cls).__init__(name, bases, attrs)
+        super().__init__(name, bases, attrs)
         cls.xsd_version = cls.xsd_element.xsd_version
         cls.namespace = cls.xsd_element.target_namespace
 
@@ -475,7 +475,7 @@ class DataElementConverter(XMLSchemaConverter):
 
         self.map_attribute_names = map_attribute_names
         kwargs.update(attr_prefix='', text_key='', cdata_prefix='')
-        super(DataElementConverter, self).__init__(namespaces, **kwargs)
+        super().__init__(namespaces, **kwargs)
 
     @property
     def xmlns_processing_default(self) -> str:

@@ -258,7 +258,7 @@ class XMLResource:
         self.parse(source, lazy)
 
     def __repr__(self) -> str:
-        return '%s(root=%r)' % (self.__class__.__name__, self._root)
+        return '{}(root={!r})'.format(self.__class__.__name__, self._root)
 
     @property
     def source(self) -> XMLSourceType:
@@ -751,12 +751,12 @@ class XMLResource:
     def get_absolute_path(self, path: Optional[str] = None) -> str:
         if path is None:
             if self._lazy:
-                return '/%s/%s' % (self._root.tag, '/'.join('*' * int(self._lazy)))
+                return '/{}/{}'.format(self._root.tag, '/'.join('*' * int(self._lazy)))
             return '/%s' % self._root.tag
         elif path.startswith('/'):
             return path
         else:
-            return '/%s/%s' % (self._root.tag, path)
+            return '/{}/{}'.format(self._root.tag, path)
 
     def get_text(self) -> str:
         """
@@ -992,7 +992,7 @@ class XMLResource:
         :param ancestors: provide a list for tracking the ancestors of yielded elements.
         """
         if mode not in (1, 2, 3, 4, 5):
-            raise XMLSchemaValueError("invalid argument mode={!r}".format(mode))
+            raise XMLSchemaValueError(f"invalid argument mode={mode!r}")
 
         if ancestors is not None:
             ancestors.clear()

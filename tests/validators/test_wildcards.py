@@ -167,7 +167,7 @@ class TestXsd11Wildcards(TestXsdWildcards):
     schema_class = XMLSchema11
 
     def test_parsing(self):
-        super(TestXsd11Wildcards, self).test_parsing()
+        super().test_parsing()
         schema = self.schema_class("""
         <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="tns1">
             <xs:group name="group1">
@@ -730,7 +730,7 @@ class TestXsd11Wildcards(TestXsdWildcards):
         </xs:schema>""", XMLSchemaParseError)
 
     def test_any_wildcard(self):
-        super(TestXsd11Wildcards, self).test_any_wildcard()
+        super().test_any_wildcard()
         self.check_schema("""
         <xs:complexType name="taggedType">
           <xs:sequence>
@@ -776,7 +776,7 @@ class TestXsd11Wildcards(TestXsdWildcards):
                          ['##defined', '{tns1}foo', '##definedSibling'])
 
     def test_any_attribute_wildcard(self):
-        super(TestXsd11Wildcards, self).test_any_attribute_wildcard()
+        super().test_any_attribute_wildcard()
         schema = self.schema_class("""
         <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
                 xmlns:tns1="tns1" targetNamespace="tns1">

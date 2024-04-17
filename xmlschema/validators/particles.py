@@ -186,7 +186,7 @@ class OccursCalculator:
         self.min_occurs = self.max_occurs = 0
 
     def __repr__(self) -> str:
-        return '%s(%r, %r)' % (self.__class__.__name__, self.min_occurs, self.max_occurs)
+        return '{}({!r}, {!r})'.format(self.__class__.__name__, self.min_occurs, self.max_occurs)
 
     def __add__(self, other: ParticleMixin) -> 'OccursCalculator':
         self.min_occurs += other.min_occurs

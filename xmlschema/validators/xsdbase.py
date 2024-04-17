@@ -302,7 +302,7 @@ class XsdComponent(XsdValidator):
                  parent: Optional['XsdComponent'] = None,
                  name: Optional[str] = None) -> None:
 
-        super(XsdComponent, self).__init__(schema.validation)
+        super().__init__(schema.validation)
         if name:
             self.name = name
         if parent is not None:
@@ -318,12 +318,12 @@ class XsdComponent(XsdValidator):
                 raise XMLSchemaValueError(
                     msg.format(value.tag, self.__class__, self._ADMITTED_TAGS)
                 )
-            super(XsdComponent, self).__setattr__(name, value)
+            super().__setattr__(name, value)
             if self.errors:
                 self.errors.clear()
             self._parse()
         else:
-            super(XsdComponent, self).__setattr__(name, value)
+            super().__setattr__(name, value)
 
     @property
     def xsd_version(self) -> str:
@@ -417,9 +417,9 @@ class XsdComponent(XsdValidator):
 
     def __repr__(self) -> str:
         if self.ref is not None:
-            return '%s(ref=%r)' % (self.__class__.__name__, self.prefixed_name)
+            return '{}(ref={!r})'.format(self.__class__.__name__, self.prefixed_name)
         else:
-            return '%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
+            return '{}(name={!r})'.format(self.__class__.__name__, self.prefixed_name)
 
     def _parse(self) -> None:
         return
@@ -623,7 +623,7 @@ class XsdComponent(XsdValidator):
                 return mapping[k]
 
             # Match namespace declaration within value
-            ns_declaration = '{}:{}'.format(ns_prefix, prefix)
+            ns_declaration = f'{ns_prefix}:{prefix}'
             try:
                 if mapping[k][ns_declaration] == target_namespace:
                     return mapping[k]
@@ -739,7 +739,7 @@ class XsdAnnotation(XsdComponent):
             self.parent_elem = schema.source.root
 
     def __repr__(self) -> str:
-        return '%s(%r)' % (self.__class__.__name__, str(self)[:40])
+        return '{}({!r})'.format(self.__class__.__name__, str(self)[:40])
 
     def __str__(self) -> str:
         return '\n'.join(select(self.elem, '*/fn:string()'))

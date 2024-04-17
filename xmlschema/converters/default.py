@@ -152,7 +152,7 @@ class XMLSchemaConverter(NamespaceMapper):
         self.force_dict = force_dict
         self.force_list = force_list
 
-        super(XMLSchemaConverter, self).__init__(
+        super().__init__(
             namespaces, process_namespaces, strip_namespaces, xmlns_processing, source
         )
 
@@ -182,7 +182,7 @@ class XMLSchemaConverter(NamespaceMapper):
                 msg = "%(name)r must be a MutableSequence object, not %(type)r"
                 raise XMLSchemaTypeError(msg % {'name': 'list_class', 'type': type(value)})
 
-        super(XMLSchemaConverter, self).__setattr__(name, value)
+        super().__setattr__(name, value)
 
     @property
     def xmlns_processing_default(self) -> str:
