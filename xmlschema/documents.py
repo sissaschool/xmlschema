@@ -615,7 +615,7 @@ class XmlDocument(XMLResource):
         self.validation = validation
         self._namespaces = get_namespace_map(namespaces)
         super().__init__(source, base_url, allow, defuse,
-                                          timeout, lazy, thin_lazy)
+                         timeout, lazy, thin_lazy)
 
         if isinstance(schema, XMLSchemaBase) and self.namespace in schema.maps.namespaces:
             self.schema = schema
