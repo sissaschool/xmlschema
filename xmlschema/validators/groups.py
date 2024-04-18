@@ -996,7 +996,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         xsd_element: Optional[SchemaElementType]
         expected: Optional[List[SchemaElementType]]
 
-        if self.open_content is None:
+        if self.open_content is None or self.open_content.mode == 'none':
             model = ModelVisitor(self)
         elif self.open_content.mode == 'interleave':
             model = InterleavedModelVisitor(self, self.open_content.any_element)
@@ -1122,7 +1122,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         padding = '\n' + ' ' * converter.indent * level
         default_namespace = converter.get('')
 
-        if self.open_content is None:
+        if self.open_content is None or self.open_content.mode == 'none':
             model = ModelVisitor(self)
         elif self.open_content.mode == 'interleave':
             model = InterleavedModelVisitor(self, self.open_content.any_element)
