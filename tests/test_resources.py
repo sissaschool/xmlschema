@@ -311,7 +311,7 @@ class TestResources(unittest.TestCase):
         self.assertIn('</vh:vehicles>', xml_text)
 
     def test_xml_resource_from_resource(self):
-        xml_file = urlopen('file://{}'.format(add_leading_slash(self.vh_xml_file)))
+        xml_file = urlopen(f'file://{add_leading_slash(self.vh_xml_file)}')
         try:
             resource = XMLResource(xml_file, lazy=False)
             self.assertEqual(resource.source, xml_file)
@@ -483,7 +483,7 @@ class TestResources(unittest.TestCase):
             XMLResource(source, base_url=base_url, allow='sandbox')
         self.assertEqual(
             str(ctx.exception),
-            "block access to out of sandbox file {}".format(normalize_url(source)),
+            f"block access to out of sandbox file {normalize_url(source)}",
         )
 
         with self.assertRaises(TypeError) as ctx:
@@ -1174,7 +1174,7 @@ class TestResources(unittest.TestCase):
         zip using the zipfile module and with Django files in some
         instances.
         """
-        class FileProxy(object):
+        class FileProxy:
             def __init__(self, fid, fake_name):
                 self._fid = fid
                 self.name = fake_name

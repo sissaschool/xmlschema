@@ -125,7 +125,7 @@ class XsdElement(XsdComponent, ParticleMixin,
         if not build:
             self._build = False
         self.selected_by = set()
-        super(XsdElement, self).__init__(elem, schema, parent)
+        super().__init__(elem, schema, parent)
 
     def __repr__(self) -> str:
         return '%s(%s=%r, occurs=%r)' % (
@@ -141,7 +141,7 @@ class XsdElement(XsdComponent, ParticleMixin,
                 self.attributes = self.schema.create_empty_attribute_group(self)
             else:
                 self.attributes = value.attributes
-        super(XsdElement, self).__setattr__(name, value)
+        super().__setattr__(name, value)
 
     def __iter__(self) -> Iterator[SchemaElementType]:
         if self.type.has_complex_content():
@@ -577,7 +577,7 @@ class XsdElement(XsdComponent, ParticleMixin,
                 yield self.validation_error(validation, err, elem, **options)
             except XMLSchemaParseError as err:
                 yield self.validation_error(validation, err.message, elem, **options)
-            except (OSError, IOError):
+            except OSError:
                 continue
 
     def iter_decode(self, obj: ElementType, validation: str = 'lax', **kwargs: Any) \
@@ -1465,7 +1465,7 @@ class Xsd11Element(XsdElement):
                 yield self.validation_error(validation, err, elem, **options)
             except XMLSchemaParseError as err:
                 yield self.validation_error(validation, err.message, elem, **options)
-            except (OSError, IOError):
+            except OSError:
                 continue
 
 
@@ -1489,7 +1489,7 @@ class XsdAlternative(XsdComponent):
     _ADMITTED_TAGS = {XSD_ALTERNATIVE}
 
     def __init__(self, elem: ElementType, schema: SchemaType, parent: XsdElement) -> None:
-        super(XsdAlternative, self).__init__(elem, schema, parent)
+        super().__init__(elem, schema, parent)
 
     def __repr__(self) -> str:
         return '%s(type=%r, test=%r)' % (

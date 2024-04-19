@@ -43,7 +43,7 @@ def is_shell_wildcard(pathname):
 
 
 def xsd_qname(name):
-    return '{%s}%s' % (XSD_NAMESPACE, name)
+    return f'{{{XSD_NAMESPACE}}}{name}'
 
 
 def filter_method(func):
@@ -97,7 +97,7 @@ class GeneratorMeta(ABCMeta):
                     dirpath = Path(module_path).parent.joinpath(path)
 
                 if not dirpath.is_dir():
-                    raise ValueError("path {!r} is not a directory!".format(str(path)))
+                    raise ValueError(f"path {str(path)!r} is not a directory!")
                 searchpaths.append(dirpath)
 
         except (KeyError, TypeError):
@@ -187,7 +187,7 @@ class AbstractGenerator(ABC, metaclass=GeneratorMeta):
                 elif getattr(method.__func__, 'is_test', False):
                     self.tests[name] = method
 
-        type_mapping_filter = '{}_type'.format(self.formal_language).lower().replace(' ', '_')
+        type_mapping_filter = f'{self.formal_language}_type'.lower().replace(' ', '_')
         if type_mapping_filter not in self.filters:
             self.filters[type_mapping_filter] = self.map_type
 
@@ -197,8 +197,8 @@ class AbstractGenerator(ABC, metaclass=GeneratorMeta):
 
     def __repr__(self):
         if self.schema.url:
-            return '%s(schema=%r)' % (self.__class__.__name__, self.schema.name)
-        return '%s(namespace=%r)' % (self.__class__.__name__, self.schema.target_namespace)
+            return f'{self.__class__.__name__}(schema={self.schema.name!r})'
+        return f'{self.__class__.__name__}(namespace={self.schema.target_namespace!r})'
 
     def list_templates(self, extensions=None, filter_func=None):
         return self._env.list_templates(extensions, filter_func)
@@ -362,7 +362,7 @@ class AbstractGenerator(ABC, metaclass=GeneratorMeta):
                     namespace, local_name = obj[1:].split('}')
                     for prefix, uri in self.schema.namespaces.items():
                         if uri == namespace:
-                            qname = '%s:%s' % (prefix, local_name)
+                            qname = f'{prefix}:{local_name}'
                             break
                     else:
                         qname = local_name
@@ -427,7 +427,7 @@ class AbstractGenerator(ABC, metaclass=GeneratorMeta):
             name = name[:-5]
 
         if suffix:
-            name = '{}{}'.format(name, suffix)
+            name = f'{name}{suffix}'
 
         return name.replace('.', '_').replace('-', '_')
 
@@ -457,7 +457,7 @@ class AbstractGenerator(ABC, metaclass=GeneratorMeta):
             qname = qname[:-5]
 
         if suffix:
-            qname = '{}{}'.format(qname, suffix)
+            qname = f'{qname}{suffix}'
 
         return qname.replace('.', '_').replace('-', '_').replace(':', sep)
 
@@ -502,7 +502,7 @@ class AbstractGenerator(ABC, metaclass=GeneratorMeta):
 
             if not deleted:
                 if not accept_circularity:
-                    raise ValueError("circularity found between {!r}".format(list(unordered)))
+                    raise ValueError(f"circularity found between {list(unordered)!r}")
                 ordered_types.extend(list(unordered))
                 break
 

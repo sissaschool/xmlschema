@@ -255,10 +255,10 @@ class TestExports(unittest.TestCase):
         with tempfile.TemporaryDirectory() as dirname:
             schema.export(target=dirname)
 
-            exported_files = set(
+            exported_files = {
                 str(x.relative_to(dirname)).replace('\\', '/')
                 for x in pathlib.Path(dirname).glob('**/*.xsd')
-            )
+            }
             self.assertSetEqual(
                 exported_files,
                 {'issue_362_1.xsd', 'dir2/issue_362_2.xsd', 'dir1/issue_362_1.xsd',
@@ -344,7 +344,7 @@ class TestDownloads(unittest.TestCase):
             location_map = download_schemas(url, target=dirname, modify=True)
             self.assertEqual(location_map, {})
 
-            xsd_files = set(x.name for x in pathlib.Path(dirname).glob('*.xsd'))
+            xsd_files = {x.name for x in pathlib.Path(dirname).glob('*.xsd')}
             self.assertSetEqual(xsd_files, {
                 'BeerXML.xsd', 'measureable_units.xsd', 'hops.xsd',
                 'yeast.xsd', 'mash.xsd', 'style.xsd', 'water.xsd',

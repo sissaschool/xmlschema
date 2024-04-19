@@ -23,7 +23,7 @@ class ModelGroup(XsdGroup):
     def __init__(self, model: str, min_occurs: int = 1, max_occurs: Optional[int] = 1) -> None:
         ParticleMixin.__init__(self, min_occurs, max_occurs)
         if model not in {'sequence', 'choice', 'all'}:
-            raise XMLSchemaValueError("invalid model {!r} for a group".format(model))
+            raise XMLSchemaValueError(f"invalid model {model!r} for a group")
         self._group: List[Union[ParticleMixin, 'ModelGroup']] = []
         self.content = self._group
         self.model: str = model

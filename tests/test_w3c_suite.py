@@ -386,7 +386,7 @@ def create_w3c_test_group_case(args, filename, group_elem, group_num, xsd_versio
 
                     schema_class = XMLSchema11 if version == '1.1' else XMLSchema10
                     if expected == 'invalid':
-                        message = "schema %s should be invalid with XSD %s" % (rel_path, version)
+                        message = f"schema {rel_path} should be invalid with XSD {version}"
                         with self.assertRaises(XMLSchemaException, msg=message):
                             with warnings.catch_warnings():
                                 warnings.simplefilter('ignore')
@@ -441,7 +441,7 @@ def create_w3c_test_group_case(args, filename, group_elem, group_num, xsd_versio
                 for version, expected in sorted(filter(lambda x: x[0] != 'source', item.items())):
                     schema_class = XMLSchema11 if version == '1.1' else XMLSchema10
                     if expected == 'invalid':
-                        message = "instance %s should be invalid with XSD %s" % (rel_path, version)
+                        message = f"instance {rel_path} should be invalid with XSD {version}"
                         with self.assertRaises((XMLSchemaException, ElementTree.ParseError),
                                                msg=message):
                             with warnings.catch_warnings():
@@ -483,7 +483,7 @@ def create_w3c_test_group_case(args, filename, group_elem, group_num, xsd_versio
         del TestGroupCase.test_xml_instances
 
     TestGroupCase.__name__ = TestGroupCase.__qualname__ = str(
-        'TestGroupCase{0:05}_{1}'.format(group_num, name.replace('-', '_'))
+        'TestGroupCase{:05}_{}'.format(group_num, name.replace('-', '_'))
     )
     return TestGroupCase
 
@@ -603,7 +603,7 @@ def w3c_tests_factory(argv=None):
                 testset_groups += 1
 
         if args.verbose and testset_groups and not quiet:
-            print("Added {} test groups from {}".format(testset_groups, href_attr))
+            print(f"Added {testset_groups} test groups from {href_attr}")
 
     if test_classes and not quiet:
         print("\n+++ Number of classes under test: %d +++" % len(test_classes))

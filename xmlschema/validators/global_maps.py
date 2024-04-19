@@ -176,7 +176,7 @@ class XsdGlobals(XsdValidator):
     }
 
     def __init__(self, validator: SchemaType, validation: str = 'strict') -> None:
-        super(XsdGlobals, self).__init__(validation)
+        super().__init__(validation)
 
         self.validator = validator
         self.namespaces = NamespaceResourcesMap()  # Registered schemas by namespace URI
@@ -518,7 +518,7 @@ class XsdGlobals(XsdValidator):
                     if schema.import_schema(namespace, url, schema.base_url) is not None:
                         if build:
                             self.build()
-                except (OSError, IOError):
+                except OSError:
                     pass
                 except XMLSchemaNotBuiltError:
                     self.clear(remove_schemas=True, only_unbuilt=True)
@@ -534,7 +534,7 @@ class XsdGlobals(XsdValidator):
                     if self.validator.import_schema(namespace, url) is not None:
                         if build:
                             self.build()
-                except (OSError, IOError):
+                except OSError:
                     return False
                 except XMLSchemaNotBuiltError:
                     self.clear(remove_schemas=True, only_unbuilt=True)

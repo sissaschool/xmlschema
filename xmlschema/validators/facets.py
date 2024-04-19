@@ -55,7 +55,7 @@ class XsdFacet(XsdComponent):
                  base_type: Optional[BaseXsdType]) -> None:
         self.base_type = base_type
         self._validator = self._skip_validation
-        super(XsdFacet, self).__init__(elem, schema, parent)
+        super().__init__(elem, schema, parent)
 
     def __repr__(self) -> str:
         return '%s(value=%r, fixed=%r)' % (self.__class__.__name__, self.value, self.fixed)
@@ -454,7 +454,7 @@ class XsdFractionDigitsFacet(XsdFacet):
                  parent: 'XsdAtomicRestriction',
                  base_type: BaseXsdType) -> None:
 
-        super(XsdFractionDigitsFacet, self).__init__(elem, schema, parent, base_type)
+        super().__init__(elem, schema, parent, base_type)
         if not base_type.is_derived(self.maps.types[XSD_DECIMAL]):
             msg = _("fractionDigits facet can be applied only to types derived from xs:decimal")
             self.parse_error(msg)

@@ -37,8 +37,8 @@ class ColumnarConverter(XMLSchemaConverter):
                  attr_prefix: Optional[str] = '',
                  **kwargs: Any) -> None:
         kwargs.update(text_key=None, cdata_prefix=None)
-        super(ColumnarConverter, self).__init__(namespaces, dict_class, list_class,
-                                                attr_prefix=attr_prefix, **kwargs)
+        super().__init__(namespaces, dict_class, list_class,
+                         attr_prefix=attr_prefix, **kwargs)
 
     @property
     def xmlns_processing_default(self) -> str:
@@ -54,7 +54,7 @@ class ColumnarConverter(XMLSchemaConverter):
 
     def __setattr__(self, name: str, value: Any) -> None:
         if name != 'attr_prefix':
-            super(ColumnarConverter, self).__setattr__(name, value)
+            super().__setattr__(name, value)
         elif not isinstance(value, str):
             msg = "%(name)r must be a <class 'str'> instance, not %(type)r"
             raise XMLSchemaTypeError(msg % {'name': name, 'type': type(value)})

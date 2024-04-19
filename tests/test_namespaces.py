@@ -43,7 +43,7 @@ class TestNamespaceResourcesMap(unittest.TestCase):
         self.assertEqual(namespaces, {'tns0': ['schema1.xsd'], 'tns1': ['schema2.xsd']})
 
         self.assertEqual(len(namespaces), 2)
-        self.assertEqual(set(x for x in namespaces), {'tns0', 'tns1'})
+        self.assertEqual({x for x in namespaces}, {'tns0', 'tns1'})
 
         del namespaces['tns0']
         self.assertEqual(namespaces, {'tns1': ['schema2.xsd']})

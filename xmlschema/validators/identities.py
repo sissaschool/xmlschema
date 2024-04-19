@@ -73,7 +73,7 @@ class XsdSelector(XsdComponent):
 
     def __init__(self, elem: ElementType, schema: SchemaType,
                  parent: Optional['XsdIdentity']) -> None:
-        super(XsdSelector, self).__init__(elem, schema, parent)
+        super().__init__(elem, schema, parent)
 
     def _parse(self) -> None:
         try:
@@ -169,7 +169,7 @@ class XsdIdentity(XsdComponent):
 
     def __init__(self, elem: ElementType, schema: SchemaType,
                  parent: Optional['XsdElement']) -> None:
-        super(XsdIdentity, self).__init__(elem, schema, parent)
+        super().__init__(elem, schema, parent)
 
     def _parse(self) -> None:
         try:
@@ -356,7 +356,7 @@ class XsdKeyref(XsdIdentity):
     refer_path = '.'
 
     def _parse(self) -> None:
-        super(XsdKeyref, self)._parse()
+        super()._parse()
         try:
             self.refer = self.schema.resolve_qname(self.elem.attrib['refer'])
         except (KeyError, ValueError, RuntimeError) as err:
@@ -366,7 +366,7 @@ class XsdKeyref(XsdIdentity):
                 self.parse_error(err)
 
     def build(self) -> None:
-        super(XsdKeyref, self).build()
+        super().build()
 
         if isinstance(self.refer, (XsdKey, XsdUnique)):
             return  # referenced key/unique identity constraint already set
@@ -431,7 +431,7 @@ class Xsd11Unique(XsdUnique):
         if self._parse_reference():
             self.ref = True  # type: ignore[assignment]
         else:
-            super(Xsd11Unique, self)._parse()
+            super()._parse()
 
 
 class Xsd11Key(XsdKey):
@@ -439,7 +439,7 @@ class Xsd11Key(XsdKey):
         if self._parse_reference():
             self.ref = True  # type: ignore[assignment]
         else:
-            super(Xsd11Key, self)._parse()
+            super()._parse()
 
 
 class Xsd11Keyref(XsdKeyref):
@@ -447,7 +447,7 @@ class Xsd11Keyref(XsdKeyref):
         if self._parse_reference():
             self.ref = True  # type: ignore[assignment]
         else:
-            super(Xsd11Keyref, self)._parse()
+            super()._parse()
 
 
 class IdentityCounter:

@@ -38,9 +38,8 @@ class ParkerConverter(XMLSchemaConverter):
                  list_class: Optional[Type[List[Any]]] = None,
                  preserve_root: bool = False, **kwargs: Any) -> None:
         kwargs.update(attr_prefix=None, text_key='', cdata_prefix=None)
-        super(ParkerConverter, self).__init__(
-            namespaces, dict_class, list_class,
-            preserve_root=preserve_root, **kwargs
+        super().__init__(
+            namespaces, dict_class, list_class, preserve_root=preserve_root, **kwargs
         )
 
     @property

@@ -126,9 +126,7 @@ class XMLSchemaMeta(ABCMeta):
 
             meta_schema_class = cast(
                 'XMLSchemaBase',
-                super(XMLSchemaMeta, mcs).__new__(
-                    mcs, meta_schema_class_name, meta_bases, dict_
-                )
+                super().__new__(mcs, meta_schema_class_name, meta_bases, dict_)
             )
             meta_schema_class.__qualname__ = meta_schema_class_name
             module = sys.modules[dict_['__module__']]
@@ -138,7 +136,7 @@ class XMLSchemaMeta(ABCMeta):
             dict_['meta_schema'] = meta_schema
 
         # Create the class and check some basic attributes
-        cls = super(XMLSchemaMeta, mcs).__new__(mcs, name, bases, dict_)
+        cls = super().__new__(mcs, name, bases, dict_)
         if cls.XSD_VERSION not in ('1.0', '1.1'):
             raise XMLSchemaValueError(_("XSD_VERSION must be '1.0' or '1.1'"))
         return cls
@@ -322,7 +320,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                  use_xpath3: bool = False,
                  loglevel: Optional[Union[str, int]] = None) -> None:
 
-        super(XMLSchemaBase, self).__init__(validation)
+        super().__init__(validation)
         self.lock = threading.Lock()  # Lock for build operations
 
         if loglevel is not None:
@@ -548,7 +546,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 msg = _("cannot change the global maps instance of a meta-schema")
                 raise XMLSchemaValueError(msg)
 
-            super(XMLSchemaBase, self).__setattr__(name, value)
+            super().__setattr__(name, value)
             self.notations = NamespaceView(value.notations, self.target_namespace)
             self.types = NamespaceView(value.types, self.target_namespace)
             self.attributes = NamespaceView(value.attributes, self.target_namespace)
@@ -563,7 +561,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         else:
             if name == 'validation':
                 check_validation_mode(value)
-            super(XMLSchemaBase, self).__setattr__(name, value)
+            super().__setattr__(name, value)
 
     def __iter__(self) -> Iterator[XsdElement]:
         yield from sorted(self.elements.values(), key=name_attribute)
@@ -752,7 +750,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         elif len(self.elements) == 1:
             return list(self.elements.values())
         elif self._root_elements is None:
-            names = set(e.name for e in self.elements.values())
+            names = {e.name for e in self.elements.values()}
             for xsd_element in self.elements.values():
                 for e in xsd_element.iter():
                     if e is xsd_element or isinstance(e, XsdAnyElement):
@@ -1201,7 +1199,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 try:
                     logger.info("Include schema from %r", location)
                     self.include_schema(location, self.base_url)
-                except (OSError, IOError) as err:
+                except OSError as err:
                     # It is not an error if the location fail to resolve:
                     #   https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/#compound-schema
                     #   https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/#src-include
@@ -1218,7 +1216,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 try:
                     logger.info("Redefine schema %r", location)
                     schema = self.include_schema(location, self.base_url)
-                except (OSError, IOError) as err:
+                except OSError as err:
                     # If the xs:redefine doesn't contain components (annotation excluded)
                     # the statement is equivalent to an include, so no error is generated,
                     # otherwise fails.
@@ -1239,7 +1237,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 try:
                     logger.info("Override schema %r", location)
                     schema = self.include_schema(location, self.base_url)
-                except (OSError, IOError) as err:
+                except OSError as err:
                     # If the override doesn't contain components (annotation excluded)
                     # the statement is equivalent to an include, so no error is generated,
                     # otherwise fails.
@@ -1355,7 +1353,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             try:
                 logger.debug("Import namespace %r from %r", namespace, url)
                 self.import_schema(namespace, url, self.base_url)
-            except (OSError, IOError) as err:
+            except OSError as err:
                 # It's not an error if the location access fails (ref. section 4.2.6.2):
                 #   https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/#composition-schemaImport
                 logger.debug('%s', err)

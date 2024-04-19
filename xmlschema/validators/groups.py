@@ -114,7 +114,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         self.oid = (self,)
         if parent is not None and parent.mixed:
             self.mixed = parent.mixed
-        super(XsdGroup, self).__init__(elem, schema, parent)
+        super().__init__(elem, schema, parent)
 
     def __repr__(self) -> str:
         if self.name is None:
@@ -274,7 +274,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         if not self:
             return True
         elif isinstance(other, XsdGroup):
-            return super(XsdGroup, self).has_occurs_restriction(other)
+            return super().has_occurs_restriction(other)
 
         # Group particle compared to element particle
         if self.max_occurs is None or any(e.max_occurs is None for e in self):

@@ -105,14 +105,14 @@ def get_dummy_schema(tag: str, cls: Type[XMLSchemaBase]) -> XMLSchemaBase:
 
     if namespace:
         return cls(
-            '<xs:schema xmlns:xs="{0}" targetNamespace="{1}">\n'
-            '    <xs:element name="{2}"/>\n'
+            '<xs:schema xmlns:xs="{}" targetNamespace="{}">\n'
+            '    <xs:element name="{}"/>\n'
             '</xs:schema>'.format(XSD_NAMESPACE, namespace, name)
         )
     else:
         return cls(
-            '<xs:schema xmlns:xs="{0}">\n'
-            '    <xs:element name="{1}"/>\n'
+            '<xs:schema xmlns:xs="{}">\n'
+            '    <xs:element name="{}"/>\n'
             '</xs:schema>'.format(XSD_NAMESPACE, name)
         )
 
@@ -614,8 +614,7 @@ class XmlDocument(XMLResource):
             cls = XMLSchema10
         self.validation = validation
         self._namespaces = get_namespace_map(namespaces)
-        super(XmlDocument, self).__init__(source, base_url, allow, defuse,
-                                          timeout, lazy, thin_lazy)
+        super().__init__(source, base_url, allow, defuse, timeout, lazy, thin_lazy)
 
         if isinstance(schema, XMLSchemaBase) and self.namespace in schema.maps.namespaces:
             self.schema = schema
@@ -670,7 +669,7 @@ class XmlDocument(XMLResource):
             raise XMLSchemaValueError("%r is not a validation mode" % validation)
 
     def parse(self, source: XMLSourceType, lazy: LazyType = False) -> None:
-        super(XmlDocument, self).parse(source, lazy)
+        super().parse(source, lazy)
         self.namespaces = self.get_namespaces(root_only=True)
 
         if self.schema is None:

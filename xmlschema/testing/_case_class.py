@@ -124,7 +124,7 @@ class XsdValidatorTestCase(unittest.TestCase):
 
     def get_element(self, name, **attrib):
         source = '<xs:element name="{}" {}/>'.format(
-            name, ' '.join('%s="%s"' % (k, v) for k, v in attrib.items())
+            name, ' '.join(f'{k}="{v}"' for k, v in attrib.items())
         )
         schema = self.schema_class(self.get_schema_source(source))
         return schema.elements[name]
@@ -142,7 +142,7 @@ class XsdValidatorTestCase(unittest.TestCase):
         """Checks that a string doesn't contain protected prefixes (ns0, ns1 ...)."""
         match = PROTECTED_PREFIX_PATTERN.search(s)
         if match:
-            msg = "Protected prefix {!r} found:\n {}".format(match.group(0), s)
+            msg = f"Protected prefix {match.group(0)!r} found:\n {s}"
             self.assertIsNone(match, msg)
 
     def check_schema(self, source, expected=None, **kwargs):
@@ -178,7 +178,7 @@ class XsdValidatorTestCase(unittest.TestCase):
                 self.check_namespace_prefixes(error_string)
 
         if not self.errors and expected:
-            raise ValueError("{!r}: found no errors when {} expected.".format(path, expected))
+            raise ValueError(f"{path!r}: found no errors when {expected} expected.")
         elif len(self.errors) != expected:
             num_errors = len(self.errors)
             if num_errors == 1:

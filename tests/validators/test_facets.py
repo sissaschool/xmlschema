@@ -369,7 +369,7 @@ class TestXsdFacets(unittest.TestCase):
                     </xs:simpleType>
                 </xs:schema>"""))
 
-            facet = schema.types['type1'].get_facet('{%s}%s' % (XSD_NAMESPACE, base_facet))
+            facet = schema.types['type1'].get_facet(f'{{{XSD_NAMESPACE}}}{base_facet}')
             self.assertIsNone(facet(0))
             facet2 = schema.types['type2'].get_facet(XSD_MIN_INCLUSIVE)
             self.assertIsNone(facet2(0))
@@ -469,7 +469,7 @@ class TestXsdFacets(unittest.TestCase):
                     </xs:simpleType>
                 </xs:schema>"""))
 
-            facet = schema.types['type1'].get_facet('{%s}%s' % (XSD_NAMESPACE, base_facet))
+            facet = schema.types['type1'].get_facet(f'{{{XSD_NAMESPACE}}}{base_facet}')
             self.assertIsNone(facet(1))
             facet2 = schema.types['type2'].get_facet(XSD_MIN_EXCLUSIVE)
             self.assertIsNone(facet2(1))
@@ -570,7 +570,7 @@ class TestXsdFacets(unittest.TestCase):
                     </xs:simpleType>
                 </xs:schema>"""))
 
-            facet = schema.types['type1'].get_facet('{%s}%s' % (XSD_NAMESPACE, base_facet))
+            facet = schema.types['type1'].get_facet(f'{{{XSD_NAMESPACE}}}{base_facet}')
             self.assertIsNone(facet(0))
             facet2 = schema.types['type2'].get_facet(XSD_MAX_INCLUSIVE)
             self.assertIsNone(facet2(0))
@@ -670,7 +670,7 @@ class TestXsdFacets(unittest.TestCase):
                     </xs:simpleType>
                 </xs:schema>"""))
 
-            facet = schema.types['type1'].get_facet('{%s}%s' % (XSD_NAMESPACE, base_facet))
+            facet = schema.types['type1'].get_facet(f'{{{XSD_NAMESPACE}}}{base_facet}')
             self.assertIsNone(facet(-1))
             facet2 = schema.types['type2'].get_facet(XSD_MAX_EXCLUSIVE)
             self.assertIsNone(facet2(-1))

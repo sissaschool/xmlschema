@@ -241,8 +241,7 @@ class ModelVisitor:
 
     def stop(self) -> Iterator[AdvanceYieldedType]:
         while self.element is not None:
-            for e in self.advance():
-                yield e
+            yield from self.advance()
 
     def iter_group(self) -> Iterator[ModelParticleType]:
         """Returns an iterator for the current model group."""
