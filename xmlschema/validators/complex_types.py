@@ -107,7 +107,7 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
             return  # a local restriction is already parsed by the caller
 
         if 'abstract' in self.elem.attrib:
-            if self.elem.attrib['abstract'].strip() in {'true', '1'}:
+            if self.elem.attrib['abstract'].strip() in ('true', '1'):
                 self.abstract = True
 
         if 'block' in self.elem.attrib:
@@ -864,7 +864,7 @@ class Xsd11ComplexType(XsdComplexType):
 
         if 'defaultAttributesApply' not in self.elem.attrib:
             self.default_attributes_apply = True
-        elif self.elem.attrib['defaultAttributesApply'].strip() in {'false', '0'}:
+        elif self.elem.attrib['defaultAttributesApply'].strip() in ('false', '0'):
             self.default_attributes_apply = False
         else:
             self.default_attributes_apply = True

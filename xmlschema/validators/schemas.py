@@ -60,7 +60,8 @@ from .exceptions import XMLSchemaParseError, XMLSchemaValidationError, \
     XMLSchemaEncodeError, XMLSchemaNotBuiltError, XMLSchemaStopValidation, \
     XMLSchemaIncludeWarning, XMLSchemaImportWarning
 from .helpers import get_xsd_derivation_attribute, get_xsd_annotation_child
-from .xsdbase import check_validation_mode, XsdValidator, XsdComponent, XsdAnnotation
+from .xsdbase import XSD_ELEMENT_DERIVATIONS, check_validation_mode, XsdValidator, \
+    XsdComponent, XsdAnnotation
 from .notations import XsdNotation
 from .identities import XsdIdentity, XsdKey, XsdKeyref, XsdUnique, \
     Xsd11Key, Xsd11Unique, Xsd11Keyref, IdentityCounter, KeyrefCounter, IdentityMapType
@@ -403,7 +404,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             else:
                 try:
                     self.block_default = get_xsd_derivation_attribute(
-                        root, 'blockDefault', {'extension', 'restriction', 'substitution'}
+                        root, 'blockDefault', ('extension', 'restriction', 'substitution')
                     )
                 except ValueError as err:
                     self.parse_error(err, root)
@@ -472,7 +473,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             # Ref: https://www.w3.org/TR/xmlschema11-1/#cip
             if prune_etree(root, selector=lambda x: not self.version_check(x)):
                 for k in list(root.attrib):
-                    if k not in {'targetNamespace', VC_MIN_VERSION, VC_MAX_VERSION}:
+                    if k not in ('targetNamespace', VC_MIN_VERSION, VC_MAX_VERSION):
                         del root.attrib[k]
 
         # Validate the schema document (transforming validation errors to parse errors)

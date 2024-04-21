@@ -1091,7 +1091,7 @@ class XMLResource:
         level = 0
 
         path = path.replace(' ', '').replace('./', '')
-        select_all = '*' in path and set(path).issubset({'*', '/'})
+        select_all = '*' in path and set(path).issubset(('*', '/'))
         if path == '.':
             path_depth = 0
         elif path.startswith('/'):

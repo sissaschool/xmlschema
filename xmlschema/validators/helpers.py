@@ -20,6 +20,10 @@ from ..translation import gettext as _
 from .exceptions import XMLSchemaValidationError
 
 XSD_FINAL_ATTRIBUTE_VALUES = {'restriction', 'extension', 'list', 'union'}
+XSD_BOOLEAN_MAP = {
+    'false': False, '0': False,
+    'true': True, '1': True
+}
 
 
 def get_xsd_derivation_attribute(elem: Element, attribute: str,
@@ -182,11 +186,9 @@ def error_type_validator(value: object) -> None:
 # XSD builtin decoding functions
 
 def boolean_to_python(value: str) -> bool:
-    if value in {'true', '1'}:
-        return True
-    elif value in {'false', '0'}:
-        return False
-    else:
+    try:
+        return XSD_BOOLEAN_MAP[value]
+    except KeyError:
         raise XMLSchemaValueError(_('{!r} is not a boolean value').format(value))
 
 

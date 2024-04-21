@@ -121,8 +121,8 @@ class XsdAttribute(XsdComponent, ValidationMixin[str, DecodedValueType]):
 
                 if self.parent is None or self.qualified:
                     if self.target_namespace == XSI_NAMESPACE and \
-                            name not in {'nil', 'type', 'schemaLocation',
-                                         'noNamespaceSchemaLocation'}:
+                            name not in ('nil', 'type', 'schemaLocation',
+                                         'noNamespaceSchemaLocation'):
                         msg = _("cannot add attributes in %r namespace")
                         self.parse_error(msg % XSI_NAMESPACE)
                     self.name = get_qname(self.target_namespace, name)
@@ -317,7 +317,7 @@ class Xsd11Attribute(XsdAttribute):
             msg = _("attribute 'fixed' with use=prohibited is not allowed in XSD 1.1")
             self.parse_error(msg)
         if 'inheritable' in self.elem.attrib:
-            if self.elem.attrib['inheritable'].strip() in {'true', '1'}:
+            if self.elem.attrib['inheritable'].strip() in ('true', '1'):
                 self.inheritable = True
         self._parse_target_namespace()
 

@@ -123,6 +123,7 @@ class TestValidation(XsdValidatorTestCase):
         # Need to provide namespace explicitly because the default namespace is '' in this case.
         xsd_element = schema.find('collection/object', namespaces={'': schema.target_namespace})
 
+        self.assertIsNotNone(xsd_element)
         self.assertTrue(xsd_element.is_valid(root[0]))
         self.assertFalse(xsd_element.is_valid(root[1]))
         self.assertTrue(xsd_element.is_valid(root[1], max_depth=1))

@@ -878,7 +878,7 @@ class XsdOpenContent(XsdComponent):
         except KeyError:
             pass
         else:
-            if self.mode not in {'none', 'interleave', 'suffix'}:
+            if self.mode not in ('none', 'interleave', 'suffix'):
                 msg = _("wrong value %r for 'mode' attribute")
                 self.parse_error(msg % self.mode)
 
@@ -937,5 +937,5 @@ class XsdDefaultOpenContent(XsdOpenContent):
             self.parse_error(msg)
 
         if 'appliesToEmpty' in self.elem.attrib:
-            if self.elem.attrib['appliesToEmpty'].strip() in {'true', '1'}:
+            if self.elem.attrib['appliesToEmpty'].strip() in ('true', '1'):
                 self.applies_to_empty = True

@@ -183,8 +183,8 @@ class XsdElement(XsdComponent, ParticleMixin,
                 self.alternatives = xsd_element.alternatives
                 self.selected_by = xsd_element.selected_by
 
-            for attr_name in {'type', 'nillable', 'default', 'fixed', 'form',
-                              'block', 'abstract', 'final', 'substitutionGroup'}:
+            for attr_name in ('type', 'nillable', 'default', 'fixed', 'form',
+                              'block', 'abstract', 'final', 'substitutionGroup'):
                 if attr_name in attrib:
                     msg = _("attribute {!r} is not allowed when element reference is used")
                     self.parse_error(msg.format(attr_name))
@@ -209,7 +209,7 @@ class XsdElement(XsdComponent, ParticleMixin,
             if self.parent is not None:
                 msg = _("local scope elements cannot have abstract attribute")
                 self.parse_error(msg)
-            if attrib['abstract'].strip() in {'true', '1'}:
+            if attrib['abstract'].strip() in ('true', '1'):
                 self.abstract = True
 
         if 'block' in attrib:
@@ -220,7 +220,7 @@ class XsdElement(XsdComponent, ParticleMixin,
             except ValueError as err:
                 self.parse_error(err)
 
-        if 'nillable' in attrib and attrib['nillable'].strip() in {'true', '1'}:
+        if 'nillable' in attrib and attrib['nillable'].strip() in ('true', '1'):
             self.nillable = True
 
         if self.parent is None:
@@ -232,12 +232,12 @@ class XsdElement(XsdComponent, ParticleMixin,
                 except ValueError as err:
                     self.parse_error(err)
 
-            for attr_name in {'ref', 'form', 'minOccurs', 'maxOccurs'}:
+            for attr_name in ('ref', 'form', 'minOccurs', 'maxOccurs'):
                 if attr_name in attrib:
                     msg = _("attribute {!r} is not allowed in a global element declaration")
                     self.parse_error(msg.format(attr_name))
         else:
-            for attr_name in {'final', 'substitutionGroup'}:
+            for attr_name in ('final', 'substitutionGroup'):
                 if attr_name in attrib:
                     msg = _("attribute {!r} not allowed in a local element declaration")
                     self.parse_error(msg.format(attr_name))
@@ -1020,7 +1020,7 @@ class XsdElement(XsdComponent, ParticleMixin,
             xsi_nil = element_data.attributes[XSI_NIL].strip()
             if not self.nillable:
                 errors.append("element is not nillable.")
-            elif xsi_nil not in {'0', '1', 'true', 'false'}:
+            elif xsi_nil not in ('0', '1', 'true', 'false'):
                 errors.append("xsi:nil attribute must has a boolean value.")
             elif xsi_nil in ('0', 'false'):
                 pass
@@ -1088,7 +1088,6 @@ class XsdElement(XsdComponent, ParticleMixin,
             name = f'{{{default_namespace}}}{name}'
 
             # Workaround for backward compatibility of XPath selectors on schemas.
-            # It could be removed in v3.0.
             if not self.qualified and default_namespace == self.target_namespace:
                 return (name == self.qualified_name or
                         any(name == e.qualified_name for e in self.iter_substitutes()))
