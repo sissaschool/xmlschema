@@ -131,7 +131,7 @@ class XsdAssert(XsdComponent, ElementPathMixin[Union['XsdAssert', SchemaElementT
             if self.parser.variable_types:
                 self.parser.variable_types.clear()
 
-    def __call__(self, elem: ElementType,
+    def __call__(self, obj: ElementType,
                  value: Any = None,
                  namespaces: Optional[NamespacesType] = None,
                  source: Optional['XMLResource'] = None,
@@ -158,16 +158,16 @@ class XsdAssert(XsdComponent, ElementPathMixin[Union['XsdAssert', SchemaElementT
 
         if source is not None:
             context = XPathContext(
-                source.get_xpath_node(elem), _namespaces, **context_kwargs
+                source.get_xpath_node(obj), _namespaces, **context_kwargs
             )
         else:
-            context = XPathContext(LazyElementNode(elem), **context_kwargs)
+            context = XPathContext(LazyElementNode(obj), **context_kwargs)
 
         try:
             if not self.token.evaluate(context):
-                yield XMLSchemaValidationError(self, obj=elem, reason="assertion test if false")
+                yield XMLSchemaValidationError(self, obj=obj, reason="assertion test if false")
         except ElementPathError as err:
-            yield XMLSchemaValidationError(self, obj=elem, reason=str(err))
+            yield XMLSchemaValidationError(self, obj=obj, reason=str(err))
 
     # For implementing ElementPathMixin
     def __iter__(self) -> Iterator[Union['XsdElement', 'XsdAnyElement']]:

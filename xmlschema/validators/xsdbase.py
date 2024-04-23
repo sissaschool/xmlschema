@@ -199,6 +199,7 @@ class XsdValidator:
     def validation_error(self, validation: str,
                          error: Union[str, Exception],
                          obj: Any = None,
+                         elem: Optional[ElementType] = None,
                          source: Optional[Any] = None,
                          namespaces: Optional[NamespacesType] = None,
                          **kwargs: Any) -> XMLSchemaValidationError:
@@ -209,11 +210,15 @@ class XsdValidator:
         :param validation: an error-compatible validation mode: can be 'lax' or 'strict'.
         :param error: an error instance or the detailed reason of failed validation.
         :param obj: the instance related to the error.
+        :param elem: the element related to the error, can be `obj` for elements.
         :param source: the XML resource or data related to the validation process.
         :param namespaces: is an optional mapping from namespace prefix to URI.
         :param kwargs: other keyword arguments of the validation process.
         """
         check_validation_mode(validation)
+        if elem is None and is_etree_element(obj):
+            elem = cast(ElementType, obj)
+
         if isinstance(error, XMLSchemaValidationError):
             if error.namespaces is None and namespaces is not None:
                 error.namespaces = namespaces
@@ -221,15 +226,17 @@ class XsdValidator:
                 error.source = source
             if error.obj is None and obj is not None:
                 error.obj = obj
-            if error.elem is None and obj is not None and is_etree_element(obj):
-                error.elem = obj
-                if is_etree_element(error.obj) and obj.tag == error.obj.tag:
-                    error.obj = obj
+            elif is_etree_element(error.obj) and elem is not None:
+                if elem.tag == error.obj.tag and elem is not error.obj:
+                    error.obj = elem
 
         elif isinstance(error, Exception):
             error = XMLSchemaValidationError(self, obj, str(error), source, namespaces)
         else:
             error = XMLSchemaValidationError(self, obj, error, source, namespaces)
+
+        if error.elem is None and elem is not None:
+            error.elem = elem
 
         if validation == 'strict' and error.elem is not None:
             raise error

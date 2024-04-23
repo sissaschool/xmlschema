@@ -607,6 +607,7 @@ class XsdElement(XsdComponent, ParticleMixin,
                 else:
                     return
 
+        kwargs['elem'] = obj
         try:
             level = kwargs['level']
         except KeyError:
@@ -858,7 +859,7 @@ class XsdElement(XsdComponent, ParticleMixin,
             for identity in self.identities:
                 identities[identity].enabled = False
 
-    def collect_key_fields(self, elem: ElementType, xsd_type: BaseXsdType,
+    def collect_key_fields(self, obj: ElementType, xsd_type: BaseXsdType,
                            validation: str = 'lax', nilled: bool = False,
                            **kwargs: Any) -> Iterator[XMLSchemaValidationError]:
         element_node: Union[ElementNode, LazyElementNode]
@@ -876,7 +877,7 @@ class XsdElement(XsdComponent, ParticleMixin,
         except KeyError:
             namespaces = None
 
-        element_node = resource.get_xpath_node(elem)
+        element_node = resource.get_xpath_node(obj)
 
         xsd_element = self if self.ref is None else self.ref
         if xsd_element.type is not xsd_type:
@@ -900,7 +901,7 @@ class XsdElement(XsdComponent, ParticleMixin,
                 assert identity.selector is not None and identity.selector.token is not None
                 counter.elements = set(identity.selector.token.select_results(context))
 
-            if elem not in counter.elements:
+            if obj not in counter.elements:
                 continue
 
             try:
@@ -918,13 +919,13 @@ class XsdElement(XsdComponent, ParticleMixin,
                 decoders = cast(Tuple[XsdAttribute, ...], xsd_fields)
                 fields = identity.get_fields(element_node, namespaces, decoders=decoders)
             except (XMLSchemaValueError, XMLSchemaTypeError) as err:
-                yield self.validation_error(validation, err, elem, **kwargs)
+                yield self.validation_error(validation, err, obj, **kwargs)
             else:
                 if any(x is not None for x in fields) or nilled:
                     try:
                         counter.increase(fields)
                     except ValueError as err:
-                        yield self.validation_error(validation, err, elem, **kwargs)
+                        yield self.validation_error(validation, err, obj, **kwargs)
 
     def to_objects(self, obj: ElementType, with_bindings: bool = False, **kwargs: Any) \
             -> DecodeType['dataobjects.DataElement']:

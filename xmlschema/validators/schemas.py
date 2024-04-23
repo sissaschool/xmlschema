@@ -1833,7 +1833,9 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             if elem is None and not allow_empty:
                 assert path is not None
                 reason = _("the provided path selects nothing to validate")
-                yield schema.validation_error('lax', reason, None, resource, namespaces)
+                yield schema.validation_error(
+                    'lax', reason, source=resource, namespaces=namespaces
+                )
                 return
 
         if kwargs['identities'] is not identities:
