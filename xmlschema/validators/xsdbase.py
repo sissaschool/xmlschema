@@ -238,7 +238,7 @@ class XsdValidator:
         if error.elem is None and elem is not None:
             error.elem = elem
 
-        if validation == 'strict' and error.elem is not None:
+        if validation == 'strict':
             raise error
 
         if 'errors' in kwargs and error not in kwargs['errors']:
