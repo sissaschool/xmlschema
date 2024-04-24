@@ -695,6 +695,115 @@ xsi:schemaLocation="http://example.com/ns/collection collection.xsd">
         self.assertListEqual(errors, [])
         self.assertIsNone(etree_elements_assert_equal(root, ElementTree.parse(xml_data).getroot()))
 
+    def test_encoding_with_default_namespace__issue_400(self):
+        schema = self.schema_class(dedent("""\
+            <?xml version="1.0" encoding="utf-8"?>
+            <xs:schema targetNamespace="http://address0.com"
+                       xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                       xmlns:ser="http://address0.com"
+                       xmlns:ds="http://www.address1.com">
+                <xs:import namespace="http://www.w3.org/2000/09/xmldsig#" schemaLocation="xmldsig-core-schema.xsd"/>
+                <xs:complexType name="class">
+                    <xs:sequence>
+                        <xs:element name="student1" type="ser:String32" minOccurs="0" maxOccurs="1"/>
+                        <xs:element name="student2" type="ser:String32" minOccurs="0" maxOccurs="1"/>
+                    </xs:sequence>
+                </xs:complexType>
+                <xs:element name="class" type="ser:class"/>
+                <xs:simpleType name="String32">
+                    <xs:restriction base="xs:normalizedString">
+                        <xs:minLength value="1"/>
+                        <xs:maxLength value="32"/>
+                    </xs:restriction>
+                </xs:simpleType>
+            </xs:schema>
+            """))
+
+        xml_data = dedent("""\n
+            <ser:class xmlns:ser="http://address0.com">
+                <student1>John</student1>
+                <student2>Rachel</student2>
+            </ser:class>""")
+
+        obj = schema.decode(xml_data, preserve_root=True)
+        self.assertDictEqual(obj, {'ser:class': {
+                             '@xmlns:ser': schema.target_namespace,
+                             "student1": "John",
+                             "student2": "Rachel"}})
+
+        root = schema.encode(obj, preserve_root=True)
+        self.assertIsNone(etree_elements_assert_equal(root, ElementTree.XML(xml_data)))
+
+        obj = schema.decode(xml_data, preserve_root=True, strip_namespaces=True)
+        self.assertDictEqual(obj, {'class': {
+                             "student1": "John",
+                             "student2": "Rachel"}})
+
+        with self.assertRaises(XMLSchemaValidationError):
+            schema.encode(obj, preserve_root=True)
+
+        obj = {
+            'ser:class': {
+            "student1": "John",
+            "student2": "Rachel"
+        }}
+
+        with self.assertRaises(XMLSchemaValidationError):
+            schema.encode(obj, preserve_root=True)
+
+        root = schema.encode(obj, preserve_root=True, namespaces={'ser': schema.target_namespace})
+        self.assertIsNone(etree_elements_assert_equal(root, ElementTree.XML(xml_data)))
+
+        schema = self.schema_class(dedent("""\
+            <?xml version="1.0" encoding="utf-8"?>
+            <xs:schema targetNamespace="http://address0.com"
+                       elementFormDefault="qualified"
+                       xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                       xmlns:ser="http://address0.com"
+                       xmlns:ds="http://www.address1.com">
+                <xs:import namespace="http://www.w3.org/2000/09/xmldsig#" schemaLocation="xmldsig-core-schema.xsd"/>
+                <xs:complexType name="class">
+                    <xs:sequence>
+                        <xs:element name="student1" type="ser:String32" minOccurs="0" maxOccurs="1"/>
+                        <xs:element name="student2" type="ser:String32" minOccurs="0" maxOccurs="1"/>
+                    </xs:sequence>
+                </xs:complexType>
+                <xs:element name="class" type="ser:class"/>
+                <xs:simpleType name="String32">
+                    <xs:restriction base="xs:normalizedString">
+                        <xs:minLength value="1"/>
+                        <xs:maxLength value="32"/>
+                    </xs:restriction>
+                </xs:simpleType>
+            </xs:schema>
+            """))
+
+        self.assertFalse(schema.is_valid(xml_data))
+
+        xml_data = dedent("""\n
+            <ser:class xmlns:ser="http://address0.com">
+                <ser:student1>John</ser:student1>
+                <ser:student2>Rachel</ser:student2>
+            </ser:class>""")
+        self.assertTrue(schema.is_valid(xml_data))
+
+        obj = schema.decode(xml_data, preserve_root=True)
+        self.assertDictEqual(obj, {'ser:class': {
+                             '@xmlns:ser': schema.target_namespace,
+                             "ser:student1": "John",
+                             "ser:student2": "Rachel"}})
+
+        root = schema.encode(obj, preserve_root=True)
+        self.assertIsNone(etree_elements_assert_equal(root, ElementTree.XML(xml_data)))
+
+        obj = schema.decode(xml_data, preserve_root=True, strip_namespaces=True)
+        self.assertDictEqual(obj, {'class': {
+                             "student1": "John",
+                             "student2": "Rachel"}})
+
+        root = schema.encode(obj, preserve_root=True, namespaces={'': schema.target_namespace})
+        self.assertIsNone(etree_elements_assert_equal(root, ElementTree.XML(xml_data)))
+
 
 class TestEncoding11(TestEncoding):
     schema_class = XMLSchema11
