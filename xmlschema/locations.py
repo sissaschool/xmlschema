@@ -57,7 +57,7 @@ class LocationPath(PurePath):
 
         parts = urlsplit(uri)
         if not parts.scheme:
-            return cls(uri)
+            return cls(parts.path)
         elif parts.scheme in DRIVE_LETTERS and len(parts.scheme) == 1:
             return LocationWindowsPath(uri)  # Eg. k:/Python/lib/....
         elif parts.scheme != 'file':
