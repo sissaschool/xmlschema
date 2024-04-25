@@ -383,6 +383,25 @@ class TestValidatorExceptions(unittest.TestCase):
         self.assertTrue(is_etree_element(errors[2].invalid_child))
         self.assertEqual(errors[2].invalid_child.tag, 'b2')
 
+    def test_validation_error_logging(self):
+        schema = XMLSchema("""
+             <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                 <xs:element name="root" type="xs:integer"/>
+             </xs:schema>""")
+
+        with self.assertLogs('xmlschema', level='DEBUG') as ctx:
+            with self.assertRaises(XMLSchemaValidationError):
+                schema.validate('<root/>')
+            self.assertEqual(len(ctx.output), 0)
+
+            errors = list(schema.iter_errors('<root/>'))
+            self.assertEqual(len(errors), 1)
+            self.assertIsInstance(errors[0], XMLSchemaDecodeError)
+
+            self.assertEqual(len(ctx.output), 1)
+            self.assertIn('Collect XMLSchemaDecodeError', ctx.output[0])
+            self.assertIn('with traceback:', ctx.output[0])
+
 
 if __name__ == '__main__':
     import platform

@@ -8,6 +8,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import textwrap
+import traceback
 from pprint import PrettyPrinter
 from typing import TYPE_CHECKING, Any, Optional, cast, Iterable, Union, Callable
 
@@ -37,6 +38,10 @@ class XMLSchemaValidatorError(XMLSchemaException):
     :param namespaces: is an optional mapping from namespace prefix to URI.
     """
     _path: Optional[str]
+
+    # Optional dump of the execution stack that can be set in collected
+    # validator errors for debugging purposes.
+    stack_trace: Optional[str] = None
 
     def __init__(self, validator: ValidatorType,
                  message: str,

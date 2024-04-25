@@ -8,7 +8,9 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import re
+import os
 import logging
+import traceback
 from collections import Counter
 from decimal import Decimal
 from functools import wraps
@@ -67,6 +69,11 @@ def logged(func: Callable[..., RT]) -> Callable[..., RT]:
 
     return wrapper
 
+
+def format_xmlschema_stack() -> str:
+    """Extract a formatted traceback for xmlschema package from current stack frame."""
+    package_path = os.path.dirname(__file__)
+    return ''.join(line for line in traceback.format_stack()[:-1] if package_path in line)
 
 ###
 # Helper functions for QNames and namespaces

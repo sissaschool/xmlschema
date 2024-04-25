@@ -10,6 +10,7 @@
 """
 This module contains base functions and classes XML Schema components.
 """
+import logging
 import re
 from typing import TYPE_CHECKING, cast, Any, Dict, Generic, List, Iterator, Optional, \
     Set, Tuple, TypeVar, Union, MutableMapping
@@ -27,7 +28,7 @@ from ..aliases import ElementType, NamespacesType, SchemaType, BaseXsdType, \
     EncodeType, IterEncodeType
 from ..translation import gettext as _
 from ..helpers import get_qname, local_name, get_prefixed_qname, \
-    is_etree_element, is_etree_document
+    is_etree_element, is_etree_document, format_xmlschema_stack
 from ..resources import XMLResource
 from ..converters import XMLSchemaConverter
 from .exceptions import XMLSchemaParseError, XMLSchemaValidationError
@@ -39,6 +40,8 @@ if TYPE_CHECKING:
     from .elements import XsdElement
     from .groups import XsdGroup
     from .global_maps import XsdGlobals
+
+logger = logging.getLogger('xmlschema')
 
 XSD_TYPE_DERIVATIONS = {'extension', 'restriction'}
 XSD_ELEMENT_DERIVATIONS = {'extension', 'restriction', 'substitution'}
@@ -192,6 +195,10 @@ class XsdValidator:
             raise XMLSchemaTypeError(msg.format(error))
 
         if validation == 'lax':
+            if error.stack_trace is None and logger.level == logging.DEBUG:
+                error.stack_trace = format_xmlschema_stack()
+                logger.debug("Collect %r with traceback:\n%s", error, error.stack_trace)
+
             self.errors.append(error)
         else:
             raise error
@@ -238,8 +245,12 @@ class XsdValidator:
         if error.elem is None and elem is not None:
             error.elem = elem
 
-        if validation == 'strict':
+        if validation == 'strict' and error.elem is not None:
             raise error
+
+        if error.stack_trace is None and logger.level == logging.DEBUG:
+            error.stack_trace = format_xmlschema_stack()
+            logger.debug("Collect %r with traceback:\n%s", error, error.stack_trace)
 
         if 'errors' in kwargs and error not in kwargs['errors']:
             kwargs['errors'].append(error)
