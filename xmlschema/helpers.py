@@ -75,6 +75,7 @@ def format_xmlschema_stack() -> str:
     package_path = os.path.dirname(__file__)
     return ''.join(line for line in traceback.format_stack()[:-1] if package_path in line)
 
+
 ###
 # Helper functions for QNames and namespaces
 

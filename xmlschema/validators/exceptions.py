@@ -8,7 +8,6 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import textwrap
-import traceback
 from pprint import PrettyPrinter
 from typing import TYPE_CHECKING, Any, Optional, cast, Iterable, Union, Callable
 

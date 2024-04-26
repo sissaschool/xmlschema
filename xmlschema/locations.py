@@ -15,7 +15,8 @@ import string
 from collections.abc import MutableMapping
 from pathlib import Path, PurePath, PurePosixPath, PureWindowsPath
 from typing import Optional, Iterable
-from urllib.parse import urlsplit, urlunsplit, quote, quote_plus, unquote, unquote_plus, quote_from_bytes
+from urllib.parse import urlsplit, urlunsplit, quote, quote_plus, unquote, \
+    unquote_plus, quote_from_bytes
 
 from .exceptions import XMLSchemaValueError
 from .aliases import NormalizedLocationsType, LocationsType
@@ -50,66 +51,51 @@ class LocationPath(PurePath):
         if not uri:
             raise XMLSchemaValueError("Empty URI provided!")
 
-        if uri.startswith(r'\\'):
-            return LocationWindowsPath(uri)  # UNC path
-        elif uri.startswith('/'):
-            return cls(uri)
-
         parts = urlsplit(uri)
-        if not parts.scheme:
-            return cls(parts.path)
+        if not parts.scheme or parts.scheme == 'file':
+            path = urlunsplit(('', parts.netloc, parts.path, '', ''))
         elif parts.scheme in DRIVE_LETTERS and len(parts.scheme) == 1:
-            return LocationWindowsPath(uri)  # Eg. k:/Python/lib/....
-        elif parts.scheme != 'file':
-            return LocationPosixPath(unquote(parts.path))
-
-        # Get file URI path because urlsplit does not parse it well
-        start = 7 if uri.startswith('file:///') else 5
-        if parts.query:
-            path = uri[start:uri.index('?')]
-        elif parts.fragment:
-            path = uri[start:uri.index('#')]
+            # uri is a Windows path with a drive, e.g. k:/Python/lib/file
+            path = urlunsplit((parts.scheme, parts.netloc, parts.path, '', ''))
+            return LocationWindowsPath(unquote(path))
         else:
-            path = uri[start:]
+            return cls(unquote(parts.path))
 
-        if ':' in path:
-            # Windows path with a drive
-            pos = path.index(':')
-            if pos == 2 and path[0] == '/' and path[1] in DRIVE_LETTERS:
+        if parts.scheme == 'file':
+            if path.startswith('/') and ntpath.splitdrive(path[1:])[0]:
                 return LocationWindowsPath(unquote(path[1:]))
+            elif path.startswith(('//', '/\\')) and ntpath.splitdrive(path[2:])[0]:
+                raise XMLSchemaValueError(f"Invalid URI {uri!r}")
 
-            obj = LocationWindowsPath(unquote(path))
-            if len(obj.drive) != 2 or obj.drive[1] != ':':
-                raise XMLSchemaValueError("Invalid URI %r" % uri)
-            return obj
-
-        if '\\' in path:
+        if ntpath.splitdrive(path)[0] or '\\' in path:
             return LocationWindowsPath(unquote(path))
         return cls(unquote(path))
 
     def as_uri(self) -> str:
-        if not self.is_absolute():
-            # Converts relative paths to not RFC 8089 compliant relative
-            # file URIs because urlopen() doesn't accept simple paths
-            drive = self.drive
-            if len(drive) == 2 and drive[1] == ':':
-                prefix = 'file:' + drive
-                path = self.as_posix()[2:]
-            elif drive:
-                prefix = 'file:'
-                path = self.as_posix()
-            else:
-                prefix = 'file:'
-                path = str(self)
-            return prefix + quote_from_bytes(os.fsencode(path))
+        # Implementation that maps relative paths to not RFC 8089 compliant relative
+        # file URIs because urlopen() doesn't accept simple paths. For UNC paths uses
+        # the format with four slashes to let urlopen() works.
 
-        uri = super().as_uri()
-        if isinstance(self, LocationWindowsPath) and str(self).startswith(r'\\'):
-            # UNC format case: use the format where the host part is included
-            # in the path part, to let urlopen() works.
-            if not uri.startswith('file:////'):
-                return uri.replace('file://', 'file:////')
-        return uri
+        drive = self.drive
+        if len(drive) == 2 and drive[1] == ':':
+            # A Windows path with a drive: 'c:\dir\file' => 'file:///c:/dir/file'
+            prefix = 'file:///' + drive
+            path = self.as_posix()[2:]
+        elif drive:
+            # UNC format case: '\\host\dir\file' => 'file:////host/dir/file'
+            prefix = 'file://'
+            path = self.as_posix()
+        else:
+            path = self.as_posix()
+            if path.startswith('/'):
+                # A Windows relative path or an absolute posix path:
+                #  ('\dir\file' | '/dir/file') => 'file://dir/file'
+                prefix = 'file://'
+            else:
+                # A relative posix path: 'dir/file' => 'file:dir/file'
+                prefix = 'file:'
+
+        return prefix + quote_from_bytes(os.fsencode(path))
 
     def normalize(self) -> 'LocationPath':
         normalized_path = self._path_module.normpath(str(self))
@@ -127,21 +113,24 @@ class LocationWindowsPath(LocationPath, PureWindowsPath):
 
 
 def normalize_url(url: str, base_url: Optional[str] = None,
-                  keep_relative: bool = False) -> str:
+                  keep_relative: bool = False, method: str = 'xml') -> str:
     """
     Returns a normalized URL eventually joining it to a base URL if it's a relative path.
-    Path names are converted to 'file' scheme URLs.
+    Path names are converted to 'file' scheme URLs and unsafe characters are encoded.
+    Query and fragments parts are kept only for non-local URLs
 
     :param url: a relative or absolute URL.
     :param base_url: a reference base URL.
     :param keep_relative: if set to `True` keeps relative file paths, which would \
     not strictly conformant to specification (RFC 8089), because *urlopen()* doesn't \
     accept a simple pathname.
+    :param method: method used to encode query and fragment parts. If set to `html` \
+    the whitespaces are replaced with `+` characters.
     :return: a normalized URL string.
     """
     url_parts = urlsplit(url)
     if not is_local_scheme(url_parts.scheme):
-        return url_parts.geturl()
+        return encode_url(url_parts.geturl(), method)
 
     path = LocationPath.from_uri(url)
     if path.is_absolute():
@@ -150,17 +139,18 @@ def normalize_url(url: str, base_url: Optional[str] = None,
     if base_url is not None:
         base_url_parts = urlsplit(base_url)
         base_path = LocationPath.from_uri(base_url)
+
         if is_local_scheme(base_url_parts.scheme):
             path = base_path.joinpath(path)
         elif not url_parts.scheme:
-            path = base_path.joinpath(path).normalize()
-            return urlunsplit((
+            url = urlunsplit((
                 base_url_parts.scheme,
                 base_url_parts.netloc,
-                quote_from_bytes(bytes(path)),
+                base_path.joinpath(path).normalize().as_posix(),
                 url_parts.query,
                 url_parts.fragment
             ))
+            return encode_url(url, method)
 
     if path.is_absolute() or keep_relative:
         return path.normalize().as_uri()
@@ -249,18 +239,35 @@ def is_encoded_url(url: str) -> bool:
         unquote(url.replace('+', '$')) != url.replace('+', '$')
 
 
-def encode_url(url: str, method: str = 'xml') -> str:
-    """Encode the given url, if necessary."""
-    if is_encoded_url(url):
-        return url
-
+def is_safe_url(url: str, method: str = 'xml') -> bool:
+    """Determines whether the given URL is safe."""
     query_quote = quote_plus if method == 'html' else quote
+    query_unquote = unquote_plus if method == 'html' else unquote
 
     parts = urlsplit(url)
+    path_safe = ':/\\' if is_local_scheme(parts.scheme) else '/'
+
+    return parts.netloc == quote(unquote(parts.netloc), safe='@:') and \
+        parts.path == quote(unquote(parts.path), safe=path_safe) and \
+        parts.query == query_quote(query_unquote(parts.query), safe=';/?:@=&') and \
+        parts.fragment == query_quote(query_unquote(parts.fragment), safe=';/?:@=&')
+
+
+def encode_url(url: str, method: str = 'xml') -> str:
+    """Encode the given url, if necessary."""
+    if is_safe_url(url, method):
+        return url
+    elif is_encoded_url(url):
+        url = decode_url(url, method)
+
+    query_quote = quote_plus if method == 'html' else quote
+    parts = urlsplit(url)
+    path_safe = ':/\\' if is_local_scheme(parts.scheme) else '/'
+
     return urlunsplit((
         parts.scheme,
         quote(parts.netloc, safe='@:'),
-        quote(parts.path, safe='/'),
+        quote(parts.path, safe=path_safe),
         query_quote(parts.query, safe=';/?:@=&'),
         query_quote(parts.fragment, safe=';/?:@=&'),
     ))

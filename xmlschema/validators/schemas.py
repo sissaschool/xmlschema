@@ -60,7 +60,7 @@ from .exceptions import XMLSchemaParseError, XMLSchemaValidationError, \
     XMLSchemaEncodeError, XMLSchemaNotBuiltError, XMLSchemaStopValidation, \
     XMLSchemaIncludeWarning, XMLSchemaImportWarning
 from .helpers import get_xsd_derivation_attribute, get_xsd_annotation_child
-from .xsdbase import check_validation_mode, XsdValidator, \
+from .xsdbase import XSD_ELEMENT_DERIVATIONS, check_validation_mode, XsdValidator, \
     XsdComponent, XsdAnnotation
 from .notations import XsdNotation
 from .identities import XsdIdentity, XsdKey, XsdKeyref, XsdUnique, \
@@ -404,7 +404,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             else:
                 try:
                     self.block_default = get_xsd_derivation_attribute(
-                        root, 'blockDefault', ('extension', 'restriction', 'substitution')
+                        root, 'blockDefault', XSD_ELEMENT_DERIVATIONS
                     )
                 except ValueError as err:
                     self.parse_error(err, root)
@@ -1779,7 +1779,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         if validation_hook is not None:
             kwargs['validation_hook'] = validation_hook
 
-
         if path:
             selector = resource.iterfind(path, namespaces, ancestors=ancestors)
         else:
@@ -1821,7 +1820,9 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                     continue
                 else:
                     reason = _("{!r} is not an element of the schema").format(elem)
-                    yield schema.validation_error('lax', reason, elem, resource, namespaces)
+                    yield schema.validation_error(
+                        'lax', reason, elem, source=resource, namespaces=namespaces
+                    )
                     return
 
             try:
@@ -1884,7 +1885,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                     xsd_element = self.create_element(name=elem.tag)
                 else:
                     reason = _("{!r} is not an element of the schema").format(elem)
-                    yield self.validation_error(validation, reason, elem, source, namespaces)
+                    yield self.validation_error(validation, reason, elem,
+                                                source=source, namespaces=namespaces)
                     continue
 
             yield from xsd_element.iter_decode(elem, validation, **kwargs)
@@ -2079,7 +2081,9 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                     xsd_element = self.create_element(name=elem.tag)
                 else:
                     reason = _("{!r} is not an element of the schema").format(elem)
-                    yield schema.validation_error(validation, reason, elem, resource, namespaces)
+                    yield schema.validation_error(
+                        validation, reason, elem, source=resource, namespaces=namespaces
+                    )
                     return
 
             yield from xsd_element.iter_decode(elem, validation, **kwargs)

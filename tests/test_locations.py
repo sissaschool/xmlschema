@@ -20,7 +20,7 @@ from unittest.mock import patch, MagicMock
 import xmlschema.locations
 from xmlschema.locations import LocationPath, LocationPosixPath, LocationWindowsPath, \
     is_url, is_local_url, is_remote_url, url_path_is_file, normalize_url, \
-    normalize_locations, match_location, is_encoded_url, encode_url, decode_url
+    normalize_locations, match_location, is_encoded_url, is_safe_url, encode_url, decode_url
 
 TEST_CASES_DIR = str(pathlib.Path(__file__).absolute().parent.joinpath('test_cases'))
 
@@ -129,16 +129,22 @@ class TestLocations(unittest.TestCase):
         self.assertIsInstance(path, LocationPosixPath)
         self.assertEqual(str(path), '/home/foo/names')
 
-        path = LocationPosixPath.from_uri('file:///home\\foo\\names#foo')
-        self.assertIsInstance(path, LocationWindowsPath)
+        path = LocationPath.from_uri('file:///home\\foo\\names#foo')
         self.assertTrue(path.as_posix().endswith('/home/foo/names'))
+        self.assertIsInstance(path, LocationWindowsPath)
 
         path = LocationPosixPath.from_uri('file:///c:/home/foo/names/')
+        self.assertIsInstance(path, LocationWindowsPath)
+
+        path = LocationPath.from_uri('file:///c:/home/foo/names/')
         self.assertIsInstance(path, LocationWindowsPath)
         self.assertEqual(str(path), r'c:\home\foo\names')
         self.assertEqual(path.as_uri(), 'file:///c:/home/foo/names')
 
         path = LocationPosixPath.from_uri('file:c:/home/foo/names/')
+        self.assertIsInstance(path, LocationWindowsPath)
+
+        path = LocationPath.from_uri('file:c:/home/foo/names/')
         self.assertIsInstance(path, LocationWindowsPath)
         self.assertEqual(str(path), r'c:\home\foo\names')
         self.assertEqual(path.as_uri(), 'file:///c:/home/foo/names')
@@ -174,8 +180,9 @@ class TestLocations(unittest.TestCase):
         self.check_url(normalize_url('dummy path.xsd'), cwd_url + 'dummy%20path.xsd')
         self.check_url(normalize_url('dummy path.xsd', 'http://site/base'),
                        'http://site/base/dummy%20path.xsd')
-        self.check_url(normalize_url('dummy path.xsd', 'file://host/home/'),
-                       PurePath('//host/home/dummy path.xsd').as_uri())
+
+        self.assertEqual(normalize_url('dummy path.xsd', 'file://host/home/'),
+                         'file:////host/home/dummy%20path.xsd')
 
         url = "file:///c:/Downloads/file.xsd"
         self.check_url(normalize_url(url, base_url="file:///d:/Temp/"), url)
@@ -212,7 +219,7 @@ class TestLocations(unittest.TestCase):
         self.assertEqual(str(PureWindowsPath(unc_path)), unc_path)
         self.assertEqual(url, 'file://filer01/MY_HOME/dev/XMLSCHEMA/test.xsd')
 
-        # Same UNC path as URI with the host inserted in path path.
+        # Same UNC path as URI with the host inserted in path.
         url_host_in_path = url.replace('file://', 'file:////')
         self.assertEqual(url_host_in_path, 'file:////filer01/MY_HOME/dev/XMLSCHEMA/test.xsd')
 
@@ -250,7 +257,7 @@ class TestLocations(unittest.TestCase):
         self.assertEqual(str(PureWindowsPath(base_unc_path)), base_unc_path)
         self.assertEqual(base_url, 'file://filer01/MY_HOME/')
 
-        # Same UNC path as URI with the host inserted in path path.
+        # Same UNC path as URI with the host inserted in path
         base_url_host_in_path = base_url.replace('file://', 'file:////')
         self.assertEqual(base_url_host_in_path, 'file:////filer01/MY_HOME/')
 
@@ -288,6 +295,7 @@ class TestLocations(unittest.TestCase):
         # Issue #116
         url = '//anaconda/envs/testenv/lib/python3.6/site-packages/xmlschema/validators/schemas/'
         if os.name == 'posix':
+            normalize_url(url)
             self.assertEqual(normalize_url(url), pathlib.PurePath(url).as_uri())
         else:
             # On Windows // is interpreted as a network share UNC path
@@ -299,9 +307,9 @@ class TestLocations(unittest.TestCase):
                          f'file://{DRIVE_REGEX}/root/dir1/schema.xsd')
 
         self.assertRegex(normalize_url('////root/dir1/schema.xsd'),
-                         f'file://{DRIVE_REGEX}/root/dir1/schema.xsd')
+                         f'file://{DRIVE_REGEX}//root/dir1/schema.xsd')
         self.assertRegex(normalize_url('dir2/schema.xsd', '////root/dir1'),
-                         f'file://{DRIVE_REGEX}/root/dir1/dir2/schema.xsd')
+                         f'file://{DRIVE_REGEX}//root/dir1/dir2/schema.xsd')
 
         self.assertEqual(normalize_url('//root/dir1/schema.xsd'),
                          'file:////root/dir1/schema.xsd')
@@ -312,13 +320,69 @@ class TestLocations(unittest.TestCase):
 
     def test_normalize_url_hash_character(self):
         url = normalize_url('issue #000.xml', 'file:///dir1/dir2/')
+        self.assertRegex(url, f'file://{DRIVE_REGEX}/dir1/dir2/issue%20')
+
+        url = normalize_url('issue%20%23000.xml', 'file:///dir1/dir2/')
         self.assertRegex(url, f'file://{DRIVE_REGEX}/dir1/dir2/issue%20%23000.xml')
 
         url = normalize_url('data.xml', 'file:///dir1/dir2/issue%20001')
         self.assertRegex(url, f'file://{DRIVE_REGEX}/dir1/dir2/issue%20001/data.xml')
 
-        url = normalize_url('data.xml', '/dir1/dir2/issue #002')
+        url = normalize_url('data.xml', '/dir1/dir2/issue%20%23002')
         self.assertRegex(url, f'{DRIVE_REGEX}/dir1/dir2/issue%20%23002/data.xml')
+
+    def test_normalize_url_with_query_part(self):
+        with patch.object(os, 'name', 'nt'):
+            self.assertEqual(os.name, 'nt')
+
+            url = "https://xmlschema.test/schema 2/test.xsd?name=2 id=3"
+            self.assertEqual(
+                normalize_url(url),
+                "https://xmlschema.test/schema%202/test.xsd?name=2%20id=3"
+            )
+
+            url = "https://xmlschema.test/schema 2/test.xsd?name=2 id=3"
+            self.assertEqual(
+                normalize_url(url, method='html'),
+                "https://xmlschema.test/schema%202/test.xsd?name=2+id=3"
+            )
+
+            url = "/path/schema 2/test.xsd?name=2 id=3"
+            self.assertEqual(
+                normalize_url(url),
+                "file:///path/schema%202/test.xsd"
+            )
+
+        with patch.object(os, 'name', 'posix'):
+            self.assertEqual(os.name, 'posix')
+
+            url = "https://xmlschema.test/schema 2/test.xsd?name=2 id=3"
+            self.assertEqual(
+                normalize_url(url),
+                "https://xmlschema.test/schema%202/test.xsd?name=2%20id=3"
+            )
+
+            url = "https://xmlschema.test/schema 2/test.xsd?name=2 id=3"
+            self.assertEqual(
+                normalize_url(url, method='html'),
+                "https://xmlschema.test/schema%202/test.xsd?name=2+id=3"
+            )
+
+            url = "/path/schema 2/test.xsd?name=2 id=3"
+            self.assertEqual(
+                normalize_url(url),
+                "file:///path/schema%202/test.xsd"
+            )
+
+            self.check_url(normalize_url('other.xsd?id=2', 'file:///home?name=2&id='),
+                           'file:///home/other.xsd')
+            self.check_url(normalize_url('other.xsd#element', 'file:///home#attribute'),
+                           'file:///home/other.xsd')
+
+            self.check_url(normalize_url('other.xsd?id=2', 'https://host/path?name=2&id='),
+                           'https://host/path/other.xsd?id=2')
+            self.check_url(normalize_url('other.xsd#element', 'https://host/path?name=2&id='),
+                           'https://host/path/other.xsd#element')
 
     def test_is_url_function(self):
         self.assertTrue(is_url(self.col_xsd_file))
@@ -379,6 +443,13 @@ class TestLocations(unittest.TestCase):
         self.assertFalse(is_encoded_url("a b c"))
         self.assertFalse(is_encoded_url("a+b+c"))
         self.assertFalse(is_encoded_url("a b+c"))
+
+    def test_is_safe_url(self):
+        self.assertTrue(is_safe_url("https://xmlschema.test/schema/test.xsd"))
+        self.assertFalse(is_safe_url("https://xmlschema.test/schema 2/test.xsd"))
+        self.assertTrue(is_safe_url("https://xmlschema.test/schema/test.xsd#elements"))
+        self.assertTrue(is_safe_url("https://xmlschema.test/schema/test.xsd?id=2"))
+        self.assertFalse(is_safe_url("https://xmlschema.test/schema/test.xsd?id=2 name=foo"))
 
     def test_encode_and_decode_url(self):
         url = "https://xmlschema.test/schema/test.xsd"

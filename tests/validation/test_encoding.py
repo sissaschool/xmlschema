@@ -702,11 +702,12 @@ xsi:schemaLocation="http://example.com/ns/collection collection.xsd">
                        xmlns:xs="http://www.w3.org/2001/XMLSchema"
                        xmlns:ser="http://address0.com"
                        xmlns:ds="http://www.address1.com">
-                <xs:import namespace="http://www.w3.org/2000/09/xmldsig#" schemaLocation="xmldsig-core-schema.xsd"/>
+                <xs:import namespace="http://www.w3.org/2000/09/xmldsig#"
+                    schemaLocation="xmldsig-core-schema.xsd"/>
                 <xs:complexType name="class">
                     <xs:sequence>
-                        <xs:element name="student1" type="ser:String32" minOccurs="0" maxOccurs="1"/>
-                        <xs:element name="student2" type="ser:String32" minOccurs="0" maxOccurs="1"/>
+                        <xs:element name="student1" type="ser:String32" minOccurs="0"/>
+                        <xs:element name="student2" type="ser:String32" minOccurs="0"/>
                     </xs:sequence>
                 </xs:complexType>
                 <xs:element name="class" type="ser:class"/>
@@ -744,14 +745,17 @@ xsi:schemaLocation="http://example.com/ns/collection collection.xsd">
 
         obj = {
             'ser:class': {
-            "student1": "John",
-            "student2": "Rachel"
-        }}
+                "student1": "John",
+                "student2": "Rachel"
+            }
+        }
 
         with self.assertRaises(XMLSchemaValidationError):
             schema.encode(obj, preserve_root=True)
 
-        root = schema.encode(obj, preserve_root=True, namespaces={'ser': schema.target_namespace})
+        root = schema.encode(
+            obj, preserve_root=True, namespaces={'ser': schema.target_namespace}
+        )
         self.assertIsNone(etree_elements_assert_equal(root, ElementTree.XML(xml_data)))
 
         schema = self.schema_class(dedent("""\
@@ -761,11 +765,12 @@ xsi:schemaLocation="http://example.com/ns/collection collection.xsd">
                        xmlns:xs="http://www.w3.org/2001/XMLSchema"
                        xmlns:ser="http://address0.com"
                        xmlns:ds="http://www.address1.com">
-                <xs:import namespace="http://www.w3.org/2000/09/xmldsig#" schemaLocation="xmldsig-core-schema.xsd"/>
+                <xs:import namespace="http://www.w3.org/2000/09/xmldsig#"
+                    schemaLocation="xmldsig-core-schema.xsd"/>
                 <xs:complexType name="class">
                     <xs:sequence>
-                        <xs:element name="student1" type="ser:String32" minOccurs="0" maxOccurs="1"/>
-                        <xs:element name="student2" type="ser:String32" minOccurs="0" maxOccurs="1"/>
+                        <xs:element name="student1" type="ser:String32" minOccurs="0"/>
+                        <xs:element name="student2" type="ser:String32" minOccurs="0"/>
                     </xs:sequence>
                 </xs:complexType>
                 <xs:element name="class" type="ser:class"/>
