@@ -20,7 +20,7 @@ from unittest.mock import patch, MagicMock
 import xmlschema.locations
 from xmlschema.locations import LocationPath, LocationPosixPath, LocationWindowsPath, \
     is_url, is_local_url, is_remote_url, url_path_is_file, normalize_url, \
-    normalize_locations, match_location
+    normalize_locations, match_location, is_encoded_url, encode_url, decode_url
 
 TEST_CASES_DIR = str(pathlib.Path(__file__).absolute().parent.joinpath('test_cases'))
 
@@ -84,6 +84,33 @@ class TestLocations(unittest.TestCase):
             path = PurePath(url_parts.path)
             expected_path = PurePath(expected_parts.path)
         self.assertEqual(path, expected_path, "%r: Paths differ." % url)
+
+    def test_urlsplit(self):
+        url = "https://xmlschema.test/schema/test.xsd"
+        self.assertEqual(
+            urlsplit(url), ("https", "xmlschema.test", "/schema/test.xsd", '', '')
+        )
+
+        url = "https://xmlschema.test/xs:schema/test.xsd"
+        self.assertEqual(
+            urlsplit(url), ("https", "xmlschema.test", "/xs:schema/test.xsd", '', '')
+        )
+
+        url = "https://xmlschema.test/schema/test.xsd#xs:element"
+        self.assertEqual(
+            urlsplit(url), ("https", "xmlschema.test", "/schema/test.xsd", '', 'xs:element')
+        )
+
+        url = "https://xmlschema.test@username:password/schema/test.xsd"
+        self.assertEqual(
+            urlsplit(url),
+            ("https", "xmlschema.test@username:password", "/schema/test.xsd", '', '')
+        )
+
+        url = "https://xmlschema.test/schema/test.xsd?id=10"
+        self.assertEqual(
+            urlsplit(url), ("https", "xmlschema.test", "/schema/test.xsd", 'id=10', '')
+        )
 
     def test_path_from_uri(self):
         with self.assertRaises(ValueError) as ec:
@@ -345,6 +372,37 @@ class TestLocations(unittest.TestCase):
 
         with patch('platform.system', MagicMock(return_value="Windows")):
             self.assertFalse(url_path_is_file('file:///c:/Windows/unknown'))
+
+    def test_is_encoded_url(self):
+        self.assertFalse(is_encoded_url("https://xmlschema.test/schema/test.xsd"))
+        self.assertTrue(is_encoded_url("https://xmlschema.test/schema/issue%20%231999.xsd"))
+        self.assertFalse(is_encoded_url("a b c"))
+        self.assertFalse(is_encoded_url("a+b+c"))
+        self.assertFalse(is_encoded_url("a b+c"))
+
+    def test_encode_and_decode_url(self):
+        url = "https://xmlschema.test/schema/test.xsd"
+        self.assertEqual(encode_url(url), url)
+        self.assertEqual(decode_url(encode_url(url)), url)
+
+        url = "https://xmlschema.test/schema 2/test.xsd"
+        self.assertEqual(encode_url(url), "https://xmlschema.test/schema%202/test.xsd")
+        self.assertEqual(decode_url(encode_url(url)), url)
+
+        url = "https://xmlschema.test@u:p/xs:schema@2/test.xsd"
+        self.assertEqual(encode_url(url), "https://xmlschema.test@u:p/xs%3Aschema%402/test.xsd")
+        self.assertEqual(decode_url(encode_url(url)), url)
+
+        url = "https://xmlschema.test/schema 2/test.xsd?name=2 id=3"
+        self.assertEqual(
+            encode_url(url), "https://xmlschema.test/schema%202/test.xsd?name=2%20id=3")
+        self.assertEqual(decode_url(encode_url(url)), url)
+
+        self.assertEqual(encode_url(url, method='html'),
+                         "https://xmlschema.test/schema%202/test.xsd?name=2+id=3")
+        self.assertEqual(decode_url(encode_url(url, method='html'), method='html'), url)
+        self.assertEqual(decode_url(encode_url(url), method='html'), url)
+        self.assertNotEqual(decode_url(encode_url(url, method='html')), url)
 
     def test_normalize_locations_function(self):
         locations = normalize_locations(

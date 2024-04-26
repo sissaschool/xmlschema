@@ -15,7 +15,7 @@ import string
 from collections.abc import MutableMapping
 from pathlib import Path, PurePath, PurePosixPath, PureWindowsPath
 from typing import Optional, Iterable
-from urllib.parse import urlsplit, urlunsplit, unquote, quote_from_bytes
+from urllib.parse import urlsplit, urlunsplit, quote, quote_plus, unquote, unquote_plus, quote_from_bytes
 
 from .exceptions import XMLSchemaValueError
 from .aliases import NormalizedLocationsType, LocationsType
@@ -237,6 +237,50 @@ def url_path_is_file(url: str) -> bool:
     if path.startswith('/') and platform.system() == 'Windows':
         path = path[1:]
     return os.path.isfile(path)
+
+
+def is_encoded_url(url: str) -> bool:
+    """
+    Determines whether the given URL is encoded. The case with '+' and without
+    spaces is not univocal and the plus signs are ignored for the result.
+    """
+    return unquote(url) != url or \
+        '+' in url and ' ' not in url and \
+        unquote(url.replace('+', '$')) != url.replace('+', '$')
+
+
+def encode_url(url: str, method: str = 'xml') -> str:
+    """Encode the given url, if necessary."""
+    if is_encoded_url(url):
+        return url
+
+    query_quote = quote_plus if method == 'html' else quote
+
+    parts = urlsplit(url)
+    return urlunsplit((
+        parts.scheme,
+        quote(parts.netloc, safe='@:'),
+        quote(parts.path, safe='/'),
+        query_quote(parts.query, safe=';/?:@=&'),
+        query_quote(parts.fragment, safe=';/?:@=&'),
+    ))
+
+
+def decode_url(url: str, method: str = 'xml') -> str:
+    """Decode the given url, if necessary."""
+    if not is_encoded_url(url):
+        return url
+
+    query_unquote = unquote_plus if method == 'html' else unquote
+
+    parts = urlsplit(url)
+    return urlunsplit((
+        parts.scheme,
+        unquote(parts.netloc),
+        unquote(parts.path),
+        query_unquote(parts.query),
+        query_unquote(parts.fragment),
+    ))
 
 
 def normalize_locations(locations: LocationsType,
