@@ -2,6 +2,11 @@
 CHANGELOG
 *********
 
+`v3.3.1`_ (2024-04-27)
+======================
+* Update validation errors with logging stacktrace in debug mode
+* Improve locations parsing and URL encoding
+
 `v3.3.0`_ (2024-04-17)
 ======================
 * Rewrite the validation of openContent using InterleavedModelVisitor and SuffixedModelVisitor
@@ -698,3 +703,4 @@ v0.9.6 (2017-05-05)
 .. _v3.2.0: https://github.com/brunato/xmlschema/compare/v3.1.0...v3.2.0
 .. _v3.2.1: https://github.com/brunato/xmlschema/compare/v3.2.0...v3.2.1
 .. _v3.3.0: https://github.com/brunato/xmlschema/compare/v3.2.1...v3.3.0
+.. _v3.3.1: https://github.com/brunato/xmlschema/compare/v3.3.0...v3.3.1
