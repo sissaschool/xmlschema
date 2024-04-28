@@ -24,7 +24,7 @@ from xmlschema.locations import LocationPath, LocationPosixPath, LocationWindows
 
 TEST_CASES_DIR = str(pathlib.Path(__file__).absolute().parent.joinpath('test_cases'))
 
-DRIVE_REGEX = '(/[a-zA-Z]:|/)' if platform.system() == 'Windows' else ''
+DRIVE_REGEX = '(/[a-zA-Z]:|)' if platform.system() == 'Windows' else ''
 
 XML_WITH_NAMESPACES = '<pfa:root xmlns:pfa="http://xmlschema.test/nsa">\n' \
                       '  <pfb:elem xmlns:pfb="http://xmlschema.test/nsb"/>\n' \
@@ -206,6 +206,11 @@ class TestLocations(unittest.TestCase):
             normalize_url('file:///\\k:\\Dir A\\schema.xsd')
         self.assertIn("Invalid URI", str(ec.exception))
 
+        # u
+        base_url = 'D:/a/xmlschema/xmlschema/tests/test_cases/examples/'
+        self.assertEqual(normalize_url('vehicles.xsd', base_url),
+                         f'file:///{base_url}vehicles.xsd')
+
     def test_normalize_url_unc_paths__issue_246(self):
         url = PureWindowsPath(r'\\host\share\file.xsd').as_uri()
         self.assertNotEqual(normalize_url(r'\\host\share\file.xsd'),
@@ -332,57 +337,37 @@ class TestLocations(unittest.TestCase):
         self.assertRegex(url, f'{DRIVE_REGEX}/dir1/dir2/issue%20%23002/data.xml')
 
     def test_normalize_url_with_query_part(self):
-        with patch.object(os, 'name', 'nt'):
-            self.assertEqual(os.name, 'nt')
+        url = "https://xmlschema.test/schema 2/test.xsd?name=2 id=3"
+        self.assertEqual(
+            normalize_url(url),
+            "https://xmlschema.test/schema%202/test.xsd?name=2%20id=3"
+        )
 
-            url = "https://xmlschema.test/schema 2/test.xsd?name=2 id=3"
-            self.assertEqual(
-                normalize_url(url),
-                "https://xmlschema.test/schema%202/test.xsd?name=2%20id=3"
-            )
+        url = "https://xmlschema.test/schema 2/test.xsd?name=2 id=3"
+        self.assertEqual(
+            normalize_url(url, method='html'),
+            "https://xmlschema.test/schema%202/test.xsd?name=2+id=3"
+        )
 
-            url = "https://xmlschema.test/schema 2/test.xsd?name=2 id=3"
-            self.assertEqual(
-                normalize_url(url, method='html'),
-                "https://xmlschema.test/schema%202/test.xsd?name=2+id=3"
-            )
+        url = "/path/schema 2/test.xsd?name=2 id=3"
+        self.assertRegex(
+            normalize_url(url),
+            f'file://{DRIVE_REGEX}/path/schema%202/test.xsd'
+        )
 
-            url = "/path/schema 2/test.xsd?name=2 id=3"
-            self.assertEqual(
-                normalize_url(url),
-                "file:///path/schema%202/test.xsd"
-            )
+        self.assertRegex(
+            normalize_url('other.xsd?id=2', 'file:///home?name=2&id='),
+            f'file://{DRIVE_REGEX}/home/other.xsd'
+        )
+        self.assertRegex(
+            normalize_url('other.xsd#element', 'file:///home#attribute'),
+            f'file://{DRIVE_REGEX}/home/other.xsd'
+        )
 
-        with patch.object(os, 'name', 'posix'):
-            self.assertEqual(os.name, 'posix')
-
-            url = "https://xmlschema.test/schema 2/test.xsd?name=2 id=3"
-            self.assertEqual(
-                normalize_url(url),
-                "https://xmlschema.test/schema%202/test.xsd?name=2%20id=3"
-            )
-
-            url = "https://xmlschema.test/schema 2/test.xsd?name=2 id=3"
-            self.assertEqual(
-                normalize_url(url, method='html'),
-                "https://xmlschema.test/schema%202/test.xsd?name=2+id=3"
-            )
-
-            url = "/path/schema 2/test.xsd?name=2 id=3"
-            self.assertEqual(
-                normalize_url(url),
-                "file:///path/schema%202/test.xsd"
-            )
-
-            self.check_url(normalize_url('other.xsd?id=2', 'file:///home?name=2&id='),
-                           'file:///home/other.xsd')
-            self.check_url(normalize_url('other.xsd#element', 'file:///home#attribute'),
-                           'file:///home/other.xsd')
-
-            self.check_url(normalize_url('other.xsd?id=2', 'https://host/path?name=2&id='),
-                           'https://host/path/other.xsd?id=2')
-            self.check_url(normalize_url('other.xsd#element', 'https://host/path?name=2&id='),
-                           'https://host/path/other.xsd#element')
+        self.check_url(normalize_url('other.xsd?id=2', 'https://host/path?name=2&id='),
+                       'https://host/path/other.xsd?id=2')
+        self.check_url(normalize_url('other.xsd#element', 'https://host/path?name=2&id='),
+                       'https://host/path/other.xsd#element')
 
     def test_is_url_function(self):
         self.assertTrue(is_url(self.col_xsd_file))

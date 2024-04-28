@@ -47,6 +47,12 @@ class LocationPath(PurePath):
 
     @classmethod
     def from_uri(cls, uri: str) -> 'LocationPath':
+        """
+        Parse a URI and return a LocationPath. For non-local schemes like 'http',
+        'https', etc. a LocationPosixPath is returned. For Windows related file
+        paths, like a path with a drive, a UNC path or a path containing a backslash,
+        a LocationWindowsPath is returned.
+        """
         uri = uri.strip()
         if not uri:
             raise XMLSchemaValueError("Empty URI provided!")
@@ -56,10 +62,13 @@ class LocationPath(PurePath):
             path = urlunsplit(('', parts.netloc, parts.path, '', ''))
         elif parts.scheme in DRIVE_LETTERS and len(parts.scheme) == 1:
             # uri is a Windows path with a drive, e.g. k:/Python/lib/file
-            path = urlunsplit((parts.scheme, parts.netloc, parts.path, '', ''))
+
+            # urlsplit() converts the scheme to lowercase so use uri[0]
+            path = urlunsplit((uri[0], parts.netloc, parts.path, '', ''))
+
             return LocationWindowsPath(unquote(path))
         else:
-            return cls(unquote(parts.path))
+            return LocationPosixPath(unquote(parts.path))
 
         if parts.scheme == 'file':
             if path.startswith('/') and ntpath.splitdrive(path[1:])[0]:
