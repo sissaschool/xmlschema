@@ -41,6 +41,10 @@ class XMLResourceError(XMLSchemaException, OSError):
     """Raised when an error is found accessing an XML resource."""
 
 
+class XMLResourceForbidden(XMLSchemaException):
+    """Raised when an XML resource is forbidden by security settings."""
+
+
 class XMLSchemaNamespaceError(XMLSchemaException, RuntimeError):
     """Raised when a wrong runtime condition is found with a namespace."""
 

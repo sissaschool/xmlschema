@@ -342,7 +342,7 @@ class NamespaceMapper(MutableMapping[str, str]):
 
 class NamespaceResourcesMap(MutableMapping[str, Any]):
     """
-    Dictionary for storing information about namespace resources. The values are
+    Dictionary for storing information about namespace resources. Values are
     lists of objects. Setting an existing value appends the object to the value.
     Setting a value with a list sets/replaces the value.
     """
