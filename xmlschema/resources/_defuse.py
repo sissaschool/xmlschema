@@ -7,9 +7,12 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+from typing import AnyStr, IO
+from xml.sax import SAXParseException
 from xml.sax import expatreader  # type: ignore[attr-defined]
+from xml.dom import pulldom
 
-from xmlschema.exceptions import XMLResourceForbidden
+from xmlschema.exceptions import XMLResourceError, XMLResourceForbidden
 
 
 class SafeExpatParser(expatreader.ExpatParser):  # type: ignore[misc]
@@ -32,3 +35,18 @@ class SafeExpatParser(expatreader.ExpatParser):  # type: ignore[misc]
         self._parser.EntityDeclHandler = self.forbid_entity_declaration
         self._parser.UnparsedEntityDeclHandler = self.forbid_unparsed_entity_declaration
         self._parser.ExternalEntityRefHandler = self.forbid_external_entity_reference
+
+
+def defuse_xml(fp: IO[AnyStr]) -> None:
+    if not hasattr(fp, 'seekable') or not fp.seekable():
+        raise XMLResourceError("Cannot defuse a non-seekable file-like object.")
+
+    parser = SafeExpatParser()
+    try:
+        for event, node in pulldom.parse(fp, parser):
+            if event == pulldom.START_ELEMENT:
+                break
+    except SAXParseException:
+        pass  # the purpose is to defuse not to check xml source syntax
+    finally:
+        fp.seek(0)

@@ -1,5 +1,5 @@
 ﻿#
-# Copyright (c), 2016-2020, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2024, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -7,30 +7,18 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-import sys
-from collections import deque
 from typing import Optional, Union, Tuple
 from urllib.request import urlopen
 from urllib.error import URLError
 
 from elementpath.etree import ElementTree
 
-from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError, XMLResourceError
+from xmlschema.exceptions import XMLSchemaValueError, XMLResourceError
 from xmlschema.names import XSD_NAMESPACE
-from xmlschema.aliases import ElementType, NamespacesType, XMLSourceType, \
-    NormalizedLocationsType, LocationsType, ParentMapType, UriMapperType
-from xmlschema.helpers import get_namespace, update_namespaces, get_namespace_map, \
-    is_etree_document, etree_iter_location_hints
-from xmlschema.locations import LocationPath, is_url, is_remote_url, is_local_url, \
-    normalize_url, normalize_locations
-
-if sys.version_info < (3, 9):
-    from typing import Deque
-else:
-    Deque = deque
-
-from xmlschema.resources.typing import XMLSourceType, ResourceNodeType
-from xmlschema.resources._resource import XMLResource
+from xmlschema.aliases import NamespacesType, NormalizedLocationsType, \
+    LocationsType, UriMapperType
+from xmlschema.locations import normalize_url
+from xmlschema.resources import XMLSourceType, XMLResource
 
 
 def fetch_resource(location: str, base_url: Optional[str] = None, timeout: int = 30) -> str:

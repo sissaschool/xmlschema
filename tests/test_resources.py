@@ -671,16 +671,16 @@ class TestResources(unittest.TestCase):
 
         self.assertEqual(resource.defuse, 'remote')
         with open(self.col_xml_file) as fp:
-            resource._parse(fp)
+            resource._iterparse(fp)
         self.assertTrue(is_etree_element(resource.root))
 
         resource._defuse = 'always'
         with open(self.col_xml_file) as fp:
-            resource._parse(fp)
+            resource._iterparse(fp)
         self.assertTrue(is_etree_element(resource.root))
 
         with urlopen(resource.url) as fp:
-            resource._parse(fp)
+            resource._iterparse(fp)
         self.assertTrue(is_etree_element(resource.root))
 
     def test_xml_resource_tostring(self):

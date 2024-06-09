@@ -32,8 +32,7 @@ class FileWrapperProtocol(IOProtocol[AnyStr], Protocol[AnyStr]):
     name: str
 
 
-XMLSourceType = Union[
-    str, bytes, Path, IO[str], IO[bytes], ElementProtocol, DocumentProtocol
-]
+SourceType = Union[str, bytes, Path, IO[str], IO[bytes]]
+XMLSourceType = Union[SourceType, ElementProtocol, DocumentProtocol]
 ResourceType = Union[IOProtocol[str], IOProtocol[bytes]]
 ResourceNodeType = Union[ElementNode, LazyElementNode, DocumentNode]
