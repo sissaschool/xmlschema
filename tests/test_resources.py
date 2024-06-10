@@ -9,7 +9,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """Tests concerning XML resources"""
-
+import io
 import unittest
 import os
 import contextlib
@@ -28,11 +28,11 @@ try:
 except ImportError:
     lxml_etree = None
 
-from elementpath.etree import PyElementTree, is_etree_element
-
 from xmlschema import fetch_namespaces, fetch_resource, fetch_schema, \
     fetch_schema_locations, XMLResource, XMLResourceError, XMLSchema
+from xmlschema.exceptions import XMLResourceForbidden
 from xmlschema.names import XSD_NAMESPACE
+from xmlschema.helpers import is_etree_element
 from xmlschema.testing import SKIP_REMOTE_TESTS
 from xmlschema.locations import normalize_url
 
@@ -220,7 +220,7 @@ class TestResources(unittest.TestCase):
         self.assertTrue(resource.text.startswith('<?xml'))
 
         resource = XMLResource(self.vh_xml_file, lazy=False)
-        resource._url = resource._url[:-12] + 'unknown.xml'
+        resource.url = resource.url[:-12] + 'unknown.xml'
         with self.assertRaises(XMLResourceError):
             resource.load()
 
@@ -256,7 +256,7 @@ class TestResources(unittest.TestCase):
         self.assertTrue(resource.text.startswith('<?xml'))
 
         resource = XMLResource(path, lazy=False)
-        resource._url = resource._url[:-12] + 'unknown.xml'
+        resource.url = resource.url[:-12] + 'unknown.xml'
         with self.assertRaises(XMLResourceError):
             resource.load()
 
@@ -458,7 +458,7 @@ class TestResources(unittest.TestCase):
             XMLResource(self.vh_xml_file, allow='remote')
         self.assertTrue(str(ctx.exception).startswith("block access to local resource"))
 
-        with self.assertRaises(URLError):
+        with self.assertRaises(XMLResourceError):
             XMLResource("https://xmlschema.test/vehicles.xsd", allow='remote')
 
         with self.assertRaises(XMLResourceError) as ctx:
@@ -523,40 +523,40 @@ class TestResources(unittest.TestCase):
         self.assertRaises(TypeError, XMLResource, self.vh_xml_file, defuse=None)
         self.assertIsInstance(resource.root, ElementTree.Element)
         resource = XMLResource(self.vh_xml_file, defuse='always', lazy=True)
-        self.assertIsInstance(resource.root, PyElementTree.Element)
+        self.assertIsInstance(resource.root, ElementTree.Element)
 
         xml_file = casepath('resources/with_entity.xml')
         self.assertIsInstance(XMLResource(xml_file, lazy=True), XMLResource)
-        with self.assertRaises(ElementTree.ParseError):
+        with self.assertRaises(XMLResourceForbidden):
             XMLResource(xml_file, defuse='always', lazy=True)
 
         xml_file = casepath('resources/unused_external_entity.xml')
         self.assertIsInstance(XMLResource(xml_file, lazy=True), XMLResource)
-        with self.assertRaises(ElementTree.ParseError):
+        with self.assertRaises(XMLResourceForbidden):
             XMLResource(xml_file, defuse='always', lazy=True)
 
     def test_xml_resource_defuse_other_source_types(self):
         xml_file = casepath('resources/external_entity.xml')
         self.assertIsInstance(XMLResource(xml_file, lazy=True), XMLResource)
 
-        with self.assertRaises(ElementTree.ParseError):
+        with self.assertRaises(XMLResourceForbidden):
             XMLResource(xml_file, defuse='always', lazy=True)
 
-        with self.assertRaises(ElementTree.ParseError):
+        with self.assertRaises(XMLResourceForbidden):
             XMLResource(xml_file, defuse='always', lazy=False)
 
-        with self.assertRaises(ElementTree.ParseError):
+        with self.assertRaises(XMLResourceForbidden):
             XMLResource(xml_file, defuse='always', lazy=True)
 
-        with self.assertRaises(ElementTree.ParseError):
+        with self.assertRaises(XMLResourceForbidden):
             with open(xml_file) as fp:
                 XMLResource(fp, defuse='always', lazy=False)
 
-        with self.assertRaises(ElementTree.ParseError):
+        with self.assertRaises(XMLResourceForbidden):
             with open(xml_file) as fp:
                 XMLResource(fp.read(), defuse='always', lazy=False)
 
-        with self.assertRaises(ElementTree.ParseError):
+        with self.assertRaises(XMLResourceForbidden):
             with open(xml_file) as fp:
                 XMLResource(StringIO(fp.read()), defuse='always', lazy=False)
 
@@ -565,15 +565,15 @@ class TestResources(unittest.TestCase):
         resource = XMLResource(xml_file, defuse='nonlocal', lazy=True)
         self.assertIsInstance(resource, XMLResource)
 
-        with self.assertRaises(ElementTree.ParseError):
+        with self.assertRaises(XMLResourceForbidden):
             with open(xml_file) as fp:
                 XMLResource(fp, defuse='nonlocal', lazy=True)
 
-        with self.assertRaises(ElementTree.ParseError):
+        with self.assertRaises(XMLResourceForbidden):
             with open(xml_file) as fp:
                 XMLResource(fp.read(), defuse='nonlocal', lazy=True)
 
-        with self.assertRaises(ElementTree.ParseError):
+        with self.assertRaises(XMLResourceForbidden):
             with open(xml_file) as fp:
                 XMLResource(StringIO(fp.read()), defuse='nonlocal', lazy=True)
 
@@ -666,21 +666,21 @@ class TestResources(unittest.TestCase):
         for _, elem in resource._lazy_iterparse(self.col_xml_file):
             self.assertTrue(is_etree_element(elem))
 
-    def test_xml_resource__iterparse(self):
+    def test_xml_resource__parse(self):
         resource = XMLResource(self.vh_xml_file, lazy=False)
 
         self.assertEqual(resource.defuse, 'remote')
         with open(self.col_xml_file) as fp:
-            resource._iterparse(fp)
+            resource._parse(fp)
         self.assertTrue(is_etree_element(resource.root))
 
         resource._defuse = 'always'
         with open(self.col_xml_file) as fp:
-            resource._iterparse(fp)
+            resource._parse(fp)
         self.assertTrue(is_etree_element(resource.root))
 
         with urlopen(resource.url) as fp:
-            resource._iterparse(fp)
+            resource._parse(fp)
         self.assertTrue(is_etree_element(resource.root))
 
     def test_xml_resource_tostring(self):
@@ -717,12 +717,15 @@ class TestResources(unittest.TestCase):
         self.assertTrue(data.startswith('<?xml '))
         xml_file.close()
 
-        resource._url = 'file:not-a-file'
+        resource.url = 'file:not-a-file'
         with self.assertRaises(XMLResourceError):
             resource.open()
 
         resource = XMLResource('<A/>')
-        self.assertRaises(XMLResourceError, resource.open)
+        self.assertIsInstance(resource.open(), io.StringIO)
+
+        resource = XMLResource(b'<A/>')
+        self.assertIsInstance(resource.open(), io.BytesIO)
 
         resource = XMLResource(source=open(self.vh_xml_file))
         xml_file = resource.open()
@@ -1320,7 +1323,7 @@ class TestResources(unittest.TestCase):
         urn = 'urn:example:xmlschema:vehicles.xsd'
         uri_mapper = {urn: self.vh_xsd_file}
 
-        with self.assertRaises(URLError):
+        with self.assertRaises(XMLResourceError):
             XMLResource(urn)
 
         resource = XMLResource(urn, uri_mapper=uri_mapper)

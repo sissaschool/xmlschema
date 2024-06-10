@@ -253,7 +253,13 @@ def get_namespace_map(namespaces: Optional[NamespacesType]) -> NamespacesType:
 
 
 ###
-# Helper functions for ElementTree structures
+# Helper functions for ElementTree structures and resources
+
+def is_file_object(obj: object) -> bool:
+    return hasattr(obj, 'read') and hasattr(obj, 'seekable') \
+        and hasattr(obj, 'tell') and hasattr(obj, 'seek') \
+        and hasattr(obj, 'closed') and hasattr(obj, 'close')
+
 
 def is_etree_element(obj: object) -> bool:
     """A checker for valid ElementTree elements that excludes XsdElement objects."""
