@@ -26,13 +26,15 @@ from elementpath.etree import ElementTree, etree_tostring
 from elementpath.protocols import LxmlElementProtocol
 
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError, XMLResourceError
-from xmlschema.aliases import ElementType, NamespacesType, \
+from xmlschema.aliases import ElementType, ElementTreeType, NamespacesType, \
     NormalizedLocationsType, LocationsType, ParentMapType, UriMapperType
 from xmlschema.helpers import get_namespace, update_namespaces, get_namespace_map, \
     is_file_object, is_etree_document, etree_iter_location_hints
 from xmlschema.locations import LocationPath, is_url, is_remote_url, is_local_url, \
     normalize_url, normalize_locations
-from xmlschema.resources import XMLSourceType, ResourceNodeType, defuse_xml
+from xmlschema.resources import XMLSourceType, ResourceType, ResourceNodeType, defuse_xml
+
+from ._parse import update_ns_declarations
 
 if sys.version_info < (3, 9):
     from typing import Deque
@@ -87,10 +89,10 @@ class XMLResource:
     url: Optional[str] = None
     """An URL if the source is an URL or a file-like object with a remote url."""
 
-    fp: Optional[IO[AnyStr]] = None
+    fp: Optional[ResourceType] = None
     """An file-like object if the source is a file-like object."""
 
-    _fp: Optional[IO[AnyStr]] = None
+    _fp: Optional[ResourceType] = None
     _base_url: Optional[str] = None
     _parent_map: Optional[ParentMapType] = None
     _lazy: Union[bool, int] = False
@@ -180,15 +182,15 @@ class XMLResource:
         elif isinstance(source, bytes):
             self._text = source.decode()
         elif isinstance(source, StringIO):
-            self.fp = cast(IO[AnyStr], source)
+            self.fp = cast(IO[str], source)
             self._lazy = lazy
             self._text = source.getvalue()
         elif isinstance(source, BytesIO):
-            self.fp = cast(IO[AnyStr], source)
+            self.fp = cast(IO[bytes], source)
             self._lazy = lazy
         elif is_file_object(source):
             # source is a file-like object (remote resource or local file)
-            self.fp = cast(IO[AnyStr], source)
+            self.fp = cast(ResourceType, source)
             self._lazy = lazy
 
             url: Optional[str] = getattr(source, 'url', None)
@@ -202,7 +204,10 @@ class XMLResource:
         elif hasattr(source, 'tag') and hasattr(source, 'attrib'):
             self._root = cast(ElementType, source)
         elif is_etree_document(source):
-            self._root = source.getroot()
+            root = cast(ElementTreeType, source).getroot()
+            if root is None:
+                raise XMLSchemaValueError("source XML document is empty")
+            self._root = root
         else:
             raise XMLSchemaTypeError(
                 "wrong type %r for 'source' attribute: an ElementTree object or "
@@ -217,38 +222,19 @@ class XMLResource:
                 else:
                     for _, root in self._lazy_iterparse(fp):  # pragma: no cover
                         break
-        else:
-            if hasattr(self._root, 'xpath'):
-                nsmap = {}
-                lxml_nsmap = None
-                for elem in cast(Any, self._root.iter()):
-                    if callable(elem.tag):
-                        self._nsmaps[elem] = {}
-                        continue
-
-                    if lxml_nsmap != elem.nsmap:
-                        nsmap = {k or '': v for k, v in elem.nsmap.items()}
-                        lxml_nsmap = elem.nsmap
-
-                    parent = elem.getparent()
-                    if parent is None:
-                        ns_declarations = [(k or '', v) for k, v in nsmap.items()]
-                    elif parent.nsmap != elem.nsmap:
-                        ns_declarations = [(k or '', v) for k, v in elem.nsmap.items()
-                                           if k not in parent.nsmap or v != parent.nsmap[k]]
-                    else:
-                        ns_declarations = None
-
-                    self._nsmaps[elem] = nsmap
-                    if ns_declarations:
-                        self._xmlns[elem] = ns_declarations
+        elif hasattr(self._root, 'xpath'):
+            update_ns_declarations(
+                root=cast(LxmlElementProtocol, self._root),
+                nsmaps=cast(Dict[LxmlElementProtocol, Dict[str, str]], self._nsmaps),
+                xmlns=cast(Dict[LxmlElementProtocol, List[Tuple[str, str]]], self._xmlns),
+            )
 
     def __repr__(self) -> str:
         if not hasattr(self, '_root'):
             return '<%s object at %#x>' % (self.__class__.__name__, id(self))
         return '%s(root=%r)' % (self.__class__.__name__, self._root)
 
-    def __enter__(self) -> IO[AnyStr]:
+    def __enter__(self) -> ResourceType:
         if self._fp is not None:
             raise XMLResourceError(f"resource {self!r} is already used in a context")
 
@@ -257,11 +243,12 @@ class XMLResource:
             defuse_xml(self._fp)
         return self._fp
 
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
-        # We don't want to close the file obj if it's the source of the instance.
-        if self._fp is not self.fp:
-            self._fp.close()
-        self._fp = None
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        if self._fp is not None:
+            # We don't want to close the file obj if it's the source of the instance.
+            if self._fp is not self.fp:
+                self._fp.close()
+            self._fp = None
 
     @property
     def source(self) -> XMLSourceType:
@@ -384,7 +371,7 @@ class XMLResource:
         """Returns `True` if the resource is related with local XML data."""
         return is_local_url(self.url)
 
-    def is_data(self):
+    def is_data(self) -> bool:
         """Returns `True` if the instance source argument is a data object."""
         return not isinstance(self._source, (str, bytes, Path)) \
             and not hasattr(self._source, 'read')
@@ -393,7 +380,7 @@ class XMLResource:
         """Returns `True` if the XML text of the data source is loaded."""
         return self._text is not None
 
-    def is_defused(self):
+    def is_defused(self) -> bool:
         """Returns `True` if the XML data is defused before parsing."""
         return self._defuse == 'remote' and is_remote_url(self.base_url) \
             or self._defuse == 'nonlocal' and not is_local_url(self.base_url) \
@@ -408,8 +395,8 @@ class XMLResource:
 
         return normalize_url(uri, self._base_url)
 
-    def access_control(self, url: str) -> None:
-        if self._allow == 'all':
+    def access_control(self, url: Optional[str]) -> None:
+        if self._allow == 'all' or url is None:
             return
         elif self._allow == 'none':
             raise XMLResourceError(f"block access to resource {url}")
@@ -453,7 +440,7 @@ class XMLResource:
         # children are added to the root by ElementTree.iterparse().
         self.xpath_root.children.clear()
 
-    def _lazy_iterparse(self, resource: IO[AnyStr]) -> Iterator[Tuple[str, ElementType]]:
+    def _lazy_iterparse(self, resource: ResourceType) -> Iterator[Tuple[str, ElementType]]:
         events: Tuple[str, ...]
         events = 'start-ns', 'end-ns', 'start', 'end'
 
@@ -499,7 +486,7 @@ class XMLResource:
             else:
                 end_ns = True
 
-    def _parse(self, resource: IO[AnyStr]) -> None:
+    def _parse(self, resource: ResourceType) -> None:
         root_started = False
         start_ns: List[Tuple[str, str]] = []
         end_ns = False
@@ -674,16 +661,16 @@ class XMLResource:
 
         return resource
 
-    def open(self) -> IO[AnyStr]:
+    def open(self) -> ResourceType:
         """
         Returns an opened resource reader object for the instance URL. If the
         source attribute is a seekable file-like object rewind the source and
-        return it. If the
+        return it.
         """
         if self.fp is not None:
             if not self.fp.closed:
                 if not self.fp.seekable() or self.fp.seek(0) == 0:
-                    return cast(IO[AnyStr], self.fp)
+                    return self.fp
 
             if self.url is None:
                 if self.fp.closed:
@@ -694,7 +681,7 @@ class XMLResource:
 
         if self.url is not None:
             try:
-                fp = cast(IO[AnyStr], urlopen(self.url, timeout=self._timeout))
+                fp = cast(ResourceType, urlopen(self.url, timeout=self._timeout))
             except URLError as err:
                 msg = "cannot access to resource %(url)r: %(reason)s"
                 raise XMLResourceError(msg % {'url': self.url, 'reason': err.reason})
@@ -735,15 +722,8 @@ class XMLResource:
         elif self._lazy:
             raise XMLResourceError("cannot load a lazy XML resource")
 
-        resource = self.open()
-        try:
-            data = resource.read()
-        finally:
-            # We don't want to close the file obj if it wasn't originally
-            # opened by `XMLResource`. That is the concern of the code
-            # where the file obj came from.
-            if resource is not self._source:
-                resource.close()
+        with self as fp:
+            data = fp.read()
 
         if isinstance(data, bytes):
             try:
@@ -766,15 +746,14 @@ class XMLResource:
             yield from self._root.iter(tag)
             return
 
-        resource = self.open()
         tag = '*' if tag is None else tag.strip()
         lazy_depth = int(self._lazy)
         subtree_elements: Deque[ElementType] = deque()
         ancestors = []
         level = 0
 
-        try:
-            for event, node in self._lazy_iterparse(resource):
+        with self as fp:
+            for event, node in self._lazy_iterparse(fp):
                 if event == "start":
                     if level < lazy_depth:
                         if level:
@@ -800,10 +779,6 @@ class XMLResource:
                     subtree_elements.clear()
 
                     self._lazy_clear(node, ancestors)
-        finally:
-            # Close the resource only if it was originally opened by XMLResource
-            if resource is not self._source:
-                resource.close()
 
     def iter_location_hints(self, tag: Optional[str] = None) -> Iterator[Tuple[str, str]]:
         """

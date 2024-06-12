@@ -16,12 +16,12 @@ from elementpath.etree import ElementTree, etree_tostring
 
 from .exceptions import XMLSchemaTypeError, XMLSchemaValueError, XMLResourceError
 from .names import XSD_NAMESPACE, XSI_TYPE, XSD_SCHEMA
-from .aliases import ElementType, XMLSourceType, NamespacesType, LocationsType, \
+from .aliases import ElementType, NamespacesType, LocationsType, \
     LazyType, UriMapperType, SchemaSourceType, ConverterType, DecodeType, EncodeType, \
     JsonDecodeType
 from .helpers import get_extended_qname, update_namespaces, get_namespace_map, \
     is_etree_document
-from .resources import fetch_schema_locations, XMLResource
+from .resources import fetch_schema_locations, XMLResource, XMLSourceType
 from .validators import XMLSchema10, XMLSchemaBase, XMLSchemaValidationError
 
 
