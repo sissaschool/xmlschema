@@ -17,7 +17,7 @@ from elementpath import XPathContext, XPath2Parser, build_node_tree
 from elementpath.etree import etree_tostring
 
 from .exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, XMLSchemaValueError
-from .aliases import ElementType, XMLSourceType, NamespacesType, BaseXsdType, DecodeType
+from .aliases import ElementType, XMLSourceType, NsmapType, BaseXsdType, DecodeType
 from .helpers import get_namespace, get_prefixed_qname, local_name, update_namespaces, \
     raw_xml_encode, get_namespace_map
 from .converters import ElementData, XMLSchemaConverter
@@ -225,8 +225,8 @@ class DataElement(MutableSequence['DataElement']):
             if tag is None or tag == child.tag:
                 yield child
 
-    def get_namespaces(self, namespaces: Optional[NamespacesType] = None,
-                       root_only: bool = True) -> NamespacesType:
+    def get_namespaces(self, namespaces: Optional[NsmapType] = None,
+                       root_only: bool = True) -> NsmapType:
         """
         Returns an overall namespace map for DetaElement, resolving prefix redefinitions.
 
@@ -247,7 +247,7 @@ class DataElement(MutableSequence['DataElement']):
         return namespaces
 
     def validate(self, use_defaults: bool = True,
-                 namespaces: Optional[NamespacesType] = None,
+                 namespaces: Optional[NsmapType] = None,
                  max_depth: Optional[int] = None) -> None:
         """
         Validates the XML data object.
@@ -263,7 +263,7 @@ class DataElement(MutableSequence['DataElement']):
             raise error
 
     def is_valid(self, use_defaults: bool = True,
-                 namespaces: Optional[NamespacesType] = None,
+                 namespaces: Optional[NsmapType] = None,
                  max_depth: Optional[int] = None) -> bool:
         """
         Like :meth:`validate` except it does not raise an exception on validation
@@ -276,7 +276,7 @@ class DataElement(MutableSequence['DataElement']):
         return error is None
 
     def iter_errors(self, use_defaults: bool = True,
-                    namespaces: Optional[NamespacesType] = None,
+                    namespaces: Optional[NsmapType] = None,
                     max_depth: Optional[int] = None) -> Iterator['XMLSchemaValidationError']:
         """
         Generates a sequence of validation errors if the XML data object is invalid.
@@ -373,7 +373,7 @@ class DataElement(MutableSequence['DataElement']):
         return XPathContext(xpath_root)
 
     def find(self, path: str,
-             namespaces: Optional[NamespacesType] = None) -> Optional['DataElement']:
+             namespaces: Optional[NsmapType] = None) -> Optional['DataElement']:
         """
         Finds the first data element matching the path.
 
@@ -387,7 +387,7 @@ class DataElement(MutableSequence['DataElement']):
         return result if isinstance(result, DataElement) else None
 
     def findall(self, path: str,
-                namespaces: Optional[NamespacesType] = None) -> List['DataElement']:
+                namespaces: Optional[NsmapType] = None) -> List['DataElement']:
         """
         Finds all data elements matching the path.
 
@@ -404,7 +404,7 @@ class DataElement(MutableSequence['DataElement']):
         return cast(List[DataElement], [e for e in results if isinstance(e, DataElement)])
 
     def iterfind(self, path: str,
-                 namespaces: Optional[NamespacesType] = None) -> Iterator['DataElement']:
+                 namespaces: Optional[NsmapType] = None) -> Iterator['DataElement']:
         """
         Creates and iterator for all XSD subelements matching the path.
 
@@ -464,7 +464,7 @@ class DataElementConverter(XMLSchemaConverter):
     """
     __slots__ = 'data_element_class', 'map_attribute_names'
 
-    def __init__(self, namespaces: Optional[NamespacesType] = None,
+    def __init__(self, namespaces: Optional[NsmapType] = None,
                  data_element_class: Optional[Type['DataElement']] = None,
                  map_attribute_names: bool = True,
                  **kwargs: Any) -> None:
@@ -484,8 +484,8 @@ class DataElementConverter(XMLSchemaConverter):
     def get_xmlns_from_data(self, obj: Any) -> Optional[List[Tuple[str, str]]]:
         return obj.xmlns if isinstance(obj, DataElement) else None
 
-    def get_namespaces(self, namespaces: Optional[NamespacesType] = None,
-                       root_only: bool = True) -> NamespacesType:
+    def get_namespaces(self, namespaces: Optional[NsmapType] = None,
+                       root_only: bool = True) -> NsmapType:
         if not isinstance(self.source, DataElement) or self._xmlns_getter is None:
             return super().get_namespaces(namespaces, root_only)
 

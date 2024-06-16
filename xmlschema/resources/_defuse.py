@@ -13,7 +13,7 @@ from xml.dom import pulldom
 
 from xmlschema.exceptions import XMLResourceError, XMLResourceForbidden
 
-from ._typing import ResourceType
+from .typing import ResourceType
 
 
 class SafeExpatParser(expatreader.ExpatParser):  # type: ignore[misc]

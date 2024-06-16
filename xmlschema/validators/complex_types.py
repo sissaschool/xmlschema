@@ -16,7 +16,7 @@ from ..names import XSD_GROUP, XSD_ATTRIBUTE_GROUP, XSD_SEQUENCE, XSD_OVERRIDE, 
     XSD_ALL, XSD_CHOICE, XSD_ANY_ATTRIBUTE, XSD_ATTRIBUTE, XSD_COMPLEX_CONTENT, \
     XSD_RESTRICTION, XSD_COMPLEX_TYPE, XSD_EXTENSION, XSD_ANY_TYPE, XSD_ASSERT, \
     XSD_SIMPLE_CONTENT, XSD_OPEN_CONTENT, XSD_ANNOTATION
-from ..aliases import ElementType, NamespacesType, SchemaType, ComponentClassType, \
+from ..aliases import ElementType, NsmapType, SchemaType, ComponentClassType, \
     DecodeType, IterDecodeType, IterEncodeType, BaseXsdType, AtomicValueType, \
     ExtraValidatorType
 from ..translation import gettext as _
@@ -611,7 +611,7 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
 
     def validate(self, obj: Union[ElementType, str, bytes],
                  use_defaults: bool = True,
-                 namespaces: Optional[NamespacesType] = None,
+                 namespaces: Optional[NsmapType] = None,
                  max_depth: Optional[int] = None,
                  extra_validator: Optional[ExtraValidatorType] = None) -> None:
         kwargs: Any = {
@@ -629,7 +629,7 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
 
     def is_valid(self, obj: Union[ElementType, str, bytes],
                  use_defaults: bool = True,
-                 namespaces: Optional[NamespacesType] = None,
+                 namespaces: Optional[NsmapType] = None,
                  max_depth: Optional[int] = None,
                  extra_validator: Optional[ExtraValidatorType] = None) -> bool:
         kwargs: Any = {

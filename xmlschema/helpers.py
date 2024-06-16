@@ -20,7 +20,7 @@ from xml.etree.ElementTree import ParseError
 
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from .names import XML_NAMESPACE, XSI_SCHEMA_LOCATION, XSI_NONS_SCHEMA_LOCATION
-from .aliases import ElementType, NamespacesType, AtomicValueType, NumericValueType
+from .aliases import ElementType, NsmapType, AtomicValueType, NumericValueType
 from .translation import gettext as _
 
 ###
@@ -82,7 +82,7 @@ def format_xmlschema_stack() -> str:
 NAMESPACE_PATTERN = re.compile(r'{([^}]*)}')
 
 
-def get_namespace(qname: str, namespaces: Optional[NamespacesType] = None) -> str:
+def get_namespace(qname: str, namespaces: Optional[NsmapType] = None) -> str:
     """
     Returns the namespace URI associated with a QName. If a namespace map is
     provided tries to resolve a prefixed QName and then to extract the namespace.
@@ -201,7 +201,7 @@ def get_extended_qname(qname: str, namespaces: Optional[MutableMapping[str, str]
             return f'{{{uri}}}{name}' if uri else name
 
 
-def update_namespaces(namespaces: NamespacesType,
+def update_namespaces(namespaces: NsmapType,
                       xmlns: Iterable[Tuple[str, str]],
                       root_declarations: bool = False) -> None:
     """
@@ -242,7 +242,7 @@ def update_namespaces(namespaces: NamespacesType,
             namespaces[prefix] = uri
 
 
-def get_namespace_map(namespaces: Optional[NamespacesType]) -> NamespacesType:
+def get_namespace_map(namespaces: Optional[NsmapType]) -> NsmapType:
     """Returns a new and checked namespace map."""
     namespaces = {k: v for k, v in namespaces.items()} if namespaces else {}
     if namespaces.get('xml', XML_NAMESPACE) != XML_NAMESPACE:
@@ -274,7 +274,7 @@ def is_etree_document(obj: object) -> bool:
 def etree_iterpath(elem: ElementType,
                    tag: Optional[str] = None,
                    path: str = '.',
-                   namespaces: Optional[NamespacesType] = None,
+                   namespaces: Optional[NsmapType] = None,
                    add_position: bool = False) -> Iterator[Tuple[ElementType, str]]:
     """
     Creates an iterator for the element and its subelements that yield elements and paths.
@@ -318,7 +318,7 @@ def etree_iterpath(elem: ElementType,
 
 def etree_getpath(elem: ElementType,
                   root: ElementType,
-                  namespaces: Optional[NamespacesType] = None,
+                  namespaces: Optional[NsmapType] = None,
                   relative: bool = True,
                   add_position: bool = False,
                   parent_path: bool = False) -> Optional[str]:

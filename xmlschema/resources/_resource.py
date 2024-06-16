@@ -14,9 +14,9 @@ from collections import deque
 from io import StringIO, BytesIO
 from itertools import zip_longest
 from pathlib import Path
-from typing import cast, Any, AnyStr, Dict, Optional, IO, Iterator, \
+from typing import cast, Any, Dict, Optional, IO, Iterator, \
     List, MutableMapping, Union, Tuple
-from urllib.request import urlopen
+from urllib.request import urlopen, URLopener
 from urllib.parse import urlsplit, unquote
 from urllib.error import URLError
 
@@ -26,14 +26,17 @@ from elementpath.etree import ElementTree, etree_tostring
 from elementpath.protocols import LxmlElementProtocol
 
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError, XMLResourceError
-from xmlschema.aliases import ElementType, ElementTreeType, NamespacesType, \
-    NormalizedLocationsType, LocationsType, ParentMapType, UriMapperType
+from xmlschema.aliases import ElementType, ElementTreeType, NsmapType, \
+    NormalizedLocationsType, LocationsType
 from xmlschema.helpers import get_namespace, update_namespaces, get_namespace_map, \
     is_file_object, is_etree_document, etree_iter_location_hints
 from xmlschema.locations import LocationPath, is_url, is_remote_url, is_local_url, \
     normalize_url, normalize_locations
-from xmlschema.resources import XMLSourceType, ResourceType, ResourceNodeType, defuse_xml
 
+from .typing import XMLSourceType, ResourceType, ResourceNodeType, IterparseType, \
+    ParentMapType, UriMapperType
+from ._defuse import defuse_xml
+from ._descriptors import TypedArgument, ChoiceArgument, ValueArgument, UrlArgument
 from ._parse import update_ns_declarations
 
 if sys.version_info < (3, 9):
@@ -93,9 +96,19 @@ class XMLResource:
     """An file-like object if the source is a file-like object."""
 
     _fp: Optional[ResourceType] = None
-    _base_url: Optional[str] = None
+
+    # Private attributes for arguments
+    _base_url: Optional[str]
+    _defuse: str
+    _allow: str
+    _timeout: int
+    _lazy: Union[bool, int]
+    _thin_lazy: bool
+    _uri_mapper: Optional[UriMapperType]
+    _opener: Optional[URLopener]
+    _iterparse: IterparseType
+
     _parent_map: Optional[ParentMapType] = None
-    _lazy: Union[bool, int] = False
 
     def __init__(self, source: XMLSourceType,
                  base_url: Union[None, str, Path, bytes] = None,
@@ -104,68 +117,28 @@ class XMLResource:
                  timeout: int = 300,
                  lazy: Union[bool, int] = False,
                  thin_lazy: bool = True,
-                 uri_mapper: Optional[UriMapperType] = None) -> None:
+                 uri_mapper: Optional[UriMapperType] = None,
+                 opener: Optional[URLopener] = None,
+                 iterparse: Optional[IterparseType] = None) -> None:
+
+        if allow == 'sandbox' and base_url is None:
+            msg = "block access to files out of sandbox requires 'base_url' to be set"
+            raise XMLResourceError(msg)
+
+        # Set and validate arguments
+        self.base_url = base_url
+        self.allow = allow
+        self.defuse = defuse
+        self.timeout = timeout
+        self.lazy = lazy
+        self.thin_lazy = thin_lazy
+        self.uri_mapper = uri_mapper
+        self.opener = opener
+        self.iterparse = iterparse
 
         self._source = source
         self._nsmaps = {}
         self._xmlns = {}
-
-        if isinstance(base_url, (str, bytes)):
-            if not is_url(base_url):
-                raise XMLSchemaValueError("'base_url' argument is not an URL")
-            self._base_url = base_url if isinstance(base_url, str) else base_url.decode()
-        elif isinstance(base_url, Path):
-            self._base_url = str(base_url)
-        elif base_url is not None:
-            msg = "invalid type %r for argument 'base_url'"
-            raise XMLSchemaTypeError(msg % type(base_url))
-
-        if not isinstance(allow, str):
-            msg = "invalid type %r for argument 'allow'"
-            raise XMLSchemaTypeError(msg % type(allow))
-        elif allow not in SECURITY_MODES:
-            msg = "'allow' argument: %r is not a security mode"
-            raise XMLSchemaValueError(msg % allow)
-        elif allow == 'sandbox' and self._base_url is None:
-            msg = "block access to files out of sandbox requires 'base_url' to be set"
-            raise XMLResourceError(msg)
-        self._allow = allow
-
-        if not isinstance(defuse, str):
-            msg = "invalid type %r for argument 'defuse'"
-            raise XMLSchemaTypeError(msg % type(defuse))
-        elif defuse not in DEFUSE_MODES:
-            msg = "'defuse' argument: %r is not a defuse mode"
-            raise XMLSchemaValueError(msg % defuse)
-        self._defuse = defuse
-
-        if not isinstance(timeout, int):
-            msg = "invalid type %r for argument 'timeout'"
-            raise XMLSchemaTypeError(msg % type(timeout))
-        elif timeout <= 0:
-            msg = "the argument 'timeout' must be a positive integer"
-            raise XMLSchemaValueError(msg)
-        self._timeout = timeout
-
-        if isinstance(lazy, bool):
-            pass
-        elif not isinstance(lazy, int):
-            msg = "invalid type %r for the attribute 'lazy'"
-            raise XMLSchemaTypeError(msg % type(lazy))
-        elif lazy < 0:
-            msg = "invalid value %r for the attribute 'lazy'"
-            raise XMLSchemaValueError(msg % lazy)
-
-        if not isinstance(thin_lazy, bool):
-            msg = "invalid type %r for argument 'thin_lazy'"
-            raise XMLSchemaTypeError(msg % type(thin_lazy))
-        self._thin_lazy = thin_lazy
-
-        if uri_mapper is not None and not callable(uri_mapper) \
-                and not isinstance(uri_mapper, MutableMapping):
-            msg = "invalid type %r for argument 'uri_mapper'"
-            raise XMLSchemaTypeError(msg % type(uri_mapper))
-        self._uri_mapper = uri_mapper
 
         if is_url(source):
             self._lazy = lazy
@@ -272,10 +245,8 @@ class XMLResource:
         """
         return None if self.url is None else os.path.basename(unquote(self.url))
 
-    @property
-    def base_url(self) -> Optional[str]:
-        """The effective base URL used for completing relative locations."""
-        return os.path.dirname(self.url) if self.url else self._base_url
+    base_url = UrlArgument((str, bytes, Path))
+    """The effective base URL used for completing relative locations."""
 
     @property
     def filepath(self) -> Optional[str]:
@@ -288,25 +259,25 @@ class XMLResource:
                 return str(LocationPath.from_uri(self.url))
         return None
 
-    @property
-    def allow(self) -> str:
-        """The security mode for accessing resource locations."""
-        return self._allow
+    allow = ChoiceArgument[str](str, SECURITY_MODES)
+    """The security mode for accessing resource locations."""
 
-    @property
-    def defuse(self) -> str:
-        """When to defuse XML data."""
-        return self._defuse
+    defuse = ChoiceArgument[str](str, DEFUSE_MODES)
+    """When to defuse XML data."""
 
-    @property
-    def timeout(self) -> int:
-        """The timeout in seconds for accessing remote resources."""
-        return self._timeout
+    timeout = ValueArgument[int](int, min_value=1)
+    """The timeout in seconds for accessing remote resources."""
 
-    @property
-    def uri_mapper(self) -> Optional[UriMapperType]:
-        """The optional URI mapper argument for relocating addressed resources."""
-        return self._uri_mapper
+    lazy = ValueArgument[Union[bool, int]]((bool, int), 0)
+
+    thin_lazy = ValueArgument[bool](bool)
+    """Define if the resource is lazy and thin."""
+
+    uri_mapper = TypedArgument[Optional[UriMapperType]](MutableMapping, call=True)
+    """The optional URI mapper argument for relocating addressed resources."""
+
+    opener = TypedArgument[Optional[URLopener]](URLopener)
+    iterparse = TypedArgument[Optional[IterparseType]](call=True)
 
     @property
     def lazy_depth(self) -> int:
@@ -879,7 +850,7 @@ class XMLResource:
             yield cast(ElementType, item.elem)
 
     def iterfind(self, path: str,
-                 namespaces: Optional[NamespacesType] = None,
+                 namespaces: Optional[NsmapType] = None,
                  ancestors: Optional[List[ElementType]] = None) -> Iterator[ElementType]:
         """
         Apply XPath selection to XML resource that yields full subtrees.
@@ -940,16 +911,16 @@ class XMLResource:
                         self._lazy_clear(node, ancestors)
 
     def find(self, path: str,
-             namespaces: Optional[NamespacesType] = None,
+             namespaces: Optional[NsmapType] = None,
              ancestors: Optional[List[ElementType]] = None) -> Optional[ElementType]:
         return next(self.iterfind(path, namespaces, ancestors), None)
 
-    def findall(self, path: str, namespaces: Optional[NamespacesType] = None) \
+    def findall(self, path: str, namespaces: Optional[NsmapType] = None) \
             -> List[ElementType]:
         return list(self.iterfind(path, namespaces))
 
-    def get_namespaces(self, namespaces: Optional[NamespacesType] = None,
-                       root_only: bool = True) -> NamespacesType:
+    def get_namespaces(self, namespaces: Optional[NsmapType] = None,
+                       root_only: bool = True) -> NsmapType:
         """
         Extracts namespaces with related prefixes from the XML resource.
         If a duplicate prefix is encountered in a xmlns declaration, and

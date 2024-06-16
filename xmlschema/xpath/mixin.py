@@ -15,7 +15,7 @@ import re
 from elementpath import XPath2Parser, XPathSchemaContext, LazyElementNode, SchemaElementNode
 from elementpath.protocols import XsdElementProtocol
 
-from ..aliases import NamespacesType, SchemaType, BaseXsdType
+from ..aliases import NsmapType, SchemaType, BaseXsdType
 from ..helpers import get_qname, local_name, get_prefixed_qname
 from .proxy import XMLSchemaProxy
 
@@ -88,7 +88,7 @@ class ElementPathMixin(Sequence[E_co]):
         """Returns an XPath node for applying selectors on XSD schema/component."""
         raise NotImplementedError
 
-    def _get_xpath_namespaces(self, namespaces: Optional[NamespacesType] = None) \
+    def _get_xpath_namespaces(self, namespaces: Optional[NsmapType] = None) \
             -> Dict[str, str]:
         """
         Returns a dictionary with namespaces for XPath selection.
@@ -109,7 +109,7 @@ class ElementPathMixin(Sequence[E_co]):
         else:
             return self.name == f'{{{default_namespace}}}{name}'
 
-    def find(self, path: str, namespaces: Optional[NamespacesType] = None) -> Optional[E_co]:
+    def find(self, path: str, namespaces: Optional[NsmapType] = None) -> Optional[E_co]:
         """
         Finds the first XSD subelement matching the path.
 
@@ -124,7 +124,7 @@ class ElementPathMixin(Sequence[E_co]):
 
         return cast(Optional[E_co], next(parser.parse(path).select_results(context), None))
 
-    def findall(self, path: str, namespaces: Optional[NamespacesType] = None) -> List[E_co]:
+    def findall(self, path: str, namespaces: Optional[NsmapType] = None) -> List[E_co]:
         """
         Finds all XSD subelements matching the path.
 
@@ -140,7 +140,7 @@ class ElementPathMixin(Sequence[E_co]):
 
         return cast(List[E_co], parser.parse(path).get_results(context))
 
-    def iterfind(self, path: str, namespaces: Optional[NamespacesType] = None) -> Iterator[E_co]:
+    def iterfind(self, path: str, namespaces: Optional[NsmapType] = None) -> Iterator[E_co]:
         """
         Creates and iterator for all XSD subelements matching the path.
 
@@ -235,7 +235,7 @@ class XPathElement(ElementPathMixin['XPathElement']):
         return self.type.schema.target_namespace
 
     @property
-    def namespaces(self) -> NamespacesType:
+    def namespaces(self) -> NsmapType:
         return self.type.schema.namespaces
 
     @property

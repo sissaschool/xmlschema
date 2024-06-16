@@ -16,12 +16,13 @@ from elementpath.etree import ElementTree, etree_tostring
 
 from .exceptions import XMLSchemaTypeError, XMLSchemaValueError, XMLResourceError
 from .names import XSD_NAMESPACE, XSI_TYPE, XSD_SCHEMA
-from .aliases import ElementType, NamespacesType, LocationsType, \
-    LazyType, UriMapperType, SchemaSourceType, ConverterType, DecodeType, EncodeType, \
-    JsonDecodeType
+from .aliases import ElementType, NsmapType, LocationsType, SchemaSourceType, \
+    ConverterType, DecodeType, EncodeType, JsonDecodeType
 from .helpers import get_extended_qname, update_namespaces, get_namespace_map, \
     is_etree_document
-from .resources import fetch_schema_locations, XMLResource, XMLSourceType
+
+from .resources import fetch_schema_locations, XMLResource
+from .resources.typing import XMLSourceType, LazyType, UriMapperType
 from .validators import XMLSchema10, XMLSchemaBase, XMLSchemaValidationError
 
 
@@ -139,7 +140,7 @@ def validate(xml_document: Union[XMLSourceType, XMLResource],
              path: Optional[str] = None,
              schema_path: Optional[str] = None,
              use_defaults: bool = True,
-             namespaces: Optional[NamespacesType] = None,
+             namespaces: Optional[NsmapType] = None,
              locations: Optional[LocationsType] = None,
              base_url: Optional[str] = None,
              defuse: str = 'remote',
@@ -197,7 +198,7 @@ def is_valid(xml_document: Union[XMLSourceType, XMLResource],
              path: Optional[str] = None,
              schema_path: Optional[str] = None,
              use_defaults: bool = True,
-             namespaces: Optional[NamespacesType] = None,
+             namespaces: Optional[NsmapType] = None,
              locations: Optional[LocationsType] = None,
              base_url: Optional[str] = None,
              defuse: str = 'remote',
@@ -223,7 +224,7 @@ def iter_errors(xml_document: Union[XMLSourceType, XMLResource],
                 path: Optional[str] = None,
                 schema_path: Optional[str] = None,
                 use_defaults: bool = True,
-                namespaces: Optional[NamespacesType] = None,
+                namespaces: Optional[NsmapType] = None,
                 locations: Optional[LocationsType] = None,
                 base_url: Optional[str] = None,
                 defuse: str = 'remote',
@@ -425,7 +426,7 @@ def to_etree(obj: Any,
              cls: Optional[Type[XMLSchemaBase]] = None,
              path: Optional[str] = None,
              validation: str = 'strict',
-             namespaces: Optional[NamespacesType] = None,
+             namespaces: Optional[NsmapType] = None,
              use_defaults: bool = True,
              converter: Optional[ConverterType] = None,
              unordered: bool = False,
@@ -504,7 +505,7 @@ def from_json(source: Union[str, bytes, IO[str]],
               cls: Optional[Type[XMLSchemaBase]] = None,
               path: Optional[str] = None,
               validation: str = 'strict',
-              namespaces: Optional[NamespacesType] = None,
+              namespaces: Optional[NsmapType] = None,
               use_defaults: bool = True,
               converter: Optional[ConverterType] = None,
               unordered: bool = False,
@@ -592,14 +593,14 @@ class XmlDocument(XMLResource):
     schema: Optional[XMLSchemaBase] = None
     _fallback_schema: Optional[XMLSchemaBase] = None
     validation: str = 'skip'
-    namespaces: Optional[NamespacesType] = None
+    namespaces: Optional[NsmapType] = None
     errors: Union[Tuple[()], List[XMLSchemaValidationError]] = ()
 
     def __init__(self, source: XMLSourceType,
                  schema: Optional[Union[XMLSchemaBase, SchemaSourceType]] = None,
                  cls: Optional[Type[XMLSchemaBase]] = None,
                  validation: str = 'strict',
-                 namespaces: Optional[NamespacesType] = None,
+                 namespaces: Optional[NsmapType] = None,
                  locations: Optional[LocationsType] = None,
                  base_url: Optional[str] = None,
                  allow: str = 'all',
@@ -679,8 +680,8 @@ class XmlDocument(XMLResource):
         elif self.validation == 'lax':
             self.errors = [e for e in self.schema.iter_errors(self, namespaces=self.namespaces)]
 
-    def get_namespaces(self, namespaces: Optional[NamespacesType] = None,
-                       root_only: bool = True) -> NamespacesType:
+    def get_namespaces(self, namespaces: Optional[NsmapType] = None,
+                       root_only: bool = True) -> NsmapType:
         namespaces = get_namespace_map(namespaces)
         update_namespaces(namespaces, self._namespaces.items(), root_declarations=True)
         return super().get_namespaces(namespaces, root_only)

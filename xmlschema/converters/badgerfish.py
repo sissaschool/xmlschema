@@ -10,7 +10,7 @@
 from collections.abc import MutableMapping, MutableSequence
 from typing import TYPE_CHECKING, Any, Optional, List, Dict, Type, Union, Tuple
 
-from ..aliases import NamespacesType, BaseXsdType
+from ..aliases import NsmapType, BaseXsdType
 from ..names import XSD_ANY_TYPE
 from ..helpers import local_name
 from ..exceptions import XMLSchemaTypeError
@@ -33,7 +33,7 @@ class BadgerFishConverter(XMLSchemaConverter):
     """
     __slots__ = ()
 
-    def __init__(self, namespaces: Optional[NamespacesType] = None,
+    def __init__(self, namespaces: Optional[NsmapType] = None,
                  dict_class: Optional[Type[Dict[str, Any]]] = None,
                  list_class: Optional[Type[List[Any]]] = None,
                  **kwargs: Any) -> None:

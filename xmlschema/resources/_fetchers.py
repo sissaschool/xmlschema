@@ -16,10 +16,12 @@ from elementpath.etree import ElementTree
 
 from xmlschema.exceptions import XMLSchemaValueError, XMLResourceError
 from xmlschema.names import XSD_NAMESPACE
-from xmlschema.aliases import NamespacesType, NormalizedLocationsType, \
-    LocationsType, UriMapperType
+from xmlschema.aliases import NsmapType, NormalizedLocationsType, \
+    LocationsType
 from xmlschema.locations import normalize_url
-from xmlschema.resources import XMLSourceType, XMLResource
+
+from .typing import XMLSourceType, UriMapperType
+from ._resource import XMLResource
 
 
 class HasResource(Protocol):
@@ -153,7 +155,7 @@ def fetch_namespaces(source: XMLSourceType,
                      allow: str = 'all',
                      defuse: str = 'remote',
                      timeout: int = 30,
-                     root_only: bool = False) -> NamespacesType:
+                     root_only: bool = False) -> NsmapType:
     """
     Fetches namespaces information from the XML data source. The argument *source*
     can be a string containing the XML document or file path or an url or a file-like

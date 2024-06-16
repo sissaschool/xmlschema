@@ -493,8 +493,7 @@ class TestResources(unittest.TestCase):
 
         with self.assertRaises(ValueError) as ctx:
             XMLResource("https://xmlschema.test/vehicles.xsd", allow='any')
-        self.assertEqual(str(ctx.exception),
-                         "'allow' argument: 'any' is not a security mode")
+        self.assertIn("invalid value 'any' for argument 'allow'", str(ctx.exception))
 
         with self.assertRaises(XMLResourceError) as ctx:
             XMLResource(self.vh_xml_file, allow='none')

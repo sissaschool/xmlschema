@@ -14,10 +14,11 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Iterator, Iterable, \
 from xml.etree.ElementTree import Element
 
 from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
-from ..aliases import NamespacesType, XmlnsType, BaseXsdType
+from ..aliases import NsmapType, XmlnsType, BaseXsdType
 from ..helpers import get_namespace
 from ..namespaces import NamespaceMapper
 from ..resources import XMLResource
+from ..resources.typing import XmlnsType
 
 if TYPE_CHECKING:
     from ..validators import XsdElement
@@ -110,7 +111,7 @@ class XMLSchemaConverter(NamespaceMapper):
                  'text_key', 'ns_prefix', 'attr_prefix', 'cdata_prefix',
                  'indent', 'preserve_root', 'force_dict', 'force_list')
 
-    def __init__(self, namespaces: Optional[NamespacesType] = None,
+    def __init__(self, namespaces: Optional[NsmapType] = None,
                  dict_class: Optional[Type[Dict[str, Any]]] = None,
                  list_class: Optional[Type[List[Any]]] = None,
                  etree_element_class: Optional[Type[Element]] = None,

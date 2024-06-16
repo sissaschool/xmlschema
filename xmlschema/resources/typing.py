@@ -8,7 +8,9 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from pathlib import Path
-from typing import AnyStr, IO, List, Protocol, Union
+from typing import Any, AnyStr, Callable, Dict, IO, Iterator, List, MutableMapping, \
+    Optional, Protocol, Sequence, Union, Tuple
+from xml.etree.ElementTree import Element, ElementTree
 
 from elementpath.protocols import ElementProtocol, DocumentProtocol
 from elementpath import ElementNode, LazyElementNode, DocumentNode
@@ -35,6 +37,17 @@ class FileWrapperProtocol(IOProtocol[AnyStr], Protocol[AnyStr]):
 
 
 SourceType = Union[str, bytes, Path, IO[str], IO[bytes]]
-XMLSourceType = Union[SourceType, ElementProtocol, DocumentProtocol]
+XMLSourceType = Union[SourceType, Element, ElementTree, ElementProtocol, DocumentProtocol]
 ResourceType = Union[IOProtocol[str], IOProtocol[bytes]]
 ResourceNodeType = Union[ElementNode, LazyElementNode, DocumentNode]
+LazyType = Union[bool, int]
+UriMapperType = Union[MutableMapping[str, str], Callable[[str], str]]
+IterparseType = Callable[[ResourceType, Optional[Sequence[str]]], Iterator[tuple[str, Any]]]
+NsmapType = MutableMapping[str, str]
+XmlnsType = Optional[List[Tuple[str, str]]]
+ParentMapType = Dict[Element, Optional[Element]]
+
+
+__all__ = ['IOProtocol', 'FileWrapperProtocol', 'SourceType', 'XMLSourceType',
+           'ResourceType', 'ResourceNodeType',  'LazyType', 'UriMapperType',
+           'IterparseType', 'NsmapType', 'XmlnsType', 'ParentMapType']

@@ -21,7 +21,7 @@ from .. import limits
 from ..exceptions import XMLSchemaValueError
 from ..names import XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ELEMENT, \
     XSD_ANY, XSI_TYPE, XSD_ANY_TYPE, XSD_ANNOTATION
-from ..aliases import ElementType, NamespacesType, SchemaType, IterDecodeType, \
+from ..aliases import ElementType, NsmapType, SchemaType, IterDecodeType, \
     IterEncodeType, ModelParticleType, SchemaElementType, ComponentClassType, \
     OccursCounterType
 from ..translation import gettext as _
@@ -837,7 +837,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
     def check_dynamic_context(self, elem: ElementType,
                               xsd_element: SchemaElementType,
                               model_element: SchemaElementType,
-                              namespaces: NamespacesType) -> None:
+                              namespaces: NsmapType) -> None:
 
         if model_element is not xsd_element and isinstance(model_element, XsdElement):
             if 'substitution' in model_element.block \

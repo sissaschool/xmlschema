@@ -18,7 +18,7 @@ from typing import Any, Callable, Container, Dict, Iterator, List, \
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from .helpers import local_name, update_namespaces, get_namespace_map, \
     iter_decoded_data
-from .aliases import NamespacesType, XmlnsType, ElementType
+from .aliases import NsmapType, XmlnsType, ElementType
 from .resources import XMLResource
 
 
@@ -26,8 +26,8 @@ class NamespaceMapperContext(NamedTuple):
     obj: Union[ElementType, Any]
     level: int
     xmlns: XmlnsType
-    namespaces: NamespacesType
-    reverse: NamespacesType
+    namespaces: NsmapType
+    reverse: NsmapType
 
 
 XMLNS_PROCESSING_MODES = frozenset(('stacked', 'collapsed', 'root-only', 'none'))
@@ -62,11 +62,11 @@ class NamespaceMapper(MutableMapping[str, str]):
         'process_namespaces', 'strip_namespaces', '_use_namespaces', \
         'xmlns_processing', 'source', '_xmlns_getter', '__dict__'
 
-    _namespaces: NamespacesType
+    _namespaces: NsmapType
     _contexts: List[NamespaceMapperContext]
     _xmlns_getter: Optional[Callable[[ElementType], XmlnsType]]
 
-    def __init__(self, namespaces: Optional[NamespacesType] = None,
+    def __init__(self, namespaces: Optional[NsmapType] = None,
                  process_namespaces: bool = True,
                  strip_namespaces: bool = False,
                  xmlns_processing: Optional[str] = None,
@@ -120,7 +120,7 @@ class NamespaceMapper(MutableMapping[str, str]):
         return len(self._namespaces)
 
     @property
-    def namespaces(self) -> NamespacesType:
+    def namespaces(self) -> NsmapType:
         return self._namespaces
 
     @property
@@ -150,8 +150,8 @@ class NamespaceMapper(MutableMapping[str, str]):
         """Returns the XML declarations from decoded element data."""
         return None
 
-    def get_namespaces(self, namespaces: Optional[NamespacesType] = None,
-                       root_only: bool = True) -> NamespacesType:
+    def get_namespaces(self, namespaces: Optional[NsmapType] = None,
+                       root_only: bool = True) -> NsmapType:
         """
         Extracts namespaces with related prefixes from the XML source. It the XML
         source is an `XMLResource` instance delegates the extraction to it.

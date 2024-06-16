@@ -23,7 +23,7 @@ from ..exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from ..names import XSD_ANNOTATION, XSD_APPINFO, XSD_DOCUMENTATION, \
     XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_ID, \
     XSD_QNAME, XSD_OVERRIDE, XSD_NOTATION_TYPE, XSD_DECIMAL, XMLNS_NAMESPACE
-from ..aliases import ElementType, NamespacesType, SchemaType, BaseXsdType, \
+from ..aliases import ElementType, NsmapType, SchemaType, BaseXsdType, \
     ComponentClassType, ExtraValidatorType, DecodeType, IterDecodeType, \
     EncodeType, IterEncodeType
 from ..translation import gettext as _
@@ -208,7 +208,7 @@ class XsdValidator:
                          obj: Any = None,
                          elem: Optional[ElementType] = None,
                          source: Optional[Any] = None,
-                         namespaces: Optional[NamespacesType] = None,
+                         namespaces: Optional[NsmapType] = None,
                          **kwargs: Any) -> XMLSchemaValidationError:
         """
         Helper method for generating and updating validation errors. If validation
@@ -378,7 +378,7 @@ class XsdComponent(XsdValidator):
         return self.schema.namespaces.get('')
 
     @property
-    def namespaces(self) -> NamespacesType:
+    def namespaces(self) -> NsmapType:
         """Property that references to schema's namespace mapping."""
         return self.schema.namespaces
 
@@ -951,7 +951,7 @@ class ValidationMixin(Generic[ST, DT]):
     """
     def validate(self, obj: ST,
                  use_defaults: bool = True,
-                 namespaces: Optional[NamespacesType] = None,
+                 namespaces: Optional[NsmapType] = None,
                  max_depth: Optional[int] = None,
                  extra_validator: Optional[ExtraValidatorType] = None) -> None:
         """
@@ -975,7 +975,7 @@ class ValidationMixin(Generic[ST, DT]):
 
     def is_valid(self, obj: ST,
                  use_defaults: bool = True,
-                 namespaces: Optional[NamespacesType] = None,
+                 namespaces: Optional[NsmapType] = None,
                  max_depth: Optional[int] = None,
                  extra_validator: Optional[ExtraValidatorType] = None) -> bool:
         """
@@ -988,7 +988,7 @@ class ValidationMixin(Generic[ST, DT]):
 
     def iter_errors(self, obj: ST,
                     use_defaults: bool = True,
-                    namespaces: Optional[NamespacesType] = None,
+                    namespaces: Optional[NsmapType] = None,
                     max_depth: Optional[int] = None,
                     extra_validator: Optional[ExtraValidatorType] = None) \
             -> Iterator[XMLSchemaValidationError]:

@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, Any, Optional, cast, Iterable, Union, Callable
 from elementpath.etree import etree_tostring
 
 from ..exceptions import XMLSchemaException, XMLSchemaWarning, XMLSchemaValueError
-from ..aliases import ElementType, NamespacesType, SchemaElementType, ModelParticleType
+from ..aliases import ElementType, NsmapType, SchemaElementType, ModelParticleType
 from ..helpers import get_prefixed_qname, etree_getpath, is_etree_element
 from ..translation import gettext as _
 from ..resources import XMLResource
@@ -46,7 +46,7 @@ class XMLSchemaValidatorError(XMLSchemaException):
                  message: str,
                  elem: Optional[ElementType] = None,
                  source: Optional[Any] = None,
-                 namespaces: Optional[NamespacesType] = None) -> None:
+                 namespaces: Optional[NsmapType] = None) -> None:
         self._path = None
         self.validator = validator
         self.message = message[:-1] if message[-1] in ('.', ':') else message
@@ -236,7 +236,7 @@ class XMLSchemaValidationError(XMLSchemaValidatorError, ValueError):
                  obj: Any,
                  reason: Optional[str] = None,
                  source: Optional[Any] = None,
-                 namespaces: Optional[NamespacesType] = None) -> None:
+                 namespaces: Optional[NsmapType] = None) -> None:
 
         if isinstance(obj, str):
             obj_repr = repr(obj.encode('ascii', 'xmlcharrefreplace').decode('utf-8'))
@@ -325,7 +325,7 @@ class XMLSchemaDecodeError(XMLSchemaValidationError):
                  decoder: Any,
                  reason: Optional[str] = None,
                  source: Optional[Any] = None,
-                 namespaces: Optional[NamespacesType] = None) -> None:
+                 namespaces: Optional[NsmapType] = None) -> None:
         super().__init__(validator, obj, reason, source, namespaces)
         self.decoder = decoder
 
@@ -348,7 +348,7 @@ class XMLSchemaEncodeError(XMLSchemaValidationError):
                  encoder: Any,
                  reason: Optional[str] = None,
                  source: Optional[Any] = None,
-                 namespaces: Optional[NamespacesType] = None) -> None:
+                 namespaces: Optional[NsmapType] = None) -> None:
         super().__init__(validator, obj, reason, source, namespaces)
         self.encoder = encoder
 
@@ -376,7 +376,7 @@ class XMLSchemaChildrenValidationError(XMLSchemaValidationError):
                  occurs: int = 0,
                  expected: Optional[Iterable[SchemaElementType]] = None,
                  source: Optional[Any] = None,
-                 namespaces: Optional[NamespacesType] = None) -> None:
+                 namespaces: Optional[NsmapType] = None) -> None:
 
         self.index = index
         self.particle = particle

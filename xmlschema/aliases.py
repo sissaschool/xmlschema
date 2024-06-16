@@ -15,7 +15,7 @@ so they are set with a common dummy subscriptable type to keep compatibility.
 """
 from typing import TYPE_CHECKING, Optional, TypeVar
 
-__all__ = ['ElementType', 'ElementTreeType', 'XMLSourceType', 'NamespacesType',
+__all__ = ['ElementType', 'ElementTreeType', 'XMLSourceType', 'NsmapType',
            'NormalizedLocationsType', 'LocationsType', 'NsmapType', 'XmlnsType',
            'ParentMapType', 'LazyType', 'SchemaType', 'BaseXsdType', 'SchemaElementType',
            'SchemaAttributeType', 'SchemaGlobalType', 'GlobalMapType', 'ModelGroupType',
@@ -53,15 +53,11 @@ if TYPE_CHECKING:
 
     ##
     # Type aliases for XML resources
-    NamespacesType = MutableMapping[str, str]
+    NsmapType = MutableMapping[str, str]
     NormalizedLocationsType = List[Tuple[str, str]]
     LocationsType = Union[Tuple[Tuple[str, str], ...], Dict[str, str],
                           NormalizedLocationsType, NamespaceResourcesMap]
-    NsmapType = MutableMapping[str, str]
     XmlnsType = Optional[List[Tuple[str, str]]]
-    ParentMapType = Dict[ElementType, Optional[ElementType]]
-    LazyType = Union[bool, int]
-    UriMapperType = Union[MutableMapping[str, str], Callable[[str], str]]
 
     ##
     # Type aliases for XSD components

@@ -21,7 +21,7 @@ from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from ..names import XSD_QNAME, XSD_UNIQUE, XSD_KEY, XSD_KEYREF, XSD_SELECTOR, XSD_FIELD
 from ..translation import gettext as _
 from ..helpers import get_qname, get_extended_qname
-from ..aliases import ElementType, SchemaType, NamespacesType, AtomicValueType
+from ..aliases import ElementType, SchemaType, NsmapType, AtomicValueType
 from ..xpath import IdentityXPathParser
 from .exceptions import XMLSchemaNotBuiltError
 from .xsdbase import XsdComponent
@@ -256,7 +256,7 @@ class XsdIdentity(XsdComponent):
         return not isinstance(self.elements, tuple)
 
     def get_fields(self, element_node: ElementNode,
-                   namespaces: Optional[NamespacesType] = None,
+                   namespaces: Optional[NsmapType] = None,
                    decoders: Optional[Tuple[XsdAttribute, ...]] = None) -> IdentityCounterType:
         """
         Get fields for a schema or instance context element.

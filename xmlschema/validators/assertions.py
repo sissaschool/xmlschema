@@ -15,7 +15,7 @@ from elementpath import ElementPathError, XPath2Parser, XPathContext, \
     LazyElementNode, SchemaElementNode, build_schema_node_tree
 
 from ..names import XSD_ASSERT
-from ..aliases import ElementType, SchemaType, SchemaElementType, NamespacesType
+from ..aliases import ElementType, SchemaType, SchemaElementType, NsmapType
 from ..translation import gettext as _
 from ..xpath import ElementPathMixin, XMLSchemaProxy
 
@@ -133,7 +133,7 @@ class XsdAssert(XsdComponent, ElementPathMixin[Union['XsdAssert', SchemaElementT
 
     def __call__(self, obj: ElementType,
                  value: Any = None,
-                 namespaces: Optional[NamespacesType] = None,
+                 namespaces: Optional[NsmapType] = None,
                  source: Optional['XMLResource'] = None,
                  **kwargs: Any) -> Iterator[XMLSchemaValidationError]:
 

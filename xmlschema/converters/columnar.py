@@ -11,7 +11,7 @@ from collections.abc import MutableMapping, MutableSequence
 from typing import TYPE_CHECKING, Any, Optional, List, Dict, Type, Tuple
 
 from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
-from ..aliases import NamespacesType, BaseXsdType
+from ..aliases import NsmapType, BaseXsdType
 from ..resources import XMLResource
 from .default import ElementData, XMLSchemaConverter
 
@@ -31,7 +31,7 @@ class ColumnarConverter(XMLSchemaConverter):
     """
     __slots__ = ()
 
-    def __init__(self, namespaces: Optional[NamespacesType] = None,
+    def __init__(self, namespaces: Optional[NsmapType] = None,
                  dict_class: Optional[Type[Dict[str, Any]]] = None,
                  list_class: Optional[Type[List[Any]]] = None,
                  attr_prefix: Optional[str] = '',

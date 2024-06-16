@@ -40,9 +40,9 @@ from ..names import VC_MIN_VERSION, VC_MAX_VERSION, VC_TYPE_AVAILABLE, \
     VC_NAMESPACE, SCHEMAS_DIR, LOCATION_HINTS, XSD_ANNOTATION, XSD_INCLUDE, \
     XSD_IMPORT, XSD_REDEFINE, XSD_OVERRIDE, XSD_DEFAULT_OPEN_CONTENT, \
     XSD_ANY_SIMPLE_TYPE, XSD_UNION, XSD_LIST, XSD_RESTRICTION, XMLNS_NAMESPACE
-from ..aliases import ElementType, XMLSourceType, NamespacesType, LocationsType, \
+from ..aliases import ElementType, XMLSourceType, NsmapType, LocationsType, \
     SchemaType, SchemaSourceType, ConverterType, ComponentClassType, DecodeType, \
-    EncodeType, BaseXsdType, ExtraValidatorType, ValidationHookType, UriMapperType, \
+    EncodeType, BaseXsdType, ExtraValidatorType, ValidationHookType, \
     SchemaGlobalType, FillerType, DepthFillerType, ValueHookType, ElementHookType
 from ..translation import gettext as _
 from ..helpers import set_logging_level, prune_etree, get_namespace, \
@@ -51,6 +51,7 @@ from ..namespaces import NamespaceResourcesMap, NamespaceMapper, NamespaceView
 from ..locations import is_local_url, is_remote_url, url_path_is_file, \
     normalize_url, normalize_locations
 from ..resources import XMLResource
+from ..resources.typing import UriMapperType
 from ..converters import XMLSchemaConverter
 from ..xpath import XMLSchemaProxy, ElementPathMixin
 from ..exports import export_schema
@@ -244,7 +245,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     """
     # Instance attributes type annotations
     source: XMLResource
-    namespaces: NamespacesType
+    namespaces: NsmapType
     converter: Union[ConverterType]
     locations: NamespaceResourcesMap
     maps: XsdGlobals
@@ -1163,7 +1164,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             return []
 
     def get_element(self, tag: str, path: Optional[str] = None,
-                    namespaces: Optional[NamespacesType] = None) -> Optional[XsdElement]:
+                    namespaces: Optional[NsmapType] = None) -> Optional[XsdElement]:
         if not path:
             xsd_element = self.find(tag)
             return xsd_element if isinstance(xsd_element, XsdElement) else None
@@ -1653,7 +1654,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                  path: Optional[str] = None,
                  schema_path: Optional[str] = None,
                  use_defaults: bool = True,
-                 namespaces: Optional[NamespacesType] = None,
+                 namespaces: Optional[NsmapType] = None,
                  max_depth: Optional[int] = None,
                  extra_validator: Optional[ExtraValidatorType] = None,
                  validation_hook: Optional[ValidationHookType] = None,
@@ -1705,7 +1706,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                  path: Optional[str] = None,
                  schema_path: Optional[str] = None,
                  use_defaults: bool = True,
-                 namespaces: Optional[NamespacesType] = None,
+                 namespaces: Optional[NsmapType] = None,
                  max_depth: Optional[int] = None,
                  extra_validator: Optional[ExtraValidatorType] = None,
                  validation_hook: Optional[ValidationHookType] = None,
@@ -1724,7 +1725,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                     path: Optional[str] = None,
                     schema_path: Optional[str] = None,
                     use_defaults: bool = True,
-                    namespaces: Optional[NamespacesType] = None,
+                    namespaces: Optional[NsmapType] = None,
                     max_depth: Optional[int] = None,
                     extra_validator: Optional[ExtraValidatorType] = None,
                     validation_hook: Optional[ValidationHookType] = None,
@@ -1870,7 +1871,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
     def raw_decoder(self, source: XMLResource, path: Optional[str] = None,
                     schema_path: Optional[str] = None, validation: str = 'lax',
-                    namespaces: Optional[NamespacesType] = None, **kwargs: Any) \
+                    namespaces: Optional[NsmapType] = None, **kwargs: Any) \
             -> Iterator[Union[Any, XMLSchemaValidationError]]:
         """Returns a generator for decoding a resource."""
         if path:
@@ -1899,7 +1900,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                     schema_path: Optional[str] = None,
                     validation: str = 'lax',
                     process_namespaces: bool = True,
-                    namespaces: Optional[NamespacesType] = None,
+                    namespaces: Optional[NsmapType] = None,
                     use_defaults: bool = True,
                     use_location_hints: bool = False,
                     decimal_type: Optional[Type[Any]] = None,
@@ -2139,7 +2140,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     def iter_encode(self, obj: Any,
                     path: Optional[str] = None,
                     validation: str = 'lax',
-                    namespaces: Optional[NamespacesType] = None,
+                    namespaces: Optional[NsmapType] = None,
                     use_defaults: bool = True,
                     converter: Optional[ConverterType] = None,
                     unordered: bool = False,
