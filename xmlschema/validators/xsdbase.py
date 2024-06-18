@@ -19,18 +19,20 @@ from xml.etree import ElementTree
 from elementpath import select
 from elementpath.etree import etree_tostring
 
-from ..exceptions import XMLSchemaValueError, XMLSchemaTypeError
-from ..names import XSD_ANNOTATION, XSD_APPINFO, XSD_DOCUMENTATION, \
+from xmlschema.exceptions import XMLSchemaValueError, XMLSchemaTypeError
+from xmlschema.names import XSD_ANNOTATION, XSD_APPINFO, XSD_DOCUMENTATION, \
     XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_ID, \
     XSD_QNAME, XSD_OVERRIDE, XSD_NOTATION_TYPE, XSD_DECIMAL, XMLNS_NAMESPACE
-from ..aliases import ElementType, NsmapType, SchemaType, BaseXsdType, \
+from xmlschema.aliases import ElementType, NsmapType, SchemaType, BaseXsdType, \
     ComponentClassType, ExtraValidatorType, DecodeType, IterDecodeType, \
     EncodeType, IterEncodeType
-from ..translation import gettext as _
-from ..helpers import get_qname, local_name, get_prefixed_qname, \
-    is_etree_element, is_etree_document, format_xmlschema_stack
-from ..resources import XMLResource
-from ..converters import XMLSchemaConverter
+from xmlschema.translation import gettext as _
+from xmlschema.utils.qnames import get_qname, local_name, get_prefixed_qname
+from xmlschema.utils.etree import is_etree_element, is_etree_document
+from xmlschema.utils.logger import format_xmlschema_stack
+from xmlschema.resources import XMLResource
+from xmlschema.converters import XMLSchemaConverter
+
 from .exceptions import XMLSchemaParseError, XMLSchemaValidationError
 from .helpers import get_xsd_annotation_child
 

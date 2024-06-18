@@ -7,8 +7,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Tuple
 
 from elementpath.protocols import LxmlElementProtocol
 

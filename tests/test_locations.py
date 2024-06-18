@@ -19,7 +19,7 @@ from unittest.mock import patch, MagicMock
 
 import xmlschema.locations
 from xmlschema.locations import LocationPath, LocationPosixPath, LocationWindowsPath, \
-    is_url, is_local_url, is_remote_url, url_path_is_file, normalize_url, \
+    is_url, is_local_url, is_remote_url, location_is_file, normalize_url, \
     normalize_locations, match_location, is_encoded_url, is_safe_url, encode_url, decode_url
 
 TEST_CASES_DIR = str(pathlib.Path(__file__).absolute().parent.joinpath('test_cases'))
@@ -414,13 +414,13 @@ class TestLocations(unittest.TestCase):
         self.assertTrue(is_remote_url(b'  http://example.com/schema.xsd'))
 
     def test_url_path_is_file_function(self):
-        self.assertTrue(url_path_is_file(self.col_xml_file))
-        self.assertTrue(url_path_is_file(normalize_url(self.col_xml_file)))
-        self.assertFalse(url_path_is_file(self.col_dir))
-        self.assertFalse(url_path_is_file('http://example.com/'))
+        self.assertTrue(location_is_file(self.col_xml_file))
+        self.assertTrue(location_is_file(normalize_url(self.col_xml_file)))
+        self.assertFalse(location_is_file(self.col_dir))
+        self.assertFalse(location_is_file('http://example.com/'))
 
         with patch('platform.system', MagicMock(return_value="Windows")):
-            self.assertFalse(url_path_is_file('file:///c:/Windows/unknown'))
+            self.assertFalse(location_is_file('file:///c:/Windows/unknown'))
 
     def test_is_encoded_url(self):
         self.assertFalse(is_encoded_url("https://xmlschema.test/schema/test.xsd"))

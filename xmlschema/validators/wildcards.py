@@ -15,15 +15,17 @@ from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, \
 
 from elementpath import SchemaElementNode, build_schema_node_tree
 
-from ..exceptions import XMLSchemaValueError
-from ..names import XSI_NAMESPACE, XSD_ANY, XSD_ANY_ATTRIBUTE, \
+from xmlschema.exceptions import XMLSchemaValueError
+from xmlschema.names import XSI_NAMESPACE, XSD_ANY, XSD_ANY_ATTRIBUTE, \
     XSD_OPEN_CONTENT, XSD_DEFAULT_OPEN_CONTENT, XSI_TYPE
-from ..aliases import ElementType, SchemaType, SchemaElementType, SchemaAttributeType, \
+from xmlschema.aliases import ElementType, SchemaType, SchemaElementType, SchemaAttributeType, \
     ModelGroupType, ModelParticleType, AtomicValueType, IterDecodeType, IterEncodeType, \
     DecodedValueType, EncodedValueType
-from ..translation import gettext as _
-from ..helpers import get_namespace, raw_xml_encode
-from ..xpath import XMLSchemaProxy, ElementPathMixin
+from xmlschema.translation import gettext as _
+from xmlschema.utils.qnames import get_namespace
+from xmlschema.utils.decoding import raw_xml_encode
+from xmlschema.xpath import XMLSchemaProxy, ElementPathMixin
+
 from .xsdbase import ValidationMixin, XsdComponent
 from .particles import ParticleMixin
 from . import elements

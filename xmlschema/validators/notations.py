@@ -9,9 +9,10 @@
 #
 from typing import Optional
 
-from ..names import XSD_NOTATION
-from ..translation import gettext as _
-from ..helpers import get_qname
+from xmlschema.names import XSD_NOTATION
+from xmlschema.translation import gettext as _
+from xmlschema.utils.qnames import get_qname
+
 from .xsdbase import XsdComponent
 
 

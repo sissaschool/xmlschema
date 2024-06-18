@@ -13,12 +13,11 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Iterator, Iterable, \
     List, Optional, Tuple, Type, TypeVar, Union
 from xml.etree.ElementTree import Element
 
-from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
-from ..aliases import NsmapType, XmlnsType, BaseXsdType
-from ..helpers import get_namespace
-from ..namespaces import NamespaceMapper
-from ..resources import XMLResource
-from ..resources.typing import XmlnsType
+from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError
+from xmlschema.aliases import NsmapType, BaseXsdType, XmlnsType
+from xmlschema.namespaces import NamespaceMapper
+from xmlschema.resources import XMLResource
+from xmlschema.utils.qnames import get_namespace
 
 if TYPE_CHECKING:
     from ..validators import XsdElement

@@ -17,12 +17,14 @@ from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Pattern, 
 from elementpath import ElementPathError, XPathToken, XPathContext, \
     ElementNode, translate_pattern, datatypes
 
-from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
-from ..names import XSD_QNAME, XSD_UNIQUE, XSD_KEY, XSD_KEYREF, XSD_SELECTOR, XSD_FIELD
-from ..translation import gettext as _
-from ..helpers import get_qname, get_extended_qname
-from ..aliases import ElementType, SchemaType, NsmapType, AtomicValueType
-from ..xpath import IdentityXPathParser
+from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError
+from xmlschema.names import XSD_QNAME, XSD_UNIQUE, XSD_KEY, XSD_KEYREF, \
+    XSD_SELECTOR, XSD_FIELD
+from xmlschema.translation import gettext as _
+from xmlschema.utils.qnames import get_qname, get_extended_qname
+from xmlschema.aliases import ElementType, SchemaType, NsmapType, AtomicValueType
+from xmlschema.xpath import IdentityXPathParser
+
 from .exceptions import XMLSchemaNotBuiltError
 from .xsdbase import XsdComponent
 from .attributes import XsdAttribute

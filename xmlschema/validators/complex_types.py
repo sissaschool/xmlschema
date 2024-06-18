@@ -11,16 +11,16 @@ from typing import cast, Any, Callable, Iterator, List, Optional, Tuple, Union
 
 from elementpath.datatypes import AnyAtomicType
 
-from ..exceptions import XMLSchemaValueError
-from ..names import XSD_GROUP, XSD_ATTRIBUTE_GROUP, XSD_SEQUENCE, XSD_OVERRIDE, \
+from xmlschema.exceptions import XMLSchemaValueError
+from xmlschema.names import XSD_GROUP, XSD_ATTRIBUTE_GROUP, XSD_SEQUENCE, XSD_OVERRIDE, \
     XSD_ALL, XSD_CHOICE, XSD_ANY_ATTRIBUTE, XSD_ATTRIBUTE, XSD_COMPLEX_CONTENT, \
     XSD_RESTRICTION, XSD_COMPLEX_TYPE, XSD_EXTENSION, XSD_ANY_TYPE, XSD_ASSERT, \
     XSD_SIMPLE_CONTENT, XSD_OPEN_CONTENT, XSD_ANNOTATION
-from ..aliases import ElementType, NsmapType, SchemaType, ComponentClassType, \
+from xmlschema.aliases import ElementType, NsmapType, SchemaType, ComponentClassType, \
     DecodeType, IterDecodeType, IterEncodeType, BaseXsdType, AtomicValueType, \
     ExtraValidatorType
-from ..translation import gettext as _
-from ..helpers import get_qname, local_name
+from xmlschema.translation import gettext as _
+from xmlschema.utils.qnames import get_qname, local_name
 
 from .exceptions import XMLSchemaDecodeError
 from .helpers import get_xsd_derivation_attribute

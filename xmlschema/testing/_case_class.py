@@ -19,7 +19,7 @@ from xml.etree.ElementTree import Element, iselement
 
 from xmlschema.exceptions import XMLSchemaValueError
 from xmlschema.names import XSD_NAMESPACE, XSI_NAMESPACE, XSD_SCHEMA
-from xmlschema.helpers import get_namespace
+from xmlschema.utils.qnames import get_namespace
 from xmlschema.resources import fetch_namespaces
 from xmlschema.validators import XMLSchema10
 from ._helpers import etree_elements_assert_equal

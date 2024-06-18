@@ -8,7 +8,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-This module contains namespace definitions for W3C core standards.
+This module contains namespaces and name definitions for W3C core standards.
 """
 import os
 

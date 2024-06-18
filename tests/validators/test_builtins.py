@@ -15,7 +15,7 @@ from textwrap import dedent
 from xmlschema import XMLSchemaDecodeError, XMLSchemaEncodeError, \
     XMLSchemaValidationError, XMLSchema10, XMLSchema11
 from xmlschema.names import XSD_STRING
-from xmlschema.helpers import is_etree_element
+from xmlschema.utils.etree import is_etree_element
 from xmlschema.validators.builtins import XSD_10_BUILTIN_TYPES, \
     XSD_11_BUILTIN_TYPES, xsd_builtin_types_factory
 

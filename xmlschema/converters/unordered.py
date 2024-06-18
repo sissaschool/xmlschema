@@ -10,7 +10,7 @@
 from collections.abc import MutableMapping, MutableSequence
 from typing import TYPE_CHECKING, Any, Dict, Union
 
-from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
+from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from .default import ElementData, stackable, XMLSchemaConverter
 
 if TYPE_CHECKING:

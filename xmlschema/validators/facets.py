@@ -22,15 +22,17 @@ from elementpath import XPathContext, ElementPathError, \
     translate_pattern, RegexError, ElementNode
 from elementpath.datatypes import AnyAtomicType
 
-from ..names import XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_ENUMERATION, \
+from xmlschema.names import XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_ENUMERATION, \
     XSD_INTEGER, XSD_WHITE_SPACE, XSD_PATTERN, XSD_MAX_INCLUSIVE, XSD_MAX_EXCLUSIVE, \
     XSD_MIN_INCLUSIVE, XSD_MIN_EXCLUSIVE, XSD_TOTAL_DIGITS, XSD_FRACTION_DIGITS, \
     XSD_ASSERTION, XSD_DECIMAL, XSD_EXPLICIT_TIMEZONE, XSD_NOTATION_TYPE, XSD_QNAME, \
     XSD_ANNOTATION
-from ..aliases import ElementType, SchemaType, AtomicValueType, BaseXsdType
-from ..translation import gettext as _
-from ..helpers import count_digits, local_name
-from ..xpath import XsdAssertionXPathParser
+from xmlschema.aliases import ElementType, SchemaType, AtomicValueType, BaseXsdType
+from xmlschema.translation import gettext as _
+from xmlschema.utils.decoding import count_digits
+from xmlschema.utils.qnames import local_name
+from xmlschema.xpath import XsdAssertionXPathParser
+
 from .exceptions import XMLSchemaValidationError, XMLSchemaDecodeError
 from .xsdbase import XsdComponent, XsdAnnotation
 
@@ -783,7 +785,7 @@ class XsdAssertionFacet(XsdFacet):
             self.xpath_default_namespace = self.schema.xpath_default_namespace
 
         if self.schema.use_xpath3:
-            from ..xpath3 import XsdAssertionXPath3Parser
+            from xmlschema.xpath.xpath3 import XsdAssertionXPath3Parser
 
             parser_class: Union[
                 Type[XsdAssertionXPathParser], Type[XsdAssertionXPath3Parser]

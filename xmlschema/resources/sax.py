@@ -11,9 +11,8 @@ from xml.sax import SAXParseException
 from xml.sax import expatreader  # type: ignore[attr-defined]
 from xml.dom import pulldom
 
+from xmlschema.aliases import ResourceType
 from xmlschema.exceptions import XMLResourceError, XMLResourceForbidden
-
-from .typing import ResourceType
 
 
 class SafeExpatParser(expatreader.ExpatParser):  # type: ignore[misc]

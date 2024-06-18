@@ -17,11 +17,11 @@ from typing import Any, Dict, Iterable, Iterator, List, \
     MutableMapping, MutableSequence, Optional, Tuple, Union
 import warnings
 
-from ..exceptions import XMLSchemaValueError
-from ..aliases import ModelGroupType, ModelParticleType, SchemaElementType, \
+from xmlschema.exceptions import XMLSchemaValueError
+from xmlschema.aliases import ModelGroupType, ModelParticleType, SchemaElementType, \
     OccursCounterType
-from ..translation import gettext as _
-from .. import limits
+from xmlschema.translation import gettext as _
+from xmlschema import limits
 from .exceptions import XMLSchemaModelError, XMLSchemaModelDepthError
 from .wildcards import XsdAnyElement, Xsd11AnyElement
 from . import groups

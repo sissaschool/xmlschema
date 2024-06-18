@@ -32,7 +32,7 @@ from xmlschema import fetch_namespaces, fetch_resource, fetch_schema, \
     fetch_schema_locations, XMLResource, XMLResourceError, XMLSchema
 from xmlschema.exceptions import XMLResourceForbidden
 from xmlschema.names import XSD_NAMESPACE
-from xmlschema.helpers import is_etree_element
+from xmlschema.utils.etree import is_etree_element
 from xmlschema.testing import SKIP_REMOTE_TESTS
 from xmlschema.locations import normalize_url
 

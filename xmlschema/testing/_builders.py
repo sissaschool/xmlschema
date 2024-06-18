@@ -35,7 +35,7 @@ from xmlschema import XMLSchemaBase, XMLSchema11, XMLSchemaValidationError, \
     XMLSchemaParseError, UnorderedConverter, ParkerConverter, BadgerFishConverter, \
     AbderaConverter, JsonMLConverter, ColumnarConverter, GDataConverter
 from xmlschema.names import XSD_IMPORT
-from xmlschema.helpers import local_name
+from xmlschema.utils.qnames import local_name
 from xmlschema.resources import fetch_namespaces
 from xmlschema.validators import XsdType, Xsd11ComplexType
 from xmlschema.dataobjects import DataElementConverter, DataBindingConverter, DataElement

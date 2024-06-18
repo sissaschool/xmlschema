@@ -7,8 +7,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from typing import cast, overload, Generic, Optional, Protocol, Tuple, Type, \
-    TypeVar, Union
+from typing import Optional, Tuple, Union
 from urllib.request import urlopen
 from urllib.error import URLError
 
@@ -17,43 +16,10 @@ from elementpath.etree import ElementTree
 from xmlschema.exceptions import XMLSchemaValueError, XMLResourceError
 from xmlschema.names import XSD_NAMESPACE
 from xmlschema.aliases import NsmapType, NormalizedLocationsType, \
-    LocationsType
+    LocationsType, XMLSourceType, UriMapperType
 from xmlschema.locations import normalize_url
 
-from .typing import XMLSourceType, UriMapperType
-from ._resource import XMLResource
-
-
-class HasResource(Protocol):
-    resource: 'XMLResource'
-
-
-AT = TypeVar('AT')
-
-
-class ResourceAttribute(Generic[AT]):
-
-    def __set_name__(self, owner: Type[HasResource], name: str) -> None:
-        self._name = name
-
-    @overload
-    def __get__(self, instance: None, owner: Type[HasResource]) \
-        -> 'ResourceAttribute[AT]': ...
-
-    @overload
-    def __get__(self, instance: HasResource, owner: Type[HasResource]) -> AT: ...
-
-    def __get__(self, instance: Optional[HasResource], owner: Type[HasResource]) \
-            -> Union['ResourceAttribute[AT]', AT]:
-        if instance is None:
-            return self
-        return cast(AT, getattr(instance.resource, self._name))
-
-    def __set__(self, instance: HasResource, value: AT) -> None:
-        raise AttributeError(f'Cannot set attribute link {self._name}')
-
-    def __delete__(self, instance: AT) -> None:
-        raise AttributeError(f'Cannot delete attribute link {self._name}')
+from .xml_resource import XMLResource
 
 
 def fetch_resource(location: str, base_url: Optional[str] = None, timeout: int = 30) -> str:

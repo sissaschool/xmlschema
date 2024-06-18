@@ -13,10 +13,10 @@ from typing import Optional, Set, SupportsFloat, Union
 from xml.etree.ElementTree import Element
 from elementpath import datatypes
 
-from ..aliases import ElementType
-from ..names import XSD_ANNOTATION
-from ..exceptions import XMLSchemaValueError
-from ..translation import gettext as _
+from xmlschema.aliases import ElementType
+from xmlschema.names import XSD_ANNOTATION
+from xmlschema.exceptions import XMLSchemaValueError
+from xmlschema.translation import gettext as _
 from .exceptions import XMLSchemaValidationError
 
 XSD_FINAL_ATTRIBUTE_VALUES = {'restriction', 'extension', 'list', 'union'}

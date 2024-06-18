@@ -15,8 +15,8 @@ import re
 from elementpath import XPath2Parser, XPathSchemaContext, LazyElementNode, SchemaElementNode
 from elementpath.protocols import XsdElementProtocol
 
-from ..aliases import NsmapType, SchemaType, BaseXsdType
-from ..helpers import get_qname, local_name, get_prefixed_qname
+from xmlschema.aliases import NsmapType, SchemaType, BaseXsdType
+from xmlschema.utils.qnames import get_qname, local_name, get_prefixed_qname
 from .proxy import XMLSchemaProxy
 
 if TYPE_CHECKING:

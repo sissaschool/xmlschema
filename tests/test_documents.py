@@ -30,7 +30,7 @@ from xmlschema import XMLSchema10, XMLSchema11, XmlDocument, \
     to_etree, JsonMLConverter
 
 from xmlschema.names import XSD_NAMESPACE, XSI_NAMESPACE, XSD_SCHEMA
-from xmlschema.helpers import is_etree_element, is_etree_document
+from xmlschema.utils.etree import is_etree_element, is_etree_document
 from xmlschema.resources import XMLResource
 from xmlschema.documents import get_context
 from xmlschema.testing import etree_elements_assert_equal, SKIP_REMOTE_TESTS

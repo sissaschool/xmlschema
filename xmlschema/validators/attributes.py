@@ -16,15 +16,15 @@ from elementpath.datatypes import AbstractDateTime, Duration, AbstractBinary
 from typing import cast, Any, Callable, Union, Dict, List, Optional, \
     Iterator, MutableMapping, Tuple
 
-from ..exceptions import XMLSchemaValueError
-from ..names import XSI_NAMESPACE, XSD_ANY_SIMPLE_TYPE, XSD_SIMPLE_TYPE, \
+from xmlschema.exceptions import XMLSchemaValueError
+from xmlschema.names import XSI_NAMESPACE, XSD_ANY_SIMPLE_TYPE, XSD_SIMPLE_TYPE, \
     XSD_ATTRIBUTE_GROUP, XSD_COMPLEX_TYPE, XSD_RESTRICTION, XSD_EXTENSION, \
     XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ATTRIBUTE, XSD_ANY_ATTRIBUTE, \
     XSD_ASSERT, XSD_NOTATION_TYPE, XSD_ANNOTATION
-from ..aliases import ComponentClassType, ElementType, IterDecodeType, \
+from xmlschema.aliases import ComponentClassType, ElementType, IterDecodeType, \
     IterEncodeType, AtomicValueType, SchemaType, DecodedValueType, EncodedValueType
-from ..translation import gettext as _
-from ..helpers import get_namespace, get_qname
+from xmlschema.translation import gettext as _
+from xmlschema.utils.qnames import get_namespace, get_qname
 
 from .exceptions import XMLSchemaValidationError
 from .xsdbase import XsdComponent, XsdAnnotation, ValidationMixin

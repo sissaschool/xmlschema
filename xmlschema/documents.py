@@ -14,16 +14,15 @@ from typing import Any, Dict, List, Optional, Type, Union, Tuple, \
 
 from elementpath.etree import ElementTree, etree_tostring
 
-from .exceptions import XMLSchemaTypeError, XMLSchemaValueError, XMLResourceError
-from .names import XSD_NAMESPACE, XSI_TYPE, XSD_SCHEMA
-from .aliases import ElementType, NsmapType, LocationsType, SchemaSourceType, \
-    ConverterType, DecodeType, EncodeType, JsonDecodeType
-from .helpers import get_extended_qname, update_namespaces, get_namespace_map, \
-    is_etree_document
-
-from .resources import fetch_schema_locations, XMLResource
-from .resources.typing import XMLSourceType, LazyType, UriMapperType
-from .validators import XMLSchema10, XMLSchemaBase, XMLSchemaValidationError
+from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError, XMLResourceError
+from xmlschema.names import XSD_NAMESPACE, XSI_TYPE, XSD_SCHEMA
+from xmlschema.aliases import ElementType, NsmapType, LocationsType, SchemaSourceType, \
+    ConverterType, DecodeType, EncodeType, JsonDecodeType, XMLSourceType, LazyType, \
+    UriMapperType
+from xmlschema.utils.etree import is_etree_document
+from xmlschema.utils.qnames import get_extended_qname, update_namespaces, get_namespace_map
+from xmlschema.resources import fetch_schema_locations, XMLResource
+from xmlschema.validators import XMLSchema10, XMLSchemaBase, XMLSchemaValidationError
 
 
 def get_context(xml_document: Union[XMLSourceType, XMLResource],

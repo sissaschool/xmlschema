@@ -14,10 +14,10 @@ from typing import TYPE_CHECKING, Any, Dict, Iterator, Optional, Union, Type
 from elementpath import ElementPathError, XPath2Parser, XPathContext, \
     LazyElementNode, SchemaElementNode, build_schema_node_tree
 
-from ..names import XSD_ASSERT
-from ..aliases import ElementType, SchemaType, SchemaElementType, NsmapType
-from ..translation import gettext as _
-from ..xpath import ElementPathMixin, XMLSchemaProxy
+from xmlschema.names import XSD_ASSERT
+from xmlschema.aliases import ElementType, SchemaType, SchemaElementType, NsmapType
+from xmlschema.translation import gettext as _
+from xmlschema.xpath import ElementPathMixin, XMLSchemaProxy
 
 from .exceptions import XMLSchemaNotBuiltError, XMLSchemaValidationError, \
     XMLSchemaAssertPathWarning
@@ -26,7 +26,7 @@ from .groups import XsdGroup
 
 
 if TYPE_CHECKING:
-    from ..resources import XMLResource
+    from xmlschema.resources import XMLResource
     from .attributes import XsdAttributeGroup
     from .complex_types import XsdComplexType
     from .elements import XsdElement
@@ -98,7 +98,7 @@ class XsdAssert(XsdComponent, ElementPathMixin[Union['XsdAssert', SchemaElementT
 
     def build(self) -> None:
         if self.schema.use_xpath3:
-            from ..xpath3 import XPath3Parser
+            from xmlschema.xpath.xpath3 import XPath3Parser
             parser_class: Union[Type[XPath2Parser], Type[XPath3Parser]]
             parser_class = XPath3Parser
         else:

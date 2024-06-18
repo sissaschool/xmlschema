@@ -13,11 +13,12 @@ from typing import TYPE_CHECKING, Any, Optional, cast, Iterable, Union, Callable
 
 from elementpath.etree import etree_tostring
 
-from ..exceptions import XMLSchemaException, XMLSchemaWarning, XMLSchemaValueError
-from ..aliases import ElementType, NsmapType, SchemaElementType, ModelParticleType
-from ..helpers import get_prefixed_qname, etree_getpath, is_etree_element
-from ..translation import gettext as _
-from ..resources import XMLResource
+from xmlschema.exceptions import XMLSchemaException, XMLSchemaWarning, XMLSchemaValueError
+from xmlschema.aliases import ElementType, NsmapType, SchemaElementType, ModelParticleType
+from xmlschema.translation import gettext as _
+from xmlschema.resources import XMLResource
+from xmlschema.utils.etree import etree_getpath, is_etree_element
+from xmlschema.utils.qnames import get_prefixed_qname
 
 if TYPE_CHECKING:
     from .xsdbase import XsdValidator

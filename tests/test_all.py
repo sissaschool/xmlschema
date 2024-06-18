@@ -24,7 +24,7 @@ if __name__ == '__main__':
             tests.addTests(loader.discover(start_dir=tests_dir, pattern=pattern))
             return tests
 
-        tests.addTests(loader.discover(start_dir=tests_dir, pattern="test_helpers.py"))
+        tests.addTests(loader.discover(start_dir=tests_dir, pattern="test_utils.py"))
         tests.addTests(loader.discover(start_dir=tests_dir, pattern="test_namespaces.py"))
         tests.addTests(loader.discover(start_dir=tests_dir, pattern="test_locations.py"))
         tests.addTests(loader.discover(start_dir=tests_dir, pattern="test_resources.py"))

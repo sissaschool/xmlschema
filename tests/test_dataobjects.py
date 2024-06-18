@@ -18,7 +18,7 @@ from xmlschema import XMLSchema10, XMLSchema11, fetch_namespaces, etree_tostring
     XsdElement, XsdAttribute, XsdType
 
 from xmlschema.validators import XsdAttributeGroup
-from xmlschema.helpers import is_etree_element
+from xmlschema.utils.etree import is_etree_element
 from xmlschema.names import XSI_TYPE
 from xmlschema.dataobjects import DataBindingMeta, DataBindingConverter
 from xmlschema.testing import etree_elements_assert_equal

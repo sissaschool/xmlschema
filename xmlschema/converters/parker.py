@@ -10,8 +10,8 @@
 from collections.abc import MutableMapping, MutableSequence
 from typing import TYPE_CHECKING, Any, Optional, List, Dict, Type
 
-from ..aliases import NsmapType, BaseXsdType
-from ..resources import XMLResource
+from xmlschema.aliases import NsmapType, BaseXsdType
+from xmlschema.resources import XMLResource
 from .default import ElementData, XMLSchemaConverter
 
 if TYPE_CHECKING:

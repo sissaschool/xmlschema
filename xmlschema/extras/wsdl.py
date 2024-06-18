@@ -10,14 +10,15 @@
 # mypy: ignore-errors
 import os
 
-from ..exceptions import XMLSchemaException, XMLSchemaValueError
-from ..names import XSD_NAMESPACE, WSDL_NAMESPACE, SOAP_NAMESPACE, \
+from xmlschema.exceptions import XMLSchemaException, XMLSchemaValueError
+from xmlschema.names import XSD_NAMESPACE, WSDL_NAMESPACE, SOAP_NAMESPACE, \
     SCHEMAS_DIR, XSD_ANY_TYPE, XSD_SCHEMA
-from ..helpers import get_qname, local_name, get_extended_qname, get_prefixed_qname
-from ..namespaces import NamespaceResourcesMap
-from ..locations import normalize_url
-from ..documents import XmlDocument
-from ..validators import XMLSchemaBase, XMLSchema10
+from xmlschema.utils.qnames import get_qname, local_name, get_extended_qname, \
+    get_prefixed_qname
+from xmlschema.namespaces import NamespaceResourcesMap
+from xmlschema.locations import normalize_url
+from xmlschema.documents import XmlDocument
+from xmlschema.validators import XMLSchemaBase, XMLSchema10
 
 
 # WSDL 1.1 global declarations

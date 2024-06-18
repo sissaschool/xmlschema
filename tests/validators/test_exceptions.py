@@ -20,7 +20,7 @@ except ImportError:
     lxml_etree = None
 
 from xmlschema import XMLSchema, XMLResource
-from xmlschema.helpers import is_etree_element
+from xmlschema.utils.etree import is_etree_element
 from xmlschema.validators.exceptions import XMLSchemaValidatorError, \
     XMLSchemaNotBuiltError, XMLSchemaParseError, XMLSchemaModelDepthError, \
     XMLSchemaValidationError, XMLSchemaDecodeError, XMLSchemaEncodeError, \

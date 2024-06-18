@@ -7,61 +7,32 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-import os
-from collections.abc import Iterable
-from pathlib import Path
-from typing import cast, overload, Any, Generic, Optional, Protocol, Tuple, Type, \
-    TYPE_CHECKING, TypeVar, Union
-
-if TYPE_CHECKING:
-    from ._resource import XMLResource
-
-from xmlschema.locations import is_url, is_local_url
+from typing import cast, overload, Any, Callable, Generic, Iterable, \
+    Optional, Tuple, Type, TypeVar, Union
 
 ClassInfoType = Union[Type[Any], Tuple[Type[Any], ...]]
 
-
-class HasResource(Protocol):
-    resource: 'XMLResource'
-
-
 AT = TypeVar('AT')
-
-
-class ResourceAttribute(Generic[AT]):
-    """
-    Link to the same attribute of the resource attribute of the instance.
-    Useful for composition of resource attributes in other classes.
-    """
-
-    def __set_name__(self, owner: Type[HasResource], name: str) -> None:
-        self._name = name
-
-    @overload
-    def __get__(self, instance: None, owner: Type[HasResource]) \
-        -> 'ResourceAttribute[AT]': ...
-
-    @overload
-    def __get__(self, instance: HasResource, owner: Type[HasResource]) -> AT: ...
-
-    def __get__(self, instance: Optional[HasResource], owner: Type[HasResource]) \
-            -> Union['ResourceAttribute[AT]', AT]:
-        if instance is None:
-            return self
-        return cast(AT, getattr(instance.resource, self._name))
-
-    def __set__(self, instance: HasResource, value: AT) -> None:
-        raise AttributeError(f'Cannot set attribute link {self._name}')
-
-    def __delete__(self, instance: HasResource) -> None:
-        raise AttributeError(f'Cannot delete attribute link {self._name}')
 
 
 class Argument(Generic[AT]):
     """
     A validated initialization argument, with a private attribute that
     can set only if it's not defined yet.
+
+    :param types: a type or a tuple of types for explicit type check. \
+    For default no type checking is done.
+    :param validators: an optional sequence of validator functions that accepts \
+    a single argument and returns True if the argument is valid.
+    :param nillable: defines when a `None` value is accepted.
     """
+    def __init__(self, types: Optional[ClassInfoType] = None,
+                 validators: Iterable[Callable[[Any], bool]] = (),
+                 nillable: bool = True) -> None:
+        self.types = types
+        self.validators = validators
+        self.nillable = nillable
+
     def __set_name__(self, owner: Type[Any], name: str) -> None:
         self._name = name
         self._private_name = f'_{name}'
@@ -87,32 +58,19 @@ class Argument(Generic[AT]):
         raise AttributeError(f"Can't delete attribute {self._name}")
 
     def validated_value(self, value: Any) -> AT:
-        return cast(AT, value)
-
-
-class TypedArgument(Argument[AT]):
-
-    def __init__(self, types: Optional[ClassInfoType] = None,
-                 none: bool = True,
-                 call: bool = False) -> None:
-        self.types = types
-        self.none = none
-        self.call = call
-
-    def validated_value(self, value: Any) -> AT:
-        if value is None and self.none \
-                or callable(value) and self.call \
-                or self.types and isinstance(value, self.types):
+        if value is None and self.nillable or \
+                self.types and isinstance(value, self.types) or \
+                any(func(value) for func in self.validators):
             return cast(AT, value)
         else:
             raise TypeError(f"invalid type {type(value)!r} for argument {self._name!r}")
 
 
-class ChoiceArgument(TypedArgument[AT]):
+class ChoiceArgument(Argument[AT]):
     """A string-type argument restricted by a set of choices."""
 
     def __init__(self, types: ClassInfoType, choices: Iterable[AT]) -> None:
-        super().__init__(types, none=False)
+        super().__init__(types, nillable=False)
         self.choices = choices
 
     def validated_value(self, value: Any) -> AT:
@@ -123,13 +81,13 @@ class ChoiceArgument(TypedArgument[AT]):
         return cast(AT, value)
 
 
-class ValueArgument(TypedArgument[AT]):
-    """An typed argument with optional min and max values."""
+class ValueArgument(Argument[AT]):
+    """A typed argument with optional min and max values."""
 
     def __init__(self, types: ClassInfoType,
                  min_value: Optional[AT] = None,
                  max_value: Optional[AT] = None) -> None:
-        super().__init__(types, none=False)
+        super().__init__(types, nillable=False)
         self.min_value = min_value
         self.max_value = max_value
 
@@ -144,35 +102,35 @@ class ValueArgument(TypedArgument[AT]):
         return cast(AT, value)
 
 
-class UrlArgument(TypedArgument[Optional[str]]):
+###
+# Attribute links: descriptors for defining read-only attributes in object composition.
+
+class AttributeLink(Generic[AT]):
+    """
+    Link to the same attribute of an attribute of the instance.
+    Useful for composition of structured objects in other classes.
+    """
+    def __init__(self, attr_name: str):
+        self._attr_name = attr_name
+
+    def __set_name__(self, owner: Type[Any], name: str) -> None:
+        self._name = name
 
     @overload
-    def __get__(self, instance: None, owner: Type[Any]) -> 'UrlArgument': ...
+    def __get__(self, instance: None, owner: Type[Any]) -> 'AttributeLink[AT]': ...
 
     @overload
-    def __get__(self, instance: Any, owner: Type[Any]) -> Optional[str]: ...
+    def __get__(self, instance: Any, owner: Type[Any]) -> AT: ...
 
     def __get__(self, instance: Optional[Any], owner: Type[Any]) \
-            -> Union['UrlArgument', Optional[str]]:
+            -> Union['AttributeLink[AT]', AT]:
         if instance is None:
             return self
-        elif self._name == 'base_url':
-            url = getattr(instance, 'url', None)
-            if isinstance(url, str):
-                return os.path.dirname(url)
+        attr = getattr(instance, self._attr_name)
+        return cast(AT, getattr(attr, self._name))
 
-        return self.validated_value(getattr(instance, self._private_name))
+    def __set__(self, instance: Any, value: AT) -> None:
+        raise AttributeError(f"Can't set attribute {self._name}")
 
-    def validated_value(self, value: Any) -> Optional[str]:
-        value = super().validated_value(value)
-        if value is None:
-            return None
-        elif not is_url(value):
-            raise ValueError(f"invalid value {value!r} for argument {self._name!r}")
-        elif isinstance(value, str):
-            return value
-        elif isinstance(value, bytes):
-            return value.decode()
-        else:
-            return str(value)
-
+    def __delete__(self, instance: Any) -> None:
+        raise AttributeError(f"Can't delete attribute {self._name}")

@@ -16,13 +16,15 @@ from typing import TYPE_CHECKING, cast, overload, Any, Dict, List, Iterator, \
 from elementpath import XPathContext, XPath2Parser, build_node_tree
 from elementpath.etree import etree_tostring
 
-from .exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, XMLSchemaValueError
-from .aliases import ElementType, XMLSourceType, NsmapType, BaseXsdType, DecodeType
-from .helpers import get_namespace, get_prefixed_qname, local_name, update_namespaces, \
-    raw_xml_encode, get_namespace_map
-from .converters import ElementData, XMLSchemaConverter
-from .resources import XMLResource
-from . import validators
+from xmlschema.exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, \
+    XMLSchemaValueError
+from xmlschema.aliases import ElementType, XMLSourceType, NsmapType, BaseXsdType, DecodeType
+from xmlschema.converters import ElementData, XMLSchemaConverter
+from xmlschema.resources import XMLResource
+from xmlschema.utils.qnames import get_namespace, get_prefixed_qname, local_name, update_namespaces, \
+    get_namespace_map
+from xmlschema.utils.decoding import raw_xml_encode
+from xmlschema import validators
 
 if TYPE_CHECKING:
     from .validators import XMLSchemaValidationError, XsdElement

@@ -30,9 +30,9 @@ from xml.etree.ElementTree import Element, ParseError
 
 from elementpath import XPathToken, SchemaElementNode, build_schema_node_tree
 
-from ..exceptions import XMLSchemaTypeError, XMLSchemaKeyError, XMLSchemaRuntimeError, \
-    XMLSchemaValueError, XMLSchemaNamespaceError
-from ..names import VC_MIN_VERSION, VC_MAX_VERSION, VC_TYPE_AVAILABLE, \
+from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaKeyError, XMLSchemaRuntimeError, \
+    XMLSchemaValueError, XMLSchemaNamespaceError, XMLResourceForbidden
+from xmlschema.names import VC_MIN_VERSION, VC_MAX_VERSION, VC_TYPE_AVAILABLE, \
     VC_TYPE_UNAVAILABLE, VC_FACET_AVAILABLE, VC_FACET_UNAVAILABLE, XSD_NOTATION, \
     XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_GROUP, XSD_SIMPLE_TYPE, XSI_TYPE, \
     XSD_COMPLEX_TYPE, XSD_ELEMENT, XSD_SEQUENCE, XSD_CHOICE, XSD_ALL, XSD_ANY, \
@@ -40,22 +40,22 @@ from ..names import VC_MIN_VERSION, VC_MAX_VERSION, VC_TYPE_AVAILABLE, \
     VC_NAMESPACE, SCHEMAS_DIR, LOCATION_HINTS, XSD_ANNOTATION, XSD_INCLUDE, \
     XSD_IMPORT, XSD_REDEFINE, XSD_OVERRIDE, XSD_DEFAULT_OPEN_CONTENT, \
     XSD_ANY_SIMPLE_TYPE, XSD_UNION, XSD_LIST, XSD_RESTRICTION, XMLNS_NAMESPACE
-from ..aliases import ElementType, XMLSourceType, NsmapType, LocationsType, \
+from xmlschema.aliases import XMLSourceType, NsmapType, LocationsType, UriMapperType, \
     SchemaType, SchemaSourceType, ConverterType, ComponentClassType, DecodeType, \
     EncodeType, BaseXsdType, ExtraValidatorType, ValidationHookType, \
     SchemaGlobalType, FillerType, DepthFillerType, ValueHookType, ElementHookType
-from ..translation import gettext as _
-from ..helpers import set_logging_level, prune_etree, get_namespace, \
-    get_qname, is_defuse_error
-from ..namespaces import NamespaceResourcesMap, NamespaceMapper, NamespaceView
-from ..locations import is_local_url, is_remote_url, url_path_is_file, \
-    normalize_url, normalize_locations
-from ..resources import XMLResource
-from ..resources.typing import UriMapperType
-from ..converters import XMLSchemaConverter
-from ..xpath import XMLSchemaProxy, ElementPathMixin
-from ..exports import export_schema
-from .. import dataobjects
+from xmlschema.translation import gettext as _
+from xmlschema.utils.logger import set_logging_level
+from xmlschema.utils.etree import prune_etree
+from xmlschema.utils.qnames import get_namespace, get_qname
+from xmlschema.namespaces import NamespaceResourcesMap, NamespaceMapper, NamespaceView
+from xmlschema.utils.urls import is_local_url, is_remote_url
+from xmlschema.locations import location_is_file, normalize_url, normalize_locations
+from xmlschema.resources import XMLResource
+from xmlschema.converters import XMLSchemaConverter
+from xmlschema.xpath import XMLSchemaProxy, ElementPathMixin
+from xmlschema.exports import export_schema
+from xmlschema import dataobjects
 
 from .exceptions import XMLSchemaParseError, XMLSchemaValidationError, \
     XMLSchemaEncodeError, XMLSchemaNotBuiltError, XMLSchemaStopValidation, \
@@ -592,7 +592,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
     # XML resource attributes access
     @property
-    def root(self) -> ElementType:
+    def root(self) -> Element:
         """Root element of the schema."""
         return self.source.root
 
@@ -731,7 +731,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         return self._annotations
 
     @property
-    def components(self) -> Dict[ElementType, XsdComponent]:
+    def components(self) -> Dict[Element, XsdComponent]:
         """A map from XSD ElementTree elements to their schema components."""
         if self._components is None:
             self.check_validator(self.validation)
@@ -832,7 +832,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
         return meta_schema
 
-    def simple_type_factory(self, elem: ElementType,
+    def simple_type_factory(self, elem: Element,
                             schema: Optional[SchemaType] = None,
                             parent: Optional[XsdComponent] = None) -> XsdSimpleType:
         """
@@ -1092,7 +1092,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             yield from self.groups.values()
             yield from self.elements.values()
         else:
-            def schema_filter(x: Union[XsdComponent, Tuple[ElementType, SchemaType]]) -> bool:
+            def schema_filter(x: Union[XsdComponent, Tuple[Element, SchemaType]]) -> bool:
                 if isinstance(x, tuple):
                     return x[1] is schema
                 return x.schema is schema
@@ -1340,7 +1340,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 # of local processing of schemas tested to work from a http server, providing
                 # explicit local hints.
                 local_hints = [url for url in self.get_locations(namespace)
-                               if url and url_path_is_file(url)]
+                               if url and location_is_file(url)]
                 if local_hints:
                     locations = local_hints + locations
 
@@ -1355,27 +1355,23 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             try:
                 logger.debug("Import namespace %r from %r", namespace, url)
                 self.import_schema(namespace, url, self.base_url)
-            except OSError as err:
+            except (OSError, XMLResourceForbidden) as err:
                 # It's not an error if the location access fails (ref. section 4.2.6.2):
                 #   https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/#composition-schemaImport
+                #
+                # Also consider defuse of XML data as a location access fail.
                 logger.debug('%s', err)
                 if import_error is None:
                     import_error = err
             except (XMLSchemaParseError, XMLSchemaTypeError, ParseError) as err:
-                if is_defuse_error(err):
-                    # Consider defuse of XML data as a location access fail
-                    logger.debug('%s', err)
-                    if import_error is None:
-                        import_error = err
+                if namespace:
+                    msg = _("cannot import namespace {0!r}: {1}").format(namespace, err)
                 else:
-                    if namespace:
-                        msg = _("cannot import namespace {0!r}: {1}").format(namespace, err)
-                    else:
-                        msg = _("cannot import chameleon schema: %s") % err
-                    if isinstance(err, (XMLSchemaParseError, ParseError)):
-                        self.parse_error(msg)
-                    else:
-                        raise type(err)(msg)
+                    msg = _("cannot import chameleon schema: %s") % err
+                if isinstance(err, (XMLSchemaParseError, ParseError)):
+                    self.parse_error(msg)
+                else:
+                    raise type(err)(msg)
 
             except XMLSchemaValueError as err:
                 self.parse_error(err)
@@ -1510,7 +1506,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             loglevel=loglevel
         )
 
-    def version_check(self, elem: ElementType) -> bool:
+    def version_check(self, elem: Element) -> bool:
         """
         Checks if the element is compatible with the version of the validator and XSD
         types/facets availability. Invalid vc attributes are not detected in XSD 1.0.
@@ -1755,8 +1751,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             schema = self
 
         identities: Dict[XsdIdentity, IdentityCounter] = {}
-        ancestors: List[ElementType] = []
-        prev_ancestors: List[ElementType] = []
+        ancestors: List[Element] = []
+        prev_ancestors: List[Element] = []
         kwargs: Dict[Any, Any] = {
             'level': resource.lazy_depth or bool(path),
             'source': resource,
@@ -1785,7 +1781,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         else:
             selector = resource.iter_depth(mode=4, ancestors=ancestors)
 
-        elem: Optional[ElementType] = None
+        elem: Optional[Element] = None
         for elem in selector:
             if elem is resource.root:
                 if resource.lazy_depth:
@@ -2146,7 +2142,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                     unordered: bool = False,
                     process_skipped: bool = False,
                     max_depth: Optional[int] = None,
-                    **kwargs: Any) -> Iterator[Union[ElementType, XMLSchemaValidationError]]:
+                    **kwargs: Any) -> Iterator[Union[Element, XMLSchemaValidationError]]:
         """
         Creates an iterator for encoding a data structure to an ElementTree's Element.
 
@@ -2236,7 +2232,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         object and the second item is a list containing the errors.
         """
         data, errors = [], []
-        result: Union[ElementType, XMLSchemaValidationError]
+        result: Union[Element, XMLSchemaValidationError]
         for result in self.iter_encode(obj, path, validation, *args, **kwargs):
             if not isinstance(result, XMLSchemaValidationError):
                 data.append(result)

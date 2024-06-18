@@ -23,7 +23,7 @@ from elementpath.etree import etree_tostring
 
 from xmlschema import XMLSchemaEncodeError, XMLSchemaValidationError
 from xmlschema.converters import UnorderedConverter, JsonMLConverter
-from xmlschema.helpers import local_name, is_etree_element
+from utils.helpers import local_name, is_etree_element
 from xmlschema.resources import XMLResource
 from xmlschema.validators.exceptions import XMLSchemaChildrenValidationError
 from xmlschema.validators import XMLSchema11

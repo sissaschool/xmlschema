@@ -11,7 +11,7 @@ import re
 from typing import Any, Dict, List, Type, Union, Iterator
 from xml.etree.ElementTree import Element
 
-from ..helpers import get_namespace, get_qname
+from xmlschema.utils.qnames import get_namespace, get_qname
 
 _REGEX_SPACES = re.compile(r'\s+')
 

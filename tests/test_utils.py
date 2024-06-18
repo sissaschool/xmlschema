@@ -23,10 +23,13 @@ except ImportError:
 from xmlschema import XMLSchema, XMLSchemaParseError
 from xmlschema.names import XSD_NAMESPACE, XSI_NAMESPACE, XSD_SCHEMA, \
     XSD_ELEMENT, XSD_SIMPLE_TYPE, XSD_ANNOTATION, XSI_TYPE
-from xmlschema.helpers import prune_etree, get_namespace, get_qname, \
-    local_name, get_prefixed_qname, get_extended_qname, raw_xml_encode, \
-    count_digits, strictly_equal, etree_iterpath, etree_getpath, \
-    etree_iter_location_hints, update_namespaces, set_logging_level, logged
+from xmlschema.utils.etree import prune_etree, etree_iterpath, etree_getpath, \
+    etree_iter_location_hints
+from xmlschema.utils.qnames import get_namespace, get_qname, local_name, \
+    get_prefixed_qname, get_extended_qname, update_namespaces
+from xmlschema.utils.logger import set_logging_level, logged
+from xmlschema.utils.decoding import raw_xml_encode, count_digits, strictly_equal
+
 from xmlschema.testing import iter_nested_items, etree_elements_assert_equal
 from xmlschema.validators.exceptions import XMLSchemaValidationError
 from xmlschema.validators.helpers import get_xsd_derivation_attribute, \

@@ -22,18 +22,20 @@ from elementpath import XPath2Parser, ElementPathError, XPathContext, XPathToken
     ElementNode, LazyElementNode, SchemaElementNode, build_schema_node_tree
 from elementpath.datatypes import AbstractDateTime, Duration, AbstractBinary
 
-from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
-from ..names import XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE, XSD_ALTERNATIVE, \
+from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError
+from xmlschema.names import XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE, XSD_ALTERNATIVE, \
     XSD_ELEMENT, XSD_ANY_TYPE, XSD_UNIQUE, XSD_KEY, XSD_KEYREF, XSI_NIL, \
     XSI_TYPE, XSD_ERROR, XSD_NOTATION_TYPE
-from ..aliases import ElementType, SchemaType, BaseXsdType, SchemaElementType, \
+from xmlschema.aliases import ElementType, SchemaType, BaseXsdType, SchemaElementType, \
     ModelParticleType, ComponentClassType, AtomicValueType, DecodeType, \
     IterDecodeType, IterEncodeType
-from ..translation import gettext as _
-from ..helpers import get_qname, etree_iter_location_hints, \
-    etree_iter_namespaces, raw_xml_encode, strictly_equal
+from xmlschema.translation import gettext as _
+from xmlschema.utils.etree import etree_iter_location_hints, etree_iter_namespaces
+from xmlschema.utils.decoding import raw_xml_encode, strictly_equal
+from xmlschema.utils.qnames import get_qname
+
 from ..namespaces import NamespaceMapper
-from ..locations import normalize_url
+from xmlschema.locations import normalize_url
 from .. import dataobjects
 from ..converters import ElementData, XMLSchemaConverter
 from ..xpath import XMLSchemaProxy, ElementPathMixin, XPathElement

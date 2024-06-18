@@ -15,16 +15,16 @@ from collections import Counter
 from typing import cast, Any, Callable, Dict, List, Iterable, Iterator, \
     MutableMapping, Optional, Set, Union, Tuple, Type, TYPE_CHECKING
 
-from ..exceptions import XMLSchemaKeyError, XMLSchemaTypeError, \
+from xmlschema.exceptions import XMLSchemaKeyError, XMLSchemaTypeError, \
     XMLSchemaValueError, XMLSchemaWarning
-from ..names import XSD_NAMESPACE, XSD_REDEFINE, XSD_OVERRIDE, XSD_NOTATION, \
+from xmlschema.names import XSD_NAMESPACE, XSD_REDEFINE, XSD_OVERRIDE, XSD_NOTATION, \
     XSD_ANY_TYPE, XSD_SIMPLE_TYPE, XSD_COMPLEX_TYPE, XSD_GROUP, \
     XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ELEMENT, XSI_TYPE
-from ..aliases import ComponentClassType, ElementType, SchemaType, BaseXsdType, \
+from xmlschema.aliases import ComponentClassType, ElementType, SchemaType, BaseXsdType, \
     SchemaGlobalType
-from ..helpers import get_qname, local_name, get_extended_qname
-from ..namespaces import NamespaceResourcesMap
-from ..translation import gettext as _
+from xmlschema.namespaces import NamespaceResourcesMap
+from xmlschema.translation import gettext as _
+from xmlschema.utils.qnames import get_qname, local_name, get_extended_qname
 
 from .exceptions import XMLSchemaNotBuiltError, XMLSchemaModelError, XMLSchemaModelDepthError, \
     XMLSchemaParseError

@@ -25,28 +25,27 @@ from elementpath import XPathToken, XPathContext, XPath2Parser, ElementNode, \
 from elementpath.etree import ElementTree, etree_tostring
 from elementpath.protocols import LxmlElementProtocol
 
-from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError, XMLResourceError
+from xmlschema.exceptions import XMLSchemaValueError, XMLResourceError
 from xmlschema.aliases import ElementType, ElementTreeType, NsmapType, \
-    NormalizedLocationsType, LocationsType
-from xmlschema.helpers import get_namespace, update_namespaces, get_namespace_map, \
-    is_file_object, is_etree_document, etree_iter_location_hints
-from xmlschema.locations import LocationPath, is_url, is_remote_url, is_local_url, \
-    normalize_url, normalize_locations
+    NormalizedLocationsType, LocationsType, XMLSourceType, ResourceType, \
+    ResourceNodeType, IterparseType, ParentMapType, UriMapperType
+from xmlschema.utils.paths import LocationPath
+from xmlschema.utils.etree import etree_iter_location_hints
+from xmlschema.utils.streams import is_file_object
+from xmlschema.utils.qnames import get_namespace, update_namespaces, get_namespace_map
+from xmlschema.utils.urls import is_url, is_remote_url, is_local_url
+from xmlschema.locations import normalize_url, normalize_locations
 
-from .typing import XMLSourceType, ResourceType, ResourceNodeType, IterparseType, \
-    ParentMapType, UriMapperType
-from ._defuse import defuse_xml
-from ._descriptors import TypedArgument, ChoiceArgument, ValueArgument, UrlArgument
-from ._parse import update_ns_declarations
+from .sax import defuse_xml
+from .arguments import SourceArgument, BaseUrlArgument, AllowArgument, \
+    DefuseArgument, TimeoutArgument, LazyArgument, ThinLazyArgument, \
+    UriMapperArgument, OpenerArgument, IterparseArgument
+from .parse import update_ns_declarations
 
 if sys.version_info < (3, 9):
     from typing import Deque
 else:
     Deque = deque
-
-
-DEFUSE_MODES = frozenset(('never', 'remote', 'nonlocal', 'always'))
-SECURITY_MODES = frozenset(('all', 'remote', 'local', 'sandbox', 'none'))
 
 
 class XMLResource:
@@ -81,23 +80,20 @@ class XMLResource:
     resources. Can be a dictionary or a function that takes the URI string and returns \
     a URL, or the argument if there is no mapping for it.
     """
-    # Protected attributes for data and resource location
-    _source: XMLSourceType
-    _root: ElementType
-    _xpath_root: Union[None, ElementNode, DocumentNode] = None
-    _nsmaps: Dict[ElementType, Dict[str, str]]
-    _xmlns: Dict[ElementType, List[Tuple[str, str]]]
-    _text: Optional[str] = None
-
-    url: Optional[str] = None
-    """An URL if the source is an URL or a file-like object with a remote url."""
-
-    fp: Optional[ResourceType] = None
-    """An file-like object if the source is a file-like object."""
-
-    _fp: Optional[ResourceType] = None
+    # Descriptor-based attributes for arguments
+    source = SourceArgument()
+    base_url = BaseUrlArgument()
+    allow = AllowArgument()
+    defuse = DefuseArgument()
+    timeout = TimeoutArgument()
+    lazy = LazyArgument()
+    thin_lazy = ThinLazyArgument()
+    uri_mapper = UriMapperArgument()
+    opener = OpenerArgument()
+    iterparse = IterparseArgument()
 
     # Private attributes for arguments
+    _source: XMLSourceType
     _base_url: Optional[str]
     _defuse: str
     _allow: str
@@ -108,7 +104,21 @@ class XMLResource:
     _opener: Optional[URLopener]
     _iterparse: IterparseType
 
+    # Protected attributes for XML data
+    _root: ElementType
+    _xpath_root: Union[None, ElementNode, DocumentNode] = None
+    _nsmaps: Dict[ElementType, Dict[str, str]]
+    _xmlns: Dict[ElementType, List[Tuple[str, str]]]
+    _text: Optional[str] = None
     _parent_map: Optional[ParentMapType] = None
+
+    url: Optional[str] = None
+    """An URL if the source is an URL or a file-like object with a remote url."""
+
+    fp: Optional[ResourceType] = None
+    """An file-like object if the source is a file-like object."""
+
+    _context_fp: Optional[ResourceType] = None
 
     def __init__(self, source: XMLSourceType,
                  base_url: Union[None, str, Path, bytes] = None,
@@ -135,36 +145,30 @@ class XMLResource:
         self.uri_mapper = uri_mapper
         self.opener = opener
         self.iterparse = iterparse
+        self.source = source
 
-        self._source = source
         self._nsmaps = {}
         self._xmlns = {}
 
         if is_url(source):
-            self._lazy = lazy
-            if isinstance(source, str):
-                self.url = self.get_url(source.strip())
-            elif isinstance(source, bytes):
-                self.url = self.get_url(source.decode().strip())
-            elif isinstance(source, Path):
-                self.url = self.get_url(str(source))
+            assert isinstance(source, (str, bytes, Path))
+            self.url = self.get_url(source)
             self.access_control(self.url)
 
         elif isinstance(source, str):
+            self._lazy = self._thin_lazy = False
             self._text = source
         elif isinstance(source, bytes):
+            self._lazy = self._thin_lazy = False
             self._text = source.decode()
         elif isinstance(source, StringIO):
             self.fp = cast(IO[str], source)
-            self._lazy = lazy
             self._text = source.getvalue()
         elif isinstance(source, BytesIO):
             self.fp = cast(IO[bytes], source)
-            self._lazy = lazy
         elif is_file_object(source):
             # source is a file-like object (remote resource or local file)
             self.fp = cast(ResourceType, source)
-            self._lazy = lazy
 
             url: Optional[str] = getattr(source, 'url', None)
             if url is not None:
@@ -174,19 +178,10 @@ class XMLResource:
                 if is_remote_url(url):
                     self.url = url
 
-        elif hasattr(source, 'tag') and hasattr(source, 'attrib'):
+        elif hasattr(source, 'tag'):
             self._root = cast(ElementType, source)
-        elif is_etree_document(source):
-            root = cast(ElementTreeType, source).getroot()
-            if root is None:
-                raise XMLSchemaValueError("source XML document is empty")
-            self._root = root
         else:
-            raise XMLSchemaTypeError(
-                "wrong type %r for 'source' attribute: an ElementTree object or "
-                "an Element instance or a string containing XML data or an URL "
-                "or a file-like object is required." % type(source)
-            )
+            self._root = cast(ElementTreeType, source).getroot()
 
         if not hasattr(self, '_root'):
             with self as fp:
@@ -208,25 +203,20 @@ class XMLResource:
         return '%s(root=%r)' % (self.__class__.__name__, self._root)
 
     def __enter__(self) -> ResourceType:
-        if self._fp is not None:
+        if self._context_fp is not None:
             raise XMLResourceError(f"resource {self!r} is already used in a context")
 
-        self._fp = self.open()
+        self._context_fp = self.open()
         if self.is_defused():
-            defuse_xml(self._fp)
-        return self._fp
+            defuse_xml(self._context_fp)
+        return self._context_fp
 
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
-        if self._fp is not None:
+        if self._context_fp is not None:
             # We don't want to close the file obj if it's the source of the instance.
-            if self._fp is not self.fp:
-                self._fp.close()
-            self._fp = None
-
-    @property
-    def source(self) -> XMLSourceType:
-        """The XML data source."""
-        return self._source
+            if self._context_fp is not self.fp:
+                self._context_fp.close()
+            self._context_fp = None
 
     @property
     def root(self) -> ElementType:
@@ -245,9 +235,6 @@ class XMLResource:
         """
         return None if self.url is None else os.path.basename(unquote(self.url))
 
-    base_url = UrlArgument((str, bytes, Path))
-    """The effective base URL used for completing relative locations."""
-
     @property
     def filepath(self) -> Optional[str]:
         """
@@ -258,26 +245,6 @@ class XMLResource:
             if url_parts.scheme in ('', 'file'):
                 return str(LocationPath.from_uri(self.url))
         return None
-
-    allow = ChoiceArgument[str](str, SECURITY_MODES)
-    """The security mode for accessing resource locations."""
-
-    defuse = ChoiceArgument[str](str, DEFUSE_MODES)
-    """When to defuse XML data."""
-
-    timeout = ValueArgument[int](int, min_value=1)
-    """The timeout in seconds for accessing remote resources."""
-
-    lazy = ValueArgument[Union[bool, int]]((bool, int), 0)
-
-    thin_lazy = ValueArgument[bool](bool)
-    """Define if the resource is lazy and thin."""
-
-    uri_mapper = TypedArgument[Optional[UriMapperType]](MutableMapping, call=True)
-    """The optional URI mapper argument for relocating addressed resources."""
-
-    opener = TypedArgument[Optional[URLopener]](URLopener)
-    iterparse = TypedArgument[Optional[IterparseType]](call=True)
 
     @property
     def lazy_depth(self) -> int:
@@ -357,7 +324,14 @@ class XMLResource:
             or self._defuse == 'nonlocal' and not is_local_url(self.base_url) \
             or self._defuse == 'always'
 
-    def get_url(self, uri: str) -> str:
+    def get_url(self, uri_or_path: Union[str, bytes, Path]) -> str:
+        if isinstance(uri_or_path, str):
+            uri = uri_or_path.strip()
+        elif isinstance(uri_or_path, bytes):
+            uri = uri_or_path.decode().strip()
+        else:
+            uri = str(uri_or_path)
+
         if isinstance(self._uri_mapper, MutableMapping):
             if uri in self._uri_mapper:
                 uri = self._uri_mapper[uri]

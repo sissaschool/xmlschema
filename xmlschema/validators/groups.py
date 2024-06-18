@@ -17,16 +17,17 @@ from typing import TYPE_CHECKING, cast, overload, Any, Iterable, Iterator, \
     List, MutableSequence, Optional, Tuple, Union
 from xml.etree import ElementTree
 
-from .. import limits
-from ..exceptions import XMLSchemaValueError
-from ..names import XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ELEMENT, \
+from xmlschema import limits
+from xmlschema.exceptions import XMLSchemaValueError
+from xmlschema.names import XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ELEMENT, \
     XSD_ANY, XSI_TYPE, XSD_ANY_TYPE, XSD_ANNOTATION
-from ..aliases import ElementType, NsmapType, SchemaType, IterDecodeType, \
+from xmlschema.aliases import ElementType, NsmapType, SchemaType, IterDecodeType, \
     IterEncodeType, ModelParticleType, SchemaElementType, ComponentClassType, \
     OccursCounterType
-from ..translation import gettext as _
-from ..helpers import get_qname, local_name, raw_xml_encode
-from ..converters import ElementData
+from xmlschema.converters import ElementData
+from xmlschema.translation import gettext as _
+from xmlschema.utils.decoding import raw_xml_encode
+from xmlschema.utils.qnames import get_qname, local_name
 
 from .exceptions import XMLSchemaModelError, XMLSchemaModelDepthError, \
     XMLSchemaValidationError, XMLSchemaChildrenValidationError, \

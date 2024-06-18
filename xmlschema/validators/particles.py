@@ -9,10 +9,10 @@
 #
 from typing import cast, Any, List, Optional, Tuple, Union
 
-from ..exceptions import XMLSchemaValueError
-from ..aliases import ElementType, ModelGroupType, ModelParticleType, \
+from xmlschema.exceptions import XMLSchemaValueError
+from xmlschema.aliases import ElementType, ModelGroupType, ModelParticleType, \
     OccursCounterType, SchemaElementType
-from ..translation import gettext as _
+from xmlschema.translation import gettext as _
 
 
 class ParticleMixin:

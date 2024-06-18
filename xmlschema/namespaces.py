@@ -15,11 +15,11 @@ import copy
 from typing import Any, Callable, Container, Dict, Iterator, List, \
     Optional, MutableMapping, Mapping, NamedTuple, Union, Tuple, TypeVar
 
-from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
-from .helpers import local_name, update_namespaces, get_namespace_map, \
-    iter_decoded_data
-from .aliases import NsmapType, XmlnsType, ElementType
-from .resources import XMLResource
+from xmlschema.aliases import NsmapType, XmlnsType, ElementType
+from xmlschema.exceptions import XMLSchemaValueError, XMLSchemaTypeError
+from xmlschema.utils.qnames import local_name, update_namespaces, get_namespace_map
+from xmlschema.utils.decoding import iter_decoded_data
+from xmlschema.resources import XMLResource
 
 
 class NamespaceMapperContext(NamedTuple):
