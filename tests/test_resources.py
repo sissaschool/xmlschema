@@ -35,6 +35,7 @@ from xmlschema.names import XSD_NAMESPACE
 from xmlschema.utils.etree import is_etree_element
 from xmlschema.testing import SKIP_REMOTE_TESTS
 from xmlschema.locations import normalize_url
+from xmlschema.resources import defuse_xml
 
 
 TEST_CASES_DIR = str(pathlib.Path(__file__).absolute().parent.joinpath('test_cases'))
@@ -558,6 +559,25 @@ class TestResources(unittest.TestCase):
         with self.assertRaises(XMLResourceForbidden):
             with open(xml_file) as fp:
                 XMLResource(StringIO(fp.read()), defuse='always', lazy=False)
+
+    def test_xml_resource_defuse_bypass_example(self):
+        unsafe_xml_file = casepath('resources/external_entity.xml')
+        safe_xml_file = casepath('resources/dummy file.xml')
+
+        with self.assertRaises(XMLResourceForbidden):
+            with open(unsafe_xml_file) as fp:
+                defuse_xml(fp)
+
+        url = normalize_url(safe_xml_file)
+        with open(unsafe_xml_file) as fp:
+            fp.url = url
+            with self.assertRaises(XMLResourceForbidden):
+                defuse_xml(fp)
+
+            # If XMLResource used fp.url for defusing not-seekable
+            # resources the defuse checks would pass silently.
+            with urlopen(fp.url) as fp2:
+                self.assertIsNone(defuse_xml(fp2))
 
     def test_xml_resource_defuse_nonlocal(self):
         xml_file = casepath('resources/external_entity.xml')
