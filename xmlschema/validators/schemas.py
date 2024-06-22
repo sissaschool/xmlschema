@@ -45,6 +45,7 @@ from xmlschema.aliases import XMLSourceType, NsmapType, LocationsType, UriMapper
     EncodeType, BaseXsdType, ExtraValidatorType, ValidationHookType, \
     SchemaGlobalType, FillerType, DepthFillerType, ValueHookType, ElementHookType
 from xmlschema.translation import gettext as _
+from xmlschema.utils.misc import deprecated
 from xmlschema.utils.logger import set_logging_level
 from xmlschema.utils.etree import prune_etree
 from xmlschema.utils.qnames import get_namespace, get_qname

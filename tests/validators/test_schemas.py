@@ -486,7 +486,7 @@ class TestXMLSchema10(XsdValidatorTestCase):
 
         with self.assertRaises(TypeError) as ctx:
             self.schema_class(self.col_schema, global_maps=col_schema)
-        self.assertIn("'global_maps' argument must be", str(ctx.exception))
+        self.assertIn(" for argument 'source'", str(ctx.exception))
 
         schema = self.schema_class(source, global_maps=col_schema.maps)
         self.assertIs(col_schema.maps, schema.maps)

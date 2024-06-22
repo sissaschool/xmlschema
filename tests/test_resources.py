@@ -1104,13 +1104,18 @@ class TestResources(unittest.TestCase):
         with urlopen(url) as rh:
             col_xsd_resource = XMLResource(rh)
 
-        self.assertEqual(col_xsd_resource.url, url)
+        self.assertIsNone(col_xsd_resource.url, url)
         self.assertIsNone(col_xsd_resource.filepath)
 
         self.assertEqual(col_xsd_resource.namespace, XSD_NAMESPACE)
         self.assertIsNone(col_xsd_resource.seek(0))
-        col_xsd_resource.load()
 
+        with self.assertRaises(XMLResourceError) as ctx:
+            col_xsd_resource.load()
+        self.assertIn('has been closed', str(ctx.exception))
+
+        col_xsd_resource = XMLResource(url)
+        col_xsd_resource.load()
         col_schema = XMLSchema(col_xsd_resource.get_text())
         self.assertTrue(isinstance(col_schema, XMLSchema))
 

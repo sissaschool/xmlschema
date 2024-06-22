@@ -365,9 +365,11 @@ class XsdComponent(XsdValidator):
         return self.elem
 
     @property
-    def source(self) -> XMLResource:
+    def resource(self) -> XMLResource:
         """Property that references to schema source."""
         return self.schema.source
+
+    source = resource
 
     @property
     def target_namespace(self) -> str:

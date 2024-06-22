@@ -37,9 +37,16 @@ class SafeExpatParser(expatreader.ExpatParser):  # type: ignore[misc]
         self._parser.ExternalEntityRefHandler = self.forbid_external_entity_reference
 
 
-def defuse_xml(fp: ResourceType) -> None:
-    if not hasattr(fp, 'seekable') or not fp.seekable():
-        raise XMLResourceError("Cannot defuse a non-seekable file-like object.")
+def defuse_xml(fp: ResourceType, rewind: bool = True) -> None:
+    """
+    Defuse an XML resource opened with a file-like object.
+
+    :param fp: the file-like object to defuse.
+    :param rewind: if `True` the file-like object is rewound after defusing.
+    """
+    if rewind:
+        if not hasattr(fp, 'seekable') or not fp.seekable():
+            raise XMLResourceError("Can't rewind a non-seekable file-like object.")
 
     parser = SafeExpatParser()
     try:
@@ -49,4 +56,5 @@ def defuse_xml(fp: ResourceType) -> None:
     except SAXParseException:
         pass  # the purpose is to defuse not to check xml source syntax
     finally:
-        fp.seek(0)
+        if rewind:
+            fp.seek(0)

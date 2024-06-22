@@ -11,7 +11,6 @@
 """Tests concerning model groups validation"""
 import unittest
 import os.path
-import warnings
 from textwrap import dedent
 from typing import Any, Union, List, Optional
 
@@ -1192,64 +1191,6 @@ class TestModelBasedSorting(XsdValidatorTestCase):
 
         content = [('X', None), ('B1', 'abc'), ('B2', 10), ('B3', False)]
         self.assertListEqual(list(iter_collapsed_content(content, group)), content)
-
-    def test_deprecated_methods(self):
-        schema = self.get_schema("""
-            <xs:element name="A" type="A_type" />
-            <xs:complexType name="A_type">
-                <xs:sequence maxOccurs="10">
-                    <xs:element name="B1" minOccurs="0" />
-                    <xs:element name="B2" minOccurs="0" />
-                </xs:sequence>
-            </xs:complexType>
-            """)
-
-        group = schema.types['A_type'].content
-        model = ModelVisitor(group)
-        default_namespace = 'http://xmlschema.test/ns'
-        content = [('B1', 1), ('B1', 2), ('B2', 3)]
-
-        with warnings.catch_warnings(record=True) as ctx:
-            warnings.   simplefilter("always")
-            self.assertListEqual(
-                list(model.iter_collapsed_content(content)),
-                [('B1', 1), ('B2', 3), ('B1', 2)]
-            )
-            self.assertEqual(len(ctx), 1, "Expected one deprecation warning")
-            self.assertIn("use iter_collapsed_content()", str(ctx[0].message))
-            self.assertNotIn("Don't provide default_namespace", str(ctx[0].message))
-
-        with warnings.catch_warnings(record=True) as ctx:
-            warnings.simplefilter("always")
-            self.assertListEqual(
-                list(model.iter_collapsed_content(content, default_namespace)),
-                [('B1', 1), ('B2', 3), ('B1', 2)]
-            )
-            self.assertEqual(len(ctx), 1, "Expected one deprecation warning")
-            self.assertIn("use iter_collapsed_content()", str(ctx[0].message))
-            self.assertIn("Don't provide default_namespace", str(ctx[0].message))
-
-        content = [('B2', 1), ('B1', 2), ('B2', 3), ('B1', 4)]
-
-        with warnings.catch_warnings(record=True) as ctx:
-            warnings.   simplefilter("always")
-            self.assertListEqual(
-                list(model.iter_unordered_content(content)),
-                [('B1', 2), ('B2', 1), ('B1', 4), ('B2', 3)]
-            )
-            self.assertEqual(len(ctx), 1, "Expected one deprecation warning")
-            self.assertIn("use iter_unordered_content()", str(ctx[0].message))
-            self.assertNotIn("Don't provide default_namespace", str(ctx[0].message))
-
-        with warnings.catch_warnings(record=True) as ctx:
-            warnings.simplefilter("always")
-            self.assertListEqual(
-                list(model.iter_unordered_content(content, default_namespace)),
-                [('B1', 2), ('B2', 1), ('B1', 4), ('B2', 3)]
-            )
-            self.assertEqual(len(ctx), 1, "Expected one deprecation warning")
-            self.assertIn("use iter_unordered_content()", str(ctx[0].message))
-            self.assertIn("Don't provide default_namespace", str(ctx[0].message))
 
 
 class TestModelPaths(unittest.TestCase):

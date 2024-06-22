@@ -12,6 +12,7 @@
 import unittest
 import decimal
 import logging
+import warnings
 from collections import OrderedDict
 from xml.etree import ElementTree
 
@@ -29,6 +30,7 @@ from xmlschema.utils.qnames import get_namespace, get_qname, local_name, \
     get_prefixed_qname, get_extended_qname, update_namespaces
 from xmlschema.utils.logger import set_logging_level, logged
 from xmlschema.utils.decoding import raw_xml_encode, count_digits, strictly_equal
+from xmlschema.utils.misc import deprecated, will_change
 
 from xmlschema.testing import iter_nested_items, etree_elements_assert_equal
 from xmlschema.validators.exceptions import XMLSchemaValidationError
@@ -40,7 +42,7 @@ from xmlschema.validators.helpers import get_xsd_derivation_attribute, \
 from xmlschema.validators.particles import OccursCalculator
 
 
-class TestHelpers(unittest.TestCase):
+class TestUtils(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
@@ -648,10 +650,36 @@ class TestHelpers(unittest.TestCase):
             self.assertIn("Info log line", ctx.output[-2])
             self.assertIn("Debug log line", ctx.output[-1])
 
+    def test_will_change_decorator(self):
+        @will_change('2.0')
+        def f():
+            pass
+
+        with warnings.catch_warnings(record=True) as ctx:
+            warnings.simplefilter("always")
+            _ = f()
+
+        self.assertEqual(len(ctx), 1, "Wrong number of include/import warnings")
+        self.assertEqual(ctx[0].category, FutureWarning)
+        self.assertTrue(str(ctx[0].message).endswith(" will change from v2.0."))
+
+    def test_deprecated_decorator(self):
+        @deprecated('2.0')
+        def f():
+            pass
+
+        with warnings.catch_warnings(record=True) as ctx:
+            warnings.simplefilter("always")
+            _ = f()
+
+        self.assertEqual(len(ctx), 1, "Wrong number of include/import warnings")
+        self.assertEqual(ctx[0].category, DeprecationWarning)
+        self.assertTrue(str(ctx[0].message).endswith(" will be removed in v2.0."))
+
 
 if __name__ == '__main__':
     import platform
-    header_template = "Test xmlschema helpers with Python {} on {}"
+    header_template = "Test xmlschema utils and helpers with Python {} on {}"
     header = header_template.format(platform.python_version(), platform.platform())
     print('{0}\n{1}\n{0}'.format("*" * len(header), header))
 

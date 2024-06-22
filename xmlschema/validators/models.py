@@ -15,7 +15,6 @@ from collections import defaultdict, deque, Counter
 from operator import attrgetter
 from typing import Any, Dict, Iterable, Iterator, List, \
     MutableMapping, MutableSequence, Optional, Tuple, Union
-import warnings
 
 from xmlschema.exceptions import XMLSchemaValueError
 from xmlschema.aliases import ModelGroupType, ModelParticleType, SchemaElementType, \
@@ -460,31 +459,6 @@ class ModelVisitor:
         for group, item in zero_missing:
             if occurs[group]:
                 yield item, occurs[item], item.get_expected(occurs)
-
-    # Kept for backward compatibility
-    def iter_unordered_content(
-            self, content: EncodedContentType,
-            default_namespace: Optional[str] = None) -> Iterator[ContentItemType]:
-
-        msg = f"{self.__class__.__name__}.iter_unordered_content() method will " \
-              "be removed in v4.0, use iter_unordered_content() function instead."
-        if default_namespace is not None:
-            msg += " Don't provide default_namespace argument, it's ignored."
-        warnings.warn(msg, DeprecationWarning, stacklevel=2)
-
-        return iter_unordered_content(content, self.root)
-
-    def iter_collapsed_content(
-            self, content: Iterable[ContentItemType],
-            default_namespace: Optional[str] = None) -> Iterator[ContentItemType]:
-
-        msg = f"{self.__class__.__name__}.iter_collapsed_content() method will " \
-              "be removed in v4.0, use iter_collapsed_content() function instead."
-        if default_namespace is not None:
-            msg += " Don't provide default_namespace argument, it's ignored."
-        warnings.warn(msg, DeprecationWarning, stacklevel=2)
-
-        return iter_collapsed_content(content, self.root)
 
 
 class InterleavedModelVisitor(ModelVisitor):

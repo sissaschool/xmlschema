@@ -18,9 +18,11 @@ from pathlib import Path, PurePath, PureWindowsPath, PurePosixPath
 from unittest.mock import patch, MagicMock
 
 import xmlschema.locations
-from xmlschema.locations import LocationPath, LocationPosixPath, LocationWindowsPath, \
-    is_url, is_local_url, is_remote_url, location_is_file, normalize_url, \
-    normalize_locations, match_location, is_encoded_url, is_safe_url, encode_url, decode_url
+from xmlschema.utils.paths import LocationPath, LocationPosixPath, LocationWindowsPath
+from xmlschema.utils.urls import is_url, is_local_url, is_remote_url, is_encoded_url, \
+    is_safe_url, encode_url, decode_url
+from xmlschema.locations import location_is_file, normalize_url, normalize_locations, \
+    match_location
 
 TEST_CASES_DIR = str(pathlib.Path(__file__).absolute().parent.joinpath('test_cases'))
 

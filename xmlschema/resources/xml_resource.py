@@ -170,13 +170,9 @@ class XMLResource:
             # source is a file-like object (remote resource or local file)
             self.fp = cast(ResourceType, source)
 
-            url: Optional[str] = getattr(source, 'url', None)
-            if url is not None:
-                self.access_control(url)
-
-                # Save remote urls for open new resources (non seekable)
-                if is_remote_url(url):
-                    self.url = url
+            if hasattr(source, 'url'):
+                # That url can be checked against the security mode but not trusted
+                self.access_control(source.url)
 
         elif hasattr(source, 'tag'):
             self._root = cast(ElementType, source)
@@ -207,14 +203,12 @@ class XMLResource:
             raise XMLResourceError(f"resource {self!r} is already used in a context")
 
         self._context_fp = self.open()
-        if self.is_defused():
-            defuse_xml(self._context_fp)
         return self._context_fp
 
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         if self._context_fp is not None:
-            # We don't want to close the file obj if it's the source of the instance.
-            if self._context_fp is not self.fp:
+            # Don't close a seekable file-like obj if it's the source of the instance.
+            if self._context_fp is not self.fp or not self._context_fp.seekable():
                 self._context_fp.close()
             self._context_fp = None
 
@@ -610,37 +604,56 @@ class XMLResource:
         """
         Returns an opened resource reader object for the instance URL. If the
         source attribute is a seekable file-like object rewind the source and
-        return it.
+        return it. If required by configuration the XML resource is defused
+        before returning if to the caller.
         """
-        if self.fp is not None:
-            if not self.fp.closed:
-                if not self.fp.seekable() or self.fp.seek(0) == 0:
-                    return self.fp
-
-            if self.url is None:
-                if self.fp.closed:
-                    reason = "the file-like object is closed"
-                else:
-                    reason = "the seekable file-like object cannot be restarted"
-                raise XMLResourceError(f"can't open {self!r}: {reason}")
-
-        if self.url is not None:
+        def open_url(url: str) -> ResourceType:
             try:
-                fp = cast(ResourceType, urlopen(self.url, timeout=self._timeout))
+                if self._opener is not None:
+                    return cast(ResourceType, self._opener.open(url))
+                return cast(ResourceType, urlopen(url, timeout=self._timeout))
             except URLError as err:
-                msg = "cannot access to resource %(url)r: %(reason)s"
-                raise XMLResourceError(msg % {'url': self.url, 'reason': err.reason})
-            else:
-                if not fp.seekable() and self.is_defused():
-                    return io.BufferedReader(fp)  # TODO: replace with an urlopener
-                return fp
+                raise XMLResourceError(f"cannot access to resource {url!r}: {err.reason}")
 
+        if self.fp is not None:
+            if self.fp.closed:
+                msg = f"can't open {self!r}: its file-like object has been closed"
+                raise XMLResourceError(msg)
+            elif self.fp.seekable() and self.fp.seek(0) != 0:
+                msg = f"can't open {self!r}: its file-like object can't be rewound"
+                raise XMLResourceError(msg)
+            else:
+                fp = self.fp
+
+        elif self.url is not None:
+            fp = open_url(self.url)
         elif isinstance(self._source, str):
-            return StringIO(self._source)
+            fp = StringIO(self._source)
         elif isinstance(self._source, bytes):
-            return BytesIO(self._source)
+            fp = BytesIO(self._source)
         else:
-            raise XMLResourceError(f"can't open, {self!r} has no URL associated")
+            msg = f"can't open {self!r}: its source is an ElementTree structure"
+            raise XMLResourceError(msg)
+
+        if self.is_defused():
+            if fp.seekable():
+                defuse_xml(fp)
+            elif isinstance(fp, io.RawIOBase):
+                fp = io.BufferedReader(fp)
+                defuse_xml(fp)
+            elif self.url is not None:
+                # If the file-like object is not seekable but is created from
+                # a URL, create a new file-like object for defusing XML data.
+                try:
+                    _fp = open_url(self.url)
+                    defuse_xml(_fp, rewind=False)
+                finally:
+                    _fp.close()
+            else:
+                msg = f"can't defuse {self!r}: its file-like object is not seekable"
+                raise XMLResourceError(msg)
+
+        return fp
 
     def seek(self, position: int) -> Optional[int]:
         """

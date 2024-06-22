@@ -100,37 +100,3 @@ class ValueArgument(Argument[AT]):
             raise ValueError(f"the argument {self._name!r} must "
                              f"be lesser or equal than {self.max_value}")
         return cast(AT, value)
-
-
-###
-# Attribute links: descriptors for defining read-only attributes in object composition.
-
-class AttributeLink(Generic[AT]):
-    """
-    Link to the same attribute of an attribute of the instance.
-    Useful for composition of structured objects in other classes.
-    """
-    def __init__(self, attr_name: str):
-        self._attr_name = attr_name
-
-    def __set_name__(self, owner: Type[Any], name: str) -> None:
-        self._name = name
-
-    @overload
-    def __get__(self, instance: None, owner: Type[Any]) -> 'AttributeLink[AT]': ...
-
-    @overload
-    def __get__(self, instance: Any, owner: Type[Any]) -> AT: ...
-
-    def __get__(self, instance: Optional[Any], owner: Type[Any]) \
-            -> Union['AttributeLink[AT]', AT]:
-        if instance is None:
-            return self
-        attr = getattr(instance, self._attr_name)
-        return cast(AT, getattr(attr, self._name))
-
-    def __set__(self, instance: Any, value: AT) -> None:
-        raise AttributeError(f"Can't set attribute {self._name}")
-
-    def __delete__(self, instance: Any) -> None:
-        raise AttributeError(f"Can't delete attribute {self._name}")

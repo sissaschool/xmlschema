@@ -11,7 +11,8 @@ from elementpath.etree import etree_tostring
 
 from . import limits
 from . import translation
-from .exceptions import XMLSchemaException, XMLResourceError, XMLSchemaNamespaceError
+from .exceptions import XMLSchemaException, XMLResourceError, XMLResourceForbidden, \
+    XMLSchemaNamespaceError
 from .locations import normalize_url, normalize_locations
 from .resources import fetch_resource, fetch_namespaces, fetch_schema_locations, \
     fetch_schema, XMLResource
@@ -33,7 +34,7 @@ from .validators import (
     XMLSchema, XMLSchema10, XMLSchema11, XsdComponent, XsdType, XsdElement, XsdAttribute
 )
 
-__version__ = '3.3.1'
+__version__ = '4.0.0'
 __author__ = "Davide Brunato"
 __contact__ = "brunato@sissa.it"
 __copyright__ = "Copyright 2016-2024, SISSA"
@@ -41,7 +42,7 @@ __license__ = "MIT"
 __status__ = "Production/Stable"
 
 __all__ = [
-    'limits', 'translation', 'XMLSchemaException', 'XMLResourceError',
+    'limits', 'translation', 'XMLSchemaException', 'XMLResourceError', 'XMLResourceForbidden',
     'XMLSchemaNamespaceError', 'etree_tostring', 'normalize_url', 'normalize_locations',
     'fetch_resource', 'fetch_namespaces', 'fetch_schema_locations', 'fetch_schema',
     'XMLResource', 'ElementPathMixin', 'ElementData', 'XMLSchemaConverter',
