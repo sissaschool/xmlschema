@@ -7,6 +7,9 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+from xmlschema.exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, \
+    XMLSchemaValueError
+
 from typing import cast, overload, Any, Callable, Generic, Iterable, \
     Optional, Tuple, Type, TypeVar, Union
 
@@ -51,11 +54,11 @@ class Argument(Generic[AT]):
 
     def __set__(self, instance: Any, value: Any) -> None:
         if hasattr(instance, self._private_name):
-            raise AttributeError(f"Can't set attribute {self._name}")
+            raise XMLSchemaAttributeError(f"Can't set attribute {self._name}")
         setattr(instance, self._private_name, self.validated_value(value))
 
     def __delete__(self, instance: Any) -> None:
-        raise AttributeError(f"Can't delete attribute {self._name}")
+        raise XMLSchemaAttributeError(f"Can't delete attribute {self._name}")
 
     def validated_value(self, value: Any) -> AT:
         if value is None and self.nillable or \
@@ -63,7 +66,7 @@ class Argument(Generic[AT]):
                 any(func(value) for func in self.validators):
             return cast(AT, value)
         else:
-            raise TypeError(f"invalid type {type(value)!r} for argument {self._name!r}")
+            raise XMLSchemaTypeError(f"invalid type {type(value)!r} for argument {self._name!r}")
 
 
 class ChoiceArgument(Argument[AT]):
@@ -76,8 +79,10 @@ class ChoiceArgument(Argument[AT]):
     def validated_value(self, value: Any) -> AT:
         value = super().validated_value(value)
         if value not in self.choices:
-            raise ValueError(f"invalid value {value!r} for argument {self._name!r}: "
-                             f"must be one of {tuple(self.choices)}")
+            raise XMLSchemaValueError(
+                f"invalid value {value!r} for argument {self._name!r}: "
+                f"must be one of {tuple(self.choices)}"
+            )
         return cast(AT, value)
 
 
@@ -94,9 +99,11 @@ class ValueArgument(Argument[AT]):
     def validated_value(self, value: Any) -> AT:
         value = super().validated_value(value)
         if self.min_value is not None and value < self.min_value:
-            raise ValueError(f"the argument {self._name!r} must "
-                             f"be greater or equal than {self.min_value}")
+            raise XMLSchemaValueError(
+                f"the argument {self._name!r} must be greater or equal than {self.min_value}"
+            )
         elif self.max_value is not None and value > self.max_value:
-            raise ValueError(f"the argument {self._name!r} must "
-                             f"be lesser or equal than {self.max_value}")
+            raise XMLSchemaValueError(
+                f"the argument {self._name!r} must be lesser or equal than {self.max_value}"
+            )
         return cast(AT, value)

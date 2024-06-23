@@ -13,13 +13,14 @@ from urllib.error import URLError
 
 from elementpath.etree import ElementTree
 
-from xmlschema.exceptions import XMLSchemaValueError, XMLResourceError
+from xmlschema.exceptions import XMLSchemaValueError
 from xmlschema.names import XSD_NAMESPACE
 from xmlschema.aliases import NsmapType, NormalizedLocationsType, \
     LocationsType, XMLSourceType, UriMapperType
 from xmlschema.locations import normalize_url
 
-from .xml_resource import XMLResource
+from .exceptions import XMLResourceError
+from .base import XMLResource
 
 
 def fetch_resource(location: str, base_url: Optional[str] = None, timeout: int = 30) -> str:
@@ -91,7 +92,7 @@ def fetch_schema_locations(source: Union['XMLResource', XMLSourceType],
         try:
             resource = XMLResource(location, base_url, allow, defuse, timeout,
                                    lazy=True, uri_mapper=uri_mapper)
-        except (XMLResourceError, URLError, ElementTree.ParseError):
+        except (XMLResourceError, OSError, SyntaxError):
             continue
 
         if resource.namespace == XSD_NAMESPACE and resource.url:

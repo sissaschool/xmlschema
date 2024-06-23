@@ -17,14 +17,14 @@ from typing import TYPE_CHECKING, Any, Dict, Optional, Iterable, List, Set, Unio
 from urllib.parse import unquote, urlsplit
 from xml.etree import ElementTree
 
-from xmlschema.exceptions import XMLResourceError, XMLSchemaValueError
+from xmlschema.exceptions import XMLSchemaValueError
 from xmlschema.names import XSD_SCHEMA, XSD_IMPORT, XSD_INCLUDE, XSD_REDEFINE, XSD_OVERRIDE
 from xmlschema.utils.logger import logged
 from xmlschema.utils.paths import LocationPath
 from xmlschema.utils.urls import is_remote_url
 from xmlschema.locations import normalize_url, match_location
 from xmlschema.translation import gettext as _
-from xmlschema.resources import XMLResource
+from xmlschema.resources import XMLResourceError, XMLResource
 
 if TYPE_CHECKING:
     from xmlschema.validators import XMLSchemaBase

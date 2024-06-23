@@ -11,11 +11,10 @@ from elementpath.etree import etree_tostring
 
 from . import limits
 from . import translation
-from .exceptions import XMLSchemaException, XMLResourceError, XMLResourceForbidden, \
-    XMLSchemaNamespaceError
+from .exceptions import XMLSchemaException
 from .locations import normalize_url, normalize_locations
 from .resources import fetch_resource, fetch_namespaces, fetch_schema_locations, \
-    fetch_schema, XMLResource
+    fetch_schema, XMLResource, XMLResourceError
 from .xpath import ElementPathMixin
 from .converters import ElementData, XMLSchemaConverter, \
     UnorderedConverter, ParkerConverter, BadgerFishConverter, \

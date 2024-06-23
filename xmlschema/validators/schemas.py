@@ -30,8 +30,8 @@ from xml.etree.ElementTree import Element, ParseError
 
 from elementpath import XPathToken, SchemaElementNode, build_schema_node_tree
 
-from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaKeyError, XMLSchemaRuntimeError, \
-    XMLSchemaValueError, XMLSchemaNamespaceError, XMLResourceForbidden
+from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaKeyError, \
+    XMLSchemaRuntimeError, XMLSchemaValueError, XMLSchemaNamespaceError
 from xmlschema.names import VC_MIN_VERSION, VC_MAX_VERSION, VC_TYPE_AVAILABLE, \
     VC_TYPE_UNAVAILABLE, VC_FACET_AVAILABLE, VC_FACET_UNAVAILABLE, XSD_NOTATION, \
     XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_GROUP, XSD_SIMPLE_TYPE, XSI_TYPE, \
@@ -45,14 +45,13 @@ from xmlschema.aliases import XMLSourceType, NsmapType, LocationsType, UriMapper
     EncodeType, BaseXsdType, ExtraValidatorType, ValidationHookType, \
     SchemaGlobalType, FillerType, DepthFillerType, ValueHookType, ElementHookType
 from xmlschema.translation import gettext as _
-from xmlschema.utils.misc import deprecated
 from xmlschema.utils.logger import set_logging_level
 from xmlschema.utils.etree import prune_etree
 from xmlschema.utils.qnames import get_namespace, get_qname
 from xmlschema.namespaces import NamespaceResourcesMap, NamespaceMapper, NamespaceView
 from xmlschema.utils.urls import is_local_url, is_remote_url
 from xmlschema.locations import location_is_file, normalize_url, normalize_locations
-from xmlschema.resources import XMLResource
+from xmlschema.resources import XMLResource, XMLResourceBlocked, XMLResourceForbidden
 from xmlschema.converters import XMLSchemaConverter
 from xmlschema.xpath import XMLSchemaProxy, ElementPathMixin
 from xmlschema.exports import export_schema
@@ -299,7 +298,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
     # Additional defaults for XSD 1.1
     default_attributes: Optional[Union[str, XsdAttributeGroup]] = None
-    default_open_content = None
+    default_open_content: Optional[XsdDefaultOpenContent] = None
     override: Optional['XMLSchemaBase'] = None
     use_xpath3: bool = False
 
@@ -1356,11 +1355,11 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             try:
                 logger.debug("Import namespace %r from %r", namespace, url)
                 self.import_schema(namespace, url, self.base_url)
-            except (OSError, XMLResourceForbidden) as err:
+            except (OSError, XMLResourceBlocked, XMLResourceForbidden) as err:
                 # It's not an error if the location access fails (ref. section 4.2.6.2):
                 #   https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/#composition-schemaImport
                 #
-                # Also consider defuse of XML data as a location access fail.
+                # Also consider block or defuse of XML data as a location access fail.
                 logger.debug('%s', err)
                 if import_error is None:
                     import_error = err

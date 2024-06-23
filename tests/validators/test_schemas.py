@@ -774,6 +774,13 @@ class TestXMLSchema10(XsdValidatorTestCase):
 
         self.assertIn('http://www.w3.org/2000/xmlns/', str(ctx.exception))
 
+    def test_malformed_schema__issue_404(self):
+        """Loads an xsd file"""
+        malformed_xsd = self.casepath('resources/malformed.xsd')
+
+        with self.assertRaises(xmlschema.XMLSchemaException):
+            self.schema_class(malformed_xsd)
+
 
 class TestXMLSchema11(TestXMLSchema10):
 

@@ -25,7 +25,7 @@ from elementpath import XPathToken, XPathContext, XPath2Parser, ElementNode, \
 from elementpath.etree import ElementTree, etree_tostring
 from elementpath.protocols import LxmlElementProtocol
 
-from xmlschema.exceptions import XMLSchemaValueError, XMLResourceError
+from xmlschema.exceptions import XMLSchemaValueError
 from xmlschema.aliases import ElementType, ElementTreeType, NsmapType, \
     NormalizedLocationsType, LocationsType, XMLSourceType, ResourceType, \
     ResourceNodeType, IterparseType, ParentMapType, UriMapperType
@@ -36,11 +36,13 @@ from xmlschema.utils.qnames import get_namespace, update_namespaces, get_namespa
 from xmlschema.utils.urls import is_url, is_remote_url, is_local_url
 from xmlschema.locations import normalize_url, normalize_locations
 
+from .exceptions import XMLResourceError, XMLResourceOSError, XMLResourceParseError, \
+    XMLResourceBlocked
 from .sax import defuse_xml
-from .arguments import SourceArgument, BaseUrlArgument, AllowArgument, \
+from ._arguments import SourceArgument, BaseUrlArgument, AllowArgument, \
     DefuseArgument, TimeoutArgument, LazyArgument, ThinLazyArgument, \
     UriMapperArgument, OpenerArgument, IterparseArgument
-from .parse import update_ns_declarations
+from ._parse import update_ns_declarations
 
 if sys.version_info < (3, 9):
     from typing import Deque
@@ -180,12 +182,16 @@ class XMLResource:
             self._root = cast(ElementTreeType, source).getroot()
 
         if not hasattr(self, '_root'):
-            with self as fp:
-                if not lazy:
-                    self._parse(fp)
-                else:
-                    for _, root in self._lazy_iterparse(fp):  # pragma: no cover
-                        break
+            try:
+                with self as fp:
+                    if not lazy:
+                        self._parse(fp)
+                    else:
+                        for _, root in self._lazy_iterparse(fp):  # pragma: no cover
+                            break
+            except SyntaxError as err:
+                raise XMLResourceParseError(str(err))
+
         elif hasattr(self._root, 'xpath'):
             update_ns_declarations(
                 root=cast(LxmlElementProtocol, self._root),
@@ -256,7 +262,7 @@ class XMLResource:
     @property
     def parent_map(self) -> Dict[ElementType, Optional[ElementType]]:
         if self._lazy:
-            raise XMLResourceError("cannot create the parent map of a lazy XML resource")
+            raise XMLResourceError("can't create the parent map of a lazy XML resource")
         if self._parent_map is None:
             self._parent_map = {child: elem for elem in self._root.iter() for child in elem}
             self._parent_map[self._root] = None
@@ -338,15 +344,15 @@ class XMLResource:
         if self._allow == 'all' or url is None:
             return
         elif self._allow == 'none':
-            raise XMLResourceError(f"block access to resource {url}")
+            raise XMLResourceBlocked(f"block access to resource {url}")
         elif self._allow == 'remote':
             if is_local_url(url):
-                raise XMLResourceError(f"block access to local resource {url}")
+                raise XMLResourceBlocked(f"block access to local resource {url}")
         elif is_remote_url(url):
-            raise XMLResourceError(f"block access to remote resource {url}")
+            raise XMLResourceBlocked(f"block access to remote resource {url}")
         elif self._allow == 'sandbox' and self._base_url is not None:
             if not url.startswith(normalize_url(self._base_url)):
-                raise XMLResourceError(f"block access to out of sandbox file {url}")
+                raise XMLResourceBlocked(f"block access to out of sandbox file {url}")
 
     def _lazy_clear(self, elem: ElementType,
                     ancestors: Optional[List[ElementType]] = None) -> None:
@@ -555,7 +561,7 @@ class XMLResource:
         :return: a Unicode string.
         """
         if self._lazy:
-            raise XMLResourceError("cannot serialize a lazy XML resource")
+            raise XMLResourceError("can't serialize a lazy XML resource")
 
         if not hasattr(self._root, 'nsmap'):
             namespaces = self.get_namespaces(namespaces, root_only=False)
@@ -577,7 +583,7 @@ class XMLResource:
     def subresource(self, elem: ElementType) -> 'XMLResource':
         """Create an XMLResource instance from a subelement of a non-lazy XML tree."""
         if self._lazy:
-            raise XMLResourceError("cannot create a subresource from a lazy XML resource")
+            raise XMLResourceError("can't create a subresource from a lazy XML resource")
 
         for e in self._root.iter():  # pragma: no cover
             if e is elem:
@@ -613,15 +619,15 @@ class XMLResource:
                     return cast(ResourceType, self._opener.open(url))
                 return cast(ResourceType, urlopen(url, timeout=self._timeout))
             except URLError as err:
-                raise XMLResourceError(f"cannot access to resource {url!r}: {err.reason}")
+                raise XMLResourceOSError(f"can't access to resource {url!r}: {err.reason}")
 
         if self.fp is not None:
             if self.fp.closed:
                 msg = f"can't open {self!r}: its file-like object has been closed"
-                raise XMLResourceError(msg)
+                raise XMLResourceOSError(msg)
             elif self.fp.seekable() and self.fp.seek(0) != 0:
                 msg = f"can't open {self!r}: its file-like object can't be rewound"
-                raise XMLResourceError(msg)
+                raise XMLResourceOSError(msg)
             else:
                 fp = self.fp
 
@@ -651,7 +657,7 @@ class XMLResource:
                     _fp.close()
             else:
                 msg = f"can't defuse {self!r}: its file-like object is not seekable"
-                raise XMLResourceError(msg)
+                raise XMLResourceOSError(msg)
 
         return fp
 
@@ -678,7 +684,7 @@ class XMLResource:
         if self.url is None and not hasattr(self._source, 'read'):
             return  # Created from Element or text source --> already loaded
         elif self._lazy:
-            raise XMLResourceError("cannot load a lazy XML resource")
+            raise XMLResourceError("can't load a lazy XML resource")
 
         with self as fp:
             data = fp.read()
@@ -868,9 +874,9 @@ class XMLResource:
             path_depth = path.count('/') + 1
 
         if not path_depth:
-            raise XMLResourceError(f"cannot use path {path!r} on a lazy resource")
+            raise XMLResourceError(f"can't use path {path!r} on a lazy resource")
         elif path_depth < lazy_depth:
-            raise XMLResourceError(f"cannot use path {path!r} on a lazy resource "
+            raise XMLResourceError(f"can't use path {path!r} on a lazy resource "
                                    f"with lazy_depth=={lazy_depth}")
 
         if ancestors is not None:

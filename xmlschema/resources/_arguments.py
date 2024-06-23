@@ -15,9 +15,10 @@ from typing import cast, overload, Any, Optional, Type, TYPE_CHECKING, Union
 from urllib.request import URLopener
 
 if TYPE_CHECKING:
-    from .xml_resource import XMLResource
+    from .base import XMLResource
 
 from xmlschema.aliases import XMLSourceType, UriMapperType, IterparseType
+from xmlschema.exceptions import XMLSchemaValueError
 from xmlschema.utils.descriptors import Argument, ChoiceArgument, ValueArgument
 from xmlschema.utils.etree import is_etree_element, is_etree_document
 from xmlschema.utils.streams import is_file_object
@@ -40,7 +41,7 @@ class SourceArgument(Argument[XMLSourceType]):
         value = super().validated_value(value)
         if is_etree_document(value):
             if value.getroot() is None:
-                raise ValueError("source XML document is empty")
+                raise XMLSchemaValueError("source XML document is empty")
         return cast(XMLSourceType, value)
 
 
@@ -72,7 +73,7 @@ class BaseUrlArgument(Argument[Optional[str]]):
         if value is None:
             return None
         elif not is_url(value):
-            raise ValueError(f"invalid value {value!r} for argument {self._name!r}")
+            raise XMLSchemaValueError(f"invalid value {value!r} for argument {self._name!r}")
         elif isinstance(value, str):
             return value
         elif isinstance(value, bytes):

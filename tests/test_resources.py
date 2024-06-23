@@ -30,12 +30,11 @@ except ImportError:
 
 from xmlschema import fetch_namespaces, fetch_resource, fetch_schema, \
     fetch_schema_locations, XMLResource, XMLResourceError, XMLSchema
-from xmlschema.exceptions import XMLResourceForbidden
 from xmlschema.names import XSD_NAMESPACE
 from xmlschema.utils.etree import is_etree_element
 from xmlschema.testing import SKIP_REMOTE_TESTS
 from xmlschema.locations import normalize_url
-from xmlschema.resources import defuse_xml
+from xmlschema.resources import defuse_xml, XMLResourceForbidden
 
 
 TEST_CASES_DIR = str(pathlib.Path(__file__).absolute().parent.joinpath('test_cases'))
@@ -209,7 +208,7 @@ class TestResources(unittest.TestCase):
         self.assertIsNone(resource.text)
         with self.assertRaises(XMLResourceError) as ctx:
             resource.load()
-        self.assertIn('cannot load a lazy XML resource', str(ctx.exception))
+        self.assertIn('can\'t load a lazy XML resource', str(ctx.exception))
         self.assertIsNone(resource.text)
 
         resource = XMLResource(self.vh_xml_file, lazy=False)
@@ -245,7 +244,7 @@ class TestResources(unittest.TestCase):
         self.assertIsNone(resource.text)
         with self.assertRaises(XMLResourceError) as ctx:
             resource.load()
-        self.assertIn('cannot load a lazy XML resource', str(ctx.exception))
+        self.assertIn('can\'t load a lazy XML resource', str(ctx.exception))
         self.assertIsNone(resource.text)
 
         resource = XMLResource(path, lazy=False)
@@ -358,7 +357,7 @@ class TestResources(unittest.TestCase):
 
             with self.assertRaises(XMLResourceError) as ctx:
                 resource.load()
-            self.assertEqual("cannot load a lazy XML resource", str(ctx.exception))
+            self.assertEqual("can't load a lazy XML resource", str(ctx.exception))
 
             self.assertFalse(schema_file.closed)
             for _ in resource.iter():
@@ -709,7 +708,7 @@ class TestResources(unittest.TestCase):
         resource = XMLResource(self.vh_xml_file, lazy=True)
         with self.assertRaises(XMLResourceError) as ctx:
             resource.tostring()
-        self.assertEqual("cannot serialize a lazy XML resource", str(ctx.exception))
+        self.assertEqual("can\'t serialize a lazy XML resource", str(ctx.exception))
 
         resource = XMLResource(XML_WITH_NAMESPACES)
         result = resource.tostring()
@@ -865,7 +864,7 @@ class TestResources(unittest.TestCase):
 
         with self.assertRaises(XMLResourceError) as ctx:
             _ = [x.tag for x in lazy_resource.iterfind(path='.')]
-        self.assertEqual("cannot use path '.' on a lazy resource", str(ctx.exception))
+        self.assertEqual("can't use path '.' on a lazy resource", str(ctx.exception))
 
         tags = [x.tag for x in resource.iterfind(path='*')]
         self.assertEqual(len(tags), 156)
@@ -963,7 +962,7 @@ class TestResources(unittest.TestCase):
         ancestors = []
         with self.assertRaises(XMLResourceError) as ctx:
             resource.find('/b1', ancestors=ancestors)
-        self.assertEqual("cannot use path '/b1' on a lazy resource", str(ctx.exception))
+        self.assertEqual("can't use path '/b1' on a lazy resource", str(ctx.exception))
 
         source.seek(0)
         resource = XMLResource(source, lazy=2)
@@ -1230,7 +1229,7 @@ class TestResources(unittest.TestCase):
         resource = XMLResource(StringIO('<a><b1><c1/><c2/></b1><b2/></a>'), lazy=True)
         with self.assertRaises(XMLResourceError) as ctx:
             _ = resource.parent_map
-        self.assertEqual("cannot create the parent map of a lazy XML resource",
+        self.assertEqual("can't create the parent map of a lazy XML resource",
                          str(ctx.exception))
 
     def test_get_nsmap(self):
@@ -1311,7 +1310,7 @@ class TestResources(unittest.TestCase):
         resource = XMLResource(self.vh_xml_file, lazy=True)
         with self.assertRaises(XMLResourceError) as ctx:
             resource.subresource(resource.root)
-        self.assertEqual("cannot create a subresource from a lazy XML resource",
+        self.assertEqual("can't create a subresource from a lazy XML resource",
                          str(ctx.exception))
 
         resource = XMLResource(self.vh_xml_file)
