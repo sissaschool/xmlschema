@@ -467,7 +467,7 @@ class TestXmlDocuments(unittest.TestCase):
     def test_xml_document_etree_interface(self):
         xml_document = XmlDocument(self.vh_xml_file)
 
-        self.assertIs(xml_document.getroot(), xml_document._root)
+        self.assertIs(xml_document.getroot(), xml_document.root)
         self.assertTrue(is_etree_element(xml_document.getroot()))
 
         self.assertTrue(is_etree_document(xml_document.get_etree_document()))

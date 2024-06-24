@@ -10,7 +10,7 @@
 from .exceptions import XMLResourceError, XMLResourceOSError, \
     XMLResourceParseError, XMLResourceBlocked, XMLResourceForbidden
 from .sax import defuse_xml
-from .base import XMLResource
+from .xml_resource import XMLResource
 from .fetchers import fetch_resource, fetch_namespaces, \
     fetch_schema_locations, fetch_schema
 

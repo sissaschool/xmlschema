@@ -21,8 +21,8 @@ from xmlschema.exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, \
 from xmlschema.aliases import ElementType, XMLSourceType, NsmapType, BaseXsdType, DecodeType
 from xmlschema.converters import ElementData, XMLSchemaConverter
 from xmlschema.resources import XMLResource
-from xmlschema.utils.qnames import get_namespace, get_prefixed_qname, local_name, update_namespaces, \
-    get_namespace_map
+from xmlschema.utils.qnames import get_namespace, get_prefixed_qname, \
+    local_name, update_namespaces, get_namespace_map
 from xmlschema.utils.decoding import raw_xml_encode
 from xmlschema import validators
 

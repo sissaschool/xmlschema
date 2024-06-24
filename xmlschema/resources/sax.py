@@ -11,7 +11,7 @@ from xml.sax import SAXParseException
 from xml.sax import expatreader  # type: ignore[attr-defined]
 from xml.dom import pulldom
 
-from xmlschema.aliases import ResourceType
+from xmlschema.aliases import IOType
 from .exceptions import XMLResourceError, XMLResourceForbidden
 
 
@@ -37,7 +37,7 @@ class SafeExpatParser(expatreader.ExpatParser):  # type: ignore[misc]
         self._parser.ExternalEntityRefHandler = self.forbid_external_entity_reference
 
 
-def defuse_xml(fp: ResourceType, rewind: bool = True) -> None:
+def defuse_xml(fp: IOType, rewind: bool = True) -> None:
     """
     Defuse an XML resource opened with a file-like object.
 

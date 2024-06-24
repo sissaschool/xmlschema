@@ -555,7 +555,7 @@ class Wsdl11Document(XmlDocument):
             raise WsdlParseError(f"{self.__class__!r} instance cannot be lazy")
 
         super().parse(source, lazy)
-        self.target_namespace = self._root.get('targetNamespace', '')
+        self.target_namespace = self.root.get('targetNamespace', '')
         self.soap_binding = SOAP_NAMESPACE in self.namespaces.values()
 
         if self.namespace == XSD_NAMESPACE:
@@ -581,7 +581,7 @@ class Wsdl11Document(XmlDocument):
     def _parse_types(self):
         path = f'{WSDL_TYPES}/{XSD_SCHEMA}'
 
-        for child in self._root.iterfind(path):
+        for child in self.root.iterfind(path):
             source = self.subresource(child)
             self.schema.__class__(source, global_maps=self.schema.maps)
 

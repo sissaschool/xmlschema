@@ -651,13 +651,13 @@ class XmlDocument(XMLResource):
                     )
 
             if self.schema is None:
-                if XSI_TYPE in self._root.attrib:
-                    self.schema = get_dummy_schema(self._root.tag, cls)
+                if XSI_TYPE in self.root.attrib:
+                    self.schema = get_dummy_schema(self.root.tag, cls)
                 elif validation != 'skip':
                     msg = "cannot get a schema for XML data, provide a schema argument"
                     raise XMLSchemaValueError(msg)
                 else:
-                    self._fallback_schema = get_dummy_schema(self._root.tag, cls)
+                    self._fallback_schema = get_dummy_schema(self.root.tag, cls)
 
         if self.schema is None:
             pass
@@ -687,7 +687,7 @@ class XmlDocument(XMLResource):
 
     def getroot(self) -> ElementType:
         """Get the root element of the XML document."""
-        return self._root
+        return self.root
 
     def get_etree_document(self) -> Any:
         """
@@ -700,10 +700,10 @@ class XmlDocument(XMLResource):
             raise XMLResourceError(
                 "cannot create an ElementTree instance from a lazy XML resource"
             )
-        elif hasattr(self._root, 'nsmap'):
-            return self._root.getroottree()  # type: ignore[attr-defined]
+        elif hasattr(self.root, 'nsmap'):
+            return self.root.getroottree()  # type: ignore[attr-defined]
         else:
-            return ElementTree.ElementTree(self._root)
+            return ElementTree.ElementTree(self.root)
 
     def decode(self, **kwargs: Any) -> DecodeType[Any]:
         """
@@ -793,14 +793,14 @@ class XmlDocument(XMLResource):
             else:
                 namespaces = {k: v for k, v in self.namespaces.items()}
 
-            if hasattr(self._root, 'nsmap'):
+            if hasattr(self.root, 'nsmap'):
                 # noinspection PyTypeChecker
                 namespaces[None] = default_namespace
             else:
                 namespaces[''] = default_namespace
             kwargs['namespaces'] = namespaces
 
-        _string = etree_tostring(self._root, **kwargs)
+        _string = etree_tostring(self.root, **kwargs)
 
         if isinstance(file, str):
             if isinstance(_string, str):

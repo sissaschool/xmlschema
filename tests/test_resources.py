@@ -996,7 +996,7 @@ class TestResources(unittest.TestCase):
                                                '': 'http://example.com/ns/collection'})
 
         resource._nsmaps.clear()
-        resource._nsmaps[resource._root] = {}
+        resource._nsmaps[resource.root] = {}
 
         for elem in resource.iter():
             nsmap = resource.get_nsmap(elem)

@@ -11,8 +11,6 @@ from typing import Optional, Tuple, Union
 from urllib.request import urlopen
 from urllib.error import URLError
 
-from elementpath.etree import ElementTree
-
 from xmlschema.exceptions import XMLSchemaValueError
 from xmlschema.names import XSD_NAMESPACE
 from xmlschema.aliases import NsmapType, NormalizedLocationsType, \
@@ -20,7 +18,7 @@ from xmlschema.aliases import NsmapType, NormalizedLocationsType, \
 from xmlschema.locations import normalize_url
 
 from .exceptions import XMLResourceError
-from .base import XMLResource
+from .xml_resource import XMLResource
 
 
 def fetch_resource(location: str, base_url: Optional[str] = None, timeout: int = 30) -> str:

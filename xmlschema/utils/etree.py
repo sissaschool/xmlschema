@@ -16,13 +16,28 @@ from xmlschema.utils.qnames import get_namespace, get_prefixed_qname
 
 
 def is_etree_element(obj: object) -> bool:
-    """A checker for valid ElementTree elements that excludes XsdElement objects."""
+    """A validator for ElementTree elements that excludes XsdElement objects."""
     return hasattr(obj, 'append') and hasattr(obj, 'tag') and hasattr(obj, 'attrib')
 
 
+def is_like_etree_element(obj: Any) -> bool:
+    """A validator for ElementTree elements that includes XsdElement objects."""
+    return hasattr(obj, 'tag') and hasattr(obj, 'attrib') and hasattr(obj, 'text')
+
+
 def is_etree_document(obj: object) -> bool:
-    """A checker for valid ElementTree objects."""
+    """A validator for ElementTree objects."""
     return hasattr(obj, 'getroot') and hasattr(obj, 'parse') and hasattr(obj, 'iter')
+
+
+def is_lxml_element(obj: object) -> bool:
+    """A validator for lxml elements."""
+    return hasattr(obj, 'append') and hasattr(obj, 'tag') and hasattr(obj, 'attrib') \
+        and hasattr(obj, 'getparent') and hasattr(obj, 'nsmap') and hasattr(obj, 'xpath')
+
+
+def is_lxml_document(obj: Any) -> bool:
+    return is_etree_document(obj) and hasattr(obj, 'xpath') and hasattr(obj, 'xslt')
 
 
 def etree_iterpath(elem: ElementType,

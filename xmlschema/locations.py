@@ -8,16 +8,11 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import os.path
-import ntpath
-import posixpath
 import platform
-import string
 from collections.abc import MutableMapping
-from pathlib import PurePath, PurePosixPath, PureWindowsPath
 from typing import Optional, Iterable
-from urllib.parse import urlsplit, urlunsplit, unquote, quote_from_bytes
+from urllib.parse import urlsplit, urlunsplit, unquote
 
-from xmlschema.exceptions import XMLSchemaValueError
 from xmlschema.aliases import NormalizedLocationsType, LocationsType
 from xmlschema.utils.urls import is_local_url, is_local_scheme, encode_url
 from xmlschema.utils.paths import LocationPath

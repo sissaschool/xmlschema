@@ -37,7 +37,8 @@ __all__ = ['ElementType', 'ElementTreeType', 'XMLSourceType', 'NsmapType',
            'JsonDecodeType', 'EncodeType', 'IterEncodeType', 'DecodedValueType',
            'EncodedValueType', 'FillerType', 'DepthFillerType', 'ValueHookType',
            'ElementHookType', 'OccursCounterType', 'LazyType', 'SourceType',
-           'UriMapperType', 'IterparseType', 'ResourceType', 'ResourceNodeType']
+           'UriMapperType', 'IterparseType', 'EtreeType', 'IOType',
+           'ResourceNodeType', 'NsmapsMapType', 'XmlnsMapType']
 
 if TYPE_CHECKING:
     from .namespaces import NamespaceResourcesMap
@@ -63,14 +64,18 @@ XmlnsType = Optional[List[Tuple[str, str]]]
 
 ##
 # Type aliases for XML resources
+IOType = Union[IOProtocol[str], IOProtocol[bytes]]
+EtreeType = Union[Element, ElementTree, ElementProtocol, DocumentProtocol]
 SourceType = Union[str, bytes, Path, IO[str], IO[bytes]]
-XMLSourceType = Union[SourceType, Element, ElementTree, ElementProtocol, DocumentProtocol]
-ResourceType = Union[IOProtocol[str], IOProtocol[bytes]]
+XMLSourceType = Union[SourceType, EtreeType]
+
 ResourceNodeType = Union[ElementNode, LazyElementNode, DocumentNode]
 LazyType = Union[bool, int]
 UriMapperType = Union[MutableMapping[str, str], Callable[[str], str]]
-IterparseType = Callable[[ResourceType, Optional[Sequence[str]]], Iterator[Tuple[str, Any]]]
-ParentMapType = Dict[Element, Optional[Element]]
+IterparseType = Callable[[IOType, Optional[Sequence[str]]], Iterator[Tuple[str, Any]]]
+ParentMapType = Dict[ElementType, Optional[ElementType]]
+NsmapsMapType = Dict[ElementType, Dict[str, str]]
+XmlnsMapType = Dict[ElementType, List[Tuple[str, str]]]
 
 ##
 # Type aliases for XSD components

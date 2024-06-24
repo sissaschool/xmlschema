@@ -13,9 +13,10 @@ from collections.abc import MutableMapping
 from pathlib import Path
 from typing import cast, overload, Any, Optional, Type, TYPE_CHECKING, Union
 from urllib.request import URLopener
+from xml.etree import ElementTree
 
 if TYPE_CHECKING:
-    from .base import XMLResource
+    from .xml_resource import XMLResource
 
 from xmlschema.aliases import XMLSourceType, UriMapperType, IterparseType
 from xmlschema.exceptions import XMLSchemaValueError
@@ -127,3 +128,9 @@ class OpenerArgument(Argument[Optional[URLopener]]):
 class IterparseArgument(Argument[Optional[IterparseType]]):
     def __init__(self) -> None:
         super().__init__(validators=(callable,))
+
+    def validated_value(self, value: Any) -> IterparseType:
+        value = super().validated_value(value)
+        if value is not None:
+            return cast(IterparseType, value)
+        return ElementTree.iterparse
