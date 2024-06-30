@@ -15,25 +15,25 @@ from io import StringIO, BytesIO
 from pathlib import Path
 from typing import cast, Any, Optional, IO, Iterator, \
     List, MutableMapping, Union, Tuple
-from urllib.request import urlopen, URLopener
+from urllib.request import urlopen, OpenerDirector
 from urllib.parse import urlsplit, unquote
 from urllib.error import URLError
+from xml.etree import ElementTree
 
 from elementpath import XPathToken, XPathContext, XPath2Parser, ElementNode
-from elementpath.etree import ElementTree, etree_tostring
 
-from xmlschema.exceptions import XMLSchemaValueError
 from xmlschema.aliases import ElementType, NsmapType, \
     NormalizedLocationsType, LocationsType, XMLSourceType, IOType, \
     ResourceNodeType, IterparseType, UriMapperType, EtreeType
 from xmlschema.utils.paths import LocationPath
-from xmlschema.utils.etree import etree_iter_location_hints
+from xmlschema.utils.etree import etree_tostring, etree_iter_location_hints
 from xmlschema.utils.streams import is_file_object
 from xmlschema.utils.qnames import update_namespaces, get_namespace_map
 from xmlschema.utils.urls import is_url, is_remote_url, is_local_url
 from xmlschema.locations import normalize_url, normalize_locations
 
-from .exceptions import XMLResourceError, XMLResourceOSError, XMLResourceBlocked
+from .exceptions import XMLResourceError, XMLResourceOSError, XMLResourceTypeError, \
+    XMLResourceValueError, XMLResourceBlocked
 from .sax import defuse_xml
 from ._arguments import SourceArgument, BaseUrlArgument, AllowArgument, \
     DefuseArgument, TimeoutArgument, UriMapperArgument, OpenerArgument
@@ -93,7 +93,7 @@ class XMLResource(_ResourceLoader):
     _allow: str
     _timeout: int
     _uri_mapper: Optional[UriMapperType]
-    _opener: Optional[URLopener]
+    _opener: Optional[OpenerDirector]
 
     text: Optional[str] = None
     """The XML text source, `None` if it's not loaded or available."""
@@ -114,12 +114,12 @@ class XMLResource(_ResourceLoader):
                  lazy: Union[bool, int] = False,
                  thin_lazy: bool = True,
                  uri_mapper: Optional[UriMapperType] = None,
-                 opener: Optional[URLopener] = None,
+                 opener: Optional[OpenerDirector] = None,
                  iterparse: Optional[IterparseType] = None) -> None:
 
         if allow == 'sandbox' and base_url is None:
             msg = "block access to files out of sandbox requires 'base_url' to be set"
-            raise XMLResourceError(msg)
+            raise XMLResourceValueError(msg)
 
         # Set and validate arguments
         self.base_url = base_url
@@ -336,7 +336,7 @@ class XMLResource(_ResourceLoader):
                 break
         else:
             msg = "{!r} is not an element or the XML resource tree"
-            raise XMLResourceError(msg.format(elem))
+            raise XMLResourceValueError(msg.format(elem))
 
         resource = XMLResource(elem, self.base_url, self._allow, self._defuse, self._timeout)
         if not hasattr(elem, 'nsmap'):
@@ -362,7 +362,7 @@ class XMLResource(_ResourceLoader):
         def open_url(url: str) -> IOType:
             try:
                 if self._opener is not None:
-                    return cast(IOType, self._opener.open(url))
+                    return cast(IOType, self._opener.open(url, timeout=self._timeout))
                 return cast(IOType, urlopen(url, timeout=self._timeout))
             except URLError as err:
                 raise XMLResourceOSError(f"can't access to resource {url!r}: {err.reason}")
@@ -388,19 +388,14 @@ class XMLResource(_ResourceLoader):
             raise XMLResourceError(msg)
 
         if self.is_defused():
-            if fp.seekable():
-                defuse_xml(fp)
-            elif isinstance(fp, io.RawIOBase):
-                fp = io.BufferedReader(fp)
-                defuse_xml(fp)
+            if fp.seekable() or isinstance(fp, (io.RawIOBase, io.BufferedIOBase)):
+                return defuse_xml(fp)
             elif self.url is not None:
-                # If the file-like object is not seekable but is created from
-                # a URL, create a new file-like object for defusing XML data.
-                _fp = open_url(self.url)
-                try:
+                # If the file-like object is created from a URL, create a new
+                # file-like object for defusing XML data. This may not be as
+                # safe as defusing a resource using buffered data.
+                with open_url(self.url) as _fp:
                     defuse_xml(_fp, rewind=False)
-                finally:
-                    _fp.close()
             else:
                 msg = f"can't defuse {self!r}: its file-like object is not seekable"
                 raise XMLResourceOSError(msg)
@@ -517,7 +512,7 @@ class XMLResource(_ResourceLoader):
         :param ancestors: provide a list for tracking the ancestors of yielded elements.
         """
         if mode not in (1, 2, 3, 4, 5):
-            raise XMLSchemaValueError(f"invalid argument mode={mode!r}")
+            raise XMLResourceValueError(f"invalid argument mode={mode!r}")
 
         if ancestors is not None:
             ancestors.clear()
@@ -574,7 +569,7 @@ class XMLResource(_ResourceLoader):
         for item in token.select(context):
             if not isinstance(item, ElementNode):  # pragma: no cover
                 msg = "XPath expressions on XML resources can select only elements"
-                raise XMLResourceError(msg)
+                raise XMLResourceTypeError(msg)
             elif ancestors is not None:
                 if item.elem is self.root:
                     ancestors.clear()
@@ -623,10 +618,10 @@ class XMLResource(_ResourceLoader):
             path_depth = path.count('/') + 1
 
         if not path_depth:
-            raise XMLResourceError(f"can't use path {path!r} on a lazy resource")
+            raise XMLResourceValueError(f"can't use path {path!r} on a lazy resource")
         elif path_depth < lazy_depth:
-            raise XMLResourceError(f"can't use path {path!r} on a lazy resource "
-                                   f"with lazy_depth=={lazy_depth}")
+            raise XMLResourceValueError(f"can't use path {path!r} on a lazy resource "
+                                        f"with lazy_depth=={lazy_depth}")
 
         if ancestors is not None:
             ancestors.clear()

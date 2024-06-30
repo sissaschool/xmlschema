@@ -7,11 +7,14 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+import io
 from xml.sax import SAXParseException
 from xml.sax import expatreader  # type: ignore[attr-defined]
 from xml.dom import pulldom
 
 from xmlschema.aliases import IOType
+from xmlschema.utils.decorators import catchable_resource_error
+from xmlschema.utils.streams import DefusableReader
 from .exceptions import XMLResourceError, XMLResourceForbidden
 
 
@@ -37,16 +40,29 @@ class SafeExpatParser(expatreader.ExpatParser):  # type: ignore[misc]
         self._parser.ExternalEntityRefHandler = self.forbid_external_entity_reference
 
 
-def defuse_xml(fp: IOType, rewind: bool = True) -> None:
+@catchable_resource_error
+def defuse_xml(fp: IOType, rewind: bool = True) -> IOType:
     """
-    Defuse an XML resource opened with a file-like object.
+    Defuses an XML source using a file-like object. For default the file-like object
+    must be seekable because the file-like object is rewound to start position after
+    the check. If it's not seekable, the file-like object is wrapped in a buffered
+    reader if it's a `io.RawIOBase` or a `io.BufferedIOBase` object.
 
     :param fp: the file-like object to defuse.
     :param rewind: if `True` the file-like object is rewound after defusing.
+    :return: the file-like object or its wrapper buffered reader.
     """
-    if rewind:
-        if not hasattr(fp, 'seekable') or not fp.seekable():
-            raise XMLResourceError("Can't rewind a non-seekable file-like object.")
+    if rewind and not fp.seekable():
+        if isinstance(fp, io.RawIOBase):
+            # Wrap a not seekable raw IO object in a BufferedReader
+            fp = io.BufferedReader(fp)
+        elif isinstance(fp, io.BufferedIOBase):
+            # Other not seekable BufferedIOBase resources are wrapped in
+            # a custom reader with an initial buffer of 64KiB bytes.
+            fp = DefusableReader(fp)
+        else:
+            msg = f"can't defuse {fp!r}: it can't be rewound after the check"
+            raise XMLResourceError(msg)
 
     parser = SafeExpatParser()
     try:
@@ -55,6 +71,7 @@ def defuse_xml(fp: IOType, rewind: bool = True) -> None:
                 break
     except SAXParseException:
         pass  # the purpose is to defuse not to check xml source syntax
-    finally:
-        if rewind:
-            fp.seek(0)
+
+    if rewind:
+        fp.seek(0)
+    return fp

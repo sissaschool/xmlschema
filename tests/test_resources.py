@@ -17,7 +17,6 @@ import pathlib
 import platform
 import warnings
 from io import StringIO, BytesIO
-from urllib.error import URLError
 from urllib.request import urlopen
 from urllib.parse import urlsplit, uses_relative
 from pathlib import Path, PurePath, PureWindowsPath
@@ -120,10 +119,10 @@ class TestResources(unittest.TestCase):
         self.assertIn('argument must contain a not empty string', str(ctx.exception))
 
         wrong_path = casepath('resources/dummy_file.txt')
-        self.assertRaises(URLError, fetch_resource, wrong_path)
+        self.assertRaises(OSError, fetch_resource, wrong_path)
 
         wrong_path = casepath('/home/dummy_file.txt')
-        self.assertRaises(URLError, fetch_resource, wrong_path)
+        self.assertRaises(OSError, fetch_resource, wrong_path)
 
         filepath = casepath('resources/dummy file.txt')
         self.assertTrue(fetch_resource(filepath).endswith('dummy%20file.txt'))
@@ -573,10 +572,11 @@ class TestResources(unittest.TestCase):
             with self.assertRaises(XMLResourceForbidden):
                 defuse_xml(fp)
 
-            # If XMLResource used fp.url for defusing not-seekable
-            # resources the defuse checks would pass silently.
+            # If XMLResource use fp.url attribute for defusing not-seekable
+            # resources the defuse checks would pass silently
             with urlopen(fp.url) as fp2:
-                self.assertIsNone(defuse_xml(fp2))
+                self.assertTrue(fp2.seekable())
+                self.assertIs(defuse_xml(fp2), fp2)
 
     def test_xml_resource_defuse_nonlocal(self):
         xml_file = casepath('resources/external_entity.xml')

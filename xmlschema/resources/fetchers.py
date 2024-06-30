@@ -9,22 +9,20 @@
 #
 from typing import Optional, Tuple, Union
 from urllib.request import urlopen
-from urllib.error import URLError
 
-from xmlschema.exceptions import XMLSchemaValueError
 from xmlschema.names import XSD_NAMESPACE
 from xmlschema.aliases import NsmapType, NormalizedLocationsType, \
     LocationsType, XMLSourceType, UriMapperType
 from xmlschema.locations import normalize_url
 
-from .exceptions import XMLResourceError
+from .exceptions import XMLResourceError, XMLResourceValueError, XMLResourceOSError
 from .xml_resource import XMLResource
 
 
 def fetch_resource(location: str, base_url: Optional[str] = None, timeout: int = 30) -> str:
     """
     Fetches a resource by trying to access it. If the resource is accessible
-    returns its normalized URL, otherwise raises an `urllib.error.URLError`.
+    returns its normalized URL, otherwise raises an `XMLResourceOSError`.
 
     :param location: a URL or a file path.
     :param base_url: reference base URL for normalizing local and relative URLs.
@@ -32,20 +30,23 @@ def fetch_resource(location: str, base_url: Optional[str] = None, timeout: int =
     :return: a normalized URL.
     """
     if not location:
-        raise XMLSchemaValueError("the 'location' argument must contain a not empty string")
+        raise XMLResourceValueError("the 'location' argument must contain a not empty string")
 
     url = normalize_url(location, base_url)
     try:
         with urlopen(url, timeout=timeout):
             return url
-    except URLError:
+    except OSError as err:
         if url == normalize_url(location):
-            raise
-        else:
-            # fallback using the location without a base URL
-            alt_url = normalize_url(location)
+            raise XMLResourceOSError(err)
+
+        # fallback using the location without a base URL
+        alt_url = normalize_url(location)
+        try:
             with urlopen(alt_url, timeout=timeout):
                 return alt_url
+        except OSError:
+            raise XMLResourceOSError(err) from err
 
 
 def fetch_schema_locations(source: Union['XMLResource', XMLSourceType],
@@ -83,7 +84,7 @@ def fetch_schema_locations(source: Union['XMLResource', XMLSourceType],
 
     locations = resource.get_locations(locations, root_only=root_only)
     if not locations:
-        raise XMLSchemaValueError("provided arguments don't contain any schema location hint")
+        raise XMLResourceValueError("provided arguments don't contain any schema location hint")
 
     namespace = resource.namespace
     for ns, location in sorted(locations, key=lambda x: x[0] != namespace):
@@ -96,7 +97,7 @@ def fetch_schema_locations(source: Union['XMLResource', XMLSourceType],
         if resource.namespace == XSD_NAMESPACE and resource.url:
             return resource.url, locations
     else:
-        raise XMLSchemaValueError("not found a schema for provided XML source")
+        raise XMLResourceValueError("not found a schema for provided XML source")
 
 
 def fetch_schema(source: Union['XMLResource', XMLSourceType],

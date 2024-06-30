@@ -19,10 +19,6 @@ class XMLResourceError(XMLSchemaException):
     """
 
 
-class XMLResourceOSError(XMLResourceError, OSError):
-    """Raised when an error is found accessing an XML resource."""
-
-
 class XMLResourceParseError(XMLResourceError, ParseError):
     """Raised when an error is found parsing an XML resource."""
 
@@ -33,3 +29,19 @@ class XMLResourceBlocked(XMLResourceError):
 
 class XMLResourceForbidden(XMLResourceError):
     """Raised when the parsing of an XML resource is forbidden for safety reasons."""
+
+
+class XMLResourceAttributeError(XMLResourceError, AttributeError):
+    pass
+
+
+class XMLResourceOSError(XMLResourceError, OSError):
+    pass
+
+
+class XMLResourceTypeError(XMLResourceError, TypeError):
+    pass
+
+
+class XMLResourceValueError(XMLResourceError, ValueError):
+    pass

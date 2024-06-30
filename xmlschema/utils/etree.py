@@ -13,6 +13,12 @@ from typing import Any, Callable, Iterator, Optional, Tuple
 from xmlschema.names import XSI_SCHEMA_LOCATION, XSI_NONS_SCHEMA_LOCATION
 from xmlschema.aliases import ElementType, NsmapType
 from xmlschema.utils.qnames import get_namespace, get_prefixed_qname
+from xmlschema.utils.decorators import catchable_xmlschema_error
+
+from elementpath.etree import etree_tostring as _etree_tostring
+
+# Import API from elementpath
+etree_tostring = catchable_xmlschema_error(_etree_tostring)
 
 
 def is_etree_element(obj: object) -> bool:

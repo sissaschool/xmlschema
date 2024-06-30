@@ -11,7 +11,7 @@
 Type aliases for static typing analysis. In a type checking context the aliases
 are defined from effective classes imported from package modules. In a runtime
 context the aliases that can't be set from the same bases, due to circular
-imports, are set with a common dummy subscriptable type to keep compatibility.
+imports, are set with a common.
 """
 from decimal import Decimal
 from pathlib import Path

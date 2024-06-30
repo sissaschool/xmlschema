@@ -7,7 +7,8 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from typing import AnyStr, IO, List, Protocol
+from types import TracebackType
+from typing import AnyStr, IO, List, Optional, Protocol, Type
 
 
 class IOProtocol(Protocol[AnyStr]):
@@ -23,6 +24,9 @@ class IOProtocol(Protocol[AnyStr]):
     def seek(self, offset: int, whence: int = ...) -> int: ...
     def seekable(self) -> bool: ...
     def tell(self) -> int: ...
+    def __enter__(self) -> 'IOProtocol[AnyStr]': ...
+    def __exit__(self, exc_type: Optional[Type[BaseException]],
+                 exc_val: Optional[BaseException], exc_tb: Optional[TracebackType]) -> None: ...
 
 
 class FileWrapperProtocol(IOProtocol[AnyStr], Protocol[AnyStr]):

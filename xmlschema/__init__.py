@@ -7,8 +7,6 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from elementpath.etree import etree_tostring
-
 from . import limits
 from . import translation
 from .exceptions import XMLSchemaException
@@ -23,6 +21,7 @@ from .dataobjects import DataElement, DataElementConverter, DataBindingConverter
 from .documents import validate, is_valid, iter_errors, iter_decode, \
     to_dict, to_json, to_etree, from_json, XmlDocument
 from .exports import download_schemas
+from .utils.etree import etree_tostring
 
 from .validators import (
     XMLSchemaValidatorError, XMLSchemaParseError, XMLSchemaNotBuiltError,

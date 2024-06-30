@@ -30,7 +30,7 @@ from xmlschema.utils.qnames import get_namespace, get_qname, local_name, \
     get_prefixed_qname, get_extended_qname, update_namespaces
 from xmlschema.utils.logger import set_logging_level, logged
 from xmlschema.utils.decoding import raw_xml_encode, count_digits, strictly_equal
-from xmlschema.utils.misc import deprecated, will_change
+from xmlschema.utils.decorators import deprecated, will_change
 
 from xmlschema.testing import iter_nested_items, etree_elements_assert_equal
 from xmlschema.validators.exceptions import XMLSchemaValidationError
