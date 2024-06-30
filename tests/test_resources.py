@@ -17,7 +17,8 @@ import pathlib
 import platform
 import warnings
 from io import StringIO, BytesIO
-from urllib.request import urlopen
+from urllib.request import urlopen, build_opener, FileHandler
+from urllib.response import addinfourl
 from urllib.parse import urlsplit, uses_relative
 from pathlib import Path, PurePath, PureWindowsPath
 from xml.etree import ElementTree
@@ -1360,6 +1361,31 @@ class TestResources(unittest.TestCase):
 
         resource = XMLResource(urn, uri_mapper=uri_mapper)
         self.assertEqual(resource.url[-30:], 'examples/vehicles/vehicles.xsd')
+
+    def test_opener_argument(self):
+
+        class NoSeekFile(addinfourl):
+            def seekable(self): return False
+            def seek(self, pos, whence=0): return pos
+
+        class MyFileHandler(FileHandler):
+            def file_open(self, req):
+                obj = super().file_open(req)
+                if not isinstance(obj, addinfourl):
+                    return obj
+                return NoSeekFile(open(obj.fp.name, 'rb'), obj.headers, obj.url)
+
+        opener = build_opener(MyFileHandler)
+
+        resource = XMLResource(self.vh_xml_file, opener=opener)
+        fp = resource.open()
+        self.assertIsInstance(fp, NoSeekFile)
+
+        resource = XMLResource(self.vh_xml_file, opener=opener, defuse='always')
+        fp = resource.open()
+        self.assertIsInstance(fp, NoSeekFile)
+        self.assertFalse(fp.seekable())
+        self.assertEqual(fp.tell(), 0)  # File not used for defusing XML data
 
 
 if __name__ == '__main__':

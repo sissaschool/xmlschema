@@ -388,9 +388,17 @@ class XMLResource(_ResourceLoader):
             raise XMLResourceError(msg)
 
         if self.is_defused():
-            if fp.seekable() or isinstance(fp, (io.RawIOBase, io.BufferedIOBase)):
+            if fp.seekable():
                 return defuse_xml(fp)
-            elif self.url is not None:
+            elif isinstance(fp, (io.RawIOBase, io.BufferedIOBase)):
+                # For file-like objects that can be wrapped in a buffered reader
+                # defuse with rewind option if no custom opener is provided and
+                # the instance has an url, otherwise fallback to double opening.
+                # with no rewind after the defusing.
+                if self._opener is None or self.url is None:
+                    return defuse_xml(fp)
+
+            if self.url is not None:
                 # If the file-like object is created from a URL, create a new
                 # file-like object for defusing XML data. This may not be as
                 # safe as defusing a resource using buffered data.
