@@ -31,7 +31,7 @@ except ImportError:
 from xmlschema import fetch_namespaces, fetch_resource, fetch_schema, \
     fetch_schema_locations, XMLResource, XMLResourceError, XMLSchema
 from xmlschema.names import XSD_NAMESPACE
-from xmlschema.utils.etree import is_etree_element
+from xmlschema.utils.etree import is_etree_element, is_lxml_element
 from xmlschema.testing import SKIP_REMOTE_TESTS
 from xmlschema.locations import normalize_url
 from xmlschema.resources import defuse_xml, XMLResourceForbidden
@@ -1386,6 +1386,81 @@ class TestResources(unittest.TestCase):
         self.assertIsInstance(fp, NoSeekFile)
         self.assertFalse(fp.seekable())
         self.assertEqual(fp.tell(), 0)  # File not used for defusing XML data
+
+    def test_iterparse_argument(self):
+        resource = XMLResource(self.vh_xml_file, iterparse=ElementTree.iterparse)
+
+        k = 0
+        for k, elem in enumerate(resource.root.iter(), start=1):
+            self.assertTrue(is_etree_element(elem))
+            self.assertFalse(is_lxml_element(elem))
+            self.assertIsInstance(elem, ElementTree.Element)
+            if k == 0:
+                self.assertIs(elem, resource.root)
+
+        self.assertEqual(k, 7)
+
+    def test_iterparse_argument_with_parser_instance(self):
+
+        def iterparse(fp, events):
+            builder = ElementTree.TreeBuilder(insert_comments=True)
+            parser = ElementTree.XMLParser(target=builder)
+            return ElementTree.iterparse(fp, events=events, parser=parser)
+
+        resource = XMLResource(self.vh_xml_file, iterparse=iterparse)
+
+        k = 0
+        for k, elem in enumerate(resource.root.iter(), start=1):
+            self.assertTrue(is_etree_element(elem))
+            self.assertFalse(is_lxml_element(elem))
+            self.assertIsInstance(elem, ElementTree.Element)
+            if k == 0:
+                self.assertIs(elem, resource.root)
+            elif k == 4:
+                self.assertTrue(callable(elem.tag))  # <!-- Comment -->
+
+        self.assertEqual(k, 8)
+
+    @unittest.skipIf(lxml_etree is None, "Skip: lxml is not available.")
+    def test_iterparse_argument_with_lxml(self):
+        resource = XMLResource(self.vh_xml_file, iterparse=lxml_etree.iterparse)
+
+        k = 0
+        for k, elem in enumerate(resource.root.iter(), start=1):
+            self.assertTrue(is_lxml_element(elem))
+            self.assertIsInstance(elem, lxml_etree._Element)
+            if k == 0:
+                self.assertIs(elem, resource.root)
+            elif k == 4:
+                self.assertTrue(callable(elem.tag))  # <!-- Comment -->
+
+        self.assertEqual(k, 8)
+
+    @unittest.skipIf(lxml_etree is None, "Skip: lxml is not available.")
+    def test_iterparse_argument_for_html(self):
+
+        def iterparse(fp, events):
+            return lxml_etree.iterparse(fp, events=events, html=True)
+
+        html_source = (b"<html><head><title>page title</title></head>"
+                       b"<body><p>foo<p>bar</body></html>")
+
+        with self.assertRaises(XMLResourceError) as ctx:
+            XMLResource(html_source, iterparse=lxml_etree.iterparse)
+        self.assertIn("Opening and ending tag mismatch", str(ctx.exception))
+
+        resource = XMLResource(html_source, iterparse=iterparse)
+        self.assertTrue(is_lxml_element(resource.root))
+        self.assertEqual(resource.root.tag, 'html')
+
+        k = 0
+        for k, elem in enumerate(resource.root.iter(), start=1):
+            self.assertTrue(is_lxml_element(elem))
+            self.assertIsInstance(elem, lxml_etree._Element)
+            if k == 0:
+                self.assertIs(elem, resource.root)
+
+        self.assertEqual(k, 6)
 
 
 if __name__ == '__main__':
