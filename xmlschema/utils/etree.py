@@ -64,7 +64,7 @@ def etree_iterpath(elem: ElementType,
     if tag == "*":
         tag = None
     if not path:
-        path = '../../tests'
+        path = '.'
     if tag is None or elem.tag == tag:
         yield elem, path
 
@@ -109,7 +109,7 @@ def etree_getpath(elem: ElementType,
     :return: An XPath expression or `None` if *elem* is not a descendant of *root*.
     """
     if relative:
-        path = '../../tests'
+        path = '.'
     elif namespaces:
         path = f'/{get_prefixed_qname(root.tag, namespaces)}'
     else:
