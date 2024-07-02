@@ -706,10 +706,7 @@ class XmlDocument(XMLResource):
             kwargs['namespaces'] = self.namespaces
         else:
             namespaces: Optional[Dict[Optional[str], str]]
-            if self.namespaces is None:
-                namespaces = {}
-            else:
-                namespaces = {k: v for k, v in self.namespaces.items()}
+            namespaces = {k: v for k, v in self.namespaces.items()}
 
             if hasattr(self.root, 'nsmap'):
                 # noinspection PyTypeChecker

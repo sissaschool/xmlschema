@@ -24,8 +24,8 @@ try:
 except ImportError:
     lxml_etree = None
 
-from xmlschema import XMLSchema10, XMLSchema11, XmlDocument, \
-    XMLResourceError, XMLSchemaValidationError, XMLSchemaDecodeError, \
+from xmlschema import XMLSchema10, XMLSchema11, XmlDocument, XMLResourceError, \
+    XMLSchemaValidationError, XMLSchemaDecodeError, XMLSchemaChildrenValidationError, \
     to_json, from_json, validate, XMLSchemaParseError, is_valid, to_dict, \
     to_etree, JsonMLConverter
 
@@ -444,10 +444,12 @@ class TestXmlDocuments(unittest.TestCase):
             self.assertIs(xml_document.schema, schema)
 
             col_file_path.unlink()
+
+            # Remapping default namespace can invalidate elements defined as unqualified.
             xml_document.write(str(col_file_path),
                                default_namespace="http://example.com/ns/collection")
-            xml_document = XmlDocument(str(col_file_path), schema=schema)
-            self.assertIs(xml_document.schema, schema)
+            with self.assertRaises(XMLSchemaChildrenValidationError):
+                XmlDocument(str(col_file_path), schema=schema)
 
             if lxml_etree is not None:
                 col_file_path.unlink()
