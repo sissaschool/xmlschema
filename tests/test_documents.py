@@ -283,8 +283,11 @@ class TestXmlDocuments(unittest.TestCase):
         xml_document = XmlDocument(self.vh_xml_file, vh_schema)
         self.assertIsInstance(xml_document.schema, XMLSchema10)
 
+        xml_document = XmlDocument(self.vh_xml_file, self.col_xsd_file)
+        self.assertIsInstance(xml_document.schema, XMLSchema10)
+
         with self.assertRaises(XMLSchemaValidationError) as ctx:
-            XmlDocument(self.vh_xml_file, self.col_xsd_file)
+            XmlDocument(self.vh_xml_file, self.col_xsd_file, use_location_hints=False)
         self.assertIn('is not an element of the schema', str(ctx.exception))
 
         xml_document = XmlDocument(self.col_xml_file)
@@ -303,7 +306,7 @@ class TestXmlDocuments(unittest.TestCase):
 
         with self.assertRaises(ValueError) as ctx:
             XmlDocument(xml_file, validation='foo')
-        self.assertEqual(str(ctx.exception), "'foo' is not a validation mode")
+        self.assertIn("invalid value 'foo' for argument 'validation'", str(ctx.exception))
 
     def test_xml_document_init_without_schema(self):
         with self.assertRaises(ValueError) as ctx:
@@ -312,16 +315,14 @@ class TestXmlDocuments(unittest.TestCase):
                       str(ctx.exception))
 
         xml_document = XmlDocument('<empty/>', validation='skip')
-        self.assertIsNone(xml_document.schema)
-        self.assertIsInstance(xml_document._fallback_schema, XMLSchema10)
-        self.assertEqual(xml_document._fallback_schema.target_namespace, '')
+        self.assertIsInstance(xml_document.schema, XMLSchema10)
+        self.assertEqual(xml_document.schema.target_namespace, '')
 
         xml_document = XmlDocument(
             '<tns:empty xmlns:tns="http://example.com/ns" />', validation='skip'
         )
-        self.assertIsNone(xml_document.schema)
-        self.assertIsInstance(xml_document._fallback_schema, XMLSchema10)
-        self.assertEqual(xml_document._fallback_schema.target_namespace, xml_document.namespace)
+        self.assertIsInstance(xml_document.schema, XMLSchema10)
+        self.assertEqual(xml_document.schema.target_namespace, xml_document.namespace)
 
     def test_xml_document_parse(self):
         xml_document = XmlDocument(self.vh_xml_file)
@@ -448,8 +449,8 @@ class TestXmlDocuments(unittest.TestCase):
             # Remapping default namespace can invalidate elements defined as unqualified.
             xml_document.write(str(col_file_path),
                                default_namespace="http://example.com/ns/collection")
-            with self.assertRaises(XMLSchemaChildrenValidationError):
-                XmlDocument(str(col_file_path), schema=schema)
+            xml_document = XmlDocument(str(col_file_path), schema=schema)
+            self.assertIs(xml_document.schema, schema)
 
             if lxml_etree is not None:
                 col_file_path.unlink()

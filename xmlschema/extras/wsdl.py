@@ -476,16 +476,17 @@ class Wsdl11Document(XmlDocument):
     :param locations: resource location hints, that can be a dictionary or a \
     sequence of couples (namespace URI, resource URL).
     :param base_url: the base URL for base :class:`xmlschema.XMLResource` initialization.
-    :param allow: the security mode for base :class:`xmlschema.XMLResource` initialization.
-    :param defuse: the defuse mode for base :class:`xmlschema.XMLResource` initialization.
-    :param timeout: the timeout for base :class:`xmlschema.XMLResource` initialization.
+    :param kwargs: other optional arguments for initializing :class:`XMLResource` base \
+    class or building :class:`XMLSchema` instances provided as keyword arguments.
     """
     target_namespace = ''
     soap_binding = False
 
     def __init__(self, source, schema=None, cls=None, validation='strict',
-                 namespaces=None, maps=None, locations=None, base_url=None,
-                 allow='all', defuse='remote', timeout=300):
+                 namespaces=None, maps=None, locations=None, base_url=None, **kwargs):
+
+        if kwargs.get('lazy'):
+            raise WsdlParseError(f"{self.__class__!r} instance cannot be lazy")
 
         if maps is not None:
             self.maps = maps
@@ -520,10 +521,24 @@ class Wsdl11Document(XmlDocument):
             namespaces=namespaces,
             locations=locations,
             base_url=base_url,
-            allow=allow,
-            defuse=defuse,
-            timeout=timeout,
+            **kwargs,
         )
+        self.target_namespace = self.root.get('targetNamespace', '')
+        self.soap_binding = SOAP_NAMESPACE in self.namespaces.values()
+
+        if self.namespace == XSD_NAMESPACE:
+            self.schema.__class__(self, global_maps=self.schema.maps, locations=self.locations)
+            return
+
+        if self is self.maps.wsdl_document:
+            self.maps.clear()
+
+        self._parse_imports()
+        self._parse_types()
+        self._parse_messages()
+        self._parse_port_types()
+        self._parse_bindings()
+        self._parse_services()
 
     @property
     def imports(self):
@@ -549,28 +564,6 @@ class Wsdl11Document(XmlDocument):
     def services(self):
         """WSDL 1.1 services."""
         return self.maps.services
-
-    def parse(self, source, lazy=False):
-        if lazy:
-            raise WsdlParseError(f"{self.__class__!r} instance cannot be lazy")
-
-        super().parse(source, lazy)
-        self.target_namespace = self.root.get('targetNamespace', '')
-        self.soap_binding = SOAP_NAMESPACE in self.namespaces.values()
-
-        if self.namespace == XSD_NAMESPACE:
-            self.schema.__class__(self, global_maps=self.schema.maps, locations=self.locations)
-            return
-
-        if self is self.maps.wsdl_document:
-            self.maps.clear()
-
-        self._parse_imports()
-        self._parse_types()
-        self._parse_messages()
-        self._parse_port_types()
-        self._parse_bindings()
-        self._parse_services()
 
     def parse_error(self, message):
         if self.validation == 'strict':

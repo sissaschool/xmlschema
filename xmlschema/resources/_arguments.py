@@ -11,7 +11,7 @@ import io
 import os
 from collections.abc import MutableMapping
 from pathlib import Path
-from typing import cast, overload, Any, Optional, Type, TYPE_CHECKING, Union
+from typing import cast, overload, Any, Optional, Type, TYPE_CHECKING, TypeVar, Union
 from urllib.request import OpenerDirector
 from xml.etree import ElementTree
 
@@ -19,7 +19,8 @@ if TYPE_CHECKING:
     from .xml_resource import XMLResource
 
 from xmlschema.aliases import XMLSourceType, UriMapperType, IterparseType
-from xmlschema.utils.descriptors import Argument, ChoiceArgument, ValueArgument
+from xmlschema.translation import gettext as _
+from xmlschema.utils.arguments import Argument, ChoiceArgument, ValueArgument
 from xmlschema.utils.etree import is_etree_element, is_etree_document
 from xmlschema.utils.streams import is_file_object
 from xmlschema.utils.urls import is_url
@@ -29,14 +30,18 @@ from .exceptions import XMLResourceAttributeError, XMLResourceTypeError, XMLReso
 DEFUSE_MODES = frozenset(('never', 'remote', 'nonlocal', 'always'))
 SECURITY_MODES = frozenset(('all', 'remote', 'local', 'sandbox', 'none'))
 
-
-class _ResourceErrorMixin:
-    _attribute_error = XMLResourceAttributeError
-    _value_error = XMLResourceValueError
-    _type_error = XMLResourceTypeError
+CT = TypeVar('CT', bound=Type[Argument[Any]])
 
 
-class SourceArgument(_ResourceErrorMixin, Argument[XMLSourceType]):
+def xml_resource_errors(cls: CT) -> CT:
+    setattr(cls, '_attribute_error', XMLResourceAttributeError)
+    setattr(cls, '_type_error', XMLResourceTypeError)
+    setattr(cls, '_value_error', XMLResourceValueError)
+    return cls
+
+
+@xml_resource_errors
+class SourceArgument(Argument[XMLSourceType]):
     """The XML data source."""
 
     def __init__(self) -> None:
@@ -49,11 +54,12 @@ class SourceArgument(_ResourceErrorMixin, Argument[XMLSourceType]):
         value = super().validated_value(value)
         if is_etree_document(value):
             if value.getroot() is None:
-                raise XMLResourceValueError("source XML document is empty")
+                raise self._value_error(_("source XML document is empty"))
         return cast(XMLSourceType, value)
 
 
-class BaseUrlArgument(_ResourceErrorMixin, Argument[Optional[str]]):
+@xml_resource_errors
+class BaseUrlArgument(Argument[Optional[str]]):
     """The effective base URL used for completing relative locations."""
 
     def __init__(self) -> None:
@@ -81,7 +87,8 @@ class BaseUrlArgument(_ResourceErrorMixin, Argument[Optional[str]]):
         if value is None:
             return None
         elif not is_url(value):
-            raise XMLResourceValueError(f"invalid value {value!r} for argument {self._name!r}")
+            msg = _("invalid value {!r} for argument {!r}")
+            raise self._value_error(msg.format(value, self._name))
         elif isinstance(value, str):
             return value
         elif isinstance(value, bytes):
@@ -90,49 +97,57 @@ class BaseUrlArgument(_ResourceErrorMixin, Argument[Optional[str]]):
             return str(value)
 
 
-class AllowArgument(_ResourceErrorMixin, ChoiceArgument[str]):
+@xml_resource_errors
+class AllowArgument(ChoiceArgument[str]):
     """The security mode for accessing resource locations."""
 
     def __init__(self) -> None:
         super().__init__(str, SECURITY_MODES)
 
 
-class DefuseArgument(_ResourceErrorMixin, ChoiceArgument[str]):
+@xml_resource_errors
+class DefuseArgument(ChoiceArgument[str]):
     """When to defuse XML data."""
     def __init__(self) -> None:
         super().__init__(str, DEFUSE_MODES)
 
 
-class TimeoutArgument(_ResourceErrorMixin, ValueArgument[int]):
+@xml_resource_errors
+class TimeoutArgument(ValueArgument[int]):
     """The timeout in seconds for accessing remote resources."""
     def __init__(self) -> None:
         super().__init__(int, min_value=1)
 
 
-class LazyArgument(_ResourceErrorMixin, ValueArgument[Union[bool, int]]):
+@xml_resource_errors
+class LazyArgument(ValueArgument[Union[bool, int]]):
     """Defines if the XML resource is lazy."""
     def __init__(self) -> None:
         super().__init__((bool, int), 0)
 
 
-class ThinLazyArgument(_ResourceErrorMixin, ValueArgument[bool]):
+@xml_resource_errors
+class ThinLazyArgument(ValueArgument[bool]):
     """Defines if the resource is lazy and thin."""
     def __init__(self) -> None:
         super().__init__(bool)
 
 
-class UriMapperArgument(_ResourceErrorMixin, Argument[Optional[UriMapperType]]):
+@xml_resource_errors
+class UriMapperArgument(Argument[Optional[UriMapperType]]):
     """The optional URI mapper argument for relocating addressed resources."""
     def __init__(self) -> None:
         super().__init__(MutableMapping, (callable,))
 
 
-class OpenerArgument(_ResourceErrorMixin, Argument[Optional[OpenerDirector]]):
+@xml_resource_errors
+class OpenerArgument(Argument[Optional[OpenerDirector]]):
     def __init__(self) -> None:
         super().__init__(OpenerDirector)
 
 
-class IterparseArgument(_ResourceErrorMixin, Argument[Optional[IterparseType]]):
+@xml_resource_errors
+class IterparseArgument(Argument[Optional[IterparseType]]):
     def __init__(self) -> None:
         super().__init__(validators=(callable,))
 

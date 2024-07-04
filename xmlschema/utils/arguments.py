@@ -7,8 +7,12 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from typing import cast, overload, Any, Callable, Generic, Iterable, \
+from typing import cast, overload, Any, Callable, Dict, Generic, Iterable, \
     Optional, Tuple, Type, TypeVar, Union
+
+from xmlschema.exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, \
+    XMLSchemaValueError
+from xmlschema.translation import gettext as _
 
 ClassInfoType = Union[Type[Any], Tuple[Type[Any], ...]]
 
@@ -26,9 +30,9 @@ class Argument(Generic[AT]):
     a single argument and returns True if the argument is valid.
     :param nillable: defines when a `None` value is accepted.
     """
-    _attribute_error = AttributeError
-    _type_error = TypeError
-    _value_error = ValueError
+    _attribute_error = XMLSchemaAttributeError
+    _type_error = XMLSchemaTypeError
+    _value_error = XMLSchemaValueError
 
     def __init__(self, types: Optional[ClassInfoType] = None,
                  validators: Iterable[Callable[[Any], bool]] = (),
@@ -55,11 +59,11 @@ class Argument(Generic[AT]):
 
     def __set__(self, instance: Any, value: Any) -> None:
         if hasattr(instance, self._private_name):
-            raise self._attribute_error(f"Can't set attribute {self._name}")
+            raise self._attribute_error(_("Can't set attribute {}").format(self._name))
         setattr(instance, self._private_name, self.validated_value(value))
 
     def __delete__(self, instance: Any) -> None:
-        raise self._attribute_error(f"Can't delete attribute {self._name}")
+        raise self._attribute_error(_("Can't delete attribute {}").format(self._name))
 
     def validated_value(self, value: Any) -> AT:
         if value is None and self.nillable or \
@@ -67,7 +71,8 @@ class Argument(Generic[AT]):
                 any(func(value) for func in self.validators):
             return cast(AT, value)
         else:
-            raise self._type_error(f"invalid type {type(value)!r} for argument {self._name!r}")
+            msg = _("invalid type {!r} for argument {!r}")
+            raise self._type_error(msg.format(type(value), self._name))
 
 
 class ChoiceArgument(Argument[AT]):
@@ -80,10 +85,8 @@ class ChoiceArgument(Argument[AT]):
     def validated_value(self, value: Any) -> AT:
         value = super().validated_value(value)
         if value not in self.choices:
-            raise self._value_error(
-                f"invalid value {value!r} for argument {self._name!r}: "
-                f"must be one of {tuple(self.choices)}"
-            )
+            msg = _("invalid value {!r} for argument {!r}: must be one of {}")
+            raise self._value_error(msg.format(value, self._name, tuple(self.choices)))
         return cast(AT, value)
 
 
@@ -100,11 +103,25 @@ class ValueArgument(Argument[AT]):
     def validated_value(self, value: Any) -> AT:
         value = super().validated_value(value)
         if self.min_value is not None and value < self.min_value:
-            raise self._value_error(
-                f"the argument {self._name!r} must be greater or equal than {self.min_value}"
-            )
+            msg = _("the argument {!r} must be greater or equal than {}")
+            raise self._value_error(msg.format(self._name, self.min_value))
         elif self.max_value is not None and value > self.max_value:
-            raise self._value_error(
-                f"the argument {self._name!r} must be lesser or equal than {self.max_value}"
-            )
+            msg = _("the argument {!r} must be lesser or equal than {}")
+            raise self._value_error(msg.format(self._name, self.max_value))
         return cast(AT, value)
+
+
+def trim_kwargs(kwargs: Dict[str, Any], cls: Type[Any]) -> Dict[str, Any]:
+    """
+    Trims a dictionary of keyword arguments returning the arguments that match the
+    Argument descriptors defined for class *cls*.
+    """
+    return {k: v for k, v in kwargs.items() if isinstance(getattr(cls, k, None), Argument)}
+
+
+def get_kwargs(obj: Any) -> Dict[str, Any]:
+    """
+    Returns a dictionary of keyword arguments for the initialize object.
+    """
+    cls = obj.__class__
+    return {k: getattr(obj, k) for k, v in cls.__dict__.items() if isinstance(v, Argument)}

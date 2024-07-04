@@ -22,10 +22,11 @@ from xml.etree import ElementTree
 
 from elementpath import XPathToken, XPathContext, XPath2Parser, ElementNode
 
-from xmlschema.aliases import ElementType, NsmapType, \
+from xmlschema.aliases import ElementType, EtreeType, NsmapType, \
     NormalizedLocationsType, LocationsType, XMLSourceType, IOType, \
-    ResourceNodeType, IterparseType, UriMapperType, EtreeType
+    ResourceNodeType, LazyType, IterparseType, UriMapperType
 from xmlschema.utils.paths import LocationPath
+from xmlschema.utils.arguments import get_kwargs
 from xmlschema.utils.etree import etree_tostring, etree_iter_location_hints
 from xmlschema.utils.streams import is_file_object
 from xmlschema.utils.qnames import update_namespaces, get_namespace_map
@@ -111,7 +112,7 @@ class XMLResource(_ResourceLoader):
                  allow: str = 'all',
                  defuse: str = 'remote',
                  timeout: int = 300,
-                 lazy: Union[bool, int] = False,
+                 lazy: LazyType = False,
                  thin_lazy: bool = True,
                  uri_mapper: Optional[UriMapperType] = None,
                  opener: Optional[OpenerDirector] = None,
@@ -256,17 +257,11 @@ class XMLResource(_ResourceLoader):
             if not url.startswith(normalize_url(self._base_url)):
                 raise XMLResourceBlocked(f"block access to out of sandbox file {url}")
 
-    def parse(self, source: XMLSourceType, lazy: Union[bool, int] = False) -> None:
-        other = XMLResource(
-            source,
-            base_url=self._base_url,
-            allow=self._allow,
-            defuse=self._defuse,
-            timeout=self._timeout,
-            lazy=lazy,
-            thin_lazy=self._thin_lazy,
-            uri_mapper=self._uri_mapper,
-        )
+    def parse(self, source: XMLSourceType, lazy: LazyType = False) -> None:
+        kwargs = get_kwargs(self)
+        kwargs['source'] = source
+        kwargs['lazy'] = lazy
+        other = self.__class__(**kwargs)
         self.__dict__ = other.__dict__
         del other
 

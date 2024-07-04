@@ -34,12 +34,12 @@ from xmlschema.utils.etree import etree_iter_location_hints, etree_iter_namespac
 from xmlschema.utils.decoding import raw_xml_encode, strictly_equal
 from xmlschema.utils.qnames import get_qname
 
-from ..namespaces import NamespaceMapper
+from xmlschema.namespaces import NamespaceMapper
 from xmlschema.locations import normalize_url
-from .. import dataobjects
-from ..converters import ElementData, XMLSchemaConverter
-from ..xpath import XMLSchemaProxy, ElementPathMixin, XPathElement
-from ..resources import XMLResource
+from xmlschema import dataobjects
+from xmlschema.converters import ElementData, XMLSchemaConverter
+from xmlschema.xpath import XMLSchemaProxy, ElementPathMixin, XPathElement
+from xmlschema.resources import XMLResource
 
 from .exceptions import XMLSchemaNotBuiltError, XMLSchemaValidationError, \
     XMLSchemaParseError, XMLSchemaStopValidation, XMLSchemaTypeTableWarning

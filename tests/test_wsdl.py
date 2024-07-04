@@ -210,7 +210,7 @@ class TestWsdlDocuments(unittest.TestCase):
 
         with self.assertRaises(ValueError) as ctx:
             Wsdl11Document(WSDL_DOCUMENT_EXAMPLE, validation='invalid')
-        self.assertEqual("'invalid' is not a validation mode", str(ctx.exception))
+        self.assertIn("invalid value 'invalid' for argument", str(ctx.exception))
 
     def test_example3(self):
         original_example3_file = casepath('features/wsdl/wsdl11_example3.wsdl')
@@ -222,7 +222,6 @@ class TestWsdlDocuments(unittest.TestCase):
 
         example3_file = casepath('features/wsdl/wsdl11_example3_valid.wsdl')
         wsdl_document = Wsdl11Document(example3_file)
-
         message_name = '{http://example.com/stockquote.wsdl}SubscribeToQuotes'
         self.assertListEqual(list(wsdl_document.messages), [message_name])
         message = wsdl_document.messages[message_name]

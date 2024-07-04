@@ -9,7 +9,7 @@
 #
 import json
 from io import IOBase, TextIOBase
-from typing import Any, Dict, List, Optional, Type, Union, Tuple, \
+from typing import Any, cast, Dict, List, Optional, Type, Union, Tuple, \
     IO, BinaryIO, TextIO, Iterator
 from xml.etree import ElementTree
 
@@ -17,14 +17,15 @@ from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from xmlschema.names import XSD_NAMESPACE, XSI_TYPE, XSD_SCHEMA
 from xmlschema.aliases import ElementType, NsmapType, LocationsType, SchemaSourceType, \
     ConverterType, DecodeType, EncodeType, JsonDecodeType, XMLSourceType, LazyType
+from xmlschema.translation import gettext as _
+from xmlschema.utils.arguments import trim_kwargs, get_kwargs, Argument, \
+    ChoiceArgument, ValueArgument
 from xmlschema.utils.etree import is_etree_document, etree_tostring
 from xmlschema.utils.qnames import get_extended_qname, update_namespaces, get_namespace_map
 from xmlschema.resources import fetch_schema_locations, XMLResource, XMLResourceError
 from xmlschema.validators import XMLSchema10, XMLSchemaBase, XMLSchemaValidationError
 
 SCHEMA_OPTIONS = {'base_url', 'defuse', 'timeout', 'uri_mapper', 'opener'}
-RESOURCE_OPTIONS = {'base_url', 'defuse', 'timeout', 'lazy', 'thin_lazy',
-                    'uri_mapper', 'opener', 'iterparse'}
 
 
 def get_context(xml_document: Union[XMLSourceType, XMLResource],
@@ -45,17 +46,23 @@ def get_context(xml_document: Union[XMLSourceType, XMLResource],
     if cls is None:
         cls = XMLSchema10
     elif not issubclass(cls, XMLSchemaBase):
-        raise XMLSchemaTypeError("invalid schema class %r" % cls)
+        raise XMLSchemaTypeError(_("invalid schema class {!r}").format(cls))
 
     if isinstance(xml_document, XMLResource):
         resource = xml_document
     else:
-        options = {k: v for k, v in kwargs.items() if k in RESOURCE_OPTIONS}
-        resource = XMLResource(xml_document, base_url, **options)
+        _kwargs = trim_kwargs(kwargs, XMLResource)
+        resource = XMLResource(xml_document, base_url, **_kwargs)
 
-    if isinstance(schema, XMLSchemaBase) and resource.namespace in schema.maps.namespaces:
-        return resource, schema
-    if isinstance(resource, XmlDocument) and isinstance(resource.schema, XMLSchemaBase):
+    if schema is not None:
+        if not isinstance(schema, XMLSchemaBase):
+            options = {k: v for k, v in kwargs.items() if k in SCHEMA_OPTIONS}
+            schema = cls(schema, locations=locations, base_url=base_url, **options)
+
+        if resource.namespace in schema.maps.namespaces:
+            return resource, schema
+
+    if isinstance(resource, XmlDocument) and hasattr(resource, 'schema'):
         return resource, resource.schema
 
     if use_location_hints:
@@ -65,26 +72,18 @@ def get_context(xml_document: Union[XMLSourceType, XMLResource],
             pass
         else:
             options = {k: v for k, v in kwargs.items() if k in SCHEMA_OPTIONS}
-            if schema is None or isinstance(schema, XMLSchemaBase):
-                return resource, cls(schema_location, locations=locations, **options)
-            else:
-                return resource, cls(schema, locations=locations, **options)
+            return resource, cls(schema_location, locations=locations, **options)
 
-    if schema is None:
-        if XSD_NAMESPACE == resource.namespace:
-            assert cls.meta_schema is not None
-            return resource, cls.meta_schema
-        elif dummy_schema or XSI_TYPE in resource.root.attrib:
-            return resource, get_dummy_schema(resource.root.tag, cls)
-        else:
-            msg = "cannot get a schema for XML data, provide a schema argument"
-            raise XMLSchemaValueError(msg)
-
-    elif isinstance(schema, XMLSchemaBase):
-        return resource, schema
+    if isinstance(schema, XMLSchemaBase):
+        return resource, schema  # fallback to a schema for a different namespace
+    elif XSD_NAMESPACE == resource.namespace:
+        assert cls.meta_schema is not None
+        return resource, cls.meta_schema
+    elif dummy_schema or XSI_TYPE in resource.root.attrib:
+        return resource, get_dummy_schema(resource.root.tag, cls)
     else:
-        options = {k: v for k, v in kwargs.items() if k in SCHEMA_OPTIONS}
-        return resource, cls(schema, locations=locations, base_url=base_url, **options)
+        msg = _("cannot get a schema for XML data, provide a schema argument")
+        raise XMLSchemaValueError(msg)
 
 
 def get_dummy_schema(tag: str, cls: Type[XMLSchemaBase]) -> XMLSchemaBase:
@@ -499,6 +498,15 @@ def from_json(source: Union[str, bytes, IO[str]],
     )
 
 
+###
+# XML documents
+
+class ValidationArgument(ChoiceArgument[str]):
+    """The XSD validation mode, can be 'strict', 'lax' or 'skip'."""
+    def __init__(self) -> None:
+        super().__init__(str, ('strict', 'lax', 'skip'))
+
+
 class XmlDocument(XMLResource):
     """
     An XML document bound with its schema. If no schema is get from the provided
@@ -523,9 +531,10 @@ class XmlDocument(XMLResource):
     :param kwargs: other optional arguments for building :class:`XMLResource` or \
     :class:`XMLSchema` instances provided as keyword arguments.
     """
-    schema: Optional[XMLSchemaBase] = None
-    _fallback_schema: Optional[XMLSchemaBase] = None
     errors: Union[Tuple[()], List[XMLSchemaValidationError]] = ()
+
+    validation = ValidationArgument()
+    _validation: str
 
     def __init__(self, source: XMLSourceType,
                  schema: Optional[Union[XMLSchemaBase, SchemaSourceType]] = None,
@@ -537,46 +546,19 @@ class XmlDocument(XMLResource):
                  use_location_hints: bool = True,
                  **kwargs: Any) -> None:
 
-        if cls is None:
-            cls = XMLSchema10
+        _kwargs = trim_kwargs(kwargs, XMLResource)
+        super().__init__(source, base_url, **_kwargs)
+
         self.validation = validation
-        self.namespaces = get_namespace_map(namespaces)
-        options = {k: v for k, v in kwargs.items() if k in RESOURCE_OPTIONS}
-        super().__init__(source, base_url, **options)
+        self._namespaces = get_namespace_map(namespaces)
+        self.namespaces = super().get_namespaces(namespaces, root_only=True)
 
-        if isinstance(schema, XMLSchemaBase) and self.namespace in schema.maps.namespaces:
-            self.schema = schema
-        elif schema is not None and not isinstance(schema, XMLSchemaBase):
-            options = {k: v for k, v in kwargs.items() if k in SCHEMA_OPTIONS}
-            self.schema = cls(source=schema, locations=locations, **options)
-        else:
-            if use_location_hints:
-                try:
-                    schema_location, locations = fetch_schema_locations(
-                        source=self,
-                        locations=locations,
-                        base_url=base_url,
-                        uri_mapper=kwargs.get('uri_mapper'),
-                        root_only=False
-                    )
-                except ValueError:
-                    pass
-                else:
-                    options = {k: v for k, v in kwargs.items() if k in SCHEMA_OPTIONS}
-                    self.schema = cls(schema_location, locations=locations, **options)
+        _self, self.schema = get_context(
+            self, schema, cls, locations, base_url, use_location_hints,
+            dummy_schema=validation == 'skip', **kwargs
+        )
 
-            if self.schema is None:
-                if XSI_TYPE in self.root.attrib:
-                    self.schema = get_dummy_schema(self.root.tag, cls)
-                elif validation != 'skip':
-                    msg = "cannot get a schema for XML data, provide a schema argument"
-                    raise XMLSchemaValueError(msg)
-                else:
-                    self._fallback_schema = get_dummy_schema(self.root.tag, cls)
-
-        if self.schema is None:
-            pass
-        elif validation == 'strict':
+        if validation == 'strict':
             self.schema.validate(self, namespaces=self.namespaces)
         elif validation == 'lax':
             self.errors = [e for e in self.schema.iter_errors(self, namespaces=self.namespaces)]
@@ -584,14 +566,12 @@ class XmlDocument(XMLResource):
             raise XMLSchemaValueError("%r is not a validation mode" % validation)
 
     def parse(self, source: XMLSourceType, lazy: LazyType = False) -> None:
-        kwargs = {name: getattr(self, name) for name in RESOURCE_OPTIONS}
+        kwargs = get_kwargs(self)
+        kwargs['source'] = source
         kwargs['lazy'] = lazy
-
-        other = XmlDocument(
-            source,
+        other = self.__class__(
             schema=self.schema,
-            validation=self.validation,
-            namespaces=self.namespaces,
+            namespaces=self._namespaces,
             **kwargs
         )
         self.__dict__ = other.__dict__
@@ -630,15 +610,11 @@ class XmlDocument(XMLResource):
         :param kwargs: options for the decode/to_dict method of the schema instance.
         """
         if 'validation' not in kwargs:
-            kwargs['validation'] = self.validation
+            kwargs['validation'] = self._validation
         if 'namespaces' not in kwargs:
             kwargs['namespaces'] = self.namespaces
 
-        schema = self.schema or self._fallback_schema
-        if schema is None:
-            return None
-
-        obj = schema.to_dict(self, **kwargs)
+        obj = self.schema.to_dict(self, **kwargs)
         return obj[0] if isinstance(obj, tuple) else obj
 
     def to_json(self, fp: Optional[IO[str]] = None,
@@ -655,7 +631,7 @@ class XmlDocument(XMLResource):
             json_options = {}
         path = kwargs.pop('path', None)
         if 'validation' not in kwargs:
-            kwargs['validation'] = self.validation
+            kwargs['validation'] = self._validation
         if 'namespaces' not in kwargs:
             kwargs['namespaces'] = self.namespaces
         if 'decimal_type' not in kwargs:
@@ -667,12 +643,7 @@ class XmlDocument(XMLResource):
             json_options['cls'] = get_lazy_json_encoder(errors)
             kwargs['lazy_decode'] = True
 
-        schema = self.schema or self._fallback_schema
-        if schema is not None:
-            obj = schema.decode(self, path=path, **kwargs)
-        else:
-            obj = None
-
+        obj = self.schema.decode(self, path=path, **kwargs)
         if isinstance(obj, tuple):
             if fp is not None:
                 json.dump(obj[0], fp, **json_options)

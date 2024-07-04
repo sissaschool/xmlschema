@@ -1987,7 +1987,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         instance plus optionally the XSD element and the XSD type, and returns a \
         new `ElementData` instance.
         :param errors: optional internal collector for validation errors.
-        :param kwargs: keyword arguments with other options for converters.
+        :param kwargs: keyword arguments with other options for building XMLResource \
+        and converter instances.
         :return: yields a decoded data object, eventually preceded by a sequence of \
         validation or decoding errors.
         """
