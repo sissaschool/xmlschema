@@ -37,13 +37,16 @@ class _ResourceLoader:
     _iterparse: IterparseType
 
     # Protected attributes for XML data
-    _xpath_root: Union[None, ElementNode, DocumentNode] = None
+    _xpath_root: Union[None, ElementNode, DocumentNode]
     _nsmaps: Dict[ElementType, Dict[str, str]]
     _xmlns: Dict[ElementType, List[Tuple[str, str]]]
-    _parent_map: Optional[ParentMapType] = None
+    _parent_map: Optional[ParentMapType]
 
     root: ElementType
     """The XML tree root Element."""
+
+    __slots__ = ('root', '_nsmaps', '_xmlns', '_lazy', '_thin_lazy', '_iterparse',
+                 '_xpath_root', '_parent_map', '__dict__')
 
     def __init__(self, source: Union[IOType, EtreeType],
                  lazy: Union[bool, int] = False,

@@ -9,7 +9,7 @@
 #
 import json
 from io import IOBase, TextIOBase
-from typing import Any, cast, Dict, List, Optional, Type, Union, Tuple, \
+from typing import Any, Dict, List, Optional, Type, Union, Tuple, \
     IO, BinaryIO, TextIO, Iterator
 from xml.etree import ElementTree
 
@@ -574,7 +574,8 @@ class XmlDocument(XMLResource):
             namespaces=self._namespaces,
             **kwargs
         )
-        self.__dict__ = other.__dict__
+        for name in self.__slots__:
+            setattr(self, name, getattr(other, name))
         del other
 
     def get_namespaces(self, namespaces: Optional[NsmapType] = None,

@@ -262,7 +262,8 @@ class XMLResource(_ResourceLoader):
         kwargs['source'] = source
         kwargs['lazy'] = lazy
         other = self.__class__(**kwargs)
-        self.__dict__ = other.__dict__
+        for name in self.__slots__:
+            setattr(self, name, getattr(other, name))
         del other
 
     def get_text(self) -> str:
