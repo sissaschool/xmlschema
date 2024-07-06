@@ -54,14 +54,8 @@ def get_context(xml_document: Union[XMLSourceType, XMLResource],
         resource_kwargs = {k: v for k, v in kwargs.items() if k in RESOURCE_KWARGS}
         resource = XMLResource(xml_document, **resource_kwargs)
 
-    if schema is not None:
-        if not isinstance(schema, XMLSchemaBase):
-            schema_kwargs = {k: v for k, v in kwargs.items() if k in SCHEMA_KWARGS}
-            schema = cls(schema, locations=locations, **schema_kwargs)
-
-        if resource.namespace in schema.maps.namespaces:
-            return resource, schema
-
+    if isinstance(schema, XMLSchemaBase) and resource.namespace in schema.maps.namespaces:
+        return resource, schema
     if isinstance(resource, XmlDocument) and hasattr(resource, 'schema'):
         return resource, resource.schema
 
@@ -72,10 +66,18 @@ def get_context(xml_document: Union[XMLSourceType, XMLResource],
             pass
         else:
             schema_kwargs = {k: v for k, v in kwargs.items() if k in SCHEMA_KWARGS}
-            return resource, cls(schema_location, locations=locations, **schema_kwargs)
+            schema_kwargs['locations'] = locations
+
+            if schema is None or isinstance(schema, XMLSchemaBase):
+                return resource, cls(schema_location, **schema_kwargs)
+            else:
+                return resource, cls(schema, **schema_kwargs)
 
     if isinstance(schema, XMLSchemaBase):
         return resource, schema  # fallback to a schema for a different namespace
+    elif schema is not None:
+        schema_kwargs = {k: v for k, v in kwargs.items() if k in SCHEMA_KWARGS}
+        return resource, cls(schema, locations=locations, **schema_kwargs)
     elif XSD_NAMESPACE == resource.namespace:
         assert cls.meta_schema is not None
         return resource, cls.meta_schema
