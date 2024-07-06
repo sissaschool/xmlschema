@@ -13,8 +13,8 @@ from .exceptions import XMLSchemaValidatorError, XMLSchemaParseError, \
     XMLSchemaIncludeWarning, XMLSchemaImportWarning, \
     XMLSchemaTypeTableWarning, XMLSchemaAssertPathWarning
 
-from .xsdbase import XsdValidator, XsdComponent, XsdAnnotation, XsdType, \
-    ValidationMixin
+from .xsdbase import check_validation_mode, XsdValidator, XsdComponent, \
+    XsdAnnotation, XsdType, ValidationMixin
 from .particles import ParticleMixin
 from .assertions import XsdAssert
 from .notations import XsdNotation
@@ -57,5 +57,6 @@ __all__ = [
     'XsdAtomicBuiltin', 'XsdAtomicRestriction', 'Xsd11AtomicRestriction', 'XsdList',
     'XsdUnion', 'Xsd11Union', 'XsdComplexType', 'Xsd11ComplexType', 'ModelVisitor',
     'XsdGroup', 'Xsd11Group', 'XsdElement', 'Xsd11Element', 'XsdAlternative', 'XsdGlobals',
-    'XMLSchemaMeta', 'XMLSchemaBase', 'XMLSchema', 'XMLSchema10', 'XMLSchema11'
+    'XMLSchemaMeta', 'XMLSchemaBase', 'XMLSchema', 'XMLSchema10', 'XMLSchema11',
+    'check_validation_mode'
 ]

@@ -7,7 +7,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from typing import Optional, Tuple, Union
+from typing import Any, Optional, Tuple, Union
 from urllib.request import urlopen
 
 from xmlschema.names import XSD_NAMESPACE
@@ -56,7 +56,8 @@ def fetch_schema_locations(source: Union['XMLResource', XMLSourceType],
                            defuse: str = 'remote',
                            timeout: int = 30,
                            uri_mapper: Optional[UriMapperType] = None,
-                           root_only: bool = True) -> Tuple[str, NormalizedLocationsType]:
+                           root_only: bool = True,
+                           **_kwargs: Any) -> Tuple[str, NormalizedLocationsType]:
     """
     Fetches schema location hints from an XML data source and a list of location hints.
     If an accessible schema location is not found raises a ValueError.
@@ -74,6 +75,7 @@ def fetch_schema_locations(source: Union['XMLResource', XMLSourceType],
     :param uri_mapper: an optional argument for building the schema from location hints.
     :param root_only: if `True` extracts from the XML source only the location hints \
     of the root element.
+    :param _kwargs: unused keyword arguments.
     :return: A 2-tuple with the URL referring to the first reachable schema resource \
     and a list of dictionary items with normalized location hints.
     """
@@ -107,7 +109,8 @@ def fetch_schema(source: Union['XMLResource', XMLSourceType],
                  defuse: str = 'remote',
                  timeout: int = 30,
                  uri_mapper: Optional[UriMapperType] = None,
-                 root_only: bool = True) -> str:
+                 root_only: bool = True,
+                 **_kwargs: Any) -> str:
     """
     Like :meth:`fetch_schema_locations` but returns only the URL of a loadable XSD
     schema from location hints fetched from the source or provided by argument.
@@ -121,7 +124,8 @@ def fetch_namespaces(source: XMLSourceType,
                      allow: str = 'all',
                      defuse: str = 'remote',
                      timeout: int = 30,
-                     root_only: bool = False) -> NsmapType:
+                     root_only: bool = False,
+                     **_kwargs: Any) -> NsmapType:
     """
     Fetches namespaces information from the XML data source. The argument *source*
     can be a string containing the XML document or file path or an url or a file-like

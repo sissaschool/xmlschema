@@ -13,7 +13,7 @@ import os.path
 from collections import deque
 from io import StringIO, BytesIO
 from pathlib import Path
-from typing import cast, Any, Optional, IO, Iterator, \
+from typing import cast, Any, Dict, Optional, IO, Iterator, \
     List, MutableMapping, Union, Tuple
 from urllib.request import urlopen, OpenerDirector
 from urllib.parse import urlsplit, unquote
@@ -26,7 +26,6 @@ from xmlschema.aliases import ElementType, EtreeType, NsmapType, \
     NormalizedLocationsType, LocationsType, XMLSourceType, IOType, \
     ResourceNodeType, LazyType, IterparseType, UriMapperType
 from xmlschema.utils.paths import LocationPath
-from xmlschema.utils.arguments import get_kwargs
 from xmlschema.utils.etree import etree_tostring, etree_iter_location_hints
 from xmlschema.utils.streams import is_file_object
 from xmlschema.utils.qnames import update_namespaces, get_namespace_map
@@ -36,9 +35,9 @@ from xmlschema.locations import normalize_url, normalize_locations
 from .exceptions import XMLResourceError, XMLResourceOSError, XMLResourceTypeError, \
     XMLResourceValueError, XMLResourceBlocked
 from .sax import defuse_xml
-from ._arguments import SourceArgument, BaseUrlArgument, AllowArgument, \
+from .arguments import Argument, SourceArgument, BaseUrlArgument, AllowArgument, \
     DefuseArgument, TimeoutArgument, UriMapperArgument, OpenerArgument
-from ._loader import _ResourceLoader
+from .loader import _ResourceLoader
 
 if sys.version_info < (3, 9):
     from typing import Deque
@@ -258,13 +257,18 @@ class XMLResource(_ResourceLoader):
                 raise XMLResourceBlocked(f"block access to out of sandbox file {url}")
 
     def parse(self, source: XMLSourceType, lazy: LazyType = False) -> None:
-        kwargs = get_kwargs(self)
+        kwargs = self.get_arguments()
         kwargs['source'] = source
         kwargs['lazy'] = lazy
         other = self.__class__(**kwargs)
         for name in self.__slots__:
             setattr(self, name, getattr(other, name))
         del other
+
+    def get_arguments(self) -> Dict[str, Any]:
+        """Returns keyword arguments for rebuilding the XML resource."""
+        return {k: getattr(self, k) for k, v in self.__class__.__dict__.items()
+                if isinstance(v, Argument)}
 
     def get_text(self) -> str:
         """

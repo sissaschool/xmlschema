@@ -34,8 +34,8 @@ from xmlschema.names import XSD_NAMESPACE
 from xmlschema.utils.etree import is_etree_element, is_lxml_element
 from xmlschema.testing import SKIP_REMOTE_TESTS
 from xmlschema.locations import normalize_url
-from xmlschema.resources import defuse_xml, XMLResourceForbidden
-
+from xmlschema.resources import XMLResourceForbidden
+from xmlschema.resources.sax import defuse_xml
 
 TEST_CASES_DIR = str(pathlib.Path(__file__).absolute().parent.joinpath('test_cases'))
 

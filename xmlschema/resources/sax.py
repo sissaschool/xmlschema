@@ -13,9 +13,9 @@ from xml.sax import expatreader  # type: ignore[attr-defined]
 from xml.dom import pulldom
 
 from xmlschema.aliases import IOType
-from xmlschema.utils.decorators import catchable_resource_error
 from xmlschema.utils.streams import DefusableReader
-from .exceptions import XMLResourceError, XMLResourceForbidden
+from .exceptions import XMLResourceError, XMLResourceForbidden, XMLResourceOSError, \
+    XMLResourceTypeError, XMLResourceValueError
 
 
 class SafeExpatParser(expatreader.ExpatParser):  # type: ignore[misc]
@@ -40,7 +40,6 @@ class SafeExpatParser(expatreader.ExpatParser):  # type: ignore[misc]
         self._parser.ExternalEntityRefHandler = self.forbid_external_entity_reference
 
 
-@catchable_resource_error
 def defuse_xml(fp: IOType, rewind: bool = True) -> IOType:
     """
     Defuses an XML source using a file-like object. For default the file-like object
@@ -59,7 +58,15 @@ def defuse_xml(fp: IOType, rewind: bool = True) -> IOType:
         elif isinstance(fp, io.BufferedIOBase):
             # Other not seekable BufferedIOBase resources are wrapped in
             # a custom reader with an initial buffer of 64KiB bytes.
-            fp = DefusableReader(fp)
+            try:
+                fp = DefusableReader(fp)
+            except (OSError, TypeError, ValueError) as err:
+                if isinstance(err, OSError):
+                    raise XMLResourceOSError(err)
+                elif isinstance(err, TypeError):
+                    raise XMLResourceTypeError(err)
+                else:
+                    raise XMLResourceValueError(err)
         else:
             msg = f"can't defuse {fp!r}: it can't be rewound after the check"
             raise XMLResourceError(msg)
@@ -71,7 +78,13 @@ def defuse_xml(fp: IOType, rewind: bool = True) -> IOType:
                 break
     except SAXParseException:
         pass  # the purpose is to defuse not to check xml source syntax
+    except OSError as err:
+        raise XMLResourceOSError(err)
 
     if rewind:
-        fp.seek(0)
+        try:
+            fp.seek(0)
+        except OSError as err:
+            raise XMLResourceOSError(err)
+
     return fp

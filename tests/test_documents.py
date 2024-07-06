@@ -306,7 +306,8 @@ class TestXmlDocuments(unittest.TestCase):
 
         with self.assertRaises(ValueError) as ctx:
             XmlDocument(xml_file, validation='foo')
-        self.assertIn("invalid value 'foo' for argument 'validation'", str(ctx.exception))
+        self.assertEqual("validation mode can be 'strict', 'lax' or 'skip': 'foo'",
+                         str(ctx.exception))
 
     def test_xml_document_init_without_schema(self):
         with self.assertRaises(ValueError) as ctx:

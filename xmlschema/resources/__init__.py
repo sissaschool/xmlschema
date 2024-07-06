@@ -9,11 +9,10 @@
 #
 from .exceptions import XMLResourceError, XMLResourceParseError, \
     XMLResourceBlocked, XMLResourceForbidden
-from .sax import defuse_xml
 from .xml_resource import XMLResource
 from .fetchers import fetch_resource, fetch_namespaces, \
     fetch_schema_locations, fetch_schema
 
 __all__ = ['XMLResourceError', 'XMLResourceParseError', 'XMLResourceBlocked',
-           'XMLResourceForbidden', 'defuse_xml', 'XMLResource', 'fetch_resource',
+           'XMLResourceForbidden', 'XMLResource', 'fetch_resource',
            'fetch_namespaces', 'fetch_schema_locations', 'fetch_schema']

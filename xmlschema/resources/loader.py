@@ -19,7 +19,7 @@ from xmlschema.aliases import ElementType, ElementTreeType, \
 from xmlschema.utils.qnames import get_namespace
 
 from .exceptions import XMLResourceError, XMLResourceParseError
-from ._arguments import LazyArgument, ThinLazyArgument, IterparseArgument
+from .arguments import LazyArgument, ThinLazyArgument, IterparseArgument
 
 
 class _ResourceLoader:
