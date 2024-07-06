@@ -26,6 +26,7 @@ from operator import attrgetter
 from pathlib import Path
 from typing import cast, Callable, ItemsView, List, Optional, Dict, Any, \
     Set, Union, Tuple, Type, Iterator, Counter
+from urllib.request import OpenerDirector
 from xml.etree.ElementTree import Element, ParseError
 
 from elementpath import XPathToken, SchemaElementNode, build_schema_node_tree
@@ -182,6 +183,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     :param uri_mapper: an optional URI mapper for using relocated or URN-addressed \
     resources. Can be a dictionary or a function that takes the URI string and returns \
     a URL, or the argument if there is no mapping for it.
+    :param opener: an optional :class:`OpenerDirector` to use for open the resource. \
+    For default use the opener installed globally for *urlopen*.
     :param build: defines whether build the schema maps. Default is `True`.
     :param use_meta: if `True` the schema processor uses the validator meta-schema, \
     otherwise a new meta-schema is added at the end. In the latter case the meta-schema \
@@ -316,6 +319,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                  defuse: str = 'remote',
                  timeout: int = 300,
                  uri_mapper: Optional[UriMapperType] = None,
+                 opener: Optional[OpenerDirector] = None,
                  build: bool = True,
                  use_meta: bool = True,
                  use_fallback: bool = True,
@@ -348,7 +352,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             self.source = source
         else:
             self.source = XMLResource(
-                source, base_url, allow, defuse, timeout, uri_mapper=uri_mapper
+                source, base_url, allow, defuse, timeout, uri_mapper=uri_mapper, opener=opener
             )
 
         logger.debug("Read schema from %r", self.source.url or self.source.source)
@@ -636,6 +640,11 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     def uri_mapper(self) -> Optional[UriMapperType]:
         """The optional URI mapper argument for relocating addressed resources."""
         return self.source.uri_mapper
+
+    @property
+    def opener(self) -> Optional[OpenerDirector]:
+        """The optional OpenerDirector argument opening addressed resources."""
+        return self.source.opener
 
     @property
     def use_meta(self) -> bool:
@@ -1279,6 +1288,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 defuse=self.defuse,
                 timeout=self.timeout,
                 uri_mapper=self.uri_mapper,
+                opener=self.opener,
                 build=build,
                 use_xpath3=self.use_xpath3,
             )
@@ -1433,6 +1443,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             defuse=self.defuse,
             timeout=self.timeout,
             uri_mapper=self.uri_mapper,
+            opener=self.opener,
             build=build,
             use_xpath3=self.use_xpath3,
         )
@@ -1475,6 +1486,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             defuse=self.defuse,
             timeout=self.timeout,
             uri_mapper=self.uri_mapper,
+            opener=self.opener,
             build=build,
             use_xpath3=self.use_xpath3,
         )

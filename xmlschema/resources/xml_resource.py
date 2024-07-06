@@ -76,6 +76,11 @@ class XMLResource(_ResourceLoader):
     :param uri_mapper: an optional URI mapper for using relocated or URN-addressed \
     resources. Can be a dictionary or a function that takes the URI string and returns \
     a URL, or the argument if there is no mapping for it.
+    :param opener: an optional :class:`OpenerDirector` to use for open the resource. \
+    For default use the opener installed globally for *urlopen*.
+    :param iterparse: an optional callable that returns an iterator parser that is \
+    used for building the XML resource tree. For default the tree is an *ElementTree* \
+    structure, provide *lxml.etree.iterparse* to build lxml trees.
     """
     # Descriptor-based attributes for arguments
     source = SourceArgument()
