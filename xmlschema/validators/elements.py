@@ -861,6 +861,275 @@ class XsdElement(XsdComponent, ParticleMixin,
             for identity in self.identities:
                 identities[identity].enabled = False
 
+    def decode2(self, obj: ElementType, validation: str = 'lax', **kwargs: Any) \
+            -> Any:
+        """
+        Creates an iterator for decoding an Element instance.
+
+        :param obj: the Element that has to be decoded.
+        :param validation: the validation mode, can be 'lax', 'strict' or 'skip'.
+        :param kwargs: keyword arguments for the decoding process.
+        :return: yields a decoded object, eventually preceded by a sequence of \
+        validation or decoding errors.
+        """
+        error: Union[XMLSchemaValueError, XMLSchemaValidationError]
+        result: Any
+
+        if self.abstract:
+            reason = _("cannot use an abstract element for validation")
+            self.validation_error(validation, reason, obj, **kwargs)
+
+        # Control validation on element and its descendants or stop validation
+        if 'validation_hook' in kwargs:
+            value = kwargs['validation_hook'](obj, self)
+            if value:
+                if isinstance(value, str) and value in XSD_VALIDATION_MODES:
+                    validation = value
+                else:
+                    return None
+
+        kwargs['elem'] = obj
+        try:
+            level = kwargs['level']
+        except KeyError:
+            level = kwargs['level'] = 0
+
+        try:
+            identities = kwargs['identities']
+        except KeyError:
+            identities = kwargs['identities'] = {}
+
+        for identity in self.identities:
+            if identity in identities:
+                identities[identity].reset(obj)
+            else:
+                identities[identity] = identity.get_counter(obj)
+
+        try:
+            converter = kwargs['converter']
+        except KeyError:
+            converter = self._get_converter(obj, kwargs)
+        else:
+            if not isinstance(converter, NamespaceMapper):
+                converter = self._get_converter(obj, kwargs)
+
+        if not level:
+            # Need to set base context with the right object (the resource can be lazy)
+            converter.set_context(obj, level)
+        elif kwargs.get('use_location_hints'):
+            # Use location hints for dynamic schema load
+            errors = list(self.check_dynamic_context(obj, validation, options=kwargs))
+
+        inherited = kwargs.get('inherited')
+        value = content = attributes = None
+        nilled = False
+
+        # Get the instance effective type
+        xsd_type = self.get_type(obj, inherited)
+        if XSI_TYPE in obj.attrib and self.schema.meta_schema is not None:
+            # Meta-schema elements ignore xsi:type (issue #350)
+            type_name = obj.attrib[XSI_TYPE].strip()
+            namespaces = converter.namespaces
+            try:
+                xsd_type = self.maps.get_instance_type(type_name, xsd_type, namespaces)
+            except (KeyError, TypeError) as err:
+                self.validation_error(validation, err, obj, **kwargs)
+            else:
+                if self.identities:
+                    xpath_element = XPathElement(self.name, xsd_type)
+                    for identity in self.identities:
+                        if isinstance(identity.elements, tuple) \
+                                or identity.selector is None:
+                            continue  # Skip unbuilt or incomplete identities
+                        elif identity.selector.token is None:
+                            raise XMLSchemaNotBuiltError(
+                                identity, "identity selector is not built"
+                            )
+
+                        context = XPathContext(root=self.schema.xpath_node, item=xpath_element)
+
+                        for e in identity.selector.token.select_results(context):
+                            if isinstance(e, XsdElement):
+                                if e not in identity.elements:
+                                    identity.elements[e] = None
+                                    e.selected_by.add(identity)
+                            elif not isinstance(e, XsdAnyElement):
+                                reason = _("selector xpath expression can only select elements")
+                                self.validation_error(validation, reason, e, **kwargs)
+
+            if xsd_type.is_blocked(self):
+                reason = _("usage of %r is blocked") % xsd_type
+                self.validation_error(validation, reason, obj, **kwargs)
+
+        if xsd_type.abstract:
+            reason = _("%r is abstract") % xsd_type
+            self.validation_error(validation, reason, obj, **kwargs)
+        if xsd_type.is_complex() and self.xsd_version == '1.1':
+            kwargs['id_list'] = []  # Track XSD 1.1 multiple xs:ID attributes/children
+
+        content_decoder = xsd_type if isinstance(xsd_type, XsdSimpleType) else xsd_type.content
+
+        # Decode attributes
+        attribute_group = self.get_attributes(xsd_type)
+        attributes = attribute_group.decode2(obj.attrib, validation, **kwargs)
+
+        if self.inheritable and any(name in self.inheritable for name in obj.attrib):
+            if inherited:
+                inherited = inherited.copy()
+                inherited.update((k, v) for k, v in obj.attrib.items() if k in self.inheritable)
+            else:
+                inherited = {k: v for k, v in obj.attrib.items() if k in self.inheritable}
+            kwargs['inherited'] = inherited
+
+        # Checks the xsi:nil attribute of the instance
+        if XSI_NIL in obj.attrib:
+            xsi_nil = obj.attrib[XSI_NIL].strip()
+            if not self.nillable:
+                reason = _("element is not nillable")
+                self.validation_error(validation, reason, obj, **kwargs)
+            elif xsi_nil not in ('0', '1', 'false', 'true'):
+                reason = _("xsi:nil attribute must have a boolean value")
+                self.validation_error(validation, reason, obj, **kwargs)
+            elif xsi_nil in ('0', 'false'):
+                pass
+            elif self.fixed is not None:
+                reason = _("xsi:nil='true' but the element has a fixed value")
+                self.validation_error(validation, reason, obj, **kwargs)
+            elif obj.text is not None or len(obj):
+                reason = _("xsi:nil='true' but the element is not empty")
+                self.validation_error(validation, reason, obj, **kwargs)
+            else:
+                nilled = True
+
+        if xsd_type.is_empty() and obj.text and xsd_type.normalize(obj.text):
+            reason = _("character data is not allowed because content is empty")
+            self.validation_error(validation, reason, obj, **kwargs)
+
+        if nilled:
+            pass
+        elif not isinstance(content_decoder, XsdSimpleType):
+            if not isinstance(xsd_type, XsdSimpleType):
+                for assertion in xsd_type.assertions:
+                    for error in assertion(obj, **kwargs):
+                        self.validation_error(validation, error, **kwargs)
+
+            content = content_decoder.decode2(obj, validation, **kwargs)
+            if content and len(content) == 1 and content[0][0] == 1:
+                value, content = content[0][1], None
+
+            if self.fixed is not None and \
+                    (len(obj) > 0 or value is not None and self.fixed != value):
+                reason = _("must have the fixed value %r") % self.fixed
+                self.validation_error(validation, reason, obj, **kwargs)
+
+        else:
+            if len(obj):
+                reason = _("a simple content element can't have child elements")
+                self.validation_error(validation, reason, obj, **kwargs)
+
+            text = obj.text
+            if self.fixed is not None:
+                if not text:
+                    text = self.fixed
+                elif text == self.fixed:
+                    pass
+                elif not strictly_equal(xsd_type.text_decode(text),
+                                        xsd_type.text_decode(self.fixed)):
+                    reason = _("must have the fixed value %r") % self.fixed
+                    self.validation_error(validation, reason, obj, **kwargs)
+
+            elif not text and self.default is not None and kwargs.get('use_defaults', True):
+                text = self.default
+
+            if not isinstance(xsd_type, XsdSimpleType):
+                for assertion in xsd_type.assertions:
+                    for error in assertion(obj, value=text, **kwargs):
+                        self.validation_error(validation, error, **kwargs)
+
+                if text and content_decoder.is_list():
+                    value = text.split()
+                else:
+                    value = text
+
+            elif xsd_type.is_notation():
+                if xsd_type.name == XSD_NOTATION_TYPE:
+                    msg = _("cannot validate against xs:NOTATION directly, "
+                            "only against a subtype with an enumeration facet")
+                    self.validation_error(validation, msg, text, **kwargs)
+                elif not xsd_type.enumeration:
+                    msg = _("missing enumeration facet in xs:NOTATION subtype")
+                    self.validation_error(validation, msg, text, **kwargs)
+
+            result = content_decoder.decode2(text or '', validation, **kwargs)
+            if result is None and 'filler' in kwargs:
+                value = kwargs['filler'](self)
+            elif text or kwargs.get('keep_empty'):
+                value = result
+
+            if 'value_hook' in kwargs:
+                value = kwargs['value_hook'](value, xsd_type)
+            elif isinstance(value, (int, float, list)) or value is None:
+                pass
+            elif isinstance(value, str):
+                if value.startswith('{') and xsd_type.is_qname():
+                    value = text
+            elif isinstance(value, Decimal):
+                try:
+                    value = kwargs['decimal_type'](value)
+                except (KeyError, TypeError):
+                    pass
+            elif isinstance(value, (AbstractDateTime, Duration)):
+                if not kwargs.get('datetime_types'):
+                    value = str(value) if text is None else text.strip()
+            elif isinstance(value, AbstractBinary):
+                if not kwargs.get('binary_types'):
+                    value = str(value)
+
+        xmlns = converter.set_context(obj, level)  # Purge existing sub-contexts
+
+        if isinstance(converter, XMLSchemaConverter):
+            element_data = ElementData(obj.tag, value, content, attributes, xmlns)
+            if 'element_hook' in kwargs:
+                element_data = kwargs['element_hook'](element_data, self, xsd_type)
+
+            try:
+                return converter.element_decode(element_data, self, xsd_type, level)
+            except (ValueError, TypeError) as err:
+                self.validation_error(validation, err, obj, **kwargs)
+        elif not level:
+            return ElementData(obj.tag, value, None, attributes, None)
+
+        if content is not None:
+            del content
+
+        if self.selected_by:
+            for error in self.collect_key_fields(obj, xsd_type, validation, nilled, **kwargs):
+                self.validation_error(validation, error, obj, **kwargs)
+
+        # Apply non XSD optional validations
+        if 'extra_validator' in kwargs:
+            try:
+                result = kwargs['extra_validator'](obj, self)
+            except XMLSchemaValidationError as err:
+                self.validation_error(validation, err, obj, **kwargs)
+            else:
+                if isinstance(result, GeneratorType):
+                    for error in result:
+                        self.validation_error(validation, error, obj, **kwargs)
+
+        # Disable collect for out of scope identities and check key references
+        if 'max_depth' not in kwargs:
+            for identity in self.identities:
+                counter = identities[identity]
+                counter.enabled = False
+                if isinstance(identity, XsdKeyref):
+                    assert isinstance(counter, KeyrefCounter)
+                    for error in counter.iter_errors(identities):
+                        self.validation_error(validation, error, obj, **kwargs)
+        elif level:
+            for identity in self.identities:
+                identities[identity].enabled = False
+
     def collect_key_fields(self, obj: ElementType, xsd_type: BaseXsdType,
                            validation: str = 'lax', nilled: bool = False,
                            **kwargs: Any) -> Iterator[XMLSchemaValidationError]:

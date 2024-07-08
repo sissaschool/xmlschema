@@ -280,6 +280,54 @@ class XsdAttribute(XsdComponent, ValidationMixin[str, DecodedValueType]):
             -> IterEncodeType[Union[EncodedValueType]]:
         yield from self.type.iter_encode(obj, validation, **kwargs)
 
+    def decode2(self, obj: str, validation: str = 'lax', **kwargs: Any) -> DecodedValueType:
+        if obj is None and self.default is not None:
+            obj = self.default
+
+        if self.type.is_notation():
+            if self.type.name == XSD_NOTATION_TYPE:
+                msg = _("cannot validate against xs:NOTATION directly, "
+                        "only against a subtype with an enumeration facet")
+                self.validation_error(validation, msg, obj, **kwargs)
+            elif not self.type.enumeration:
+                msg = _("missing enumeration facet in xs:NOTATION subtype")
+                self.validation_error(validation, msg, obj, **kwargs)
+
+        if self.fixed is not None:
+            if obj is None:
+                obj = self.fixed
+            elif obj != self.fixed and \
+                    self.type.text_decode(obj) != self.type.text_decode(self.fixed):
+                msg = _("attribute {0!r} has a fixed value {1!r}").format(self.name, self.fixed)
+                self.validation_error(validation, msg, obj, **kwargs)
+
+        value = self.type.decode2(obj, validation, **kwargs)
+        if isinstance(value, XMLSchemaValidationError):
+            value.reason = _('attribute {0}={1!r}: {2}').format(
+                self.prefixed_name, obj, value.reason
+            )
+
+        elif 'value_hook' in kwargs:
+            return kwargs['value_hook'](value, self.type)
+        elif isinstance(value, (int, float, list)) or value is None:
+            return value
+        elif isinstance(value, str):
+            if value.startswith('{') and self.type.is_qname():
+                return obj
+            else:
+                return value
+        elif isinstance(value, Decimal):
+            try:
+                return kwargs['decimal_type'](value)
+            except (KeyError, TypeError):
+                return value
+        elif isinstance(value, (AbstractDateTime, Duration)):
+            return value if kwargs.get('datetime_types') else obj.strip()
+        elif isinstance(value, AbstractBinary) and not kwargs.get('binary_types'):
+            return str(value)
+        else:
+            return value
+
 
 class Xsd11Attribute(XsdAttribute):
     """
@@ -732,6 +780,80 @@ class XsdAttributeGroup(
                                    if k is not None and k not in obj)
 
         yield result_list
+
+    def decode2(self, obj: MutableMapping[str, str], validation: str = 'lax',
+                use_defaults: bool = True, **kwargs: Any) \
+            -> List[Tuple[str, Any]]:
+        if not obj and not self:
+            return
+
+        for name in filter(lambda x: x not in obj, self.iter_required()):
+            reason = _("missing required attribute {!r}").format(name)
+            self.validation_error(validation, reason, obj, **kwargs)
+
+        try:
+            kwargs['level'] += 1
+        except KeyError:
+            kwargs['level'] = 1
+
+        additional_attrs = [
+            (k, v) for k, v in self.iter_value_constraints(use_defaults) if k not in obj
+        ]
+        if additional_attrs:
+            obj = {k: v for k, v in obj.items()}
+            obj.update(additional_attrs)
+
+        if self.xsd_version == '1.0':
+            kwargs['id_list'] = []
+
+        filler = kwargs.get('filler')
+        result_list: List[Tuple[str, DecodedValueType]] = []
+
+        value: Any
+        for name, value in obj.items():
+            try:
+                xsd_attribute = self._attribute_group[name]
+            except KeyError:
+                if get_namespace(name) == XSI_NAMESPACE:
+                    try:
+                        xsd_attribute = self.maps.lookup_attribute(name)
+                    except LookupError:
+                        try:
+                            xsd_attribute = self._attribute_group[None]  # None == anyAttribute
+                            value = (name, value)
+                        except KeyError:
+                            reason = _("%r is not an attribute of the XSI namespace") % name
+                            self.validation_error(validation, reason, obj, **kwargs)
+                            continue
+                else:
+                    try:
+                        xsd_attribute = self._attribute_group[None]  # None == anyAttribute
+                        value = (name, value)
+                    except KeyError:
+                        reason = _("%r attribute not allowed for element") % name
+                        self.validation_error(validation, reason, obj, **kwargs)
+                        continue
+            else:
+                if xsd_attribute.use == 'prohibited' and \
+                        (None not in self or not self._attribute_group[None].is_matching(name)):
+                    reason = _("use of attribute %r is prohibited") % name
+                    self.validation_error(validation, reason, obj, **kwargs)
+
+            result = xsd_attribute.decode2(value, validation, **kwargs)
+            if result is None and filler is not None:
+                result_list.append((name, filler(xsd_attribute)))
+            else:
+                result_list.append((name, result))
+
+        if kwargs.get('fill_missing'):
+            if filler is None:
+                result_list.extend((k, None) for k in self._attribute_group
+                                   if k is not None and k not in obj)
+            else:
+                result_list.extend((k, filler(v)) for k, v in self._attribute_group.items()
+                                   if k is not None and k not in obj)
+
+        return result_list
 
     def iter_encode(self, obj: MutableMapping[str, Any], validation: str = 'lax',
                     use_defaults: bool = True, **kwargs: Any) \

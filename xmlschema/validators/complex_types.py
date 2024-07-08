@@ -750,6 +750,31 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
                 self, obj, str, msg % {'obj': obj, 'decoder': self}
             )
 
+    def decode2(self, obj: Union[ElementType, str, bytes],
+                validation: str = 'lax', **kwargs: Any) -> Any:
+        """
+        Decodes an Element instance using a dummy XSD element. Typically used
+        for decoding with xs:anyType when an XSD element is not available.
+        Also decodes strings if the type has a simple content.
+
+        :param obj: the XML data that has to be decoded.
+        :param validation: the validation mode. Can be 'lax', 'strict' or 'skip'.
+        :param kwargs: keyword arguments for the decoding process.
+        :return: yields a decoded object, eventually preceded by a sequence of \
+        validation or decoding errors.
+        """
+        if not isinstance(obj, (str, bytes)):
+            xsd_element = self.schema.create_element(obj.tag, parent=self, form='unqualified')
+            xsd_element.type = self
+            return xsd_element.decode2(obj, validation, **kwargs)
+        elif isinstance(self.content, XsdSimpleType):
+            return self.content.decode2(obj, validation, **kwargs)
+        else:
+            msg = _("cannot decode %(obj)r data with %(decoder)r")
+            raise XMLSchemaDecodeError(
+                self, obj, str, msg % {'obj': obj, 'decoder': self}
+            )
+
     def iter_encode(self, obj: Any, validation: str = 'lax', **kwargs: Any) \
             -> IterEncodeType[ElementType]:
         """

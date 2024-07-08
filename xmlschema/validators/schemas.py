@@ -2025,6 +2025,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         namespace = resource.namespace or namespaces.get('', '')
         schema = self.get_schema(namespace)
 
+        use_new = kwargs.pop('use_new', False)
+
         kwargs = {
             'converter': converter,
             'namespaces': namespaces,
@@ -2069,6 +2071,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             kwargs['element_hook'] = element_hook
         if errors is not None:
             kwargs['errors'] = errors
+        elif use_new:
+            kwargs['errors'] = []
 
         if path:
             selector = resource.iterfind(path, namespaces)
@@ -2096,7 +2100,10 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                     )
                     return
 
-            yield from xsd_element.iter_decode(elem, validation, **kwargs)
+            if use_new:
+                yield xsd_element.decode2(elem, validation, **kwargs)
+            else:
+                yield from xsd_element.iter_decode(elem, validation, **kwargs)
 
         if 'max_depth' not in kwargs:
             yield from self._validate_references(validation=validation, **kwargs)
