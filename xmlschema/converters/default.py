@@ -289,7 +289,7 @@ class XMLSchemaConverter(NamespaceMapper):
     def etree_element(self, tag: str,
                       text: Optional[str] = None,
                       children: Optional[List[Element]] = None,
-                      attrib: Optional[Dict[str, str]] = None,
+                      attrib: Optional[Union[Dict[str, str], Iterable[Tuple[str, str]]]] = None,
                       level: int = 0) -> Element:
         """
         Builds an ElementTree's Element using arguments and the element class and

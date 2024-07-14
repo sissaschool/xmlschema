@@ -314,7 +314,7 @@ class TestEncoding(XsdValidatorTestCase):
             schema.encode(rotation_data)
         except XMLSchemaValidationError as err:
             message_lines = str(err).split('\n')
-            self.assertIsNone(err.source)
+            self.assertEqual(err.source, {'@roll': 0.0, '@pitch': 0.0, '@yaw': -1.0})
             self.assertIsNone(err.path)
 
         self.assertTrue(message_lines, msg="Empty error message!")

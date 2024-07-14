@@ -21,8 +21,8 @@ from xmlschema.translation import gettext as _
 from xmlschema.utils.etree import is_etree_document, etree_tostring
 from xmlschema.utils.qnames import get_extended_qname, update_namespaces, get_namespace_map
 from xmlschema.resources import fetch_schema_locations, XMLResource, XMLResourceError
-from xmlschema.validators import check_validation_mode, XMLSchema10, XMLSchemaBase, \
-    XMLSchemaValidationError
+from xmlschema.validation import check_validation_mode
+from xmlschema.validators import XMLSchema10, XMLSchemaBase, XMLSchemaValidationError
 
 # Allowed keyword arguments for building schema and resource instances, if necessary.
 SCHEMA_KWARGS = frozenset(('base_url', 'allow', 'defuse', 'timeout', 'uri_mapper', 'opener'))

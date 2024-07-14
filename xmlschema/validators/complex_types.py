@@ -17,14 +17,14 @@ from xmlschema.names import XSD_GROUP, XSD_ATTRIBUTE_GROUP, XSD_SEQUENCE, XSD_OV
     XSD_RESTRICTION, XSD_COMPLEX_TYPE, XSD_EXTENSION, XSD_ANY_TYPE, XSD_ASSERT, \
     XSD_SIMPLE_CONTENT, XSD_OPEN_CONTENT, XSD_ANNOTATION
 from xmlschema.aliases import ElementType, NsmapType, SchemaType, ComponentClassType, \
-    DecodeType, IterDecodeType, IterEncodeType, BaseXsdType, AtomicValueType, \
-    ExtraValidatorType
+    DecodeType, IterDecodeType, BaseXsdType, AtomicValueType, ExtraValidatorType
 from xmlschema.translation import gettext as _
 from xmlschema.utils.qnames import get_qname, local_name
+from xmlschema.validation import EncodeContext, ValidationMixin
 
 from .exceptions import XMLSchemaDecodeError
 from .helpers import get_xsd_derivation_attribute
-from .xsdbase import XSD_TYPE_DERIVATIONS, XsdComponent, XsdType, ValidationMixin
+from .xsdbase import XSD_TYPE_DERIVATIONS, XsdComponent, XsdType
 from .attributes import XsdAttributeGroup
 from .assertions import XsdAssert
 from .simple_types import FacetsValueType, XsdSimpleType, XsdUnion, XsdAtomic
@@ -775,18 +775,17 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
                 self, obj, str, msg % {'obj': obj, 'decoder': self}
             )
 
-    def iter_encode(self, obj: Any, validation: str = 'lax', **kwargs: Any) \
-            -> IterEncodeType[ElementType]:
+    def raw_encode(self, obj: Any, context: EncodeContext, level: int = 0) \
+            -> Optional[ElementType]:
         """
         Encode XML data. A dummy element is created for the type, and it's used for
         encode data. Typically used for encoding with xs:anyType when an XSD element
         is not available.
 
         :param obj: decoded XML data.
-        :param validation: the validation mode: can be 'lax', 'strict' or 'skip'.
-        :param kwargs: keyword arguments for the encoding process.
-        :return: yields an Element, eventually preceded by a sequence of \
-        validation or encoding errors.
+        :param context: the encoding context.
+        :param level: the depth level of the encoding process.
+        :return: returns an Element.
         """
         try:
             name, value = obj
@@ -802,7 +801,8 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
 
         xsd_element = self.schema.create_element(name, parent=xsd_type, form='unqualified')
         xsd_element.type = xsd_type
-        yield from xsd_element.iter_encode(value, validation, **kwargs)
+
+        return xsd_element.raw_encode(value, context, level)
 
 
 class Xsd11ComplexType(XsdComplexType):

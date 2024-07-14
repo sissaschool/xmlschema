@@ -19,14 +19,15 @@ from xmlschema.exceptions import XMLSchemaValueError
 from xmlschema.names import XSI_NAMESPACE, XSD_ANY, XSD_ANY_ATTRIBUTE, \
     XSD_OPEN_CONTENT, XSD_DEFAULT_OPEN_CONTENT, XSI_TYPE
 from xmlschema.aliases import ElementType, SchemaType, SchemaElementType, SchemaAttributeType, \
-    ModelGroupType, ModelParticleType, AtomicValueType, IterDecodeType, IterEncodeType, \
-    DecodedValueType, EncodedValueType
+    ModelGroupType, ModelParticleType, AtomicValueType, IterDecodeType, DecodedValueType, \
+    EncodedValueType
 from xmlschema.translation import gettext as _
 from xmlschema.utils.qnames import get_namespace
 from xmlschema.utils.decoding import raw_xml_encode
 from xmlschema.xpath import XMLSchemaProxy, ElementPathMixin
+from xmlschema.validation import EncodeContext, ValidationMixin
 
-from .xsdbase import ValidationMixin, XsdComponent
+from .xsdbase import XsdComponent
 from .particles import ParticleMixin
 from . import elements
 
@@ -571,18 +572,18 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
         )
         return xsd_element.decode2(obj, validation, **kwargs)
 
-    def iter_encode(self, obj: Tuple[str, ElementType], validation: str = 'lax', **kwargs: Any) \
-            -> IterEncodeType[Any]:
+    def raw_encode(self, obj: Tuple[str, ElementType],
+                   context: EncodeContext, level: int = 0) -> Any:
         name, value = obj
         namespace = get_namespace(name)
 
         if not self.is_namespace_allowed(namespace):
             reason = _("element {!r} is not allowed here").format(name)
-            yield self.validation_error(validation, reason, value, **kwargs)
+            context.validation_error(self, reason, value)
 
         if self.process_contents == 'skip':
-            if 'process_skipped' not in kwargs or not kwargs['process_skipped']:
-                return
+            if not context.process_skipped:
+                return None  # FIXME??
 
         if not self.maps.load_namespace(namespace):
             reason = f"unavailable namespace {namespace!r}"
@@ -592,8 +593,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
             except LookupError:
                 reason = f"element {name!r} not found"
             else:
-                yield from xsd_element.iter_encode(value, validation, **kwargs)
-                return
+                return xsd_element.raw_encode(value, context, level)
 
         # Check if there is a xsi:type attribute, but it has to extract
         # attributes using the converter instance.
@@ -607,29 +607,18 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
             )
 
         try:
-            converter = kwargs['converter']
-        except KeyError:
-            converter = self._get_converter(value, kwargs)
-
-        try:
-            level = kwargs['level']
-        except KeyError:
-            level = kwargs['level'] = 0
-
-        try:
-            element_data = converter.element_encode(value, xsd_element, level)
+            element_data = context.converter.element_encode(value, xsd_element, level)
         except (ValueError, TypeError) as err:
-            if validation != 'skip' and self.process_contents == 'strict':
-                yield self.validation_error(validation, err, value, **kwargs)
+            if context.validation != 'skip' and self.process_contents == 'strict':
+                context.validation_error(self, err, value)
         else:
             if XSI_TYPE in element_data.attributes:
-                yield from xsd_element.iter_encode(value, validation, **kwargs)
-                return
+                return xsd_element.raw_encode(value, context, level)
 
-        if validation != 'skip' and self.process_contents == 'strict':
-            yield self.validation_error(validation, reason, **kwargs)
+        if context.validation != 'skip' and self.process_contents == 'strict':
+            context.validation_error(self, reason)
 
-        yield from self.any_type.iter_encode(obj, validation, **kwargs)
+        return self.any_type.raw_encode(obj, context, level)
 
     def is_overlap(self, other: ModelParticleType) -> bool:
         if not isinstance(other, XsdAnyElement):
@@ -770,35 +759,34 @@ class XsdAnyAttribute(XsdWildcard, ValidationMixin[Tuple[str, str], DecodedValue
 
         return value
 
-    def iter_encode(self, obj: Tuple[str, AtomicValueType], validation: str = 'lax',
-                    **kwargs: Any) -> IterEncodeType[EncodedValueType]:
+    def raw_encode(self, obj: Tuple[str, AtomicValueType],
+                   context: EncodeContext, level: int = 0) -> EncodedValueType:
+
         name, value = obj
         namespace = get_namespace(name)
 
         if not self.is_namespace_allowed(namespace):
             reason = _("attribute %r not allowed") % name
-            yield self.validation_error(validation, reason, obj, **kwargs)
+            context.validation_error(self, reason, obj)
 
-        if self.process_contents == 'skip':
-            if 'process_skipped' not in kwargs or not kwargs['process_skipped']:
-                return
+        if self.process_contents == 'skip' and not context.process_skipped:
+            return None
 
         if self.maps.load_namespace(namespace):
             try:
                 xsd_attribute = self.maps.lookup_attribute(name)
             except LookupError:
-                if validation != 'skip' and self.process_contents == 'strict':
+                if context.validation != 'skip' and self.process_contents == 'strict':
                     reason = _("attribute %r not found") % name
-                    yield self.validation_error(validation, reason, obj, **kwargs)
+                    context.validation_error(self, reason, obj)
             else:
-                yield from xsd_attribute.iter_encode(value, validation, **kwargs)
-                return
+                return xsd_attribute.raw_encode(value, context, level)
 
-        elif validation != 'skip' and self.process_contents == 'strict':
+        elif context.validation != 'skip' and self.process_contents == 'strict':
             reason = _("unavailable namespace {!r}").format(get_namespace(name))
-            yield self.validation_error(validation, reason, **kwargs)
+            context.validation_error(self, reason)
 
-        yield raw_xml_encode(value)
+        return raw_xml_encode(value)
 
 
 class Xsd11AnyElement(XsdAnyElement):

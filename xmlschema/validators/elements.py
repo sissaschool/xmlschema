@@ -40,12 +40,12 @@ from xmlschema import dataobjects
 from xmlschema.converters import ElementData, XMLSchemaConverter
 from xmlschema.xpath import XMLSchemaProxy, ElementPathMixin, XPathElement
 from xmlschema.resources import XMLResource
+from xmlschema.validation import XSD_VALIDATION_MODES, EncodeContext, ValidationMixin
 
 from .exceptions import XMLSchemaNotBuiltError, XMLSchemaValidationError, \
     XMLSchemaParseError, XMLSchemaStopValidation, XMLSchemaTypeTableWarning
 from .helpers import get_xsd_derivation_attribute
-from .xsdbase import XSD_TYPE_DERIVATIONS, XSD_ELEMENT_DERIVATIONS, \
-    XSD_VALIDATION_MODES, XsdComponent, ValidationMixin
+from .xsdbase import XSD_TYPE_DERIVATIONS, XSD_ELEMENT_DERIVATIONS, XsdComponent
 from .particles import ParticleMixin, OccursCalculator
 from .identities import XsdIdentity, XsdKey, XsdUnique, \
     XsdKeyref, KeyrefCounter, IdentityCounterType
@@ -1215,56 +1215,38 @@ class XsdElement(XsdComponent, ParticleMixin,
             return self.decode(obj, converter=dataobjects.DataBindingConverter, **kwargs)
         return self.decode(obj, converter=dataobjects.DataElementConverter, **kwargs)
 
-    def iter_encode(self, obj: Any, validation: str = 'lax', **kwargs: Any) \
-            -> IterEncodeType[ElementType]:
+    def raw_encode(self, obj: Any, context: EncodeContext, level: int = 0) -> Optional[ElementType]:
         """
         Creates an iterator for encoding data to an Element.
 
         :param obj: the data that has to be encoded.
-        :param validation: the validation mode: can be 'lax', 'strict' or 'skip'.
-        :param kwargs: keyword arguments for the encoding process.
-        :return: yields an Element, eventually preceded by a sequence of \
-        validation or encoding errors.
+        :param level: the depth level of the encoding process.
+        :param context: the encoding context.
+        :return: returns an Element.
         """
         errors: List[Union[str, Exception]] = []
 
         try:
-            converter = kwargs['converter']
-        except KeyError:
-            converter = self._get_converter(obj, kwargs)
-        else:
-            if not isinstance(converter, XMLSchemaConverter):
-                converter = self._get_converter(obj, kwargs)
-
-        try:
-            level = kwargs['level']
-        except KeyError:
-            level = kwargs['level'] = 0
-
-        try:
-            element_data = converter.element_encode(obj, self, level)
+            element_data = context.converter.element_encode(obj, self, level)
         except (ValueError, TypeError) as err:
-            yield self.validation_error(validation, err, obj, **kwargs)
-            return
+            context.validation_error(self, err, obj)
+            return None
 
-        if 'max_depth' in kwargs and kwargs['max_depth'] == 0 and not level:
-            for e in errors:
-                yield self.validation_error(validation, e, **kwargs)
-            return
+        if context.max_depth is not None and context.max_depth == 0 and not level:
+            return None
 
         text = None
         children = element_data.content
-        attributes = ()
 
         xsd_type = self.get_type(element_data)
         if XSI_TYPE in element_data.attributes and self.schema.meta_schema is not None:
             type_name = element_data.attributes[XSI_TYPE].strip()
             try:
-                xsd_type = self.maps.get_instance_type(type_name, xsd_type, converter)
+                xsd_type = self.maps.get_instance_type(type_name, xsd_type, context.converter)
             except (KeyError, TypeError) as err:
                 errors.append(err)
             else:
-                default_namespace = converter.get('')
+                default_namespace = context.converter.get('')
                 if default_namespace and not isinstance(xsd_type, XsdSimpleType):
                     # Adjust attributes mapped into default namespace
 
@@ -1282,11 +1264,13 @@ class XsdElement(XsdComponent, ParticleMixin,
 
         attribute_group = self.get_attributes(xsd_type)
         result: Any
-        for result in attribute_group.iter_encode(element_data.attributes, validation, **kwargs):
-            if isinstance(result, XMLSchemaValidationError):
-                errors.append(result)
-            else:
-                attributes = result
+        try:
+            attributes = attribute_group.raw_encode(element_data.attributes, context, level)
+        except XMLSchemaValidationError as err:
+            if err.elem is not None:
+                raise
+            errors.append(err)
+            attributes = []
 
         if XSI_NIL in element_data.attributes:
             xsi_nil = element_data.attributes[XSI_NIL].strip()
@@ -1301,56 +1285,61 @@ class XsdElement(XsdComponent, ParticleMixin,
             elif element_data.text not in (None, '') or element_data.content:
                 errors.append("xsi:nil='true' but the element is not empty.")
             else:
-                elem = converter.etree_element(element_data.tag, attrib=attributes, level=level)
+                elem = context.converter.etree_element(
+                    element_data.tag, attrib=attributes, level=level
+                )
                 for e in errors:
-                    yield self.validation_error(validation, e, elem, **kwargs)
-                yield elem
-                return
+                    context.validation_error(self, e, elem)
+                return elem
 
         if isinstance(xsd_type, XsdSimpleType):
             if element_data.content:
                 errors.append("a simpleType element can't has child elements.")
 
             if element_data.text is not None:
-                for result in xsd_type.iter_encode(element_data.text, validation, **kwargs):
-                    if isinstance(result, XMLSchemaValidationError):
-                        errors.append(result)
-                    else:
-                        text = result
+                try:
+                    text = xsd_type.raw_encode(element_data.text, context, level)
+                except XMLSchemaValidationError as err:
+                    if err.elem is not None:
+                        raise
+                    errors.append(err)
 
             elif self.fixed is not None:
                 text = self.fixed
-            elif self.default is not None and kwargs.get('use_defaults', True):
+            elif self.default is not None and context.use_defaults:
                 text = self.default
 
-        elif xsd_type.has_simple_content():
+        elif isinstance(xsd_type.content, XsdSimpleType):
             if element_data.text is not None:
-                for result in xsd_type.content.iter_encode(element_data.text,
-                                                           validation, **kwargs):
-                    if isinstance(result, XMLSchemaValidationError):
-                        errors.append(result)
-                    else:
-                        text = result
+                try:
+                    text = xsd_type.content.raw_encode(element_data.text, context, level)
+                except XMLSchemaValidationError as err:
+                    if err.elem is not None:
+                        raise
+                    errors.append(err)
 
             elif self.fixed is not None:
                 text = self.fixed
-            elif self.default is not None and kwargs.get('use_defaults', True):
+            elif self.default is not None and context.use_defaults:
                 text = self.default
 
         else:
-            for result in xsd_type.content.iter_encode(element_data, validation, **kwargs):
-                if isinstance(result, XMLSchemaValidationError):
-                    errors.append(result)
-                elif result:
-                    text, children = result
+            try:
+                text, children = xsd_type.content.raw_encode(element_data, context, level)
+            except XMLSchemaValidationError as err:
+                errors.append(err)
+                children = None
 
-        elem = converter.etree_element(element_data.tag, text, children, attributes, level)
+        elem = context.converter.etree_element(
+            element_data.tag, text, children, attributes, level
+        )
 
         if errors:
             for e in errors:
-                yield self.validation_error(validation, e, elem, **kwargs)
-        yield elem
+                context.validation_error(self, e, elem)
+
         del element_data
+        return elem
 
     def is_matching(self, name: Optional[str], default_namespace: Optional[str] = None,
                     group: Optional['XsdGroup'] = None, **kwargs: Any) -> bool:

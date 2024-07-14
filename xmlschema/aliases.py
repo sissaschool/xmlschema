@@ -128,7 +128,8 @@ JsonDecodeType = Union[str, None, Tuple['XMLSchemaValidationError', ...],
 
 DecodedValueType = Union[None, AtomicValueType, List[Optional[AtomicValueType]],
                          'XMLSchemaValidationError']
-EncodedValueType = Union[None, str, List[str], 'XMLSchemaValidationError']
+Decoded2ValueType = Union[None, AtomicValueType, List[Optional[AtomicValueType]]]
+EncodedValueType = Union[None, str]
 
 FillerType = Callable[[Union['XsdElement', 'XsdAttribute']], Any]
 DepthFillerType = Callable[['XsdElement'], Any]

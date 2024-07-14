@@ -22,17 +22,17 @@ from xmlschema.exceptions import XMLSchemaValueError
 from xmlschema.names import XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ELEMENT, \
     XSD_ANY, XSI_TYPE, XSD_ANY_TYPE, XSD_ANNOTATION
 from xmlschema.aliases import ElementType, NsmapType, SchemaType, IterDecodeType, \
-    IterEncodeType, ModelParticleType, SchemaElementType, ComponentClassType, \
-    OccursCounterType
+    ModelParticleType, SchemaElementType, ComponentClassType, OccursCounterType
 from xmlschema.converters import ElementData
 from xmlschema.translation import gettext as _
 from xmlschema.utils.decoding import raw_xml_encode
 from xmlschema.utils.qnames import get_qname, local_name
+from xmlschema.validation import EncodeContext, ValidationMixin
 
 from .exceptions import XMLSchemaModelError, XMLSchemaModelDepthError, \
     XMLSchemaValidationError, XMLSchemaChildrenValidationError, \
     XMLSchemaTypeTableWarning
-from .xsdbase import ValidationMixin, XsdComponent, XsdType
+from .xsdbase import XsdComponent, XsdType
 from .particles import ParticleMixin, OccursCalculator
 from .elements import XsdElement, XsdAlternative
 from .wildcards import XsdAnyElement, Xsd11AnyElement, XsdOpenContent
@@ -1251,27 +1251,24 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
 
         return result_list
 
-    def iter_encode(self, obj: ElementData, validation: str = 'lax', **kwargs: Any) \
-            -> IterEncodeType[GroupEncodeType]:
+
+    def raw_encode(self, obj: ElementData, context: EncodeContext, level: int = 0) \
+            -> GroupEncodeType:
         """
         Creates an iterator for encoding data to a list containing Element data.
 
         :param obj: an ElementData instance.
-        :param validation: the validation mode: can be 'lax', 'strict' or 'skip'.
-        :param kwargs: keyword arguments for the encoding process.
-        :return: yields a couple with the text of the Element and a list of child \
-        elements, eventually preceded by a sequence of validation errors.
+        :param level: the depth level of the encoding process.
+        :param context: the encoding context.
+        :return: returns a couple with the text of the Element and a list of child \
+        elements.
         """
         errors = []
         text = raw_xml_encode(obj.text)
         children: List[ElementType] = []
 
-        try:
-            level = kwargs['level'] = kwargs['level'] + 1
-        except KeyError:
-            level = kwargs['level'] = 1
-
-        converter = kwargs['converter']
+        level += 1
+        converter = context.converter
         padding = '\n' + ' ' * converter.indent * level
         default_namespace = converter.get('')
 
@@ -1284,12 +1281,12 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
 
         index = cdata_index = 0
         wrong_content_type = False
-        over_max_depth = 'max_depth' in kwargs and kwargs['max_depth'] <= level
+        over_max_depth = context.max_depth is not None and context.max_depth <= level
 
         content: Iterable[Any]
         if not obj.content:
             content = []
-        elif isinstance(obj.content, MutableMapping) or kwargs.get('unordered'):
+        elif isinstance(obj.content, MutableMapping) or context.unordered:
             content = iter_unordered_content(obj.content, self)
         elif not isinstance(obj.content, MutableSequence):
             wrong_content_type = True
@@ -1342,17 +1339,15 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                         reason = _('{0} has an unknown prefix {1!r}').format(
                             name, name.split(':')[0]
                         )
-                    yield self.validation_error(validation, reason, value, **kwargs)
+                    context.validation_error(self, reason, value)
                     continue
 
             if over_max_depth:
                 continue
 
-            for result in xsd_element.iter_encode(value, validation, **kwargs):
-                if isinstance(result, XMLSchemaValidationError):
-                    yield result
-                else:
-                    children.append(result)
+            child = xsd_element.raw_encode(value, context, level)
+            if child is not None:
+                children.append(child)
 
         if model.element is not None:
             for particle, occurs, expected in model.stop():
@@ -1368,38 +1363,26 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                 )
 
         cdata_not_allowed = not self.mixed and text and text.strip() and self and \
-            (len(self) > 1 or not isinstance(self[0], XsdAnyElement))
+                            (len(self) > 1 or not isinstance(self[0], XsdAnyElement))
 
         if errors or cdata_not_allowed or wrong_content_type:
             attrib = {k: raw_xml_encode(v) for k, v in obj.attributes.items()}
             elem = converter.etree_element(obj.tag, text, children, attrib)
-            namespaces = converter.namespaces
 
             if wrong_content_type:
                 reason = _("wrong content type {!r}").format(type(obj.content))
-                yield self.validation_error(validation, reason, elem, **kwargs)
+                context.validation_error(self, reason, elem)
 
             if cdata_not_allowed:
                 reason = _("character data between child elements not allowed")
-                yield self.validation_error(validation, reason, elem, **kwargs)
+                context.validation_error(self, reason, elem)
 
             for index, particle, occurs, expected in errors:
-                error = XMLSchemaChildrenValidationError(
-                    validator=self,
-                    elem=elem,
-                    index=index,
-                    particle=particle,
-                    occurs=occurs,
-                    expected=expected,
-                    namespaces=namespaces,
+                context.children_validation_error(
+                    self, elem, index, particle, occurs, expected
                 )
-                if validation == 'strict':
-                    raise error
 
-                error.elem = None  # replace with the element of the encoded tree
-                yield error
-
-        yield text, children
+        return text, children
 
 
 class Xsd11Group(XsdGroup):

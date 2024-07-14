@@ -56,14 +56,14 @@ from xmlschema.resources import XMLResource, XMLResourceBlocked, XMLResourceForb
 from xmlschema.converters import XMLSchemaConverter
 from xmlschema.xpath import XMLSchemaProxy, ElementPathMixin
 from xmlschema.exports import export_schema
+from xmlschema.validation import check_validation_mode, EncodeContext
 from xmlschema import dataobjects
 
 from .exceptions import XMLSchemaParseError, XMLSchemaValidationError, \
     XMLSchemaEncodeError, XMLSchemaNotBuiltError, XMLSchemaStopValidation, \
     XMLSchemaIncludeWarning, XMLSchemaImportWarning
 from .helpers import get_xsd_derivation_attribute, get_xsd_annotation_child
-from .xsdbase import XSD_ELEMENT_DERIVATIONS, check_validation_mode, XsdValidator, \
-    XsdComponent, XsdAnnotation
+from .xsdbase import XSD_ELEMENT_DERIVATIONS, XsdValidator, XsdComponent, XsdAnnotation
 from .notations import XsdNotation
 from .identities import XsdIdentity, XsdKey, XsdKeyref, XsdUnique, \
     Xsd11Key, Xsd11Unique, Xsd11Keyref, IdentityCounter, KeyrefCounter, IdentityMapType
@@ -2190,32 +2190,23 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             msg = _("encoding needs at least one XSD element declaration")
             raise XMLSchemaValueError(msg)
 
-        converter = self.get_converter(
-            converter, namespaces=namespaces, source=obj, **kwargs
+        kwargs.update(
+            namespaces=namespaces,
+            use_defaults=use_defaults,
+            converter=converter,
+            unordered=unordered,
+            process_skipped=process_skipped,
+            max_depth=max_depth
         )
-        namespaces = converter.namespaces
-
-        kwargs = {
-            'level': 0,
-            'converter': converter,
-            'namespaces': namespaces,
-        }
-        if not use_defaults:
-            kwargs['use_defaults'] = False
-        if unordered:
-            kwargs['unordered'] = True
-        if process_skipped:
-            kwargs['process_skipped'] = process_skipped
-        if max_depth is not None:
-            kwargs['max_depth'] = max_depth
+        context = EncodeContext.get_context(self, obj, validation, **kwargs)
 
         xsd_element = None
         if path is not None:
             match = re.search(r'[{\w]', path)
             if match:
-                namespace = get_namespace(path[match.start():], namespaces)
+                namespace = get_namespace(path[match.start():], context.namespaces)
                 schema = self.get_schema(namespace)
-                xsd_element = schema.find(path, namespaces)
+                xsd_element = schema.find(path, context.namespaces)
 
         elif len(self.elements) == 1:
             xsd_element = list(self.elements.values())[0]
@@ -2223,13 +2214,13 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             root_elements = self.root_elements
             if len(root_elements) == 1:
                 xsd_element = root_elements[0]
-            elif isinstance(obj, (converter.dict, dict)) and len(obj) == 1:
+            elif isinstance(obj, (context.converter.dict, dict)) and len(obj) == 1:
                 for key in obj:
                     match = re.search(r'[{\w]', key)
                     if match:
-                        namespace = get_namespace(key[match.start():], namespaces)
+                        namespace = get_namespace(key[match.start():], context.namespaces)
                         schema = self.get_schema(namespace)
-                        xsd_element = schema.find(key, namespaces)
+                        xsd_element = schema.find(key, context.namespaces)
 
         if not isinstance(xsd_element, XsdElement):
             if path is not None:
@@ -2239,7 +2230,10 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                            "provide a valid 'path' argument.")
             raise XMLSchemaEncodeError(self, obj, self.elements, reason, namespaces=namespaces)
         else:
-            yield from xsd_element.iter_encode(obj, validation, **kwargs)
+            result = xsd_element.raw_encode(obj, context)
+            yield from context.errors
+            if result is not None:
+                yield result
 
     def encode(self, obj: Any, path: Optional[str] = None, validation: str = 'strict',
                *args: Any, **kwargs: Any) -> EncodeType[Any]:
