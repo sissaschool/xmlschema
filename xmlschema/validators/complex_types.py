@@ -20,7 +20,7 @@ from xmlschema.aliases import ElementType, NsmapType, SchemaType, ComponentClass
     DecodeType, IterDecodeType, BaseXsdType, AtomicValueType, ExtraValidatorType
 from xmlschema.translation import gettext as _
 from xmlschema.utils.qnames import get_qname, local_name
-from xmlschema.validation import EncodeContext, ValidationMixin
+from xmlschema.validation import DecodeContext, EncodeContext, ValidationMixin
 
 from .exceptions import XMLSchemaDecodeError
 from .helpers import get_xsd_derivation_attribute
@@ -725,50 +725,24 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
                 self, obj, str, msg % {'obj': obj, 'decoder': self}
             )
 
-    def iter_decode(self, obj: Union[ElementType, str, bytes],
-                    validation: str = 'lax', **kwargs: Any) -> IterDecodeType[Any]:
+    def raw_decode(self, obj: Union[ElementType, str, bytes],
+                   context: DecodeContext, level: int = 0) -> Any:
         """
         Decodes an Element instance using a dummy XSD element. Typically used
         for decoding with xs:anyType when an XSD element is not available.
         Also decodes strings if the type has a simple content.
 
         :param obj: the XML data that has to be decoded.
-        :param validation: the validation mode. Can be 'lax', 'strict' or 'skip'.
-        :param kwargs: keyword arguments for the decoding process.
-        :return: yields a decoded object, eventually preceded by a sequence of \
-        validation or decoding errors.
+        :param context: the encoding context.
+        :param level: the depth level of the encoding process.
+        :return: a decoded object.
         """
         if not isinstance(obj, (str, bytes)):
             xsd_element = self.schema.create_element(obj.tag, parent=self, form='unqualified')
             xsd_element.type = self
-            yield from xsd_element.iter_decode(obj, validation, **kwargs)
+            return xsd_element.raw_decode(obj, context, level)
         elif isinstance(self.content, XsdSimpleType):
-            yield from self.content.iter_decode(obj, validation, **kwargs)
-        else:
-            msg = _("cannot decode %(obj)r data with %(decoder)r")
-            raise XMLSchemaDecodeError(
-                self, obj, str, msg % {'obj': obj, 'decoder': self}
-            )
-
-    def decode2(self, obj: Union[ElementType, str, bytes],
-                validation: str = 'lax', **kwargs: Any) -> Any:
-        """
-        Decodes an Element instance using a dummy XSD element. Typically used
-        for decoding with xs:anyType when an XSD element is not available.
-        Also decodes strings if the type has a simple content.
-
-        :param obj: the XML data that has to be decoded.
-        :param validation: the validation mode. Can be 'lax', 'strict' or 'skip'.
-        :param kwargs: keyword arguments for the decoding process.
-        :return: yields a decoded object, eventually preceded by a sequence of \
-        validation or decoding errors.
-        """
-        if not isinstance(obj, (str, bytes)):
-            xsd_element = self.schema.create_element(obj.tag, parent=self, form='unqualified')
-            xsd_element.type = self
-            return xsd_element.decode2(obj, validation, **kwargs)
-        elif isinstance(self.content, XsdSimpleType):
-            return self.content.decode2(obj, validation, **kwargs)
+            return self.content.raw_decode(obj, context, level)
         else:
             msg = _("cannot decode %(obj)r data with %(decoder)r")
             raise XMLSchemaDecodeError(

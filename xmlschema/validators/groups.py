@@ -21,17 +21,16 @@ from xmlschema import limits
 from xmlschema.exceptions import XMLSchemaValueError
 from xmlschema.names import XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ELEMENT, \
     XSD_ANY, XSI_TYPE, XSD_ANY_TYPE, XSD_ANNOTATION
-from xmlschema.aliases import ElementType, NsmapType, SchemaType, IterDecodeType, \
+from xmlschema.aliases import ElementType, NsmapType, SchemaType, \
     ModelParticleType, SchemaElementType, ComponentClassType, OccursCounterType
 from xmlschema.converters import ElementData
 from xmlschema.translation import gettext as _
 from xmlschema.utils.decoding import raw_xml_encode
 from xmlschema.utils.qnames import get_qname, local_name
-from xmlschema.validation import EncodeContext, ValidationMixin
+from xmlschema.validation import DecodeContext, EncodeContext, ValidationMixin
 
 from .exceptions import XMLSchemaModelError, XMLSchemaModelDepthError, \
-    XMLSchemaValidationError, XMLSchemaChildrenValidationError, \
-    XMLSchemaTypeTableWarning
+    XMLSchemaValidationError, XMLSchemaTypeTableWarning
 from .xsdbase import XsdComponent, XsdType
 from .particles import ParticleMixin, OccursCalculator
 from .elements import XsdElement, XsdAlternative
@@ -941,181 +940,22 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                 return xsd_element
         return None
 
-    def iter_decode(self, obj: ElementType, validation: str = 'lax', **kwargs: Any) \
-            -> IterDecodeType[GroupDecodeType]:
-        """
-        Creates an iterator for decoding an Element content.
-
-        :param obj: an Element.
-        :param validation: the validation mode, can be 'lax', 'strict' or 'skip'.
-        :param kwargs: keyword arguments for the decoding process.
-        :return: yields a list of 3-tuples (key, decoded data, decoder), \
-        eventually preceded by a sequence of validation or decoding errors.
-        """
-        result_list: GroupDecodeType = []
-        cdata_index = 1  # keys for CDATA sections are positive integers
-
-        if not self._group and self.model == 'choice' and self.min_occurs:
-            reason = _("an empty 'choice' group with minOccurs > 0 cannot validate any content")
-            yield self.validation_error(validation, reason, obj, **kwargs)
-            yield result_list
-            return
-
-        if not self.mixed:
-            # Check element CDATA
-            if obj.text and obj.text.strip() or \
-                    any(child.tail and child.tail.strip() for child in obj):
-                if len(self) == 1 and isinstance(self[0], XsdAnyElement):
-                    pass  # [XsdAnyElement()] equals to an empty complexType declaration
-                else:
-                    reason = _("character data between child elements not allowed")
-                    yield self.validation_error(validation, reason, obj, **kwargs)
-                    cdata_index = 0  # Do not decode CDATA
-
-        if cdata_index and obj.text is not None:
-            text = str(obj.text.strip())
-            if text:
-                result_list.append((cdata_index, text, None))
-                cdata_index += 1
-
-        try:
-            level = kwargs['level'] = kwargs['level'] + 1
-        except KeyError:
-            level = kwargs['level'] = 1
-
-        over_max_depth = 'max_depth' in kwargs and kwargs['max_depth'] <= level
-        if level > limits.MAX_XML_DEPTH:
-            reason = _("XML data depth exceeded (MAX_XML_DEPTH=%r)") % limits.MAX_XML_DEPTH
-            self.validation_error('strict', reason, obj, **kwargs)
-
-        try:
-            converter = kwargs['converter']
-        except KeyError:
-            converter = self._get_converter(obj, kwargs)
-
-        errors: List[Tuple[int, ModelParticleType, int, Optional[List[SchemaElementType]]]]
-        xsd_element: Optional[SchemaElementType]
-        expected: Optional[List[SchemaElementType]]
-
-        if self.open_content is None or self.open_content.mode == 'none':
-            model = ModelVisitor(self)
-        elif self.open_content.mode == 'interleave':
-            model = InterleavedModelVisitor(self, self.open_content.any_element)
-        else:
-            model = SuffixedModelVisitor(self, self.open_content.any_element)
-
-        errors = []
-        broken_model = False
-        namespaces = converter.namespaces
-
-        for index, child in enumerate(obj):
-            if callable(child.tag):
-                continue  # child is a comment or PI
-
-            converter.set_context(child, level)
-            name = converter.map_qname(child.tag)
-
-            while model.element is not None:
-                xsd_element = model.match_element(child.tag)
-                if xsd_element is None:
-                    for particle, occurs, expected in model.advance(False):
-                        errors.append((index, particle, occurs, expected))
-                        model.clear()
-                        broken_model = True  # the model is broken, continues with raw decoding.
-                        xsd_element = self.match_element(child.tag)
-                        break
-                    else:
-                        continue
-                    break
-
-                try:
-                    self.check_dynamic_context(child, xsd_element, model.element, namespaces)
-                except XMLSchemaValidationError as err:
-                    yield self.validation_error(validation, err, obj, **kwargs)
-
-                for particle, occurs, expected in model.advance(True):
-                    errors.append((index, particle, occurs, expected))
-                break
-            else:
-                xsd_element = self.match_element(child.tag)
-                if xsd_element is None:
-                    errors.append((index, self, 0, None))
-                    broken_model = True
-                elif not broken_model:
-                    errors.append((index, xsd_element, 0, []))
-                    broken_model = True
-
-            if xsd_element is None:
-                if kwargs.get('keep_unknown'):
-                    for result in self.any_type.iter_decode(child, validation, **kwargs):
-                        result_list.append((name, result, None))
-                continue
-            elif over_max_depth:
-                if 'depth_filler' in kwargs:
-                    func = kwargs['depth_filler']
-                    result_list.append((name, func(xsd_element), xsd_element))
-                continue
-
-            for result in xsd_element.iter_decode(child, validation, **kwargs):
-                if isinstance(result, XMLSchemaValidationError):
-                    yield result
-                else:
-                    result_list.append((name, result, xsd_element))
-
-            if cdata_index and child.tail is not None:
-                tail = str(child.tail.strip())
-                if tail:
-                    if result_list and isinstance(result_list[-1][0], int):
-                        tail = result_list[-1][1] + ' ' + tail
-                        result_list[-1] = result_list[-1][0], tail, None
-                    else:
-                        result_list.append((cdata_index, tail, None))
-                        cdata_index += 1
-
-        if model.element is not None:
-            index = len(obj)
-            for particle, occurs, expected in model.stop():
-                errors.append((index, particle, occurs, expected))
-                break
-
-        if errors:
-            source = kwargs.get('source')
-            namespaces = converter.namespaces
-
-            for index, particle, occurs, expected in errors:
-                error = XMLSchemaChildrenValidationError(
-                    validator=self,
-                    elem=obj,
-                    index=index,
-                    particle=particle,
-                    occurs=occurs,
-                    expected=expected,
-                    source=source,
-                    namespaces=namespaces,
-                )
-                if validation == 'strict':
-                    raise error
-                yield error
-
-        yield result_list
-
-    def decode2(self, obj: ElementType, validation: str = 'lax', **kwargs: Any) \
+    def raw_decode(self, obj: ElementType, context: DecodeContext, level: int = 0) \
             -> GroupDecodeType:
         """
-        Creates an iterator for decoding an Element content.
+        Decoding an Element content.
 
         :param obj: an Element.
-        :param validation: the validation mode, can be 'lax', 'strict' or 'skip'.
-        :param kwargs: keyword arguments for the decoding process.
-        :return: yields a list of 3-tuples (key, decoded data, decoder), \
-        eventually preceded by a sequence of validation or decoding errors.
+        :param context: the encoding context.
+        :param level: the depth level of the encoding process.
+        :return: yields a list of 3-tuples (key, decoded data, decoder).
         """
         result_list: GroupDecodeType = []
         cdata_index = 1  # keys for CDATA sections are positive integers
 
         if not self._group and self.model == 'choice' and self.min_occurs:
             reason = _("an empty 'choice' group with minOccurs > 0 cannot validate any content")
-            self.validation_error(validation, reason, obj, **kwargs)
+            context.validation_error(self, reason, obj)
             return result_list
 
         if not self.mixed:
@@ -1126,7 +966,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                     pass  # [XsdAnyElement()] equals to an empty complexType declaration
                 else:
                     reason = _("character data between child elements not allowed")
-                    self.validation_error(validation, reason, obj, **kwargs)
+                    context.validation_error(self, reason, obj)
                     cdata_index = 0  # Do not decode CDATA
 
         if cdata_index and obj.text is not None:
@@ -1135,20 +975,13 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                 result_list.append((cdata_index, text, None))
                 cdata_index += 1
 
-        try:
-            level = kwargs['level'] = kwargs['level'] + 1
-        except KeyError:
-            level = kwargs['level'] = 1
+        level += 1
 
-        over_max_depth = 'max_depth' in kwargs and kwargs['max_depth'] <= level
+        over_max_depth = context.max_depth is not None and context.max_depth <= level
         if level > limits.MAX_XML_DEPTH:
             reason = _("XML data depth exceeded (MAX_XML_DEPTH=%r)") % limits.MAX_XML_DEPTH
-            self.validation_error('strict', reason, obj, **kwargs)
-
-        try:
-            converter = kwargs['converter']
-        except KeyError:
-            converter = self._get_converter(obj, kwargs)
+            context.validation = 'strict'
+            context.validation_error(self, reason, obj)
 
         errors: List[Tuple[int, ModelParticleType, int, Optional[List[SchemaElementType]]]]
         xsd_element: Optional[SchemaElementType]
@@ -1163,6 +996,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
 
         errors = []
         broken_model = False
+        converter = context.converter
         namespaces = converter.namespaces
 
         for index, child in enumerate(obj):
@@ -1188,7 +1022,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                 try:
                     self.check_dynamic_context(child, xsd_element, model.element, namespaces)
                 except XMLSchemaValidationError as err:
-                    self.validation_error(validation, err, obj, **kwargs)
+                    context.validation_error(self, err, obj)
 
                 for particle, occurs, expected in model.advance(True):
                     errors.append((index, particle, occurs, expected))
@@ -1203,17 +1037,17 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                     broken_model = True
 
             if xsd_element is None:
-                if kwargs.get('keep_unknown'):
-                    result = self.any_type.decode2(child, validation, **kwargs)
+                if context.keep_unknown:
+                    result = self.any_type.raw_decode(child, context, level)
                     result_list.append((name, result, None))
                 continue
             elif over_max_depth:
-                if 'depth_filler' in kwargs:
-                    func = kwargs['depth_filler']
+                if context.depth_filler is not None:
+                    func = context.depth_filler
                     result_list.append((name, func(xsd_element), xsd_element))
                 continue
 
-            result = xsd_element.decode2(child, validation, **kwargs)
+            result = xsd_element.raw_decode(child, context, level)
             result_list.append((name, result, xsd_element))
 
             if cdata_index and child.tail is not None:
@@ -1233,33 +1067,21 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                 break
 
         if errors:
-            source = kwargs.get('source')
-            namespaces = converter.namespaces
-
             for index, particle, occurs, expected in errors:
-                error = XMLSchemaChildrenValidationError(
-                    validator=self,
-                    elem=obj,
-                    index=index,
-                    particle=particle,
-                    occurs=occurs,
-                    expected=expected,
-                    source=source,
-                    namespaces=namespaces,
+                context.children_validation_error(
+                    self, obj, index, particle, occurs, expected
                 )
-                self.validation_error(validation, error, obj, **kwargs)
 
         return result_list
-
 
     def raw_encode(self, obj: ElementData, context: EncodeContext, level: int = 0) \
             -> GroupEncodeType:
         """
-        Creates an iterator for encoding data to a list containing Element data.
+        Encode data to a list containing Element children.
 
         :param obj: an ElementData instance.
-        :param level: the depth level of the encoding process.
         :param context: the encoding context.
+        :param level: the depth level of the encoding process.
         :return: returns a couple with the text of the Element and a list of child \
         elements.
         """

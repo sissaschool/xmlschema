@@ -39,4 +39,4 @@ if __name__ == '__main__':
 
     setup = 'from __main__ import schema, xml_file'
     run_timeit("schema.decode(xml_file)", setup=setup, number=NUMBER)
-    run_timeit("schema.decode(xml_file, use_new=True)", setup=setup, number=NUMBER)
+    run_timeit("schema.is_valid(xml_file)", setup=setup, number=NUMBER)

@@ -25,7 +25,7 @@ from copy import copy as _copy, deepcopy
 from operator import attrgetter
 from pathlib import Path
 from typing import cast, Callable, ItemsView, List, Optional, Dict, Any, \
-    Set, Union, Tuple, Type, Iterator, Counter
+    Set, Union, Tuple, Type, Iterator
 from urllib.request import OpenerDirector
 from xml.etree.ElementTree import Element, ParseError
 
@@ -56,7 +56,7 @@ from xmlschema.resources import XMLResource, XMLResourceBlocked, XMLResourceForb
 from xmlschema.converters import XMLSchemaConverter
 from xmlschema.xpath import XMLSchemaProxy, ElementPathMixin
 from xmlschema.exports import export_schema
-from xmlschema.validation import check_validation_mode, EncodeContext
+from xmlschema.validation import check_validation_mode, DecodeContext, EncodeContext
 from xmlschema import dataobjects
 
 from .exceptions import XMLSchemaParseError, XMLSchemaValidationError, \
@@ -66,7 +66,7 @@ from .helpers import get_xsd_derivation_attribute, get_xsd_annotation_child
 from .xsdbase import XSD_ELEMENT_DERIVATIONS, XsdValidator, XsdComponent, XsdAnnotation
 from .notations import XsdNotation
 from .identities import XsdIdentity, XsdKey, XsdKeyref, XsdUnique, \
-    Xsd11Key, Xsd11Unique, Xsd11Keyref, IdentityCounter, KeyrefCounter, IdentityMapType
+    Xsd11Key, Xsd11Unique, Xsd11Keyref, IdentityCounter, KeyrefCounter
 from .facets import XSD_10_FACETS, XSD_11_FACETS
 from .simple_types import XsdSimpleType, XsdList, XsdUnion, XsdAtomicRestriction, \
     Xsd11AtomicRestriction, Xsd11Union
@@ -1750,43 +1750,31 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         else:
             resource = XMLResource(source, defuse=self.defuse, timeout=self.timeout)
 
-        if not schema_path:
-            schema_path = resource.get_absolute_path(path)
+        identities: Dict[XsdIdentity, IdentityCounter] = {}
+        ancestors: List[Element] = []
+        prev_ancestors: List[Element] = []
+        kwargs: Dict[Any, Any] = {
+            'identities': identities,
+            'namespaces': namespaces,
+            'converter': NamespaceMapper,
+            'use_defaults': use_defaults,
+            'use_location_hints': use_location_hints,
+            'max_depth': max_depth,
+            'extra_validator': extra_validator,
+            'validation_hook': validation_hook,
+        }
+        context = DecodeContext.get_context(self, resource, validation, **kwargs)
+        level = resource.lazy_depth or bool(path)
+        namespaces = context.namespaces
 
-        converter = NamespaceMapper(namespaces, source=resource)
-        namespaces = converter.namespaces
         namespace = resource.namespace or namespaces.get('', '')
-
         try:
             schema = self.get_schema(namespace)
         except KeyError:
             schema = self
 
-        identities: Dict[XsdIdentity, IdentityCounter] = {}
-        ancestors: List[Element] = []
-        prev_ancestors: List[Element] = []
-        kwargs: Dict[Any, Any] = {
-            'level': resource.lazy_depth or bool(path),
-            'source': resource,
-            'namespaces': namespaces,
-            'converter': converter,
-            'id_map': Counter[str](),
-            'identities': identities,
-            'inherited': {},
-            'validation': validation,
-        }
-        if not use_defaults:
-            kwargs['use_defaults'] = False
-        if use_location_hints and not resource.is_lazy():
-            kwargs['use_location_hints'] = True
-            if self.XSD_VERSION == '1.1':
-                kwargs['errors'] = []
-        if max_depth is not None:
-            kwargs['max_depth'] = max_depth
-        if extra_validator is not None:
-            kwargs['extra_validator'] = extra_validator
-        if validation_hook is not None:
-            kwargs['validation_hook'] = validation_hook
+        if not schema_path:
+            schema_path = resource.get_absolute_path(path)
 
         if path:
             selector = resource.iterfind(path, namespaces, ancestors=ancestors)
@@ -1797,9 +1785,9 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         for elem in selector:
             if elem is resource.root:
                 if resource.lazy_depth:
-                    kwargs['level'] = 0
-                    kwargs['identities'] = {}
-                    kwargs['max_depth'] = resource.lazy_depth
+                    level = 0
+                    context.identities = {}
+                    context.max_depth = resource.lazy_depth
             else:
                 if prev_ancestors != ancestors:
                     k = 0
@@ -1809,7 +1797,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
                     path_ = f"{'/'.join(e.tag for e in ancestors)}/ancestor-or-self::node()"
                     xsd_ancestors = cast(List[XsdElement],
-                                         schema.findall(path_, converter.namespaces)[1:])
+                                         schema.findall(path_, namespaces)[1:])
 
                     # Clear identity constraints counters
                     for k, e in enumerate(xsd_ancestors[k:], start=k):
@@ -1829,59 +1817,49 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                     continue
                 else:
                     reason = _("{!r} is not an element of the schema").format(elem)
-                    yield schema.validation_error(
-                        'lax', reason, elem, source=resource, namespaces=namespaces
-                    )
+                    yield context.validation_error(self, reason, elem)
                     return
 
             try:
-                for result in xsd_element.iter_decode(elem, **kwargs):
-                    if isinstance(result, XMLSchemaValidationError):
-                        yield result
-                    else:
-                        del result
+                xsd_element.raw_decode(elem, context, level)
             except XMLSchemaStopValidation:
                 pass
+            else:
+                yield from context.errors
+                context.errors.clear()
         else:
             if elem is None and not allow_empty:
                 assert path is not None
                 reason = _("the provided path selects nothing to validate")
-                yield schema.validation_error(
-                    'lax', reason, source=resource, namespaces=namespaces
-                )
+                yield context.validation_error(self, reason)
                 return
 
-        if kwargs['identities'] is not identities:
-            for identity, counter in kwargs['identities'].items():
+        if context.identities is not identities:
+            for identity, counter in context.identities.items():
                 identities[identity].counter.update(counter.counter)
-            kwargs['identities'] = identities
+            context.identities = identities
 
-        yield from self._validate_references(**kwargs)
+        yield from self._validate_references(context)
 
-    def _validate_references(self, source: XMLResource,
-                             validation: str = 'lax',
-                             id_map: Optional[Counter[str]] = None,
-                             identities: Optional[IdentityMapType] = None,
-                             **kwargs: Any) -> Iterator[XMLSchemaValidationError]:
+    def _validate_references(self, context: DecodeContext) -> Iterator[XMLSchemaValidationError]:
         # Check unresolved IDREF values
-        if id_map is not None:
-            for k, v in id_map.items():
-                if v == 0:
-                    msg = _("IDREF %r not found in XML document") % k
-                    yield self.validation_error(validation, msg, source.root)
+        for k, v in context.id_map.items():
+            if v == 0:
+                msg = _("IDREF %r not found in XML document") % k
+                yield context.validation_error(self, msg, context.source.root)
 
         # Check still enabled key references (lazy validation cases)
-        if identities is not None:
-            for identity, counter in identities.items():
-                if counter.enabled and isinstance(identity, XsdKeyref):
-                    for error in cast(KeyrefCounter, counter).iter_errors(identities):
-                        yield self.validation_error(validation, error, source.root, **kwargs)
+        for identity, counter in context.identities.items():
+            if counter.enabled and isinstance(identity, XsdKeyref):
+                for error in cast(KeyrefCounter, counter).iter_errors(context.identities):
+                    yield context.validation_error(self, error, context.source.root)
 
     def raw_decoder(self, source: XMLResource, path: Optional[str] = None,
                     schema_path: Optional[str] = None, validation: str = 'lax',
                     namespaces: Optional[NsmapType] = None, **kwargs: Any) \
             -> Iterator[Union[Any, XMLSchemaValidationError]]:
         """Returns a generator for decoding a resource."""
+        context = DecodeContext.get_context(self, source, validation, **kwargs)
         if path:
             selector = source.iterfind(path, namespaces)
         else:
@@ -1898,10 +1876,14 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                                                 source=source, namespaces=namespaces)
                     continue
 
-            yield from xsd_element.iter_decode(elem, validation, **kwargs)
+            result = xsd_element.raw_decode(elem, context)
+            if context.errors:
+                yield from context.errors
+                context.errors.clear()
+            yield result
 
         if 'max_depth' not in kwargs:
-            yield from self._validate_references(source, validation=validation, **kwargs)
+            yield from self._validate_references(context)
 
     def iter_decode(self, source: Union[XMLSourceType, XMLResource],
                     path: Optional[str] = None,
@@ -2010,83 +1992,53 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         else:
             resource = XMLResource(source, defuse=self.defuse, timeout=self.timeout)
 
-        if not schema_path and path:
-            schema_path = resource.get_absolute_path(path)
-
-        converter = self.get_converter(
-            converter,
-            namespaces=namespaces,
+        kwargs.update(
             process_namespaces=process_namespaces,
-            source=resource,
-            **kwargs
+            namespaces=namespaces,
+            use_defaults=use_defaults,
+            use_location_hints=use_location_hints,
+            decimal_type=decimal_type,
+            datetime_types=datetime_types,
+            binary_types=binary_types,
+            converter=converter,
+            filler=filler,
+            fill_missing=fill_missing,
+            keep_empty=keep_empty,
+            keep_unknown=keep_unknown,
+            process_skipped=process_skipped,
+            max_depth=max_depth,
+            depth_filler=depth_filler,
+            extra_validator=extra_validator,
+            validation_hook=validation_hook,
+            value_hook=value_hook,
+            element_hook=element_hook,
+            errors=errors
         )
+        context = DecodeContext.get_context(self, resource, validation, **kwargs)
+        namespaces = context.namespaces
 
-        namespaces = converter.namespaces
         namespace = resource.namespace or namespaces.get('', '')
         schema = self.get_schema(namespace)
 
-        use_new = kwargs.pop('use_new', False)
-
-        kwargs = {
-            'converter': converter,
-            'namespaces': namespaces,
-            'source': resource,
-            'id_map': Counter[str](),
-            'identities': {},
-            'inherited': {},
-        }
-        if not use_defaults:
-            kwargs['use_defaults'] = False
-        if use_location_hints and not resource.is_lazy():
-            kwargs['use_location_hints'] = True
-            if self.XSD_VERSION == '1.1':
-                kwargs['errors'] = []
-        if decimal_type is not None:
-            kwargs['decimal_type'] = decimal_type
-        if datetime_types:
-            kwargs['datetime_types'] = True
-        if binary_types:
-            kwargs['binary_types'] = True
-        if filler is not None:
-            kwargs['filler'] = filler
-        if fill_missing:
-            kwargs['fill_missing'] = True
-        if keep_empty:
-            kwargs['keep_empty'] = True
-        if keep_unknown:
-            kwargs['keep_unknown'] = True
-        if process_skipped:
-            kwargs['process_skipped'] = True
-        if max_depth is not None:
-            kwargs['max_depth'] = max_depth
-        if depth_filler is not None:
-            kwargs['depth_filler'] = depth_filler
-        if extra_validator is not None:
-            kwargs['extra_validator'] = extra_validator
-        if validation_hook is not None:
-            kwargs['validation_hook'] = validation_hook
-        if value_hook is not None:
-            kwargs['value_hook'] = value_hook
-        if element_hook is not None:
-            kwargs['element_hook'] = element_hook
-        if errors is not None:
-            kwargs['errors'] = errors
-        elif use_new:
-            kwargs['errors'] = []
-
         if path:
             selector = resource.iterfind(path, namespaces)
+            if not schema_path:
+                schema_path = resource.get_absolute_path(path)
+
         elif not resource.is_lazy():
             selector = iter((resource.root,))
         else:
             decoder = self.raw_decoder(
+                source=resource,
                 schema_path=resource.get_absolute_path(),
                 validation=validation,
                 **kwargs
             )
-            kwargs['depth_filler'] = lambda x: decoder
-            kwargs['max_depth'] = resource.lazy_depth
+            context.depth_filler = lambda x: decoder
+            context.max_depth = resource.lazy_depth
             selector = resource.iter_depth(mode=3)
+
+        yielded_errors = 0
 
         for elem in selector:
             xsd_element = schema.get_element(elem.tag, schema_path, namespaces)
@@ -2100,13 +2052,14 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                     )
                     return
 
-            if use_new:
-                yield xsd_element.decode2(elem, validation, **kwargs)
-            else:
-                yield from xsd_element.iter_decode(elem, validation, **kwargs)
+            result = xsd_element.raw_decode(elem, context)
+            if len(context.errors) > yielded_errors:
+                yield from context.errors[yielded_errors:]
+                yielded_errors = len(context.errors)
+            yield result
 
-        if 'max_depth' not in kwargs:
-            yield from self._validate_references(validation=validation, **kwargs)
+        if context.max_depth is not None:
+            yield from self._validate_references(context)
 
     def decode(self, source: Union[XMLSourceType, XMLResource],
                path: Optional[str] = None,

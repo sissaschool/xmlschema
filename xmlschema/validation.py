@@ -67,14 +67,17 @@ class ValidationContext:
     converter: Union[XMLSchemaConverter, NamespaceMapper]
     id_map: Counter[str]
     identities: Dict['XsdIdentity', 'IdentityCounter']
+    inherited: Optional[Dict[str, str]]
     source: Union[XMLResource, Any]
+
     validation: str = 'strict'
     use_defaults: bool = True
     unordered: bool = False
     process_skipped: bool = False
     max_depth: Optional[int] = None
 
-    # Used by XSD types
+    # Used by XSD components
+    elem: Optional[ElementType] = None
     id_list: Optional[List[Any]] = None
     patterns: Optional['XsdPatternFacets'] = None
 
@@ -98,14 +101,20 @@ class ValidationContext:
         else:
             schema = cast(SchemaType, validator)
 
-        if 'errors' not in kwargs:
+        if kwargs.get('errors') is None:
             kwargs['errors'] = []
         if 'id_map' not in kwargs:
             kwargs['id_map'] = Counter[str]()
         if 'identities' not in kwargs:
             kwargs['identities'] = {}
+        if 'inherited' not in kwargs:
+            kwargs['inherited'] = {}
 
-        if isinstance(source, XMLResource) or cls is EncodeContext:
+        if isinstance(source, XMLResource):
+            kwargs['source'] = source
+            if source.is_lazy():
+                kwargs['use_location_hints'] = False
+        elif cls is EncodeContext:
             kwargs['source'] = source
         elif is_etree_element(source) or is_etree_document(source):
             kwargs['source'] = XMLResource(source)
@@ -199,7 +208,6 @@ class DecodeContext(ValidationContext):
     """A context dataclass for handling validated decoding process."""
     extra_validator: Optional[ExtraValidatorType] = None
     validation_hook: Optional[ValidationHookType] = None
-    allow_empty: bool = True
     use_location_hints: bool = False
 
     # Other optional attributes used only for decoding
@@ -230,7 +238,8 @@ class ValidationMixin(Generic[ST, DT]):
                  use_defaults: bool = True,
                  namespaces: Optional[NsmapType] = None,
                  max_depth: Optional[int] = None,
-                 extra_validator: Optional[ExtraValidatorType] = None) -> None:
+                 extra_validator: Optional[ExtraValidatorType] = None,
+                 validation_hook: Optional[ValidationHookType] = None) -> None:
         """
         Validates XML data against the XSD schema/component instance.
 
@@ -244,6 +253,15 @@ class ValidationMixin(Generic[ST, DT]):
         element, with the XML element as 1st argument and the corresponding XSD \
         element as 2nd argument. It can be also a generator function and has to \
         raise/yield :exc:`xmlschema.XMLSchemaValidationError` exceptions.
+        :param validation_hook: an optional function for stopping or changing \
+        validation at element level. The provided function must accept two arguments, \
+        the XML element and the matching XSD element. If the value returned by this \
+        function is evaluated to false then the validation process continues without \
+        changes, otherwise the validation process is stopped or changed. If the value \
+        returned is a validation mode the validation process continues changing the \
+        current validation mode to the returned value, otherwise the element and its \
+        content are not processed. The function can also stop validation suddenly \
+        raising a `XmlSchemaStopValidation` exception.
         :raises: :exc:`xmlschema.XMLSchemaValidationError` if the XML data instance is invalid.
         """
         for error in self.iter_errors(obj, use_defaults, namespaces,
@@ -254,39 +272,40 @@ class ValidationMixin(Generic[ST, DT]):
                  use_defaults: bool = True,
                  namespaces: Optional[NsmapType] = None,
                  max_depth: Optional[int] = None,
-                 extra_validator: Optional[ExtraValidatorType] = None) -> bool:
+                 extra_validator: Optional[ExtraValidatorType] = None,
+                 validation_hook: Optional[ValidationHookType] = None) -> bool:
         """
         Like :meth:`validate` except that does not raise an exception but returns
         ``True`` if the XML data instance is valid, ``False`` if it is invalid.
         """
-        error = next(self.iter_errors(obj, use_defaults, namespaces,
-                                      max_depth, extra_validator), None)
+        error = next(self.iter_errors(obj, use_defaults, namespaces, max_depth,
+                                      extra_validator, validation_hook), None)
         return error is None
 
     def iter_errors(self, obj: ST,
                     use_defaults: bool = True,
                     namespaces: Optional[NsmapType] = None,
                     max_depth: Optional[int] = None,
-                    extra_validator: Optional[ExtraValidatorType] = None) \
+                    extra_validator: Optional[ExtraValidatorType] = None,
+                    validation_hook: Optional[ValidationHookType] = None) \
             -> Iterator[XMLSchemaValidationError]:
         """
         Creates an iterator for the errors generated by the validation of an XML data against
         the XSD schema/component instance. Accepts the same arguments of :meth:`validate`.
         """
-        kwargs: Dict[str, Any] = {
-            'use_defaults': use_defaults,
-            'namespaces': namespaces,
-        }
-        if max_depth is not None:
-            kwargs['max_depth'] = max_depth
-        if extra_validator is not None:
-            kwargs['extra_validator'] = extra_validator
-
-        for result in self.iter_decode(obj, **kwargs):
-            if isinstance(result, XMLSchemaValidationError):
-                yield result
-            else:
-                del result
+        context = DecodeContext.get_context(
+            validator=self,
+            source=obj,
+            validation='lax',
+            converter=NamespaceMapper,
+            use_defaults=use_defaults,
+            namespaces=namespaces,
+            max_depth=max_depth,
+            extra_validator=extra_validator,
+            validation_hook=validation_hook,
+        )
+        self.raw_decode(obj, context)
+        yield from context.errors
 
     def decode(self, obj: ST, validation: str = 'strict', **kwargs: Any) -> DecodeType[DT]:
         """
@@ -305,19 +324,9 @@ class ValidationMixin(Generic[ST, DT]):
         :raises: :exc:`xmlschema.XMLSchemaValidationError` if the object is not decodable by \
         the XSD component, or also if it's invalid when ``validation='strict'`` is provided.
         """
-        check_validation_mode(validation)
-
-        result: Union[DT, XMLSchemaValidationError]
-        errors: List[XMLSchemaValidationError] = []
-        for result in self.iter_decode(obj, validation, **kwargs):  # pragma: no cover
-            if not isinstance(result, XMLSchemaValidationError):
-                return (result, errors) if validation == 'lax' else result
-            elif validation == 'strict':
-                raise result
-            else:
-                errors.append(result)
-
-        return (None, errors) if validation == 'lax' else None  # fallback: pragma: no cover
+        context = DecodeContext.get_context(self, obj, validation, **kwargs)
+        result = self.raw_decode(obj, context)
+        return (result, context.errors) if validation == 'lax' else result
 
     def encode(self, obj: Any, validation: str = 'strict', **kwargs: Any) -> EncodeType[Any]:
         """
@@ -348,7 +357,10 @@ class ValidationMixin(Generic[ST, DT]):
         :return: Yields a decoded object, eventually preceded by a sequence of \
         validation or decoding errors.
         """
-        raise NotImplementedError()
+        context = DecodeContext.get_context(self, obj, validation, **kwargs)
+        result = self.raw_decode(obj, context)
+        yield from context.errors
+        yield result
 
     def iter_encode(self, obj: Any, validation: str = 'lax', **kwargs: Any) \
             -> IterEncodeType[Any]:

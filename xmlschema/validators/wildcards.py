@@ -25,7 +25,7 @@ from xmlschema.translation import gettext as _
 from xmlschema.utils.qnames import get_namespace
 from xmlschema.utils.decoding import raw_xml_encode
 from xmlschema.xpath import XMLSchemaProxy, ElementPathMixin
-from xmlschema.validation import EncodeContext, ValidationMixin
+from xmlschema.validation import DecodeContext, EncodeContext, ValidationMixin
 
 from .xsdbase import XsdComponent
 from .particles import ParticleMixin
@@ -486,16 +486,13 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
     def iter_substitutes() -> Iterator[Any]:
         return iter(())
 
-    def iter_decode(self, obj: ElementType, validation: str = 'lax', **kwargs: Any) \
-            -> IterDecodeType[Any]:
-
+    def raw_decode(self, obj: ElementType, context: DecodeContext, level: int = 0) -> Any:
         if not self.is_matching(obj.tag):
             reason = _("element {!r} is not allowed here").format(obj)
-            yield self.validation_error(validation, reason, obj, **kwargs)
+            context.validation_error(self, reason, obj)
 
-        if self.process_contents == 'skip':
-            if 'process_skipped' not in kwargs or not kwargs['process_skipped']:
-                return
+        if self.process_contents == 'skip' and not context.process_skipped:
+            return None
 
         namespace = get_namespace(obj.tag)
         if namespace not in self.maps.namespaces and not self.maps.load_namespace(namespace):
@@ -506,8 +503,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
             except LookupError:
                 reason = f"element {obj.tag!r} not found"
             else:
-                yield from xsd_element.iter_decode(obj, validation, **kwargs)
-                return
+                return xsd_element.raw_decode(obj, context, level)
 
         if XSI_TYPE in obj.attrib:
             if self.process_contents == 'strict':
@@ -519,58 +515,15 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
                     obj.tag, parent=self, nillable='true', form='unqualified'
                 )
 
-            yield from xsd_element.iter_decode(obj, validation, **kwargs)
-            return
+            return xsd_element.raw_decode(obj, context, level)
 
-        if validation != 'skip' and self.process_contents == 'strict':
-            yield self.validation_error(validation, reason, obj, **kwargs)
-
-        xsd_element = self.maps.validator.create_element(
-            obj.tag, parent=self, form='unqualified'
-        )
-        yield from xsd_element.iter_decode(obj, validation, **kwargs)
-
-    def decode2(self, obj: ElementType, validation: str = 'lax', **kwargs: Any) \
-            -> Any:
-
-        if not self.is_matching(obj.tag):
-            reason = _("element {!r} is not allowed here").format(obj)
-            self.validation_error(validation, reason, obj, **kwargs)
-
-        if self.process_contents == 'skip':
-            if 'process_skipped' not in kwargs or not kwargs['process_skipped']:
-                return None
-
-        namespace = get_namespace(obj.tag)
-        if namespace not in self.maps.namespaces and not self.maps.load_namespace(namespace):
-            reason = f"unavailable namespace {namespace!r}"
-        else:
-            try:
-                xsd_element = self.maps.lookup_element(obj.tag)
-            except LookupError:
-                reason = f"element {obj.tag!r} not found"
-            else:
-                return xsd_element.decode2(obj, validation, **kwargs)
-
-        if XSI_TYPE in obj.attrib:
-            if self.process_contents == 'strict':
-                xsd_element = self.maps.validator.create_element(
-                    obj.tag, parent=self, form='unqualified'
-                )
-            else:
-                xsd_element = self.maps.validator.create_element(
-                    obj.tag, parent=self, nillable='true', form='unqualified'
-                )
-
-            return xsd_element.decode2(obj, validation, **kwargs)
-
-        if validation != 'skip' and self.process_contents == 'strict':
-            self.validation_error(validation, reason, obj, **kwargs)
+        if context.validation != 'skip' and self.process_contents == 'strict':
+            context.validation_error(self, reason, obj)
 
         xsd_element = self.maps.validator.create_element(
             obj.tag, parent=self, form='unqualified'
         )
-        return xsd_element.decode2(obj, validation, **kwargs)
+        return xsd_element.raw_decode(obj, context, level)
 
     def raw_encode(self, obj: Tuple[str, ElementType],
                    context: EncodeContext, level: int = 0) -> Any:
@@ -702,7 +655,7 @@ class XsdAnyAttribute(XsdWildcard, ValidationMixin[Tuple[str, str], DecodedValue
         except LookupError:
             return None
 
-    def iter_decode(self, obj: Tuple[str, str], validation: str = 'lax', **kwargs: Any) \
+    def _iter_decode(self, obj: Tuple[str, str], validation: str = 'lax', **kwargs: Any) \
             -> IterDecodeType[DecodedValueType]:
         name, value = obj
 
@@ -731,31 +684,30 @@ class XsdAnyAttribute(XsdWildcard, ValidationMixin[Tuple[str, str], DecodedValue
 
         yield value
 
-    def decode2(self, obj: Tuple[str, str], validation: str = 'lax', **kwargs: Any) \
+    def raw_decode(self, obj: Tuple[str, str], context: DecodeContext, level: int = 0) \
             -> DecodedValueType:
         name, value = obj
 
         if not self.is_matching(name):
             reason = _("attribute %r not allowed") % name
-            self.validation_error(validation, reason, obj, **kwargs)
+            context.validation_error(self, reason, obj)
 
-        if self.process_contents == 'skip':
-            if 'process_skipped' not in kwargs or not kwargs['process_skipped']:
-                return None
+        if self.process_contents == 'skip' and not context.process_skipped:
+            return None
 
         if self.maps.load_namespace(get_namespace(name)):
             try:
                 xsd_attribute = self.maps.lookup_attribute(name)
             except LookupError:
-                if validation != 'skip' and self.process_contents == 'strict':
+                if context.validation != 'skip' and self.process_contents == 'strict':
                     reason = _("attribute %r not found") % name
-                    self.validation_error(validation, reason, obj, **kwargs)
+                    context.validation_error(self, reason, obj)
             else:
-                return xsd_attribute.decode2(value, validation, **kwargs)
+                return xsd_attribute.raw_decode(value, context, level)
 
-        elif validation != 'skip' and self.process_contents == 'strict':
+        elif context.validation != 'skip' and self.process_contents == 'strict':
             reason = _("unavailable namespace {!r}").format(get_namespace(name))
-            self.validation_error(validation, reason, **kwargs)
+            context.validation_error(self, reason)
 
         return value
 
