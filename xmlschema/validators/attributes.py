@@ -10,7 +10,6 @@
 """
 This module contains classes for XML Schema attributes and attribute groups.
 """
-from dataclasses import replace
 from copy import copy as _copy
 from decimal import Decimal
 from elementpath.datatypes import AbstractDateTime, Duration, AbstractBinary
@@ -227,7 +226,7 @@ class XsdAttribute(XsdComponent, ValidationMixin[str, DecodedValueType]):
         """Returns the decoded data value of the provided text as XPath fn:data()."""
         return cast(AtomicValueType, self.decode(text, validation='skip'))
 
-    def raw_decode(self, obj: str, context: DecodeContext, level: int = 0) -> DecodedValueType:
+    def raw_decode(self, obj: str, context: DecodeContext) -> DecodedValueType:
         if obj is None and self.default is not None:
             obj = self.default
 
@@ -248,7 +247,7 @@ class XsdAttribute(XsdComponent, ValidationMixin[str, DecodedValueType]):
                 msg = _("attribute {0!r} has a fixed value {1!r}").format(self.name, self.fixed)
                 context.validation_error(self, msg, obj)
 
-        value = self.type.raw_decode(obj, context, level)
+        value = self.type.raw_decode(obj, context)
         if isinstance(value, XMLSchemaValidationError):
             value.reason = _('attribute {0}={1!r}: {2}').format(
                 self.prefixed_name, obj, value.reason
@@ -278,8 +277,8 @@ class XsdAttribute(XsdComponent, ValidationMixin[str, DecodedValueType]):
         else:
             return value
 
-    def raw_encode(self, obj: Any, context: EncodeContext, level: int = 0) -> EncodedValueType:
-        return self.type.raw_encode(obj, context, level)
+    def raw_encode(self, obj: Any, context: EncodeContext) -> EncodedValueType:
+        return self.type.raw_encode(obj, context)
 
 
 class Xsd11Attribute(XsdAttribute):
@@ -656,16 +655,15 @@ class XsdAttributeGroup(
             if attr.parent is not None:
                 yield from attr.iter_components(xsd_classes)
 
-    def raw_decode(self, obj: MutableMapping[str, str],
-                   context: DecodeContext, level: int = 0) -> List[Tuple[str, Any]]:
+    def raw_decode(self, obj: MutableMapping[str, str], context: DecodeContext) \
+            -> List[Tuple[str, Any]]:
+
         if not obj and not self:
             return []
 
         for name in filter(lambda x: x not in obj, self.iter_required()):
             reason = _("missing required attribute {!r}").format(name)
             context.validation_error(self, reason, obj)
-
-        level += 1
 
         additional_attrs = [
             (k, v) for k, v in self.iter_value_constraints(context.use_defaults)
@@ -710,7 +708,7 @@ class XsdAttributeGroup(
                     reason = _("use of attribute %r is prohibited") % name
                     context.validation_error(self, reason, obj)
 
-            result = xsd_attribute.raw_decode(value, context, level)
+            result = xsd_attribute.raw_decode(value, context)
             if result is None and context.filler is not None:
                 result_list.append((name, context.filler(xsd_attribute)))
             else:
@@ -727,7 +725,7 @@ class XsdAttributeGroup(
 
         return result_list
 
-    def raw_encode(self, obj: MutableMapping[str, Any], context: EncodeContext, level: int = 0) \
+    def raw_encode(self, obj: MutableMapping[str, Any], context: EncodeContext) \
             -> List[Tuple[str, str]]:
 
         if not obj and not self:
@@ -763,7 +761,7 @@ class XsdAttributeGroup(
                         context.validation_error(self, reason, obj)
                         continue
 
-            result = xsd_attribute.raw_encode(value, context, level)
+            result = xsd_attribute.raw_encode(value, context)
             if result is not None:
                 result_list.append((name, result))
 

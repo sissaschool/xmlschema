@@ -60,9 +60,8 @@ ST = TypeVar('ST')
 DT = TypeVar('DT')
 
 
-@dataclass
 class ValidationContext:
-    """A context dataclass for handling validated decoding process."""
+    """A context class for handling validated decoding process."""
     errors: List[XMLSchemaValidationError]
     converter: Union[XMLSchemaConverter, NamespaceMapper]
     id_map: Counter[str]
@@ -70,30 +69,34 @@ class ValidationContext:
     inherited: Optional[Dict[str, str]]
     source: Union[XMLResource, Any]
 
-    validation: str = 'strict'
-    use_defaults: bool = True
-    unordered: bool = False
-    process_skipped: bool = False
-    max_depth: Optional[int] = None
-
     # Used by XSD components
-    elem: Optional[ElementType] = None
-    id_list: Optional[List[Any]] = None
-    patterns: Optional['XsdPatternFacets'] = None
+    elem: Optional[ElementType]
+    id_list: Optional[List[Any]]
+    patterns: Optional['XsdPatternFacets']
+    level: int
+
+    __slots__ = ('errors', 'converter', 'id_map', 'identities', 'inherited', 'source',
+                 'validation', 'use_defaults', 'unordered', 'process_skipped',
+                 'max_depth', 'elem', 'id_list', 'patterns', 'level', '__dict__')
 
     @property
     def namespaces(self) -> NsmapType:
         return self.converter.namespaces
 
-    @classmethod
-    def get_context(cls: Type[Self],
-                    validator: Union[SchemaType, 'ValidationMixin[ST, DT]'],
-                    source: Any,
-                    validation: str,
-                    **kwargs: Any) -> Self:
+    def __init__(self, validator: Union[SchemaType, 'ValidationMixin[ST, DT]'],
+                 source: Any,
+                 validation: str = 'strict',
+                 level: int = 0,
+                 elem: Optional[ElementType] = None,
+                 *,
+                 use_defaults: bool = True,
+                 unordered: bool = False,
+                 process_skipped: bool = False,
+                 max_depth: Optional[int] = None,
+                 **kwargs: Any) -> None:
 
         check_validation_mode(validation)
-        kwargs['validation'] = validation
+        self.validation = validation
 
         schema: SchemaType
         if hasattr(validator, 'schema'):
@@ -101,36 +104,43 @@ class ValidationContext:
         else:
             schema = cast(SchemaType, validator)
 
-        if kwargs.get('errors') is None:
-            kwargs['errors'] = []
-        if 'id_map' not in kwargs:
-            kwargs['id_map'] = Counter[str]()
-        if 'identities' not in kwargs:
-            kwargs['identities'] = {}
-        if 'inherited' not in kwargs:
-            kwargs['inherited'] = {}
+        errors = kwargs.pop('errors', None)
+        if not isinstance(errors, list):
+            self.errors = []
+        else:
+            self.errors = errors
+
+        self.id_map = Counter[str]()
+        self.identities = {}
+        self.inherited = {}
+
+        self.level = level
+        self.elem = elem
+        self.id_list = None
+        self.patterns = None
 
         if isinstance(source, XMLResource):
-            kwargs['source'] = source
-            if source.is_lazy():
-                kwargs['use_location_hints'] = False
-        elif cls is EncodeContext:
-            kwargs['source'] = source
+            self.source = source
+        elif self.__class__ is EncodeContext:
+            self.source = source
         elif is_etree_element(source) or is_etree_document(source):
-            kwargs['source'] = XMLResource(source)
+            self.source = XMLResource(source)
         else:
-            kwargs['source'] = source
+            self.source = source
 
         converter = kwargs.get('converter')
         if converter is NamespaceMapper:
-            kwargs['converter'] = NamespaceMapper(
+            self.converter = NamespaceMapper(
                 namespaces=kwargs.get('namespaces'),
-                source=kwargs['source']
+                source=self.source
             )
         else:
-            kwargs['converter'] = schema.get_converter(**kwargs)
+            self.converter = schema.get_converter(source=self.source, **kwargs)
 
-        return cls(**{k: v for k, v in kwargs.items() if k in cls.__dataclass_fields__})
+        self.use_defaults = use_defaults
+        self.unordered = unordered
+        self.process_skipped = process_skipped
+        self.max_depth = max_depth
 
     def validation_error(self: Self,
                          validator: 'XsdValidator',
@@ -165,6 +175,8 @@ class ValidationContext:
 
         if error.elem is None and elem is not None:
             error.elem = elem
+        if error.elem is None and self.elem is not None:
+            error.elem = self.elem
 
         if self.validation == 'strict':  # and error.elem is not None:
             raise error
@@ -203,7 +215,6 @@ class ValidationContext:
         self.errors.append(error)
 
 
-@dataclass
 class DecodeContext(ValidationContext):
     """A context dataclass for handling validated decoding process."""
     extra_validator: Optional[ExtraValidatorType] = None
@@ -222,8 +233,53 @@ class DecodeContext(ValidationContext):
     value_hook: Optional[ValueHookType] = None
     element_hook: Optional[ElementHookType] = None
 
+    def __init__(self, validator: Union[SchemaType, 'ValidationMixin[ST, DT]'],
+                 source: Any,
+                 validation: str = 'strict',
+                 level: int = 0,
+                 elem: Optional[ElementType] = None,
+                 *,
+                 use_defaults: bool = True,
+                 unordered: bool = False,
+                 process_skipped: bool = False,
+                 max_depth: Optional[int] = None,
+                 extra_validator: Optional[ExtraValidatorType] = None,
+                 validation_hook: Optional[ValidationHookType] = None,
+                 use_location_hints: bool = False,
 
-@dataclass
+                 decimal_type: Optional[Type[Any]] = None,
+                 datetime_types: bool = False,
+                 binary_types: bool = False,
+                 filler: Optional[FillerType] = None,
+                 fill_missing: bool = False,
+                 keep_empty: bool = False,
+                 keep_unknown: bool = False,
+                 depth_filler: Optional[DepthFillerType] = None,
+                 value_hook: Optional[ValueHookType] = None,
+                 element_hook: Optional[ElementHookType] = None,
+                 **kwargs: Any) -> None:
+
+        super().__init__(validator, source, validation, level, elem,
+                         use_defaults=use_defaults,
+                         unordered=unordered,
+                         process_skipped=process_skipped,
+                         max_depth=max_depth,
+                         **kwargs)
+        self.extra_validator = extra_validator
+        self.validation_hook = validation_hook
+        self.use_location_hints = use_location_hints
+        self.decimal_type = decimal_type
+        self.datetime_types = datetime_types
+        self.binary_types = binary_types
+        self.filler = filler
+        self.fill_missing = fill_missing
+        self.keep_empty = keep_empty
+        self.keep_unknown = keep_unknown
+        self.depth_filler = depth_filler
+        self.value_hook = value_hook
+        self.element_hook = element_hook
+
+
 class EncodeContext(ValidationContext):
     """A context dataclass for handling validated encoding process."""
     converter: XMLSchemaConverter
@@ -293,7 +349,7 @@ class ValidationMixin(Generic[ST, DT]):
         Creates an iterator for the errors generated by the validation of an XML data against
         the XSD schema/component instance. Accepts the same arguments of :meth:`validate`.
         """
-        context = DecodeContext.get_context(
+        context = DecodeContext(
             validator=self,
             source=obj,
             validation='lax',
@@ -324,7 +380,7 @@ class ValidationMixin(Generic[ST, DT]):
         :raises: :exc:`xmlschema.XMLSchemaValidationError` if the object is not decodable by \
         the XSD component, or also if it's invalid when ``validation='strict'`` is provided.
         """
-        context = DecodeContext.get_context(self, obj, validation, **kwargs)
+        context = DecodeContext(self, obj, validation, **kwargs)
         result = self.raw_decode(obj, context)
         return (result, context.errors) if validation == 'lax' else result
 
@@ -342,7 +398,7 @@ class ValidationMixin(Generic[ST, DT]):
         :raises: :exc:`xmlschema.XMLSchemaValidationError` if the object is not encodable by \
         the XSD component, or also if it's invalid when ``validation='strict'`` is provided.
         """
-        context = EncodeContext.get_context(self, obj, validation, **kwargs)
+        context = EncodeContext(self, obj, validation, **kwargs)
         result = self.raw_encode(obj, context)
         return (result, context.errors) if validation == 'lax' else result
 
@@ -357,7 +413,7 @@ class ValidationMixin(Generic[ST, DT]):
         :return: Yields a decoded object, eventually preceded by a sequence of \
         validation or decoding errors.
         """
-        context = DecodeContext.get_context(self, obj, validation, **kwargs)
+        context = DecodeContext(self, obj, validation, **kwargs)
         result = self.raw_decode(obj, context)
         yield from context.errors
         yield result
@@ -373,19 +429,19 @@ class ValidationMixin(Generic[ST, DT]):
         :return: Yields an Element, eventually preceded by a sequence of validation \
         or encoding errors.
         """
-        context = EncodeContext.get_context(self, obj, validation, **kwargs)
+        context = EncodeContext(self, obj, validation, **kwargs)
         result = self.raw_encode(obj, context)
         yield from context.errors
         yield result
 
-    def raw_decode(self, obj: ST, context: DecodeContext, level: int = 0) -> DecodeType[DT]:
+    def raw_decode(self, obj: ST, context: DecodeContext) -> DecodeType[DT]:
         """
         Internal decode method. Takes the same arguments as *decode*. Returns the \
         decoded data structure, usually a nested dict and/or list.
         """
         raise NotImplementedError()
 
-    def raw_encode(self, obj: Any, context: EncodeContext, level: int = 0) -> Any:
+    def raw_encode(self, obj: Any, context: EncodeContext) -> Any:
         """
         Internal encode method. Takes the same arguments as *encode*. Returns a \
         tree of Elements or a fragment of it (e.g. an attribute value).

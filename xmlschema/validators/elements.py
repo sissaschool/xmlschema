@@ -10,7 +10,6 @@
 """
 This module contains classes for XML Schema elements, complex types and model groups.
 """
-import dataclasses
 import warnings
 from copy import copy as _copy
 from decimal import Decimal
@@ -39,8 +38,7 @@ from xmlschema import dataobjects
 from xmlschema.converters import ElementData, XMLSchemaConverter
 from xmlschema.xpath import XMLSchemaProxy, ElementPathMixin, XPathElement
 from xmlschema.resources import XMLResource
-from xmlschema.validation import XSD_VALIDATION_MODES, DecodeContext, \
-    EncodeContext, ValidationMixin
+from xmlschema.validation import DecodeContext, EncodeContext, ValidationMixin
 
 from .exceptions import XMLSchemaNotBuiltError, XMLSchemaValidationError, \
     XMLSchemaParseError, XMLSchemaStopValidation, XMLSchemaTypeTableWarning
@@ -578,13 +576,12 @@ class XsdElement(XsdComponent, ParticleMixin,
             except OSError:
                 continue
 
-    def raw_decode(self, obj: ElementType, context: DecodeContext, level: int = 0) -> Any:
+    def raw_decode(self, obj: ElementType, context: DecodeContext) -> Any:
         """
         Decode an Element instance.
 
         :param obj: the Element that has to be decoded.
-        :param context: the encoding context.
-        :param level: the depth level of the encoding process.
+        :param context: the decoding context.
         :return: a decoded object.
         """
         error: Union[XMLSchemaValueError, XMLSchemaValidationError]
@@ -596,24 +593,15 @@ class XsdElement(XsdComponent, ParticleMixin,
 
         context.elem = obj
 
-        # Control validation on element and its descendants or stop validation
-        if context.validation_hook is not None:
-            value = context.validation_hook(obj, self)
-            if value:
-                if isinstance(value, str) and value in XSD_VALIDATION_MODES:
-                    context = dataclasses.replace(context, validation=value)
-                else:
-                    return None
-
         for identity in self.identities:
             if identity in context.identities:
                 context.identities[identity].reset(obj)
             else:
                 context.identities[identity] = identity.get_counter(obj)
 
-        if not level:
+        if not context.level:
             # Need to set converter context with the right object (the resource can be lazy)
-            context.converter.set_context(obj, level)
+            context.converter.set_context(obj, context.level)
         elif context.use_location_hints:
             # Use location hints for dynamic schema load
             self.check_dynamic_context(obj, context)
@@ -671,7 +659,9 @@ class XsdElement(XsdComponent, ParticleMixin,
 
         # Decode attributes
         attribute_group = self.get_attributes(xsd_type)
-        attributes = attribute_group.raw_decode(obj.attrib, context, level)
+        context.level += 1
+        attributes = attribute_group.raw_decode(obj.attrib, context)
+        context.level -= 1
 
         if self.inheritable and any(name in self.inheritable for name in obj.attrib):
             if inherited:
@@ -679,7 +669,8 @@ class XsdElement(XsdComponent, ParticleMixin,
                 inherited.update((k, v) for k, v in obj.attrib.items() if k in self.inheritable)
             else:
                 inherited = {k: v for k, v in obj.attrib.items() if k in self.inheritable}
-            context = dataclasses.replace(context, inherited=inherited)
+            context = _copy(context)
+            context.inherited = inherited
 
         # Checks the xsi:nil attribute of the instance
         if XSI_NIL in obj.attrib:
@@ -715,7 +706,9 @@ class XsdElement(XsdComponent, ParticleMixin,
                     ):
                         context.validation_error(self, error)
 
-            content = content_decoder.raw_decode(obj, context, level)
+            context.level += 1
+            content = content_decoder.raw_decode(obj, context)
+            context.level -= 1
             if content and len(content) == 1 and content[0][0] == 1:
                 value, content = content[0][1], None
 
@@ -764,7 +757,7 @@ class XsdElement(XsdComponent, ParticleMixin,
                     msg = _("missing enumeration facet in xs:NOTATION subtype")
                     context.validation_error(self, msg, text)
 
-            result = content_decoder.raw_decode(text or '', context, level)
+            result = content_decoder.raw_decode(text or '', context)
             if result is None and context.filler is not None:
                 value = context.filler(self)
             elif text or context.keep_empty:
@@ -789,7 +782,7 @@ class XsdElement(XsdComponent, ParticleMixin,
                 if not context.binary_types:
                     value = str(value)
 
-        xmlns = converter.set_context(obj, level)  # Purge existing sub-contexts
+        xmlns = converter.set_context(obj, context.level)  # Purge existing sub-contexts
 
         if isinstance(converter, XMLSchemaConverter):
             element_data = ElementData(obj.tag, value, content, attributes, xmlns)
@@ -797,11 +790,14 @@ class XsdElement(XsdComponent, ParticleMixin,
                 element_data = context.element_hook(element_data, self, xsd_type)
 
             try:
-                return converter.element_decode(element_data, self, xsd_type, level)
+                result = converter.element_decode(element_data, self, xsd_type, context.level)
             except (ValueError, TypeError) as err:
                 context.validation_error(self, err, obj)
-        elif not level:
-            return ElementData(obj.tag, value, None, attributes, None)
+                result = None
+        elif not context.level:
+            result = ElementData(obj.tag, value, None, attributes, None)
+        else:
+            result = None
 
         if content is not None:
             del content
@@ -818,12 +814,12 @@ class XsdElement(XsdComponent, ParticleMixin,
         # Apply non XSD optional validations
         if context.extra_validator is not None:
             try:
-                result = context.extra_validator(obj, self)
+                errors = context.extra_validator(obj, self)
             except XMLSchemaValidationError as err:
                 context.validation_error(self, err, obj)
             else:
-                if isinstance(result, GeneratorType):
-                    for error in result:
+                if isinstance(errors, GeneratorType):
+                    for error in errors:
                         context.validation_error(self, error, obj)
 
         # Disable collect for out of scope identities and check key references
@@ -835,9 +831,11 @@ class XsdElement(XsdComponent, ParticleMixin,
                     assert isinstance(counter, KeyrefCounter)
                     for error in counter.iter_errors(context.identities):
                         context.validation_error(self, error, obj)
-        elif level:
+        elif context.level:
             for identity in self.identities:
                 context.identities[identity].enabled = False
+
+        return result
 
     def collect_key_fields(self, obj: ElementType, xsd_type: BaseXsdType,
                            validation: str = 'lax', nilled: bool = False,
@@ -924,24 +922,23 @@ class XsdElement(XsdComponent, ParticleMixin,
             return self.decode(obj, converter=dataobjects.DataBindingConverter, **kwargs)
         return self.decode(obj, converter=dataobjects.DataElementConverter, **kwargs)
 
-    def raw_encode(self, obj: Any, context: EncodeContext, level: int = 0) -> Optional[ElementType]:
+    def raw_encode(self, obj: Any, context: EncodeContext) -> Optional[ElementType]:
         """
         Encode data to an Element.
 
         :param obj: the data that has to be encoded.
         :param context: the encoding context.
-        :param level: the depth level of the encoding process.
         :return: returns an Element.
         """
         errors: List[Union[str, Exception]] = []
 
         try:
-            element_data = context.converter.element_encode(obj, self, level)
+            element_data = context.converter.element_encode(obj, self, context.level)
         except (ValueError, TypeError) as err:
             context.validation_error(self, err, obj)
             return None
 
-        if context.max_depth is not None and context.max_depth == 0 and not level:
+        if context.max_depth is not None and context.max_depth == 0 and not context.level:
             return None
 
         text = None
@@ -973,13 +970,16 @@ class XsdElement(XsdComponent, ParticleMixin,
 
         attribute_group = self.get_attributes(xsd_type)
         result: Any
+        context.level += 1
         try:
-            attributes = attribute_group.raw_encode(element_data.attributes, context, level)
+            attributes = attribute_group.raw_encode(element_data.attributes, context)
         except XMLSchemaValidationError as err:
             if err.elem is not None:
                 raise
             errors.append(err)
             attributes = []
+        finally:
+            context.level -= 1
 
         if XSI_NIL in element_data.attributes:
             xsi_nil = element_data.attributes[XSI_NIL].strip()
@@ -995,7 +995,7 @@ class XsdElement(XsdComponent, ParticleMixin,
                 errors.append("xsi:nil='true' but the element is not empty.")
             else:
                 elem = context.converter.etree_element(
-                    element_data.tag, attrib=attributes, level=level
+                    element_data.tag, attrib=attributes, level=context.level
                 )
                 for e in errors:
                     context.validation_error(self, e, elem)
@@ -1007,7 +1007,7 @@ class XsdElement(XsdComponent, ParticleMixin,
 
             if element_data.text is not None:
                 try:
-                    text = xsd_type.raw_encode(element_data.text, context, level)
+                    text = xsd_type.raw_encode(element_data.text, context)
                 except XMLSchemaValidationError as err:
                     if err.elem is not None:
                         raise
@@ -1021,7 +1021,7 @@ class XsdElement(XsdComponent, ParticleMixin,
         elif isinstance(xsd_type.content, XsdSimpleType):
             if element_data.text is not None:
                 try:
-                    text = xsd_type.content.raw_encode(element_data.text, context, level)
+                    text = xsd_type.content.raw_encode(element_data.text, context)
                 except XMLSchemaValidationError as err:
                     if err.elem is not None:
                         raise
@@ -1033,14 +1033,17 @@ class XsdElement(XsdComponent, ParticleMixin,
                 text = self.default
 
         else:
+            context.level += 1
             try:
-                text, children = xsd_type.content.raw_encode(element_data, context, level)
+                text, children = xsd_type.content.raw_encode(element_data, context)
             except XMLSchemaValidationError as err:
                 errors.append(err)
                 children = None
+            finally:
+                context.level -= 1
 
         elem = context.converter.etree_element(
-            element_data.tag, text, children, attributes, level
+            element_data.tag, text, children, attributes, context.level
         )
 
         if errors:
@@ -1394,16 +1397,12 @@ class Xsd11Element(XsdElement):
             warnings.warn(msg.format(e1, e2), XMLSchemaTypeTableWarning, stacklevel=3)
         return True
 
-    def check_dynamic_context(self, elem: ElementType,
-                              validation: str,
-                              options: Dict[str, Any]) -> Iterator[XMLSchemaValidationError]:
-        try:
-            source = options['source']
-        except KeyError:
+    def check_dynamic_context(self, elem: ElementType, context: DecodeContext) -> None:
+        if context.source is None:
             return
 
         for ns, url in etree_iter_location_hints(elem):
-            base_url = source.base_url
+            base_url = context.source.base_url
             url = normalize_url(url, base_url)
             if any(url == schema.url for schema in self.maps.iter_schemas()):
                 continue
@@ -1423,17 +1422,17 @@ class Xsd11Element(XsdElement):
                         raise XMLSchemaStopValidation()
                     return False
 
-                errors = list(schema.iter_errors(source, validation_hook=stop_validation))
-                if len(options['errors']) != len(errors) or \
-                        any(e1.elem is not e2.elem for e1, e2 in zip(options['errors'], errors)):
+                errors = list(schema.iter_errors(context.source, validation_hook=stop_validation))
+                if len(context.errors) != len(errors) or \
+                        any(e1.elem is not e2.elem for e1, e2 in zip(context.errors, errors)):
                     reason = _(f"adding schema at {url} change the "
                                f"assessment outcome of previous items")
-                    yield self.validation_error(validation, reason, elem, **options)
+                    context.validation_error(self, reason, elem)
 
             except (XMLSchemaValidationError, ParseError) as err:
-                yield self.validation_error(validation, err, elem, **options)
+                context.validation_error(self, err, elem)
             except XMLSchemaParseError as err:
-                yield self.validation_error(validation, err.message, elem, **options)
+                context.validation_error(self, err.message, elem)
             except OSError:
                 continue
 

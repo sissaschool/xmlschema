@@ -27,7 +27,8 @@ from xmlschema.converters import ElementData
 from xmlschema.translation import gettext as _
 from xmlschema.utils.decoding import raw_xml_encode
 from xmlschema.utils.qnames import get_qname, local_name
-from xmlschema.validation import DecodeContext, EncodeContext, ValidationMixin
+from xmlschema.validation import XSD_VALIDATION_MODES, DecodeContext, \
+    EncodeContext, ValidationMixin
 
 from .exceptions import XMLSchemaModelError, XMLSchemaModelDepthError, \
     XMLSchemaValidationError, XMLSchemaTypeTableWarning
@@ -940,15 +941,13 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                 return xsd_element
         return None
 
-    def raw_decode(self, obj: ElementType, context: DecodeContext, level: int = 0) \
-            -> GroupDecodeType:
+    def raw_decode(self, obj: ElementType, context: DecodeContext) -> GroupDecodeType:
         """
         Decoding an Element content.
 
         :param obj: an Element.
         :param context: the encoding context.
-        :param level: the depth level of the encoding process.
-        :return: yields a list of 3-tuples (key, decoded data, decoder).
+        :return: a list of 3-tuples (key, decoded data, decoder).
         """
         result_list: GroupDecodeType = []
         cdata_index = 1  # keys for CDATA sections are positive integers
@@ -975,10 +974,8 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                 result_list.append((cdata_index, text, None))
                 cdata_index += 1
 
-        level += 1
-
-        over_max_depth = context.max_depth is not None and context.max_depth <= level
-        if level > limits.MAX_XML_DEPTH:
+        over_max_depth = context.max_depth is not None and context.max_depth <= context.level
+        if context.level > limits.MAX_XML_DEPTH:
             reason = _("XML data depth exceeded (MAX_XML_DEPTH=%r)") % limits.MAX_XML_DEPTH
             context.validation = 'strict'
             context.validation_error(self, reason, obj)
@@ -1003,7 +1000,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
             if callable(child.tag):
                 continue  # child is a comment or PI
 
-            converter.set_context(child, level)
+            converter.set_context(child, context.level)
             name = converter.map_qname(child.tag)
 
             while model.element is not None:
@@ -1036,9 +1033,10 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                     errors.append((index, xsd_element, 0, []))
                     broken_model = True
 
+            # Optional checks on matched XSD child
             if xsd_element is None:
                 if context.keep_unknown:
-                    result = self.any_type.raw_decode(child, context, level)
+                    result = self.any_type.raw_decode(child, context)
                     result_list.append((name, result, None))
                 continue
             elif over_max_depth:
@@ -1046,8 +1044,17 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                     func = context.depth_filler
                     result_list.append((name, func(xsd_element), xsd_element))
                 continue
+            elif context.validation_hook is not None:
+                # Control validation on element and its descendants or stop validation
+                value = context.validation_hook(child, xsd_element)
+                if value:
+                    if isinstance(value, str) and value in XSD_VALIDATION_MODES:
+                        context = _copy(context)
+                        context.validation = value
+                    else:
+                        continue
 
-            result = xsd_element.raw_decode(child, context, level)
+            result = xsd_element.raw_decode(child, context)
             result_list.append((name, result, xsd_element))
 
             if cdata_index and child.tail is not None:
@@ -1074,14 +1081,12 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
 
         return result_list
 
-    def raw_encode(self, obj: ElementData, context: EncodeContext, level: int = 0) \
-            -> GroupEncodeType:
+    def raw_encode(self, obj: ElementData, context: EncodeContext) -> GroupEncodeType:
         """
         Encode data to a list containing Element children.
 
         :param obj: an ElementData instance.
         :param context: the encoding context.
-        :param level: the depth level of the encoding process.
         :return: returns a couple with the text of the Element and a list of child \
         elements.
         """
@@ -1089,9 +1094,8 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         text = raw_xml_encode(obj.text)
         children: List[ElementType] = []
 
-        level += 1
         converter = context.converter
-        padding = '\n' + ' ' * converter.indent * level
+        padding = '\n' + ' ' * converter.indent * context.level
         default_namespace = converter.get('')
 
         if self.open_content is None or self.open_content.mode == 'none':
@@ -1103,7 +1107,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
 
         index = cdata_index = 0
         wrong_content_type = False
-        over_max_depth = context.max_depth is not None and context.max_depth <= level
+        over_max_depth = context.max_depth is not None and context.max_depth <= context.level
 
         content: Iterable[Any]
         if not obj.content:
@@ -1167,7 +1171,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
             if over_max_depth:
                 continue
 
-            child = xsd_element.raw_encode(value, context, level)
+            child = xsd_element.raw_encode(value, context)
             if child is not None:
                 children.append(child)
 

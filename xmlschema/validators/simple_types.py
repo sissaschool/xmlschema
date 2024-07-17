@@ -10,15 +10,14 @@
 """
 This module contains classes for XML Schema simple data types.
 """
-import dataclasses
+from copy import copy
 from decimal import DecimalException
 from typing import cast, Any, Callable, Dict, Iterator, List, \
     Optional, Set, Union, Tuple, Type
 from xml.etree import ElementTree
 
 from xmlschema.aliases import ElementType, AtomicValueType, ComponentClassType, \
-    IterDecodeType, BaseXsdType, SchemaType, DecodedValueType, EncodedValueType, \
-    Decoded2ValueType
+    BaseXsdType, SchemaType, DecodedValueType, EncodedValueType
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from xmlschema.names import XSD_NAMESPACE, XSD_ANY_TYPE, XSD_SIMPLE_TYPE, XSD_PATTERN, \
     XSD_ANY_ATOMIC_TYPE, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ANY_ATTRIBUTE, \
@@ -445,8 +444,7 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
     def text_decode(self, text: str) -> AtomicValueType:
         return cast(AtomicValueType, self.decode(text, validation='skip'))
 
-    def raw_decode(self, obj: Union[str, bytes], context: DecodeContext, level: int = 0) \
-            -> Decoded2ValueType:
+    def raw_decode(self, obj: Union[str, bytes], context: DecodeContext) -> DecodedValueType:
         text = self.normalize(obj)
         if self.patterns is not None:
             try:
@@ -462,7 +460,7 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
 
         return text
 
-    def raw_encode(self, obj: Any, context: EncodeContext, level: int = 0) -> EncodedValueType:
+    def raw_encode(self, obj: Any, context: EncodeContext) -> EncodedValueType:
         if isinstance(obj, (str, bytes)):
             text = self.normalize(obj)
         elif obj is None:
@@ -618,8 +616,7 @@ class XsdAtomicBuiltin(XsdAtomic):
     def admitted_facets(self) -> Set[str]:
         return self._admitted_facets or self.primitive_type.admitted_facets
 
-    def raw_decode(self, obj: Union[str, bytes], context: DecodeContext, level: int = 0) \
-            -> Decoded2ValueType:
+    def raw_decode(self, obj: Union[str, bytes], context: DecodeContext) -> DecodedValueType:
         if isinstance(obj, (str, bytes)):
             obj = self.normalize(obj)
         elif obj is not None and not isinstance(obj, self.instance_types):
@@ -688,7 +685,7 @@ class XsdAtomicBuiltin(XsdAtomic):
             if obj not in context.id_map:
                 context.id_map[obj] = 0
 
-        elif level != 0:
+        elif context.level:
             if context.id_list is None:
                 if not context.id_map[obj]:
                     context.id_map[obj] = 1
@@ -709,7 +706,7 @@ class XsdAtomicBuiltin(XsdAtomic):
 
         return result
 
-    def raw_encode(self, obj: Any, context: EncodeContext, level: int = 0) -> EncodedValueType:
+    def raw_encode(self, obj: Any, context: EncodeContext) -> EncodedValueType:
         if isinstance(obj, (str, bytes)):
             obj = self.normalize(obj)
 
@@ -920,23 +917,23 @@ class XsdList(XsdSimpleType):
         if self.item_type.parent is not None:
             yield from self.item_type.iter_components(xsd_classes)
 
-    def raw_decode(self, obj: Union[str, bytes], context: DecodeContext, level: int = 0) \
+    def raw_decode(self, obj: Union[str, bytes], context: DecodeContext) \
             -> List[Optional[AtomicValueType]]:
         items = []
         for chunk in self.normalize(obj).split():
-            result = self.item_type.raw_decode(chunk, context, level)
+            result = self.item_type.raw_decode(chunk, context)
             assert not isinstance(result, list)
             items.append(result)
         else:
             return items
 
-    def raw_encode(self, obj: Any, context: EncodeContext, level: int = 0) -> EncodedValueType:
+    def raw_encode(self, obj: Any, context: EncodeContext) -> EncodedValueType:
         if not hasattr(obj, '__iter__') or isinstance(obj, (str, bytes)):
             obj = [obj]
 
         encoded_items: List[Any] = []
         for item in obj:
-            encoded_items.append(self.item_type.raw_encode(item, context, level))
+            encoded_items.append(self.item_type.raw_encode(item, context))
 
         return ' '.join(item for item in encoded_items if item is not None)
 
@@ -1073,13 +1070,14 @@ class XsdUnion(XsdSimpleType):
         for mt in filter(lambda x: x.parent is not None, self.member_types):
             yield from mt.iter_components(xsd_classes)
 
-    def raw_decode(self, obj: AtomicValueType, context: DecodeContext, level: int = 0) \
-            -> Decoded2ValueType:
+    def raw_decode(self, obj: AtomicValueType, context: DecodeContext) -> DecodedValueType:
 
         patterns, context.patterns = context.patterns, None  # Use and clean pushed patterns
 
         matched_type = None
-        member_context = dataclasses.replace(context, validation='lax', errors=[])
+        member_context = copy(context)
+        member_context.validation = 'lax'
+        member_context.errors = []
         for member_type in self.member_types:
             member_context.errors.clear()
             result = member_type.raw_decode(obj, member_context)
@@ -1112,12 +1110,13 @@ class XsdUnion(XsdSimpleType):
         context.validation_error(self, error)
         return None
 
-    def raw_encode(self, obj: Any, context: EncodeContext, level: int = 0) \
-            -> EncodedValueType:
+    def raw_encode(self, obj: Any, context: EncodeContext) -> EncodedValueType:
         patterns, context.patterns = context.patterns, None  # Use and clean pushed patterns
 
         matched_type = None
-        member_context = dataclasses.replace(context, validation='lax', errors=[])
+        member_context = copy(context)
+        member_context.validation = 'lax'
+        member_context.errors = []
         for member_type in self.member_types:
             member_context.errors.clear()
             result = member_type.raw_encode(obj, member_context)
@@ -1349,8 +1348,7 @@ class XsdAtomicRestriction(XsdAtomic):
         if self.base_type.parent is not None:
             yield from self.base_type.iter_components(xsd_classes)
 
-    def raw_decode(self, obj: AtomicValueType, context: DecodeContext, level: int = 0) \
-            -> Decoded2ValueType:
+    def raw_decode(self, obj: AtomicValueType, context: DecodeContext) -> DecodedValueType:
 
         if isinstance(obj, (str, bytes)):
             obj = self.normalize(obj)
@@ -1375,7 +1373,7 @@ class XsdAtomicRestriction(XsdAtomic):
                     "with simple or mixed content required")
             raise XMLSchemaValueError(msg % self.base_type)
 
-        result = base_type.raw_decode(obj, context, level)
+        result = base_type.raw_decode(obj, context)
         if result is not None:
             for validator in self.validators:
                 try:
@@ -1385,7 +1383,7 @@ class XsdAtomicRestriction(XsdAtomic):
 
         return result
 
-    def raw_encode(self, obj: Any, context: EncodeContext, level: int = 0) -> EncodedValueType:
+    def raw_encode(self, obj: Any, context: EncodeContext) -> EncodedValueType:
         base_type: Any
         if self.is_list():
             if not hasattr(obj, '__iter__') or isinstance(obj, (str, bytes)):
@@ -1410,7 +1408,7 @@ class XsdAtomicRestriction(XsdAtomic):
             if context.patterns is None and isinstance(self.primitive_type, XsdUnion):
                 context.patterns = self.patterns
 
-        result = base_type.raw_encode(obj, context, level)
+        result = base_type.raw_encode(obj, context)
 
         if self.validators and obj is not None:
             if isinstance(obj, (str, bytes)) and \

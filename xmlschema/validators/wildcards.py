@@ -486,7 +486,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
     def iter_substitutes() -> Iterator[Any]:
         return iter(())
 
-    def raw_decode(self, obj: ElementType, context: DecodeContext, level: int = 0) -> Any:
+    def raw_decode(self, obj: ElementType, context: DecodeContext) -> Any:
         if not self.is_matching(obj.tag):
             reason = _("element {!r} is not allowed here").format(obj)
             context.validation_error(self, reason, obj)
@@ -503,7 +503,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
             except LookupError:
                 reason = f"element {obj.tag!r} not found"
             else:
-                return xsd_element.raw_decode(obj, context, level)
+                return xsd_element.raw_decode(obj, context)
 
         if XSI_TYPE in obj.attrib:
             if self.process_contents == 'strict':
@@ -515,7 +515,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
                     obj.tag, parent=self, nillable='true', form='unqualified'
                 )
 
-            return xsd_element.raw_decode(obj, context, level)
+            return xsd_element.raw_decode(obj, context)
 
         if context.validation != 'skip' and self.process_contents == 'strict':
             context.validation_error(self, reason, obj)
@@ -523,10 +523,9 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
         xsd_element = self.maps.validator.create_element(
             obj.tag, parent=self, form='unqualified'
         )
-        return xsd_element.raw_decode(obj, context, level)
+        return xsd_element.raw_decode(obj, context)
 
-    def raw_encode(self, obj: Tuple[str, ElementType],
-                   context: EncodeContext, level: int = 0) -> Any:
+    def raw_encode(self, obj: Tuple[str, ElementType], context: EncodeContext) -> Any:
         name, value = obj
         namespace = get_namespace(name)
 
@@ -534,9 +533,8 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
             reason = _("element {!r} is not allowed here").format(name)
             context.validation_error(self, reason, value)
 
-        if self.process_contents == 'skip':
-            if not context.process_skipped:
-                return None  # FIXME??
+        if self.process_contents == 'skip' and not context.process_skipped:
+            return None
 
         if not self.maps.load_namespace(namespace):
             reason = f"unavailable namespace {namespace!r}"
@@ -546,7 +544,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
             except LookupError:
                 reason = f"element {name!r} not found"
             else:
-                return xsd_element.raw_encode(value, context, level)
+                return xsd_element.raw_encode(value, context)
 
         # Check if there is a xsi:type attribute, but it has to extract
         # attributes using the converter instance.
@@ -560,18 +558,18 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
             )
 
         try:
-            element_data = context.converter.element_encode(value, xsd_element, level)
+            element_data = context.converter.element_encode(value, xsd_element)
         except (ValueError, TypeError) as err:
             if context.validation != 'skip' and self.process_contents == 'strict':
                 context.validation_error(self, err, value)
         else:
             if XSI_TYPE in element_data.attributes:
-                return xsd_element.raw_encode(value, context, level)
+                return xsd_element.raw_encode(value, context)
 
         if context.validation != 'skip' and self.process_contents == 'strict':
             context.validation_error(self, reason)
 
-        return self.any_type.raw_encode(obj, context, level)
+        return self.any_type.raw_encode(obj, context)
 
     def is_overlap(self, other: ModelParticleType) -> bool:
         if not isinstance(other, XsdAnyElement):
@@ -655,37 +653,7 @@ class XsdAnyAttribute(XsdWildcard, ValidationMixin[Tuple[str, str], DecodedValue
         except LookupError:
             return None
 
-    def _iter_decode(self, obj: Tuple[str, str], validation: str = 'lax', **kwargs: Any) \
-            -> IterDecodeType[DecodedValueType]:
-        name, value = obj
-
-        if not self.is_matching(name):
-            reason = _("attribute %r not allowed") % name
-            yield self.validation_error(validation, reason, obj, **kwargs)
-
-        if self.process_contents == 'skip':
-            if 'process_skipped' not in kwargs or not kwargs['process_skipped']:
-                return
-
-        if self.maps.load_namespace(get_namespace(name)):
-            try:
-                xsd_attribute = self.maps.lookup_attribute(name)
-            except LookupError:
-                if validation != 'skip' and self.process_contents == 'strict':
-                    reason = _("attribute %r not found") % name
-                    yield self.validation_error(validation, reason, obj, **kwargs)
-            else:
-                yield from xsd_attribute.iter_decode(value, validation, **kwargs)
-                return
-
-        elif validation != 'skip' and self.process_contents == 'strict':
-            reason = _("unavailable namespace {!r}").format(get_namespace(name))
-            yield self.validation_error(validation, reason, **kwargs)
-
-        yield value
-
-    def raw_decode(self, obj: Tuple[str, str], context: DecodeContext, level: int = 0) \
-            -> DecodedValueType:
+    def raw_decode(self, obj: Tuple[str, str], context: DecodeContext) -> DecodedValueType:
         name, value = obj
 
         if not self.is_matching(name):
@@ -703,7 +671,7 @@ class XsdAnyAttribute(XsdWildcard, ValidationMixin[Tuple[str, str], DecodedValue
                     reason = _("attribute %r not found") % name
                     context.validation_error(self, reason, obj)
             else:
-                return xsd_attribute.raw_decode(value, context, level)
+                return xsd_attribute.raw_decode(value, context)
 
         elif context.validation != 'skip' and self.process_contents == 'strict':
             reason = _("unavailable namespace {!r}").format(get_namespace(name))
@@ -711,8 +679,8 @@ class XsdAnyAttribute(XsdWildcard, ValidationMixin[Tuple[str, str], DecodedValue
 
         return value
 
-    def raw_encode(self, obj: Tuple[str, AtomicValueType],
-                   context: EncodeContext, level: int = 0) -> EncodedValueType:
+    def raw_encode(self, obj: Tuple[str, AtomicValueType], context: EncodeContext) \
+            -> EncodedValueType:
 
         name, value = obj
         namespace = get_namespace(name)
@@ -732,7 +700,7 @@ class XsdAnyAttribute(XsdWildcard, ValidationMixin[Tuple[str, str], DecodedValue
                     reason = _("attribute %r not found") % name
                     context.validation_error(self, reason, obj)
             else:
-                return xsd_attribute.raw_encode(value, context, level)
+                return xsd_attribute.raw_encode(value, context)
 
         elif context.validation != 'skip' and self.process_contents == 'strict':
             reason = _("unavailable namespace {!r}").format(get_namespace(name))
