@@ -21,8 +21,8 @@ from xmlschema.names import XSI_NAMESPACE, XSD_ANY_SIMPLE_TYPE, XSD_SIMPLE_TYPE,
     XSD_ATTRIBUTE_GROUP, XSD_COMPLEX_TYPE, XSD_RESTRICTION, XSD_EXTENSION, \
     XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ATTRIBUTE, XSD_ANY_ATTRIBUTE, \
     XSD_ASSERT, XSD_NOTATION_TYPE, XSD_ANNOTATION
-from xmlschema.aliases import ComponentClassType, ElementType, IterDecodeType, \
-    AtomicValueType, SchemaType, DecodedValueType, EncodedValueType
+from xmlschema.aliases import ComponentClassType, ElementType, \
+    AtomicValueType, SchemaType, DecodedValueType
 from xmlschema.translation import gettext as _
 from xmlschema.utils.qnames import get_namespace, get_qname
 from xmlschema.validation import DecodeContext, EncodeContext, ValidationMixin
@@ -248,12 +248,7 @@ class XsdAttribute(XsdComponent, ValidationMixin[str, DecodedValueType]):
                 context.validation_error(self, msg, obj)
 
         value = self.type.raw_decode(obj, context)
-        if isinstance(value, XMLSchemaValidationError):
-            value.reason = _('attribute {0}={1!r}: {2}').format(
-                self.prefixed_name, obj, value.reason
-            )
-
-        elif context.value_hook is not None:
+        if context.value_hook is not None:
             return context.value_hook(value, self.type)  # type:ignore[no-any-return]
         elif isinstance(value, (int, float, list)) or value is None:
             return value
@@ -277,7 +272,7 @@ class XsdAttribute(XsdComponent, ValidationMixin[str, DecodedValueType]):
         else:
             return value
 
-    def raw_encode(self, obj: Any, context: EncodeContext) -> EncodedValueType:
+    def raw_encode(self, obj: Any, context: EncodeContext) -> Optional[str]:
         return self.type.raw_encode(obj, context)
 
 
@@ -687,28 +682,31 @@ class XsdAttributeGroup(
                     try:
                         xsd_attribute = self.maps.lookup_attribute(name)
                     except LookupError:
-                        try:
+                        if None in self._attribute_group:
                             xsd_attribute = self._attribute_group[None]  # None == anyAttribute
                             value = (name, value)
-                        except KeyError:
+                        else:
                             reason = _("%r is not an attribute of the XSI namespace") % name
                             context.validation_error(self, reason, obj)
                             continue
+
+                elif None in self._attribute_group:
+                    xsd_attribute = self._attribute_group[None]  # None == anyAttribute
+                    value = (name, value)
                 else:
-                    try:
-                        xsd_attribute = self._attribute_group[None]  # None == anyAttribute
-                        value = (name, value)
-                    except KeyError:
-                        reason = _("%r attribute not allowed for element") % name
-                        context.validation_error(self, reason, obj)
-                        continue
+                    reason = _("%r attribute not allowed for element") % name
+                    context.validation_error(self, reason, obj)
+                    continue
             else:
                 if xsd_attribute.use == 'prohibited' and \
                         (None not in self or not self._attribute_group[None].is_matching(name)):
                     reason = _("use of attribute %r is prohibited") % name
                     context.validation_error(self, reason, obj)
 
+            context.attribute = name
             result = xsd_attribute.raw_decode(value, context)
+            context.attribute = None
+
             if result is None and context.filler is not None:
                 result_list.append((name, context.filler(xsd_attribute)))
             else:
@@ -722,7 +720,6 @@ class XsdAttributeGroup(
                 result_list.extend((k, context.filler(v))
                                    for k, v in self._attribute_group.items()
                                    if k is not None and k not in obj)
-
         return result_list
 
     def raw_encode(self, obj: MutableMapping[str, Any], context: EncodeContext) \
@@ -745,21 +742,21 @@ class XsdAttributeGroup(
                     try:
                         xsd_attribute = self.maps.lookup_attribute(name)
                     except LookupError:
-                        try:
+                        if None in self._attribute_group:
                             xsd_attribute = self._attribute_group[None]  # None == anyAttribute
                             value = (name, value)
-                        except KeyError:
+                        else:
                             reason = _("%r is not an attribute of the XSI namespace") % name
                             context.validation_error(self, reason, obj)
                             continue
+
+                elif None in self._attribute_group:
+                    xsd_attribute = self._attribute_group[None]  # None == anyAttribute
+                    value = (name, value)
                 else:
-                    try:
-                        xsd_attribute = self._attribute_group[None]  # None == anyAttribute
-                        value = (name, value)
-                    except KeyError:
-                        reason = _("%r attribute not allowed for element") % name
-                        context.validation_error(self, reason, obj)
-                        continue
+                    reason = _("%r attribute not allowed for element") % name
+                    context.validation_error(self, reason, obj)
+                    continue
 
             result = xsd_attribute.raw_encode(value, context)
             if result is not None:

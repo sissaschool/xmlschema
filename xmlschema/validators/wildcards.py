@@ -19,8 +19,7 @@ from xmlschema.exceptions import XMLSchemaValueError
 from xmlschema.names import XSI_NAMESPACE, XSD_ANY, XSD_ANY_ATTRIBUTE, \
     XSD_OPEN_CONTENT, XSD_DEFAULT_OPEN_CONTENT, XSI_TYPE
 from xmlschema.aliases import ElementType, SchemaType, SchemaElementType, SchemaAttributeType, \
-    ModelGroupType, ModelParticleType, AtomicValueType, IterDecodeType, DecodedValueType, \
-    EncodedValueType
+    ModelGroupType, ModelParticleType, AtomicValueType, DecodedValueType
 from xmlschema.translation import gettext as _
 from xmlschema.utils.qnames import get_namespace
 from xmlschema.utils.decoding import raw_xml_encode
@@ -446,6 +445,8 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
     def _parse(self) -> None:
         super()._parse()
         self._parse_particle(self.elem)
+        if self.process_contents == 'skip':
+            self.skip = True
 
     def match(self, name: Optional[str], default_namespace: Optional[str] = None,
               resolve: bool = False, **kwargs: Any) -> Optional[SchemaElementType]:
@@ -491,9 +492,6 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
             reason = _("element {!r} is not allowed here").format(obj)
             context.validation_error(self, reason, obj)
 
-        if self.process_contents == 'skip' and not context.process_skipped:
-            return None
-
         namespace = get_namespace(obj.tag)
         if namespace not in self.maps.namespaces and not self.maps.load_namespace(namespace):
             reason = f"unavailable namespace {namespace!r}"
@@ -532,9 +530,6 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
         if not self.is_namespace_allowed(namespace):
             reason = _("element {!r} is not allowed here").format(name)
             context.validation_error(self, reason, value)
-
-        if self.process_contents == 'skip' and not context.process_skipped:
-            return None
 
         if not self.maps.load_namespace(namespace):
             reason = f"unavailable namespace {namespace!r}"
@@ -660,9 +655,6 @@ class XsdAnyAttribute(XsdWildcard, ValidationMixin[Tuple[str, str], DecodedValue
             reason = _("attribute %r not allowed") % name
             context.validation_error(self, reason, obj)
 
-        if self.process_contents == 'skip' and not context.process_skipped:
-            return None
-
         if self.maps.load_namespace(get_namespace(name)):
             try:
                 xsd_attribute = self.maps.lookup_attribute(name)
@@ -680,7 +672,7 @@ class XsdAnyAttribute(XsdWildcard, ValidationMixin[Tuple[str, str], DecodedValue
         return value
 
     def raw_encode(self, obj: Tuple[str, AtomicValueType], context: EncodeContext) \
-            -> EncodedValueType:
+            -> Optional[str]:
 
         name, value = obj
         namespace = get_namespace(name)
@@ -688,9 +680,6 @@ class XsdAnyAttribute(XsdWildcard, ValidationMixin[Tuple[str, str], DecodedValue
         if not self.is_namespace_allowed(namespace):
             reason = _("attribute %r not allowed") % name
             context.validation_error(self, reason, obj)
-
-        if self.process_contents == 'skip' and not context.process_skipped:
-            return None
 
         if self.maps.load_namespace(namespace):
             try:

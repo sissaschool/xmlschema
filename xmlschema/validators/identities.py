@@ -36,8 +36,6 @@ if TYPE_CHECKING:
 
 IdentityFieldItemType = Union[AtomicValueType, XsdAttribute, Tuple[Any, ...], None]
 IdentityCounterType = Tuple[IdentityFieldItemType, ...]
-IdentityMapType = Dict[Union['XsdKey', 'XsdKeyref', str, None],
-                       Union['IdentityCounter', 'KeyrefCounter']]
 
 
 # XSD identities use a restricted XPath 2.0 parser. The XMLSchemaProxy is
@@ -480,18 +478,27 @@ class IdentityCounter:
 class KeyrefCounter(IdentityCounter):
     identity: XsdKeyref
 
+    def __init__(self, identity: XsdIdentity, elem: ElementType) -> None:
+        super().__init__(identity, elem)
+        if isinstance(self.identity.refer, (XsdKey, XsdUnique)):
+            self.refer = self.identity.refer
+
     def increase(self, fields: IdentityCounterType) -> None:
         self.counter[fields] += 1
 
-    def iter_errors(self, identities: IdentityMapType) -> Iterator[XMLSchemaValueError]:
-        refer_values = identities[self.identity.refer].counter
+    def iter_errors(self, identities: Dict[XsdIdentity, IdentityCounter]) \
+            -> Iterator[XMLSchemaValueError]:
+        if self.refer is None:
+            return  # don't validate with an unbuilt keyref
+
+        refer_values = identities[self.refer].counter
 
         for v in filter(lambda x: x not in refer_values, self.counter):
             if len(v) == 1 and v[0] in refer_values:
                 continue
             elif self.counter[v] > 1:
                 msg = "value {} not found for {!r} ({} times)"
-                yield XMLSchemaValueError(msg.format(v, self.identity.refer, self.counter[v]))
+                yield XMLSchemaValueError(msg.format(v, self.refer, self.counter[v]))
             else:
                 msg = "value {} not found for {!r}"
-                yield XMLSchemaValueError(msg.format(v, self.identity.refer))
+                yield XMLSchemaValueError(msg.format(v, self.refer))

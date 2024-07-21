@@ -9,7 +9,6 @@
 #
 import sys
 import logging
-from dataclasses import dataclass
 from typing import cast, Any, Dict, Generic, List, Iterable, Iterator, Optional, \
     Type, TYPE_CHECKING, TypeVar, Union
 
@@ -21,6 +20,7 @@ from xmlschema.aliases import DecodeType, DepthFillerType, ElementType, \
 from xmlschema.translation import gettext as _
 from xmlschema.utils.etree import is_etree_element, is_etree_document
 from xmlschema.utils.logger import format_xmlschema_stack
+from xmlschema.utils.qnames import get_prefixed_qname
 from xmlschema.namespaces import NamespaceMapper
 from xmlschema.converters import XMLSchemaConverter
 from xmlschema.resources import XMLResource
@@ -71,13 +71,14 @@ class ValidationContext:
 
     # Used by XSD components
     elem: Optional[ElementType]
+    attribute: Optional[str]
     id_list: Optional[List[Any]]
     patterns: Optional['XsdPatternFacets']
     level: int
 
     __slots__ = ('errors', 'converter', 'id_map', 'identities', 'inherited', 'source',
-                 'validation', 'use_defaults', 'unordered', 'process_skipped',
-                 'max_depth', 'elem', 'id_list', 'patterns', 'level', '__dict__')
+                 'validation', 'use_defaults', 'unordered', 'process_skipped', 'max_depth',
+                 'elem', 'attribute', 'id_list', 'patterns', 'level', '__dict__')
 
     @property
     def namespaces(self) -> NsmapType:
@@ -116,6 +117,7 @@ class ValidationContext:
 
         self.level = level
         self.elem = elem
+        self.attribute = None
         self.id_list = None
         self.patterns = None
 
@@ -163,8 +165,9 @@ class ValidationContext:
                 error.namespaces = self.namespaces
             if error.source is None and self.source is not None:
                 error.source = self.source
-            if error.obj is None and obj is not None:
-                error.obj = obj
+            if error.obj is None:
+                if obj is not None:
+                    error.obj = obj
             elif is_etree_element(error.obj) and elem is not None:
                 if elem.tag == error.obj.tag and elem is not error.obj:
                     error.obj = elem
@@ -177,6 +180,10 @@ class ValidationContext:
             error.elem = elem
         if error.elem is None and self.elem is not None:
             error.elem = self.elem
+
+        if self.attribute is not None and not error.reason.startswith('attribute '):
+            name = get_prefixed_qname(self.attribute, self.namespaces)
+            error.reason = _('attribute {0}={1!r}: {2}').format(name, error.obj, error.reason)
 
         if self.validation == 'strict':  # and error.elem is not None:
             raise error
@@ -197,7 +204,6 @@ class ValidationContext:
                                   particle: ModelParticleType,
                                   occurs: int = 0,
                                   expected: Optional[Iterable[SchemaElementType]] = None) -> None:
-
         error = XMLSchemaChildrenValidationError(
             validator=validator,
             elem=elem,
@@ -211,7 +217,8 @@ class ValidationContext:
         if self.validation == 'strict':
             raise error
 
-        error.elem = None  # replace with the element of the encoded tree
+        if isinstance(self, EncodeContext):
+            error.elem = None  # replace with the element of the encoded tree
         self.errors.append(error)
 
 
@@ -434,7 +441,7 @@ class ValidationMixin(Generic[ST, DT]):
         yield from context.errors
         yield result
 
-    def raw_decode(self, obj: ST, context: DecodeContext) -> DecodeType[DT]:
+    def raw_decode(self, obj: ST, context: DecodeContext) -> DT:
         """
         Internal decode method. Takes the same arguments as *decode*. Returns the \
         decoded data structure, usually a nested dict and/or list.

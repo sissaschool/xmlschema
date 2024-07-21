@@ -1039,12 +1039,16 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                     result = self.any_type.raw_decode(child, context)
                     result_list.append((name, result, None))
                 continue
-            elif over_max_depth:
-                if context.depth_filler is not None:
+            elif xsd_element.skip and not context.process_skipped:
+                continue
+
+            if over_max_depth:
+                if context.depth_filler is not None and isinstance(xsd_element, XsdElement):
                     func = context.depth_filler
                     result_list.append((name, func(xsd_element), xsd_element))
                 continue
-            elif context.validation_hook is not None:
+
+            if context.validation_hook is not None:
                 # Control validation on element and its descendants or stop validation
                 value = context.validation_hook(child, xsd_element)
                 if value:
@@ -1168,6 +1172,8 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                     context.validation_error(self, reason, value)
                     continue
 
+            if xsd_element.skip and not context.process_skipped:
+                continue
             if over_max_depth:
                 continue
 

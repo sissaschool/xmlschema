@@ -35,7 +35,7 @@ __all__ = ['ElementType', 'ElementTreeType', 'XMLSourceType', 'NsmapType',
            'DateTimeType', 'SchemaSourceType', 'ConverterType', 'ComponentClassType',
            'ExtraValidatorType', 'ValidationHookType', 'DecodeType', 'IterDecodeType',
            'JsonDecodeType', 'EncodeType', 'IterEncodeType', 'DecodedValueType',
-           'EncodedValueType', 'FillerType', 'DepthFillerType', 'ValueHookType',
+           'FillerType', 'DepthFillerType', 'ValueHookType',
            'ElementHookType', 'OccursCounterType', 'LazyType', 'SourceType',
            'UriMapperType', 'IterparseType', 'EtreeType', 'IOType',
            'ResourceNodeType', 'NsmapsMapType', 'XmlnsMapType']
@@ -126,10 +126,7 @@ IterEncodeType = Iterator[Union[E, 'XMLSchemaValidationError']]
 JsonDecodeType = Union[str, None, Tuple['XMLSchemaValidationError', ...],
                        Tuple[Union[str, None], Tuple['XMLSchemaValidationError', ...]]]
 
-DecodedValueType = Union[None, AtomicValueType, List[Optional[AtomicValueType]],
-                         'XMLSchemaValidationError']
-Decoded2ValueType = Union[None, AtomicValueType, List[Optional[AtomicValueType]]]
-EncodedValueType = Union[None, str]
+DecodedValueType = Union[None, AtomicValueType, List[Optional[AtomicValueType]]]
 
 FillerType = Callable[[Union['XsdElement', 'XsdAttribute']], Any]
 DepthFillerType = Callable[['XsdElement'], Any]

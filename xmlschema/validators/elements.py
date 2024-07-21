@@ -782,6 +782,7 @@ class XsdElement(XsdComponent, ParticleMixin,
                 if not context.binary_types:
                     value = str(value)
 
+        context.id_list = None
         xmlns = converter.set_context(obj, context.level)  # Purge existing sub-contexts
 
         if isinstance(converter, XMLSchemaConverter):
@@ -1018,7 +1019,7 @@ class XsdElement(XsdComponent, ParticleMixin,
             elif self.default is not None and context.use_defaults:
                 text = self.default
 
-        elif isinstance(xsd_type.content, XsdSimpleType):
+        elif isinstance(xsd_type.content, XsdSimpleType) and xsd_type.content.max_length != 0:
             if element_data.text is not None:
                 try:
                     text = xsd_type.content.raw_encode(element_data.text, context)

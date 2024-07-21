@@ -82,8 +82,8 @@ class TestValidation(XsdValidatorTestCase):
         self.assertRaises(XMLSchemaValidationError, xsd_element.decode, source.root,
                           namespaces=namespaces)
 
-        for _ in xsd_element.iter_decode(source.root, 'strict', namespaces=namespaces,
-                                         source=source, max_depth=1):
+        for _ in xsd_element.iter_decode(
+                source.root, 'strict', namespaces=namespaces, max_depth=1):
             del _
 
         self.assertIsNone(xmlschema.validate(self.col_xml_file, lazy=True))

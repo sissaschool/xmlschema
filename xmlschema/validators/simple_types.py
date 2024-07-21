@@ -17,7 +17,7 @@ from typing import cast, Any, Callable, Dict, Iterator, List, \
 from xml.etree import ElementTree
 
 from xmlschema.aliases import ElementType, AtomicValueType, ComponentClassType, \
-    BaseXsdType, SchemaType, DecodedValueType, EncodedValueType
+    BaseXsdType, SchemaType, DecodedValueType
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from xmlschema.names import XSD_NAMESPACE, XSD_ANY_TYPE, XSD_SIMPLE_TYPE, XSD_PATTERN, \
     XSD_ANY_ATOMIC_TYPE, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ANY_ATTRIBUTE, \
@@ -460,7 +460,7 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
 
         return text
 
-    def raw_encode(self, obj: Any, context: EncodeContext) -> EncodedValueType:
+    def raw_encode(self, obj: Any, context: EncodeContext) -> Optional[str]:
         if isinstance(obj, (str, bytes)):
             text = self.normalize(obj)
         elif obj is None:
@@ -706,7 +706,7 @@ class XsdAtomicBuiltin(XsdAtomic):
 
         return result
 
-    def raw_encode(self, obj: Any, context: EncodeContext) -> EncodedValueType:
+    def raw_encode(self, obj: Any, context: EncodeContext) -> Optional[str]:
         if isinstance(obj, (str, bytes)):
             obj = self.normalize(obj)
 
@@ -927,7 +927,7 @@ class XsdList(XsdSimpleType):
         else:
             return items
 
-    def raw_encode(self, obj: Any, context: EncodeContext) -> EncodedValueType:
+    def raw_encode(self, obj: Any, context: EncodeContext) -> Optional[str]:
         if not hasattr(obj, '__iter__') or isinstance(obj, (str, bytes)):
             obj = [obj]
 
@@ -950,7 +950,7 @@ class XsdUnion(XsdSimpleType):
           Content: (annotation?, simpleType*)
         </union>
     """
-    member_types: Any = ()
+    member_types: List[XsdSimpleType]
     _ADMITTED_TYPES: Any = XsdSimpleType
     _ADMITTED_TAGS = {XSD_UNION}
 
@@ -986,7 +986,7 @@ class XsdUnion(XsdSimpleType):
 
     def _parse(self) -> None:
         mt: Any
-        member_types = []
+        self.member_types = []
 
         for child in self.elem:
             if child.tag != XSD_ANNOTATION and not callable(child.tag):
@@ -994,7 +994,7 @@ class XsdUnion(XsdSimpleType):
                 if isinstance(mt, XMLSchemaParseError):
                     self.parse_error(mt)
                 else:
-                    member_types.append(mt)
+                    self.member_types.append(mt)
 
         if 'memberTypes' in self.elem.attrib:
             for name in self.elem.attrib['memberTypes'].split():
@@ -1023,19 +1023,18 @@ class XsdUnion(XsdSimpleType):
                     continue
                 elif mt.final == '#all' or 'union' in mt.final:
                     msg = _("'final' value of the memberTypes %r forbids derivation by union")
-                    self.parse_error(msg % member_types)
+                    self.parse_error(msg % self.member_types)
 
-                member_types.append(mt)
+                self.member_types.append(mt)
 
-        if not member_types:
+        if not self.member_types:
             self.parse_error(_("missing xs:union type declarations"))
             self.member_types = [self.any_atomic_type]
-        elif any(mt.name == XSD_ANY_ATOMIC_TYPE for mt in member_types):
+        elif any(mt.name == XSD_ANY_ATOMIC_TYPE for mt in self.member_types):
             msg = _("cannot use xs:anyAtomicType as base type of a user-defined type")
             self.parse_error(msg)
         else:
-            self.member_types = member_types
-            if all(not mt.allow_empty for mt in member_types):
+            if all(not mt.allow_empty for mt in self.member_types):
                 self.allow_empty = False
 
     @property
@@ -1070,8 +1069,7 @@ class XsdUnion(XsdSimpleType):
         for mt in filter(lambda x: x.parent is not None, self.member_types):
             yield from mt.iter_components(xsd_classes)
 
-    def raw_decode(self, obj: AtomicValueType, context: DecodeContext) -> DecodedValueType:
-
+    def raw_decode(self, obj: Union[str, bytes], context: DecodeContext) -> DecodedValueType:
         patterns, context.patterns = context.patterns, None  # Use and clean pushed patterns
 
         matched_type = None
@@ -1110,7 +1108,7 @@ class XsdUnion(XsdSimpleType):
         context.validation_error(self, error)
         return None
 
-    def raw_encode(self, obj: Any, context: EncodeContext) -> EncodedValueType:
+    def raw_encode(self, obj: Any, context: EncodeContext) -> Optional[str]:
         patterns, context.patterns = context.patterns, None  # Use and clean pushed patterns
 
         matched_type = None
@@ -1348,7 +1346,7 @@ class XsdAtomicRestriction(XsdAtomic):
         if self.base_type.parent is not None:
             yield from self.base_type.iter_components(xsd_classes)
 
-    def raw_decode(self, obj: AtomicValueType, context: DecodeContext) -> DecodedValueType:
+    def raw_decode(self, obj: Union[str, bytes], context: DecodeContext) -> DecodedValueType:
 
         if isinstance(obj, (str, bytes)):
             obj = self.normalize(obj)
@@ -1383,26 +1381,24 @@ class XsdAtomicRestriction(XsdAtomic):
 
         return result
 
-    def raw_encode(self, obj: Any, context: EncodeContext) -> EncodedValueType:
-        base_type: Any
+    def raw_encode(self, obj: Any, context: EncodeContext) -> Optional[str]:
+        base_type: XsdSimpleType
+        if isinstance(self.base_type, XsdSimpleType):
+            base_type = self.base_type
+        elif isinstance(self.base_type.content, XsdSimpleType) and self.max_length != 0:
+            base_type = self.base_type.content
+        elif self.base_type.mixed:
+            return str(obj)
+        else:  # pragma: no cover
+            msg = _("wrong base type %r: a simpleType or a complexType "
+                    "with simple or mixed content required")
+            raise XMLSchemaValueError(msg % self.base_type)
+
         if self.is_list():
             if not hasattr(obj, '__iter__') or isinstance(obj, (str, bytes)):
                 obj = [] if obj is None or obj == '' else [obj]
-            base_type = self.base_type
-        else:
-            if isinstance(obj, (str, bytes)):
-                obj = self.normalize(obj)
-
-            if isinstance(self.base_type, XsdSimpleType):
-                base_type = self.base_type
-            elif self.base_type.has_simple_content():
-                base_type = self.base_type.content
-            elif self.base_type.mixed:
-                return str(obj)
-            else:  # pragma: no cover
-                msg = _("wrong base type %r: a simpleType or a complexType "
-                        "with simple or mixed content required")
-                raise XMLSchemaValueError(msg % self.base_type)
+        elif isinstance(obj, (str, bytes)):
+            obj = self.normalize(obj)
 
         if self.patterns:
             if context.patterns is None and isinstance(self.primitive_type, XsdUnion):
