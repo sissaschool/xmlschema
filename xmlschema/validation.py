@@ -26,7 +26,7 @@ from xmlschema.converters import XMLSchemaConverter
 from xmlschema.resources import XMLResource
 
 from xmlschema.validators.exceptions import XMLSchemaValidationError, \
-    XMLSchemaChildrenValidationError
+    XMLSchemaChildrenValidationError, XMLSchemaDecodeError, XMLSchemaEncodeError
 
 if TYPE_CHECKING:
     from xmlschema.validators.xsdbase import XsdValidator
@@ -160,7 +160,9 @@ class ValidationContext:
         if elem is None and is_etree_element(obj):
             elem = cast(ElementType, obj)
 
-        if isinstance(error, XMLSchemaValidationError):
+        if isinstance(error, (XMLSchemaDecodeError, XMLSchemaEncodeError)):
+            pass
+        elif isinstance(error, XMLSchemaValidationError):
             if error.namespaces is None and self.namespaces is not None:
                 error.namespaces = self.namespaces
             if error.source is None and self.source is not None:
@@ -176,10 +178,11 @@ class ValidationContext:
                 validator, obj, str(error), self.source, self.namespaces
             )
 
-        if error.elem is None and elem is not None:
-            error.elem = elem
-        if error.elem is None and self.elem is not None:
-            error.elem = self.elem
+        if error.elem is None:
+            if elem is not None:
+                error.elem = elem
+            elif self.elem is not None:
+                error.elem = self.elem
 
         if self.attribute is not None and not error.reason.startswith('attribute '):
             name = get_prefixed_qname(self.attribute, self.namespaces)
@@ -192,9 +195,8 @@ class ValidationContext:
             error.stack_trace = format_xmlschema_stack()
             logger.debug("Collect %r with traceback:\n%s", error, error.stack_trace)
 
-        if error not in self.errors:
-            self.errors.append(error)
-
+        assert error not in self.errors
+        self.errors.append(error)
         return error
 
     def children_validation_error(self: Self,
@@ -253,7 +255,6 @@ class DecodeContext(ValidationContext):
                  extra_validator: Optional[ExtraValidatorType] = None,
                  validation_hook: Optional[ValidationHookType] = None,
                  use_location_hints: bool = False,
-
                  decimal_type: Optional[Type[Any]] = None,
                  datetime_types: bool = False,
                  binary_types: bool = False,
@@ -286,10 +287,38 @@ class DecodeContext(ValidationContext):
         self.value_hook = value_hook
         self.element_hook = element_hook
 
+    def decode_error(self, validator: 'XsdValidator',
+                     obj: Any,
+                     decoder: Any,
+                     error: Union[str, Exception]) -> None:
+        error = XMLSchemaDecodeError(
+            validator=validator,
+            obj=obj,
+            decoder=decoder,
+            reason=str(error),
+            source=self.source,
+            namespaces=self.namespaces,
+        )
+        self.validation_error(validator, error)
+
 
 class EncodeContext(ValidationContext):
     """A context dataclass for handling validated encoding process."""
     converter: XMLSchemaConverter
+
+    def encode_error(self, validator: 'XsdValidator',
+                     obj: Any,
+                     encoder: Any,
+                     error: Union[str, Exception]) -> None:
+        error = XMLSchemaEncodeError(
+            validator=validator,
+            obj=obj,
+            encoder=encoder,
+            reason=str(error),
+            source=self.source,
+            namespaces=self.namespaces,
+        )
+        self.validation_error(validator, error)
 
 
 class ValidationMixin(Generic[ST, DT]):

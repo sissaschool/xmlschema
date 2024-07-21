@@ -30,8 +30,7 @@ from xmlschema.translation import gettext as _
 from xmlschema.utils.qnames import local_name
 from xmlschema.validation import DecodeContext, EncodeContext, ValidationMixin
 
-from .exceptions import XMLSchemaValidationError, XMLSchemaEncodeError, \
-    XMLSchemaDecodeError, XMLSchemaParseError
+from .exceptions import XMLSchemaValidationError, XMLSchemaParseError
 from .xsdbase import XsdComponent, XsdType
 from .facets import XsdFacet, XsdWhiteSpaceFacet, XsdPatternFacets, \
     XsdEnumerationFacets, XsdAssertionFacet, XSD_10_FACETS_BUILDERS, \
@@ -620,9 +619,8 @@ class XsdAtomicBuiltin(XsdAtomic):
         if isinstance(obj, (str, bytes)):
             obj = self.normalize(obj)
         elif obj is not None and not isinstance(obj, self.instance_types):
-            reason = _("value is not an instance of {!r}").format(self.instance_types)
-            error = XMLSchemaDecodeError(self, obj, self.to_python, reason)
-            context.validation_error(self, error)
+            msg = _("value is not an instance of {!r}").format(self.instance_types)
+            context.decode_error(self, obj, self.to_python, msg)
 
         if context.validation == 'skip':
             try:
@@ -639,8 +637,7 @@ class XsdAtomicBuiltin(XsdAtomic):
         try:
             result = self.to_python(obj)
         except (ValueError, DecimalException) as err:
-            error = XMLSchemaDecodeError(self, obj, self.to_python, reason=str(err))
-            context.validation_error(self, error)
+            context.decode_error(self, obj, self.to_python, err)
             return None
         except TypeError:
             # xs:error type (e.g. an XSD 1.1 type alternative used to catch invalid values)
@@ -719,15 +716,13 @@ class XsdAtomicBuiltin(XsdAtomic):
         elif isinstance(obj, bool):
             types_: Any = self.instance_types
             if types_ is not bool or (isinstance(types_, tuple) and bool in types_):
-                reason = _("boolean value {0!r} requires a {1!r} decoder").format(obj, bool)
-                error = XMLSchemaEncodeError(self, obj, self.from_python, reason)
-                context.validation_error(self, error)
+                msg = _("boolean value {0!r} requires a {1!r} decoder").format(obj, bool)
+                context.encode_error(self, obj, self.from_python, msg)
                 obj = self.python_type(obj)
 
         elif not isinstance(obj, self.instance_types):
-            reason = _("{0!r} is not an instance of {1!r}").format(obj, self.instance_types)
-            error = XMLSchemaEncodeError(self, obj, self.from_python, reason)
-            context.validation_error(self, error)
+            msg = _("{0!r} is not an instance of {1!r}").format(obj, self.instance_types)
+            context.encode_error(self, obj, self.from_python,  msg)
 
             try:
                 value = self.python_type(obj)
@@ -736,16 +731,14 @@ class XsdAtomicBuiltin(XsdAtomic):
                     raise ValueError()
                 obj = value
             except (ValueError, TypeError) as err:
-                error = XMLSchemaEncodeError(self, obj, self.from_python, reason=str(err))
-                context.validation_error(self, error)
+                context.encode_error(self, obj, self.from_python, err)
                 return None
             else:
                 if value == obj or str(value) == str(obj):
                     obj = value
                 else:
-                    reason = _("invalid value {!r}").format(obj)
-                    error = XMLSchemaEncodeError(self, obj, self.from_python, reason)
-                    context.validation_error(self, error)
+                    msg = _("invalid value {!r}").format(obj)
+                    context.encode_error(self, obj, self.from_python, msg)
                     return None
 
         for validator in self.validators:
@@ -757,8 +750,7 @@ class XsdAtomicBuiltin(XsdAtomic):
         try:
             text = self.from_python(obj)
         except ValueError as err:
-            error = XMLSchemaEncodeError(self, obj, self.from_python, reason=str(err))
-            context.validation_error(self, error)
+            context.encode_error(self, obj, self.from_python, err)
             return None
         else:
             if self.patterns is not None:
@@ -1103,9 +1095,8 @@ class XsdUnion(XsdSimpleType):
                     context.validation_error(self, err)
             return result
 
-        reason = _("invalid value {!r}").format(obj)
-        error = XMLSchemaDecodeError(self, obj, self.member_types, reason)
-        context.validation_error(self, error)
+        msg = _("invalid value {!r}").format(obj)
+        context.decode_error(self, obj, self.member_types, msg)
         return None
 
     def raw_encode(self, obj: Any, context: EncodeContext) -> Optional[str]:
@@ -1142,9 +1133,8 @@ class XsdUnion(XsdSimpleType):
                     context.validation_error(self, err)
             return result
 
-        reason = _("no type suitable for encoding the object")
-        error = XMLSchemaEncodeError(self, obj, self.member_types, reason)
-        context.validation_error(self, error)
+        msg = _("no type suitable for encoding the object")
+        context.encode_error(self, obj, self.member_types, msg)
         return None
 
 
