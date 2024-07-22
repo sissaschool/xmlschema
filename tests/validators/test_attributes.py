@@ -477,7 +477,9 @@ class TestXsdAttributes(XsdValidatorTestCase):
 
         with self.assertRaises(XMLSchemaValidationError) as ctx:
             schema.attribute_groups['extra'].decode({'label': 'alpha'})
-        self.assertTrue(ctx.exception.reason.startswith("cannot validate against xs:NOTATION"))
+        self.assertTrue(ctx.exception.reason.startswith(
+            "attribute label='alpha': cannot validate against xs:NOTATION"
+        ))
 
         schema = self.check_schema("""
         <xs:attributeGroup name="extra">
@@ -490,7 +492,10 @@ class TestXsdAttributes(XsdValidatorTestCase):
 
         with self.assertRaises(XMLSchemaValidationError) as ctx:
             schema.attribute_groups['extra'].decode({'label': 'alpha'})
-        self.assertEqual(ctx.exception.reason, "missing enumeration facet in xs:NOTATION subtype")
+        self.assertEqual(
+            ctx.exception.reason,
+            "attribute label='alpha': missing enumeration facet in xs:NOTATION subtype"
+        )
 
         schema = self.check_schema("""
         <xs:notation name="jpeg" public="image/jpeg"/>

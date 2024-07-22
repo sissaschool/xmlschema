@@ -60,6 +60,18 @@ ST = TypeVar('ST')
 DT = TypeVar('DT')
 
 
+class EmptyValue:
+    _instance = None
+
+    def __new__(cls) -> 'EmptyValue':
+        if cls._instance is None:
+            cls._instance = super(EmptyValue, cls).__new__(cls)
+        return cls._instance
+
+
+EMPTY = EmptyValue()
+
+
 class ValidationContext:
     """A context class for handling validated decoding process."""
     errors: List[XMLSchemaValidationError]
@@ -184,7 +196,8 @@ class ValidationContext:
             elif self.elem is not None:
                 error.elem = self.elem
 
-        if self.attribute is not None and not error.reason.startswith('attribute '):
+        if self.attribute is not None and error.reason is not None \
+                and not error.reason.startswith('attribute '):
             name = get_prefixed_qname(self.attribute, self.namespaces)
             error.reason = _('attribute {0}={1!r}: {2}').format(name, error.obj, error.reason)
 
@@ -226,12 +239,13 @@ class ValidationContext:
 
 class DecodeContext(ValidationContext):
     """A context dataclass for handling validated decoding process."""
+    source: XMLResource
     extra_validator: Optional[ExtraValidatorType] = None
     validation_hook: Optional[ValidationHookType] = None
     use_location_hints: bool = False
 
     # Other optional attributes used only for decoding
-    decimal_type: Optional[Type[Any]] = None
+    decimal_type: Optional[Union[Type[str], Type[float]]] = None
     datetime_types: bool = False
     binary_types: bool = False
     filler: Optional[FillerType] = None
@@ -255,7 +269,7 @@ class DecodeContext(ValidationContext):
                  extra_validator: Optional[ExtraValidatorType] = None,
                  validation_hook: Optional[ValidationHookType] = None,
                  use_location_hints: bool = False,
-                 decimal_type: Optional[Type[Any]] = None,
+                 decimal_type: Optional[Union[Type[str], Type[float]]] = None,
                  datetime_types: bool = False,
                  binary_types: bool = False,
                  filler: Optional[FillerType] = None,
@@ -305,6 +319,7 @@ class DecodeContext(ValidationContext):
 class EncodeContext(ValidationContext):
     """A context dataclass for handling validated encoding process."""
     converter: XMLSchemaConverter
+    source: Any
 
     def encode_error(self, validator: 'XsdValidator',
                      obj: Any,

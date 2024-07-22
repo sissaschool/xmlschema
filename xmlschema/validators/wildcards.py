@@ -24,7 +24,7 @@ from xmlschema.translation import gettext as _
 from xmlschema.utils.qnames import get_namespace
 from xmlschema.utils.decoding import raw_xml_encode
 from xmlschema.xpath import XMLSchemaProxy, ElementPathMixin
-from xmlschema.validation import DecodeContext, EncodeContext, ValidationMixin
+from xmlschema.validation import EMPTY, DecodeContext, EncodeContext, ValidationMixin
 
 from .xsdbase import XsdComponent
 from .particles import ParticleMixin
@@ -491,6 +491,9 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
         if not self.is_matching(obj.tag):
             reason = _("element {!r} is not allowed here").format(obj)
             context.validation_error(self, reason, obj)
+
+        if self.process_contents == 'skip' and not context.process_skipped:
+            return EMPTY if context.level else None
 
         namespace = get_namespace(obj.tag)
         if namespace not in self.maps.namespaces and not self.maps.load_namespace(namespace):

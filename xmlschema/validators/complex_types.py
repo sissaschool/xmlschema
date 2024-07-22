@@ -17,7 +17,7 @@ from xmlschema.names import XSD_GROUP, XSD_ATTRIBUTE_GROUP, XSD_SEQUENCE, XSD_OV
     XSD_RESTRICTION, XSD_COMPLEX_TYPE, XSD_EXTENSION, XSD_ANY_TYPE, XSD_ASSERT, \
     XSD_SIMPLE_CONTENT, XSD_OPEN_CONTENT, XSD_ANNOTATION
 from xmlschema.aliases import ElementType, NsmapType, SchemaType, ComponentClassType, \
-    DecodeType, IterDecodeType, BaseXsdType, AtomicValueType, ExtraValidatorType
+    DecodeType, BaseXsdType, AtomicValueType, ExtraValidatorType, ValidationHookType
 from xmlschema.translation import gettext as _
 from xmlschema.utils.qnames import get_qname, local_name
 from xmlschema.validation import DecodeContext, EncodeContext, ValidationMixin
@@ -613,12 +613,14 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
                  use_defaults: bool = True,
                  namespaces: Optional[NsmapType] = None,
                  max_depth: Optional[int] = None,
-                 extra_validator: Optional[ExtraValidatorType] = None) -> None:
+                 extra_validator: Optional[ExtraValidatorType] = None,
+                 validation_hook: Optional[ValidationHookType] = None) -> None:
         kwargs: Any = {
             'use_defaults': use_defaults,
             'namespaces': namespaces,
             'max_depth': max_depth,
-            'extra_validator': extra_validator
+            'extra_validator': extra_validator,
+            'validation_hook': validation_hook,
         }
         if not isinstance(obj, (str, bytes)):
             super().validate(obj, **kwargs)
@@ -631,12 +633,14 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
                  use_defaults: bool = True,
                  namespaces: Optional[NsmapType] = None,
                  max_depth: Optional[int] = None,
-                 extra_validator: Optional[ExtraValidatorType] = None) -> bool:
+                 extra_validator: Optional[ExtraValidatorType] = None,
+                 validation_hook: Optional[ValidationHookType] = None) -> bool:
         kwargs: Any = {
             'use_defaults': use_defaults,
             'namespaces': namespaces,
             'max_depth': max_depth,
-            'extra_validator': extra_validator
+            'extra_validator': extra_validator,
+            'validation_hook': validation_hook,
         }
         if not isinstance(obj, (str, bytes)):
             return super().is_valid(obj, **kwargs)

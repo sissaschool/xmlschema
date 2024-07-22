@@ -27,7 +27,6 @@ from xmlschema.translation import gettext as _
 from xmlschema.utils.qnames import get_namespace, get_qname
 from xmlschema.validation import DecodeContext, EncodeContext, ValidationMixin
 
-from .exceptions import XMLSchemaValidationError
 from .xsdbase import XsdComponent, XsdAnnotation
 from .simple_types import XsdSimpleType
 from .wildcards import XsdAnyAttribute
@@ -249,8 +248,12 @@ class XsdAttribute(XsdComponent, ValidationMixin[str, DecodedValueType]):
 
         value = self.type.raw_decode(obj, context)
         if context.value_hook is not None:
-            return context.value_hook(value, self.type)  # type:ignore[no-any-return]
-        elif isinstance(value, (int, float, list)) or value is None:
+            return context.value_hook(value, self.type)  # type:ignore[arg-type]
+        elif isinstance(value, (int, float, list)):
+            return value
+        elif value is None:
+            if context.filler is not None:
+                return context.filler(self)
             return value
         elif isinstance(value, str):
             if value.startswith('{') and self.type.is_qname():
@@ -261,10 +264,7 @@ class XsdAttribute(XsdComponent, ValidationMixin[str, DecodedValueType]):
             if context.decimal_type is None:
                 return value
             else:
-                try:
-                    return context.decimal_type(value)  # type:ignore[no-any-return]
-                except TypeError:
-                    return value
+                return context.decimal_type(value)
         elif isinstance(value, (AbstractDateTime, Duration)):
             return value if context.datetime_types else obj.strip()
         elif isinstance(value, AbstractBinary) and not context.binary_types:
@@ -704,22 +704,18 @@ class XsdAttributeGroup(
                     context.validation_error(self, reason, obj)
 
             context.attribute = name
-            result = xsd_attribute.raw_decode(value, context)
+            result_list.append((name, xsd_attribute.raw_decode(value, context)))
             context.attribute = None
-
-            if result is None and context.filler is not None:
-                result_list.append((name, context.filler(xsd_attribute)))
-            else:
-                result_list.append((name, result))
 
         if context.fill_missing:
             if context.filler is None:
                 result_list.extend((k, None) for k in self._attribute_group
                                    if k is not None and k not in obj)
             else:
-                result_list.extend((k, context.filler(v))
-                                   for k, v in self._attribute_group.items()
-                                   if k is not None and k not in obj)
+                result_list.extend(
+                    (k, context.filler(v)) for k, v in self._attribute_group.items()
+                    if k is not None and k not in obj and isinstance(v, XsdAttribute)
+                )
         return result_list
 
     def raw_encode(self, obj: MutableMapping[str, Any], context: EncodeContext) \

@@ -56,7 +56,7 @@ from xmlschema.resources import XMLResource, XMLResourceBlocked, XMLResourceForb
 from xmlschema.converters import XMLSchemaConverter
 from xmlschema.xpath import XMLSchemaProxy, ElementPathMixin
 from xmlschema.exports import export_schema
-from xmlschema.validation import check_validation_mode, DecodeContext, EncodeContext
+from xmlschema.validation import EMPTY, check_validation_mode, DecodeContext, EncodeContext
 from xmlschema import dataobjects
 
 from .exceptions import XMLSchemaParseError, XMLSchemaValidationError, \
@@ -66,7 +66,7 @@ from .helpers import get_xsd_derivation_attribute, get_xsd_annotation_child
 from .xsdbase import XSD_ELEMENT_DERIVATIONS, XsdValidator, XsdComponent, XsdAnnotation
 from .notations import XsdNotation
 from .identities import XsdIdentity, XsdKey, XsdKeyref, XsdUnique, \
-    Xsd11Key, Xsd11Unique, Xsd11Keyref, IdentityCounter, KeyrefCounter
+    Xsd11Key, Xsd11Unique, Xsd11Keyref, KeyrefCounter
 from .facets import XSD_10_FACETS, XSD_11_FACETS
 from .simple_types import XsdSimpleType, XsdList, XsdUnion, XsdAtomicRestriction, \
     Xsd11AtomicRestriction, Xsd11Union
@@ -1879,7 +1879,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             if context.errors:
                 yield from context.errors
                 context.errors.clear()
-            yield result
+            if result is not EMPTY:
+                yield result
 
         if 'max_depth' not in kwargs:
             yield from self._validate_references(context)

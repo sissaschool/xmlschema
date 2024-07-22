@@ -27,8 +27,7 @@ from xmlschema.converters import ElementData
 from xmlschema.translation import gettext as _
 from xmlschema.utils.decoding import raw_xml_encode
 from xmlschema.utils.qnames import get_qname, local_name
-from xmlschema.validation import XSD_VALIDATION_MODES, DecodeContext, \
-    EncodeContext, ValidationMixin
+from xmlschema.validation import EMPTY, DecodeContext, EncodeContext, ValidationMixin
 
 from .exceptions import XMLSchemaModelError, XMLSchemaModelDepthError, \
     XMLSchemaValidationError, XMLSchemaTypeTableWarning
@@ -1039,8 +1038,6 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                     result = self.any_type.raw_decode(child, context)
                     result_list.append((name, result, None))
                 continue
-            elif xsd_element.skip and not context.process_skipped:
-                continue
 
             if over_max_depth:
                 if context.depth_filler is not None and isinstance(xsd_element, XsdElement):
@@ -1048,17 +1045,10 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                     result_list.append((name, func(xsd_element), xsd_element))
                 continue
 
-            if context.validation_hook is not None:
-                # Control validation on element and its descendants or stop validation
-                value = context.validation_hook(child, xsd_element)
-                if value:
-                    if isinstance(value, str) and value in XSD_VALIDATION_MODES:
-                        context = _copy(context)
-                        context.validation = value
-                    else:
-                        continue
-
             result = xsd_element.raw_decode(child, context)
+            if result is EMPTY:
+                continue
+
             result_list.append((name, result, xsd_element))
 
             if cdata_index and child.tail is not None:

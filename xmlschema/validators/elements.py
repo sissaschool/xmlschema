@@ -38,7 +38,8 @@ from xmlschema import dataobjects
 from xmlschema.converters import ElementData, XMLSchemaConverter
 from xmlschema.xpath import XMLSchemaProxy, ElementPathMixin, XPathElement
 from xmlschema.resources import XMLResource
-from xmlschema.validation import DecodeContext, EncodeContext, ValidationMixin
+from xmlschema.validation import EMPTY, XSD_VALIDATION_MODES, DecodeContext, \
+    EncodeContext, ValidationMixin
 
 from .exceptions import XMLSchemaNotBuiltError, XMLSchemaValidationError, \
     XMLSchemaParseError, XMLSchemaStopValidation, XMLSchemaTypeTableWarning
@@ -591,6 +592,16 @@ class XsdElement(XsdComponent, ParticleMixin,
             reason = _("cannot use an abstract element for validation")
             context.validation_error(self, reason, obj)
 
+        if context.validation_hook is not None:
+            # Control validation on element and its descendants or stop validation
+            validation = context.validation_hook(obj, self)
+            if validation:
+                if isinstance(validation, str) and validation in XSD_VALIDATION_MODES:
+                    context = _copy(context)
+                    context.validation = validation
+                else:
+                    return EMPTY if context.level else None
+
         context.elem = obj
 
         for identity in self.identities:
@@ -701,14 +712,12 @@ class XsdElement(XsdComponent, ParticleMixin,
         elif not isinstance(content_decoder, XsdSimpleType):
             if not isinstance(xsd_type, XsdSimpleType):
                 for assertion in xsd_type.assertions:
-                    for error in assertion(
-                            obj, namespaces=context.namespaces, source=context.source
-                    ):
-                        context.validation_error(self, error)
+                    assertion(obj, context)
 
             context.level += 1
             content = content_decoder.raw_decode(obj, context)
             context.level -= 1
+
             if content and len(content) == 1 and content[0][0] == 1:
                 value, content = content[0][1], None
 
@@ -738,10 +747,7 @@ class XsdElement(XsdComponent, ParticleMixin,
 
             if not isinstance(xsd_type, XsdSimpleType):
                 for assertion in xsd_type.assertions:
-                    for error in assertion(
-                            obj, value=text, namespaces=context.namespaces, source=context.source
-                    ):
-                        context.validation_error(self, error)
+                    assertion(obj, context, value=text)
 
                 if text and content_decoder.is_list():
                     value = text.split()
@@ -771,10 +777,8 @@ class XsdElement(XsdComponent, ParticleMixin,
                 if value.startswith('{') and xsd_type.is_qname():
                     value = text
             elif isinstance(value, Decimal):
-                try:
+                if context.decimal_type is not None:
                     value = context.decimal_type(value)
-                except (KeyError, TypeError):
-                    pass
             elif isinstance(value, (AbstractDateTime, Duration)):
                 if not context.datetime_types:
                     value = str(value) if text is None else text.strip()
@@ -978,7 +982,9 @@ class XsdElement(XsdComponent, ParticleMixin,
             if err.elem is not None:
                 raise
             errors.append(err)
-            attributes = []
+            context2 = _copy(context)
+            context2.validation = 'skip'
+            attributes = attribute_group.raw_encode(element_data.attributes, context2)
         finally:
             context.level -= 1
 
@@ -1019,8 +1025,10 @@ class XsdElement(XsdComponent, ParticleMixin,
             elif self.default is not None and context.use_defaults:
                 text = self.default
 
-        elif isinstance(xsd_type.content, XsdSimpleType) and xsd_type.content.max_length != 0:
-            if element_data.text is not None:
+        elif isinstance(xsd_type.content, XsdSimpleType):
+            if xsd_type.content.max_length == 0:
+                pass
+            elif element_data.text is not None:
                 try:
                     text = xsd_type.content.raw_encode(element_data.text, context)
                 except XMLSchemaValidationError as err:
