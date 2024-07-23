@@ -1762,7 +1762,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             'extra_validator': extra_validator,
             'validation_hook': validation_hook,
         }
-        context = DecodeContext(self, resource, validation, **kwargs)
+        context = DecodeContext(self, resource, **kwargs)
         namespaces = context.namespaces
         identities = context.identities
 
@@ -1816,11 +1816,11 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                     continue
                 else:
                     reason = _("{!r} is not an element of the schema").format(elem)
-                    yield context.validation_error(self, reason, elem)
+                    yield context.validation_error(validation, self, reason, elem)
                     return
 
             try:
-                xsd_element.raw_decode(elem, context)
+                xsd_element.raw_decode(elem, validation, context)
             except XMLSchemaStopValidation:
                 pass
             else:
@@ -1830,7 +1830,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             if elem is None and not allow_empty:
                 assert path is not None
                 reason = _("the provided path selects nothing to validate")
-                yield context.validation_error(self, reason)
+                yield context.validation_error(validation, self, reason)
                 return
 
         if context.identities is not identities:
@@ -1838,27 +1838,28 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 identities[identity].counter.update(counter.counter)
             context.identities = identities
 
-        yield from self._validate_references(context)
+        yield from self._validate_references(validation, context)
 
-    def _validate_references(self, context: DecodeContext) -> Iterator[XMLSchemaValidationError]:
+    def _validate_references(self, validation: str, context: DecodeContext) \
+            -> Iterator[XMLSchemaValidationError]:
         # Check unresolved IDREF values
         for k, v in context.id_map.items():
             if v == 0:
                 msg = _("IDREF %r not found in XML document") % k
-                yield context.validation_error(self, msg, context.source.root)
+                yield context.validation_error(validation, self, msg, context.source.root)
 
         # Check still enabled key references (lazy validation cases)
         for identity, counter in context.identities.items():
             if counter.enabled and isinstance(identity, XsdKeyref):
                 for error in cast(KeyrefCounter, counter).iter_errors(context.identities):
-                    yield context.validation_error(self, error, context.source.root)
+                    yield context.validation_error(validation, self, error, context.source.root)
 
     def raw_decoder(self, source: XMLResource, path: Optional[str] = None,
                     schema_path: Optional[str] = None, validation: str = 'lax',
                     namespaces: Optional[NsmapType] = None, **kwargs: Any) \
             -> Iterator[Union[Any, XMLSchemaValidationError]]:
         """Returns a generator for decoding a resource."""
-        context = DecodeContext(self, source, validation, **kwargs)
+        context = DecodeContext(self, source, **kwargs)
         if path:
             selector = source.iterfind(path, namespaces)
         else:
@@ -1875,7 +1876,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                                                 source=source, namespaces=namespaces)
                     continue
 
-            result = xsd_element.raw_decode(elem, context)
+            result = xsd_element.raw_decode(elem, validation, context)
             if context.errors:
                 yield from context.errors
                 context.errors.clear()
@@ -1883,7 +1884,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 yield result
 
         if 'max_depth' not in kwargs:
-            yield from self._validate_references(context)
+            yield from self._validate_references(validation, context)
 
     def iter_decode(self, source: Union[XMLSourceType, XMLResource],
                     path: Optional[str] = None,
@@ -2014,7 +2015,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             element_hook=element_hook,
             errors=errors
         )
-        context = DecodeContext(self, resource, validation, **kwargs)
+        check_validation_mode(validation)
+        context = DecodeContext(self, resource, **kwargs)
         namespaces = context.namespaces
 
         namespace = resource.namespace or namespaces.get('', '')
@@ -2047,19 +2049,17 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                     xsd_element = self.create_element(name=elem.tag)
                 else:
                     reason = _("{!r} is not an element of the schema").format(elem)
-                    yield schema.validation_error(
-                        validation, reason, elem, source=resource, namespaces=namespaces
-                    )
+                    yield context.validation_error(validation, self, reason, elem)
                     return
 
-            result = xsd_element.raw_decode(elem, context)
+            result = xsd_element.raw_decode(elem, validation, context)
             if len(context.errors) > yielded_errors:
                 yield from context.errors[yielded_errors:]
                 yielded_errors = len(context.errors)
             yield result
 
         if context.max_depth is not None:
-            yield from self._validate_references(context)
+            yield from self._validate_references(validation, context)
 
     def decode(self, source: Union[XMLSourceType, XMLResource],
                path: Optional[str] = None,
@@ -2151,7 +2151,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             process_skipped=process_skipped,
             max_depth=max_depth
         )
-        context = EncodeContext(self, obj, validation, **kwargs)
+        context = EncodeContext(self, obj, **kwargs)
 
         xsd_element = None
         if path is not None:
@@ -2183,7 +2183,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                            "provide a valid 'path' argument.")
             raise XMLSchemaEncodeError(self, obj, self.elements, reason, namespaces=namespaces)
         else:
-            result = xsd_element.raw_encode(obj, context)
+            result = xsd_element.raw_encode(obj, validation, context)
             yield from context.errors
             if result is not None:
                 yield result

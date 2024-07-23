@@ -225,7 +225,8 @@ class XsdAttribute(XsdComponent, ValidationMixin[str, DecodedValueType]):
         """Returns the decoded data value of the provided text as XPath fn:data()."""
         return cast(AtomicValueType, self.decode(text, validation='skip'))
 
-    def raw_decode(self, obj: str, context: DecodeContext) -> DecodedValueType:
+    def raw_decode(self, obj: str, validation: str, context: DecodeContext) \
+            -> DecodedValueType:
         if obj is None and self.default is not None:
             obj = self.default
 
@@ -233,10 +234,10 @@ class XsdAttribute(XsdComponent, ValidationMixin[str, DecodedValueType]):
             if self.type.name == XSD_NOTATION_TYPE:
                 msg = _("cannot validate against xs:NOTATION directly, "
                         "only against a subtype with an enumeration facet")
-                context.validation_error(self, msg, obj)
+                context.validation_error(validation, self, msg, obj)
             elif not self.type.enumeration:
                 msg = _("missing enumeration facet in xs:NOTATION subtype")
-                context.validation_error(self, msg, obj)
+                context.validation_error(validation, self, msg, obj)
 
         if self.fixed is not None:
             if obj is None:
@@ -244,9 +245,9 @@ class XsdAttribute(XsdComponent, ValidationMixin[str, DecodedValueType]):
             elif obj != self.fixed and \
                     self.type.text_decode(obj) != self.type.text_decode(self.fixed):
                 msg = _("attribute {0!r} has a fixed value {1!r}").format(self.name, self.fixed)
-                context.validation_error(self, msg, obj)
+                context.validation_error(validation, self, msg, obj)
 
-        value = self.type.raw_decode(obj, context)
+        value = self.type.raw_decode(obj, validation, context)
         if context.value_hook is not None:
             return context.value_hook(value, self.type)  # type:ignore[arg-type]
         elif isinstance(value, (int, float, list)):
@@ -272,8 +273,8 @@ class XsdAttribute(XsdComponent, ValidationMixin[str, DecodedValueType]):
         else:
             return value
 
-    def raw_encode(self, obj: Any, context: EncodeContext) -> Optional[str]:
-        return self.type.raw_encode(obj, context)
+    def raw_encode(self, obj: Any, validation: str, context: EncodeContext) -> Optional[str]:
+        return self.type.raw_encode(obj, validation, context)
 
 
 class Xsd11Attribute(XsdAttribute):
@@ -650,15 +651,15 @@ class XsdAttributeGroup(
             if attr.parent is not None:
                 yield from attr.iter_components(xsd_classes)
 
-    def raw_decode(self, obj: MutableMapping[str, str], context: DecodeContext) \
-            -> List[Tuple[str, Any]]:
+    def raw_decode(self, obj: MutableMapping[str, str],
+                   validation: str, context: DecodeContext) -> List[Tuple[str, Any]]:
 
         if not obj and not self:
             return []
 
         for name in filter(lambda x: x not in obj, self.iter_required()):
             reason = _("missing required attribute {!r}").format(name)
-            context.validation_error(self, reason, obj)
+            context.validation_error(validation, self, reason, obj)
 
         additional_attrs = [
             (k, v) for k, v in self.iter_value_constraints(context.use_defaults)
@@ -687,7 +688,7 @@ class XsdAttributeGroup(
                             value = (name, value)
                         else:
                             reason = _("%r is not an attribute of the XSI namespace") % name
-                            context.validation_error(self, reason, obj)
+                            context.validation_error(validation, self, reason, obj)
                             continue
 
                 elif None in self._attribute_group:
@@ -695,16 +696,16 @@ class XsdAttributeGroup(
                     value = (name, value)
                 else:
                     reason = _("%r attribute not allowed for element") % name
-                    context.validation_error(self, reason, obj)
+                    context.validation_error(validation, self, reason, obj)
                     continue
             else:
                 if xsd_attribute.use == 'prohibited' and \
                         (None not in self or not self._attribute_group[None].is_matching(name)):
                     reason = _("use of attribute %r is prohibited") % name
-                    context.validation_error(self, reason, obj)
+                    context.validation_error(validation, self, reason, obj)
 
             context.attribute = name
-            result_list.append((name, xsd_attribute.raw_decode(value, context)))
+            result_list.append((name, xsd_attribute.raw_decode(value, validation, context)))
             context.attribute = None
 
         if context.fill_missing:
@@ -718,15 +719,15 @@ class XsdAttributeGroup(
                 )
         return result_list
 
-    def raw_encode(self, obj: MutableMapping[str, Any], context: EncodeContext) \
-            -> List[Tuple[str, str]]:
+    def raw_encode(self, obj: MutableMapping[str, Any],
+                   validation: str, context: EncodeContext) -> List[Tuple[str, str]]:
 
         if not obj and not self:
             return []
 
         for name in filter(lambda x: x not in obj, self.iter_required()):
             reason = _("missing required attribute {!r}").format(name)
-            context.validation_error(self, reason, obj)
+            context.validation_error(validation, self, reason, obj)
 
         result_list = []
         for name, value in obj.items():
@@ -743,7 +744,7 @@ class XsdAttributeGroup(
                             value = (name, value)
                         else:
                             reason = _("%r is not an attribute of the XSI namespace") % name
-                            context.validation_error(self, reason, obj)
+                            context.validation_error(validation, self, reason, obj)
                             continue
 
                 elif None in self._attribute_group:
@@ -751,10 +752,10 @@ class XsdAttributeGroup(
                     value = (name, value)
                 else:
                     reason = _("%r attribute not allowed for element") % name
-                    context.validation_error(self, reason, obj)
+                    context.validation_error(validation, self, reason, obj)
                     continue
 
-            result = xsd_attribute.raw_encode(value, context)
+            result = xsd_attribute.raw_encode(value, validation, context)
             if result is not None:
                 result_list.append((name, result))
 

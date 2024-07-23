@@ -940,11 +940,13 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                 return xsd_element
         return None
 
-    def raw_decode(self, obj: ElementType, context: DecodeContext) -> GroupDecodeType:
+    def raw_decode(self, obj: ElementType, validation: str, context: DecodeContext) \
+            -> GroupDecodeType:
         """
         Decoding an Element content.
 
         :param obj: an Element.
+        :param validation: the validation mode. Can be 'lax', 'strict' or 'skip.
         :param context: the encoding context.
         :return: a list of 3-tuples (key, decoded data, decoder).
         """
@@ -953,7 +955,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
 
         if not self._group and self.model == 'choice' and self.min_occurs:
             reason = _("an empty 'choice' group with minOccurs > 0 cannot validate any content")
-            context.validation_error(self, reason, obj)
+            context.validation_error(validation, self, reason, obj)
             return result_list
 
         if not self.mixed:
@@ -964,7 +966,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                     pass  # [XsdAnyElement()] equals to an empty complexType declaration
                 else:
                     reason = _("character data between child elements not allowed")
-                    context.validation_error(self, reason, obj)
+                    context.validation_error(validation, self, reason, obj)
                     cdata_index = 0  # Do not decode CDATA
 
         if cdata_index and obj.text is not None:
@@ -976,8 +978,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         over_max_depth = context.max_depth is not None and context.max_depth <= context.level
         if context.level > limits.MAX_XML_DEPTH:
             reason = _("XML data depth exceeded (MAX_XML_DEPTH=%r)") % limits.MAX_XML_DEPTH
-            context.validation = 'strict'
-            context.validation_error(self, reason, obj)
+            context.validation_error('strict', self, reason, obj)
 
         errors: List[Tuple[int, ModelParticleType, int, Optional[List[SchemaElementType]]]]
         xsd_element: Optional[SchemaElementType]
@@ -1018,7 +1019,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                 try:
                     self.check_dynamic_context(child, xsd_element, model.element, namespaces)
                 except XMLSchemaValidationError as err:
-                    context.validation_error(self, err, obj)
+                    context.validation_error(validation, self, err, obj)
 
                 for particle, occurs, expected in model.advance(True):
                     errors.append((index, particle, occurs, expected))
@@ -1035,7 +1036,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
             # Optional checks on matched XSD child
             if xsd_element is None:
                 if context.keep_unknown:
-                    result = self.any_type.raw_decode(child, context)
+                    result = self.any_type.raw_decode(child, validation, context)
                     result_list.append((name, result, None))
                 continue
 
@@ -1045,7 +1046,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                     result_list.append((name, func(xsd_element), xsd_element))
                 continue
 
-            result = xsd_element.raw_decode(child, context)
+            result = xsd_element.raw_decode(child, validation, context)
             if result is EMPTY:
                 continue
 
@@ -1070,16 +1071,18 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         if errors:
             for index, particle, occurs, expected in errors:
                 context.children_validation_error(
-                    self, obj, index, particle, occurs, expected
+                    validation, self, obj, index, particle, occurs, expected
                 )
 
         return result_list
 
-    def raw_encode(self, obj: ElementData, context: EncodeContext) -> GroupEncodeType:
+    def raw_encode(self, obj: ElementData, validation: str, context: EncodeContext) \
+            -> GroupEncodeType:
         """
         Encode data to a list containing Element children.
 
         :param obj: an ElementData instance.
+        :param validation: the validation mode. Can be 'lax', 'strict' or 'skip.
         :param context: the encoding context.
         :return: returns a couple with the text of the Element and a list of child \
         elements.
@@ -1159,7 +1162,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                         reason = _('{0} has an unknown prefix {1!r}').format(
                             name, name.split(':')[0]
                         )
-                    context.validation_error(self, reason, value)
+                    context.validation_error(validation, self, reason, value)
                     continue
 
             if xsd_element.skip and not context.process_skipped:
@@ -1167,7 +1170,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
             if over_max_depth:
                 continue
 
-            child = xsd_element.raw_encode(value, context)
+            child = xsd_element.raw_encode(value, validation, context)
             if child is not None:
                 children.append(child)
 
@@ -1193,15 +1196,15 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
 
             if wrong_content_type:
                 reason = _("wrong content type {!r}").format(type(obj.content))
-                context.validation_error(self, reason, elem)
+                context.validation_error(validation, self, reason, elem)
 
             if cdata_not_allowed:
                 reason = _("character data between child elements not allowed")
-                context.validation_error(self, reason, elem)
+                context.validation_error(validation, self, reason, elem)
 
             for index, particle, occurs, expected in errors:
                 context.children_validation_error(
-                    self, elem, index, particle, occurs, expected
+                    validation, self, elem, index, particle, occurs, expected
                 )
 
         return text, children

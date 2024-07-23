@@ -729,35 +729,39 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
                 self, obj, str, msg % {'obj': obj, 'decoder': self}
             )
 
-    def raw_decode(self, obj: Union[ElementType, str, bytes], context: DecodeContext) -> Any:
+    def raw_decode(self, obj: Union[ElementType, str, bytes],
+                   validation: str, context: DecodeContext) -> Any:
         """
         Decodes an Element instance using a dummy XSD element. Typically used
         for decoding with xs:anyType when an XSD element is not available.
         Also decodes strings if the type has a simple content.
 
         :param obj: the XML data that has to be decoded.
+        :param validation: the validation mode. Can be 'lax', 'strict' or 'skip.
         :param context: the decoding context.
         :return: a decoded object.
         """
         if not isinstance(obj, (str, bytes)):
             xsd_element = self.schema.create_element(obj.tag, parent=self, form='unqualified')
             xsd_element.type = self
-            return xsd_element.raw_decode(obj, context)
+            return xsd_element.raw_decode(obj, validation, context)
         elif isinstance(self.content, XsdSimpleType):
-            return self.content.raw_decode(obj, context)
+            return self.content.raw_decode(obj, validation, context)
         else:
             msg = _("cannot decode %(obj)r data with %(decoder)r")
             raise XMLSchemaDecodeError(
                 self, obj, str, msg % {'obj': obj, 'decoder': self}
             )
 
-    def raw_encode(self, obj: Any, context: EncodeContext) -> Optional[ElementType]:
+    def raw_encode(self, obj: Any, validation: str, context: EncodeContext) \
+            -> Optional[ElementType]:
         """
         Encode XML data. A dummy element is created for the type, and it's used for
         encode data. Typically used for encoding with xs:anyType when an XSD element
         is not available.
 
         :param obj: decoded XML data.
+        :param validation: the validation mode. Can be 'lax', 'strict' or 'skip.
         :param context: the encoding context.
         :return: returns an Element.
         """
@@ -776,7 +780,7 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
         xsd_element = self.schema.create_element(name, parent=xsd_type, form='unqualified')
         xsd_element.type = xsd_type
 
-        return xsd_element.raw_encode(value, context)
+        return xsd_element.raw_encode(value, validation, context)
 
 
 class Xsd11ComplexType(XsdComplexType):

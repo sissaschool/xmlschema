@@ -132,6 +132,7 @@ class XsdAssert(XsdComponent, ElementPathMixin[Union['XsdAssert', SchemaElementT
 
     def __call__(self,
                  obj: ElementType,
+                 validation: str,
                  context: DecodeContext,
                  value: Any = None) -> None:
 
@@ -158,9 +159,9 @@ class XsdAssert(XsdComponent, ElementPathMixin[Union['XsdAssert', SchemaElementT
 
         try:
             if not self.token.evaluate(xpath_context):
-                context.validation_error(self, "assertion test is false", obj)
+                context.validation_error(validation, self, "assertion test is false", obj)
         except ElementPathError as err:
-            context.validation_error(self, err, obj)
+            context.validation_error(validation, self, err, obj)
 
     # For implementing ElementPathMixin
     def __iter__(self) -> Iterator[Union['XsdElement', 'XsdAnyElement']]:
