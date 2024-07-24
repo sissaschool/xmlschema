@@ -451,6 +451,7 @@ class Xsd11Keyref(XsdKeyref):
 
 
 class IdentityCounter:
+    elements: Optional[Set[Any]]  # don't need to check, should be only etree elements anyway
 
     def __init__(self, identity: XsdIdentity, elem: ElementType) -> None:
         self.counter: Counter[IdentityCounterType] = Counter[IdentityCounterType]()

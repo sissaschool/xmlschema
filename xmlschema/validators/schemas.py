@@ -49,14 +49,15 @@ from xmlschema.translation import gettext as _
 from xmlschema.utils.logger import set_logging_level
 from xmlschema.utils.etree import prune_etree
 from xmlschema.utils.qnames import get_namespace, get_qname
-from xmlschema.namespaces import NamespaceResourcesMap, NamespaceMapper, NamespaceView
+from xmlschema.namespaces import NamespaceResourcesMap, NamespaceView
 from xmlschema.utils.urls import is_local_url, is_remote_url
 from xmlschema.locations import location_is_file, normalize_url, normalize_locations
 from xmlschema.resources import XMLResource, XMLResourceBlocked, XMLResourceForbidden
 from xmlschema.converters import XMLSchemaConverter
 from xmlschema.xpath import XMLSchemaProxy, ElementPathMixin
 from xmlschema.exports import export_schema
-from xmlschema.validation import EMPTY, check_validation_mode, DecodeContext, EncodeContext
+from xmlschema.validation import EMPTY, check_validation_mode, check_converter_argument, \
+    get_converter, DecodeContext, EncodeContext
 from xmlschema import dataobjects
 
 from .exceptions import XMLSchemaParseError, XMLSchemaValidationError, \
@@ -249,7 +250,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     # Instance attributes type annotations
     source: XMLResource
     namespaces: NsmapType
-    converter: Union[ConverterType]
+    converter: ConverterType
     locations: NamespaceResourcesMap
     maps: XsdGlobals
     imports: Dict[str, Optional[SchemaType]]
@@ -357,6 +358,12 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
         logger.debug("Read schema from %r", self.source.url or self.source.source)
 
+        if converter is None:
+            self.converter = XMLSchemaConverter
+        else:
+            check_converter_argument(converter)
+            self.converter = converter
+
         self.imports = {}
         self._import_statements = set()
         self.includes = {}
@@ -419,11 +426,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 self.final_default = get_xsd_derivation_attribute(root, 'finalDefault')
             except ValueError as err:
                 self.parse_error(err, root)
-
-        if converter is None:
-            self.converter = XMLSchemaConverter
-        else:
-            self.converter = self.get_converter(converter)
 
         if self.meta_schema is None:
             self.locations = NamespaceResourcesMap()
@@ -1148,22 +1150,14 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         """
         Returns a new converter instance.
 
-        :param converter: can be a converter class or instance. If it's an instance \
-        the new instance is copied from it and configured with the provided arguments.
+        :param converter: can be a converter class or instance. If not provided the \
+        converter attribute of the schema instance is used.
         :param kwargs: optional arguments for initialize the converter instance.
         :return: a converter instance.
         """
         if converter is None:
             converter = self.converter
-
-        if isinstance(converter, XMLSchemaConverter):
-            return converter.copy(keep_namespaces=False, **kwargs)
-        elif issubclass(converter, XMLSchemaConverter):
-            # noinspection PyCallingNonCallable
-            return converter(**kwargs)
-        else:
-            msg = _("'converter' argument must be a {0!r} subclass or instance: {1!r}")
-            raise XMLSchemaTypeError(msg.format(XMLSchemaConverter, converter))
+        return get_converter(converter, **kwargs)
 
     def get_locations(self, namespace: str) -> List[str]:
         """Get a list of location hints for a namespace."""
@@ -1755,14 +1749,14 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         kwargs: Dict[Any, Any] = {
             'level': resource.lazy_depth or bool(path),
             'namespaces': namespaces,
-            'converter': NamespaceMapper,
+            'validation_only': True,
             'use_defaults': use_defaults,
             'use_location_hints': use_location_hints,
             'max_depth': max_depth,
             'extra_validator': extra_validator,
             'validation_hook': validation_hook,
         }
-        context = DecodeContext(self, resource, **kwargs)
+        context = DecodeContext(resource, **kwargs)
         namespaces = context.namespaces
         identities = context.identities
 
@@ -1854,26 +1848,26 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 for error in cast(KeyrefCounter, counter).iter_errors(context.identities):
                     yield context.validation_error(validation, self, error, context.source.root)
 
-    def raw_decoder(self, source: XMLResource, path: Optional[str] = None,
-                    schema_path: Optional[str] = None, validation: str = 'lax',
-                    namespaces: Optional[NsmapType] = None, **kwargs: Any) \
-            -> Iterator[Union[Any, XMLSchemaValidationError]]:
+    def raw_decoder(self, source: XMLResource,
+                    path: Optional[str] = None,
+                    schema_path: Optional[str] = None,
+                    validation: str = 'lax',
+                    **kwargs: Any) -> Iterator[Union[Any, XMLSchemaValidationError]]:
         """Returns a generator for decoding a resource."""
-        context = DecodeContext(self, source, **kwargs)
+        context = DecodeContext(source, **kwargs)
         if path:
-            selector = source.iterfind(path, namespaces)
+            selector = source.iterfind(path, context.namespaces)
         else:
             selector = source.iter_depth(mode=2)
 
         for elem in selector:
-            xsd_element = self.get_element(elem.tag, schema_path, namespaces)
+            xsd_element = self.get_element(elem.tag, schema_path, context.namespaces)
             if xsd_element is None:
                 if XSI_TYPE in elem.attrib:
                     xsd_element = self.create_element(name=elem.tag)
                 else:
                     reason = _("{!r} is not an element of the schema").format(elem)
-                    yield self.validation_error(validation, reason, elem,
-                                                source=source, namespaces=namespaces)
+                    yield context.validation_error(validation, self, reason, elem)
                     continue
 
             result = xsd_element.raw_decode(elem, validation, context)
@@ -1883,7 +1877,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             if result is not EMPTY:
                 yield result
 
-        if 'max_depth' not in kwargs:
+        if context.max_depth is None:
             yield from self._validate_references(validation, context)
 
     def iter_decode(self, source: Union[XMLSourceType, XMLResource],
@@ -1993,6 +1987,9 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         else:
             resource = XMLResource(source, defuse=self.defuse, timeout=self.timeout)
 
+        if converter is None:
+            converter = self.converter
+
         kwargs.update(
             process_namespaces=process_namespaces,
             namespaces=namespaces,
@@ -2016,7 +2013,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             errors=errors
         )
         check_validation_mode(validation)
-        context = DecodeContext(self, resource, **kwargs)
+        context = DecodeContext(resource, **kwargs)
         namespaces = context.namespaces
 
         namespace = resource.namespace or namespaces.get('', '')
@@ -2143,6 +2140,9 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             msg = _("encoding needs at least one XSD element declaration")
             raise XMLSchemaValueError(msg)
 
+        if converter is None:
+            converter = self.converter
+
         kwargs.update(
             namespaces=namespaces,
             use_defaults=use_defaults,
@@ -2151,7 +2151,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             process_skipped=process_skipped,
             max_depth=max_depth
         )
-        context = EncodeContext(self, obj, **kwargs)
+        context = EncodeContext(obj, **kwargs)
 
         xsd_element = None
         if path is not None:

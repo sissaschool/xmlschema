@@ -12,8 +12,8 @@ This module contains base functions and classes XML Schema components.
 """
 import logging
 import re
-from typing import TYPE_CHECKING, cast, Any, Dict, List, Iterator, Optional, \
-    Set, Tuple, Union, MutableMapping, Type
+from typing import TYPE_CHECKING, cast, Any, List, Iterator, Optional, \
+    Set, Tuple, Union, MutableMapping
 from xml.etree import ElementTree
 
 from elementpath import select
@@ -27,13 +27,12 @@ from xmlschema.aliases import ElementType, NsmapType, SchemaType, BaseXsdType, \
     ComponentClassType
 from xmlschema.translation import gettext as _
 from xmlschema.utils.qnames import get_qname, local_name, get_prefixed_qname
-from xmlschema.utils.etree import is_etree_element, is_etree_document
+from xmlschema.utils.etree import is_etree_element
 from xmlschema.utils.logger import format_xmlschema_stack
 from xmlschema.resources import XMLResource
-from xmlschema.converters import XMLSchemaConverter
-from xmlschema.validation import check_validation_mode, EncodeContext
+from xmlschema.validation import check_validation_mode
 
-from .exceptions import XMLSchemaParseError, XMLSchemaValidationError
+from .exceptions import XMLSchemaParseError
 from .helpers import get_xsd_annotation_child
 
 if TYPE_CHECKING:
@@ -190,60 +189,6 @@ class XsdValidator:
             self.errors.append(error)
         else:
             raise error
-
-    def validation_error(self, validation: str,
-                         error: Union[str, Exception],
-                         obj: Any = None,
-                         elem: Optional[ElementType] = None,
-                         source: Optional[Any] = None,
-                         namespaces: Optional[NsmapType] = None,
-                         **kwargs: Any) -> XMLSchemaValidationError:
-        """
-        Helper method for generating and updating validation errors. If validation
-        mode is 'lax' or 'skip' returns the error, otherwise raises the error.
-
-        :param validation: an error-compatible validation mode: can be 'lax' or 'strict'.
-        :param error: an error instance or the detailed reason of failed validation.
-        :param obj: the instance related to the error.
-        :param elem: the element related to the error, can be `obj` for elements.
-        :param source: the XML resource or data related to the validation process.
-        :param namespaces: is an optional mapping from namespace prefix to URI.
-        :param kwargs: other keyword arguments of the validation process.
-        """
-        check_validation_mode(validation)
-        if elem is None and is_etree_element(obj):
-            elem = cast(ElementType, obj)
-
-        if isinstance(error, XMLSchemaValidationError):
-            if error.namespaces is None and namespaces is not None:
-                error.namespaces = namespaces
-            if error.source is None and source is not None:
-                error.source = source
-            if error.obj is None and obj is not None:
-                error.obj = obj
-            elif is_etree_element(error.obj) and elem is not None:
-                if elem.tag == error.obj.tag and elem is not error.obj:
-                    error.obj = elem
-
-        elif isinstance(error, Exception):
-            error = XMLSchemaValidationError(self, obj, str(error), source, namespaces)
-        else:
-            error = XMLSchemaValidationError(self, obj, error, source, namespaces)
-
-        if error.elem is None and elem is not None:
-            error.elem = elem
-
-        if validation == 'strict' and error.elem is not None:
-            raise error
-
-        if error.stack_trace is None and logger.level == logging.DEBUG:
-            error.stack_trace = format_xmlschema_stack()
-            logger.debug("Collect %r with traceback:\n%s", error, error.stack_trace)
-
-        if 'errors' in kwargs and error not in kwargs['errors']:
-            kwargs['errors'].append(error)
-
-        return error
 
     def _parse_xpath_default_namespace(self, elem: ElementType) -> str:
         """
@@ -525,19 +470,6 @@ class XsdComponent(XsdValidator):
             self.name = local_name(self.name)
         else:
             self.name = f'{{{self._target_namespace}}}{local_name(self.name)}'
-
-    def _get_converter(self, obj: Any, kwargs: Dict[str, Any]) -> XMLSchemaConverter:
-        if 'source' not in kwargs:
-            if isinstance(obj, XMLResource):
-                kwargs['source'] = obj
-            elif is_etree_element(obj) or is_etree_document(obj):
-                kwargs['source'] = XMLResource(obj)
-            else:
-                kwargs['source'] = obj
-
-        converter = kwargs['converter'] = self.schema.get_converter(**kwargs)
-        kwargs['namespaces'] = converter.namespaces
-        return converter
 
     @property
     def local_name(self) -> Optional[str]:

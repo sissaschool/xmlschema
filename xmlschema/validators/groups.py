@@ -1092,8 +1092,12 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         children: List[ElementType] = []
 
         converter = context.converter
-        padding = '\n' + ' ' * converter.indent * context.level
+        padding = context.padding
         default_namespace = converter.get('')
+
+        elem = context.elem
+        if elem is None:
+            elem = context.create_element(obj.tag)
 
         if self.open_content is None or self.open_content.mode == 'none':
             model = ModelVisitor(self)
@@ -1187,25 +1191,25 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                         padding[:-converter.indent] or '\n'
                 )
 
-        cdata_not_allowed = not self.mixed and text and text.strip() and self and \
-                            (len(self) > 1 or not isinstance(self[0], XsdAnyElement))
+        if children:
+            elem.text = text or context.padding
+            elem.extend(children)
+        else:
+            elem.text = text
 
-        if errors or cdata_not_allowed or wrong_content_type:
-            attrib = {k: raw_xml_encode(v) for k, v in obj.attributes.items()}
-            elem = converter.etree_element(obj.tag, text, children, attrib)
+        if wrong_content_type:
+            reason = _("wrong content type {!r}").format(type(obj.content))
+            context.validation_error(validation, self, reason, elem)
 
-            if wrong_content_type:
-                reason = _("wrong content type {!r}").format(type(obj.content))
-                context.validation_error(validation, self, reason, elem)
+        if not self.mixed and text and text.strip() and self and \
+                (len(self) > 1 or not isinstance(self[0], XsdAnyElement)):
+            reason = _("character data between child elements not allowed")
+            context.validation_error(validation, self, reason, elem)
 
-            if cdata_not_allowed:
-                reason = _("character data between child elements not allowed")
-                context.validation_error(validation, self, reason, elem)
-
-            for index, particle, occurs, expected in errors:
-                context.children_validation_error(
-                    validation, self, elem, index, particle, occurs, expected
-                )
+        for index, particle, occurs, expected in errors:
+            context.children_validation_error(
+                validation, self, elem, index, particle, occurs, expected
+            )
 
         return text, children
 

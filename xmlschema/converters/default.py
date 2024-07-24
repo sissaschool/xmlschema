@@ -303,16 +303,14 @@ class XMLSchemaConverter(NamespaceMapper):
         :return: an instance of the Element class is set for the converter instance.
         """
         if type(self.etree_element_class) is type(Element):
-            if attrib is None:
-                elem = self.etree_element_class(tag)
-            else:
-                elem = self.etree_element_class(tag, self.dict(attrib))
+            elem = self.etree_element_class(tag)
         else:
-            # FIXME: need a more refined check
             nsmap = {prefix if prefix else None: uri
                      for prefix, uri in self._namespaces.items() if uri}
             elem = self.etree_element_class(tag, nsmap=nsmap)  # type: ignore[arg-type]
-            elem.attrib.update(attrib)  # type: ignore[arg-type]
+
+        if attrib is not None:
+            elem.attrib.update(attrib)
 
         if children:
             elem.extend(children)
