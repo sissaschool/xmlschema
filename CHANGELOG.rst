@@ -2,6 +2,10 @@
 CHANGELOG
 *********
 
+`v3.3.2`_ (2024-07-29)
+======================
+* Fix UNC path tests (issues #405 and #408)
+
 `v3.3.1`_ (2024-04-27)
 ======================
 * Update validation errors with logging stacktrace in debug mode
@@ -704,3 +708,4 @@ v0.9.6 (2017-05-05)
 .. _v3.2.1: https://github.com/brunato/xmlschema/compare/v3.2.0...v3.2.1
 .. _v3.3.0: https://github.com/brunato/xmlschema/compare/v3.2.1...v3.3.0
 .. _v3.3.1: https://github.com/brunato/xmlschema/compare/v3.3.0...v3.3.1
+.. _v3.3.2: https://github.com/brunato/xmlschema/compare/v3.3.1...v3.3.2
