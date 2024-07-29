@@ -12,6 +12,7 @@ import unittest
 import os
 import pathlib
 import platform
+import sys
 
 from urllib.parse import urlsplit, uses_relative
 from pathlib import Path, PurePath, PureWindowsPath, PurePosixPath
@@ -280,7 +281,10 @@ class TestLocations(unittest.TestCase):
             self.assertEqual(url, 'file:////filer01/MY_HOME/dev/XMLSCHEMA/test.xsd')
 
             url = normalize_url(r'dev\XMLSCHEMA\test.xsd', base_url=base_url_host_in_path)
-            self.assertEqual(url, 'file:////filer01/MY_HOME/dev/XMLSCHEMA/test.xsd')
+            if sys.version_info < (3, 12, 4):
+                self.assertEqual(url, 'file:////filer01/MY_HOME/dev/XMLSCHEMA/test.xsd')
+            else:
+                self.assertEqual(url, 'file://////filer01/MY_HOME/dev/XMLSCHEMA/test.xsd')
 
         with patch.object(os, 'name', 'posix'):
             self.assertEqual(os.name, 'posix')
@@ -294,7 +298,10 @@ class TestLocations(unittest.TestCase):
             self.assertEqual(url, 'file:////filer01/MY_HOME/dev/XMLSCHEMA/test.xsd')
 
             url = normalize_url(r'dev/XMLSCHEMA/test.xsd', base_url=base_url_host_in_path)
-            self.assertEqual(url, 'file:////filer01/MY_HOME/dev/XMLSCHEMA/test.xsd')
+            if sys.version_info < (3, 12, 4):
+                self.assertEqual(url, 'file:////filer01/MY_HOME/dev/XMLSCHEMA/test.xsd')
+            else:
+                self.assertEqual(url, 'file://////filer01/MY_HOME/dev/XMLSCHEMA/test.xsd')
 
     def test_normalize_url_slashes(self):
         # Issue #116
@@ -311,10 +318,16 @@ class TestLocations(unittest.TestCase):
         self.assertRegex(normalize_url('/root/dir1/schema.xsd'),
                          f'file://{DRIVE_REGEX}/root/dir1/schema.xsd')
 
-        self.assertRegex(normalize_url('////root/dir1/schema.xsd'),
-                         f'file://{DRIVE_REGEX}//root/dir1/schema.xsd')
-        self.assertRegex(normalize_url('dir2/schema.xsd', '////root/dir1'),
-                         f'file://{DRIVE_REGEX}//root/dir1/dir2/schema.xsd')
+        if sys.version_info < (3, 12, 4):
+            self.assertRegex(normalize_url('////root/dir1/schema.xsd'),
+                             f'file://{DRIVE_REGEX}//root/dir1/schema.xsd')
+            self.assertRegex(normalize_url('dir2/schema.xsd', '////root/dir1'),
+                             f'file://{DRIVE_REGEX}//root/dir1/dir2/schema.xsd')
+        else:
+            self.assertRegex(normalize_url('////root/dir1/schema.xsd'),
+                             f'file://{DRIVE_REGEX}////root/dir1/schema.xsd')
+            self.assertRegex(normalize_url('dir2/schema.xsd', '////root/dir1'),
+                             f'file://{DRIVE_REGEX}////root/dir1/dir2/schema.xsd')
 
         self.assertEqual(normalize_url('//root/dir1/schema.xsd'),
                          'file:////root/dir1/schema.xsd')

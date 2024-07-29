@@ -71,9 +71,12 @@ class LocationPath(PurePath):
             return LocationPosixPath(unquote(parts.path))
 
         if parts.scheme == 'file':
-            if path.startswith('/') and ntpath.splitdrive(path[1:])[0]:
+            path_start = path[:4].replace('\\', '/')
+            if path_start.startswith(('////', '///')):
+                pass
+            elif path_start.startswith('/') and ntpath.splitdrive(path[1:])[0]:
                 return LocationWindowsPath(unquote(path[1:]))
-            elif path.startswith(('//', '/\\')) and ntpath.splitdrive(path[2:])[0]:
+            elif path_start.startswith('//') and ntpath.splitdrive(path[2:])[0]:
                 raise XMLSchemaValueError(f"Invalid URI {uri!r}")
 
         if ntpath.splitdrive(path)[0] or '\\' in path:
