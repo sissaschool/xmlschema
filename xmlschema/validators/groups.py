@@ -25,7 +25,7 @@ from xmlschema.aliases import ElementType, NsmapType, SchemaType, \
     ModelParticleType, SchemaElementType, ComponentClassType, OccursCounterType
 from xmlschema.converters import ElementData
 from xmlschema.translation import gettext as _
-from xmlschema.utils.decoding import raw_xml_encode
+from xmlschema.utils.decoding import raw_encode_value
 from xmlschema.utils.qnames import get_qname, local_name
 from xmlschema.validation import EMPTY, DecodeContext, EncodeContext, ValidationMixin
 
@@ -1088,7 +1088,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         elements.
         """
         errors = []
-        text = raw_xml_encode(obj.text)
+        text = raw_encode_value(obj.text)
         children: List[ElementType] = []
 
         converter = context.converter
@@ -1122,7 +1122,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
             if len(obj.content) > 1 or text is not None:
                 wrong_content_type = True
             else:
-                text = raw_xml_encode(obj.content[0])
+                text = raw_encode_value(obj.content[0])
             content = []
         elif converter.losslessly:
             content = obj.content

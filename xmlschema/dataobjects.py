@@ -23,7 +23,7 @@ from xmlschema.converters import ElementData, XMLSchemaConverter
 from xmlschema.resources import XMLResource
 from xmlschema.utils.qnames import get_namespace, get_prefixed_qname, \
     local_name, update_namespaces, get_namespace_map
-from xmlschema.utils.decoding import raw_xml_encode
+from xmlschema.utils.decoding import raw_encode_value
 from xmlschema import validators
 
 if TYPE_CHECKING:
@@ -143,7 +143,7 @@ class DataElement(MutableSequence['DataElement']):
     @property
     def text(self) -> Optional[str]:
         """The string value of the data element."""
-        return raw_xml_encode(self.value)
+        return raw_encode_value(self.value)
 
     def get(self, key: str, default: Any = None) -> Any:
         """Gets a data element attribute."""

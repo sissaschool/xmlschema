@@ -30,7 +30,7 @@ from xmlschema.aliases import ElementType, SchemaType, BaseXsdType, SchemaElemen
     ModelParticleType, ComponentClassType, AtomicValueType, DecodeType
 from xmlschema.translation import gettext as _
 from xmlschema.utils.etree import etree_iter_location_hints, etree_iter_namespaces
-from xmlschema.utils.decoding import raw_xml_encode, strictly_equal
+from xmlschema.utils.decoding import raw_encode_attributes, strictly_equal
 from xmlschema.utils.qnames import get_qname
 
 from xmlschema.locations import normalize_url
@@ -971,11 +971,13 @@ class XsdElement(XsdComponent, ParticleMixin,
             )
         except XMLSchemaValidationError as err:
             errors.append(err)
-            attributes = {k: raw_xml_encode(v) for k, v in element_data.attributes.items()}
+            elem.attrib.update(
+                raw_encode_attributes(element_data.attributes)
+            )
+        else:
+            elem.attrib.update(attributes)
         finally:
             context.level -= 1
-
-        elem.attrib.update(attributes)
 
         if XSI_NIL in element_data.attributes:
             xsi_nil = element_data.attributes[XSI_NIL].strip()
@@ -1313,12 +1315,7 @@ class Xsd11Element(XsdElement):
 
         if isinstance(elem, ElementData):
             if elem.attributes:
-                attrib: Dict[str, str] = {}
-                for k, v in elem.attributes.items():
-                    value = raw_xml_encode(v)
-                    if value is not None:
-                        attrib[k] = value
-
+                attrib = raw_encode_attributes(elem.attributes)
                 elem = Element(elem.tag, attrib=attrib)
             else:
                 elem = Element(elem.tag)

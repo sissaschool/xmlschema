@@ -22,7 +22,7 @@ from xmlschema.aliases import ElementType, SchemaType, SchemaElementType, Schema
     ModelGroupType, ModelParticleType, AtomicValueType, DecodedValueType
 from xmlschema.translation import gettext as _
 from xmlschema.utils.qnames import get_namespace
-from xmlschema.utils.decoding import raw_xml_encode
+from xmlschema.utils.decoding import raw_encode_value
 from xmlschema.xpath import XMLSchemaProxy, ElementPathMixin
 from xmlschema.validation import EMPTY, DecodeContext, EncodeContext, ValidationMixin
 
@@ -205,18 +205,17 @@ class XsdWildcard(XsdComponent):
             return all(x in self.not_qname or get_namespace(x) not in self.namespace
                        for x in names)
 
+    def _has_occurs_restriction(self, other: 'XsdWildcard') -> bool:
+        return True
+
     def is_restriction(self, other: Union[ModelParticleType, 'XsdAnyAttribute'],
                        check_occurs: bool = True) -> bool:
         if not isinstance(other, self.__class__):
             return False
-        elif check_occurs and isinstance(self, ParticleMixin):
-            if not isinstance(other, XsdAnyAttribute) and \
-                    not self.has_occurs_restriction(other):
-                return False
-            elif self.max_occurs == 0:
-                return True
+        elif check_occurs and not self._has_occurs_restriction(other):
+            return False
 
-        other: XsdWildcard  # type: ignore[no-redef]
+        assert isinstance(other, XsdWildcard)
         if other.process_contents == 'strict' and self.process_contents != 'strict':
             return False
         elif other.process_contents == 'lax' and self.process_contents == 'skip':
@@ -477,6 +476,10 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
     def __iter__(self) -> Iterator[Any]:
         return iter(())
 
+    def _has_occurs_restriction(self, other: XsdWildcard) -> bool:
+        return self.max_occurs == 0 or isinstance(other, XsdAnyElement) and \
+            self.has_occurs_restriction(other)
+
     def iter(self, tag: Optional[str] = None) -> Iterator[Any]:
         return iter(())
 
@@ -700,7 +703,7 @@ class XsdAnyAttribute(XsdWildcard, ValidationMixin[Tuple[str, str], DecodedValue
             reason = _("unavailable namespace {!r}").format(get_namespace(name))
             context.validation_error(validation, self, reason)
 
-        return raw_xml_encode(value)
+        return raw_encode_value(value)
 
 
 class Xsd11AnyElement(XsdAnyElement):

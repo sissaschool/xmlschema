@@ -29,7 +29,8 @@ from xmlschema.utils.etree import prune_etree, etree_iterpath, etree_getpath, \
 from xmlschema.utils.qnames import get_namespace, get_qname, local_name, \
     get_prefixed_qname, get_extended_qname, update_namespaces
 from xmlschema.utils.logger import set_logging_level, logged
-from xmlschema.utils.decoding import raw_xml_encode, count_digits, strictly_equal
+from xmlschema.utils.decoding import raw_encode_value, raw_encode_attributes, \
+    count_digits, strictly_equal
 from xmlschema.utils.decorators import deprecated, will_change
 
 from xmlschema.testing import iter_nested_items, etree_elements_assert_equal
@@ -101,16 +102,21 @@ class TestUtils(unittest.TestCase):
         elem.append(ElementTree.Element(XSD_SIMPLE_TYPE))
         self.assertEqual(component._parse_child_component(elem), elem[2])
 
-    def test_raw_xml_encode_function(self):
-        self.assertIsNone(raw_xml_encode(None))
-        self.assertEqual(raw_xml_encode(True), 'true')
-        self.assertEqual(raw_xml_encode(False), 'false')
-        self.assertEqual(raw_xml_encode(10), '10')
-        self.assertEqual(raw_xml_encode(0), '0')
-        self.assertEqual(raw_xml_encode(1), '1')
-        self.assertEqual(raw_xml_encode('alpha'), 'alpha')
-        self.assertEqual(raw_xml_encode([10, 20, 30]), '10 20 30')
-        self.assertEqual(raw_xml_encode((10, 20, 30)), '10 20 30')
+    def test_raw_encode_value_function(self):
+        self.assertIsNone(raw_encode_value(None))
+        self.assertEqual(raw_encode_value(True), 'true')
+        self.assertEqual(raw_encode_value(False), 'false')
+        self.assertEqual(raw_encode_value(10), '10')
+        self.assertEqual(raw_encode_value(0), '0')
+        self.assertEqual(raw_encode_value(1), '1')
+        self.assertEqual(raw_encode_value('alpha'), 'alpha')
+        self.assertEqual(raw_encode_value([10, 20, 30]), '10 20 30')
+        self.assertEqual(raw_encode_value((10, 20, 30)), '10 20 30')
+
+    def test_raw_encode_attributes_function(self):
+        self.assertEqual(raw_encode_attributes(None), {})
+        self.assertEqual(raw_encode_attributes({}), {})
+        self.assertEqual(raw_encode_attributes({'a': 89, 'b': None}), {'a': '89'})
 
     def test_count_digits_function(self):
         self.assertEqual(count_digits(10), (2, 0))

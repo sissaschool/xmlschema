@@ -9,6 +9,7 @@
 #
 import sys
 import logging
+from abc import abstractmethod
 from typing import cast, Any, Dict, Generic, List, Iterable, Iterator, Optional, \
     Type, TYPE_CHECKING, TypeVar, Union
 from xml.etree.ElementTree import Element
@@ -564,6 +565,7 @@ class ValidationMixin(Generic[ST, DT]):
         yield from context.errors
         yield result
 
+    @abstractmethod
     def raw_decode(self, obj: ST, validation: str, context: DecodeContext) -> DT:
         """
         Internal decode method. Takes the same arguments as *decode*, but keyword arguments
@@ -572,6 +574,7 @@ class ValidationMixin(Generic[ST, DT]):
         """
         raise NotImplementedError()
 
+    @abstractmethod
     def raw_encode(self, obj: Any, validation: str, context: EncodeContext) -> Any:
         """
         Internal encode method. Takes the same arguments as *encode*, but keyword arguments

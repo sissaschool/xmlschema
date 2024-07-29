@@ -154,7 +154,7 @@ class AbstractGenerator(ABC, metaclass=GeneratorMeta):
         file_loaders = []
         if searchpath:
             file_loaders.append(FileSystemLoader(searchpath))
-        if self.searchpaths:
+        if self.searchpaths is not None:
             file_loaders.extend(
                 FileSystemLoader(str(path)) for path in reversed(self.searchpaths)
             )
