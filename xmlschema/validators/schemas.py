@@ -1756,7 +1756,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             'extra_validator': extra_validator,
             'validation_hook': validation_hook,
         }
-        context = DecodeContext(resource, **kwargs)
+        context = DecodeContext(resource, validation, **kwargs)
         namespaces = context.namespaces
         identities = context.identities
 
@@ -1848,17 +1848,17 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 for error in cast(KeyrefCounter, counter).iter_errors(context.identities):
                     yield context.validation_error(validation, self, error, context.source.root)
 
-    def raw_decoder(self, source: XMLResource,
+    def raw_decoder(self, source: Union[XMLSourceType, XMLResource],
                     path: Optional[str] = None,
                     schema_path: Optional[str] = None,
                     validation: str = 'lax',
                     **kwargs: Any) -> Iterator[Union[Any, XMLSchemaValidationError]]:
         """Returns a generator for decoding a resource."""
-        context = DecodeContext(source, **kwargs)
+        context = DecodeContext(source, validation, **kwargs)
         if path:
-            selector = source.iterfind(path, context.namespaces)
+            selector = context.source.iterfind(path, context.namespaces)
         else:
-            selector = source.iter_depth(mode=2)
+            selector = context.source.iter_depth(mode=2)
 
         for elem in selector:
             xsd_element = self.get_element(elem.tag, schema_path, context.namespaces)
@@ -2012,8 +2012,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             element_hook=element_hook,
             errors=errors
         )
-        check_validation_mode(validation)
-        context = DecodeContext(resource, **kwargs)
+        context = DecodeContext(resource, validation, **kwargs)
         namespaces = context.namespaces
 
         namespace = resource.namespace or namespaces.get('', '')
@@ -2151,7 +2150,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             process_skipped=process_skipped,
             max_depth=max_depth
         )
-        context = EncodeContext(obj, **kwargs)
+        context = EncodeContext(obj, validation, **kwargs)
 
         xsd_element = None
         if path is not None:

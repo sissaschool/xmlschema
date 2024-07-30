@@ -15,7 +15,7 @@ imports, are set with a common.
 """
 from decimal import Decimal
 from pathlib import Path
-from typing import Any, Callable, Counter, Dict, List, IO, Iterator, MutableMapping, \
+from typing import Any, AnyStr, Callable, Counter, Dict, List, IO, Iterator, MutableMapping, \
     Optional, Sequence, Tuple, Type, TYPE_CHECKING, TypeVar, Union
 from xml.etree.ElementTree import Element, ElementTree
 
@@ -35,8 +35,8 @@ __all__ = ['ElementType', 'ElementTreeType', 'XMLSourceType', 'NsmapType',
            'DateTimeType', 'SchemaSourceType', 'ConverterType', 'ComponentClassType',
            'ExtraValidatorType', 'ValidationHookType', 'DecodeType', 'IterDecodeType',
            'JsonDecodeType', 'EncodeType', 'IterEncodeType', 'DecodedValueType',
-           'FillerType', 'DepthFillerType', 'ValueHookType',
-           'ElementHookType', 'OccursCounterType', 'LazyType', 'SourceType',
+           'FillerType', 'DepthFillerType', 'ValueHookType', 'ElementHookType',
+           'SerializerType', 'OccursCounterType', 'LazyType', 'SourceType',
            'UriMapperType', 'IterparseType', 'EtreeType', 'IOType',
            'ResourceNodeType', 'NsmapsMapType', 'XmlnsMapType']
 
@@ -133,3 +133,4 @@ ValueHookType = Callable[[Optional[AtomicValueType], 'BaseXsdType'], DecodedValu
 ElementHookType = Callable[
     ['ElementData', Optional['XsdElement'], Optional['BaseXsdType']], 'ElementData'
 ]
+SerializerType = Callable[[Any], IO[AnyStr]]

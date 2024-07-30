@@ -10,14 +10,20 @@
 import sys
 import logging
 from abc import abstractmethod
-from typing import cast, Any, Dict, Generic, List, Iterable, Iterator, Optional, \
+from collections import deque
+from typing import Any, Dict, Generic, List, Iterable, Iterator, Optional, \
     Type, TYPE_CHECKING, TypeVar, Union
 from xml.etree.ElementTree import Element
+
+if sys.version_info >= (3, 9):
+    from collections import Counter
+else:
+    from typing import Counter
 
 from xmlschema.exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from xmlschema.aliases import ConverterType, DecodeType, DepthFillerType, \
     ElementType, ElementHookType, EncodeType, ExtraValidatorType, FillerType, \
-    IterDecodeType, IterEncodeType, ModelParticleType, NsmapType, \
+    IterDecodeType, IterEncodeType, ModelParticleType, NsmapType, SerializerType, \
     SchemaElementType, SchemaType, ValidationHookType, ValueHookType
 from xmlschema.translation import gettext as _
 from xmlschema.utils.etree import is_etree_element, is_etree_document
@@ -34,11 +40,6 @@ if TYPE_CHECKING:
     from xmlschema.validators.xsdbase import XsdValidator
     from xmlschema.validators.facets import XsdPatternFacets
     from xmlschema.validators.identities import XsdIdentity, IdentityCounter
-
-if sys.version_info >= (3, 9):
-    from collections import Counter
-else:
-    from typing import Counter
 
 logger = logging.getLogger('xmlschema')
 
@@ -107,12 +108,17 @@ class ValidationContext:
     A context class for handling validated decoding process. It stores together
     status-related fields, that are updated or set during the validation process,
     and parameters, as specific values or functions. Parameters can be provided
-    as keyword-only arguments
+    as keyword-only arguments.
     """
+    # Context base settings
+    validation: str
     validation_only: bool = False
+    use_queue: bool = False
+    serializer: Optional[SerializerType[str]]
 
     # Common status: set once, updated by validators.
     errors: List[XMLSchemaValidationError]
+    errors_queue: deque[XMLSchemaValidationError]
     converter: Union[XMLSchemaConverter, NamespaceMapper]
     id_map: Counter[str]
     identities: Dict['XsdIdentity', 'IdentityCounter']
@@ -126,8 +132,8 @@ class ValidationContext:
     patterns: Optional['XsdPatternFacets']
     level: int
 
-    __slots__ = ('errors', 'converter', 'id_map', 'identities', 'source',
-                 'elem', 'attribute', 'id_list', 'inherited', 'patterns', 'level',
+    __slots__ = ('errors', 'errors_queue', 'converter', 'id_map', 'identities',
+                 'source', 'elem', 'attribute', 'id_list', 'inherited', 'level',
                  'use_defaults', 'process_skipped', 'max_depth', '__dict__')
 
     @property
@@ -136,6 +142,7 @@ class ValidationContext:
 
     def __init__(self,
                  source: Any,
+                 validation: str = 'strict',
                  converter: Optional[ConverterType] = None,
                  level: int = 0,
                  elem: Optional[ElementType] = None,
@@ -145,12 +152,16 @@ class ValidationContext:
                  max_depth: Optional[int] = None,
                  **kwargs: Any) -> None:
 
+        check_validation_mode(validation)
+        self.validation = validation
+
         errors = kwargs.pop('errors', None)
         if not isinstance(errors, list):
             self.errors = []
         else:
             self.errors = errors
 
+        self.errors_queue = deque()
         self.id_map = Counter[str]()
         self.identities = {}
         self.inherited = {}
@@ -182,12 +193,42 @@ class ValidationContext:
         self.process_skipped = process_skipped
         self.max_depth = max_depth
 
+    def raise_or_collect(self, validation: str, error: XMLSchemaValidationError) \
+            -> XMLSchemaValidationError:
+
+        if error.elem is None and self.elem is not None:
+            error.elem = self.elem
+
+        if self.attribute is not None and error.reason is not None \
+                and not error.reason.startswith('attribute '):
+            name = get_prefixed_qname(self.attribute, self.namespaces)
+            error.reason = _('attribute {0}={1!r}: {2}').format(name, error.obj, error.reason)
+
+        if validation == 'strict':
+            raise error
+
+        if error.stack_trace is None and logger.level == logging.DEBUG:
+            error.stack_trace = format_xmlschema_stack()
+            logger.debug("Collect %r with traceback:\n%s", error, error.stack_trace)
+
+        if self.use_queue:
+            self.errors_queue.append(error)
+        else:
+            self.errors.append(error)
+
+        return error
+
+    def flush(self) -> Iterator[XMLSchemaValidationError]:
+        for error in self.errors_queue:
+            self.errors.append(error)
+            yield error
+        self.errors_queue.clear()
+
     def validation_error(self,
                          validation: str,
                          validator: 'XsdValidator',
                          error: Union[str, Exception],
-                         obj: Any = None,
-                         elem: Optional[ElementType] = None) -> XMLSchemaValidationError:
+                         obj: Any = None) -> XMLSchemaValidationError:
         """
         Helper method for collecting or raising validation errors.
 
@@ -195,59 +236,26 @@ class ValidationContext:
         :param validator: the XSD validator related with the error.
         :param error: an error instance or the detailed reason of failed validation.
         :param obj: the instance related to the error.
-        :param elem: the element related to the error, can be `obj` for elements.
         """
-        if elem is None and is_etree_element(obj):
-            elem = cast(ElementType, obj)
-
-        if isinstance(error, (XMLSchemaDecodeError, XMLSchemaEncodeError)):
-            pass
-        elif isinstance(error, XMLSchemaValidationError):
-            if error.namespaces is None and self.namespaces is not None:
-                error.namespaces = self.namespaces
-            if error.source is None and self.source is not None:
-                error.source = self.source
-            if error.obj is None:
-                if obj is not None:
-                    error.obj = obj
-            elif is_etree_element(error.obj) and elem is not None:
-                if elem.tag == error.obj.tag and elem is not error.obj:
-                    error.obj = elem
-        else:
+        if not isinstance(error, XMLSchemaValidationError):
             error = XMLSchemaValidationError(
                 validator, obj, str(error), self.source, self.namespaces
             )
+        else:
+            if error.obj is None and obj is not None:
+                error.obj = obj
 
-        if error.elem is None:
-            if elem is not None:
-                error.elem = elem
-            elif self.elem is not None:
-                error.elem = self.elem
+            error.source = self.source
+            error.namespaces = self.namespaces
 
-        if self.attribute is not None and error.reason is not None \
-                and not error.reason.startswith('attribute '):
-            name = get_prefixed_qname(self.attribute, self.namespaces)
-            error.reason = _('attribute {0}={1!r}: {2}').format(name, error.obj, error.reason)
+        return self.raise_or_collect(validation, error)
 
-        if validation == 'strict':  # and error.elem is not None:
-            raise error
+    def children_validation_error(
+            self, validation: str, validator: 'XsdValidator', elem: ElementType,
+            index: int, particle: ModelParticleType, occurs: int = 0,
+            expected: Optional[Iterable[SchemaElementType]] = None) \
+            -> XMLSchemaValidationError:
 
-        if error.stack_trace is None and logger.level == logging.DEBUG:
-            error.stack_trace = format_xmlschema_stack()
-            logger.debug("Collect %r with traceback:\n%s", error, error.stack_trace)
-
-        if error not in self.errors:
-            self.errors.append(error)
-        return error
-
-    def children_validation_error(self: Self,
-                                  validation: str,
-                                  validator: 'XsdValidator',
-                                  elem: ElementType,
-                                  index: int,
-                                  particle: ModelParticleType,
-                                  occurs: int = 0,
-                                  expected: Optional[Iterable[SchemaElementType]] = None) -> None:
         error = XMLSchemaChildrenValidationError(
             validator=validator,
             elem=elem,
@@ -258,10 +266,7 @@ class ValidationContext:
             source=self.source,
             namespaces=self.namespaces,
         )
-        if validation == 'strict':
-            raise error
-
-        self.errors.append(error)
+        return self.raise_or_collect(validation, error)
 
 
 class DecodeContext(ValidationContext):
@@ -270,6 +275,7 @@ class DecodeContext(ValidationContext):
 
     def __init__(self,
                  source: Any,
+                 validation: str = 'strict',
                  converter: Optional[ConverterType] = None,
                  level: int = 0,
                  elem: Optional[ElementType] = None,
@@ -294,7 +300,7 @@ class DecodeContext(ValidationContext):
                  **kwargs: Any) -> None:
 
         self.validation_only = validation_only
-        super().__init__(source, converter, level, elem,
+        super().__init__(source, validation, converter, level, elem,
                          use_defaults=use_defaults,
                          process_skipped=process_skipped,
                          max_depth=max_depth,
@@ -318,7 +324,7 @@ class DecodeContext(ValidationContext):
                      validator: 'XsdValidator',
                      obj: Any,
                      decoder: Any,
-                     error: Union[str, Exception]) -> None:
+                     error: Union[str, Exception]) -> XMLSchemaValidationError:
         error = XMLSchemaDecodeError(
             validator=validator,
             obj=obj,
@@ -327,7 +333,7 @@ class DecodeContext(ValidationContext):
             source=self.source,
             namespaces=self.namespaces,
         )
-        self.validation_error(validation, validator, error)
+        return self.raise_or_collect(validation, error)
 
 
 class EncodeContext(ValidationContext):
@@ -337,6 +343,7 @@ class EncodeContext(ValidationContext):
 
     def __init__(self,
                  source: Any,
+                 validation: str = 'strict',
                  converter: Optional[ConverterType] = None,
                  level: int = 0,
                  elem: Optional[ElementType] = None,
@@ -347,7 +354,7 @@ class EncodeContext(ValidationContext):
                  max_depth: Optional[int] = None,
                  **kwargs: Any) -> None:
 
-        super().__init__(source, converter, level, elem,
+        super().__init__(source, validation, converter, level, elem,
                          use_defaults=use_defaults,
                          process_skipped=process_skipped,
                          max_depth=max_depth,
@@ -359,7 +366,7 @@ class EncodeContext(ValidationContext):
                      validator: 'XsdValidator',
                      obj: Any,
                      encoder: Any,
-                     error: Union[str, Exception]) -> None:
+                     error: Union[str, Exception]) -> XMLSchemaValidationError:
         error = XMLSchemaEncodeError(
             validator=validator,
             obj=obj,
@@ -368,7 +375,7 @@ class EncodeContext(ValidationContext):
             source=self.source,
             namespaces=self.namespaces,
         )
-        self.validation_error(validation, validator, error)
+        return self.raise_or_collect(validation, error)
 
     @property
     def padding(self) -> str:
@@ -487,13 +494,11 @@ class ValidationMixin(Generic[ST, DT]):
         :raises: :exc:`xmlschema.XMLSchemaValidationError` if the object is not decodable by \
         the XSD component, or also if it's invalid when ``validation='strict'`` is provided.
         """
-        check_validation_mode(validation)
-
         converter = kwargs.pop('converter', None)
         if converter is None:
             converter = self.schema.converter
 
-        context = DecodeContext(obj, converter, **kwargs)
+        context = DecodeContext(obj, validation, converter, **kwargs)
         result = self.raw_decode(obj, validation, context)
         return (result, context.errors) if validation == 'lax' else result
 
@@ -511,13 +516,11 @@ class ValidationMixin(Generic[ST, DT]):
         :raises: :exc:`xmlschema.XMLSchemaValidationError` if the object is not encodable by \
         the XSD component, or also if it's invalid when ``validation='strict'`` is provided.
         """
-        check_validation_mode(validation)
-
         converter = kwargs.pop('converter', None)
         if converter is None:
             converter = self.schema.converter
 
-        context = EncodeContext(obj, converter, **kwargs)
+        context = EncodeContext(obj, validation, converter, **kwargs)
         result = self.raw_encode(obj, validation, context)
         return (result, context.errors) if validation == 'lax' else result
 
@@ -532,13 +535,11 @@ class ValidationMixin(Generic[ST, DT]):
         :return: Yields a decoded object, eventually preceded by a sequence of \
         validation or decoding errors.
         """
-        check_validation_mode(validation)
-
         converter = kwargs.pop('converter', None)
         if converter is None:
             converter = self.schema.converter
 
-        context = DecodeContext(obj, converter, **kwargs)
+        context = DecodeContext(obj, validation, converter, **kwargs)
         result = self.raw_decode(obj, validation, context)
         yield from context.errors
         yield result
@@ -554,13 +555,11 @@ class ValidationMixin(Generic[ST, DT]):
         :return: Yields an Element, eventually preceded by a sequence of validation \
         or encoding errors.
         """
-        check_validation_mode(validation)
-
         converter = kwargs.pop('converter', None)
         if converter is None:
             converter = self.schema.converter
 
-        context = EncodeContext(obj, converter, **kwargs)
+        context = EncodeContext(obj, validation, converter, **kwargs)
         result = self.raw_encode(obj, validation, context)
         yield from context.errors
         yield result
