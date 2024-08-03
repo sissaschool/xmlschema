@@ -183,7 +183,7 @@ class XsdValidator:
 
         if validation == 'lax':
             if error.stack_trace is None and logger.level == logging.DEBUG:
-                error.stack_trace = format_xmlschema_stack()
+                error.stack_trace = format_xmlschema_stack('xmlschema/validators')
                 logger.debug("Collect %r with traceback:\n%s", error, error.stack_trace)
 
             self.errors.append(error)

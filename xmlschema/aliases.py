@@ -38,7 +38,7 @@ __all__ = ['ElementType', 'ElementTreeType', 'XMLSourceType', 'NsmapType',
            'FillerType', 'DepthFillerType', 'ValueHookType', 'ElementHookType',
            'SerializerType', 'OccursCounterType', 'LazyType', 'SourceType',
            'UriMapperType', 'IterparseType', 'EtreeType', 'IOType',
-           'ResourceNodeType', 'NsmapsMapType', 'XmlnsMapType']
+           'ResourceNodeType', 'NsmapsMapType', 'XmlnsMapType', 'ErrorsType']
 
 if TYPE_CHECKING:
     from .namespaces import NamespaceResourcesMap
@@ -110,17 +110,18 @@ DateTimeType = Union[OrderedDateTime, Time]
 
 ##
 # Type aliases for validation/decoding/encoding
+ErrorsType = List['XMLSchemaValidationError']
 ConverterType = Union[Type['XMLSchemaConverter'], 'XMLSchemaConverter']
 ExtraValidatorType = Callable[[ElementType, 'XsdElement'],
                               Optional[Iterator['XMLSchemaValidationError']]]
 ValidationHookType = Callable[[ElementType, 'XsdElement'], Union[bool, str]]
 
 D = TypeVar('D')
-DecodeType = Union[Optional[D], Tuple[Optional[D], List['XMLSchemaValidationError']]]
+DecodeType = Union[Optional[D], Tuple[Optional[D], ErrorsType]]
 IterDecodeType = Iterator[Union[D, 'XMLSchemaValidationError']]
 
 E = TypeVar('E')
-EncodeType = Union[E, Tuple[E, List['XMLSchemaValidationError']]]
+EncodeType = Union[E, Tuple[E, ErrorsType]]
 IterEncodeType = Iterator[Union[E, 'XMLSchemaValidationError']]
 
 JsonDecodeType = Union[str, None, Tuple['XMLSchemaValidationError', ...],

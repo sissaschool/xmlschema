@@ -491,12 +491,13 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
         return iter(())
 
     def raw_decode(self, obj: ElementType, validation: str, context: DecodeContext) -> Any:
+
         if not self.is_matching(obj.tag):
             reason = _("element {!r} is not allowed here").format(obj)
             context.validation_error(validation, self, reason, obj)
 
         if self.process_contents == 'skip' and not context.process_skipped:
-            return EMPTY if context.level else None
+            return EMPTY
 
         namespace = get_namespace(obj.tag)
         if namespace not in self.maps.namespaces and not self.maps.load_namespace(namespace):
@@ -518,7 +519,6 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
                 xsd_element = self.maps.validator.create_element(
                     obj.tag, parent=self, nillable='true', form='unqualified'
                 )
-
             return xsd_element.raw_decode(obj, validation, context)
 
         if validation != 'skip' and self.process_contents == 'strict':

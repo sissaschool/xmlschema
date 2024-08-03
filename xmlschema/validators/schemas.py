@@ -47,7 +47,7 @@ from xmlschema.aliases import XMLSourceType, NsmapType, LocationsType, UriMapper
     SchemaGlobalType, FillerType, DepthFillerType, ValueHookType, ElementHookType
 from xmlschema.translation import gettext as _
 from xmlschema.utils.logger import set_logging_level
-from xmlschema.utils.etree import prune_etree
+from xmlschema.utils.etree import prune_etree, is_etree_element
 from xmlschema.utils.qnames import get_namespace, get_qname
 from xmlschema.namespaces import NamespaceResourcesMap, NamespaceView
 from xmlschema.utils.urls import is_local_url, is_remote_url
@@ -56,8 +56,8 @@ from xmlschema.resources import XMLResource, XMLResourceBlocked, XMLResourceForb
 from xmlschema.converters import XMLSchemaConverter
 from xmlschema.xpath import XMLSchemaProxy, ElementPathMixin
 from xmlschema.exports import export_schema
-from xmlschema.validation import EMPTY, check_validation_mode, check_converter_argument, \
-    get_converter, DecodeContext, EncodeContext
+from xmlschema.validation import check_validation_mode, check_converter_argument, \
+    get_converter, DecodeContext, EMPTY, EncodeContext
 from xmlschema import dataobjects
 
 from .exceptions import XMLSchemaParseError, XMLSchemaValidationError, \
@@ -1817,9 +1817,9 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 xsd_element.raw_decode(elem, validation, context)
             except XMLSchemaStopValidation:
                 pass
-            else:
-                yield from context.errors
-                context.errors.clear()
+
+            yield from context.errors
+            context.errors.clear()
         else:
             if elem is None and not allow_empty:
                 assert path is not None
@@ -2049,10 +2049,16 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                     return
 
             result = xsd_element.raw_decode(elem, validation, context)
-            if len(context.errors) > yielded_errors:
+
+            if errors is not context.errors:
+                yield from context.errors
+                context.errors.clear()
+            elif len(context.errors) > yielded_errors:
                 yield from context.errors[yielded_errors:]
                 yielded_errors = len(context.errors)
-            yield result
+
+            if result is not EMPTY:
+                yield result
 
         if context.max_depth is not None:
             yield from self._validate_references(validation, context)
@@ -2184,6 +2190,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         else:
             result = xsd_element.raw_encode(obj, validation, context)
             yield from context.errors
+            context.errors.clear()
             if result is not None:
                 yield result
 
@@ -2210,13 +2217,15 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         if not data:
             return (None, errors) if validation == 'lax' else None
         elif len(data) == 1:
-            if errors:
+            if errors and is_etree_element(data[0]):
+                # Replace decoded data source with an XML resource
                 resource = XMLResource(data[0])
                 for e in errors:
                     e.source = resource
 
             return (data[0], errors) if validation == 'lax' else data[0]
         else:
+            print(data)
             return (data, errors) if validation == 'lax' else data
 
     to_etree = encode

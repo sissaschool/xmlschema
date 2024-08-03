@@ -31,6 +31,9 @@ from .xsdbase import XsdComponent, XsdAnnotation
 from .simple_types import XsdSimpleType
 from .wildcards import XsdAnyAttribute
 
+AttributeGroupDecodeType = Optional[List[Tuple[str, DecodedValueType]]]
+AttributeGroupEncodeType = Optional[List[Tuple[str, str]]]
+
 
 class XsdAttribute(XsdComponent, ValidationMixin[str, DecodedValueType]):
     """
@@ -248,6 +251,7 @@ class XsdAttribute(XsdComponent, ValidationMixin[str, DecodedValueType]):
                 context.validation_error(validation, self, msg, obj)
 
         value = self.type.raw_decode(obj, validation, context)
+
         if context.value_hook is not None:
             return context.value_hook(value, self.type)  # type:ignore[arg-type]
         elif isinstance(value, (int, float, list)):
@@ -319,8 +323,8 @@ class Xsd11Attribute(XsdAttribute):
 
 
 class XsdAttributeGroup(
-        MutableMapping[Optional[str], Union[XsdAttribute, XsdAnyAttribute]], XsdComponent,
-        ValidationMixin[MutableMapping[str, str], List[Tuple[str, Any]]]
+    MutableMapping[Optional[str], Union[XsdAttribute, XsdAnyAttribute]], XsdComponent,
+    ValidationMixin[MutableMapping[str, str], AttributeGroupDecodeType]
 ):
     """
     Class for XSD *attributeGroup* definitions.
@@ -651,8 +655,8 @@ class XsdAttributeGroup(
             if attr.parent is not None:
                 yield from attr.iter_components(xsd_classes)
 
-    def raw_decode(self, obj: MutableMapping[str, str],
-                   validation: str, context: DecodeContext) -> List[Tuple[str, Any]]:
+    def raw_decode(self, obj: MutableMapping[str, str], validation: str,
+                   context: DecodeContext) -> AttributeGroupDecodeType:
 
         if not obj and not self:
             return []
@@ -672,9 +676,10 @@ class XsdAttributeGroup(
         if self.xsd_version == '1.0':
             context.id_list = []
 
-        result_list: List[Tuple[str, DecodedValueType]] = []
-
+        result: AttributeGroupDecodeType
         value: Any
+
+        result = [] if context.collect_results else None
         for name, value in obj.items():
             try:
                 xsd_attribute = self._attribute_group[name]
@@ -705,22 +710,26 @@ class XsdAttributeGroup(
                     context.validation_error(validation, self, reason, obj)
 
             context.attribute = name
-            result_list.append((name, xsd_attribute.raw_decode(value, validation, context)))
+            result_item = xsd_attribute.raw_decode(value, validation, context)
+            if result is not None:
+                result.append((name, result_item))
             context.attribute = None
 
-        if context.fill_missing:
+        if result is not None and context.fill_missing:
             if context.filler is None:
-                result_list.extend((k, None) for k in self._attribute_group
-                                   if k is not None and k not in obj)
+                result.extend(
+                    (k, None) for k in self._attribute_group
+                    if k is not None and k not in obj
+                )
             else:
-                result_list.extend(
+                result.extend(
                     (k, context.filler(v)) for k, v in self._attribute_group.items()
                     if k is not None and k not in obj and isinstance(v, XsdAttribute)
                 )
-        return result_list
+        return result
 
     def raw_encode(self, obj: MutableMapping[str, Any],
-                   validation: str, context: EncodeContext) -> List[Tuple[str, str]]:
+                   validation: str, context: EncodeContext) -> AttributeGroupEncodeType:
 
         if not obj and not self:
             return []
@@ -729,7 +738,8 @@ class XsdAttributeGroup(
             reason = _("missing required attribute {!r}").format(name)
             context.validation_error(validation, self, reason, obj)
 
-        result_list = []
+        result: AttributeGroupEncodeType
+        result = [] if context.collect_results else None
         for name, value in obj.items():
             try:
                 xsd_attribute = self._attribute_group[name]
@@ -755,11 +765,13 @@ class XsdAttributeGroup(
                     context.validation_error(validation, self, reason, obj)
                     continue
 
-            result = xsd_attribute.raw_encode(value, validation, context)
-            if result is not None:
-                result_list.append((name, result))
+            result_item = xsd_attribute.raw_encode(value, validation, context)
+            if result is not None and result_item is not None:
+                result.append((name, result_item))
 
-        result_list.extend(
-            (k, v) for k, v in self.iter_value_constraints(context.use_defaults) if k not in obj
-        )
-        return result_list
+        if result is not None:
+            result.extend(
+                (k, v) for k, v in self.iter_value_constraints(context.use_defaults)
+                if k not in obj
+            )
+        return result

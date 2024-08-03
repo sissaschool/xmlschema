@@ -602,7 +602,7 @@ class XsdElement(XsdComponent, ParticleMixin,
                     context = _copy(context)
                     validation = _validation
                 else:
-                    return EMPTY if context.level else None
+                    return EMPTY
 
         context.elem = obj
 
@@ -975,7 +975,8 @@ class XsdElement(XsdComponent, ParticleMixin,
                 raw_encode_attributes(element_data.attributes)
             )
         else:
-            elem.attrib.update(attributes)
+            if attributes:
+                elem.attrib.update(attributes)
         finally:
             context.level -= 1
 
@@ -1034,7 +1035,7 @@ class XsdElement(XsdComponent, ParticleMixin,
         else:
             context.level += 1
             try:
-                text, children = xsd_type.content.raw_encode(element_data, validation, context)
+                xsd_type.content.raw_encode(element_data, validation, context)
             except XMLSchemaValidationError as err:
                 errors.append(err)
             finally:

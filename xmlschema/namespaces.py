@@ -148,7 +148,7 @@ class NamespaceMapper(MutableMapping[str, str]):
 
     def get_xmlns_from_data(self, obj: Any) -> XmlnsType:
         """Returns the XML declarations from decoded element data."""
-        return []
+        return None
 
     def get_namespaces(self, namespaces: Optional[NsmapType] = None,
                        root_only: bool = True) -> NsmapType:

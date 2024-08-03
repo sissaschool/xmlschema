@@ -10,7 +10,6 @@
 import sys
 import logging
 from abc import abstractmethod
-from collections import deque
 from typing import Any, Dict, Generic, List, Iterable, Iterator, Optional, \
     Type, TYPE_CHECKING, TypeVar, Union
 from xml.etree.ElementTree import Element
@@ -24,8 +23,9 @@ from xmlschema.exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from xmlschema.aliases import ConverterType, DecodeType, DepthFillerType, \
     ElementType, ElementHookType, EncodeType, ExtraValidatorType, FillerType, \
     IterDecodeType, IterEncodeType, ModelParticleType, NsmapType, SerializerType, \
-    SchemaElementType, SchemaType, ValidationHookType, ValueHookType
+    SchemaElementType, SchemaType, ValidationHookType, ValueHookType, IOType, ErrorsType
 from xmlschema.translation import gettext as _
+from xmlschema.utils.decoding import raw_encode_value
 from xmlschema.utils.etree import is_etree_element, is_etree_document
 from xmlschema.utils.logger import format_xmlschema_stack
 from xmlschema.utils.qnames import get_prefixed_qname
@@ -112,13 +112,14 @@ class ValidationContext:
     """
     # Context base settings
     validation: str
+
+    collect_results: bool = True
     validation_only: bool = False
-    use_queue: bool = False
-    serializer: Optional[SerializerType[str]]
+    fp: Optional[IOType] = None
+    serializer: Optional[SerializerType[str]] = None
 
     # Common status: set once, updated by validators.
     errors: List[XMLSchemaValidationError]
-    errors_queue: deque[XMLSchemaValidationError]
     converter: Union[XMLSchemaConverter, NamespaceMapper]
     id_map: Counter[str]
     identities: Dict['XsdIdentity', 'IdentityCounter']
@@ -132,7 +133,7 @@ class ValidationContext:
     patterns: Optional['XsdPatternFacets']
     level: int
 
-    __slots__ = ('errors', 'errors_queue', 'converter', 'id_map', 'identities',
+    __slots__ = ('errors', 'converter', 'id_map', 'identities',
                  'source', 'elem', 'attribute', 'id_list', 'inherited', 'level',
                  'use_defaults', 'process_skipped', 'max_depth', '__dict__')
 
@@ -155,13 +156,12 @@ class ValidationContext:
         check_validation_mode(validation)
         self.validation = validation
 
-        errors = kwargs.pop('errors', None)
-        if not isinstance(errors, list):
+        errors: Optional[ErrorsType] = kwargs.pop('errors', None)
+        if errors is None:
             self.errors = []
         else:
             self.errors = errors
 
-        self.errors_queue = deque()
         self.id_map = Counter[str]()
         self.identities = {}
         self.inherited = {}
@@ -193,6 +193,8 @@ class ValidationContext:
         self.process_skipped = process_skipped
         self.max_depth = max_depth
 
+        self.collect_results = self.fp is None and not self.validation_only
+
     def raise_or_collect(self, validation: str, error: XMLSchemaValidationError) \
             -> XMLSchemaValidationError:
 
@@ -202,27 +204,18 @@ class ValidationContext:
         if self.attribute is not None and error.reason is not None \
                 and not error.reason.startswith('attribute '):
             name = get_prefixed_qname(self.attribute, self.namespaces)
-            error.reason = _('attribute {0}={1!r}: {2}').format(name, error.obj, error.reason)
+            value = raw_encode_value(error.obj)
+            error.reason = _('attribute {0}={1!r}: {2}').format(name, value, error.reason)
 
         if validation == 'strict':
             raise error
 
         if error.stack_trace is None and logger.level == logging.DEBUG:
-            error.stack_trace = format_xmlschema_stack()
+            error.stack_trace = format_xmlschema_stack('xmlschema/validators')
             logger.debug("Collect %r with traceback:\n%s", error, error.stack_trace)
 
-        if self.use_queue:
-            self.errors_queue.append(error)
-        else:
-            self.errors.append(error)
-
+        self.errors.append(error)
         return error
-
-    def flush(self) -> Iterator[XMLSchemaValidationError]:
-        for error in self.errors_queue:
-            self.errors.append(error)
-            yield error
-        self.errors_queue.clear()
 
     def validation_error(self,
                          validation: str,
@@ -542,6 +535,7 @@ class ValidationMixin(Generic[ST, DT]):
         context = DecodeContext(obj, validation, converter, **kwargs)
         result = self.raw_decode(obj, validation, context)
         yield from context.errors
+        context.errors.clear()
         yield result
 
     def iter_encode(self, obj: Any, validation: str = 'lax', **kwargs: Any) \
@@ -562,6 +556,7 @@ class ValidationMixin(Generic[ST, DT]):
         context = EncodeContext(obj, validation, converter, **kwargs)
         result = self.raw_encode(obj, validation, context)
         yield from context.errors
+        context.errors.clear()
         yield result
 
     @abstractmethod

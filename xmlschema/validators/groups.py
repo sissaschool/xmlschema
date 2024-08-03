@@ -21,8 +21,8 @@ from xmlschema import limits
 from xmlschema.exceptions import XMLSchemaValueError
 from xmlschema.names import XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ELEMENT, \
     XSD_ANY, XSI_TYPE, XSD_ANY_TYPE, XSD_ANNOTATION
-from xmlschema.aliases import ElementType, NsmapType, SchemaType, \
-    ModelParticleType, SchemaElementType, ComponentClassType, OccursCounterType
+from xmlschema.aliases import ElementType, NsmapType, SchemaType, ModelParticleType, \
+    SchemaElementType, ComponentClassType, OccursCounterType
 from xmlschema.converters import ElementData
 from xmlschema.translation import gettext as _
 from xmlschema.utils.decoding import raw_encode_value
@@ -50,8 +50,8 @@ ANY_ELEMENT = ElementTree.Element(
         'maxOccurs': 'unbounded'
     })
 
-GroupDecodeType = List[Tuple[Union[str, int], Any, Optional[SchemaElementType]]]
-GroupEncodeType = Tuple[Optional[str], List[ElementType]]
+GroupDecodeType = Optional[List[Tuple[Union[str, int], Any, Optional[SchemaElementType]]]]
+GroupEncodeType = Tuple[Optional[str], Optional[List[ElementType]]]
 
 
 class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
@@ -950,13 +950,13 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         :param context: the encoding context.
         :return: a list of 3-tuples (key, decoded data, decoder).
         """
-        result_list: GroupDecodeType = []
+        result: GroupDecodeType = [] if context.collect_results else None
         cdata_index = 1  # keys for CDATA sections are positive integers
 
         if not self._group and self.model == 'choice' and self.min_occurs:
             reason = _("an empty 'choice' group with minOccurs > 0 cannot validate any content")
             context.validation_error(validation, self, reason, obj)
-            return result_list
+            return result
 
         if not self.mixed:
             # Check element CDATA
@@ -972,7 +972,8 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         if cdata_index and obj.text is not None:
             text = str(obj.text.strip())
             if text:
-                result_list.append((cdata_index, text, None))
+                if result is not None:
+                    result.append((cdata_index, text, None))
                 cdata_index += 1
 
         over_max_depth = context.max_depth is not None and context.max_depth <= context.level
@@ -1036,31 +1037,33 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
             # Optional checks on matched XSD child
             if xsd_element is None:
                 if context.keep_unknown:
-                    result = self.any_type.raw_decode(child, validation, context)
-                    result_list.append((name, result, None))
+                    result_item = self.any_type.raw_decode(child, validation, context)
+                    if result is not None:
+                        result.append((name, result_item, None))
                 continue
 
             if over_max_depth:
                 if context.depth_filler is not None and isinstance(xsd_element, XsdElement):
                     func = context.depth_filler
-                    result_list.append((name, func(xsd_element), xsd_element))
+                    if result is not None:
+                        result.append((name, func(xsd_element), xsd_element))
                 continue
 
-            result = xsd_element.raw_decode(child, validation, context)
-            if result is EMPTY:
+            result_item = xsd_element.raw_decode(child, validation, context)
+            if result_item is EMPTY:
                 continue
+            elif result is not None:
+                result.append((name, result_item, xsd_element))
 
-            result_list.append((name, result, xsd_element))
-
-            if cdata_index and child.tail is not None:
-                tail = str(child.tail.strip())
-                if tail:
-                    if result_list and isinstance(result_list[-1][0], int):
-                        tail = result_list[-1][1] + ' ' + tail
-                        result_list[-1] = result_list[-1][0], tail, None
-                    else:
-                        result_list.append((cdata_index, tail, None))
-                        cdata_index += 1
+                if cdata_index and child.tail is not None:
+                    tail = str(child.tail.strip())
+                    if tail:
+                        if result and isinstance(result[-1][0], int):
+                            tail = result[-1][1] + ' ' + tail
+                            result[-1] = result[-1][0], tail, None
+                        else:
+                            result.append((cdata_index, tail, None))
+                            cdata_index += 1
 
         if model.element is not None:
             index = len(obj)
@@ -1074,7 +1077,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                     validation, self, obj, index, particle, occurs, expected
                 )
 
-        return result_list
+        return result
 
     def raw_encode(self, obj: ElementData, validation: str, context: EncodeContext) \
             -> GroupEncodeType:
@@ -1087,9 +1090,12 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         :return: returns a couple with the text of the Element and a list of child \
         elements.
         """
+        children: Optional[List[ElementType]]
+
         errors = []
         text = raw_encode_value(obj.text)
-        children: List[ElementType] = []
+        children = [] if context.collect_results else None
+        child: Any = None
 
         converter = context.converter
         padding = context.padding
@@ -1175,7 +1181,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                 continue
 
             child = xsd_element.raw_encode(value, validation, context)
-            if child is not None:
+            if children is not None and child is not None:
                 children.append(child)
 
         if model.element is not None:

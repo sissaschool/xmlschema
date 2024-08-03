@@ -20,7 +20,6 @@ try:
 except ImportError:
     lxml_etree = None
 
-from xmlschema import XMLResource, XMLSchemaConverter, JsonMLConverter
 from xmlschema.validators import XsdValidator, XsdComponent, XMLSchema10, XMLSchema11, \
     XMLSchemaParseError, XsdAnnotation, XsdGroup, XsdSimpleType
 from xmlschema.validators.xsdbase import check_validation_mode

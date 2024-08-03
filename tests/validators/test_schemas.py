@@ -360,7 +360,7 @@ class TestXMLSchema10(XsdValidatorTestCase):
             self.schema_class(self.vh_xsd_file, loglevel=logging.DEBUG)
 
         self.assertEqual(logger.level, logging.WARNING)
-        self.assertEqual(len(ctx.output), 19)
+        self.assertEqual(len(ctx.output), 32)
         self.assertIn("INFO:xmlschema:Include schema from 'cars.xsd'", ctx.output)
         self.assertIn("INFO:xmlschema:Resource 'cars.xsd' is already loaded", ctx.output)
         self.assertIn("DEBUG:xmlschema:Schema targetNamespace is "

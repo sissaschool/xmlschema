@@ -7,7 +7,6 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-import os
 import logging
 import traceback
 from functools import wraps
@@ -60,7 +59,11 @@ def logged(func: Callable[..., RT]) -> Callable[..., RT]:
     return wrapper
 
 
-def format_xmlschema_stack() -> str:
+def format_xmlschema_stack(start_with: str) -> str:
     """Extract a formatted traceback for xmlschema package from current stack frame."""
-    package_path = os.path.dirname(__file__)
-    return ''.join(line for line in traceback.format_stack()[:-1] if package_path in line)
+    formatted_stack = traceback.format_stack()
+    for k, line in enumerate(formatted_stack):
+        if start_with in line:
+            return ''.join(formatted_stack[k:])
+    else:
+        return ''.join(formatted_stack)

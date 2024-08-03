@@ -33,7 +33,7 @@ if __name__ == '__main__':
 
     print(xml_file)
 
-    NUMBER = 10000
+    NUMBER = 1000
 
     print("*** Profile evaluation ***\n")
 
