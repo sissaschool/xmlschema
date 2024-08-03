@@ -25,12 +25,12 @@ from xmlschema.aliases import ElementType, NsmapType, SchemaType, ModelParticleT
     SchemaElementType, ComponentClassType, OccursCounterType
 from xmlschema.converters import ElementData
 from xmlschema.translation import gettext as _
-from xmlschema.utils.decoding import raw_encode_value
+from xmlschema.utils.decoding import EMPTY, raw_encode_value
 from xmlschema.utils.qnames import get_qname, local_name
-from xmlschema.validation import EMPTY, DecodeContext, EncodeContext, ValidationMixin
 
 from .exceptions import XMLSchemaModelError, XMLSchemaModelDepthError, \
     XMLSchemaValidationError, XMLSchemaTypeTableWarning
+from .validation import DecodeContext, EncodeContext, ValidationMixin
 from .xsdbase import XsdComponent, XsdType
 from .particles import ParticleMixin, OccursCalculator
 from .elements import XsdElement, XsdAlternative

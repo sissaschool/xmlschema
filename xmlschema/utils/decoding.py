@@ -16,6 +16,19 @@ from xmlschema.aliases import DecodedValueType, NumericValueType
 DecodedAttributesType = Optional[MutableMapping[str, DecodedValueType]]
 
 
+class EmptyValue:
+    _instance = None
+
+    def __new__(cls) -> 'EmptyValue':
+        if cls._instance is None:
+            cls._instance = super(EmptyValue, cls).__new__(cls)
+        return cls._instance
+
+
+EMPTY = EmptyValue()
+"""A singleton instance for representing empty decode/encode result for elements."""
+
+
 def count_digits(number: NumericValueType) -> Tuple[int, int]:
     """
     Counts the digits of a number.

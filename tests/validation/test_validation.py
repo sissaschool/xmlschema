@@ -26,8 +26,8 @@ from xmlschema import XMLSchema10, XMLSchemaValidationError, XMLSchemaStopValida
 from xmlschema.validators import XMLSchema11
 from xmlschema.testing import XsdValidatorTestCase
 from xmlschema import DataElement, XMLResource
-from xmlschema.converters import XMLSchemaConverter, JsonMLConverter
-from xmlschema.validation import get_converter, ValidationContext
+from xmlschema.converters import XMLSchemaConverter, JsonMLConverter, get_converter
+from xmlschema.validators import ValidationContext
 
 CASES_DIR = os.path.join(os.path.dirname(__file__), '../test_cases')
 

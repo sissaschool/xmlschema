@@ -22,10 +22,10 @@ from xmlschema.aliases import ElementType, SchemaType, SchemaElementType, Schema
     ModelGroupType, ModelParticleType, AtomicValueType, DecodedValueType
 from xmlschema.translation import gettext as _
 from xmlschema.utils.qnames import get_namespace
-from xmlschema.utils.decoding import raw_encode_value
+from xmlschema.utils.decoding import EMPTY, raw_encode_value
 from xmlschema.xpath import XMLSchemaProxy, ElementPathMixin
-from xmlschema.validation import EMPTY, DecodeContext, EncodeContext, ValidationMixin
 
+from .validation import DecodeContext, EncodeContext, ValidationMixin
 from .xsdbase import XsdComponent
 from .particles import ParticleMixin
 from . import elements

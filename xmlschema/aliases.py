@@ -32,7 +32,7 @@ __all__ = ['ElementType', 'ElementTreeType', 'XMLSourceType', 'NsmapType',
            'ParentMapType', 'SchemaType', 'BaseXsdType', 'SchemaElementType',
            'SchemaAttributeType', 'SchemaGlobalType', 'GlobalMapType', 'ModelGroupType',
            'ModelParticleType', 'XPathElementType', 'AtomicValueType', 'NumericValueType',
-           'DateTimeType', 'SchemaSourceType', 'ConverterType', 'ComponentClassType',
+           'DateTimeType', 'SchemaSourceType', 'ComponentClassType',
            'ExtraValidatorType', 'ValidationHookType', 'DecodeType', 'IterDecodeType',
            'JsonDecodeType', 'EncodeType', 'IterEncodeType', 'DecodedValueType',
            'FillerType', 'DepthFillerType', 'ValueHookType', 'ElementHookType',
@@ -43,7 +43,7 @@ __all__ = ['ElementType', 'ElementTreeType', 'XMLSourceType', 'NsmapType',
 if TYPE_CHECKING:
     from .namespaces import NamespaceResourcesMap
     from .resources import XMLResource
-    from .converters import ElementData, XMLSchemaConverter
+    from .converters import ElementData
     from .validators import XMLSchemaValidationError, XsdComponent, XMLSchemaBase, \
         XsdComplexType, XsdSimpleType, XsdElement, XsdAnyElement, XsdAttribute, \
         XsdAnyAttribute, XsdAssert, XsdGroup, XsdAttributeGroup, XsdNotation, \
@@ -111,7 +111,6 @@ DateTimeType = Union[OrderedDateTime, Time]
 ##
 # Type aliases for validation/decoding/encoding
 ErrorsType = List['XMLSchemaValidationError']
-ConverterType = Union[Type['XMLSchemaConverter'], 'XMLSchemaConverter']
 ExtraValidatorType = Callable[[ElementType, 'XsdElement'],
                               Optional[Iterator['XMLSchemaValidationError']]]
 ValidationHookType = Callable[[ElementType, 'XsdElement'], Union[bool, str]]

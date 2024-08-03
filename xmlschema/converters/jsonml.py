@@ -12,10 +12,12 @@ from typing import TYPE_CHECKING, Any, Optional, List, Dict, Tuple, Type
 
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from xmlschema.aliases import NsmapType, BaseXsdType
-from .default import ElementData, stackable, XMLSchemaConverter
+
+from .element_data import ElementData
+from .default import stackable, XMLSchemaConverter
 
 if TYPE_CHECKING:
-    from ..validators import XsdElement
+    from xmlschema.validators import XsdElement
 
 
 class JsonMLConverter(XMLSchemaConverter):

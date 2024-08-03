@@ -9,7 +9,6 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from timeit import timeit
-from pathlib import Path
 
 import xmlschema
 
@@ -21,11 +20,7 @@ def run_timeit(stmt='pass', setup='pass', number=1000):
 
 if __name__ == '__main__':
     from xmlschema import XMLResource
-    from xmlschema.validation import DecodeContext
-    from xmlschema.namespaces import NamespaceMapper
-    from collections import Counter
-    from dataclasses import asdict, replace
-    from copy import copy
+    from validators.validation import DecodeContext
 
     print('*' * 50)
     print("*** Decoder profile for xmlschema package ***")

@@ -30,8 +30,8 @@ from xmlschema.utils.qnames import get_qname, local_name, get_prefixed_qname
 from xmlschema.utils.etree import is_etree_element
 from xmlschema.utils.logger import format_xmlschema_stack
 from xmlschema.resources import XMLResource
-from xmlschema.validation import check_validation_mode
 
+from .validation import check_validation_mode
 from .exceptions import XMLSchemaParseError
 from .helpers import get_xsd_annotation_child
 

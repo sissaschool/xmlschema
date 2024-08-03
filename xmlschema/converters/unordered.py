@@ -11,10 +11,12 @@ from collections.abc import MutableMapping, MutableSequence
 from typing import TYPE_CHECKING, Any, Dict, Union
 
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError
-from .default import ElementData, stackable, XMLSchemaConverter
+
+from .element_data import ElementData
+from .default import stackable, XMLSchemaConverter
 
 if TYPE_CHECKING:
-    from ..validators import XsdElement
+    from xmlschema.validators import XsdElement
 
 
 class UnorderedConverter(XMLSchemaConverter):

@@ -18,9 +18,9 @@ from xmlschema.names import XSD_ASSERT
 from xmlschema.aliases import ElementType, SchemaType, SchemaElementType
 from xmlschema.translation import gettext as _
 from xmlschema.xpath import ElementPathMixin, XMLSchemaProxy
-from xmlschema.validation import DecodeContext
 
 from .exceptions import XMLSchemaNotBuiltError, XMLSchemaAssertPathWarning
+from .validation import DecodeContext
 from .xsdbase import XsdComponent
 from .groups import XsdGroup
 

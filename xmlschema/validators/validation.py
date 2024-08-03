@@ -20,26 +20,26 @@ else:
     from typing import Counter
 
 from xmlschema.exceptions import XMLSchemaValueError, XMLSchemaTypeError
-from xmlschema.aliases import ConverterType, DecodeType, DepthFillerType, \
-    ElementType, ElementHookType, EncodeType, ExtraValidatorType, FillerType, \
-    IterDecodeType, IterEncodeType, ModelParticleType, NsmapType, SerializerType, \
-    SchemaElementType, SchemaType, ValidationHookType, ValueHookType, IOType, ErrorsType
+from xmlschema.aliases import DecodeType, DepthFillerType, ElementType, \
+    ElementHookType, EncodeType, ExtraValidatorType, FillerType, IterDecodeType, \
+    IterEncodeType, ModelParticleType, NsmapType, SerializerType, SchemaElementType, \
+    SchemaType, ValidationHookType, ValueHookType, IOType, ErrorsType
 from xmlschema.translation import gettext as _
 from xmlschema.utils.decoding import raw_encode_value
 from xmlschema.utils.etree import is_etree_element, is_etree_document
 from xmlschema.utils.logger import format_xmlschema_stack
 from xmlschema.utils.qnames import get_prefixed_qname
 from xmlschema.namespaces import NamespaceMapper
-from xmlschema.converters import XMLSchemaConverter
+from xmlschema.converters import XMLSchemaConverter, ConverterType, get_converter
 from xmlschema.resources import XMLResource
 
-from xmlschema.validators.exceptions import XMLSchemaValidationError, \
+from .exceptions import XMLSchemaValidationError, \
     XMLSchemaChildrenValidationError, XMLSchemaDecodeError, XMLSchemaEncodeError
 
 if TYPE_CHECKING:
-    from xmlschema.validators.xsdbase import XsdValidator
-    from xmlschema.validators.facets import XsdPatternFacets
-    from xmlschema.validators.identities import XsdIdentity, IdentityCounter
+    from .xsdbase import XsdValidator
+    from .facets import XsdPatternFacets
+    from .identities import XsdIdentity, IdentityCounter
 
 logger = logging.getLogger('xmlschema')
 
@@ -58,49 +58,8 @@ def check_validation_mode(validation: str) -> None:
                                     "'lax' or 'skip': %r") % validation)
 
 
-def check_converter_argument(converter: ConverterType) -> None:
-    if (not isinstance(converter, type) or not issubclass(converter, XMLSchemaConverter)) \
-            and not isinstance(converter, XMLSchemaConverter):
-        msg = _("'converter' argument must be a {0!r} subclass or instance: {1!r}")
-        raise XMLSchemaTypeError(msg.format(XMLSchemaConverter, converter))
-
-
-Self = TypeVar('Self', bound='ValidationContext')
 ST = TypeVar('ST')
 DT = TypeVar('DT')
-
-
-class EmptyValue:
-    _instance = None
-
-    def __new__(cls) -> 'EmptyValue':
-        if cls._instance is None:
-            cls._instance = super(EmptyValue, cls).__new__(cls)
-        return cls._instance
-
-
-EMPTY = EmptyValue()
-
-
-def get_converter(converter: Optional[ConverterType] = None,
-                  **kwargs: Any) -> XMLSchemaConverter:
-    """
-    Returns a new converter instance.
-
-    :param converter: can be a converter class or instance. If it's an instance \
-    the new instance is copied from it and configured with the provided arguments.
-    :param kwargs: optional arguments for initialize the converter instance.
-    :return: a converter instance.
-    """
-    if converter is None:
-        return XMLSchemaConverter(**kwargs)
-
-    check_converter_argument(converter)
-    if isinstance(converter, XMLSchemaConverter):
-        return converter.copy(keep_namespaces=False, **kwargs)
-    else:
-        assert issubclass(converter, XMLSchemaConverter)
-        return converter(**kwargs)
 
 
 class ValidationContext:
@@ -430,7 +389,7 @@ class ValidationMixin(Generic[ST, DT]):
         :raises: :exc:`xmlschema.XMLSchemaValidationError` if the XML data instance is invalid.
         """
         for error in self.iter_errors(obj, use_defaults, namespaces,
-                                      max_depth, extra_validator):
+                                      max_depth, extra_validator, validation_hook):
             raise error
 
     def is_valid(self, obj: ST,

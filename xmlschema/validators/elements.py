@@ -30,7 +30,7 @@ from xmlschema.aliases import ElementType, SchemaType, BaseXsdType, SchemaElemen
     ModelParticleType, ComponentClassType, AtomicValueType, DecodeType
 from xmlschema.translation import gettext as _
 from xmlschema.utils.etree import etree_iter_location_hints, etree_iter_namespaces
-from xmlschema.utils.decoding import raw_encode_attributes, strictly_equal
+from xmlschema.utils.decoding import EMPTY, raw_encode_attributes, strictly_equal
 from xmlschema.utils.qnames import get_qname
 
 from xmlschema.locations import normalize_url
@@ -38,11 +38,11 @@ from xmlschema import dataobjects
 from xmlschema.converters import ElementData, XMLSchemaConverter
 from xmlschema.xpath import XMLSchemaProxy, ElementPathMixin, XPathElement
 from xmlschema.resources import XMLResource
-from xmlschema.validation import EMPTY, XSD_VALIDATION_MODES, DecodeContext, \
-    EncodeContext, ValidationMixin
 
 from .exceptions import XMLSchemaNotBuiltError, XMLSchemaValidationError, \
     XMLSchemaParseError, XMLSchemaStopValidation, XMLSchemaTypeTableWarning
+from .validation import XSD_VALIDATION_MODES, DecodeContext, \
+    EncodeContext, ValidationMixin
 from .helpers import get_xsd_derivation_attribute
 from .xsdbase import XSD_TYPE_DERIVATIONS, XSD_ELEMENT_DERIVATIONS, XsdComponent
 from .particles import ParticleMixin, OccursCalculator

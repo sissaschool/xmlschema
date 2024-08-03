@@ -42,10 +42,11 @@ from xmlschema.names import VC_MIN_VERSION, VC_MAX_VERSION, VC_TYPE_AVAILABLE, \
     XSD_IMPORT, XSD_REDEFINE, XSD_OVERRIDE, XSD_DEFAULT_OPEN_CONTENT, \
     XSD_ANY_SIMPLE_TYPE, XSD_UNION, XSD_LIST, XSD_RESTRICTION, XMLNS_NAMESPACE
 from xmlschema.aliases import XMLSourceType, NsmapType, LocationsType, UriMapperType, \
-    SchemaType, SchemaSourceType, ConverterType, ComponentClassType, DecodeType, \
-    EncodeType, BaseXsdType, ExtraValidatorType, ValidationHookType, \
-    SchemaGlobalType, FillerType, DepthFillerType, ValueHookType, ElementHookType
+    SchemaType, SchemaSourceType, ComponentClassType, DecodeType, EncodeType, \
+    BaseXsdType, ExtraValidatorType, ValidationHookType, SchemaGlobalType, \
+    FillerType, DepthFillerType, ValueHookType, ElementHookType
 from xmlschema.translation import gettext as _
+from xmlschema.utils.decoding import EMPTY
 from xmlschema.utils.logger import set_logging_level
 from xmlschema.utils.etree import prune_etree, is_etree_element
 from xmlschema.utils.qnames import get_namespace, get_qname
@@ -53,16 +54,16 @@ from xmlschema.namespaces import NamespaceResourcesMap, NamespaceView
 from xmlschema.utils.urls import is_local_url, is_remote_url
 from xmlschema.locations import location_is_file, normalize_url, normalize_locations
 from xmlschema.resources import XMLResource, XMLResourceBlocked, XMLResourceForbidden
-from xmlschema.converters import XMLSchemaConverter
+from xmlschema.converters import XMLSchemaConverter, ConverterType, \
+    check_converter_argument, get_converter
 from xmlschema.xpath import XMLSchemaProxy, ElementPathMixin
 from xmlschema.exports import export_schema
-from xmlschema.validation import check_validation_mode, check_converter_argument, \
-    get_converter, DecodeContext, EMPTY, EncodeContext
 from xmlschema import dataobjects
 
 from .exceptions import XMLSchemaParseError, XMLSchemaValidationError, \
     XMLSchemaEncodeError, XMLSchemaNotBuiltError, XMLSchemaStopValidation, \
     XMLSchemaIncludeWarning, XMLSchemaImportWarning
+from .validation import check_validation_mode, DecodeContext, EncodeContext
 from .helpers import get_xsd_derivation_attribute, get_xsd_annotation_child
 from .xsdbase import XSD_ELEMENT_DERIVATIONS, XsdValidator, XsdComponent, XsdAnnotation
 from .notations import XsdNotation

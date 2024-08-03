@@ -13,6 +13,8 @@ from .exceptions import XMLSchemaValidatorError, XMLSchemaParseError, \
     XMLSchemaIncludeWarning, XMLSchemaImportWarning, \
     XMLSchemaTypeTableWarning, XMLSchemaAssertPathWarning
 
+from .validation import check_validation_mode, XSD_VALIDATION_MODES, ValidationContext, \
+    DecodeContext, EncodeContext, ValidationMixin
 from .xsdbase import XsdValidator, XsdComponent, XsdAnnotation, XsdType
 from .particles import ParticleMixin
 from .assertions import XsdAssert
@@ -38,6 +40,8 @@ from .schemas import XMLSchemaMeta, XMLSchemaBase, XMLSchema, XMLSchema10, XMLSc
 
 
 __all__ = [
+    'check_validation_mode', 'XSD_VALIDATION_MODES', 'ValidationContext',
+    'DecodeContext', 'EncodeContext', 'ValidationMixin',
     'XMLSchemaValidatorError', 'XMLSchemaParseError', 'XMLSchemaModelError',
     'XMLSchemaModelDepthError', 'XMLSchemaValidationError', 'XMLSchemaDecodeError',
     'XMLSchemaEncodeError', 'XMLSchemaNotBuiltError', 'XMLSchemaChildrenValidationError',

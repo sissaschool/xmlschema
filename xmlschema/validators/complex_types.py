@@ -20,9 +20,9 @@ from xmlschema.aliases import ElementType, NsmapType, SchemaType, ComponentClass
     DecodeType, BaseXsdType, AtomicValueType, ExtraValidatorType, ValidationHookType
 from xmlschema.translation import gettext as _
 from xmlschema.utils.qnames import get_qname, local_name
-from xmlschema.validation import DecodeContext, EncodeContext, ValidationMixin
 
 from .exceptions import XMLSchemaDecodeError
+from .validation import DecodeContext, EncodeContext, ValidationMixin
 from .helpers import get_xsd_derivation_attribute
 from .xsdbase import XSD_TYPE_DERIVATIONS, XsdComponent, XsdType
 from .attributes import XsdAttributeGroup
