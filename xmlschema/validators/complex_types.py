@@ -17,7 +17,7 @@ from xmlschema.names import XSD_GROUP, XSD_ATTRIBUTE_GROUP, XSD_SEQUENCE, XSD_OV
     XSD_RESTRICTION, XSD_COMPLEX_TYPE, XSD_EXTENSION, XSD_ANY_TYPE, XSD_ASSERT, \
     XSD_SIMPLE_CONTENT, XSD_OPEN_CONTENT, XSD_ANNOTATION
 from xmlschema.aliases import ElementType, NsmapType, SchemaType, ComponentClassType, \
-    DecodeType, BaseXsdType, AtomicValueType, ExtraValidatorType, ValidationHookType
+    DecodeType, BaseXsdType, DecodedValueType, ExtraValidatorType, ValidationHookType
 from xmlschema.translation import gettext as _
 from xmlschema.utils.qnames import get_qname, local_name
 
@@ -29,7 +29,7 @@ from .attributes import XsdAttributeGroup
 from .assertions import XsdAssert
 from .simple_types import FacetsValueType, XsdSimpleType, XsdUnion, XsdAtomic
 from .groups import XsdGroup
-from .wildcards import XsdOpenContent, XsdDefaultOpenContent
+from .wildcards import XsdAnyElement, XsdOpenContent, XsdDefaultOpenContent
 
 XSD_MODEL_GROUP_TAGS = {XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE}
 
@@ -711,11 +711,20 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
     def has_extension(self) -> bool:
         return self.derivation == 'extension'
 
-    def text_decode(self, text: str) -> Optional[AtomicValueType]:
+    def text_decode(self, text: str, validation: str = 'skip',
+                    context: Optional[DecodeContext] = None) -> DecodedValueType:
         if isinstance(self.content, XsdSimpleType):
-            return cast(Optional[AtomicValueType], self.content.decode(text, 'skip'))
+            return self.content.text_decode(text, validation, context)
         else:
             return text
+
+    def text_is_valid(self, text: str, context: Optional[DecodeContext] = None) -> bool:
+        if isinstance(self.content, XsdSimpleType):
+            return self.content.text_is_valid(text, context)
+        elif self.mixed or not text.strip():
+            return True
+        else:
+            return len(self.content) == 1 and isinstance(self.content[0], XsdAnyElement)
 
     def decode(self, obj: Union[ElementType, str, bytes], *args: Any, **kwargs: Any) \
             -> DecodeType[Any]:

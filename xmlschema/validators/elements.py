@@ -27,7 +27,7 @@ from xmlschema.names import XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE, XSD_ALTERNATIVE, 
     XSD_ELEMENT, XSD_ANY_TYPE, XSD_UNIQUE, XSD_KEY, XSD_KEYREF, XSI_NIL, \
     XSI_TYPE, XSD_ERROR, XSD_NOTATION_TYPE
 from xmlschema.aliases import ElementType, SchemaType, BaseXsdType, SchemaElementType, \
-    ModelParticleType, ComponentClassType, AtomicValueType, DecodeType
+    ModelParticleType, ComponentClassType, DecodeType, DecodedValueType
 from xmlschema.translation import gettext as _
 from xmlschema.utils.etree import etree_iter_location_hints, etree_iter_namespaces
 from xmlschema.utils.decoding import EMPTY, raw_encode_attributes, strictly_equal
@@ -285,7 +285,7 @@ class XsdElement(XsdComponent, ParticleMixin,
                 msg = _("'default' and 'fixed' attributes are mutually exclusive")
                 self.parse_error(msg)
 
-            if not self.type.is_valid(self.default):
+            if not self.type.text_is_valid(self.default):
                 msg = _("'default' value {!r} is not compatible with element's type")
                 self.parse_error(msg.format(self.default))
                 self.default = None
@@ -295,7 +295,7 @@ class XsdElement(XsdComponent, ParticleMixin,
 
         elif 'fixed' in self.elem.attrib:
             self.fixed = self.elem.attrib['fixed']
-            if not self.type.is_valid(self.fixed):
+            if not self.type.text_is_valid(self.fixed):
                 msg = _("'fixed' value {!r} is not compatible with element's type")
                 self.parse_error(msg.format(self.fixed))
                 self.fixed = None
@@ -536,15 +536,13 @@ class XsdElement(XsdComponent, ParticleMixin,
                     if not e.abstract:
                         yield e
 
-    def data_value(self, elem: ElementType) -> Optional[AtomicValueType]:
+    def data_value(self, elem: ElementType) -> DecodedValueType:
         """Returns the decoded data value of the provided element as XPath fn:data()."""
         text = elem.text
         if text is None:
             text = self.fixed if self.fixed is not None else self.default
             if text is None:
-                if self.type.is_valid(''):
-                    self.type.text_decode('')
-                return None
+                return '' if self.type.text_is_valid('') else None
         return self.type.text_decode(text)
 
     def check_dynamic_context(self, elem: ElementType, validation: str,
@@ -741,7 +739,7 @@ class XsdElement(XsdComponent, ParticleMixin,
                     text = self.fixed
                 elif text == self.fixed:
                     pass
-                elif not strictly_equal(xsd_type.text_decode(text),
+                elif not strictly_equal(xsd_type.text_decode(text, context=context),
                                         xsd_type.text_decode(self.fixed)):
                     reason = _("must have the fixed value %r") % self.fixed
                     context.validation_error(validation, self, reason, obj)

@@ -7,6 +7,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+import copy
 import sys
 import logging
 from abc import abstractmethod
@@ -92,13 +93,8 @@ class ValidationContext:
     patterns: Optional['XsdPatternFacets']
     level: int
 
-    __slots__ = ('errors', 'converter', 'id_map', 'identities',
-                 'source', 'elem', 'attribute', 'id_list', 'inherited', 'level',
-                 'use_defaults', 'process_skipped', 'max_depth', '__dict__')
-
-    @property
-    def namespaces(self) -> NsmapType:
-        return self.converter.namespaces
+    __slots__ = ('errors', 'converter', 'id_map', 'identities', 'source', 'elem',
+                 'attribute', 'id_list', 'inherited', 'level', 'max_depth', '__dict__')
 
     def __init__(self,
                  source: Any,
@@ -153,6 +149,17 @@ class ValidationContext:
         self.max_depth = max_depth
 
         self.collect_results = self.fp is None and not self.validation_only
+
+    @property
+    def namespaces(self) -> NsmapType:
+        return self.converter.namespaces
+
+    @property
+    def root_namespace(self) -> Optional[str]:
+        if not isinstance(self.source, XMLResource):
+            return None
+        else:
+            return self.source.namespace
 
     def raise_or_collect(self, validation: str, error: XMLSchemaValidationError) \
             -> XMLSchemaValidationError:
@@ -286,6 +293,30 @@ class DecodeContext(ValidationContext):
             namespaces=self.namespaces,
         )
         return self.raise_or_collect(validation, error)
+
+    def __copy__(self) -> 'DecodeContext':
+        context: DecodeContext = object.__new__(self.__class__)
+        context.errors = []
+        context.__dict__.update(self.__dict__)
+
+        context.source = self.source
+        context.errors = []
+        context.id_map = Counter[str]()
+        context.identities = {}
+        context.inherited = {}
+        context.level = 0
+        context.elem = None
+        context.attribute = None
+        context.id_list = None
+        context.patterns = None
+        context.max_depth = self.max_depth
+
+        if self.converter.xmlns_processing == 'none':
+            context.converter = self.converter
+        else:
+            context.converter = copy.copy(self.converter)
+
+        return context
 
 
 class EncodeContext(ValidationContext):

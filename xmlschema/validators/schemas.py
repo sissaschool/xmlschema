@@ -276,6 +276,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     _components = None
     _root_elements: Optional[Set[str]] = None
     _xpath_node: Optional[SchemaElementNode]
+    _validation_context: Optional[DecodeContext] = None
 
     # XSD components classes
     xsd_notation_class = XsdNotation
@@ -778,6 +779,21 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
         assert self._root_elements is not None
         return [e for e in self.elements.values() if e.name in self._root_elements]
+
+    @property
+    def validation_context(self) -> DecodeContext:
+        """
+        A validation context instance used internally for decoding schema simple values.
+        """
+        if self._validation_context is None:
+            self._validation_context = DecodeContext(
+                source=self.source,
+                validation=self.validation,
+                validation_only=True,
+                namespaces=self.namespaces,
+                xmlns_processing='none'
+            )
+        return self._validation_context
 
     @property
     def simple_types(self) -> List[XsdSimpleType]:

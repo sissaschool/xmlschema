@@ -24,14 +24,14 @@ from xmlschema.names import XSD_ANNOTATION, XSD_APPINFO, XSD_DOCUMENTATION, \
     XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_ID, \
     XSD_QNAME, XSD_OVERRIDE, XSD_NOTATION_TYPE, XSD_DECIMAL, XMLNS_NAMESPACE
 from xmlschema.aliases import ElementType, NsmapType, SchemaType, BaseXsdType, \
-    ComponentClassType
+    ComponentClassType, DecodedValueType
 from xmlschema.translation import gettext as _
 from xmlschema.utils.qnames import get_qname, local_name, get_prefixed_qname
 from xmlschema.utils.etree import is_etree_element
 from xmlschema.utils.logger import format_xmlschema_stack
 from xmlschema.resources import XMLResource
 
-from .validation import check_validation_mode
+from .validation import check_validation_mode, DecodeContext
 from .exceptions import XMLSchemaParseError
 from .helpers import get_xsd_annotation_child
 
@@ -858,5 +858,9 @@ class XsdType(XsdComponent):
     def is_decimal(self) -> bool:
         return self.name == XSD_DECIMAL or self.is_derived(self.maps.types[XSD_DECIMAL])
 
-    def text_decode(self, text: str) -> Any:
+    def text_decode(self, text: str, validation: str = 'skip',
+                    context: Optional[DecodeContext] = None) -> DecodedValueType:
+        raise NotImplementedError()
+
+    def text_is_valid(self, text: str, context: Optional[DecodeContext] = None) -> bool:
         raise NotImplementedError()

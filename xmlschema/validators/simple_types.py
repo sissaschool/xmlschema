@@ -10,7 +10,7 @@
 """
 This module contains classes for XML Schema simple data types.
 """
-from copy import copy
+from copy import copy as _copy
 from decimal import DecimalException
 from typing import cast, Any, Callable, Dict, Iterator, List, \
     Optional, Set, Union, Tuple, Type
@@ -440,8 +440,24 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
         else:
             return text
 
-    def text_decode(self, text: str) -> AtomicValueType:
-        return cast(AtomicValueType, self.decode(text, validation='skip'))
+    def text_decode(self, text: str, validation: str = 'skip',
+                    context: Optional[DecodeContext] = None) -> DecodedValueType:
+        if context is None:
+            context = self.schema.validation_context
+        return self.raw_decode(text, validation, context)
+
+    def text_is_valid(self, text: str, context: Optional[DecodeContext] = None) -> bool:
+        if context is None:
+            context = _copy(self.schema.validation_context)
+            self.raw_decode(text, 'lax', context)
+            return not context.errors
+        else:
+            try:
+                self.raw_decode(text, 'strict', context)
+            except XMLSchemaValidationError:
+                return False
+            else:
+                return True
 
     def raw_decode(self, obj: Union[str, bytes], validation: str,
                    context: DecodeContext) -> DecodedValueType:
@@ -597,7 +613,7 @@ class XsdAtomicBuiltin(XsdAtomic):
             self.instance_types, python_type = python_type, python_type[0]
         else:
             self.instance_types = python_type
-        if not callable(python_type):
+        if not isinstance(python_type, type):
             raise XMLSchemaTypeError("%r object is not callable" % python_type.__class__)
 
         if base_type is None and not admitted_facets and name != XSD_ERROR:
@@ -666,12 +682,9 @@ class XsdAtomicBuiltin(XsdAtomic):
                     try:
                         result = f"{{{context.namespaces[prefix]}}}{name}"
                     except (TypeError, KeyError):
-                        try:
-                            if context.source.namespace != XSD_NAMESPACE:
-                                reason = _("unmapped prefix %r in a QName") % prefix
-                                context.validation_error(validation, self, reason, obj)
-                        except KeyError:
-                            pass
+                        if context.root_namespace != XSD_NAMESPACE:
+                            reason = _("unmapped prefix %r in a QName") % prefix
+                            context.validation_error(validation, self, reason, obj)
             else:
                 try:
                     default_namespace = context.namespaces['']
@@ -1070,7 +1083,7 @@ class XsdUnion(XsdSimpleType):
         patterns, context.patterns = context.patterns, None  # Use and clean pushed patterns
 
         matched_type = None
-        member_context = copy(context)
+        member_context = _copy(context)
         member_context.errors = []
         for member_type in self.member_types:
             member_context.errors.clear()
@@ -1107,7 +1120,7 @@ class XsdUnion(XsdSimpleType):
         patterns, context.patterns = context.patterns, None  # Use and clean pushed patterns
 
         matched_type = None
-        member_context = copy(context)
+        member_context = _copy(context)
         member_context.errors = []
         for member_type in self.member_types:
             member_context.errors.clear()

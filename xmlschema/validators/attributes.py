@@ -174,7 +174,7 @@ class XsdAttribute(XsdComponent, ValidationMixin[str, DecodedValueType]):
                         "if the attribute 'default' is present")
                 self.parse_error(msg)
 
-            if not self.type.is_valid(self.default):
+            if not self.type.text_is_valid(self.default):
                 msg = _("default value {!r} is not compatible with attribute's type")
                 self.parse_error(msg.format(self.default))
             elif self.type.is_key() and self.xsd_version == '1.0':
@@ -183,7 +183,7 @@ class XsdAttribute(XsdComponent, ValidationMixin[str, DecodedValueType]):
 
         elif 'fixed' in attrib:
             self.fixed = attrib['fixed']
-            if not self.type.is_valid(self.fixed):
+            if not self.type.text_is_valid(self.fixed):
                 msg = _("fixed value {!r} is not compatible with attribute's type")
                 self.parse_error(msg.format(self.fixed))
             elif self.type.is_key() and self.xsd_version == '1.0':
@@ -246,7 +246,8 @@ class XsdAttribute(XsdComponent, ValidationMixin[str, DecodedValueType]):
             if obj is None:
                 obj = self.fixed
             elif obj != self.fixed and \
-                    self.type.text_decode(obj) != self.type.text_decode(self.fixed):
+                    self.type.text_decode(obj, context=context) != \
+                    self.type.text_decode(self.fixed):
                 msg = _("attribute {0!r} has a fixed value {1!r}").format(self.name, self.fixed)
                 context.validation_error(validation, self, msg, obj)
 
