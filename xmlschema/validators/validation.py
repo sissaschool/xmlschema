@@ -59,8 +59,7 @@ def check_validation_mode(validation: str) -> None:
                                     "'lax' or 'skip': %r") % validation)
 
 
-ST = TypeVar('ST')
-DT = TypeVar('DT')
+Self = TypeVar('Self', bound='ValidationContext')
 
 
 class ValidationContext:
@@ -103,6 +102,7 @@ class ValidationContext:
                  level: int = 0,
                  elem: Optional[ElementType] = None,
                  *,
+                 check_identities: bool = False,
                  use_defaults: bool = True,
                  process_skipped: bool = False,
                  max_depth: Optional[int] = None,
@@ -144,11 +144,41 @@ class ValidationContext:
         else:
             self.converter = get_converter(converter, source=self.source, **kwargs)
 
+        self.check_identities = check_identities
         self.use_defaults = use_defaults
         self.process_skipped = process_skipped
         self.max_depth = max_depth
 
         self.collect_results = self.fp is None and not self.validation_only
+
+    def __copy__(self: Self) -> Self:
+        context = object.__new__(self.__class__)
+        for attr in ValidationContext.__slots__:
+            setattr(context, attr, copy.copy(getattr(self, attr)))
+        return context
+
+    def clean_copy(self: Self) -> Self:
+        context = object.__new__(self.__class__)
+        context.__dict__.update(self.__dict__)
+
+        context.source = self.source
+        context.errors = []
+        context.id_map = Counter[str]()
+        context.identities = {}
+        context.inherited = {}
+        context.level = 0
+        context.elem = None
+        context.attribute = None
+        context.id_list = None
+        context.patterns = None
+        context.max_depth = self.max_depth
+
+        if self.converter.xmlns_processing == 'none':
+            context.converter = self.converter
+        else:
+            context.converter = copy.copy(self.converter)
+
+        return context
 
     @property
     def namespaces(self) -> NsmapType:
@@ -240,6 +270,7 @@ class DecodeContext(ValidationContext):
                  elem: Optional[ElementType] = None,
                  *,
                  validation_only: bool = False,
+                 check_identities: bool = False,
                  use_defaults: bool = True,
                  process_skipped: bool = False,
                  max_depth: Optional[int] = None,
@@ -260,6 +291,7 @@ class DecodeContext(ValidationContext):
 
         self.validation_only = validation_only
         super().__init__(source, validation, converter, level, elem,
+                         check_identities=check_identities,
                          use_defaults=use_defaults,
                          process_skipped=process_skipped,
                          max_depth=max_depth,
@@ -294,30 +326,6 @@ class DecodeContext(ValidationContext):
         )
         return self.raise_or_collect(validation, error)
 
-    def __copy__(self) -> 'DecodeContext':
-        context: DecodeContext = object.__new__(self.__class__)
-        context.errors = []
-        context.__dict__.update(self.__dict__)
-
-        context.source = self.source
-        context.errors = []
-        context.id_map = Counter[str]()
-        context.identities = {}
-        context.inherited = {}
-        context.level = 0
-        context.elem = None
-        context.attribute = None
-        context.id_list = None
-        context.patterns = None
-        context.max_depth = self.max_depth
-
-        if self.converter.xmlns_processing == 'none':
-            context.converter = self.converter
-        else:
-            context.converter = copy.copy(self.converter)
-
-        return context
-
 
 class EncodeContext(ValidationContext):
     """A context for handling validated encoding processes."""
@@ -331,6 +339,7 @@ class EncodeContext(ValidationContext):
                  level: int = 0,
                  elem: Optional[ElementType] = None,
                  *,
+                 check_identities: bool = False,
                  use_defaults: bool = True,
                  unordered: bool = False,
                  process_skipped: bool = False,
@@ -338,6 +347,7 @@ class EncodeContext(ValidationContext):
                  **kwargs: Any) -> None:
 
         super().__init__(source, validation, converter, level, elem,
+                         check_identities=check_identities,
                          use_defaults=use_defaults,
                          process_skipped=process_skipped,
                          max_depth=max_depth,
@@ -380,6 +390,10 @@ class EncodeContext(ValidationContext):
             elem.extend(children)
         else:
             elem.text = text
+
+
+ST = TypeVar('ST')
+DT = TypeVar('DT')
 
 
 class ValidationMixin(Generic[ST, DT]):

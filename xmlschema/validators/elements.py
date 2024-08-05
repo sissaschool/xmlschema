@@ -665,8 +665,10 @@ class XsdElement(XsdComponent, ParticleMixin,
             reason = _("%r is abstract") % xsd_type
             context.validation_error(validation, self, reason, obj)
 
+        id_list = context.id_list
         if xsd_type.is_complex() and self.xsd_version == '1.1':
-            context.id_list = []  # Track XSD 1.1 multiple xs:ID attributes/children
+            # Track XSD 1.1 multiple xs:ID attributes/children
+            context.id_list = []
 
         content_decoder = xsd_type if isinstance(xsd_type, XsdSimpleType) else xsd_type.content
 
@@ -788,7 +790,8 @@ class XsdElement(XsdComponent, ParticleMixin,
                 if not context.binary_types:
                     value = str(value)
 
-        context.id_list = None
+        # if xsd_type.is_complex() and self.xsd_version == '1.1':
+        context.id_list = id_list
         xmlns = converter.set_context(obj, context.level)  # Purge existing sub-contexts
 
         if isinstance(converter, XMLSchemaConverter):

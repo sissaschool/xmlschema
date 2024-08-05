@@ -1767,6 +1767,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             'level': resource.lazy_depth or bool(path),
             'namespaces': namespaces,
             'validation_only': True,
+            'check_identities': True,
             'use_defaults': use_defaults,
             'use_location_hints': use_location_hints,
             'max_depth': max_depth,
@@ -2010,6 +2011,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         kwargs.update(
             process_namespaces=process_namespaces,
             namespaces=namespaces,
+            check_identities=True,
             use_defaults=use_defaults,
             use_location_hints=use_location_hints,
             decimal_type=decimal_type,
@@ -2167,6 +2169,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
         kwargs.update(
             namespaces=namespaces,
+            check_identities=True,
             use_defaults=use_defaults,
             converter=converter,
             unordered=unordered,

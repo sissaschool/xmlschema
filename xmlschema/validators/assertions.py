@@ -143,11 +143,13 @@ class XsdAssert(XsdComponent, ElementPathMixin[Union['XsdAssert', SchemaElementT
             if not self.parser.is_schema_bound() and self.parser.schema:
                 self.parser.schema.bind_parser(self.parser)
 
-        variables = {'value': None if value is None else self.base_type.text_decode(value)}
+        if value is not None:
+            value = self.base_type.text_decode(value, context=context)
+
         kwargs: Dict[str, Any] = {
             'uri': context.source.url,
             'fragment': True,
-            'variables': variables,
+            'variables': {'value': value},
         }
 
         if context.source is not None:
