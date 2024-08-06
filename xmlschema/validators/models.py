@@ -12,6 +12,7 @@ This module contains a function and a class for validating XSD content models,
 plus a set of functions for manipulating encoded content.
 """
 from collections import defaultdict, deque, Counter
+from copy import copy
 from operator import attrgetter
 from typing import Any, Dict, Iterable, Iterator, List, \
     MutableMapping, MutableSequence, Optional, Tuple, Union
@@ -206,6 +207,16 @@ class ModelVisitor:
     def __repr__(self) -> str:
         return '%s(root=%r)' % (self.__class__.__name__, self.root)
 
+    def __copy__(self) -> 'ModelVisitor':
+        model: 'ModelVisitor' = object.__new__(self.__class__)
+
+        for cls in self.__class__.__mro__:
+            if hasattr(cls, '__slots__'):
+                for attr in cls.__slots__:
+                    setattr(model, attr, copy(getattr(self, attr)))
+
+        return model
+
     def clear(self) -> None:
         del self._groups[:]
         self.occurs.clear()
@@ -240,8 +251,18 @@ class ModelVisitor:
         self._start()
 
     def stop(self) -> Iterator[AdvanceYieldedType]:
+        """Stop the model and returns the errors, if any."""
         while self.element is not None:
             yield from self.advance()
+
+    @property
+    def stoppable(self) -> bool:
+        """Returns `True` if the model is stoppable from the current status without errors."""
+        model = copy(self)
+        for _ in model.stop():
+            return False
+        else:
+            return True
 
     def iter_group(self) -> Iterator[ModelParticleType]:
         """Returns an iterator for the current model group."""

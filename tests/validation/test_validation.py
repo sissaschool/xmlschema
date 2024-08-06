@@ -485,6 +485,40 @@ class TestValidation(XsdValidatorTestCase):
         self.assertIn("schemaLocation declaration after namespace start",
                       str(ctx.exception))
 
+    def test_issue_410(self):
+        schema = self.schema_class(dedent("""\
+            <?xml version="1.0" encoding="UTF-8"?>
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+              <xs:element name="muclient">
+                <xs:complexType>
+                  <xs:choice minOccurs="0" maxOccurs="unbounded">
+                    <xs:element name="include"/>
+                    <xs:choice>
+                      <xs:element name="plugin"/>
+                      <xs:element name="world"/>
+                      <xs:element name="triggers"/>
+                      <xs:element name="aliases"/>
+                      <xs:element name="timers"/>
+                      <xs:element name="macros"/>
+                      <xs:element name="variables"/>
+                      <xs:element name="colours"/>
+                      <xs:element name="keypad"/>
+                      <xs:element name="printing"/>
+                    </xs:choice>
+                  </xs:choice>
+                </xs:complexType>
+              </xs:element>
+            </xs:schema>"""))
+
+        xml_data = '<muclient></muclient>'
+        self.check_validity(schema, xml_data, True)
+
+        xml_data = '<muclient><include/></muclient>'
+        self.check_validity(schema, xml_data, True)
+
+        xml_data = '<muclient><world/><include/></muclient>'
+        self.check_validity(schema, xml_data, True)
+
 
 class TestValidation11(TestValidation):
     schema_class = XMLSchema11
