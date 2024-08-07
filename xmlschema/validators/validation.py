@@ -26,7 +26,7 @@ from xmlschema.aliases import DecodeType, DepthFillerType, ElementType, \
     IterEncodeType, ModelParticleType, NsmapType, SerializerType, SchemaElementType, \
     SchemaType, ValidationHookType, ValueHookType, IOType, ErrorsType
 from xmlschema.translation import gettext as _
-from xmlschema.utils.decoding import raw_encode_value
+from xmlschema.utils.decoding import EmptyType, Empty, raw_encode_value
 from xmlschema.utils.etree import is_etree_element, is_etree_document
 from xmlschema.utils.logger import format_xmlschema_stack
 from xmlschema.utils.qnames import get_prefixed_qname
@@ -497,6 +497,8 @@ class ValidationMixin(Generic[ST, DT]):
 
         context = DecodeContext(obj, validation, converter, **kwargs)
         result = self.raw_decode(obj, validation, context)
+        if isinstance(result, EmptyType):
+            return (None, context.errors) if validation == 'lax' else None
         return (result, context.errors) if validation == 'lax' else result
 
     def encode(self, obj: Any, validation: str = 'strict', **kwargs: Any) -> EncodeType[Any]:
@@ -519,6 +521,8 @@ class ValidationMixin(Generic[ST, DT]):
 
         context = EncodeContext(obj, validation, converter, **kwargs)
         result = self.raw_encode(obj, validation, context)
+        if isinstance(result, EmptyType):
+            return (None, context.errors) if validation == 'lax' else None
         return (result, context.errors) if validation == 'lax' else result
 
     def iter_decode(self, obj: ST, validation: str = 'lax', **kwargs: Any) \
@@ -540,7 +544,8 @@ class ValidationMixin(Generic[ST, DT]):
         result = self.raw_decode(obj, validation, context)
         yield from context.errors
         context.errors.clear()
-        yield result
+        if not isinstance(result, EmptyType):
+            yield result
 
     def iter_encode(self, obj: Any, validation: str = 'lax', **kwargs: Any) \
             -> IterEncodeType[Any]:
@@ -561,10 +566,12 @@ class ValidationMixin(Generic[ST, DT]):
         result = self.raw_encode(obj, validation, context)
         yield from context.errors
         context.errors.clear()
-        yield result
+        if not isinstance(result, EmptyType):
+            yield result
 
     @abstractmethod
-    def raw_decode(self, obj: ST, validation: str, context: DecodeContext) -> DT:
+    def raw_decode(self, obj: ST, validation: str, context: DecodeContext) \
+            -> Union[DT, EmptyType]:
         """
         Internal decode method. Takes the same arguments as *decode*, but keyword arguments
         are replaced with a decode context. Returns a decoded data structure, usually a

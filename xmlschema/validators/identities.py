@@ -122,7 +122,7 @@ class XsdSelector(XsdComponent):
 
     @property
     def target_namespace(self) -> str:
-        if self.token is None:
+        if 'token' not in self.__dict__:
             pass  # xpathDefaultNamespace="##targetNamespace"
         elif self.token.symbol == ':':
             return self.token[1].namespace or self.xpath_default_namespace

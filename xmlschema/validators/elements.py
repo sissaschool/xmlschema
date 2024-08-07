@@ -30,7 +30,7 @@ from xmlschema.aliases import ElementType, SchemaType, BaseXsdType, SchemaElemen
     ModelParticleType, ComponentClassType, DecodeType, DecodedValueType
 from xmlschema.translation import gettext as _
 from xmlschema.utils.etree import etree_iter_location_hints, etree_iter_namespaces
-from xmlschema.utils.decoding import EMPTY, raw_encode_attributes, strictly_equal
+from xmlschema.utils.decoding import Empty, raw_encode_attributes, strictly_equal
 from xmlschema.utils.qnames import get_qname
 
 from xmlschema.locations import normalize_url
@@ -600,7 +600,7 @@ class XsdElement(XsdComponent, ParticleMixin,
                     context = _copy(context)
                     validation = _validation
                 else:
-                    return EMPTY
+                    return Empty
 
         context.elem = obj
 
@@ -664,6 +664,10 @@ class XsdElement(XsdComponent, ParticleMixin,
         if xsd_type.abstract:
             reason = _("%r is abstract") % xsd_type
             context.validation_error(validation, self, reason, obj)
+
+        if context.source.url is not None and \
+                context.source.url.endswith("idConstrDefs00301m2_n.xml_"):
+            breakpoint()
 
         id_list = context.id_list
         if xsd_type.is_complex() and self.xsd_version == '1.1':
@@ -790,7 +794,6 @@ class XsdElement(XsdComponent, ParticleMixin,
                 if not context.binary_types:
                     value = str(value)
 
-        # if xsd_type.is_complex() and self.xsd_version == '1.1':
         context.id_list = id_list
         xmlns = converter.set_context(obj, context.level)  # Purge existing sub-contexts
 

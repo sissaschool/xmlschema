@@ -25,7 +25,7 @@ from xmlschema.aliases import ElementType, NsmapType, SchemaType, ModelParticleT
     SchemaElementType, ComponentClassType, OccursCounterType
 from xmlschema.converters import ElementData
 from xmlschema.translation import gettext as _
-from xmlschema.utils.decoding import EMPTY, raw_encode_value
+from xmlschema.utils.decoding import Empty, raw_encode_value
 from xmlschema.utils.qnames import get_qname, local_name
 
 from .exceptions import XMLSchemaModelError, XMLSchemaModelDepthError, \
@@ -952,6 +952,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         """
         result: GroupDecodeType = [] if context.collect_results else None
         cdata_index = 1  # keys for CDATA sections are positive integers
+        index = 0
 
         if not self._group and self.model == 'choice' and self.min_occurs:
             reason = _("an empty 'choice' group with minOccurs > 0 cannot validate any content")
@@ -1050,7 +1051,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                 continue
 
             result_item = xsd_element.raw_decode(child, validation, context)
-            if result_item is EMPTY:
+            if result_item is Empty:
                 continue
             elif result is not None:
                 result.append((name, result_item, xsd_element))
@@ -1077,7 +1078,10 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                     validation, self, obj, index, particle, occurs, expected
                 )
 
-        return result
+        if index or result is not None or obj.text is None:
+            return result
+        else:
+            return [(1, str(obj.text.strip()), None)]
 
     def raw_encode(self, obj: ElementData, validation: str, context: EncodeContext) \
             -> GroupEncodeType:

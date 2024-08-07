@@ -46,7 +46,7 @@ from xmlschema.aliases import XMLSourceType, NsmapType, LocationsType, UriMapper
     BaseXsdType, ExtraValidatorType, ValidationHookType, SchemaGlobalType, \
     FillerType, DepthFillerType, ValueHookType, ElementHookType
 from xmlschema.translation import gettext as _
-from xmlschema.utils.decoding import EMPTY
+from xmlschema.utils.decoding import Empty
 from xmlschema.utils.logger import set_logging_level
 from xmlschema.utils.etree import prune_etree, is_etree_element
 from xmlschema.utils.qnames import get_namespace, get_qname
@@ -1892,7 +1892,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             if context.errors:
                 yield from context.errors
                 context.errors.clear()
-            if result is not EMPTY:
+            if result is not Empty:
                 yield result
 
         if context.max_depth is None:
@@ -2076,7 +2076,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 yield from context.errors[yielded_errors:]
                 yielded_errors = len(context.errors)
 
-            if result is not EMPTY:
+            if result is not Empty:
                 yield result
 
         if context.max_depth is not None:

@@ -24,6 +24,7 @@ from xmlschema.names import XSI_NAMESPACE, XSD_ANY_SIMPLE_TYPE, XSD_SIMPLE_TYPE,
 from xmlschema.aliases import ComponentClassType, ElementType, \
     AtomicValueType, SchemaType, DecodedValueType
 from xmlschema.translation import gettext as _
+from xmlschema.utils.decoding import EmptyType
 from xmlschema.utils.qnames import get_namespace, get_qname
 
 from .validation import DecodeContext, EncodeContext, ValidationMixin
@@ -674,6 +675,7 @@ class XsdAttributeGroup(
             obj = {k: v for k, v in obj.items()}
             obj.update(additional_attrs)
 
+        id_list = context.id_list
         if self.xsd_version == '1.0':
             context.id_list = []
 
@@ -711,10 +713,12 @@ class XsdAttributeGroup(
                     context.validation_error(validation, self, reason, obj)
 
             context.attribute = name
-            result_item = xsd_attribute.raw_decode(value, validation, context)
-            if result is not None:
-                result.append((name, result_item))
+            item = xsd_attribute.raw_decode(value, validation, context)
+            if result is not None and not isinstance(item, EmptyType):
+                result.append((name, item))
             context.attribute = None
+
+        context.id_list = id_list
 
         if result is not None and context.fill_missing:
             if context.filler is None:
@@ -766,9 +770,9 @@ class XsdAttributeGroup(
                     context.validation_error(validation, self, reason, obj)
                     continue
 
-            result_item = xsd_attribute.raw_encode(value, validation, context)
-            if result is not None and result_item is not None:
-                result.append((name, result_item))
+            item = xsd_attribute.raw_encode(value, validation, context)
+            if result is not None and item is not None and not isinstance(item, EmptyType):
+                result.append((name, item))
 
         if result is not None:
             result.extend(
