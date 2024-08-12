@@ -209,11 +209,30 @@ class ModelVisitor:
 
     def __copy__(self) -> 'ModelVisitor':
         model: 'ModelVisitor' = object.__new__(self.__class__)
+        model.root = self.root
+        model.element = self.element
+        model.group = self.group
+        model.match = self.match
+        model.occurs = self.occurs.copy()
 
-        for cls in self.__class__.__mro__:
-            if hasattr(cls, '__slots__'):
-                for attr in cls.__slots__:
-                    setattr(model, attr, copy(getattr(self, attr)))
+        # Can't copy iterators so create new ones and iter them at the same item
+        model._groups = []
+        group = self.group
+
+        for parent, _, match in reversed(self._groups):
+            items = iter(parent if parent.ref is None else parent.ref)
+            for obj in items:
+                if obj is group:
+                    model._groups.append((parent, items, match))
+                    group = parent
+                    break
+
+        model._groups.reverse()
+
+        model.items = model.iter_group()
+        for obj in model.items:
+            if obj is model.element:
+                break
 
         return model
 
@@ -254,15 +273,6 @@ class ModelVisitor:
         """Stop the model and returns the errors, if any."""
         while self.element is not None:
             yield from self.advance()
-
-    @property
-    def stoppable(self) -> bool:
-        """Returns `True` if the model is stoppable from the current status without errors."""
-        model = copy(self)
-        for _ in model.stop():
-            return False
-        else:
-            return True
 
     def iter_group(self) -> Iterator[ModelParticleType]:
         """Returns an iterator for the current model group."""
@@ -383,7 +393,7 @@ class ModelVisitor:
             return item, item_occurs, expected
 
         if self.element is None:
-            raise XMLSchemaValueError("cannot advance, %r is ended!" % self)
+            raise XMLSchemaValueError("can't advance, %r is ended!" % self)
 
         item = self.element
         occurs = self.occurs
@@ -506,6 +516,32 @@ class ModelVisitor:
         warnings.warn(msg, DeprecationWarning, stacklevel=2)
 
         return iter_collapsed_content(content, self.root)
+
+    # Lookahead properties and methods, not used for validation. These methods use
+    # a copy of the instance for performing additional check on iterated models.
+    @property
+    def stoppable(self) -> bool:
+        """Returns `True` if the model is stoppable from the current status without errors."""
+        if self.element is None:
+            return True
+
+        model = copy(self)
+        model.element.is_missing(model.occurs)
+        for _ in model.stop():
+            return False
+        else:
+            return True
+
+    def is_optional(self) -> bool:
+        """Returns `True` if the current model element is optional."""
+        if self.element is None:
+            raise XMLSchemaValueError("%r is ended, the current element is None!" % self)
+
+        model = copy(self)
+        for _ in model.advance(False):
+            return False
+        else:
+            return True
 
 
 class InterleavedModelVisitor(ModelVisitor):

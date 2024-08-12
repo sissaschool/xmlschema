@@ -58,9 +58,9 @@ class ParticleMixin:
     def effective_max_occurs(self) -> Optional[int]:
         """
         A property calculated from maxOccurs, that is equal to maxOccurs
-        for elements and may vary for content model groups, in dependance
-        of group model and structure. Used for checking restrictions of
-        model groups in XSD 1.1.
+        for elements and may vary for content model groups, depending on
+        the model and the structure of the group. Used for checking
+        restrictions of model groups in XSD 1.1.
         """
         return self.max_occurs
 

@@ -10,8 +10,10 @@
 #
 """Tests concerning model groups validation"""
 import unittest
+import copy
 import os.path
 import warnings
+from itertools import zip_longest
 from textwrap import dedent
 from typing import Any, Union, List, Optional
 
@@ -103,6 +105,28 @@ class TestModelValidation(XsdValidatorTestCase):
             self.assertRaises(expected, lambda: list(model.stop()))
         else:
             self.assertEqual([e for e in model.stop()], expected or [])
+
+    def check_copy_equivalence(self, model1, model2):
+        """
+        Advances a model with an argument match condition and checks the expected error list.
+        """
+        self.assertIs(model1.root, model2.root)
+        self.assertIs(model1.element, model2.element)
+        self.assertIs(model1.group, model2.group)
+        self.assertIs(model1.match, model2.match)
+        self.assertIsNot(model1.occurs, model2.occurs)
+        self.assertEqual(model1.occurs, model2.occurs)
+        self.assertIsNot(model1._groups, model2._groups)
+        self.assertEqual(len(model1._groups), len(model2._groups))
+
+        for t1, t2 in zip(model1._groups, model2._groups):
+            self.assertIs(t1[0], t2[0])
+            self.assertIs(t1[2], t2[2])
+            for o1, o2 in zip_longest(t1[1], t2[1]):
+                self.assertIs(o1, o2)
+
+        for o1, o2 in zip_longest(model1.items, model2.items):
+            self.assertIs(o1, o2)
 
     # --- ModelVisitor methods ---
 
@@ -878,6 +902,183 @@ class TestModelValidation(XsdValidatorTestCase):
         self.check_advance_true(model)  # <a> matching
         self.assertEqual(model.element, group[1][0][0])  # 'a' element
         self.check_stop(model)
+
+    def test_model_visitor_copy(self):
+        schema = self.schema_class(
+            """<?xml version="1.0" encoding="UTF-8"?>
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:element name="root">
+                    <xs:complexType>
+                        <xs:sequence minOccurs="0" maxOccurs="unbounded">                        
+                            <xs:group ref="group1" minOccurs="2" maxOccurs="unbounded"/>
+                            <xs:group ref="group2" minOccurs="0" maxOccurs="unbounded"/>
+                            <xs:group ref="group3" maxOccurs="unbounded"/>
+                        </xs:sequence>
+                    </xs:complexType>
+                </xs:element>
+                <xs:group name="group1">
+                    <xs:choice>
+                        <xs:element name="a1" maxOccurs="unbounded"/>
+                        <xs:element name="b1"/>
+                        <xs:element name="c1"/>
+                    </xs:choice>
+                </xs:group>
+                <xs:group name="group2">
+                    <xs:sequence>
+                        <xs:element name="a2"/>
+                        <xs:element name="b2" maxOccurs="unbounded"/>
+                        <xs:element name="c2" minOccurs="0" maxOccurs="unbounded"/>
+                    </xs:sequence>
+                </xs:group>
+                <xs:group name="group3">
+                    <xs:sequence>
+                        <xs:element name="a3" minOccurs="0" maxOccurs="unbounded"/>
+                        <xs:element name="b3" maxOccurs="unbounded"/>
+                        <xs:element name="c3"/>
+                    </xs:sequence>
+                </xs:group>
+            </xs:schema>""")
+
+        group = schema.elements['root'].type.content
+
+        model = ModelVisitor(group)
+        self.assertIs(model.element, group[0][0][0])
+        self.assertEqual(model.element.name, 'a1')
+        self.check_copy_equivalence(model, copy.copy(model))
+
+        model = ModelVisitor(group)
+        self.assertIs(model.element, group[0][0][0])
+        self.assertEqual(model.element.name, 'a1')
+        self.check_advance_true(model)  # <a1> matches
+        self.assertEqual(model.element.name, 'a1')
+        self.check_copy_equivalence(model, copy.copy(model))
+
+        model = ModelVisitor(group)
+        self.assertIs(model.element, group[0][0][0])
+        self.assertEqual(model.element.name, 'a1')
+        self.check_advance_true(model)  # <a1> matches
+        self.assertEqual(model.element.name, 'a1')
+        self.check_advance_false(model)  # <a1> doesn't match
+        self.assertEqual(model.element.name, 'a1')
+        self.check_advance_false(model)  # <a1> doesn't match
+        self.assertEqual(model.element.name, 'b1')
+        self.check_advance_true(model)  # <b1> matches
+        self.assertEqual(model.element.name, 'a1')
+        self.check_advance_false(model)  # <a1> doesn't match
+        self.assertEqual(model.element.name, 'b1')
+        self.check_advance_false(model)  # <b1> doesn't match
+        self.assertEqual(model.element.name, 'c1')
+        self.check_advance_false(model)  # <c1> doesn't match
+        self.assertEqual(model.element.name, 'a2')
+        self.check_advance_false(model)  # <a2> doesn't match
+        self.assertEqual(model.element.name, 'a3')
+        self.check_copy_equivalence(model, copy.copy(model))
+
+        model = ModelVisitor(group)
+        self.check_advance_true(model)  # <a1> matches
+        self.check_advance_false(model)  # <a1> doesn't match
+        self.check_advance_false(model)  # <a1> doesn't match
+        self.check_advance_true(model)  # <b1> matches
+        self.check_advance_false(model)  # <a1> doesn't match
+        self.check_advance_false(model)  # <b1> doesn't match
+        self.check_advance_false(model)  # <c1> doesn't match
+        self.check_advance_false(model)  # <a2> doesn't match
+        self.assertEqual(model.element.name, 'a3')
+
+        self.check_advance_false(model)  # <a3> doesn't match
+        self.assertEqual(model.element.name, 'b3')
+        self.check_advance_true(model)  # <b3> matches
+        self.check_advance_false(model)  # <b3> doesn't match
+        self.assertEqual(model.element.name, 'c3')
+        self.check_advance_true(model)  # <c3> matches
+        self.assertEqual(model.element.name, 'a3')
+
+        self.check_copy_equivalence(model, copy.copy(model))
+
+    def test_model_visitor_copy_nested(self):
+        schema = self.schema_class(
+            """<?xml version="1.0" encoding="UTF-8"?>
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:element name="root">
+                    <xs:complexType>
+                        <xs:sequence>                        
+                            <xs:element name="a1"/>
+                            <xs:group ref="group1" maxOccurs="unbounded"/>
+                        </xs:sequence>
+                    </xs:complexType>
+                </xs:element>
+                <xs:group name="group1">
+                    <xs:sequence>
+                        <xs:element name="a2"/>
+                        <xs:group ref="group2" maxOccurs="unbounded"/>
+                    </xs:sequence>
+                </xs:group>
+                <xs:group name="group2">
+                    <xs:sequence>
+                        <xs:element name="a3"/>
+                        <xs:group ref="group3" maxOccurs="unbounded"/>
+                    </xs:sequence>
+                </xs:group>
+                <xs:group name="group3">
+                    <xs:sequence>
+                        <xs:element name="b3"/>
+                        <xs:element name="c3"/>
+                    </xs:sequence>
+                </xs:group>
+            </xs:schema>""")
+
+        group = schema.elements['root'].type.content
+
+        model = ModelVisitor(group)
+        self.check_advance_true(model)  # <a1> matches
+        self.assertEqual(len(model._groups), 1)
+        self.check_copy_equivalence(model, copy.copy(model))
+
+        model = ModelVisitor(group)
+        self.check_advance_true(model)  # <a1> matches
+        self.assertEqual(model.element.name, 'a2')
+        self.check_advance_true(model)  # <a2> matches
+        self.assertEqual(model.element.name, 'a3')
+        self.assertEqual(len(model._groups), 2)
+        self.check_copy_equivalence(model, copy.copy(model))
+
+        model = ModelVisitor(group)
+        self.check_advance_true(model)  # <a1> matches
+        self.assertEqual(model.element.name, 'a2')
+        self.check_advance_true(model)  # <a2> matches
+        self.assertEqual(model.element.name, 'a3')
+        self.check_advance_true(model)  # <a3> matches
+        self.assertEqual(len(model._groups), 3)
+        self.assertEqual(model.element.name, 'b3')
+        self.check_copy_equivalence(model, copy.copy(model))
+
+    def test_stoppable_property(self):
+        schema = self.schema_class(dedent(
+            """<?xml version="1.0" encoding="UTF-8"?>   
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:element name="root">
+                    <xs:complexType>
+                        <xs:sequence minOccurs="0">
+                            <xs:element name="a" />
+                            <xs:element name="b" maxOccurs="2"/>
+                        </xs:sequence>
+                    </xs:complexType>
+                </xs:element>
+            </xs:schema>
+            """))
+
+        self.assertTrue(schema.is_valid('<root/>'))
+
+        group = schema.elements['root'].type.content
+
+        model = ModelVisitor(group)
+        self.assertIs(model.element, group[0])  # 'a' element
+        self.assertTrue(model.stoppable)
+        self.check_advance_true(model)  # <a> matching
+        self.assertEqual(model.element, group[1])  # 'b' element
+        self.assertFalse(model.stoppable)
+        self.check_advance_true(model)  # <b> matching
+        self.assertTrue(model.stoppable)
 
 
 class TestModelValidation11(TestModelValidation):
