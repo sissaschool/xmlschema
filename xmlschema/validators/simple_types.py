@@ -25,9 +25,9 @@ from ..names import XSD_NAMESPACE, XSD_ANY_TYPE, XSD_SIMPLE_TYPE, XSD_PATTERN, \
     XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_WHITE_SPACE, XSD_ENUMERATION, \
     XSD_LIST, XSD_ANY_SIMPLE_TYPE, XSD_UNION, XSD_RESTRICTION, XSD_ANNOTATION, \
     XSD_ASSERTION, XSD_ID, XSD_IDREF, XSD_FRACTION_DIGITS, XSD_TOTAL_DIGITS, \
-    XSD_EXPLICIT_TIMEZONE, XSD_ERROR, XSD_ASSERT, XSD_QNAME
+    XSD_EXPLICIT_TIMEZONE, XSD_ERROR, XSD_ASSERT, XSD_QNAME, XSD_NOTATION
 from ..translation import gettext as _
-from ..helpers import local_name
+from ..helpers import local_name, get_extended_qname
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaEncodeError, \
     XMLSchemaDecodeError, XMLSchemaParseError
@@ -659,7 +659,7 @@ class XsdAtomicBuiltin(XsdAtomic):
             except XMLSchemaValidationError as err:
                 yield err
 
-        if self.name not in {XSD_QNAME, XSD_IDREF, XSD_ID}:
+        if self.name not in (XSD_QNAME, XSD_IDREF, XSD_ID):
             pass
         elif self.name == XSD_QNAME:
             if ':' in obj:
@@ -1470,11 +1470,17 @@ class XsdAtomicRestriction(XsdAtomic):
                         except (ValueError, DecimalException, TypeError):
                             pass
 
-                    for validator in self.validators:
-                        try:
-                            validator(obj)
-                        except XMLSchemaValidationError as err:
-                            yield err
+                    if self.validators:
+                        if self.root_type.name in (XSD_QNAME, XSD_NOTATION):
+                            value = get_extended_qname(obj, kwargs.get('namespaces'))
+                        else:
+                            value = obj
+
+                        for validator in self.validators:
+                            try:
+                                validator(value)
+                            except XMLSchemaValidationError as err:
+                                yield err
 
                 if self.patterns:
                     if not isinstance(self.primitive_type, XsdUnion):

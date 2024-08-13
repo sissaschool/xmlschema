@@ -809,6 +809,51 @@ xsi:schemaLocation="http://example.com/ns/collection collection.xsd">
         root = schema.encode(obj, preserve_root=True, namespaces={'': schema.target_namespace})
         self.assertIsNone(etree_elements_assert_equal(root, ElementTree.XML(xml_data)))
 
+    def test_encoding_qname_with_enumeration__issue_411(self):
+        schema = self.schema_class(dedent("""\
+            <?xml version="1.0" encoding="utf-8"?>
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                       xmlns:tns0="http://xmlschema.test/tns0"
+                       xmlns:tns1="http://xmlschema.test/tns1">
+                <xs:element name="root" type="Enum1"/>
+                <xs:simpleType name="Enum1">
+                    <xs:restriction base="xs:QName">
+                        <xs:enumeration value="tns0:foo"/>
+                        <xs:enumeration value="tns1:bar"/>
+                        <xs:enumeration value="foo"/>
+                    </xs:restriction>
+                </xs:simpleType>
+            </xs:schema>
+            """))
+
+        namespaces = {'tns0': 'http://xmlschema.test/tns0',
+                      'tns1': 'http://xmlschema.test/tns1'}
+
+        with self.assertRaises(XMLSchemaValidationError):
+            schema.decode('<root>bar</root>')
+
+        data = schema.decode('<root>tns1:bar</root>', namespaces=namespaces)
+        self.assertEqual(data,
+                         {'@xmlns:tns0': 'http://xmlschema.test/tns0',
+                          '@xmlns:tns1': 'http://xmlschema.test/tns1',
+                          '$': 'tns1:bar'})
+
+        root = schema.encode(data, namespaces=namespaces)
+        self.assertEqual(root.text, 'tns1:bar')
+
+        data = schema.decode('<root>tns1:bar</root>', namespaces=namespaces, preserve_root=True)
+        self.assertEqual(
+            data,
+            {'root': {
+                '@xmlns:tns0': 'http://xmlschema.test/tns0',
+                '@xmlns:tns1': 'http://xmlschema.test/tns1',
+                '$': 'tns1:bar'
+            }}
+        )
+
+        root = schema.encode(data, namespaces=namespaces,  preserve_root=True)
+        self.assertEqual(root.text, 'tns1:bar')
+
 
 class TestEncoding11(TestEncoding):
     schema_class = XMLSchema11

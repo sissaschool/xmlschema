@@ -1080,6 +1080,57 @@ class TestModelValidation(XsdValidatorTestCase):
         self.check_advance_true(model)  # <b> matching
         self.assertTrue(model.stoppable)
 
+    def test_occurs_check_methods_for_elements(self):
+        schema = self.schema_class(dedent(
+            """<?xml version="1.0" encoding="UTF-8"?>   
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:element name="root">
+                    <xs:complexType>
+                        <xs:sequence minOccurs="0">
+                            <xs:element name="a" />
+                            <xs:element name="b" maxOccurs="2"/>
+                        </xs:sequence>
+                    </xs:complexType>
+                </xs:element>
+            </xs:schema>
+            """))
+
+        group = schema.elements['root'].type.content
+        a, b = group[:]
+
+        model = ModelVisitor(group)
+
+        for xsd_element in group:
+            self.assertTrue(model.is_missing(xsd_element))
+            self.assertFalse(model.is_over(xsd_element))
+            self.assertFalse(model.is_exceeded(xsd_element))
+
+        self.assertIs(model.element, a)
+        self.assertTrue(model.is_missing())
+        self.assertFalse(model.is_over())
+        self.assertFalse(model.is_exceeded())
+
+        self.check_advance_true(model)
+        self.assertIs(model.element, b)
+        self.assertTrue(model.is_missing())
+        self.assertFalse(model.is_over())
+        self.assertFalse(model.is_exceeded())
+        self.assertFalse(model.is_missing(a))
+        self.assertTrue(model.is_over(a))
+        self.assertFalse(model.is_exceeded(a))
+
+        self.check_advance_true(model)
+        self.assertIs(model.element, b)
+        self.assertFalse(model.is_missing())
+        self.assertFalse(model.is_over())
+        self.assertFalse(model.is_exceeded())
+
+        self.check_advance_true(model)
+        self.assertIsNone(model.element)
+        self.assertRaises(ValueError, model.is_missing)
+        self.assertRaises(ValueError, model.is_over)
+        self.assertRaises(ValueError, model.is_exceeded)
+
 
 class TestModelValidation11(TestModelValidation):
     schema_class = XMLSchema11
