@@ -391,6 +391,49 @@ class TestXsdGroups(unittest.TestCase):
             '<root><elem1>a</elem1><elem3>c</elem3><elem2>b</elem2></root>'
         ))
 
+    def test_is_optional__issue_410(self):
+        schema = XMLSchema(dedent("""\
+            <?xml version="1.0" encoding="UTF-8"?>
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+              <xs:element name="muclient">
+                <xs:complexType>
+                  <xs:choice minOccurs="0" maxOccurs="unbounded">
+                    <xs:element name="include"/>
+                    <xs:choice>
+                      <xs:element name="plugin"/>
+                      <xs:element name="world"/>
+                      <xs:element name="triggers"/>
+                      <xs:element name="aliases"/>
+                      <xs:element name="timers"/>
+                      <xs:element name="macros"/>
+                      <xs:element name="variables"/>
+                      <xs:element name="colours"/>
+                      <xs:element name="keypad"/>
+                      <xs:element name="printing"/>
+                    </xs:choice>
+                  </xs:choice>
+                </xs:complexType>
+              </xs:element>
+            </xs:schema>"""))
+
+        group = schema.elements['muclient'].type.content
+
+        self.assertRaises(ValueError, group.is_optional, schema.elements['muclient'])
+
+        self.assertTrue(group.is_optional(group[0]))
+        for xsd_element in group[1]:
+            self.assertTrue(group.is_optional(xsd_element))
+
+        group.min_occurs = 1
+        self.assertTrue(group.is_optional(group[0]))
+        for xsd_element in group[1]:
+            self.assertTrue(group.is_optional(xsd_element))
+
+        group.model = 'sequence'
+        self.assertFalse(group.is_optional(group[0]))
+        for xsd_element in group[1]:
+            self.assertTrue(group.is_optional(xsd_element))
+
 
 if __name__ == '__main__':
     import platform

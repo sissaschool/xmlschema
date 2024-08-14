@@ -368,6 +368,52 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                 except IndexError:
                     return
 
+    def is_optional(self, particle: ModelParticleType) -> bool:
+        """
+        Returns `True` if a particle can be optional in the model. This a raw check,
+        because the optionality can depend on the presence and the position of other
+        elements, that can be checked only using a `ModelVisitor` instance. Raises an
+        `XMLSchemaValueError` if the particle is not part of the model group.
+        """
+        if self.max_occurs == 0:
+            raise XMLSchemaValueError("the model group is empty")
+
+        groups = [self]
+        iterators: List[Iterator[ModelParticleType]] = []
+        particles = iter(self)
+
+        while True:
+            for item in particles:
+                if item is particle:
+                    if item.min_occurs == 0:
+                        return True
+
+                    for group in reversed(groups):
+                        if group.min_occurs == 0:
+                            return True
+                        elif group.model == 'choice' and len(group) > 1:
+                            return True
+                    else:
+                        return False
+
+                if isinstance(item, XsdGroup):
+                    if item.max_occurs == 0:
+                        continue
+
+                    groups.append(item)
+                    iterators.append(particles)
+                    particles = iter(item.content)
+                    if len(iterators) > limits.MAX_MODEL_DEPTH:
+                        raise XMLSchemaModelDepthError(self)
+                    break
+            else:
+                try:
+                    groups.pop()
+                    particles = iterators.pop()
+                except IndexError:
+                    msg = "The provided particle is not part of the model group"
+                    raise XMLSchemaValueError(msg)
+
     def get_subgroups(self, item: ModelParticleType) -> List['XsdGroup']:
         """
         Returns a list of the groups that represent the path to the enclosed particle.
