@@ -11,7 +11,7 @@
 This module contains classes for XML Schema wildcards.
 """
 from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, \
-    Tuple, Union, Counter
+    Tuple, Union
 
 from elementpath import SchemaElementNode, build_schema_node_tree
 
@@ -20,16 +20,13 @@ from ..names import XSI_NAMESPACE, XSD_ANY, XSD_ANY_ATTRIBUTE, \
     XSD_OPEN_CONTENT, XSD_DEFAULT_OPEN_CONTENT, XSI_TYPE
 from ..aliases import ElementType, SchemaType, SchemaElementType, SchemaAttributeType, \
     ModelGroupType, ModelParticleType, AtomicValueType, IterDecodeType, IterEncodeType, \
-    DecodedValueType, EncodedValueType
+    DecodedValueType, EncodedValueType, OccursCounterType
 from ..translation import gettext as _
 from ..helpers import get_namespace, raw_xml_encode
 from ..xpath import XMLSchemaProxy, ElementPathMixin
 from .xsdbase import ValidationMixin, XsdComponent
 from .particles import ParticleMixin
 from . import elements
-
-
-OccursCounterType = Counter[Union[ModelParticleType, Tuple[ModelParticleType]]]
 
 
 class XsdWildcard(XsdComponent):
@@ -782,7 +779,7 @@ class Xsd11AnyElement(XsdAnyElement):
             if occurs is None:
                 if any(e.is_matching(name) for e in self.precedences[group]):
                     return False
-            elif any(e.is_matching(name) and not e.is_over(occurs[e])
+            elif any(e.is_matching(name) and not e.is_over(occurs)
                      for e in self.precedences[group]):
                 return False
 

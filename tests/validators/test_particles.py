@@ -10,6 +10,7 @@
 #
 import os
 import unittest
+from collections import Counter
 from xml.etree import ElementTree
 
 from xmlschema import XMLSchema10, XMLSchemaParseError
@@ -65,16 +66,36 @@ class TestParticleMixin(unittest.TestCase):
         self.assertTrue(self.schema.elements['cars'].is_univocal())
         self.assertFalse(self.schema.elements['cars'].type.content[0].is_univocal())
 
-    def test_is_missing(self):
-        self.assertTrue(self.schema.elements['cars'].is_missing(0))
-        self.assertFalse(self.schema.elements['cars'].is_missing(1))
-        self.assertFalse(self.schema.elements['cars'].is_missing(2))
-        self.assertFalse(self.schema.elements['cars'].type.content[0].is_missing(0))
+    def test_occurs_checkers(self):
+        xsd_element = self.schema.elements['cars']
 
-    def test_is_over(self):
-        self.assertFalse(self.schema.elements['cars'].is_over(0))
-        self.assertTrue(self.schema.elements['cars'].is_over(1))
-        self.assertFalse(self.schema.elements['cars'].type.content[0].is_over(1000))
+        occurs = Counter()
+        self.assertTrue(xsd_element.is_missing(occurs))
+        self.assertFalse(xsd_element.is_over(occurs))
+        self.assertFalse(xsd_element.is_exceeded(occurs))
+
+        occurs[xsd_element] += 1
+        self.assertFalse(xsd_element.is_missing(occurs))
+        self.assertTrue(xsd_element.is_over(occurs))
+        self.assertFalse(xsd_element.is_exceeded(occurs))
+
+        occurs[xsd_element] += 1
+        self.assertFalse(xsd_element.is_missing(occurs))
+        self.assertTrue(xsd_element.is_over(occurs))
+        self.assertTrue(xsd_element.is_exceeded(occurs))
+
+        xsd_element = self.schema.elements['cars'].type.content[0]  # car
+        self.assertTrue(xsd_element.min_occurs == 0)
+        self.assertTrue(xsd_element.max_occurs is None)
+
+        self.assertFalse(xsd_element.is_missing(occurs))
+        self.assertFalse(xsd_element.is_over(occurs))
+        self.assertFalse(xsd_element.is_exceeded(occurs))
+
+        occurs[xsd_element] += 1000
+        self.assertFalse(xsd_element.is_missing(occurs))
+        self.assertFalse(xsd_element.is_over(occurs))
+        self.assertFalse(xsd_element.is_exceeded(occurs))
 
     def test_has_occurs_restriction(self):
         schema = XMLSchema10("""<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">

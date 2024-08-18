@@ -909,7 +909,7 @@ class TestModelValidation(XsdValidatorTestCase):
             <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
                 <xs:element name="root">
                     <xs:complexType>
-                        <xs:sequence minOccurs="0" maxOccurs="unbounded">                        
+                        <xs:sequence minOccurs="0" maxOccurs="unbounded">
                             <xs:group ref="group1" minOccurs="2" maxOccurs="unbounded"/>
                             <xs:group ref="group2" minOccurs="0" maxOccurs="unbounded"/>
                             <xs:group ref="group3" maxOccurs="unbounded"/>
@@ -1001,7 +1001,7 @@ class TestModelValidation(XsdValidatorTestCase):
             <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
                 <xs:element name="root">
                     <xs:complexType>
-                        <xs:sequence>                        
+                        <xs:sequence>
                             <xs:element name="a1"/>
                             <xs:group ref="group1" maxOccurs="unbounded"/>
                         </xs:sequence>
@@ -1054,7 +1054,7 @@ class TestModelValidation(XsdValidatorTestCase):
 
     def test_stoppable_property(self):
         schema = self.schema_class(dedent(
-            """<?xml version="1.0" encoding="UTF-8"?>   
+            """<?xml version="1.0" encoding="UTF-8"?>
             <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
                 <xs:element name="root">
                     <xs:complexType>
@@ -1082,7 +1082,7 @@ class TestModelValidation(XsdValidatorTestCase):
 
     def test_occurs_check_methods_for_elements(self):
         schema = self.schema_class(dedent(
-            """<?xml version="1.0" encoding="UTF-8"?>   
+            """<?xml version="1.0" encoding="UTF-8"?>
             <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
                 <xs:element name="root">
                     <xs:complexType>

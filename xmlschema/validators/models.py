@@ -11,14 +11,19 @@
 This module contains a function and a class for validating XSD content models,
 plus a set of functions for manipulating encoded content.
 """
+import sys
 from collections import defaultdict, deque, Counter
 from copy import copy
 from operator import attrgetter
-from typing import Any, Dict, Iterable, Iterator, List, \
-    MutableMapping, MutableSequence, Optional, Tuple, Union
+from typing import Any, Dict, Iterable, Iterator, List, Optional, Tuple, Union
 import warnings
 
-from ..exceptions import XMLSchemaValueError
+if sys.version_info >= (3, 9):
+    from collections.abc import MutableMapping, MutableSequence
+else:
+    from typing import MutableMapping, MutableSequence
+
+from ..exceptions import XMLSchemaRuntimeError, XMLSchemaTypeError, XMLSchemaValueError
 from ..aliases import ModelGroupType, ModelParticleType, SchemaElementType, \
     OccursCounterType
 from ..translation import gettext as _
@@ -258,7 +263,7 @@ class ModelVisitor:
 
     def match_element(self, tag: str) -> Optional[SchemaElementType]:
         if self.element is None:
-            raise XMLSchemaValueError("cannot match, %r is ended!" % self)
+            raise XMLSchemaValueError(f"can't match the tag, {self!r} is ended!")
         elif self.element.max_occurs == 0:
             return None
         elif self.element.name is None:
@@ -364,7 +369,7 @@ class ModelVisitor:
             return item, item_occurs, expected
 
         if self.element is None:
-            raise XMLSchemaValueError("can't advance, %r is ended!" % self)
+            raise XMLSchemaValueError(f"can't advance, {self!r} is ended!")
 
         item = self.element
         occurs = self.occurs
@@ -489,7 +494,8 @@ class ModelVisitor:
         return iter_collapsed_content(content, self.root)
 
     ###
-    # Additional properties and methods, not used by validation.
+    # Additional properties and methods, not used by validation. These methods can
+    # be used ad helpers for a content model builder.
 
     def __copy__(self) -> 'ModelVisitor':
         model: 'ModelVisitor' = object.__new__(self.__class__)
@@ -532,34 +538,149 @@ class ModelVisitor:
         else:
             return True
 
-    def is_missing(self, particle: Optional[ModelParticleType] = None) -> bool:
-        """Tests if particle occurrences are under the minimum. Defaults to current element."""
+    def get_model_particle(self, particle: Optional[ModelParticleType] = None) \
+            -> ModelParticleType:
+        """
+        Checks if the provided particle belongs to the current model, raising
+        a `XMLSchemaModelError` in case if it's not. Defaults to current element
+        if no particle is provided, raising a `XMLSchemaValueError` if the model
+        is ended.
+        """
         if particle is not None:
-            return particle.is_missing(self.occurs)
+            for _group in self.group.get_subgroups(particle):
+                break
+            return particle
         elif self.element is not None:
-            return self.element.is_missing(self.occurs)
+            return self.element
         else:
-            raise XMLSchemaValueError(f"can't test the current element, {self} is ended!")
+            raise XMLSchemaValueError(f"can't defaults to current element, {self!r} is ended!")
+
+    def overall_min_occurs(self, particle: Optional[ModelParticleType] = None) -> int:
+        """
+        Returns the overall min occurs of a particle in the model subtracting the
+        occurrences already registered by the occurs counter. Defaults to current
+        element.
+        """
+        particle = self.get_model_particle(particle)
+        min_occurs = 1
+        for group in self.group.get_subgroups(particle):
+            group_min_occurs = group.min_occurs - self.occurs[group]
+            if group_min_occurs <= 0 or group.model == 'choice' and len(group) > 1:
+                return 0
+            min_occurs *= group_min_occurs
+
+        return min_occurs * particle.min_occurs - self.occurs[particle]
+
+    def overall_max_occurs(self, particle: Optional[ModelParticleType] = None) -> Optional[int]:
+        """
+        Returns the overall max occurs of a particle in the model subtracting the
+        occurrences already registered by the occurs counter. Defaults to current
+        element.
+        """
+        particle = self.get_model_particle(particle)
+        max_occurs: Optional[int] = 1
+
+        for group in self.group.get_subgroups(particle):
+            group_max_occurs = group.max_occurs
+            if group_max_occurs == 0:
+                return 0
+            elif max_occurs is None:
+                continue
+            elif group_max_occurs is None:
+                max_occurs = None
+            else:
+                group_max_occurs -= self.occurs[group]
+                if group_max_occurs <= 0:
+                    return 0
+                max_occurs *= group_max_occurs
+
+        if particle.max_occurs == 0:
+            return 0
+        elif particle.max_occurs is None or max_occurs is None:
+            return None
+        else:
+            return max_occurs * particle.max_occurs - self.occurs[particle]
+
+    def is_optional(self, particle: Optional[ModelParticleType] = None) -> bool:
+        """
+        Tests if the particle can be omitted in the current model status.
+        Defaults to current element.
+        """
+        particle = self.get_model_particle(particle)
+        return self.overall_min_occurs(particle) == 0
+
+    def is_missing(self, particle: Optional[ModelParticleType] = None) -> bool:
+        """
+        Tests if particle occurrences are under the minimum. If the argument is
+        `None` then tests the current element.
+        """
+        return self.get_model_particle(particle).is_missing(self.occurs)
 
     def is_over(self, particle: Optional[ModelParticleType] = None) -> bool:
         """
-        Tests if particle occurrences are equal or over the maximum. Defaults to current element.
+        Tests if particle occurrences are equal or over the maximum. If the
+        argument is `None` then tests the current element.
         """
-        if particle is not None:
-            return particle.is_over(self.occurs)
-        elif self.element is not None:
-            return self.element.is_over(self.occurs)
-        else:
-            raise XMLSchemaValueError(f"can't test the current element, {self} is ended!")
+        return self.get_model_particle(particle).is_over(self.occurs)
 
     def is_exceeded(self, particle: Optional[ModelParticleType] = None) -> bool:
-        """Tests if particle occurrences are over the maximum. Defaults to current element."""
-        if particle is not None:
-            return particle.is_exceeded(self.occurs)
-        elif self.element is not None:
-            return self.element.is_exceeded(self.occurs)
+        """
+        Tests if particle occurrences are over the maximum. If the argument
+        is `None` then tests the current element.
+        """
+        return self.get_model_particle(particle).is_exceeded(self.occurs)
+
+    def advance_until(self, tag: str) -> Iterator[AdvanceYieldedType]:
+        """
+        Advance until an element that matches `tag` is found. Stops after
+        an error in advancing. If the model ends before the tag is found
+        raise an `XMLSchemaValueError`.
+        """
+        _err: Optional[AdvanceYieldedType] = None
+        while True:
+            if _err is not None:
+                return
+            elif self.element is None:
+                raise XMLSchemaValueError(f"can't advance, {self!r} is ended!")
+            elif self.match_element(tag):
+                yield from self.advance(True)
+                return
+            else:
+                for _err in self.advance(False):
+                    yield _err
+
+    def check_followings(self, *tags: str) -> bool:
+        """
+        Returns `True` if the model can be advanced without errors adding
+        the provided sequence of elements, represented by their tags.
+        """
+        if not tags:
+            raise XMLSchemaTypeError("at least one tag must be provided")
+
+        model = copy(self)
+        for tag in tags:
+            try:
+                for _err in model.advance_until(tag):
+                    return False
+            except XMLSchemaValueError:
+                return False
         else:
-            raise XMLSchemaValueError(f"can't test the current element, {self} is ended!")
+            return True
+
+    def advance_safe(self, *tags: str) -> bool:
+        """
+        Advance the model with the provided sequence of tags if the advance doesn't
+        produce errors or the ending of the model. Returns `True` if the advance has
+        been done, `False` otherwise.
+        """
+        if not self.check_followings(*tags):
+            return False
+
+        for tag in tags:
+            for _err in self.advance_until(tag):
+                raise XMLSchemaRuntimeError("Unexpected advance error")
+        else:
+            return True
 
 
 class InterleavedModelVisitor(ModelVisitor):

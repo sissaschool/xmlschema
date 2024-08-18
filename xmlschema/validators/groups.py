@@ -368,63 +368,18 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                 except IndexError:
                     return
 
-    def is_optional(self, particle: ModelParticleType) -> bool:
-        """
-        Returns `True` if a particle can be optional in the model. This a raw check,
-        because the optionality can depend on the presence and the position of other
-        elements, that can be checked only using a `ModelVisitor` instance. Raises an
-        `XMLSchemaValueError` if the particle is not part of the model group.
-        """
-        if self.max_occurs == 0:
-            raise XMLSchemaValueError("the model group is empty")
-
-        groups = [self]
-        iterators: List[Iterator[ModelParticleType]] = []
-        particles = iter(self)
-
-        while True:
-            for item in particles:
-                if item is particle:
-                    if item.min_occurs == 0:
-                        return True
-
-                    for group in reversed(groups):
-                        if group.min_occurs == 0:
-                            return True
-                        elif group.model == 'choice' and len(group) > 1:
-                            return True
-                    else:
-                        return False
-
-                if isinstance(item, XsdGroup):
-                    if item.max_occurs == 0:
-                        continue
-
-                    groups.append(item)
-                    iterators.append(particles)
-                    particles = iter(item.content)
-                    if len(iterators) > limits.MAX_MODEL_DEPTH:
-                        raise XMLSchemaModelDepthError(self)
-                    break
-            else:
-                try:
-                    groups.pop()
-                    particles = iterators.pop()
-                except IndexError:
-                    msg = "The provided particle is not part of the model group"
-                    raise XMLSchemaValueError(msg)
-
-    def get_subgroups(self, item: ModelParticleType) -> List['XsdGroup']:
+    def get_subgroups(self, particle: ModelParticleType) -> List['XsdGroup']:
         """
         Returns a list of the groups that represent the path to the enclosed particle.
-        Raises an `XMLSchemaModelError` if *item* is not a particle of the model group.
+        Raises an `XMLSchemaModelError` if the argument is not a particle of the model
+        group.
         """
         subgroups: List[Tuple[XsdGroup, Iterator[ModelParticleType]]] = []
         group, children = self, iter(self)
 
         while True:
             for child in children:
-                if child is item:
+                if child is particle:
                     _subgroups = [x[0] for x in subgroups]
                     _subgroups.append(group)
                     return _subgroups
@@ -439,41 +394,38 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                     group, children = subgroups.pop()
                 except IndexError:
                     msg = _('{!r} is not a particle of the model group')
-                    raise XMLSchemaModelError(self, msg.format(item)) from None
+                    raise XMLSchemaModelError(self, msg.format(particle)) from None
 
-    def overall_min_occurs(self, item: ModelParticleType) -> int:
-        """Returns the overall min occurs of a particle in the model."""
-        min_occurs = item.min_occurs
+    def get_model_visitor(self) -> ModelVisitor:
+        if self.open_content is None or self.open_content.mode == 'none':
+            return ModelVisitor(self)
+        elif self.open_content.mode == 'interleave':
+            return InterleavedModelVisitor(self, self.open_content.any_element)
+        else:
+            return SuffixedModelVisitor(self, self.open_content.any_element)
 
-        for group in self.get_subgroups(item):
-            if group.model == 'choice' and len(group) > 1:
-                return 0
-            min_occurs *= group.min_occurs
+    def overall_min_occurs(self, particle: ModelParticleType) -> int:
+        """
+        Returns the overall min occurs of a particle in the model group.
+        """
+        model = self.get_model_visitor()
+        return model.overall_min_occurs(particle)
 
-        return min_occurs
+    def overall_max_occurs(self, particle: ModelParticleType) -> Optional[int]:
+        """
+        Returns the overall max occurs of a particle in the model group.
+        """
+        model = self.get_model_visitor()
+        return model.overall_max_occurs(particle)
 
-    def overall_max_occurs(self, item: ModelParticleType) -> Optional[int]:
-        """Returns the overall max occurs of a particle in the model."""
-        max_occurs = item.max_occurs
+    def is_optional(self, particle: ModelParticleType) -> bool:
+        """
+        Returns `True` if the provided particle can be optional in the model group.
+        """
+        return self.overall_min_occurs(particle) == 0
 
-        for group in self.get_subgroups(item):
-            if max_occurs == 0:
-                return 0
-            elif max_occurs is None:
-                continue
-            elif group.max_occurs is None:
-                max_occurs = None
-            else:
-                max_occurs *= group.max_occurs
-
-        return max_occurs
-
-    def is_missing(self, occurs: Union[OccursCounterType, int]) -> bool:
-        try:
-            value = occurs[self.oid] or occurs[self]  # type: ignore[index]
-        except TypeError:
-            value = occurs
-
+    def is_missing(self, occurs: OccursCounterType) -> bool:
+        value = occurs[self.oid] or occurs[self]
         return not self.is_emptiable() if value == 0 else self.min_occurs > value
 
     def get_expected(self, occurs: OccursCounterType) -> List[SchemaElementType]:
@@ -1042,16 +994,10 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         xsd_element: Optional[SchemaElementType]
         expected: Optional[List[SchemaElementType]]
 
-        if self.open_content is None or self.open_content.mode == 'none':
-            model = ModelVisitor(self)
-        elif self.open_content.mode == 'interleave':
-            model = InterleavedModelVisitor(self, self.open_content.any_element)
-        else:
-            model = SuffixedModelVisitor(self, self.open_content.any_element)
-
         errors = []
         broken_model = False
         namespaces = converter.namespaces
+        model = self.get_model_visitor()
 
         for index, child in enumerate(obj):
             if callable(child.tag):
@@ -1168,16 +1114,10 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         padding = '\n' + ' ' * converter.indent * level
         default_namespace = converter.get('')
 
-        if self.open_content is None or self.open_content.mode == 'none':
-            model = ModelVisitor(self)
-        elif self.open_content.mode == 'interleave':
-            model = InterleavedModelVisitor(self, self.open_content.any_element)
-        else:
-            model = SuffixedModelVisitor(self, self.open_content.any_element)
-
         index = cdata_index = 0
         wrong_content_type = False
         over_max_depth = 'max_depth' in kwargs and kwargs['max_depth'] <= level
+        model = self.get_model_visitor()
 
         content: Iterable[Any]
         if not obj.content:
