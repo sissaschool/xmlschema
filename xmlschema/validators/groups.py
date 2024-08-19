@@ -375,7 +375,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         group.
         """
         subgroups: List[Tuple[XsdGroup, Iterator[ModelParticleType]]] = []
-        group, children = self, iter(self)
+        group, children = self, iter(self if self.ref is None else self.ref)
 
         while True:
             for child in children:
@@ -387,7 +387,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                     if len(subgroups) > limits.MAX_MODEL_DEPTH:
                         raise XMLSchemaModelDepthError(self)
                     subgroups.append((group, children))
-                    group, children = child, iter(child)
+                    group, children = child, iter(child if child.ref is None else child.ref)
                     break
             else:
                 try:

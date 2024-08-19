@@ -547,7 +547,7 @@ class ModelVisitor:
         is ended.
         """
         if particle is not None:
-            for _group in self.group.get_subgroups(particle):
+            for _group in self.root.get_subgroups(particle):
                 break
             return particle
         elif self.element is not None:
@@ -563,13 +563,13 @@ class ModelVisitor:
         """
         particle = self.get_model_particle(particle)
         min_occurs = 1
-        for group in self.group.get_subgroups(particle):
+        for group in self.root.get_subgroups(particle):
             group_min_occurs = group.min_occurs - self.occurs[group]
             if group_min_occurs <= 0 or group.model == 'choice' and len(group) > 1:
                 return 0
             min_occurs *= group_min_occurs
 
-        return min_occurs * particle.min_occurs - self.occurs[particle]
+        return max(0, min_occurs * particle.min_occurs - self.occurs[particle])
 
     def overall_max_occurs(self, particle: Optional[ModelParticleType] = None) -> Optional[int]:
         """
@@ -580,7 +580,7 @@ class ModelVisitor:
         particle = self.get_model_particle(particle)
         max_occurs: Optional[int] = 1
 
-        for group in self.group.get_subgroups(particle):
+        for group in self.root.get_subgroups(particle):
             group_max_occurs = group.max_occurs
             if group_max_occurs == 0:
                 return 0
@@ -632,9 +632,9 @@ class ModelVisitor:
 
     def advance_until(self, tag: str) -> Iterator[AdvanceYieldedType]:
         """
-        Advance until an element that matches `tag` is found. Stops after
-        an error in advancing. If the model ends before the tag is found
-        raise an `XMLSchemaValueError`.
+        Advances until an element matching `tag` is found. Stops after
+        an error in advancing. If the model ends before the tag is found,
+        it throws an `XMLSchemaValueError`.
         """
         _err: Optional[AdvanceYieldedType] = None
         while True:
@@ -649,7 +649,7 @@ class ModelVisitor:
                 for _err in self.advance(False):
                     yield _err
 
-    def check_followings(self, *tags: str) -> bool:
+    def check_following(self, *tags: str) -> bool:
         """
         Returns `True` if the model can be advanced without errors adding
         the provided sequence of elements, represented by their tags.
@@ -673,7 +673,7 @@ class ModelVisitor:
         produce errors or the ending of the model. Returns `True` if the advance has
         been done, `False` otherwise.
         """
-        if not self.check_followings(*tags):
+        if not self.check_following(*tags):
             return False
 
         for tag in tags:
