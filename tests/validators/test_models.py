@@ -1309,11 +1309,11 @@ class TestModelValidation(XsdValidatorTestCase):
         a, b, c, d = group
 
         model = ModelVisitor(group)
-        self.assertTrue(model.check_following(a.name))
-        self.assertTrue(model.check_following(b.name))
-        self.assertTrue(model.check_following(a.name, b.name))
-        self.assertFalse(model.check_following(c.name))
-        self.assertFalse(model.check_following(d.name))
+        self.assertTrue(model.check_following(a))
+        self.assertTrue(model.check_following(b))
+        self.assertTrue(model.check_following((a, 1), b.name))
+        self.assertFalse(model.check_following(c))
+        self.assertFalse(model.check_following(d))
 
     def test_advance_smart_methods(self):
         schema = self.schema_class(dedent(

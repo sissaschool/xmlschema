@@ -35,6 +35,7 @@ from . import groups
 AdvanceYieldedType = Tuple[ModelParticleType, int, List[SchemaElementType]]
 ContentItemType = Tuple[Union[int, str], Any]
 EncodedContentType = Union[MutableMapping[Union[int, str], Any], Iterable[ContentItemType]]
+StepType = Union[str, SchemaElementType, Tuple[Union[str, SchemaElementType], int]]
 
 get_occurs = attrgetter('min_occurs', 'max_occurs')
 
@@ -630,11 +631,38 @@ class ModelVisitor:
         """
         return self.get_model_particle(particle).is_exceeded(self.occurs)
 
-    def advance_until(self, tag: str) -> Iterator[AdvanceYieldedType]:
+    def advance_to(self, element: SchemaElementType) -> Iterator[AdvanceYieldedType]:
         """
-        Advances until an element matching `tag` is found. Stops after
+        Advances to the XSD element of the model. Stops after an error in advancing.
+        If the elements hasn't residual occurs or if the model ends before the XSD
+        element is reached throws an `XMLSchemaValueError`.
+        """
+        if self.overall_max_occurs(element) == 0:
+            raise XMLSchemaValueError(f"{self!r} hasn't residual occurs")
+
+        _err: Optional[AdvanceYieldedType] = None
+        while True:
+            if _err is not None:
+                return
+            elif self.element is None:
+                raise XMLSchemaValueError(f"can't advance, {self!r} is ended!")
+            elif self.element is element:
+                return
+            else:
+                for _err in self.advance(False):
+                    yield _err
+
+    def advance_until(self, target: Union[str, SchemaElementType],
+                      occurs: int = 1) -> Iterator[AdvanceYieldedType]:
+        """
+        Advances until an element matching `target` is found. Stops after
         an error in advancing. If the model ends before the tag is found,
         it throws an `XMLSchemaValueError`.
+
+        :param target: can be a tag or an XSD element/wildcard of the model.
+        :param occurs: number of occurrences to consume for target element, \
+        for default consumes one occurrence. The consumed occurrences can be \
+        non-consecutive.
         """
         _err: Optional[AdvanceYieldedType] = None
         while True:
@@ -642,42 +670,63 @@ class ModelVisitor:
                 return
             elif self.element is None:
                 raise XMLSchemaValueError(f"can't advance, {self!r} is ended!")
-            elif self.match_element(tag):
-                yield from self.advance(True)
-                return
+            elif isinstance(target, str):
+                while self.match_element(target):
+                    if occurs >= 1:
+                        yield from self.advance(True)
+                    occurs -= 1
+                    if occurs <= 0:
+                        return
+                else:
+                    for _err in self.advance(False):
+                        yield _err
             else:
-                for _err in self.advance(False):
-                    yield _err
+                while target is self.element:
+                    if occurs >= 1:
+                        yield from self.advance(True)
+                    occurs -= 1
+                    if occurs <= 0:
+                        return
+                else:
+                    for _err in self.advance(False):
+                        yield _err
 
-    def check_following(self, *tags: str) -> bool:
+    def check_following(self, *steps: StepType) -> bool:
         """
-        Returns `True` if the model can be advanced without errors adding
-        the provided sequence of elements, represented by their tags.
+        Returns `True` if the model can be advanced without errors applying
+        the provided sequence of steps.
+
+        :param steps: sequence of steps to apply, each step can be an XSD element \
+        of the model or a tag, or the same info coupled with a non-negative integer \
+        that represents the occurs to be applied on the element (1 for default).
         """
-        if not tags:
-            raise XMLSchemaTypeError("at least one tag must be provided")
+        if not steps:
+            raise XMLSchemaTypeError("at least one step must be provided")
 
         model = copy(self)
-        for tag in tags:
+        for step in steps:
+            target, occurs = step if isinstance(step, tuple) else (step, 1)
+
             try:
-                for _err in model.advance_until(tag):
+                for _err in model.advance_until(target, occurs):
                     return False
             except XMLSchemaValueError:
                 return False
         else:
             return True
 
-    def advance_safe(self, *tags: str) -> bool:
+    def advance_safe(self, *steps: str) -> bool:
         """
-        Advance the model with the provided sequence of tags if the advance doesn't
+        Advance the model with the provided sequence of steps if the advance doesn't
         produce errors or the ending of the model. Returns `True` if the advance has
         been done, `False` otherwise.
         """
-        if not self.check_following(*tags):
+        if not self.check_following(*steps):
             return False
 
-        for tag in tags:
-            for _err in self.advance_until(tag):
+        for step in steps:
+            target, occurs = step if isinstance(step, tuple) else (step, 1)
+            for _err in self.advance_until(target, occurs):
                 raise XMLSchemaRuntimeError("Unexpected advance error")
         else:
             return True
