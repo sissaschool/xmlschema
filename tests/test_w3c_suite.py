@@ -15,6 +15,7 @@ import unittest
 import argparse
 import os.path
 import warnings
+from pathlib import Path
 from xml.etree import ElementTree
 
 try:
@@ -22,7 +23,8 @@ try:
 except ImportError:
     lxml_etree = None
 
-from xmlschema import validate, XMLSchema10, XMLSchema11, XMLSchemaException
+from xmlschema import validate, XMLSchema10, XMLSchema11, \
+    XMLSchemaException, XMLSchemaValidationError
 
 TEST_SUITE_NAMESPACE = "http://www.w3.org/XML/2004/xml-schema-test-suite/"
 XLINK_NAMESPACE = "http://www.w3.org/1999/xlink"
@@ -365,6 +367,30 @@ def create_w3c_test_group_case(args, filename, group_elem, group_num, xsd_versio
         return
 
     class TestGroupCase(unittest.TestCase):
+        elem = group_elem
+
+        @classmethod
+        def get_add_info(cls, error=None, *files):
+            if len(args.numbers) != 1:
+                return ''
+
+            if error is None:
+                msg = ''
+            elif isinstance(error, XMLSchemaValidationError) and error.stack_trace:
+                msg = f"\n\n{error}\n{error.stack_trace}"
+            else:
+                msg = f"\n\n*** Error description ***\n\n{error}"
+
+            ElementTree.register_namespace('', TEST_SUITE_NAMESPACE)
+            case_info = ElementTree.tostring(cls.elem).decode('utf-8')
+            msg = f"{msg}\n\n*** Case info ***\n\n{case_info}"
+
+            for filepath in map(Path, files):
+                with filepath.open() as fp:
+                    msg = f"{msg}\n\n*** {filepath.name} ***\n\n{fp.read()}"
+
+            return msg
+
         @unittest.skipIf(group_tests[0]['source'].endswith('.xml'), 'No schema test')
         def test_xsd_schema(self):
             for item in filter(lambda x: x['source'].endswith('.xsd'), group_tests):
@@ -386,7 +412,9 @@ def create_w3c_test_group_case(args, filename, group_elem, group_num, xsd_versio
 
                     schema_class = XMLSchema11 if version == '1.1' else XMLSchema10
                     if expected == 'invalid':
-                        message = f"schema {rel_path} should be invalid with XSD {version}"
+                        message = f"schema {rel_path} should be invalid with XSD " \
+                                  f"{version} {self.get_add_info(None, rel_path)}"
+
                         with self.assertRaises(XMLSchemaException, msg=message):
                             with warnings.catch_warnings():
                                 warnings.simplefilter('ignore')
@@ -416,8 +444,9 @@ def create_w3c_test_group_case(args, filename, group_elem, group_num, xsd_versio
                                     schema.build()
                         except XMLSchemaException as err:
                             schema = None
-                            message = "schema %s should be valid with XSD %s, but an error " \
-                                      "is raised:\n\n%s" % (rel_path, version, str(err))
+                            message = \
+                                f"schema {rel_path} should be valid with XSD {version}" \
+                                f", but an error is raised: {self.get_add_info(err, source)}"
                         else:
                             message = None
 
@@ -441,7 +470,9 @@ def create_w3c_test_group_case(args, filename, group_elem, group_num, xsd_versio
                 for version, expected in sorted(filter(lambda x: x[0] != 'source', item.items())):
                     schema_class = XMLSchema11 if version == '1.1' else XMLSchema10
                     if expected == 'invalid':
-                        message = f"instance {rel_path} should be invalid with XSD {version}"
+                        message = f"instance {rel_path} should be invalid with XSD {version}:" \
+                                  f"{self.get_add_info(None, *schemas, rel_path)}"
+
                         with self.assertRaises((XMLSchemaException, ElementTree.ParseError),
                                                msg=message):
                             with warnings.catch_warnings():
@@ -471,17 +502,20 @@ def create_w3c_test_group_case(args, filename, group_elem, group_num, xsd_versio
                                     xs.validate(source)
 
                         except (XMLSchemaException, ElementTree.ParseError) as err:
-                            error = "instance %s should be valid with XSD %s, but an error " \
-                                    "is raised:\n\n%s" % (rel_path, version, str(err))
+                            error = f"instance {rel_path} should be valid with XSD " \
+                                    f"{version} but an {err.__class__.__name__} is raised"
+                            msg = self.get_add_info(err, *schemas, rel_path)
                         else:
-                            error = None
-                        self.assertIsNone(error)
+                            error, msg = None, ''
+
+                        self.assertIsNone(error, msg)
 
     if not any(g['source'].endswith('.xsd') for g in group_tests):
         del TestGroupCase.test_xsd_schema
     if not any(g['source'].endswith('.xml') for g in group_tests):
         del TestGroupCase.test_xml_instances
 
+    TestGroupCase.elem = group_elem
     TestGroupCase.__name__ = TestGroupCase.__qualname__ = str(
         'TestGroupCase{:05}_{}'.format(group_num, name.replace('-', '_'))
     )

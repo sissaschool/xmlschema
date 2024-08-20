@@ -16,10 +16,11 @@ from xmlschema.aliases import NsmapType, BaseXsdType
 from xmlschema.names import XSD_ANY_TYPE
 from xmlschema.utils.qnames import local_name
 
-from .default import ElementData, stackable, XMLSchemaConverter
+from .element_data import ElementData
+from .default import stackable, XMLSchemaConverter
 
 if TYPE_CHECKING:
-    from ..validators import XsdElement
+    from xmlschema.validators import XsdElement
 
 
 class GDataConverter(XMLSchemaConverter):

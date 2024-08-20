@@ -20,9 +20,8 @@ try:
 except ImportError:
     lxml_etree = None
 
-from xmlschema import DataElement, XMLResource, XMLSchemaConverter, JsonMLConverter
 from xmlschema.validators import XsdValidator, XsdComponent, XMLSchema10, XMLSchema11, \
-    XMLSchemaParseError, XMLSchemaValidationError, XsdAnnotation, XsdGroup, XsdSimpleType
+    XMLSchemaParseError, XsdAnnotation, XsdGroup, XsdSimpleType
 from xmlschema.validators.xsdbase import check_validation_mode
 from xmlschema.names import XSD_NAMESPACE, XSD_ELEMENT, XSD_ANNOTATION, XSD_ANY_TYPE
 
@@ -575,41 +574,6 @@ class TestXsdComponent(unittest.TestCase):
         self.assertIn('The root element', str(xsd_element.annotation))
         self.assertIsNone(xsd_element.attributes.annotation)
 
-    def test_get_converter(self):
-        schema = XMLSchema10(dedent("""\
-            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
-                <xs:element name="root"/>
-            </xs:schema>"""))
-
-        resource = XMLResource('<root xmlns:tns="http://example.test/ns1"/>')
-        namespaces = {'tns': 'http://example.test/ns0'}
-        obj = {'root': {'@xmlns:tns="http://example.test/ns1'}}
-
-        kwargs = {'preserve_root': True, 'namespaces': namespaces}
-        converter = schema.elements['root']._get_converter(resource, kwargs)
-        self.assertIsInstance(converter, XMLSchemaConverter)
-        self.assertDictEqual(
-            kwargs['namespaces'],
-            {'tns': 'http://example.test/ns0', 'tns0': 'http://example.test/ns1'}
-        )
-        self.assertIs(converter, kwargs['converter'])
-        self.assertIs(converter.namespaces, kwargs['namespaces'])
-        self.assertTrue(converter.preserve_root)
-        self.assertIs(resource, kwargs['source'])
-
-        kwargs = {'converter': JsonMLConverter}
-        converter = schema.elements['root']._get_converter(resource.root, kwargs)
-        self.assertIsInstance(converter, JsonMLConverter)
-        self.assertIsNot(resource, kwargs['source'])
-
-        kwargs = {'preserve_root': True}
-        converter = schema.elements['root']._get_converter(obj, kwargs)
-        self.assertIs(converter.source, obj)
-
-        kwargs = {'preserve_root': True, 'source': obj}
-        converter = schema.elements['root']._get_converter(resource, kwargs)
-        self.assertIs(converter.source, obj)
-
 
 class TestXsdType(unittest.TestCase):
 
@@ -770,89 +734,6 @@ class TestXsdType(unittest.TestCase):
         self.assertFalse(self.schema.types['fooType'].is_blocked(element))
         self.assertTrue(self.schema.types['barExtType'].is_blocked(element))
         self.assertFalse(self.schema.types['barResType'].is_blocked(element))
-
-
-class TestValidationMixin(unittest.TestCase):
-
-    @classmethod
-    def setUpClass(cls):
-        xsd_file = os.path.join(CASES_DIR, 'examples/vehicles/vehicles.xsd')
-        cls.schema = XMLSchema10(xsd_file)
-
-    def test_validate(self):
-        xml_file = os.path.join(CASES_DIR, 'examples/vehicles/vehicles.xml')
-        root = ElementTree.parse(xml_file).getroot()
-        self.assertIsNone(self.schema.elements['vehicles'].validate(root))
-
-        xml_file = os.path.join(CASES_DIR, 'examples/vehicles/vehicles-1_error.xml')
-        root = ElementTree.parse(xml_file).getroot()
-        with self.assertRaises(XMLSchemaValidationError):
-            self.schema.elements['vehicles'].validate(root)
-
-    def test_decode(self):
-        xml_file = os.path.join(CASES_DIR, 'examples/vehicles/vehicles.xml')
-        root = ElementTree.parse(xml_file).getroot()
-
-        obj = self.schema.elements['vehicles'].decode(root)
-        self.assertIsInstance(obj, dict)
-        self.assertIn(self.schema.elements['cars'].name, obj)
-        self.assertIn(self.schema.elements['bikes'].name, obj)
-
-        xml_file = os.path.join(CASES_DIR, 'examples/vehicles/vehicles-2_errors.xml')
-        root = ElementTree.parse(xml_file).getroot()
-
-        obj, errors = self.schema.elements['vehicles'].decode(root, validation='lax')
-        self.assertIsInstance(obj, dict)
-        self.assertIn(self.schema.elements['cars'].name, obj)
-        self.assertIn(self.schema.elements['bikes'].name, obj)
-        self.assertEqual(len(errors), 2)
-
-    def test_decode_to_objects(self):
-        xml_file = os.path.join(CASES_DIR, 'examples/vehicles/vehicles.xml')
-        root = ElementTree.parse(xml_file).getroot()
-
-        obj = self.schema.elements['vehicles'].to_objects(root)
-        self.assertIsInstance(obj, DataElement)
-        self.assertEqual(self.schema.elements['vehicles'].name, obj.tag)
-        self.assertIs(obj.__class__, DataElement)
-
-        obj = self.schema.elements['vehicles'].to_objects(root, with_bindings=True)
-        self.assertIsInstance(obj, DataElement)
-        self.assertEqual(self.schema.elements['vehicles'].name, obj.tag)
-        self.assertIsNot(obj.__class__, DataElement)
-        self.assertTrue(issubclass(obj.__class__, DataElement))
-        self.assertEqual(obj.__class__.__name__, 'VehiclesBinding')
-
-    def test_encode(self):
-        xml_file = os.path.join(CASES_DIR, 'examples/vehicles/vehicles.xml')
-        obj = self.schema.decode(xml_file)
-
-        root = self.schema.elements['vehicles'].encode(obj)
-        self.assertEqual(root.tag, self.schema.elements['vehicles'].name)
-
-        xml_file = os.path.join(CASES_DIR, 'examples/vehicles/vehicles-2_errors.xml')
-        obj, errors = self.schema.decode(xml_file, validation='lax')
-
-        root, errors2 = self.schema.elements['vehicles'].encode(obj, validation='lax')
-        self.assertEqual(root.tag, self.schema.elements['vehicles'].name)
-
-    def test_validation_error(self):
-        elem = ElementTree.XML('<foo/>')
-        with self.assertRaises(XMLSchemaValidationError):
-            self.schema.validation_error('strict', 'Test error', obj=elem)
-
-        self.assertIsInstance(self.schema.validation_error('lax', 'Test error'),
-                              XMLSchemaValidationError)
-
-        self.assertIsInstance(self.schema.validation_error('lax', 'Test error'),
-                              XMLSchemaValidationError)
-
-        self.assertIsInstance(self.schema.validation_error('skip', 'Test error'),
-                              XMLSchemaValidationError)
-
-        error = self.schema.validation_error('lax', 'Test error')
-        self.assertIsNone(error.obj)
-        self.assertEqual(self.schema.validation_error('lax', error, obj=10).obj, 10)
 
 
 if __name__ == '__main__':

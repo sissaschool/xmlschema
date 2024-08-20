@@ -36,8 +36,6 @@ if TYPE_CHECKING:
 
 IdentityFieldItemType = Union[AtomicValueType, XsdAttribute, Tuple[Any, ...], None]
 IdentityCounterType = Tuple[IdentityFieldItemType, ...]
-IdentityMapType = Dict[Union['XsdKey', 'XsdKeyref', str, None],
-                       Union['IdentityCounter', 'KeyrefCounter']]
 
 
 # XSD identities use a restricted XPath 2.0 parser. The XMLSchemaProxy is
@@ -61,17 +59,13 @@ def iter_root_elements(token: XPathToken) -> Iterator[XPathToken]:
 class XsdSelector(XsdComponent):
     """Class for defining an XPath selector for an XSD identity constraint."""
     _ADMITTED_TAGS = {XSD_SELECTOR}
-    xpath_default_namespace = ''
-    pattern: Union[str, Pattern[str]] = translate_pattern(
+    _REGEXP = (
         r"(\.//)?(((child::)?((\i\c*:)?(\i\c*|\*)))|\.)(/(((child::)?"
         r"((\i\c*:)?(\i\c*|\*)))|\.))*(\|(\.//)?(((child::)?((\i\c*:)?"
-        r"(\i\c*|\*)))|\.)(/(((child::)?((\i\c*:)?(\i\c*|\*)))|\.))*)*",
-        back_references=False,
-        lazy_quantifiers=False,
-        anchors=False
+        r"(\i\c*|\*)))|\.)(/(((child::)?((\i\c*:)?(\i\c*|\*)))|\.))*)*"
     )
-    token: Optional[XPathToken] = None
-    parser: Optional[IdentityXPathParser] = None
+    pattern: Optional[Pattern[str]] = None
+    xpath_default_namespace = ''
 
     def __init__(self, elem: ElementType, schema: SchemaType,
                  parent: Optional['XsdIdentity']) -> None:
@@ -85,14 +79,17 @@ class XsdSelector(XsdComponent):
             self.path = '*'
         else:
             path = self.path.replace(' ', '')
-            try:
-                _match = self.pattern.match(path)  # type: ignore[union-attr]
-            except AttributeError:
-                # Compile regex pattern
-                self.__class__.pattern = re.compile(self.pattern)
-                _match = self.pattern.match(path)  # type: ignore[union-attr]
+            if self.pattern is None:
+                regexp = translate_pattern(
+                    self._REGEXP,
+                    back_references=False,
+                    lazy_quantifiers=False,
+                    anchors=False
+                )
+                self.__class__.pattern = re.compile(regexp)
+                assert self.pattern is not None
 
-            if not _match:
+            if not self.pattern.match(path):
                 msg = _("invalid XPath expression for an {}")
                 self.parse_error(msg.format(self.__class__.__name__))
 
@@ -121,11 +118,11 @@ class XsdSelector(XsdComponent):
 
     @property
     def built(self) -> bool:
-        return self.token is not None
+        return 'token' in self.__dict__
 
     @property
     def target_namespace(self) -> str:
-        if self.token is None:
+        if 'token' not in self.__dict__:
             pass  # xpathDefaultNamespace="##targetNamespace"
         elif self.token.symbol == ':':
             return self.token[1].namespace or self.xpath_default_namespace
@@ -137,16 +134,14 @@ class XsdSelector(XsdComponent):
 class XsdFieldSelector(XsdSelector):
     """Class for defining an XPath field selector for an XSD identity constraint."""
     _ADMITTED_TAGS = {XSD_FIELD}
-    pattern = translate_pattern(
+    _REGEXP = (
         r"(\.//)?((((child::)?((\i\c*:)?(\i\c*|\*)))|\.)/)*((((child::)?"
         r"((\i\c*:)?(\i\c*|\*)))|\.)|((attribute::|@)((\i\c*:)?(\i\c*|\*))))"
         r"(\|(\.//)?((((child::)?((\i\c*:)?(\i\c*|\*)))|\.)/)*"
         r"((((child::)?((\i\c*:)?(\i\c*|\*)))|\.)|"
-        r"((attribute::|@)((\i\c*:)?(\i\c*|\*)))))*",
-        back_references=False,
-        lazy_quantifiers=False,
-        anchors=False
+        r"((attribute::|@)((\i\c*:)?(\i\c*|\*)))))*"
     )
+    pattern = None
 
 
 class XsdIdentity(XsdComponent):
@@ -453,6 +448,7 @@ class Xsd11Keyref(XsdKeyref):
 
 
 class IdentityCounter:
+    elements: Optional[Set[Any]]  # don't need to check, should be only etree elements anyway
 
     def __init__(self, identity: XsdIdentity, elem: ElementType) -> None:
         self.counter: Counter[IdentityCounterType] = Counter[IdentityCounterType]()
@@ -480,18 +476,27 @@ class IdentityCounter:
 class KeyrefCounter(IdentityCounter):
     identity: XsdKeyref
 
+    def __init__(self, identity: XsdIdentity, elem: ElementType) -> None:
+        super().__init__(identity, elem)
+        if isinstance(self.identity.refer, (XsdKey, XsdUnique)):
+            self.refer = self.identity.refer
+
     def increase(self, fields: IdentityCounterType) -> None:
         self.counter[fields] += 1
 
-    def iter_errors(self, identities: IdentityMapType) -> Iterator[XMLSchemaValueError]:
-        refer_values = identities[self.identity.refer].counter
+    def iter_errors(self, identities: Dict[XsdIdentity, IdentityCounter]) \
+            -> Iterator[XMLSchemaValueError]:
+        if self.refer is None:
+            return  # don't validate with an unbuilt keyref
+
+        refer_values = identities[self.refer].counter
 
         for v in filter(lambda x: x not in refer_values, self.counter):
             if len(v) == 1 and v[0] in refer_values:
                 continue
             elif self.counter[v] > 1:
                 msg = "value {} not found for {!r} ({} times)"
-                yield XMLSchemaValueError(msg.format(v, self.identity.refer, self.counter[v]))
+                yield XMLSchemaValueError(msg.format(v, self.refer, self.counter[v]))
             else:
                 msg = "value {} not found for {!r}"
-                yield XMLSchemaValueError(msg.format(v, self.identity.refer))
+                yield XMLSchemaValueError(msg.format(v, self.refer))

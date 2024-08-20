@@ -13,8 +13,9 @@ from .exceptions import XMLSchemaValidatorError, XMLSchemaParseError, \
     XMLSchemaIncludeWarning, XMLSchemaImportWarning, \
     XMLSchemaTypeTableWarning, XMLSchemaAssertPathWarning
 
-from .xsdbase import check_validation_mode, XsdValidator, XsdComponent, \
-    XsdAnnotation, XsdType, ValidationMixin
+from .validation import check_validation_mode, XSD_VALIDATION_MODES, ValidationContext, \
+    DecodeContext, EncodeContext, ValidationMixin
+from .xsdbase import XsdValidator, XsdComponent, XsdAnnotation, XsdType
 from .particles import ParticleMixin
 from .assertions import XsdAssert
 from .notations import XsdNotation
@@ -39,12 +40,14 @@ from .schemas import XMLSchemaMeta, XMLSchemaBase, XMLSchema, XMLSchema10, XMLSc
 
 
 __all__ = [
+    'check_validation_mode', 'XSD_VALIDATION_MODES', 'ValidationContext',
+    'DecodeContext', 'EncodeContext', 'ValidationMixin',
     'XMLSchemaValidatorError', 'XMLSchemaParseError', 'XMLSchemaModelError',
     'XMLSchemaModelDepthError', 'XMLSchemaValidationError', 'XMLSchemaDecodeError',
     'XMLSchemaEncodeError', 'XMLSchemaNotBuiltError', 'XMLSchemaChildrenValidationError',
     'XMLSchemaStopValidation', 'XMLSchemaIncludeWarning', 'XMLSchemaImportWarning',
     'XMLSchemaTypeTableWarning', 'XMLSchemaAssertPathWarning',
-    'XsdValidator', 'XsdComponent', 'XsdAnnotation', 'XsdType', 'ValidationMixin',
+    'XsdValidator', 'XsdComponent', 'XsdAnnotation', 'XsdType',
     'ParticleMixin', 'XsdAssert', 'XsdNotation', 'XsdSelector', 'XsdFieldSelector',
     'XsdIdentity', 'XsdKeyref', 'XsdKey', 'XsdUnique', 'Xsd11Keyref', 'Xsd11Key',
     'Xsd11Unique', 'XsdFacet', 'XsdWhiteSpaceFacet', 'XsdLengthFacet', 'XsdMinLengthFacet',
@@ -58,5 +61,4 @@ __all__ = [
     'XsdUnion', 'Xsd11Union', 'XsdComplexType', 'Xsd11ComplexType', 'ModelVisitor',
     'XsdGroup', 'Xsd11Group', 'XsdElement', 'Xsd11Element', 'XsdAlternative', 'XsdGlobals',
     'XMLSchemaMeta', 'XMLSchemaBase', 'XMLSchema', 'XMLSchema10', 'XMLSchema11',
-    'check_validation_mode'
 ]

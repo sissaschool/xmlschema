@@ -21,15 +21,19 @@ from xmlschema.names import XSI_NAMESPACE, XSD_ANY_SIMPLE_TYPE, XSD_SIMPLE_TYPE,
     XSD_ATTRIBUTE_GROUP, XSD_COMPLEX_TYPE, XSD_RESTRICTION, XSD_EXTENSION, \
     XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ATTRIBUTE, XSD_ANY_ATTRIBUTE, \
     XSD_ASSERT, XSD_NOTATION_TYPE, XSD_ANNOTATION
-from xmlschema.aliases import ComponentClassType, ElementType, IterDecodeType, \
-    IterEncodeType, AtomicValueType, SchemaType, DecodedValueType, EncodedValueType
+from xmlschema.aliases import ComponentClassType, ElementType, \
+    AtomicValueType, SchemaType, DecodedValueType
 from xmlschema.translation import gettext as _
+from xmlschema.utils.decoding import EmptyType
 from xmlschema.utils.qnames import get_namespace, get_qname
 
-from .exceptions import XMLSchemaValidationError
-from .xsdbase import XsdComponent, XsdAnnotation, ValidationMixin
+from .validation import DecodeContext, EncodeContext, ValidationMixin
+from .xsdbase import XsdComponent, XsdAnnotation
 from .simple_types import XsdSimpleType
 from .wildcards import XsdAnyAttribute
+
+AttributeGroupDecodeType = Optional[List[Tuple[str, DecodedValueType]]]
+AttributeGroupEncodeType = Optional[List[Tuple[str, str]]]
 
 
 class XsdAttribute(XsdComponent, ValidationMixin[str, DecodedValueType]):
@@ -171,7 +175,7 @@ class XsdAttribute(XsdComponent, ValidationMixin[str, DecodedValueType]):
                         "if the attribute 'default' is present")
                 self.parse_error(msg)
 
-            if not self.type.is_valid(self.default):
+            if not self.type.text_is_valid(self.default):
                 msg = _("default value {!r} is not compatible with attribute's type")
                 self.parse_error(msg.format(self.default))
             elif self.type.is_key() and self.xsd_version == '1.0':
@@ -180,7 +184,7 @@ class XsdAttribute(XsdComponent, ValidationMixin[str, DecodedValueType]):
 
         elif 'fixed' in attrib:
             self.fixed = attrib['fixed']
-            if not self.type.is_valid(self.fixed):
+            if not self.type.text_is_valid(self.fixed):
                 msg = _("fixed value {!r} is not compatible with attribute's type")
                 self.parse_error(msg.format(self.fixed))
             elif self.type.is_key() and self.xsd_version == '1.0':
@@ -225,8 +229,8 @@ class XsdAttribute(XsdComponent, ValidationMixin[str, DecodedValueType]):
         """Returns the decoded data value of the provided text as XPath fn:data()."""
         return cast(AtomicValueType, self.decode(text, validation='skip'))
 
-    def iter_decode(self, obj: str, validation: str = 'lax', **kwargs: Any) \
-            -> IterDecodeType[DecodedValueType]:
+    def raw_decode(self, obj: str, validation: str, context: DecodeContext) \
+            -> DecodedValueType:
         if obj is None and self.default is not None:
             obj = self.default
 
@@ -234,51 +238,49 @@ class XsdAttribute(XsdComponent, ValidationMixin[str, DecodedValueType]):
             if self.type.name == XSD_NOTATION_TYPE:
                 msg = _("cannot validate against xs:NOTATION directly, "
                         "only against a subtype with an enumeration facet")
-                yield self.validation_error(validation, msg, obj, **kwargs)
+                context.validation_error(validation, self, msg, obj)
             elif not self.type.enumeration:
                 msg = _("missing enumeration facet in xs:NOTATION subtype")
-                yield self.validation_error(validation, msg, obj, **kwargs)
+                context.validation_error(validation, self, msg, obj)
 
         if self.fixed is not None:
             if obj is None:
                 obj = self.fixed
             elif obj != self.fixed and \
-                    self.type.text_decode(obj) != self.type.text_decode(self.fixed):
+                    self.type.text_decode(obj, context=context) != \
+                    self.type.text_decode(self.fixed):
                 msg = _("attribute {0!r} has a fixed value {1!r}").format(self.name, self.fixed)
-                yield self.validation_error(validation, msg, obj, **kwargs)
+                context.validation_error(validation, self, msg, obj)
 
-        for value in self.type.iter_decode(obj, validation, **kwargs):
-            if isinstance(value, XMLSchemaValidationError):
-                value.reason = _('attribute {0}={1!r}: {2}').format(
-                    self.prefixed_name, obj, value.reason
-                )
-                yield value
-                continue
-            elif 'value_hook' in kwargs:
-                yield kwargs['value_hook'](value, self.type)
-            elif isinstance(value, (int, float, list)) or value is None:
-                yield value
-            elif isinstance(value, str):
-                if value.startswith('{') and self.type.is_qname():
-                    yield obj
-                else:
-                    yield value
-            elif isinstance(value, Decimal):
-                try:
-                    yield kwargs['decimal_type'](value)
-                except (KeyError, TypeError):
-                    yield value
-            elif isinstance(value, (AbstractDateTime, Duration)):
-                yield value if kwargs.get('datetime_types') else obj.strip()
-            elif isinstance(value, AbstractBinary) and not kwargs.get('binary_types'):
-                yield str(value)
+        value = self.type.raw_decode(obj, validation, context)
+
+        if context.value_hook is not None:
+            return context.value_hook(value, self.type)  # type:ignore[arg-type]
+        elif isinstance(value, (int, float, list)):
+            return value
+        elif value is None:
+            if context.filler is not None:
+                return context.filler(self)
+            return value
+        elif isinstance(value, str):
+            if value.startswith('{') and self.type.is_qname():
+                return obj
             else:
-                yield value
-            break  # pragma: no cover
+                return value
+        elif isinstance(value, Decimal):
+            if context.decimal_type is None:
+                return value
+            else:
+                return context.decimal_type(value)
+        elif isinstance(value, (AbstractDateTime, Duration)):
+            return value if context.datetime_types else obj.strip()
+        elif isinstance(value, AbstractBinary) and not context.binary_types:
+            return str(value)
+        else:
+            return value
 
-    def iter_encode(self, obj: Any, validation: str = 'lax', **kwargs: Any) \
-            -> IterEncodeType[Union[EncodedValueType]]:
-        yield from self.type.iter_encode(obj, validation, **kwargs)
+    def raw_encode(self, obj: Any, validation: str, context: EncodeContext) -> Optional[str]:
+        return self.type.raw_encode(obj, validation, context)
 
 
 class Xsd11Attribute(XsdAttribute):
@@ -323,8 +325,8 @@ class Xsd11Attribute(XsdAttribute):
 
 
 class XsdAttributeGroup(
-        MutableMapping[Optional[str], Union[XsdAttribute, XsdAnyAttribute]], XsdComponent,
-        ValidationMixin[MutableMapping[str, str], List[Tuple[str, Any]]]
+    MutableMapping[Optional[str], Union[XsdAttribute, XsdAnyAttribute]], XsdComponent,
+    ValidationMixin[MutableMapping[str, str], AttributeGroupDecodeType]
 ):
     """
     Class for XSD *attributeGroup* definitions.
@@ -655,35 +657,32 @@ class XsdAttributeGroup(
             if attr.parent is not None:
                 yield from attr.iter_components(xsd_classes)
 
-    def iter_decode(self, obj: MutableMapping[str, str], validation: str = 'lax',
-                    use_defaults: bool = True, **kwargs: Any) \
-            -> IterDecodeType[List[Tuple[str, Any]]]:
+    def raw_decode(self, obj: MutableMapping[str, str], validation: str,
+                   context: DecodeContext) -> AttributeGroupDecodeType:
+
         if not obj and not self:
-            return
+            return []
 
         for name in filter(lambda x: x not in obj, self.iter_required()):
             reason = _("missing required attribute {!r}").format(name)
-            yield self.validation_error(validation, reason, obj, **kwargs)
-
-        try:
-            kwargs['level'] += 1
-        except KeyError:
-            kwargs['level'] = 1
+            context.validation_error(validation, self, reason, obj)
 
         additional_attrs = [
-            (k, v) for k, v in self.iter_value_constraints(use_defaults) if k not in obj
+            (k, v) for k, v in self.iter_value_constraints(context.use_defaults)
+            if k not in obj
         ]
         if additional_attrs:
             obj = {k: v for k, v in obj.items()}
             obj.update(additional_attrs)
 
+        id_list = context.id_list
         if self.xsd_version == '1.0':
-            kwargs['id_list'] = []
+            context.id_list = []
 
-        filler = kwargs.get('filler')
-        result_list: List[Tuple[str, DecodedValueType]] = []
-
+        result: AttributeGroupDecodeType
         value: Any
+
+        result = [] if context.collect_results else None
         for name, value in obj.items():
             try:
                 xsd_attribute = self._attribute_group[name]
@@ -692,58 +691,60 @@ class XsdAttributeGroup(
                     try:
                         xsd_attribute = self.maps.lookup_attribute(name)
                     except LookupError:
-                        try:
+                        if None in self._attribute_group:
                             xsd_attribute = self._attribute_group[None]  # None == anyAttribute
                             value = (name, value)
-                        except KeyError:
+                        else:
                             reason = _("%r is not an attribute of the XSI namespace") % name
-                            yield self.validation_error(validation, reason, obj, **kwargs)
+                            context.validation_error(validation, self, reason, obj)
                             continue
+
+                elif None in self._attribute_group:
+                    xsd_attribute = self._attribute_group[None]  # None == anyAttribute
+                    value = (name, value)
                 else:
-                    try:
-                        xsd_attribute = self._attribute_group[None]  # None == anyAttribute
-                        value = (name, value)
-                    except KeyError:
-                        reason = _("%r attribute not allowed for element") % name
-                        yield self.validation_error(validation, reason, obj, **kwargs)
-                        continue
+                    reason = _("%r attribute not allowed for element") % name
+                    context.validation_error(validation, self, reason, obj)
+                    continue
             else:
                 if xsd_attribute.use == 'prohibited' and \
                         (None not in self or not self._attribute_group[None].is_matching(name)):
                     reason = _("use of attribute %r is prohibited") % name
-                    yield self.validation_error(validation, reason, obj, **kwargs)
+                    context.validation_error(validation, self, reason, obj)
 
-            for result in xsd_attribute.iter_decode(value, validation, **kwargs):
-                if isinstance(result, XMLSchemaValidationError):
-                    yield result
-                elif result is None and filler is not None:
-                    result_list.append((name, filler(xsd_attribute)))
-                    break
-                else:
-                    result_list.append((name, result))
-                    break
+            context.attribute = name
+            item = xsd_attribute.raw_decode(value, validation, context)
+            if result is not None and not isinstance(item, EmptyType):
+                result.append((name, item))
+            context.attribute = None
 
-        if kwargs.get('fill_missing'):
-            if filler is None:
-                result_list.extend((k, None) for k in self._attribute_group
-                                   if k is not None and k not in obj)
+        context.id_list = id_list
+
+        if result is not None and context.fill_missing:
+            if context.filler is None:
+                result.extend(
+                    (k, None) for k in self._attribute_group
+                    if k is not None and k not in obj
+                )
             else:
-                result_list.extend((k, filler(v)) for k, v in self._attribute_group.items()
-                                   if k is not None and k not in obj)
+                result.extend(
+                    (k, context.filler(v)) for k, v in self._attribute_group.items()
+                    if k is not None and k not in obj and isinstance(v, XsdAttribute)
+                )
+        return result
 
-        yield result_list
+    def raw_encode(self, obj: MutableMapping[str, Any],
+                   validation: str, context: EncodeContext) -> AttributeGroupEncodeType:
 
-    def iter_encode(self, obj: MutableMapping[str, Any], validation: str = 'lax',
-                    use_defaults: bool = True, **kwargs: Any) \
-            -> IterEncodeType[List[Tuple[str, Union[str, List[str]]]]]:
         if not obj and not self:
-            return
+            return []
 
         for name in filter(lambda x: x not in obj, self.iter_required()):
             reason = _("missing required attribute {!r}").format(name)
-            yield self.validation_error(validation, reason, obj, **kwargs)
+            context.validation_error(validation, self, reason, obj)
 
-        result_list = []
+        result: AttributeGroupEncodeType
+        result = [] if context.collect_results else None
         for name, value in obj.items():
             try:
                 xsd_attribute = self._attribute_group[name]
@@ -753,31 +754,29 @@ class XsdAttributeGroup(
                     try:
                         xsd_attribute = self.maps.lookup_attribute(name)
                     except LookupError:
-                        try:
+                        if None in self._attribute_group:
                             xsd_attribute = self._attribute_group[None]  # None == anyAttribute
                             value = (name, value)
-                        except KeyError:
+                        else:
                             reason = _("%r is not an attribute of the XSI namespace") % name
-                            yield self.validation_error(validation, reason, obj, **kwargs)
+                            context.validation_error(validation, self, reason, obj)
                             continue
-                else:
-                    try:
-                        xsd_attribute = self._attribute_group[None]  # None == anyAttribute
-                        value = (name, value)
-                    except KeyError:
-                        reason = _("%r attribute not allowed for element") % name
-                        yield self.validation_error(validation, reason, obj, **kwargs)
-                        continue
 
-            for result in xsd_attribute.iter_encode(value, validation, **kwargs):
-                if isinstance(result, XMLSchemaValidationError):
-                    yield result
+                elif None in self._attribute_group:
+                    xsd_attribute = self._attribute_group[None]  # None == anyAttribute
+                    value = (name, value)
                 else:
-                    if result is not None:
-                        result_list.append((name, result))
-                    break
+                    reason = _("%r attribute not allowed for element") % name
+                    context.validation_error(validation, self, reason, obj)
+                    continue
 
-        result_list.extend(
-            (k, v) for k, v in self.iter_value_constraints(use_defaults) if k not in obj
-        )
-        yield result_list
+            item = xsd_attribute.raw_encode(value, validation, context)
+            if result is not None and item is not None and not isinstance(item, EmptyType):
+                result.append((name, item))
+
+        if result is not None:
+            result.extend(
+                (k, v) for k, v in self.iter_value_constraints(context.use_defaults)
+                if k not in obj
+            )
+        return result

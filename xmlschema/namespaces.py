@@ -166,6 +166,7 @@ class NamespaceMapper(MutableMapping[str, str]):
         elif isinstance(self.source, XMLResource):
             return self.source.get_namespaces(namespaces, root_only)
 
+        xmlns: XmlnsType
         namespaces = get_namespace_map(namespaces)
         for obj, level in iter_decoded_data(self.source):
             if level and root_only:

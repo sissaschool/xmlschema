@@ -8,10 +8,25 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from decimal import Decimal
-from typing import Any, Iterator, List, MutableMapping, MutableSequence, \
+from typing import Any, Dict, Iterator, MutableMapping, MutableSequence, \
     Optional, Tuple, Union
 
-from xmlschema.aliases import AtomicValueType, NumericValueType
+from xmlschema.aliases import DecodedValueType, NumericValueType
+
+DecodedAttributesType = Optional[MutableMapping[str, DecodedValueType]]
+
+
+class EmptyType:
+    _instance = None
+
+    def __new__(cls) -> 'EmptyType':
+        if cls._instance is None:
+            cls._instance = super(EmptyType, cls).__new__(cls)
+        return cls._instance
+
+
+Empty = EmptyType()
+"""A singleton instance for representing empty decode/encode results."""
 
 
 def count_digits(number: NumericValueType) -> Tuple[int, int]:
@@ -54,8 +69,7 @@ def strictly_equal(obj1: object, obj2: object) -> bool:
     return obj1 == obj2 and type(obj1) is type(obj2)
 
 
-def raw_xml_encode(value: Union[None, AtomicValueType, List[AtomicValueType],
-                                Tuple[AtomicValueType, ...]]) -> Optional[str]:
+def raw_encode_value(value: DecodedValueType) -> Optional[str]:
     """Encodes a simple value to XML."""
     if isinstance(value, bool):
         return 'true' if value else 'false'
@@ -63,6 +77,17 @@ def raw_xml_encode(value: Union[None, AtomicValueType, List[AtomicValueType],
         return ' '.join(str(e) for e in value)
     else:
         return str(value) if value is not None else None
+
+
+def raw_encode_attributes(attributes: DecodedAttributesType = None) \
+        -> Dict[str, str]:
+    attrib: Dict[str, str] = {}
+    if attributes:
+        for k, v in attributes.items():
+            value = raw_encode_value(v)
+            if value is not None:
+                attrib[k] = value
+    return attrib
 
 
 def iter_decoded_data(obj: Any, level: int = 0) \

@@ -9,24 +9,23 @@
 #
 import threading
 import warnings
-from typing import TYPE_CHECKING, Any, Dict, Iterator, Optional, Union, Type
+from typing import TYPE_CHECKING, Any, Dict, Iterator, Union, Type
 
 from elementpath import ElementPathError, XPath2Parser, XPathContext, \
     LazyElementNode, SchemaElementNode, build_schema_node_tree
 
 from xmlschema.names import XSD_ASSERT
-from xmlschema.aliases import ElementType, SchemaType, SchemaElementType, NsmapType
+from xmlschema.aliases import ElementType, SchemaType, SchemaElementType
 from xmlschema.translation import gettext as _
 from xmlschema.xpath import ElementPathMixin, XMLSchemaProxy
 
-from .exceptions import XMLSchemaNotBuiltError, XMLSchemaValidationError, \
-    XMLSchemaAssertPathWarning
+from .exceptions import XMLSchemaNotBuiltError, XMLSchemaAssertPathWarning
+from .validation import DecodeContext
 from .xsdbase import XsdComponent
 from .groups import XsdGroup
 
 
 if TYPE_CHECKING:
-    from xmlschema.resources import XMLResource
     from .attributes import XsdAttributeGroup
     from .complex_types import XsdComplexType
     from .elements import XsdElement
@@ -131,11 +130,11 @@ class XsdAssert(XsdComponent, ElementPathMixin[Union['XsdAssert', SchemaElementT
             if self.parser.variable_types:
                 self.parser.variable_types.clear()
 
-    def __call__(self, obj: ElementType,
-                 value: Any = None,
-                 namespaces: Optional[NsmapType] = None,
-                 source: Optional['XMLResource'] = None,
-                 **kwargs: Any) -> Iterator[XMLSchemaValidationError]:
+    def __call__(self,
+                 obj: ElementType,
+                 validation: str,
+                 context: DecodeContext,
+                 value: Any = None) -> None:
 
         if self.parser is None or self.token is None:
             raise XMLSchemaNotBuiltError(self, 'schema bound parser not set')
@@ -144,30 +143,27 @@ class XsdAssert(XsdComponent, ElementPathMixin[Union['XsdAssert', SchemaElementT
             if not self.parser.is_schema_bound() and self.parser.schema:
                 self.parser.schema.bind_parser(self.parser)
 
-        if namespaces is None or isinstance(namespaces, dict):
-            _namespaces = namespaces
-        else:
-            _namespaces = dict(namespaces)
+        if value is not None:
+            value = self.base_type.text_decode(value, context=context)
 
-        variables = {'value': None if value is None else self.base_type.text_decode(value)}
-        context_kwargs: Dict[str, Any] = {
-            'uri': source.url if source is not None else None,
+        kwargs: Dict[str, Any] = {
+            'uri': context.source.url,
             'fragment': True,
-            'variables': variables,
+            'variables': {'value': value},
         }
 
-        if source is not None:
-            context = XPathContext(
-                source.get_xpath_node(obj), _namespaces, **context_kwargs
+        if context.source is not None:
+            xpath_context = XPathContext(
+                context.source.get_xpath_node(obj), context.namespaces, **kwargs
             )
         else:
-            context = XPathContext(LazyElementNode(obj), **context_kwargs)
+            xpath_context = XPathContext(LazyElementNode(obj), **kwargs)
 
         try:
-            if not self.token.evaluate(context):
-                yield XMLSchemaValidationError(self, obj=obj, reason="assertion test if false")
+            if not self.token.evaluate(xpath_context):
+                context.validation_error(validation, self, "assertion test is false", obj)
         except ElementPathError as err:
-            yield XMLSchemaValidationError(self, obj=obj, reason=str(err))
+            context.validation_error(validation, self, err, obj)
 
     # For implementing ElementPathMixin
     def __iter__(self) -> Iterator[Union['XsdElement', 'XsdAnyElement']]:

@@ -12,8 +12,8 @@ This module contains base functions and classes XML Schema components.
 """
 import logging
 import re
-from typing import TYPE_CHECKING, cast, Any, Dict, Generic, List, Iterator, Optional, \
-    Set, Tuple, TypeVar, Union, MutableMapping
+from typing import TYPE_CHECKING, cast, Any, List, Iterator, Optional, \
+    Set, Tuple, Union, MutableMapping
 from xml.etree import ElementTree
 
 from elementpath import select
@@ -24,16 +24,15 @@ from xmlschema.names import XSD_ANNOTATION, XSD_APPINFO, XSD_DOCUMENTATION, \
     XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_ID, \
     XSD_QNAME, XSD_OVERRIDE, XSD_NOTATION_TYPE, XSD_DECIMAL, XMLNS_NAMESPACE
 from xmlschema.aliases import ElementType, NsmapType, SchemaType, BaseXsdType, \
-    ComponentClassType, ExtraValidatorType, DecodeType, IterDecodeType, \
-    EncodeType, IterEncodeType
+    ComponentClassType, DecodedValueType
 from xmlschema.translation import gettext as _
 from xmlschema.utils.qnames import get_qname, local_name, get_prefixed_qname
-from xmlschema.utils.etree import is_etree_element, is_etree_document
+from xmlschema.utils.etree import is_etree_element
 from xmlschema.utils.logger import format_xmlschema_stack
 from xmlschema.resources import XMLResource
-from xmlschema.converters import XMLSchemaConverter
 
-from .exceptions import XMLSchemaParseError, XMLSchemaValidationError
+from .validation import check_validation_mode, DecodeContext
+from .exceptions import XMLSchemaParseError
 from .helpers import get_xsd_annotation_child
 
 if TYPE_CHECKING:
@@ -47,20 +46,6 @@ logger = logging.getLogger('xmlschema')
 
 XSD_TYPE_DERIVATIONS = {'extension', 'restriction'}
 XSD_ELEMENT_DERIVATIONS = {'extension', 'restriction', 'substitution'}
-
-XSD_VALIDATION_MODES = {'strict', 'lax', 'skip'}
-"""
-XML Schema validation modes
-Ref.: https://www.w3.org/TR/xmlschema11-1/#key-va
-"""
-
-
-def check_validation_mode(validation: str) -> None:
-    if not isinstance(validation, str):
-        raise XMLSchemaTypeError(_("validation mode must be a string"))
-    if validation not in XSD_VALIDATION_MODES:
-        raise XMLSchemaValueError(_("validation mode can be 'strict', "
-                                    "'lax' or 'skip': %r") % validation)
 
 
 class XsdValidator:
@@ -198,66 +183,12 @@ class XsdValidator:
 
         if validation == 'lax':
             if error.stack_trace is None and logger.level == logging.DEBUG:
-                error.stack_trace = format_xmlschema_stack()
+                error.stack_trace = format_xmlschema_stack('xmlschema/validators')
                 logger.debug("Collect %r with traceback:\n%s", error, error.stack_trace)
 
             self.errors.append(error)
         else:
             raise error
-
-    def validation_error(self, validation: str,
-                         error: Union[str, Exception],
-                         obj: Any = None,
-                         elem: Optional[ElementType] = None,
-                         source: Optional[Any] = None,
-                         namespaces: Optional[NsmapType] = None,
-                         **kwargs: Any) -> XMLSchemaValidationError:
-        """
-        Helper method for generating and updating validation errors. If validation
-        mode is 'lax' or 'skip' returns the error, otherwise raises the error.
-
-        :param validation: an error-compatible validation mode: can be 'lax' or 'strict'.
-        :param error: an error instance or the detailed reason of failed validation.
-        :param obj: the instance related to the error.
-        :param elem: the element related to the error, can be `obj` for elements.
-        :param source: the XML resource or data related to the validation process.
-        :param namespaces: is an optional mapping from namespace prefix to URI.
-        :param kwargs: other keyword arguments of the validation process.
-        """
-        check_validation_mode(validation)
-        if elem is None and is_etree_element(obj):
-            elem = cast(ElementType, obj)
-
-        if isinstance(error, XMLSchemaValidationError):
-            if error.namespaces is None and namespaces is not None:
-                error.namespaces = namespaces
-            if error.source is None and source is not None:
-                error.source = source
-            if error.obj is None and obj is not None:
-                error.obj = obj
-            elif is_etree_element(error.obj) and elem is not None:
-                if elem.tag == error.obj.tag and elem is not error.obj:
-                    error.obj = elem
-
-        elif isinstance(error, Exception):
-            error = XMLSchemaValidationError(self, obj, str(error), source, namespaces)
-        else:
-            error = XMLSchemaValidationError(self, obj, error, source, namespaces)
-
-        if error.elem is None and elem is not None:
-            error.elem = elem
-
-        if validation == 'strict' and error.elem is not None:
-            raise error
-
-        if error.stack_trace is None and logger.level == logging.DEBUG:
-            error.stack_trace = format_xmlschema_stack()
-            logger.debug("Collect %r with traceback:\n%s", error, error.stack_trace)
-
-        if 'errors' in kwargs and error not in kwargs['errors']:
-            kwargs['errors'].append(error)
-
-        return error
 
     def _parse_xpath_default_namespace(self, elem: ElementType) -> str:
         """
@@ -539,19 +470,6 @@ class XsdComponent(XsdValidator):
             self.name = local_name(self.name)
         else:
             self.name = f'{{{self._target_namespace}}}{local_name(self.name)}'
-
-    def _get_converter(self, obj: Any, kwargs: Dict[str, Any]) -> XMLSchemaConverter:
-        if 'source' not in kwargs:
-            if isinstance(obj, XMLResource):
-                kwargs['source'] = obj
-            elif is_etree_element(obj) or is_etree_document(obj):
-                kwargs['source'] = XMLResource(obj)
-            else:
-                kwargs['source'] = obj
-
-        converter = kwargs['converter'] = self.schema.get_converter(**kwargs)
-        kwargs['namespaces'] = converter.namespaces
-        return converter
 
     @property
     def local_name(self) -> Optional[str]:
@@ -940,160 +858,9 @@ class XsdType(XsdComponent):
     def is_decimal(self) -> bool:
         return self.name == XSD_DECIMAL or self.is_derived(self.maps.types[XSD_DECIMAL])
 
-    def text_decode(self, text: str) -> Any:
+    def text_decode(self, text: str, validation: str = 'skip',
+                    context: Optional[DecodeContext] = None) -> DecodedValueType:
         raise NotImplementedError()
 
-
-ST = TypeVar('ST')
-DT = TypeVar('DT')
-
-
-class ValidationMixin(Generic[ST, DT]):
-    """
-    Mixin for implementing XML data validators/decoders on XSD components.
-    A derived class must implement the methods `iter_decode` and `iter_encode`.
-    """
-    def validate(self, obj: ST,
-                 use_defaults: bool = True,
-                 namespaces: Optional[NsmapType] = None,
-                 max_depth: Optional[int] = None,
-                 extra_validator: Optional[ExtraValidatorType] = None) -> None:
-        """
-        Validates XML data against the XSD schema/component instance.
-
-        :param obj: the XML data. Can be a string for an attribute or a simple type \
-        validators, or an ElementTree's Element otherwise.
-        :param use_defaults: indicates whether to use default values for filling missing data.
-        :param namespaces: is an optional mapping from namespace prefix to URI.
-        :param max_depth: maximum level of validation, for default there is no limit.
-        :param extra_validator: an optional function for performing non-standard \
-        validations on XML data. The provided function is called for each traversed \
-        element, with the XML element as 1st argument and the corresponding XSD \
-        element as 2nd argument. It can be also a generator function and has to \
-        raise/yield :exc:`xmlschema.XMLSchemaValidationError` exceptions.
-        :raises: :exc:`xmlschema.XMLSchemaValidationError` if the XML data instance is invalid.
-        """
-        for error in self.iter_errors(obj, use_defaults, namespaces,
-                                      max_depth, extra_validator):
-            raise error
-
-    def is_valid(self, obj: ST,
-                 use_defaults: bool = True,
-                 namespaces: Optional[NsmapType] = None,
-                 max_depth: Optional[int] = None,
-                 extra_validator: Optional[ExtraValidatorType] = None) -> bool:
-        """
-        Like :meth:`validate` except that does not raise an exception but returns
-        ``True`` if the XML data instance is valid, ``False`` if it is invalid.
-        """
-        error = next(self.iter_errors(obj, use_defaults, namespaces,
-                                      max_depth, extra_validator), None)
-        return error is None
-
-    def iter_errors(self, obj: ST,
-                    use_defaults: bool = True,
-                    namespaces: Optional[NsmapType] = None,
-                    max_depth: Optional[int] = None,
-                    extra_validator: Optional[ExtraValidatorType] = None) \
-            -> Iterator[XMLSchemaValidationError]:
-        """
-        Creates an iterator for the errors generated by the validation of an XML data against
-        the XSD schema/component instance. Accepts the same arguments of :meth:`validate`.
-        """
-        kwargs: Dict[str, Any] = {
-            'use_defaults': use_defaults,
-            'namespaces': namespaces,
-        }
-        if max_depth is not None:
-            kwargs['max_depth'] = max_depth
-        if extra_validator is not None:
-            kwargs['extra_validator'] = extra_validator
-
-        for result in self.iter_decode(obj, **kwargs):
-            if isinstance(result, XMLSchemaValidationError):
-                yield result
-            else:
-                del result
-
-    def decode(self, obj: ST, validation: str = 'strict', **kwargs: Any) -> DecodeType[DT]:
-        """
-        Decodes XML data.
-
-        :param obj: the XML data. Can be a string for an attribute or for simple type \
-        components or a dictionary for an attribute group or an ElementTree's \
-        Element for other components.
-        :param validation: the validation mode. Can be 'lax', 'strict' or 'skip.
-        :param kwargs: optional keyword arguments for the method :func:`iter_decode`.
-        :return: a dictionary like object if the XSD component is an element, a \
-        group or a complex type; a list if the XSD component is an attribute group; \
-        a simple data type object otherwise. If *validation* argument is 'lax' a 2-items \
-        tuple is returned, where the first item is the decoded object and the second item \
-        is a list containing the errors.
-        :raises: :exc:`xmlschema.XMLSchemaValidationError` if the object is not decodable by \
-        the XSD component, or also if it's invalid when ``validation='strict'`` is provided.
-        """
-        check_validation_mode(validation)
-
-        result: Union[DT, XMLSchemaValidationError]
-        errors: List[XMLSchemaValidationError] = []
-        for result in self.iter_decode(obj, validation, **kwargs):  # pragma: no cover
-            if not isinstance(result, XMLSchemaValidationError):
-                return (result, errors) if validation == 'lax' else result
-            elif validation == 'strict':
-                raise result
-            else:
-                errors.append(result)
-
-        return (None, errors) if validation == 'lax' else None  # fallback: pragma: no cover
-
-    def encode(self, obj: Any, validation: str = 'strict', **kwargs: Any) -> EncodeType[Any]:
-        """
-        Encodes data to XML.
-
-        :param obj: the data to be encoded to XML.
-        :param validation: the validation mode. Can be 'lax', 'strict' or 'skip.
-        :param kwargs: optional keyword arguments for the method :func:`iter_encode`.
-        :return: An element tree's Element if the original data is a structured data or \
-        a string if it's simple type datum. If *validation* argument is 'lax' a 2-items \
-        tuple is returned, where the first item is the encoded object and the second item \
-        is a list containing the errors.
-        :raises: :exc:`xmlschema.XMLSchemaValidationError` if the object is not encodable by \
-        the XSD component, or also if it's invalid when ``validation='strict'`` is provided.
-        """
-        check_validation_mode(validation)
-        result, errors = None, []
-        for result in self.iter_encode(obj, validation=validation, **kwargs):  # pragma: no cover
-            if not isinstance(result, XMLSchemaValidationError):
-                break
-            elif validation == 'strict':
-                raise result
-            else:
-                errors.append(result)
-
-        return (result, errors) if validation == 'lax' else result
-
-    def iter_decode(self, obj: ST, validation: str = 'lax', **kwargs: Any) \
-            -> IterDecodeType[DT]:
-        """
-        Creates an iterator for decoding an XML source to a Python object.
-
-        :param obj: the XML data.
-        :param validation: the validation mode. Can be 'lax', 'strict' or 'skip'.
-        :param kwargs: keyword arguments for the decoder API.
-        :return: Yields a decoded object, eventually preceded by a sequence of \
-        validation or decoding errors.
-        """
-        raise NotImplementedError()
-
-    def iter_encode(self, obj: Any, validation: str = 'lax', **kwargs: Any) \
-            -> IterEncodeType[Any]:
-        """
-        Creates an iterator for encoding data to an Element tree.
-
-        :param obj: The data that has to be encoded.
-        :param validation: The validation mode. Can be 'lax', 'strict' or 'skip'.
-        :param kwargs: keyword arguments for the encoder API.
-        :return: Yields an Element, eventually preceded by a sequence of validation \
-        or encoding errors.
-        """
+    def text_is_valid(self, text: str, context: Optional[DecodeContext] = None) -> bool:
         raise NotImplementedError()

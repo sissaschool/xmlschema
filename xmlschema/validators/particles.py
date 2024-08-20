@@ -28,6 +28,7 @@ class ParticleMixin:
     :cvar oid: an optional secondary unique identifier for tracking occurs. Is \
     set to a unique tuple for XsdGroup instances for tracking higher occurrence \
     in choice and choice-compatible models.
+    :cvar skip: a flag that is set to `True` for wildcards that have processContents='skip'.
     """
     name: Any
     maps: Any
@@ -35,6 +36,7 @@ class ParticleMixin:
     min_occurs: int = 1
     max_occurs: Optional[int] = 1
     oid: Optional[Tuple[ModelGroupType]] = None
+    skip: bool = False
 
     def __init__(self, min_occurs: int = 1, max_occurs: Optional[int] = 1) -> None:
         self.min_occurs = min_occurs

@@ -25,9 +25,8 @@ except ImportError:
     lxml_etree = None
 
 from xmlschema import XMLSchema10, XMLSchema11, XmlDocument, XMLResourceError, \
-    XMLSchemaValidationError, XMLSchemaDecodeError, XMLSchemaChildrenValidationError, \
-    to_json, from_json, validate, XMLSchemaParseError, is_valid, to_dict, \
-    to_etree, JsonMLConverter
+    XMLSchemaValidationError, XMLSchemaDecodeError, to_json, from_json, validate, \
+    XMLSchemaParseError, is_valid, to_dict, to_etree, JsonMLConverter
 
 from xmlschema.names import XSD_NAMESPACE, XSI_NAMESPACE, XSD_SCHEMA
 from xmlschema.utils.etree import is_etree_element, is_etree_document

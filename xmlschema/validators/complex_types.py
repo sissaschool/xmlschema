@@ -17,19 +17,19 @@ from xmlschema.names import XSD_GROUP, XSD_ATTRIBUTE_GROUP, XSD_SEQUENCE, XSD_OV
     XSD_RESTRICTION, XSD_COMPLEX_TYPE, XSD_EXTENSION, XSD_ANY_TYPE, XSD_ASSERT, \
     XSD_SIMPLE_CONTENT, XSD_OPEN_CONTENT, XSD_ANNOTATION
 from xmlschema.aliases import ElementType, NsmapType, SchemaType, ComponentClassType, \
-    DecodeType, IterDecodeType, IterEncodeType, BaseXsdType, AtomicValueType, \
-    ExtraValidatorType
+    DecodeType, BaseXsdType, DecodedValueType, ExtraValidatorType, ValidationHookType
 from xmlschema.translation import gettext as _
 from xmlschema.utils.qnames import get_qname, local_name
 
 from .exceptions import XMLSchemaDecodeError
+from .validation import DecodeContext, EncodeContext, ValidationMixin
 from .helpers import get_xsd_derivation_attribute
-from .xsdbase import XSD_TYPE_DERIVATIONS, XsdComponent, XsdType, ValidationMixin
+from .xsdbase import XSD_TYPE_DERIVATIONS, XsdComponent, XsdType
 from .attributes import XsdAttributeGroup
 from .assertions import XsdAssert
 from .simple_types import FacetsValueType, XsdSimpleType, XsdUnion, XsdAtomic
 from .groups import XsdGroup
-from .wildcards import XsdOpenContent, XsdDefaultOpenContent
+from .wildcards import XsdAnyElement, XsdOpenContent, XsdDefaultOpenContent
 
 XSD_MODEL_GROUP_TAGS = {XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE}
 
@@ -613,12 +613,14 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
                  use_defaults: bool = True,
                  namespaces: Optional[NsmapType] = None,
                  max_depth: Optional[int] = None,
-                 extra_validator: Optional[ExtraValidatorType] = None) -> None:
+                 extra_validator: Optional[ExtraValidatorType] = None,
+                 validation_hook: Optional[ValidationHookType] = None) -> None:
         kwargs: Any = {
             'use_defaults': use_defaults,
             'namespaces': namespaces,
             'max_depth': max_depth,
-            'extra_validator': extra_validator
+            'extra_validator': extra_validator,
+            'validation_hook': validation_hook,
         }
         if not isinstance(obj, (str, bytes)):
             super().validate(obj, **kwargs)
@@ -631,12 +633,14 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
                  use_defaults: bool = True,
                  namespaces: Optional[NsmapType] = None,
                  max_depth: Optional[int] = None,
-                 extra_validator: Optional[ExtraValidatorType] = None) -> bool:
+                 extra_validator: Optional[ExtraValidatorType] = None,
+                 validation_hook: Optional[ValidationHookType] = None) -> bool:
         kwargs: Any = {
             'use_defaults': use_defaults,
             'namespaces': namespaces,
             'max_depth': max_depth,
-            'extra_validator': extra_validator
+            'extra_validator': extra_validator,
+            'validation_hook': validation_hook,
         }
         if not isinstance(obj, (str, bytes)):
             return super().is_valid(obj, **kwargs)
@@ -707,11 +711,20 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
     def has_extension(self) -> bool:
         return self.derivation == 'extension'
 
-    def text_decode(self, text: str) -> Optional[AtomicValueType]:
+    def text_decode(self, text: str, validation: str = 'skip',
+                    context: Optional[DecodeContext] = None) -> DecodedValueType:
         if isinstance(self.content, XsdSimpleType):
-            return cast(Optional[AtomicValueType], self.content.decode(text, 'skip'))
+            return self.content.text_decode(text, validation, context)
         else:
             return text
+
+    def text_is_valid(self, text: str, context: Optional[DecodeContext] = None) -> bool:
+        if isinstance(self.content, XsdSimpleType):
+            return self.content.text_is_valid(text, context)
+        elif self.mixed or not text.strip():
+            return True
+        else:
+            return len(self.content) == 1 and isinstance(self.content[0], XsdAnyElement)
 
     def decode(self, obj: Union[ElementType, str, bytes], *args: Any, **kwargs: Any) \
             -> DecodeType[Any]:
@@ -725,43 +738,41 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
                 self, obj, str, msg % {'obj': obj, 'decoder': self}
             )
 
-    def iter_decode(self, obj: Union[ElementType, str, bytes],
-                    validation: str = 'lax', **kwargs: Any) -> IterDecodeType[Any]:
+    def raw_decode(self, obj: Union[ElementType, str, bytes],
+                   validation: str, context: DecodeContext) -> Any:
         """
         Decodes an Element instance using a dummy XSD element. Typically used
         for decoding with xs:anyType when an XSD element is not available.
         Also decodes strings if the type has a simple content.
 
         :param obj: the XML data that has to be decoded.
-        :param validation: the validation mode. Can be 'lax', 'strict' or 'skip'.
-        :param kwargs: keyword arguments for the decoding process.
-        :return: yields a decoded object, eventually preceded by a sequence of \
-        validation or decoding errors.
+        :param validation: the validation mode. Can be 'lax', 'strict' or 'skip.
+        :param context: the decoding context.
+        :return: a decoded object.
         """
         if not isinstance(obj, (str, bytes)):
             xsd_element = self.schema.create_element(obj.tag, parent=self, form='unqualified')
             xsd_element.type = self
-            yield from xsd_element.iter_decode(obj, validation, **kwargs)
+            return xsd_element.raw_decode(obj, validation, context)
         elif isinstance(self.content, XsdSimpleType):
-            yield from self.content.iter_decode(obj, validation, **kwargs)
+            return self.content.raw_decode(obj, validation, context)
         else:
             msg = _("cannot decode %(obj)r data with %(decoder)r")
             raise XMLSchemaDecodeError(
                 self, obj, str, msg % {'obj': obj, 'decoder': self}
             )
 
-    def iter_encode(self, obj: Any, validation: str = 'lax', **kwargs: Any) \
-            -> IterEncodeType[ElementType]:
+    def raw_encode(self, obj: Any, validation: str, context: EncodeContext) \
+            -> Optional[ElementType]:
         """
         Encode XML data. A dummy element is created for the type, and it's used for
         encode data. Typically used for encoding with xs:anyType when an XSD element
         is not available.
 
         :param obj: decoded XML data.
-        :param validation: the validation mode: can be 'lax', 'strict' or 'skip'.
-        :param kwargs: keyword arguments for the encoding process.
-        :return: yields an Element, eventually preceded by a sequence of \
-        validation or encoding errors.
+        :param validation: the validation mode. Can be 'lax', 'strict' or 'skip.
+        :param context: the encoding context.
+        :return: returns an Element.
         """
         try:
             name, value = obj
@@ -777,7 +788,8 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
 
         xsd_element = self.schema.create_element(name, parent=xsd_type, form='unqualified')
         xsd_element.type = xsd_type
-        yield from xsd_element.iter_encode(value, validation, **kwargs)
+
+        return xsd_element.raw_encode(value, validation, context)
 
 
 class Xsd11ComplexType(XsdComplexType):

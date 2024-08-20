@@ -15,7 +15,7 @@ imports, are set with a common.
 """
 from decimal import Decimal
 from pathlib import Path
-from typing import Any, Callable, Counter, Dict, List, IO, Iterator, MutableMapping, \
+from typing import Any, AnyStr, Callable, Counter, Dict, List, IO, Iterator, MutableMapping, \
     Optional, Sequence, Tuple, Type, TYPE_CHECKING, TypeVar, Union
 from xml.etree.ElementTree import Element, ElementTree
 
@@ -32,18 +32,18 @@ __all__ = ['ElementType', 'ElementTreeType', 'XMLSourceType', 'NsmapType',
            'ParentMapType', 'SchemaType', 'BaseXsdType', 'SchemaElementType',
            'SchemaAttributeType', 'SchemaGlobalType', 'GlobalMapType', 'ModelGroupType',
            'ModelParticleType', 'XPathElementType', 'AtomicValueType', 'NumericValueType',
-           'DateTimeType', 'SchemaSourceType', 'ConverterType', 'ComponentClassType',
+           'DateTimeType', 'SchemaSourceType', 'ComponentClassType',
            'ExtraValidatorType', 'ValidationHookType', 'DecodeType', 'IterDecodeType',
            'JsonDecodeType', 'EncodeType', 'IterEncodeType', 'DecodedValueType',
-           'EncodedValueType', 'FillerType', 'DepthFillerType', 'ValueHookType',
-           'ElementHookType', 'OccursCounterType', 'LazyType', 'SourceType',
+           'FillerType', 'DepthFillerType', 'ValueHookType', 'ElementHookType',
+           'SerializerType', 'OccursCounterType', 'LazyType', 'SourceType',
            'UriMapperType', 'IterparseType', 'EtreeType', 'IOType',
-           'ResourceNodeType', 'NsmapsMapType', 'XmlnsMapType']
+           'ResourceNodeType', 'NsmapsMapType', 'XmlnsMapType', 'ErrorsType']
 
 if TYPE_CHECKING:
     from .namespaces import NamespaceResourcesMap
     from .resources import XMLResource
-    from .converters import ElementData, XMLSchemaConverter
+    from .converters import ElementData
     from .validators import XMLSchemaValidationError, XsdComponent, XMLSchemaBase, \
         XsdComplexType, XsdSimpleType, XsdElement, XsdAnyElement, XsdAttribute, \
         XsdAnyAttribute, XsdAssert, XsdGroup, XsdAttributeGroup, XsdNotation, \
@@ -110,29 +110,27 @@ DateTimeType = Union[OrderedDateTime, Time]
 
 ##
 # Type aliases for validation/decoding/encoding
-ConverterType = Union[Type['XMLSchemaConverter'], 'XMLSchemaConverter']
+ErrorsType = List['XMLSchemaValidationError']
 ExtraValidatorType = Callable[[ElementType, 'XsdElement'],
                               Optional[Iterator['XMLSchemaValidationError']]]
 ValidationHookType = Callable[[ElementType, 'XsdElement'], Union[bool, str]]
 
 D = TypeVar('D')
-DecodeType = Union[Optional[D], Tuple[Optional[D], List['XMLSchemaValidationError']]]
+DecodeType = Union[Optional[D], Tuple[Optional[D], ErrorsType]]
 IterDecodeType = Iterator[Union[D, 'XMLSchemaValidationError']]
 
 E = TypeVar('E')
-EncodeType = Union[E, Tuple[E, List['XMLSchemaValidationError']]]
+EncodeType = Union[E, Tuple[E, ErrorsType]]
 IterEncodeType = Iterator[Union[E, 'XMLSchemaValidationError']]
 
 JsonDecodeType = Union[str, None, Tuple['XMLSchemaValidationError', ...],
                        Tuple[Union[str, None], Tuple['XMLSchemaValidationError', ...]]]
 
-DecodedValueType = Union[None, AtomicValueType, List[Optional[AtomicValueType]],
-                         'XMLSchemaValidationError']
-EncodedValueType = Union[None, str, List[str], 'XMLSchemaValidationError']
-
-FillerType = Callable[[Union['XsdElement', 'XsdAttribute']], Any]
+DecodedValueType = Union[None, AtomicValueType, List[Optional[AtomicValueType]]]
+FillerType = Callable[[Union['XsdElement', 'XsdAttribute']], DecodedValueType]
 DepthFillerType = Callable[['XsdElement'], Any]
-ValueHookType = Callable[[AtomicValueType, 'BaseXsdType'], Any]
+ValueHookType = Callable[[Optional[AtomicValueType], 'BaseXsdType'], DecodedValueType]
 ElementHookType = Callable[
     ['ElementData', Optional['XsdElement'], Optional['BaseXsdType']], 'ElementData'
 ]
+SerializerType = Callable[[Any], IO[AnyStr]]

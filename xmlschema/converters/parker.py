@@ -12,10 +12,12 @@ from typing import TYPE_CHECKING, Any, Optional, List, Dict, Type
 
 from xmlschema.aliases import NsmapType, BaseXsdType
 from xmlschema.resources import XMLResource
-from .default import ElementData, XMLSchemaConverter
+
+from .element_data import ElementData
+from .default import XMLSchemaConverter
 
 if TYPE_CHECKING:
-    from ..validators import XsdElement
+    from xmlschema.validators import XsdElement
 
 
 class ParkerConverter(XMLSchemaConverter):

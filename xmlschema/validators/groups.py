@@ -21,18 +21,17 @@ from xmlschema import limits
 from xmlschema.exceptions import XMLSchemaValueError
 from xmlschema.names import XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ELEMENT, \
     XSD_ANY, XSI_TYPE, XSD_ANY_TYPE, XSD_ANNOTATION
-from xmlschema.aliases import ElementType, NsmapType, SchemaType, IterDecodeType, \
-    IterEncodeType, ModelParticleType, SchemaElementType, ComponentClassType, \
-    OccursCounterType
+from xmlschema.aliases import ElementType, NsmapType, SchemaType, ModelParticleType, \
+    SchemaElementType, ComponentClassType, OccursCounterType
 from xmlschema.converters import ElementData
 from xmlschema.translation import gettext as _
-from xmlschema.utils.decoding import raw_xml_encode
+from xmlschema.utils.decoding import Empty, raw_encode_value
 from xmlschema.utils.qnames import get_qname, local_name
 
 from .exceptions import XMLSchemaModelError, XMLSchemaModelDepthError, \
-    XMLSchemaValidationError, XMLSchemaChildrenValidationError, \
-    XMLSchemaTypeTableWarning
-from .xsdbase import ValidationMixin, XsdComponent, XsdType
+    XMLSchemaValidationError, XMLSchemaTypeTableWarning
+from .validation import DecodeContext, EncodeContext, ValidationMixin
+from .xsdbase import XsdComponent, XsdType
 from .particles import ParticleMixin, OccursCalculator
 from .elements import XsdElement, XsdAlternative
 from .wildcards import XsdAnyElement, Xsd11AnyElement, XsdOpenContent
@@ -51,8 +50,8 @@ ANY_ELEMENT = ElementTree.Element(
         'maxOccurs': 'unbounded'
     })
 
-GroupDecodeType = List[Tuple[Union[str, int], Any, Optional[SchemaElementType]]]
-GroupEncodeType = Tuple[Optional[str], List[ElementType]]
+GroupDecodeType = Optional[List[Tuple[Union[str, int], Any, Optional[SchemaElementType]]]]
+GroupEncodeType = Tuple[Optional[str], Optional[List[ElementType]]]
 
 
 class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
@@ -941,25 +940,24 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                 return xsd_element
         return None
 
-    def iter_decode(self, obj: ElementType, validation: str = 'lax', **kwargs: Any) \
-            -> IterDecodeType[GroupDecodeType]:
+    def raw_decode(self, obj: ElementType, validation: str, context: DecodeContext) \
+            -> GroupDecodeType:
         """
-        Creates an iterator for decoding an Element content.
+        Decoding an Element content.
 
         :param obj: an Element.
-        :param validation: the validation mode, can be 'lax', 'strict' or 'skip'.
-        :param kwargs: keyword arguments for the decoding process.
-        :return: yields a list of 3-tuples (key, decoded data, decoder), \
-        eventually preceded by a sequence of validation or decoding errors.
+        :param validation: the validation mode. Can be 'lax', 'strict' or 'skip.
+        :param context: the encoding context.
+        :return: a list of 3-tuples (key, decoded data, decoder).
         """
-        result_list: GroupDecodeType = []
+        result: GroupDecodeType = [] if context.collect_results else None
         cdata_index = 1  # keys for CDATA sections are positive integers
+        index = 0
 
         if not self._group and self.model == 'choice' and self.min_occurs:
             reason = _("an empty 'choice' group with minOccurs > 0 cannot validate any content")
-            yield self.validation_error(validation, reason, obj, **kwargs)
-            yield result_list
-            return
+            context.validation_error(validation, self, reason, obj)
+            return result
 
         if not self.mixed:
             # Check element CDATA
@@ -969,29 +967,20 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                     pass  # [XsdAnyElement()] equals to an empty complexType declaration
                 else:
                     reason = _("character data between child elements not allowed")
-                    yield self.validation_error(validation, reason, obj, **kwargs)
+                    context.validation_error(validation, self, reason, obj)
                     cdata_index = 0  # Do not decode CDATA
 
         if cdata_index and obj.text is not None:
             text = str(obj.text.strip())
             if text:
-                result_list.append((cdata_index, text, None))
+                if result is not None:
+                    result.append((cdata_index, text, None))
                 cdata_index += 1
 
-        try:
-            level = kwargs['level'] = kwargs['level'] + 1
-        except KeyError:
-            level = kwargs['level'] = 1
-
-        over_max_depth = 'max_depth' in kwargs and kwargs['max_depth'] <= level
-        if level > limits.MAX_XML_DEPTH:
+        over_max_depth = context.max_depth is not None and context.max_depth <= context.level
+        if context.level > limits.MAX_XML_DEPTH:
             reason = _("XML data depth exceeded (MAX_XML_DEPTH=%r)") % limits.MAX_XML_DEPTH
-            self.validation_error('strict', reason, obj, **kwargs)
-
-        try:
-            converter = kwargs['converter']
-        except KeyError:
-            converter = self._get_converter(obj, kwargs)
+            context.validation_error('strict', self, reason, obj)
 
         errors: List[Tuple[int, ModelParticleType, int, Optional[List[SchemaElementType]]]]
         xsd_element: Optional[SchemaElementType]
@@ -1006,13 +995,14 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
 
         errors = []
         broken_model = False
+        converter = context.converter
         namespaces = converter.namespaces
 
         for index, child in enumerate(obj):
             if callable(child.tag):
                 continue  # child is a comment or PI
 
-            converter.set_context(child, level)
+            converter.set_context(child, context.level)
             name = converter.map_qname(child.tag)
 
             while model.element is not None:
@@ -1031,7 +1021,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                 try:
                     self.check_dynamic_context(child, xsd_element, model.element, namespaces)
                 except XMLSchemaValidationError as err:
-                    yield self.validation_error(validation, err, obj, **kwargs)
+                    context.validation_error(validation, self, err, obj)
 
                 for particle, occurs, expected in model.advance(True):
                     errors.append((index, particle, occurs, expected))
@@ -1045,32 +1035,36 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                     errors.append((index, xsd_element, 0, []))
                     broken_model = True
 
+            # Optional checks on matched XSD child
             if xsd_element is None:
-                if kwargs.get('keep_unknown'):
-                    for result in self.any_type.iter_decode(child, validation, **kwargs):
-                        result_list.append((name, result, None))
-                continue
-            elif over_max_depth:
-                if 'depth_filler' in kwargs:
-                    func = kwargs['depth_filler']
-                    result_list.append((name, func(xsd_element), xsd_element))
+                if context.keep_unknown:
+                    result_item = self.any_type.raw_decode(child, validation, context)
+                    if result is not None:
+                        result.append((name, result_item, None))
                 continue
 
-            for result in xsd_element.iter_decode(child, validation, **kwargs):
-                if isinstance(result, XMLSchemaValidationError):
-                    yield result
-                else:
-                    result_list.append((name, result, xsd_element))
+            if over_max_depth:
+                if context.depth_filler is not None and isinstance(xsd_element, XsdElement):
+                    func = context.depth_filler
+                    if result is not None:
+                        result.append((name, func(xsd_element), xsd_element))
+                continue
 
-            if cdata_index and child.tail is not None:
-                tail = str(child.tail.strip())
-                if tail:
-                    if result_list and isinstance(result_list[-1][0], int):
-                        tail = result_list[-1][1] + ' ' + tail
-                        result_list[-1] = result_list[-1][0], tail, None
-                    else:
-                        result_list.append((cdata_index, tail, None))
-                        cdata_index += 1
+            result_item = xsd_element.raw_decode(child, validation, context)
+            if result_item is Empty:
+                continue
+            elif result is not None:
+                result.append((name, result_item, xsd_element))
+
+                if cdata_index and child.tail is not None:
+                    tail = str(child.tail.strip())
+                    if tail:
+                        if result and isinstance(result[-1][0], int):
+                            tail = result[-1][1] + ' ' + tail
+                            result[-1] = result[-1][0], tail, None
+                        else:
+                            result.append((cdata_index, tail, None))
+                            cdata_index += 1
 
         if model.element is not None:
             index = len(obj)
@@ -1079,49 +1073,41 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                 break
 
         if errors:
-            source = kwargs.get('source')
-            namespaces = converter.namespaces
-
             for index, particle, occurs, expected in errors:
-                error = XMLSchemaChildrenValidationError(
-                    validator=self,
-                    elem=obj,
-                    index=index,
-                    particle=particle,
-                    occurs=occurs,
-                    expected=expected,
-                    source=source,
-                    namespaces=namespaces,
+                context.children_validation_error(
+                    validation, self, obj, index, particle, occurs, expected
                 )
-                if validation == 'strict':
-                    raise error
-                yield error
 
-        yield result_list
+        if index or result is not None or obj.text is None:
+            return result
+        else:
+            return [(1, str(obj.text.strip()), None)]
 
-    def iter_encode(self, obj: ElementData, validation: str = 'lax', **kwargs: Any) \
-            -> IterEncodeType[GroupEncodeType]:
+    def raw_encode(self, obj: ElementData, validation: str, context: EncodeContext) \
+            -> GroupEncodeType:
         """
-        Creates an iterator for encoding data to a list containing Element data.
+        Encode data to a list containing Element children.
 
         :param obj: an ElementData instance.
-        :param validation: the validation mode: can be 'lax', 'strict' or 'skip'.
-        :param kwargs: keyword arguments for the encoding process.
-        :return: yields a couple with the text of the Element and a list of child \
-        elements, eventually preceded by a sequence of validation errors.
+        :param validation: the validation mode. Can be 'lax', 'strict' or 'skip.
+        :param context: the encoding context.
+        :return: returns a couple with the text of the Element and a list of child \
+        elements.
         """
+        children: Optional[List[ElementType]]
+
         errors = []
-        text = raw_xml_encode(obj.text)
-        children: List[ElementType] = []
+        text = raw_encode_value(obj.text)
+        children = [] if context.collect_results else None
+        child: Any = None
 
-        try:
-            level = kwargs['level'] = kwargs['level'] + 1
-        except KeyError:
-            level = kwargs['level'] = 1
-
-        converter = kwargs['converter']
-        padding = '\n' + ' ' * converter.indent * level
+        converter = context.converter
+        padding = context.padding
         default_namespace = converter.get('')
+
+        elem = context.elem
+        if elem is None:
+            elem = context.create_element(obj.tag)
 
         if self.open_content is None or self.open_content.mode == 'none':
             model = ModelVisitor(self)
@@ -1132,12 +1118,12 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
 
         index = cdata_index = 0
         wrong_content_type = False
-        over_max_depth = 'max_depth' in kwargs and kwargs['max_depth'] <= level
+        over_max_depth = context.max_depth is not None and context.max_depth <= context.level
 
         content: Iterable[Any]
         if not obj.content:
             content = []
-        elif isinstance(obj.content, MutableMapping) or kwargs.get('unordered'):
+        elif isinstance(obj.content, MutableMapping) or context.unordered:
             content = iter_unordered_content(obj.content, self)
         elif not isinstance(obj.content, MutableSequence):
             wrong_content_type = True
@@ -1146,7 +1132,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
             if len(obj.content) > 1 or text is not None:
                 wrong_content_type = True
             else:
-                text = raw_xml_encode(obj.content[0])
+                text = raw_encode_value(obj.content[0])
             content = []
         elif converter.losslessly:
             content = obj.content
@@ -1190,17 +1176,17 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                         reason = _('{0} has an unknown prefix {1!r}').format(
                             name, name.split(':')[0]
                         )
-                    yield self.validation_error(validation, reason, value, **kwargs)
+                    context.validation_error(validation, self, reason, value)
                     continue
 
+            if xsd_element.skip and not context.process_skipped:
+                continue
             if over_max_depth:
                 continue
 
-            for result in xsd_element.iter_encode(value, validation, **kwargs):
-                if isinstance(result, XMLSchemaValidationError):
-                    yield result
-                else:
-                    children.append(result)
+            child = xsd_element.raw_encode(value, validation, context)
+            if children is not None and child is not None:
+                children.append(child)
 
         if model.element is not None:
             for particle, occurs, expected in model.stop():
@@ -1215,39 +1201,27 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                         padding[:-converter.indent] or '\n'
                 )
 
-        cdata_not_allowed = not self.mixed and text and text.strip() and self and \
-            (len(self) > 1 or not isinstance(self[0], XsdAnyElement))
+        if children:
+            elem.text = text or context.padding
+            elem.extend(children)
+        else:
+            elem.text = text
 
-        if errors or cdata_not_allowed or wrong_content_type:
-            attrib = {k: raw_xml_encode(v) for k, v in obj.attributes.items()}
-            elem = converter.etree_element(obj.tag, text, children, attrib)
-            namespaces = converter.namespaces
+        if wrong_content_type:
+            reason = _("wrong content type {!r}").format(type(obj.content))
+            context.validation_error(validation, self, reason, elem)
 
-            if wrong_content_type:
-                reason = _("wrong content type {!r}").format(type(obj.content))
-                yield self.validation_error(validation, reason, elem, **kwargs)
+        if not self.mixed and text and text.strip() and self and \
+                (len(self) > 1 or not isinstance(self[0], XsdAnyElement)):
+            reason = _("character data between child elements not allowed")
+            context.validation_error(validation, self, reason, elem)
 
-            if cdata_not_allowed:
-                reason = _("character data between child elements not allowed")
-                yield self.validation_error(validation, reason, elem, **kwargs)
+        for index, particle, occurs, expected in errors:
+            context.children_validation_error(
+                validation, self, elem, index, particle, occurs, expected
+            )
 
-            for index, particle, occurs, expected in errors:
-                error = XMLSchemaChildrenValidationError(
-                    validator=self,
-                    elem=elem,
-                    index=index,
-                    particle=particle,
-                    occurs=occurs,
-                    expected=expected,
-                    namespaces=namespaces,
-                )
-                if validation == 'strict':
-                    raise error
-
-                error.elem = None  # replace with the element of the encoded tree
-                yield error
-
-        yield text, children
+        return text, children
 
 
 class Xsd11Group(XsdGroup):

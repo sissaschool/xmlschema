@@ -10,14 +10,14 @@
 """
 This module contains classes for XML Schema simple data types.
 """
+from copy import copy as _copy
 from decimal import DecimalException
 from typing import cast, Any, Callable, Dict, Iterator, List, \
     Optional, Set, Union, Tuple, Type
 from xml.etree import ElementTree
 
 from xmlschema.aliases import ElementType, AtomicValueType, ComponentClassType, \
-    IterDecodeType, IterEncodeType, BaseXsdType, SchemaType, DecodedValueType, \
-    EncodedValueType
+    BaseXsdType, SchemaType, DecodedValueType
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from xmlschema.names import XSD_NAMESPACE, XSD_ANY_TYPE, XSD_SIMPLE_TYPE, XSD_PATTERN, \
     XSD_ANY_ATOMIC_TYPE, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ANY_ATTRIBUTE, \
@@ -28,10 +28,11 @@ from xmlschema.names import XSD_NAMESPACE, XSD_ANY_TYPE, XSD_SIMPLE_TYPE, XSD_PA
     XSD_EXPLICIT_TIMEZONE, XSD_ERROR, XSD_ASSERT, XSD_QNAME
 from xmlschema.translation import gettext as _
 from xmlschema.utils.qnames import local_name
+from xmlschema.resources import XMLResource
 
-from .exceptions import XMLSchemaValidationError, XMLSchemaEncodeError, \
-    XMLSchemaDecodeError, XMLSchemaParseError
-from .xsdbase import XsdComponent, XsdType, ValidationMixin
+from .exceptions import XMLSchemaValidationError, XMLSchemaParseError
+from .validation import DecodeContext, EncodeContext, ValidationMixin
+from .xsdbase import XsdComponent, XsdType
 from .facets import XsdFacet, XsdWhiteSpaceFacet, XsdPatternFacets, \
     XsdEnumerationFacets, XsdAssertionFacet, XSD_10_FACETS_BUILDERS, \
     XSD_11_FACETS_BUILDERS, XSD_10_FACETS, XSD_11_FACETS, XSD_10_LIST_FACETS, \
@@ -440,28 +441,44 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
         else:
             return text
 
-    def text_decode(self, text: str) -> AtomicValueType:
-        return cast(AtomicValueType, self.decode(text, validation='skip'))
+    def text_decode(self, text: str, validation: str = 'skip',
+                    context: Optional[DecodeContext] = None) -> DecodedValueType:
+        if context is None:
+            context = self.schema.validation_context
+        return self.raw_decode(text, validation, context)
 
-    def iter_decode(self, obj: Union[str, bytes], validation: str = 'lax',
-                    **kwargs: Any) -> IterDecodeType[DecodedValueType]:
+    def text_is_valid(self, text: str, context: Optional[DecodeContext] = None) -> bool:
+        if context is None:
+            context = self.schema.validation_context.clean_copy()
+            self.raw_decode(text, 'lax', context)
+            return not context.errors
+        else:
+            try:
+                self.raw_decode(text, 'strict', context)
+            except XMLSchemaValidationError:
+                return False
+            else:
+                return True
+
+    def raw_decode(self, obj: Union[str, bytes], validation: str,
+                   context: DecodeContext) -> DecodedValueType:
         text = self.normalize(obj)
         if self.patterns is not None:
             try:
                 self.patterns(text)
             except XMLSchemaValidationError as err:
-                yield err
+                context.validation_error(validation, self, err, obj)
 
         for validator in self.validators:
             try:
                 validator(text)
             except XMLSchemaValidationError as err:
-                yield err
+                context.validation_error(validation, self, err, obj)
 
-        yield text
+        return text
 
-    def iter_encode(self, obj: Any, validation: str = 'lax', **kwargs: Any) \
-            -> IterEncodeType[EncodedValueType]:
+    def raw_encode(self, obj: Any, validation: str, context: EncodeContext) \
+            -> Optional[str]:
         if isinstance(obj, (str, bytes)):
             text = self.normalize(obj)
         elif obj is None:
@@ -475,15 +492,15 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
             try:
                 self.patterns(text)
             except XMLSchemaValidationError as err:
-                yield err
+                context.validation_error(validation, self, err)
 
         for validator in self.validators:
             try:
                 validator(text)
             except XMLSchemaValidationError as err:
-                yield err
+                context.validation_error(validation, self, err)
 
-        yield text
+        return text
 
     def get_facet(self, tag: str) -> Optional[FacetsValueType]:
         return self.facets.get(tag)
@@ -597,7 +614,7 @@ class XsdAtomicBuiltin(XsdAtomic):
             self.instance_types, python_type = python_type, python_type[0]
         else:
             self.instance_types = python_type
-        if not callable(python_type):
+        if not isinstance(python_type, type):
             raise XMLSchemaTypeError("%r object is not callable" % python_type.__class__)
 
         if base_type is None and not admitted_facets and name != XSD_ERROR:
@@ -617,47 +634,42 @@ class XsdAtomicBuiltin(XsdAtomic):
     def admitted_facets(self) -> Set[str]:
         return self._admitted_facets or self.primitive_type.admitted_facets
 
-    def iter_decode(self, obj: Union[str, bytes], validation: str = 'lax', **kwargs: Any) \
-            -> IterDecodeType[DecodedValueType]:
+    def raw_decode(self, obj: Union[str, bytes], validation: str,
+                   context: DecodeContext) -> DecodedValueType:
         if isinstance(obj, (str, bytes)):
             obj = self.normalize(obj)
         elif obj is not None and not isinstance(obj, self.instance_types):
-            reason = _("value is not an instance of {!r}").format(self.instance_types)
-            error = XMLSchemaDecodeError(self, obj, self.to_python, reason)
-            yield self.validation_error(validation, error, **kwargs)
+            msg = _("value is not an instance of {!r}").format(self.instance_types)
+            context.decode_error(validation, self, obj, self.to_python, msg)
 
         if validation == 'skip':
             try:
-                yield self.to_python(obj)
+                return self.to_python(obj)
             except (ValueError, DecimalException):
-                yield str(obj)
-            return
+                return str(obj)
 
         if self.patterns is not None:
             try:
                 self.patterns(obj)
             except XMLSchemaValidationError as err:
-                yield err
+                context.validation_error(validation, self, err)
 
         try:
             result = self.to_python(obj)
         except (ValueError, DecimalException) as err:
-            error = XMLSchemaDecodeError(self, obj, self.to_python, reason=str(err))
-            yield self.validation_error(validation, error, **kwargs)
-            yield None
-            return
+            context.decode_error(validation, self, obj, self.to_python, err)
+            return None
         except TypeError:
             # xs:error type (e.g. an XSD 1.1 type alternative used to catch invalid values)
             reason = _("invalid value {!r}").format(obj)
-            yield self.validation_error(validation, reason, obj, **kwargs)
-            yield None
-            return
+            context.validation_error(validation, self, reason, obj)
+            return None
 
         for validator in self.validators:
             try:
                 validator(result)
             except XMLSchemaValidationError as err:
-                yield err
+                context.validation_error(validation, self, err)
 
         if self.name not in {XSD_QNAME, XSD_IDREF, XSD_ID}:
             pass
@@ -669,85 +681,73 @@ class XsdAtomicBuiltin(XsdAtomic):
                     pass
                 else:
                     try:
-                        result = f"{{{kwargs['namespaces'][prefix]}}}{name}"
+                        result = f"{{{context.namespaces[prefix]}}}{name}"
                     except (TypeError, KeyError):
-                        try:
-                            if kwargs['source'].namespace != XSD_NAMESPACE:
-                                reason = _("unmapped prefix %r in a QName") % prefix
-                                yield self.validation_error(validation, reason, obj, **kwargs)
-                        except KeyError:
-                            pass
+                        if not isinstance(context.source, XMLResource) \
+                                and not context.namespaces:
+                            pass  # TODO: workaround, need a fix in elementpath (typed_value)
+                        elif context.root_namespace == XSD_NAMESPACE:
+                            pass  # Already found by meta-schema validation
+                        else:
+                            reason = _("unmapped prefix %r in a QName") % prefix
+                            context.validation_error(validation, self, reason, obj)
             else:
                 try:
-                    default_namespace = kwargs['namespaces']['']
+                    default_namespace = context.namespaces['']
                 except (TypeError, KeyError):
                     pass
                 else:
                     if default_namespace:
                         result = f'{{{default_namespace}}}{obj}'
 
+        elif not context.check_identities:
+            pass  # context created from a component
         elif self.name == XSD_IDREF:
-            try:
-                id_map = kwargs['id_map']
-            except KeyError:
-                pass
-            else:
-                if obj not in id_map:
-                    id_map[obj] = 0
+            if obj not in context.id_map:
+                context.id_map[obj] = 0
 
-        elif kwargs.get('level') != 0:
-            try:
-                id_map = kwargs['id_map']
-            except KeyError:
-                pass
-            else:
-                try:
-                    id_list = kwargs['id_list']
-                except KeyError:
-                    if not id_map[obj]:
-                        id_map[obj] = 1
-                    else:
-                        reason = _("duplicated xs:ID value {!r}").format(obj)
-                        yield self.validation_error(validation, reason, obj, **kwargs)
+        elif context.level:
+            if context.id_list is None:
+                if not context.id_map[obj]:
+                    context.id_map[obj] = 1
                 else:
-                    if not id_map[obj]:
-                        id_map[obj] = 1
-                        id_list.append(obj)
-                        if len(id_list) > 1 and self.xsd_version == '1.0':
-                            reason = _("no more than one attribute of type ID should "
-                                       "be present in an element")
-                            yield self.validation_error(validation, reason, obj, **kwargs)
+                    reason = _("duplicated xs:ID value {!r}").format(obj)
+                    context.validation_error(validation, self, reason, obj)
+            elif not context.id_map[obj]:
+                context.id_map[obj] = 1
+                context.id_list.append(obj)
+                if len(context.id_list) > 1 and self.xsd_version == '1.0':
+                    reason = _("no more than one attribute of type ID should "
+                               "be present in an element")
+                    context.validation_error(validation, self, reason, obj)
 
-                    elif obj not in id_list or self.xsd_version == '1.0':
-                        reason = _("duplicated xs:ID value {!r}").format(obj)
-                        yield self.validation_error(validation, reason, obj, **kwargs)
+            elif obj not in context.id_list or self.xsd_version == '1.0':
+                reason = _("duplicated xs:ID value {!r}").format(obj)
+                context.validation_error(validation, self, reason, obj)
 
-        yield result
+        return result
 
-    def iter_encode(self, obj: Any, validation: str = 'lax', **kwargs: Any) \
-            -> IterEncodeType[EncodedValueType]:
+    def raw_encode(self, obj: Any, validation: str, context: EncodeContext) \
+            -> Optional[str]:
         if isinstance(obj, (str, bytes)):
             obj = self.normalize(obj)
 
         if validation == 'skip':
             try:
-                yield self.from_python(obj)
+                return self.from_python(obj)
             except ValueError:
-                yield str(obj)
-            return
+                return str(obj)
 
         elif isinstance(obj, bool):
             types_: Any = self.instance_types
             if types_ is not bool or (isinstance(types_, tuple) and bool in types_):
-                reason = _("boolean value {0!r} requires a {1!r} decoder").format(obj, bool)
-                error = XMLSchemaEncodeError(self, obj, self.from_python, reason)
-                yield self.validation_error(validation, error, **kwargs)
+                msg = _("boolean value {0!r} requires a {1!r} decoder").format(obj, bool)
+                context.encode_error(validation, self, obj, self.from_python, msg)
                 obj = self.python_type(obj)
 
         elif not isinstance(obj, self.instance_types):
-            reason = _("{0!r} is not an instance of {1!r}").format(obj, self.instance_types)
-            error = XMLSchemaEncodeError(self, obj, self.from_python, reason)
-            yield self.validation_error(validation, error, **kwargs)
+            msg = _("{0!r} is not an instance of {1!r}").format(obj, self.instance_types)
+            context.encode_error(validation, self, obj, self.from_python,  msg)
 
             try:
                 value = self.python_type(obj)
@@ -756,39 +756,34 @@ class XsdAtomicBuiltin(XsdAtomic):
                     raise ValueError()
                 obj = value
             except (ValueError, TypeError) as err:
-                error = XMLSchemaEncodeError(self, obj, self.from_python, reason=str(err))
-                yield self.validation_error(validation, error, **kwargs)
-                yield None
-                return
+                context.encode_error(validation, self, obj, self.from_python, err)
+                return None
             else:
                 if value == obj or str(value) == str(obj):
                     obj = value
                 else:
-                    reason = _("invalid value {!r}").format(obj)
-                    error = XMLSchemaEncodeError(self, obj, self.from_python, reason)
-                    yield self.validation_error(validation, error, **kwargs)
-                    yield None
-                    return
+                    msg = _("invalid value {!r}").format(obj)
+                    context.encode_error(validation, self, obj, self.from_python, msg)
+                    return None
 
         for validator in self.validators:
             try:
                 validator(obj)
             except XMLSchemaValidationError as err:
-                yield err
+                context.validation_error(validation, self, err)
 
         try:
             text = self.from_python(obj)
         except ValueError as err:
-            error = XMLSchemaEncodeError(self, obj, self.from_python, reason=str(err))
-            yield self.validation_error(validation, error, **kwargs)
-            yield None
+            context.encode_error(validation, self, obj, self.from_python, err)
+            return None
         else:
             if self.patterns is not None:
                 try:
                     self.patterns(text)
-                except XMLSchemaValidationError as err:
-                    yield err
-            yield text
+                except XMLSchemaValidationError as error:
+                    context.validation_error(validation, self, error)
+            return text
 
 
 class XsdList(XsdSimpleType):
@@ -939,35 +934,25 @@ class XsdList(XsdSimpleType):
         if self.item_type.parent is not None:
             yield from self.item_type.iter_components(xsd_classes)
 
-    def iter_decode(self, obj: Union[str, bytes],
-                    validation: str = 'lax', **kwargs: Any) \
-            -> IterDecodeType[Union[XMLSchemaValidationError,
-                              List[Optional[AtomicValueType]]]]:
+    def raw_decode(self, obj: Union[str, bytes], validation: str, context: DecodeContext) \
+            -> List[Optional[AtomicValueType]]:
         items = []
         for chunk in self.normalize(obj).split():
-            for result in self.item_type.iter_decode(chunk, validation, **kwargs):
-                if isinstance(result, XMLSchemaValidationError):
-                    yield result
-                else:
-                    assert not isinstance(result, list)
-                    items.append(result)
+            result = self.item_type.raw_decode(chunk, validation, context)
+            assert not isinstance(result, list)
+            items.append(result)
         else:
-            yield items
+            return items
 
-    def iter_encode(self, obj: Any, validation: str = 'lax', **kwargs: Any) \
-            -> IterEncodeType[EncodedValueType]:
+    def raw_encode(self, obj: Any, validation: str, context: EncodeContext) -> Optional[str]:
         if not hasattr(obj, '__iter__') or isinstance(obj, (str, bytes)):
             obj = [obj]
 
         encoded_items: List[Any] = []
         for item in obj:
-            for result in self.item_type.iter_encode(item, validation, **kwargs):
-                if isinstance(result, XMLSchemaValidationError):
-                    yield result
-                else:
-                    encoded_items.append(result)
+            encoded_items.append(self.item_type.raw_encode(item, validation, context))
 
-        yield ' '.join(item for item in encoded_items if item is not None)
+        return ' '.join(item for item in encoded_items if item is not None)
 
 
 class XsdUnion(XsdSimpleType):
@@ -982,7 +967,7 @@ class XsdUnion(XsdSimpleType):
           Content: (annotation?, simpleType*)
         </union>
     """
-    member_types: Any = ()
+    member_types: List[XsdSimpleType]
     _ADMITTED_TYPES: Any = XsdSimpleType
     _ADMITTED_TAGS = {XSD_UNION}
 
@@ -1018,7 +1003,7 @@ class XsdUnion(XsdSimpleType):
 
     def _parse(self) -> None:
         mt: Any
-        member_types = []
+        self.member_types = []
 
         for child in self.elem:
             if child.tag != XSD_ANNOTATION and not callable(child.tag):
@@ -1026,7 +1011,7 @@ class XsdUnion(XsdSimpleType):
                 if isinstance(mt, XMLSchemaParseError):
                     self.parse_error(mt)
                 else:
-                    member_types.append(mt)
+                    self.member_types.append(mt)
 
         if 'memberTypes' in self.elem.attrib:
             for name in self.elem.attrib['memberTypes'].split():
@@ -1055,19 +1040,18 @@ class XsdUnion(XsdSimpleType):
                     continue
                 elif mt.final == '#all' or 'union' in mt.final:
                     msg = _("'final' value of the memberTypes %r forbids derivation by union")
-                    self.parse_error(msg % member_types)
+                    self.parse_error(msg % self.member_types)
 
-                member_types.append(mt)
+                self.member_types.append(mt)
 
-        if not member_types:
+        if not self.member_types:
             self.parse_error(_("missing xs:union type declarations"))
             self.member_types = [self.any_atomic_type]
-        elif any(mt.name == XSD_ANY_ATOMIC_TYPE for mt in member_types):
+        elif any(mt.name == XSD_ANY_ATOMIC_TYPE for mt in self.member_types):
             msg = _("cannot use xs:anyAtomicType as base type of a user-defined type")
             self.parse_error(msg)
         else:
-            self.member_types = member_types
-            if all(not mt.allow_empty for mt in member_types):
+            if all(not mt.allow_empty for mt in self.member_types):
                 self.allow_empty = False
 
     @property
@@ -1102,92 +1086,83 @@ class XsdUnion(XsdSimpleType):
         for mt in filter(lambda x: x.parent is not None, self.member_types):
             yield from mt.iter_components(xsd_classes)
 
-    def iter_decode(self, obj: AtomicValueType, validation: str = 'lax',
-                    patterns: Optional[XsdPatternFacets] = None,
-                    **kwargs: Any) -> IterDecodeType[DecodedValueType]:
+    def raw_decode(self, obj: Union[str, bytes], validation: str, context: DecodeContext) \
+            -> DecodedValueType:
+        patterns = context.patterns  # Use and clean pushed patterns
+        context.patterns = None
 
-        # Try decoding the whole text (or validate the decoded atomic value)
-        for member_type in self.member_types:
-            for result in member_type.iter_decode(obj, validation='lax', **kwargs):
-                if not isinstance(result, XMLSchemaValidationError):
+        xsd_type = None
+        for mt in self.member_types:
+            temp_context = _copy(context)
+            temp_context.errors.clear()
+
+            result = mt.raw_decode(obj, 'lax', temp_context)
+            if result is not None:
+                if validation == 'skip':
+                    return mt.raw_decode(obj, validation, context)
+
+                if xsd_type is None:
+                    xsd_type = mt
+                if not temp_context.errors:
                     if patterns and isinstance(obj, (str, bytes)):
                         try:
-                            patterns(member_type.normalize(obj))
-                        except XMLSchemaValidationError as err:
-                            yield err
+                            patterns(mt.normalize(obj))
+                        except XMLSchemaValidationError:
+                            continue
+                    return mt.raw_decode(obj, validation, context)
 
-                    yield result
-                    return
-                break
+        if validation == 'skip':
+            return None if obj is None else str(obj)
+        elif validation == 'lax' and xsd_type is not None:
+            result = xsd_type.raw_decode(obj, validation, context)
+            if patterns and isinstance(obj, (str, bytes)):
+                try:
+                    patterns(xsd_type.normalize(obj))
+                except XMLSchemaValidationError as err:
+                    context.validation_error(validation, self, err)
+            return result
 
-        if isinstance(obj, bytes):
-            obj = obj.decode('utf-8')
+        msg = _("invalid value {!r}").format(obj)
+        context.decode_error(validation, self, obj, self.member_types, msg)
+        return None
 
-        if not isinstance(obj, str) or ' ' not in obj.strip():
-            reason = _("invalid value {!r}").format(obj)
-            error = XMLSchemaDecodeError(self, obj, self.member_types, reason)
-            yield self.validation_error(validation, error, **kwargs)
-            return
+    def raw_encode(self, obj: Any, validation: str, context: EncodeContext) -> Optional[str]:
+        patterns = context.patterns  # Use and clean pushed patterns
+        context.patterns = None
 
-        items = []
-        not_decodable = []
-        for chunk in obj.split():
-            for member_type in self.member_types:
-                for result in member_type.iter_decode(chunk, validation='lax', **kwargs):
-                    if isinstance(result, XMLSchemaValidationError):
-                        break
-                    else:
-                        items.append(result)
-                else:
-                    break
-            else:
-                if validation != 'skip':
-                    not_decodable.append(chunk)
-                else:
-                    items.append(str(chunk))
+        xsd_type = None
+        for mt in self.member_types:
+            temp_context = _copy(context)
+            temp_context.errors.clear()
 
-        if not_decodable:
-            reason = _("no type suitable for decoding the values %r") % not_decodable
-            error = XMLSchemaDecodeError(self, obj, self.member_types, reason)
-            yield self.validation_error(validation, error, **kwargs)
+            result = mt.raw_encode(obj, 'lax', temp_context)
+            if result is not None:
+                if validation == 'skip':
+                    return mt.raw_encode(obj, validation, context)
+                if xsd_type is None:
+                    xsd_type = mt
+                if not temp_context.errors:
+                    if patterns and isinstance(obj, (str, bytes)):
+                        try:
+                            patterns(mt.normalize(obj))
+                        except XMLSchemaValidationError:
+                            continue
+                    return mt.raw_encode(obj, validation, context)
 
-        yield items if len(items) > 1 else items[0] if items else None
+        if validation == 'skip':
+            return None if obj is None else str(obj)
+        elif validation == 'lax' and xsd_type is not None:
+            result = xsd_type.raw_encode(obj, validation, context)
+            if patterns and isinstance(obj, (str, bytes)):
+                try:
+                    patterns(xsd_type.normalize(obj))
+                except XMLSchemaValidationError as err:
+                    context.validation_error(validation, self, err)
+            return result
 
-    def iter_encode(self, obj: Any, validation: str = 'lax', **kwargs: Any) \
-            -> IterEncodeType[EncodedValueType]:
-
-        for member_type in self.member_types:
-            for result in member_type.iter_encode(obj, validation='lax', **kwargs):
-                if result is not None and not isinstance(result, XMLSchemaValidationError):
-                    yield result
-                    return
-                elif validation == 'strict':
-                    # In 'strict' mode avoid lax encoding by similar types
-                    # (e.g. float encoded by int)
-                    break
-
-        if hasattr(obj, '__iter__') and not isinstance(obj, (str, bytes)):
-            for member_type in self.member_types:
-                results = []
-                for item in obj:
-                    for result in member_type.iter_encode(item, validation='lax', **kwargs):
-                        if result is not None and not isinstance(result, XMLSchemaValidationError):
-                            results.append(result)
-                            break
-                        elif validation == 'strict':
-                            break
-
-                if len(results) == len(obj):
-                    yield results
-                    break
-
-        if validation != 'skip':
-            reason = _("no type suitable for encoding the object")
-            error = XMLSchemaEncodeError(self, obj, self.member_types, reason)
-            yield self.validation_error(validation, error, **kwargs)
-            yield None
-        else:
-            yield str(obj)
+        msg = _("no type suitable for encoding the object")
+        context.encode_error(validation, self, obj, self.member_types, msg)
+        return None
 
 
 class Xsd11Union(XsdUnion):
@@ -1388,8 +1363,9 @@ class XsdAtomicRestriction(XsdAtomic):
         if self.base_type.parent is not None:
             yield from self.base_type.iter_components(xsd_classes)
 
-    def iter_decode(self, obj: AtomicValueType, validation: str = 'lax', **kwargs: Any) \
-            -> IterDecodeType[DecodedValueType]:
+    def raw_decode(self, obj: Union[str, bytes], validation: str,
+                   context: DecodeContext) -> DecodedValueType:
+
         if isinstance(obj, (str, bytes)):
             obj = self.normalize(obj)
 
@@ -1398,95 +1374,78 @@ class XsdAtomicRestriction(XsdAtomic):
                     try:
                         self.patterns(obj)
                     except XMLSchemaValidationError as err:
-                        yield err
-                elif 'patterns' not in kwargs:
-                    kwargs['patterns'] = self.patterns
+                        context.validation_error(validation, self, err)
+                elif context.patterns is None:
+                    context.patterns = self.patterns
 
-        base_type: Any
         if isinstance(self.base_type, XsdSimpleType):
             base_type = self.base_type
-        elif self.base_type.has_simple_content():
+        elif isinstance(self.base_type.content, XsdSimpleType):
             base_type = self.base_type.content
         elif self.base_type.mixed:
-            yield obj
-            return
+            return obj
         else:  # pragma: no cover
             msg = _("wrong base type %r: a simpleType or a complexType "
                     "with simple or mixed content required")
             raise XMLSchemaValueError(msg % self.base_type)
 
-        for result in base_type.iter_decode(obj, validation, **kwargs):
-            if isinstance(result, XMLSchemaValidationError):
-                yield result
-            else:
-                if result is not None:
-                    for validator in self.validators:
-                        try:
-                            validator(result)
-                        except XMLSchemaValidationError as err:
-                            yield err
+        result = base_type.raw_decode(obj, validation, context)
+        if result is not None:
+            for validator in self.validators:
+                try:
+                    validator(result)
+                except XMLSchemaValidationError as err:
+                    context.validation_error(validation, self, err)
 
-                yield result
-                return
+        return result
 
-    def iter_encode(self, obj: Any, validation: str = 'lax', **kwargs: Any) \
-            -> IterEncodeType[EncodedValueType]:
+    def raw_encode(self, obj: Any, validation: str, context: EncodeContext) -> Optional[str]:
+        base_type: XsdSimpleType
+        if isinstance(self.base_type, XsdSimpleType):
+            base_type = self.base_type
+        elif isinstance(self.base_type.content, XsdSimpleType) and self.max_length != 0:
+            base_type = self.base_type.content
+        elif self.base_type.mixed:
+            return str(obj)
+        else:  # pragma: no cover
+            msg = _("wrong base type %r: a simpleType or a complexType "
+                    "with simple or mixed content required")
+            raise XMLSchemaValueError(msg % self.base_type)
 
-        base_type: Any
         if self.is_list():
             if not hasattr(obj, '__iter__') or isinstance(obj, (str, bytes)):
                 obj = [] if obj is None or obj == '' else [obj]
-            base_type = self.base_type
-        else:
-            if isinstance(obj, (str, bytes)):
-                obj = self.normalize(obj)
+        elif isinstance(obj, (str, bytes)):
+            obj = self.normalize(obj)
 
-            if isinstance(self.base_type, XsdSimpleType):
-                base_type = self.base_type
-            elif self.base_type.has_simple_content():
-                base_type = self.base_type.content
-            elif self.base_type.mixed:
-                yield str(obj)
-                return
-            else:  # pragma: no cover
-                msg = _("wrong base type %r: a simpleType or a complexType "
-                        "with simple or mixed content required")
-                raise XMLSchemaValueError(msg % self.base_type)
+        if self.patterns:
+            if context.patterns is None and isinstance(self.primitive_type, XsdUnion):
+                context.patterns = self.patterns
 
-        result: Any
-        for result in base_type.iter_encode(obj, validation):
-            if isinstance(result, XMLSchemaValidationError):
-                yield result
-                if isinstance(result, XMLSchemaEncodeError):
-                    yield str(obj) if validation == 'skip' else None
-                    return
-            else:
-                if self.validators and obj is not None:
-                    if isinstance(obj, (str, bytes)) and \
-                            self.primitive_type.to_python is not str and \
-                            isinstance(obj, self.primitive_type.instance_types):
-                        try:
-                            obj = self.primitive_type.to_python(obj)
-                        except (ValueError, DecimalException, TypeError):
-                            pass
+        result = base_type.raw_encode(obj, validation, context)
 
-                    for validator in self.validators:
-                        try:
-                            validator(obj)
-                        except XMLSchemaValidationError as err:
-                            yield err
+        if self.validators and obj is not None:
+            if isinstance(obj, (str, bytes)) and \
+                    self.primitive_type.to_python is not str and \
+                    isinstance(obj, self.primitive_type.instance_types):
+                try:
+                    obj = self.primitive_type.to_python(obj)
+                except (ValueError, DecimalException, TypeError):
+                    pass
 
-                if self.patterns:
-                    if not isinstance(self.primitive_type, XsdUnion):
-                        try:
-                            self.patterns(result)
-                        except XMLSchemaValidationError as err:
-                            yield err
-                    elif 'patterns' not in kwargs:
-                        kwargs['patterns'] = self.patterns
+            for validator in self.validators:
+                try:
+                    validator(obj)
+                except XMLSchemaValidationError as err:
+                    context.validation_error(validation, self, err)
 
-                yield result
-                return
+        if self.patterns and not isinstance(self.primitive_type, XsdUnion):
+            try:
+                self.patterns(result)
+            except XMLSchemaValidationError as err:
+                context.validation_error(validation, self, err)
+
+        return result
 
     def is_list(self) -> bool:
         return self.primitive_type.is_list()

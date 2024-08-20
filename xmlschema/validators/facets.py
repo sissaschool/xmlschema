@@ -14,6 +14,7 @@ import re
 import math
 import operator
 from abc import abstractmethod
+from copy import copy
 from typing import TYPE_CHECKING, cast, overload, Any, Dict, List, \
     MutableSequence, Optional, Pattern, Union, Tuple, Type
 from xml.etree.ElementTree import Element
@@ -80,7 +81,7 @@ class XsdFacet(XsdComponent):
 
         try:
             self._parse_value(self.elem)
-        except (KeyError, ValueError, XMLSchemaDecodeError) as err:
+        except (KeyError, TypeError, ValueError) as err:
             self.value = None
             self.parse_error(err)
         else:
@@ -275,10 +276,17 @@ class XsdMinInclusiveFacet(XsdFacet):
     _ADMITTED_TAGS = XSD_MIN_INCLUSIVE,
 
     def _parse_value(self, elem: ElementType) -> None:
-        value = elem.attrib['value']
-        self.value, errors = cast(LaxDecodeType, self.base_type.decode(value, 'lax'))
-        for e in errors:
+        context = copy(self.schema.validation_context)
+        value = self.base_type.text_decode(elem.attrib['value'], 'lax', context)
+
+        if isinstance(value, list):
+            raise TypeError("attribute 'value' must be atomic")
+        self.value = value
+
+        for e in context.errors:
             self.parse_error(_("invalid restriction: {}").format(e.reason))
+
+        self.value = value
 
     def __call__(self, value: Any) -> None:
         try:
@@ -305,9 +313,14 @@ class XsdMinExclusiveFacet(XsdFacet):
     _ADMITTED_TAGS = XSD_MIN_EXCLUSIVE,
 
     def _parse_value(self, elem: ElementType) -> None:
-        value = elem.attrib['value']
-        self.value, errors = cast(LaxDecodeType, self.base_type.decode(value, 'lax'))
-        for e in errors:
+        context = copy(self.schema.validation_context)
+        value = self.base_type.text_decode(elem.attrib['value'], 'lax', context)
+
+        if isinstance(value, list):
+            raise TypeError("attribute 'value' must be atomic")
+        self.value = value
+
+        for e in context.errors:
             if not isinstance(e.validator, self.__class__) or e.validator.value != self.value:
                 self.parse_error(_("invalid restriction: {}").format(e.reason))
 
@@ -322,7 +335,8 @@ class XsdMinExclusiveFacet(XsdFacet):
                 reason = _("value has to be greater than {!r}").format(self.value)
                 raise XMLSchemaValidationError(self, value, reason)
         except TypeError as err:
-            raise XMLSchemaValidationError(self, value, str(err)) from None
+            if self.value is not None:
+                raise XMLSchemaValidationError(self, value, str(err)) from None
 
 
 class XsdMaxInclusiveFacet(XsdFacet):
@@ -341,9 +355,14 @@ class XsdMaxInclusiveFacet(XsdFacet):
     _ADMITTED_TAGS = XSD_MAX_INCLUSIVE,
 
     def _parse_value(self, elem: ElementType) -> None:
-        value = elem.attrib['value']
-        self.value, errors = cast(LaxDecodeType, self.base_type.decode(value, 'lax'))
-        for e in errors:
+        context = copy(self.schema.validation_context)
+        value = self.base_type.text_decode(elem.attrib['value'], 'lax', context)
+
+        if isinstance(value, list):
+            raise TypeError("attribute 'value' must be atomic")
+        self.value = value
+
+        for e in context.errors:
             self.parse_error(_("invalid restriction: {}").format(e.reason))
 
     def __call__(self, value: Any) -> None:
@@ -352,7 +371,8 @@ class XsdMaxInclusiveFacet(XsdFacet):
                 reason = _("value has to be less than or equal than {!r}").format(self.value)
                 raise XMLSchemaValidationError(self, value, reason)
         except TypeError as err:
-            raise XMLSchemaValidationError(self, value, str(err)) from None
+            if self.value is not None:
+                raise XMLSchemaValidationError(self, value, str(err)) from None
 
 
 class XsdMaxExclusiveFacet(XsdFacet):
@@ -371,9 +391,14 @@ class XsdMaxExclusiveFacet(XsdFacet):
     _ADMITTED_TAGS = XSD_MAX_EXCLUSIVE,
 
     def _parse_value(self, elem: ElementType) -> None:
-        value = elem.attrib['value']
-        self.value, errors = cast(LaxDecodeType, self.base_type.decode(value, 'lax'))
-        for e in errors:
+        context = copy(self.schema.validation_context)
+        value = self.base_type.text_decode(elem.attrib['value'], 'lax', context)
+
+        if isinstance(value, list):
+            raise TypeError("attribute 'value' must be atomic")
+        self.value = value
+
+        for e in context.errors:
             if not isinstance(e.validator, self.__class__) or e.validator.value != self.value:
                 self.parse_error(_("invalid restriction: {}").format(e.reason))
 
@@ -388,7 +413,8 @@ class XsdMaxExclusiveFacet(XsdFacet):
                 reason = _("value has to be lesser than {!r}").format(self.value)
                 raise XMLSchemaValidationError(self, value, reason)
         except TypeError as err:
-            raise XMLSchemaValidationError(self, value, str(err)) from None
+            if self.value is not None:
+                raise XMLSchemaValidationError(self, value, str(err)) from None
 
 
 class XsdTotalDigitsFacet(XsdFacet):
@@ -558,8 +584,9 @@ class XsdEnumerationFacets(MutableSequence[ElementType], XsdFacet):
         self.enumeration = [self._parse_value(self.elem)]
 
     def _parse_value(self, elem: ElementType) -> Optional[AtomicValueType]:
+        context = copy(self.schema.validation_context)
         try:
-            value = self.base_type.decode(elem.attrib['value'], namespaces=self.schema.namespaces)
+            value = self.base_type.text_decode(elem.attrib['value'], 'strict', context)
         except KeyError:
             pass  # pragma: no cover (already detected by meta-schema validation)
         except XMLSchemaValidationError as err:
