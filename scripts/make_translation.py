@@ -20,7 +20,9 @@ if __name__ == '__main__':
 
     COPYRIGHT_HOLDER = r", 2016, SISSA (International School for Advanced Studies)."
 
-    parser = argparse.ArgumentParser(description="Translation files generator utility for xmlschema")
+    parser = argparse.ArgumentParser(
+        description="Translation files generator utility for xmlschema"
+    )
     parser.add_argument(
         '-L', '--directory', metavar='LOCALE-DIR', type=str, default=None,
         help="use a custom locale directory (for extra local translations)"
@@ -58,7 +60,7 @@ if __name__ == '__main__':
 
     template_file = locale_dir.joinpath('xmlschema.pot')
     if args.template:
-        print(f"+++ Generate the template file ...")
+        print("+++ Generate the template file ...")
 
         status, xgettext_cmd = subprocess.getstatusoutput('which xgettext')
         assert status == 0, "xgettext command is not available!"
@@ -146,4 +148,3 @@ if __name__ == '__main__':
                 sys.exit(1)
 
             print(f'  ... file {str(mo_file)} written\n')
-
