@@ -6,8 +6,8 @@ publiccodeYmlVersion: '0.2'
 name: xmlschema
 url: 'https://github.com/sissaschool/xmlschema'
 landingURL: 'https://github.com/sissaschool/xmlschema'
-releaseDate: '2024-07-29'
-softwareVersion: v3.3.2
+releaseDate: '2024-09-10'
+softwareVersion: v3.4.0
 developmentStatus: stable
 platforms:
   - linux
@@ -50,7 +50,7 @@ description:
     shortDescription: XML Schema validator and data conversion library for Python
     longDescription: >
       The _xmlschema_ library is an implementation of [XML
-      Schema](http://www.w3.org/2001/XMLSchema) for Python (supports Python 3.7+).
+      Schema](http://www.w3.org/2001/XMLSchema) for Python (supports Python 3.8+).
 
 
       This library arises from the needs of a solid Python layer for processing
