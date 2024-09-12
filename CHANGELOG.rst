@@ -2,6 +2,11 @@
 CHANGELOG
 *********
 
+`v3.4.1`_ (2024-09-12)
+======================
+* Fix failing URL normalization tests (issue #416)
+* Disable protocols checking with elementpath v4.5.0
+
 `v3.4.0`_ (2024-09-10)
 ======================
 * Extended ModelVisitor to make it usable as an helper class for generating content
@@ -715,3 +720,4 @@ v0.9.6 (2017-05-05)
 .. _v3.3.1: https://github.com/brunato/xmlschema/compare/v3.3.0...v3.3.1
 .. _v3.3.2: https://github.com/brunato/xmlschema/compare/v3.3.1...v3.3.2
 .. _v3.4.0: https://github.com/brunato/xmlschema/compare/v3.3.2...v3.4.0
+.. _v3.4.1: https://github.com/brunato/xmlschema/compare/v3.4.0...v3.4.1

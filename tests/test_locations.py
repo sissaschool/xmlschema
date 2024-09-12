@@ -54,6 +54,18 @@ def filter_windows_path(path):
         return path
 
 
+def has_fix_for_issue_67673():
+    """
+    Checks if urlunsplit() has the fix for URIs with path starting with multiple
+    slashes and no authority.
+
+      https://github.com/python/cpython/issues/67693
+      https://github.com/python/cpython/commit/2fa5d70
+    """
+    unc_path = '////netloc/path/file.txt'
+    return urlsplit(unc_path).geturl() == unc_path
+
+
 class TestLocations(unittest.TestCase):
 
     @classmethod
@@ -318,7 +330,7 @@ class TestLocations(unittest.TestCase):
         self.assertRegex(normalize_url('/root/dir1/schema.xsd'),
                          f'file://{DRIVE_REGEX}/root/dir1/schema.xsd')
 
-        if sys.version_info < (3, 12, 4):
+        if not has_fix_for_issue_67673():
             self.assertRegex(normalize_url('////root/dir1/schema.xsd'),
                              f'file://{DRIVE_REGEX}//root/dir1/schema.xsd')
             self.assertRegex(normalize_url('dir2/schema.xsd', '////root/dir1'),

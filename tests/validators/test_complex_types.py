@@ -10,6 +10,7 @@
 #
 import unittest
 import warnings
+from pathlib import Path
 from textwrap import dedent
 from xml.etree.ElementTree import Element
 
@@ -19,6 +20,8 @@ from xmlschema.testing import XsdValidatorTestCase
 
 
 class TestXsdComplexType(XsdValidatorTestCase):
+
+    TEST_CASES_DIR = str(Path(__file__).parent.joinpath('../test_cases').resolve())
 
     def check_complex_restriction(self, base, restriction, expected=None, **kwargs):
         content = 'complex' if self.content_pattern.search(base) else 'simple'
@@ -591,28 +594,28 @@ class TestXsdComplexType(XsdValidatorTestCase):
 
     def test_mixed_content_extension__issue_414(self):
         # Not a bug, the user refers to an old version (v1.10), but
-        # there is a detailed analysis about that:
+        # there is a detailed analysis on that:
         #   https://stackoverflow.com/a/78942158/1838607
-        xsd_file = self.casepath('tests/test_cases/issues/issue_414/issue_414.xsd')
-        xml_file = self.casepath('tests/test_cases/issues/issue_414/issue_414.xml')
+        xsd_file = self.casepath('issues/issue_414/issue_414.xsd')
+        xml_file = self.casepath('issues/issue_414/issue_414.xml')
 
         schema = self.schema_class(xsd_file)
         self.assertTrue(schema.types['mixedElement'].mixed)
         self.assertTrue(schema.elements['root'].type.mixed)
         self.assertTrue(schema.is_valid(xml_file))
 
-        xsd_file = self.casepath('tests/test_cases/issues/issue_414/issue_414b.xsd')
+        xsd_file = self.casepath('issues/issue_414/issue_414b.xsd')
         schema = self.schema_class(xsd_file)
         self.assertTrue(schema.types['mixedElement'].mixed)
         self.assertTrue(schema.elements['root'].type.mixed)
         self.assertTrue(schema.is_valid(xml_file))
 
-        xsd_file = self.casepath('tests/test_cases/issues/issue_414/issue_414ne.xsd')
+        xsd_file = self.casepath('issues/issue_414/issue_414ne.xsd')
         schema = self.schema_class(xsd_file)
         self.assertTrue(schema.types['mixedElement'].mixed)
         self.assertTrue(schema.elements['root'].type.mixed)
 
-        xsd_file = self.casepath('tests/test_cases/issues/issue_414/issue_414ne-inv1.xsd')
+        xsd_file = self.casepath('issues/issue_414/issue_414ne-inv1.xsd')
         with self.assertRaises(XMLSchemaParseError) as ctx:
             self.schema_class(xsd_file)
 
@@ -620,7 +623,7 @@ class TestXsdComplexType(XsdValidatorTestCase):
                   "and the extension group is not empty")
         self.assertIn(reason, str(ctx.exception))
 
-        xsd_file = self.casepath('tests/test_cases/issues/issue_414/issue_414ne-inv2.xsd')
+        xsd_file = self.casepath('issues/issue_414/issue_414ne-inv2.xsd')
         with self.assertRaises(XMLSchemaParseError) as ctx:
             self.schema_class(xsd_file)
 
@@ -807,7 +810,7 @@ class TestXsd11ComplexType(TestXsdComplexType):
 
     def test_rooted_expression_in_assertion__issue_386(self):
         # absolute expression in assertion
-        xsd_file = self.casepath('tests/test_cases/issues/issue_386/issue_386.xsd')
+        xsd_file = self.casepath('issues/issue_386/issue_386.xsd')
 
         with warnings.catch_warnings(record=True) as ctx:
             self.schema_class(xsd_file)
@@ -816,18 +819,18 @@ class TestXsd11ComplexType(TestXsdComplexType):
             self.assertEqual(len(ctx), 2, "Expected two assert warnings")
             self.assertIn("absolute location path", str(ctx[0].message))
 
-        xml_file = self.casepath('tests/test_cases/issues/issue_386/issue_386-1.xml')
+        xml_file = self.casepath('issues/issue_386/issue_386-1.xml')
         self.assertFalse(schema.is_valid(xml_file))
-        xml_file = self.casepath('tests/test_cases/issues/issue_386/issue_386-2.xml')
+        xml_file = self.casepath('issues/issue_386/issue_386-2.xml')
         self.assertFalse(schema.is_valid(xml_file))
 
         # relative path in assertion
-        xsd_file = self.casepath('tests/test_cases/issues/issue_386/issue_386-2.xsd')
+        xsd_file = self.casepath('issues/issue_386/issue_386-2.xsd')
         schema = XMLSchema11(xsd_file)
 
-        xml_file = self.casepath('tests/test_cases/issues/issue_386/issue_386-1.xml')
+        xml_file = self.casepath('issues/issue_386/issue_386-1.xml')
         self.assertTrue(schema.is_valid(xml_file))
-        xml_file = self.casepath('tests/test_cases/issues/issue_386/issue_386-2.xml')
+        xml_file = self.casepath('issues/issue_386/issue_386-2.xml')
         self.assertFalse(schema.is_valid(xml_file))
 
     def test_sequence_extension(self):
