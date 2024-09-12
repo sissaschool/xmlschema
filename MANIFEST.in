@@ -11,8 +11,9 @@ include mypy.ini
 include doc/*
 
 recursive-include xmlschema *
-recursive-include tests *
 recursive-include scripts *
+recursive-include tests *
+recursive-exclude tests/.mypy_cache *
 
 exclude xmlschema/locale/xmlschema.pot
 global-exclude *.py[cod]
