@@ -7,7 +7,7 @@ name: xmlschema
 url: 'https://github.com/sissaschool/xmlschema'
 landingURL: 'https://github.com/sissaschool/xmlschema'
 releaseDate: '2024-09-12'
-softwareVersion: v3.4.1
+softwareVersion: v3.4.2
 developmentStatus: stable
 platforms:
   - linux
