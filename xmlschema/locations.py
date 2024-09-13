@@ -15,14 +15,72 @@ import string
 from collections.abc import MutableMapping
 from pathlib import Path, PurePath, PurePosixPath, PureWindowsPath
 from typing import Optional, Iterable
-from urllib.parse import urlsplit, urlunsplit, quote, quote_plus, unquote, \
-    unquote_plus, quote_from_bytes
+from urllib.parse import urlsplit, quote, quote_plus, unquote, unquote_plus, quote_from_bytes
 
 from .exceptions import XMLSchemaValueError
 from .aliases import NormalizedLocationsType, LocationsType
 
 
 DRIVE_LETTERS = frozenset(string.ascii_letters)
+
+URL_SCHEMES = frozenset(('file', 'http', 'https', 'ftp', 'sftp', 'rsync',
+                         'svn', 'svn+ssh', 'nfs', 'git', 'git+ssh', 'ws', 'wss'))
+
+
+def get_uri_path(scheme: str = '', authority: str = '', path: str = '',
+                 query: str = '', fragment: str = '') -> str:
+    """
+    Get the URI path from components, according to https://datatracker.ietf.org/doc/html/rfc3986.
+    """
+    if scheme == 'urn':
+        if not path or authority or query or fragment:
+            raise XMLSchemaValueError("an URN can have only scheme and the path components")
+        elif path.startswith(':') or path.endswith(':'):
+            raise XMLSchemaValueError(f"invalid URN path {path!r}")
+        return path
+    elif authority:
+        if path and path[0] != '/':
+            return f'{authority}/{path}'
+        else:
+            return f'{authority}{path}'
+    elif path[:2] == '//':
+        return f'//{path}'
+    elif scheme and scheme not in DRIVE_LETTERS and (not path or path[0] == '/'):
+        return f'//{path}'
+    else:
+        return path
+
+
+def get_uri(scheme: str = '', authority: str = '', path: str = '',
+            query: str = '', fragment: str = '') -> str:
+    """
+    Get the URI from components, according to https://datatracker.ietf.org/doc/html/rfc3986.
+    """
+    if scheme == 'urn':
+        return f'urn:{get_uri_path(scheme, authority, path, query, fragment)}'
+
+    path = get_uri_path(scheme, authority, path, query, fragment)
+
+    if authority:
+        if path and path[0] != '/':
+            url = f'//{authority}/{path}'
+        else:
+            url = f'//{authority}{path}'
+    elif path[:2] == '//':
+        url = f'//{path}'
+    elif scheme and scheme not in DRIVE_LETTERS and (not path or path[0] == '/'):
+        url = f'//{path}'
+    else:
+        url = path
+
+    if scheme:
+        url = scheme + ':' + url
+    if query:
+        url = url + '?' + query
+    if fragment:
+        url = url + '#' + fragment
+
+    return url
 
 
 class LocationPath(PurePath):
@@ -43,7 +101,7 @@ class LocationPath(PurePath):
     def __new__(cls, *args: str) -> 'LocationPath':
         if cls is LocationPath:
             cls = LocationWindowsPath if os.name == 'nt' else LocationPosixPath
-        return super().__new__(cls, *args)
+        return super().__new__(cls, *args)  # type: ignore[arg-type, unused-ignore]
 
     @classmethod
     def from_uri(cls, uri: str) -> 'LocationPath':
@@ -59,18 +117,19 @@ class LocationPath(PurePath):
 
         parts = urlsplit(uri)
         if not parts.scheme or parts.scheme == 'file':
-            path = urlunsplit(('', parts.netloc, parts.path, '', ''))
-        elif parts.scheme in DRIVE_LETTERS and len(parts.scheme) == 1:
+            path = get_uri(authority=parts.netloc, path=parts.path)
+        elif parts.scheme in DRIVE_LETTERS:
             # uri is a Windows path with a drive, e.g. k:/Python/lib/file
 
             # urlsplit() converts the scheme to lowercase so use uri[0]
-            path = urlunsplit((uri[0], parts.netloc, parts.path, '', ''))
+            path = get_uri(scheme=uri[0], authority=parts.netloc, path=parts.path)
 
             return LocationWindowsPath(unquote(path))
         else:
             return LocationPosixPath(unquote(parts.path))
 
         if parts.scheme == 'file':
+            # Detect Windows drives in a 'file' scheme URL
             path_start = path[:4].replace('\\', '/')
             if path_start.startswith(('////', '///')):
                 pass
@@ -142,7 +201,12 @@ def normalize_url(url: str, base_url: Optional[str] = None,
     """
     url_parts = urlsplit(url)
     if not is_local_scheme(url_parts.scheme):
-        return encode_url(url_parts.geturl(), method)
+        url = get_uri(scheme=url_parts.scheme,
+                      authority=url_parts.netloc,
+                      path=url_parts.path,
+                      query=url_parts.query,
+                      fragment=url_parts.fragment)
+        return encode_url(url, method)
 
     path = LocationPath.from_uri(url)
     if path.is_absolute():
@@ -155,13 +219,13 @@ def normalize_url(url: str, base_url: Optional[str] = None,
         if is_local_scheme(base_url_parts.scheme):
             path = base_path.joinpath(path)
         elif not url_parts.scheme:
-            url = urlunsplit((
+            url = get_uri(
                 base_url_parts.scheme,
                 base_url_parts.netloc,
                 base_path.joinpath(path).normalize().as_posix(),
                 url_parts.query,
                 url_parts.fragment
-            ))
+            )
             return encode_url(url, method)
 
     if path.is_absolute() or keep_relative:
@@ -276,13 +340,13 @@ def encode_url(url: str, method: str = 'xml') -> str:
     parts = urlsplit(url)
     path_safe = ':/\\' if is_local_scheme(parts.scheme) else '/'
 
-    return urlunsplit((
+    return get_uri(
         parts.scheme,
         quote(parts.netloc, safe='@:'),
         quote(parts.path, safe=path_safe),
         query_quote(parts.query, safe=';/?:@=&'),
         query_quote(parts.fragment, safe=';/?:@=&'),
-    ))
+    )
 
 
 def decode_url(url: str, method: str = 'xml') -> str:
@@ -293,13 +357,13 @@ def decode_url(url: str, method: str = 'xml') -> str:
     query_unquote = unquote_plus if method == 'html' else unquote
 
     parts = urlsplit(url)
-    return urlunsplit((
+    return get_uri(
         parts.scheme,
         unquote(parts.netloc),
         unquote(parts.path),
         query_unquote(parts.query),
         query_unquote(parts.fragment),
-    ))
+    )
 
 
 def normalize_locations(locations: LocationsType,
