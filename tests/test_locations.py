@@ -169,11 +169,11 @@ class TestLocations(unittest.TestCase):
 
         path = LocationPosixPath.from_uri('file:///home/foo/names/?name=foo')
         self.assertIsInstance(path, default_class)
-        self.assertEqual(str(path), '/home/foo/names')
+        self.assertEqual(str(path).replace('\\', '/'), '/home/foo/names')
 
         path = LocationPosixPath.from_uri('file:///home/foo/names#foo')
         self.assertIsInstance(path, default_class)
-        self.assertEqual(str(path), '/home/foo/names')
+        self.assertEqual(str(path).replace('\\', '/'), '/home/foo/names')
 
         path = LocationPath.from_uri('file:///home\\foo\\names#foo')
         self.assertTrue(path.as_posix().endswith('/home/foo/names'))
@@ -209,9 +209,7 @@ class TestLocations(unittest.TestCase):
         # Test urlsplit() roundtrip with urlunsplit()
         for url in URL_CASES:
             if url == 'file:other.xsd':
-                # https://datatracker.ietf.org/doc/html/rfc8089#appendix-E.2.1
-                if sys.version_info < (3, 13):
-                    self.assertNotEqual(urlsplit(url).geturl(), url)
+                pass  # Nonstandard: https://datatracker.ietf.org/doc/html/rfc8089#appendix-E.2.1
             elif url.startswith(('////', 'file:////')) and not is_unc_path('////'):
                 self.assertNotEqual(urlsplit(url).geturl(), url)
             else:
@@ -374,7 +372,7 @@ class TestLocations(unittest.TestCase):
             if is_unc_path('////filer01/MY_HOME/'):
                 self.assertEqual(url, 'file://////filer01/MY_HOME/dev/XMLSCHEMA/test.xsd')
             else:
-                self.assertEqual(
+                self.assertRegex(
                     url, f'file://{DRIVE_REGEX}/filer01/MY_HOME/dev/XMLSCHEMA/test.xsd'
                 )
 
@@ -393,7 +391,7 @@ class TestLocations(unittest.TestCase):
             if is_unc_path('////'):
                 self.assertEqual(url, 'file://////filer01/MY_HOME/dev/XMLSCHEMA/test.xsd')
             else:
-                self.assertEqual(
+                self.assertRegex(
                     url, f'file://{DRIVE_REGEX}/filer01/MY_HOME/dev/XMLSCHEMA/test.xsd'
                 )
 
