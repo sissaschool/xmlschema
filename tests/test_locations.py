@@ -9,18 +9,20 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import unittest
+import sys
 import os
 import pathlib
 import platform
 
-from urllib.parse import urlsplit, uses_relative
+from urllib.parse import urlsplit
 from pathlib import Path, PurePath, PureWindowsPath, PurePosixPath
 from unittest.mock import patch, MagicMock
 
 import xmlschema.locations
 from xmlschema.locations import LocationPath, LocationPosixPath, LocationWindowsPath, \
-    is_url, is_local_url, is_remote_url, url_path_is_file, normalize_url, \
-    normalize_locations, match_location, is_encoded_url, is_safe_url, encode_url, decode_url
+    is_url, is_local_url, is_remote_url, url_path_is_file, is_unc_path, is_drive_path, \
+    normalize_url, normalize_locations, match_location, is_encoded_url, is_safe_url, \
+    encode_url, decode_url, get_uri_path, get_uri, DRIVE_LETTERS
 
 TEST_CASES_DIR = str(pathlib.Path(__file__).absolute().parent.joinpath('test_cases'))
 
@@ -29,6 +31,45 @@ DRIVE_REGEX = '(/[a-zA-Z]:|)' if platform.system() == 'Windows' else ''
 XML_WITH_NAMESPACES = '<pfa:root xmlns:pfa="http://xmlschema.test/nsa">\n' \
                       '  <pfb:elem xmlns:pfb="http://xmlschema.test/nsb"/>\n' \
                       '</pfa:root>'
+
+URL_CASES = (
+    'file:///c:/Downloads/file.xsd',
+    'file:///tmp/xmlschema/schemas/VC/XMLSchema-versioning.xsd',
+    'file:///tmp/xmlschema/schemas/XSD_1.1/xsd11-extra.xsd',
+    'issue #000.xml', 'dev/XMLSCHEMA/test.xsd',
+    'file:///tmp/xmlschema/schemas/XSI/XMLSchema-instance_minimal.xsd',
+    'vehicles.xsd', 'file://filer01/MY_HOME/',
+    '//anaconda/envs/testenv/lib/python3.6/site-packages/xmlschema/validators/schemas/',
+    'z:\\Dir-1.0\\Dir-2_0\\', 'https://host/path?name=2&id=', 'data.xml',
+    'alpha', 'other.xsd?id=2', '\\\\filer01\\MY_HOME\\', '//root/dir1',
+    '/tmp/xmlschema/schemas/XSD_1.1/xsd11-extra.xsd',
+    '/tmp/xmlschema/schemas/VC/XMLSchema-versioning.xsd',
+    '\\\\host\\share\\file.xsd', 'https://example.com/xsd/other_schema.xsd',
+    '/tmp/tests/test_cases/examples/collection/collection.xml', 'XMLSchema.xsd',
+    'file:///c:/Windows/unknown', 'k:\\Dir3\\schema.xsd',
+    '/tmp/tests/test_cases/examples/collection', 'file:other.xsd',
+    'issue%20%23000.xml', '\\\\filer01\\MY_HOME\\dev\\XMLSCHEMA\\test.xsd',
+    'http://site/base', 'dir2/schema.xsd', '//root/dir1/schema.xsd',
+    'file:///tmp/xmlschema/schemas/XML/xml_minimal.xsd',
+    'https://site/base', 'file:///home#attribute',
+    '/dir1/dir2/issue%20%23002', '////root/dir1/schema.xsd',
+    '/tmp/xmlschema/schemas/XSD_1.1/XMLSchema.xsd',
+    '/tmp/xmlschema/schemas/XML/xml_minimal.xsd',
+    '/tmp/xmlschema/schemas/XSD_1.0/XMLSchema.xsd',
+    'file:///home/', '////root/dir1', '//root/dir1/', 'file:///home', 'other.xsd',
+    'file:///tmp/tests/test_cases/examples/collection/collection.xml',
+    'file://host/home/', 'dummy path.xsd', 'other.xsd#element',
+    'z:\\Dir_1_0\\Dir2-0\\schemas/XSD_1.0/XMLSchema.xsd',
+    'd:/a/xmlschema/xmlschema/tests/test_cases/examples/',
+    'https://xmlschema.test/schema 2/test.xsd?name=2 id=3',
+    'xsd1.0/schema.xsd', '/home', 'schema.xsd',
+    'dev\\XMLSCHEMA\\test.xsd', '../dir1/./dir2', 'beta',
+    '/tmp/xmlschema/schemas/XSI/XMLSchema-instance_minimal.xsd',
+    'file:///dir1/dir2/', 'file:///dir1/dir2/issue%20001', '/root/dir1/schema.xsd',
+    'file:///tmp/xmlschema/schemas/XSD_1.1', '/path/schema 2/test.xsd?name=2 id=3',
+    'file:////filer01/MY_HOME/', 'file:///home?name=2&id=', 'http://example.com/beta',
+    '/home/user', 'file:///\\k:\\Dir A\\schema.xsd'
+)
 
 
 def casepath(relative_path):
@@ -63,9 +104,9 @@ class TestLocations(unittest.TestCase):
 
     def check_url(self, url, expected):
         url_parts = urlsplit(url)
-        if urlsplit(expected).scheme not in uses_relative:
-            expected = add_leading_slash(expected)
 
+        if urlsplit(expected).scheme in DRIVE_LETTERS:
+            expected = add_leading_slash(expected)
         expected_parts = urlsplit(expected, scheme='file')
 
         self.assertEqual(url_parts.scheme, expected_parts.scheme,
@@ -153,6 +194,53 @@ class TestLocations(unittest.TestCase):
             LocationPath.from_uri('file://c:/home/foo/names/')
         self.assertEqual(str(ec.exception), "Invalid URI 'file://c:/home/foo/names/'")
 
+    def test_get_uri(self):
+        for url in URL_CASES:
+            self.assertEqual(get_uri(*urlsplit(url)), url)
+            self.assertEqual(get_uri(*urlsplit(f' {url}')), url)
+
+        url = 'D:/a/xmlschema/xmlschema/tests/test_cases/examples/'
+        self.assertNotEqual(get_uri(*urlsplit(url)), url)
+
+        # Test urlsplit() roundtrip with urlunsplit()
+        for url in URL_CASES:
+            if url == 'file:other.xsd':
+                if sys.version_info < (3, 13):
+                    self.assertNotEqual(urlsplit(url).geturl(), url)
+            elif url.startswith(('////', 'file:////')) and not is_unc_path('////'):
+                self.assertNotEqual(urlsplit(url).geturl(), url)
+            else:
+                self.assertEqual(urlsplit(url).geturl(), url)
+                self.assertEqual(urlsplit(f' {url}').geturl(), url)
+
+    def test_get_uri_path(self):
+        self.assertEqual(get_uri_path('https', 'host', 'path', 'id=7', 'types'),
+                         '//host/path')
+        self.assertEqual(get_uri_path('k', '', 'path/file', 'id=7', 'types'),
+                         'path/file')
+        self.assertEqual(get_uri_path('file', '', 'path/file', 'id=7', 'types'),
+                         'path/file')
+
+    def test_urn_uri(self):
+        with self.assertRaises(ValueError) as ec:
+            LocationPath.from_uri("urn:ietf:rfc:2648")
+        self.assertIn("Can't create", str(ec.exception))
+
+        self.assertEqual(get_uri(scheme='urn', path='ietf:rfc:2648'), 'urn:ietf:rfc:2648')
+        self.assertEqual(get_uri_path(scheme='urn', path='ietf:rfc:2648'), 'ietf:rfc:2648')
+
+        with self.assertRaises(ValueError) as ec:
+            get_uri_path(get_uri_path(scheme='urn', path='ietf:rfc:2648:'))
+        self.assertIn("Invalid URN path ", str(ec.exception))
+
+        for arg in ('authority', 'query', 'fragment'):
+            with self.assertRaises(ValueError) as ec:
+                get_uri_path(get_uri_path(scheme='urn', path='ietf:rfc:2648:', **{arg: 'foo'}))
+
+            self.assertEqual(
+                str(ec.exception), "An URN can have only scheme and path components"
+            )
+
     @unittest.skipIf(platform.system() == 'Windows', "Run only on posix systems")
     def test_normalize_url_posix(self):
         url1 = "https://example.com/xsd/other_schema.xsd"
@@ -206,7 +294,6 @@ class TestLocations(unittest.TestCase):
             normalize_url('file:///\\k:\\Dir A\\schema.xsd')
         self.assertIn("Invalid URI", str(ec.exception))
 
-        # u
         base_url = 'D:/a/xmlschema/xmlschema/tests/test_cases/examples/'
         self.assertEqual(normalize_url('vehicles.xsd', base_url),
                          f'file:///{base_url}vehicles.xsd')
@@ -280,7 +367,10 @@ class TestLocations(unittest.TestCase):
             self.assertEqual(url, 'file:////filer01/MY_HOME/dev/XMLSCHEMA/test.xsd')
 
             url = normalize_url(r'dev\XMLSCHEMA\test.xsd', base_url=base_url_host_in_path)
-            self.assertEqual(url, 'file://////filer01/MY_HOME/dev/XMLSCHEMA/test.xsd')
+            if is_unc_path('////filer01/MY_HOME/'):
+                self.assertEqual(url, 'file://////filer01/MY_HOME/dev/XMLSCHEMA/test.xsd')
+            else:
+                self.assertEqual(url, 'file:///filer01/MY_HOME/dev/XMLSCHEMA/test.xsd')
 
         with patch.object(os, 'name', 'posix'):
             self.assertEqual(os.name, 'posix')
@@ -294,7 +384,10 @@ class TestLocations(unittest.TestCase):
             self.assertEqual(url, 'file:////filer01/MY_HOME/dev/XMLSCHEMA/test.xsd')
 
             url = normalize_url(r'dev/XMLSCHEMA/test.xsd', base_url=base_url_host_in_path)
-            self.assertEqual(url, 'file://////filer01/MY_HOME/dev/XMLSCHEMA/test.xsd')
+            if is_unc_path('////'):
+                self.assertEqual(url, 'file://////filer01/MY_HOME/dev/XMLSCHEMA/test.xsd')
+            else:
+                self.assertEqual(url, 'file:///filer01/MY_HOME/dev/XMLSCHEMA/test.xsd')
 
     def test_normalize_url_slashes(self):
         # Issue #116
@@ -311,10 +404,17 @@ class TestLocations(unittest.TestCase):
         self.assertRegex(normalize_url('/root/dir1/schema.xsd'),
                          f'file://{DRIVE_REGEX}/root/dir1/schema.xsd')
 
-        self.assertRegex(normalize_url('////root/dir1/schema.xsd'),
-                         f'file://{DRIVE_REGEX}////root/dir1/schema.xsd')
-        self.assertRegex(normalize_url('dir2/schema.xsd', '////root/dir1'),
-                         f'file://{DRIVE_REGEX}////root/dir1/dir2/schema.xsd')
+        if is_unc_path('////root/dir1/schema.xsd'):
+            self.assertRegex(normalize_url('////root/dir1/schema.xsd'),
+                             f'file://{DRIVE_REGEX}////root/dir1/schema.xsd')
+            self.assertRegex(normalize_url('dir2/schema.xsd', '////root/dir1'),
+                             f'file://{DRIVE_REGEX}////root/dir1/dir2/schema.xsd')
+        else:
+            # If the Python release is not capable to detect the UNC path
+            self.assertRegex(normalize_url('////root/dir1/schema.xsd'),
+                             f'file://{DRIVE_REGEX}/root/dir1/schema.xsd')
+            self.assertRegex(normalize_url('dir2/schema.xsd', '////root/dir1'),
+                             f'file://{DRIVE_REGEX}/root/dir1/dir2/schema.xsd')
 
         self.assertEqual(normalize_url('//root/dir1/schema.xsd'),
                          'file:////root/dir1/schema.xsd')
@@ -421,6 +521,56 @@ class TestLocations(unittest.TestCase):
 
         with patch('platform.system', MagicMock(return_value="Windows")):
             self.assertFalse(url_path_is_file('file:///c:/Windows/unknown'))
+
+    def test_is_unc_path_function(self):
+        self.assertFalse(is_unc_path(''))
+        self.assertFalse(is_unc_path('foo'))
+        self.assertFalse(is_unc_path('foo\\bar'))
+        self.assertFalse(is_unc_path('foo/bar'))
+        self.assertFalse(is_unc_path('\\'))
+        self.assertFalse(is_unc_path('/'))
+        self.assertFalse(is_unc_path('\\foo\\bar'))
+        self.assertFalse(is_unc_path('/foo/bar'))
+        self.assertFalse(is_unc_path('c:foo/bar'))
+        self.assertFalse(is_unc_path('c:\\foo\\bar'))
+        self.assertFalse(is_unc_path('c:/foo/bar'))
+
+        self.assertTrue(is_unc_path('/\\host/share/path'))
+        self.assertTrue(is_unc_path('\\/host\\share/path'))
+        self.assertTrue(is_unc_path('//host/share/dir/file'))
+        self.assertTrue(is_unc_path('//?/UNC/server/share/dir'))
+
+        if sys.version_info >= (3, 12, 5):
+            # Generally these tests fail with older Python releases, due to
+            # bug/limitation of old versions of ntpath.splitdrive()
+            self.assertTrue(is_unc_path('//'))
+            self.assertTrue(is_unc_path('\\\\'))
+            self.assertTrue(is_unc_path('\\\\host\\share\\foo\\bar'))
+            self.assertTrue(is_unc_path('\\\\?\\UNC\\server\\share\\dir'))
+            self.assertTrue(is_unc_path('////'))
+            self.assertTrue(is_unc_path('////host/share/schema.xsd'))
+
+    def test_is_drive_path_function(self):
+        self.assertFalse(is_drive_path(''))
+        self.assertFalse(is_drive_path('foo'))
+        self.assertFalse(is_drive_path('foo\\bar'))
+        self.assertFalse(is_drive_path('foo/bar'))
+        self.assertFalse(is_drive_path('\\'))
+        self.assertFalse(is_drive_path('/'))
+        self.assertFalse(is_drive_path('\\foo\\bar'))
+        self.assertFalse(is_drive_path('/foo/bar'))
+
+        self.assertTrue(is_drive_path('c:foo/bar'))
+        self.assertTrue(is_drive_path('c:\\foo\\bar'))
+        self.assertTrue(is_drive_path('c:/foo/bar'))
+        self.assertFalse(is_drive_path('/c:foo/bar'))
+        self.assertFalse(is_drive_path('\\c:\\foo\\bar'))
+        self.assertFalse(is_drive_path('/c:/foo/bar'))
+
+        self.assertFalse(is_drive_path('/\\host/share/path'))
+        self.assertFalse(is_drive_path('\\/host\\share/path'))
+        self.assertFalse(is_drive_path('//host/share/dir/file'))
+        self.assertFalse(is_drive_path('//?/UNC/server/share/dir'))
 
     def test_is_encoded_url(self):
         self.assertFalse(is_encoded_url("https://xmlschema.test/schema/test.xsd"))
