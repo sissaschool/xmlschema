@@ -154,6 +154,11 @@ class TestLocations(unittest.TestCase):
         )
 
     def test_path_from_uri(self):
+        if platform.system() == 'Windows':
+            default_class = LocationWindowsPath
+        else:
+            default_class = LocationPosixPath
+
         with self.assertRaises(ValueError) as ec:
             LocationPath.from_uri('')
         self.assertEqual(str(ec.exception), 'Empty URI provided!')
@@ -163,11 +168,11 @@ class TestLocations(unittest.TestCase):
         self.assertEqual(str(path), '/names')
 
         path = LocationPosixPath.from_uri('file:///home/foo/names/?name=foo')
-        self.assertIsInstance(path, LocationPosixPath)
+        self.assertIsInstance(path, default_class)
         self.assertEqual(str(path), '/home/foo/names')
 
         path = LocationPosixPath.from_uri('file:///home/foo/names#foo')
-        self.assertIsInstance(path, LocationPosixPath)
+        self.assertIsInstance(path, default_class)
         self.assertEqual(str(path), '/home/foo/names')
 
         path = LocationPath.from_uri('file:///home\\foo\\names#foo')
@@ -197,7 +202,6 @@ class TestLocations(unittest.TestCase):
     def test_get_uri(self):
         for url in URL_CASES:
             self.assertEqual(get_uri(*urlsplit(url)), url)
-            self.assertEqual(get_uri(*urlsplit(f' {url}')), url)
 
         url = 'D:/a/xmlschema/xmlschema/tests/test_cases/examples/'
         self.assertNotEqual(get_uri(*urlsplit(url)), url)
@@ -205,13 +209,13 @@ class TestLocations(unittest.TestCase):
         # Test urlsplit() roundtrip with urlunsplit()
         for url in URL_CASES:
             if url == 'file:other.xsd':
+                # https://datatracker.ietf.org/doc/html/rfc8089#appendix-E.2.1
                 if sys.version_info < (3, 13):
                     self.assertNotEqual(urlsplit(url).geturl(), url)
             elif url.startswith(('////', 'file:////')) and not is_unc_path('////'):
                 self.assertNotEqual(urlsplit(url).geturl(), url)
             else:
                 self.assertEqual(urlsplit(url).geturl(), url)
-                self.assertEqual(urlsplit(f' {url}').geturl(), url)
 
     def test_get_uri_path(self):
         self.assertEqual(get_uri_path('https', 'host', 'path', 'id=7', 'types'),
@@ -370,7 +374,9 @@ class TestLocations(unittest.TestCase):
             if is_unc_path('////filer01/MY_HOME/'):
                 self.assertEqual(url, 'file://////filer01/MY_HOME/dev/XMLSCHEMA/test.xsd')
             else:
-                self.assertEqual(url, 'file:///filer01/MY_HOME/dev/XMLSCHEMA/test.xsd')
+                self.assertEqual(
+                    url, f'file://{DRIVE_REGEX}/filer01/MY_HOME/dev/XMLSCHEMA/test.xsd'
+                )
 
         with patch.object(os, 'name', 'posix'):
             self.assertEqual(os.name, 'posix')
@@ -387,7 +393,9 @@ class TestLocations(unittest.TestCase):
             if is_unc_path('////'):
                 self.assertEqual(url, 'file://////filer01/MY_HOME/dev/XMLSCHEMA/test.xsd')
             else:
-                self.assertEqual(url, 'file:///filer01/MY_HOME/dev/XMLSCHEMA/test.xsd')
+                self.assertEqual(
+                    url, f'file://{DRIVE_REGEX}/filer01/MY_HOME/dev/XMLSCHEMA/test.xsd'
+                )
 
     def test_normalize_url_slashes(self):
         # Issue #116

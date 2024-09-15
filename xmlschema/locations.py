@@ -198,7 +198,7 @@ def normalize_url(url: str, base_url: Optional[str] = None,
     the whitespaces are replaced with `+` characters.
     :return: a normalized URL string.
     """
-    url_parts = urlsplit(url)
+    url_parts = urlsplit(url.lstrip())
     if not is_local_scheme(url_parts.scheme):
         return encode_url(url_parts.geturl(), method)
 
@@ -207,7 +207,7 @@ def normalize_url(url: str, base_url: Optional[str] = None,
         return path.normalize().as_uri()
 
     if base_url is not None:
-        base_url_parts = urlsplit(base_url)
+        base_url_parts = urlsplit(base_url.lstrip())
         base_path = LocationPath.from_uri(base_url)
 
         if is_local_scheme(base_url_parts.scheme):
@@ -328,7 +328,7 @@ def is_safe_url(url: str, method: str = 'xml') -> bool:
     query_quote = quote_plus if method == 'html' else quote
     query_unquote = unquote_plus if method == 'html' else unquote
 
-    parts = urlsplit(url)
+    parts = urlsplit(url.lstrip())
     path_safe = ':/\\' if is_local_scheme(parts.scheme) else '/'
 
     return parts.netloc == quote(unquote(parts.netloc), safe='@:') and \
@@ -345,7 +345,7 @@ def encode_url(url: str, method: str = 'xml') -> str:
         url = decode_url(url, method)
 
     query_quote = quote_plus if method == 'html' else quote
-    parts = urlsplit(url)
+    parts = urlsplit(url.lstrip())
     path_safe = ':/\\' if is_local_scheme(parts.scheme) else '/'
 
     return get_uri(
