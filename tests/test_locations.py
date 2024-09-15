@@ -345,7 +345,8 @@ class TestLocations(unittest.TestCase):
             self.assertNotEqual(path.as_uri(), url)
             self.assertEqual(normalize_url(unc_path), url_host_in_path)
 
-    def test_normalize_url_with_base_unc_path(self,):
+    @unittest.skipIf(platform.system() != 'Windows', "Run only on Windows systems")
+    def test_normalize_url_with_base_unc_path_on_windows(self,):
         base_unc_path = '\\\\filer01\\MY_HOME\\'
         base_url = PureWindowsPath(base_unc_path).as_uri()
         self.assertEqual(str(PureWindowsPath(base_unc_path)), base_unc_path)
@@ -356,6 +357,51 @@ class TestLocations(unittest.TestCase):
         self.assertEqual(base_url_host_in_path, 'file:////filer01/MY_HOME/')
 
         self.assertEqual(normalize_url(base_unc_path), base_url_host_in_path)
+
+        self.assertEqual(os.name, 'nt')
+        path = PurePath('dir/file')
+        self.assertIs(path.__class__, PureWindowsPath)
+
+        url = normalize_url(r'dev\XMLSCHEMA\test.xsd', base_url=base_unc_path)
+        self.assertEqual(url, 'file:////filer01/MY_HOME/dev/XMLSCHEMA/test.xsd')
+
+        url = normalize_url(r'dev\XMLSCHEMA\test.xsd', base_url=base_url)
+        self.assertEqual(url, 'file:////filer01/MY_HOME/dev/XMLSCHEMA/test.xsd')
+
+        url = normalize_url(r'dev\XMLSCHEMA\test.xsd', base_url=base_url_host_in_path)
+        if is_unc_path('////filer01/MY_HOME/'):
+            self.assertEqual(url, 'file://////filer01/MY_HOME/dev/XMLSCHEMA/test.xsd')
+        else:
+            self.assertRegex(
+                url, f'file://{DRIVE_REGEX}/filer01/MY_HOME/dev/XMLSCHEMA/test.xsd'
+            )
+
+    @unittest.skipIf(platform.system() == 'Windows', "Skip on Windows systems")
+    def test_normalize_url_with_base_unc_path_on_others(self,):
+        base_unc_path = '\\\\filer01\\MY_HOME\\'
+        base_url = PureWindowsPath(base_unc_path).as_uri()
+        self.assertEqual(str(PureWindowsPath(base_unc_path)), base_unc_path)
+        self.assertEqual(base_url, 'file://filer01/MY_HOME/')
+
+        # Same UNC path as URI with the host inserted in path
+        base_url_host_in_path = base_url.replace('file://', 'file:////')
+        self.assertEqual(base_url_host_in_path, 'file:////filer01/MY_HOME/')
+
+        self.assertEqual(normalize_url(base_unc_path), base_url_host_in_path)
+
+        url = normalize_url(r'dev\XMLSCHEMA\test.xsd', base_url=base_unc_path)
+        self.assertEqual(url, 'file:////filer01/MY_HOME/dev/XMLSCHEMA/test.xsd')
+
+        url = normalize_url(r'dev/XMLSCHEMA/test.xsd', base_url=base_url)
+        self.assertEqual(url, 'file:////filer01/MY_HOME/dev/XMLSCHEMA/test.xsd')
+
+        url = normalize_url(r'dev/XMLSCHEMA/test.xsd', base_url=base_url_host_in_path)
+        if is_unc_path('////'):
+            self.assertEqual(url, 'file://////filer01/MY_HOME/dev/XMLSCHEMA/test.xsd')
+        else:
+            self.assertRegex(
+                url, f'file://{DRIVE_REGEX}/filer01/MY_HOME/dev/XMLSCHEMA/test.xsd'
+            )
 
         with patch.object(os, 'name', 'nt'):
             self.assertEqual(os.name, 'nt')
@@ -370,25 +416,6 @@ class TestLocations(unittest.TestCase):
 
             url = normalize_url(r'dev\XMLSCHEMA\test.xsd', base_url=base_url_host_in_path)
             if is_unc_path('////filer01/MY_HOME/'):
-                self.assertEqual(url, 'file://////filer01/MY_HOME/dev/XMLSCHEMA/test.xsd')
-            else:
-                self.assertRegex(
-                    url, f'file://{DRIVE_REGEX}/filer01/MY_HOME/dev/XMLSCHEMA/test.xsd'
-                )
-
-        with patch.object(os, 'name', 'posix'):
-            self.assertEqual(os.name, 'posix')
-            path = PurePath('dir/file')
-            self.assertIs(path.__class__, PurePosixPath)
-
-            url = normalize_url(r'dev\XMLSCHEMA\test.xsd', base_url=base_unc_path)
-            self.assertEqual(url, 'file:////filer01/MY_HOME/dev/XMLSCHEMA/test.xsd')
-
-            url = normalize_url(r'dev/XMLSCHEMA/test.xsd', base_url=base_url)
-            self.assertEqual(url, 'file:////filer01/MY_HOME/dev/XMLSCHEMA/test.xsd')
-
-            url = normalize_url(r'dev/XMLSCHEMA/test.xsd', base_url=base_url_host_in_path)
-            if is_unc_path('////'):
                 self.assertEqual(url, 'file://////filer01/MY_HOME/dev/XMLSCHEMA/test.xsd')
             else:
                 self.assertRegex(
@@ -474,6 +501,35 @@ class TestLocations(unittest.TestCase):
                        'https://host/path/other.xsd?id=2')
         self.check_url(normalize_url('other.xsd#element', 'https://host/path?name=2&id='),
                        'https://host/path/other.xsd#element')
+
+    def test_normalize_url_with_local_part(self):
+        # https://datatracker.ietf.org/doc/html/rfc8089#appendix-E.2
+
+        url = "file:c:/path/to/file"
+        self.assertEqual(urlsplit(url).geturl(), 'file:///c:/path/to/file')
+        self.assertEqual(normalize_url(url), 'file:///c:/path/to/file')
+
+        url = "file:///c:/path/to/file"
+        self.assertEqual(urlsplit(url).geturl(), url)
+        self.assertEqual(normalize_url(url), url)
+
+        base_url = "file:///D:/a/xmlschema/xmlschema/filer01/MY_HOME"
+        url = normalize_url(r'dev/XMLSCHEMA/test.xsd', base_url)
+        self.assertEqual(
+            url, "file:///D:/a/xmlschema/xmlschema/filer01/MY_HOME/dev/XMLSCHEMA/test.xsd"
+        )
+
+        base_url = "file:D:/a/xmlschema/xmlschema/filer01/MY_HOME"
+        url = normalize_url(r'dev/XMLSCHEMA/test.xsd', base_url)
+        self.assertEqual(
+            url, "file:///D:/a/xmlschema/xmlschema/filer01/MY_HOME/dev/XMLSCHEMA/test.xsd"
+        )
+
+        base_url = "D:\\a\\xmlschema\\xmlschema/\\/filer01/MY_HOME"
+        url = normalize_url(r'dev/XMLSCHEMA/test.xsd', base_url)
+        self.assertEqual(
+            url, "file:///D:/a/xmlschema/xmlschema/filer01/MY_HOME/dev/XMLSCHEMA/test.xsd"
+        )
 
     def test_is_url_function(self):
         self.assertTrue(is_url(self.col_xsd_file))

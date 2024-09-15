@@ -179,7 +179,7 @@ def get_uri(scheme: str = '', authority: str = '', path: str = '',
     if fragment:
         url = url + '#' + fragment
 
-    return url.rstrip()
+    return url
 
 
 def normalize_url(url: str, base_url: Optional[str] = None,
@@ -200,7 +200,7 @@ def normalize_url(url: str, base_url: Optional[str] = None,
     """
     url_parts = urlsplit(url.lstrip())
     if not is_local_scheme(url_parts.scheme):
-        return encode_url(url_parts.geturl(), method)
+        return encode_url(get_uri(*url_parts), method)
 
     path = LocationPath.from_uri(url)
     if path.is_absolute():
