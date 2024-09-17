@@ -2,9 +2,10 @@
 CHANGELOG
 *********
 
-`v3.4.2`_ (2024-09-12)
+`v3.4.2`_ (2024-09-17)
 ======================
 * Fix other failing URL normalization tests
+* Avoid the use of sys.version_info for checking results, better to extend the check to more values.
 
 `v3.4.1`_ (2024-09-12)
 ======================

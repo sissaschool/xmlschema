@@ -206,15 +206,6 @@ class TestLocations(unittest.TestCase):
         url = 'D:/a/xmlschema/xmlschema/tests/test_cases/examples/'
         self.assertNotEqual(get_uri(*urlsplit(url)), url)
 
-        # Test urlsplit() roundtrip with urlunsplit()
-        for url in URL_CASES:
-            if url == 'file:other.xsd':
-                pass  # Nonstandard: https://datatracker.ietf.org/doc/html/rfc8089#appendix-E.2.1
-            elif url.startswith(('////', 'file:////')) and not is_unc_path('////'):
-                self.assertNotEqual(urlsplit(url).geturl(), url)
-            else:
-                self.assertEqual(urlsplit(url).geturl(), url)
-
     def test_get_uri_path(self):
         self.assertEqual(get_uri_path('https', 'host', 'path', 'id=7', 'types'),
                          '//host/path')

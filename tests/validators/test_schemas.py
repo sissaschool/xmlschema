@@ -8,7 +8,6 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-import sys
 import unittest
 import logging
 import warnings
@@ -701,13 +700,13 @@ class TestXMLSchema10(XsdValidatorTestCase):
         schema = CustomLocalXMLSchema(str(schema_file))
         self.assertTrue(schema.is_valid(str(xml_file)))
 
-        with self.assertRaises((pickle.PicklingError, AttributeError)) as ec:
+        with self.assertRaises((pickle.PicklingError, AttributeError)) as ec:  # type: ignore
             pickle.dumps(schema)
 
-        if sys.version_info[:3] <= (3, 12, 4):
-            self.assertIn("Can't pickle", str(ec.exception))
-        else:
-            self.assertIn("Can't get local object", str(ec.exception))
+        error_message = str(ec.exception)
+        self.assertTrue(
+            "Can't get local object" in error_message or "Can't pickle" in error_message
+        )
 
     def test_meta_schema_validation(self):
         self.assertTrue(self.schema_class.meta_schema.is_valid(self.vh_xsd_file))
