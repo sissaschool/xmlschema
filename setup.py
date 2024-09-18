@@ -18,7 +18,7 @@ with Path(__file__).parent.joinpath('README.rst').open() as readme:
 
 setup(
     name='xmlschema',
-    version='4.0.0',
+    version='4.0.0a1',
     packages=find_packages(include=['xmlschema*']),
     package_data={
         'xmlschema': ['py.typed', 'locale/**/*.mo', 'locale/**/*.po', 'schemas/*/*.xsd'],

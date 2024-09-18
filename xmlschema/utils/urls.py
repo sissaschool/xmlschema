@@ -7,15 +7,13 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-import string
 from pathlib import Path
+from string import ascii_letters
 from urllib.parse import urlsplit, urlunsplit, quote, quote_plus, unquote, unquote_plus
-
-DRIVE_LETTERS = frozenset(string.ascii_letters)
 
 
 def is_local_scheme(scheme: str) -> bool:
-    return not scheme or scheme == 'file' or scheme in DRIVE_LETTERS
+    return not scheme or scheme == 'file' or scheme in ascii_letters and len(scheme) == 1
 
 
 def is_url(obj: object) -> bool:

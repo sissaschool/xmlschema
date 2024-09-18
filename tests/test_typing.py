@@ -24,6 +24,8 @@ try:
 except ImportError:
     lxml_stubs_module = None
 
+import elementpath
+
 
 @unittest.skipIf(mypy_api is None, "mypy is not installed")
 @unittest.skipIf(lxml_stubs_module is None, "lxml-stubs is not installed")
@@ -52,6 +54,7 @@ class TestTyping(unittest.TestCase):
         ])
         self.assertEqual(result[2], 0, msg=result[1] or result[0])
 
+    @unittest.skipIf(elementpath.__version__ == '4.5.0', "ep450 needs a patch for protocols")
     def test_protocols(self):
         result = mypy_api.run([
             '--strict',

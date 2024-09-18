@@ -14,4 +14,5 @@
     <date_and_time>2020-03-05T23:04:10.047</date_and_time>
     <hexbin>AABBCCDD</hexbin>
     <list_of_floats>INF -INF</list_of_floats>
+    <qname>ns:foo</qname>
 </ns:data>

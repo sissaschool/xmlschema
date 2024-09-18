@@ -50,9 +50,9 @@ class ParticleMixin:
     def effective_min_occurs(self) -> int:
         """
         A property calculated from minOccurs, that is equal to minOccurs
-        for elements and may vary for content model groups, in dependance
-        of group model and structure. Used for checking restrictions of
-        model groups in XSD 1.1.
+        for elements and may vary for content model groups, depending on
+        the model and the structure of the group. Used for checking
+        restrictions of model groups in XSD 1.1.
         """
         return self.min_occurs
 
@@ -60,9 +60,9 @@ class ParticleMixin:
     def effective_max_occurs(self) -> Optional[int]:
         """
         A property calculated from maxOccurs, that is equal to maxOccurs
-        for elements and may vary for content model groups, in dependance
-        of group model and structure. Used for checking restrictions of
-        model groups in XSD 1.1.
+        for elements and may vary for content model groups, depending on
+        the model and the structure of the group. Used for checking
+        restrictions of model groups in XSD 1.1.
         """
         return self.max_occurs
 
@@ -100,30 +100,21 @@ class ParticleMixin:
         """Tests if min_occurs == max_occurs."""
         return self.min_occurs == self.max_occurs
 
-    def is_missing(self, occurs: Union[OccursCounterType, int]) -> bool:
+    def is_missing(self, occurs: OccursCounterType) -> bool:
         """Tests if the particle occurrences are under the minimum."""
-        try:
-            return self.min_occurs > occurs[self]  # type: ignore[index]
-        except TypeError:
-            return self.min_occurs > occurs  # type: ignore[operator]
+        return self.min_occurs > occurs[self]
 
-    def is_over(self, occurs: Union[OccursCounterType, int]) -> bool:
+    def is_over(self, occurs: OccursCounterType) -> bool:
         """Tests if particle occurrences are equal or over the maximum."""
         if self.max_occurs is None:
             return False
-        try:
-            return self.max_occurs <= occurs[self]  # type: ignore[index]
-        except TypeError:
-            return self.max_occurs <= occurs  # type: ignore[operator]
+        return self.max_occurs <= occurs[self]
 
-    def is_exceeded(self, occurs: Union[OccursCounterType, int]) -> bool:
+    def is_exceeded(self, occurs: OccursCounterType) -> bool:
         """Tests if particle occurrences are over the maximum."""
         if self.max_occurs is None:
             return False
-        try:
-            return self.max_occurs < occurs[self]  # type: ignore[index]
-        except TypeError:
-            return self.max_occurs < occurs  # type: ignore[operator]
+        return self.max_occurs < occurs[self]
 
     def get_expected(self, occurs: OccursCounterType) -> List[SchemaElementType]:
         return [cast(SchemaElementType, self)] if self.min_occurs > occurs[self] else []
@@ -184,13 +175,17 @@ class OccursCalculator:
     min_occurs: int
     max_occurs: Optional[int]
 
+    @property
+    def occurs(self) -> Tuple[int, Optional[int]]:
+        return self.min_occurs, self.max_occurs
+
     def __init__(self) -> None:
         self.min_occurs = self.max_occurs = 0
 
     def __repr__(self) -> str:
         return '%s(%r, %r)' % (self.__class__.__name__, self.min_occurs, self.max_occurs)
 
-    def __add__(self, other: ParticleMixin) -> 'OccursCalculator':
+    def __add__(self, other: Union[ParticleMixin, 'OccursCalculator']) -> 'OccursCalculator':
         self.min_occurs += other.min_occurs
         if self.max_occurs is not None:
             if other.max_occurs is None:
@@ -199,7 +194,7 @@ class OccursCalculator:
                 self.max_occurs += other.max_occurs
         return self
 
-    def __mul__(self, other: ParticleMixin) -> 'OccursCalculator':
+    def __mul__(self, other: Union[ParticleMixin, 'OccursCalculator']) -> 'OccursCalculator':
         self.min_occurs *= other.min_occurs
         if self.max_occurs is None:
             if other.max_occurs == 0:
@@ -209,6 +204,12 @@ class OccursCalculator:
                 self.max_occurs = None
         else:
             self.max_occurs *= other.max_occurs
+        return self
+
+    def __sub__(self, occurs: int) -> 'OccursCalculator':
+        self.min_occurs = max(0, self.min_occurs - occurs)
+        if self.max_occurs is not None:
+            self.max_occurs = max(0, self.max_occurs - occurs)
         return self
 
     def reset(self) -> None:

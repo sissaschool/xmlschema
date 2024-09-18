@@ -11,16 +11,24 @@
 This module contains a function and a class for validating XSD content models,
 plus a set of functions for manipulating encoded content.
 """
+import sys
+import warnings
 from collections import defaultdict, deque, Counter
+from copy import copy
 from operator import attrgetter
-from typing import Any, Dict, Iterable, Iterator, List, \
-    MutableMapping, MutableSequence, Optional, Tuple, Union
+from typing import Any, Dict, Iterable, Iterator, List, Optional, Tuple, Union
 
-from xmlschema.exceptions import XMLSchemaValueError
+if sys.version_info >= (3, 9):
+    from collections.abc import MutableMapping, MutableSequence
+else:
+    from typing import MutableMapping, MutableSequence
+
 from xmlschema.aliases import ModelGroupType, ModelParticleType, SchemaElementType, \
     OccursCounterType
+from xmlschema.exceptions import XMLSchemaRuntimeError, XMLSchemaTypeError, XMLSchemaValueError
 from xmlschema.translation import gettext as _
 from xmlschema import limits
+
 from .exceptions import XMLSchemaModelError, XMLSchemaModelDepthError
 from .wildcards import XsdAnyElement, Xsd11AnyElement
 from . import groups
@@ -28,6 +36,7 @@ from . import groups
 AdvanceYieldedType = Tuple[ModelParticleType, int, List[SchemaElementType]]
 ContentItemType = Tuple[Union[int, str], Any]
 EncodedContentType = Union[MutableMapping[Union[int, str], Any], Iterable[ContentItemType]]
+StepType = Union[str, SchemaElementType, Tuple[Union[str, SchemaElementType], int]]
 
 get_occurs = attrgetter('min_occurs', 'max_occurs')
 
@@ -239,6 +248,7 @@ class ModelVisitor:
         self._start()
 
     def stop(self) -> Iterator[AdvanceYieldedType]:
+        """Stop the model and returns the errors, if any."""
         while self.element is not None:
             yield from self.advance()
 
@@ -255,7 +265,7 @@ class ModelVisitor:
 
     def match_element(self, tag: str) -> Optional[SchemaElementType]:
         if self.element is None:
-            raise XMLSchemaValueError("cannot match, %r is ended!" % self)
+            raise XMLSchemaValueError(f"can't match the tag, {self!r} is ended!")
         elif self.element.max_occurs == 0:
             return None
         elif self.element.name is None:
@@ -361,7 +371,7 @@ class ModelVisitor:
             return item, item_occurs, expected
 
         if self.element is None:
-            raise XMLSchemaValueError("cannot advance, %r is ended!" % self)
+            raise XMLSchemaValueError(f"can't advance, {self!r} is ended!")
 
         item = self.element
         occurs = self.occurs
@@ -459,6 +469,268 @@ class ModelVisitor:
         for group, item in zero_missing:
             if occurs[group]:
                 yield item, occurs[item], item.get_expected(occurs)
+
+    # Kept for backward compatibility
+    def iter_unordered_content(
+            self, content: EncodedContentType,
+            default_namespace: Optional[str] = None) -> Iterator[ContentItemType]:
+
+        msg = f"{self.__class__.__name__}.iter_unordered_content() method will " \
+              "be removed in v4.0, use iter_unordered_content() function instead."
+        if default_namespace is not None:
+            msg += " Don't provide default_namespace argument, it's ignored."
+        warnings.warn(msg, DeprecationWarning, stacklevel=2)
+
+        return iter_unordered_content(content, self.root)
+
+    def iter_collapsed_content(
+            self, content: Iterable[ContentItemType],
+            default_namespace: Optional[str] = None) -> Iterator[ContentItemType]:
+
+        msg = f"{self.__class__.__name__}.iter_collapsed_content() method will " \
+              "be removed in v4.0, use iter_collapsed_content() function instead."
+        if default_namespace is not None:
+            msg += " Don't provide default_namespace argument, it's ignored."
+        warnings.warn(msg, DeprecationWarning, stacklevel=2)
+
+        return iter_collapsed_content(content, self.root)
+
+    ###
+    # Additional properties and methods, not used by validation. These methods can
+    # be used ad helpers for a content model builder.
+
+    def __copy__(self) -> 'ModelVisitor':
+        model: 'ModelVisitor' = object.__new__(self.__class__)
+        model.root = self.root
+        model.element = self.element
+        model.group = self.group
+        model.match = self.match
+        model.occurs = self.occurs.copy()
+
+        # Can't copy iterators so create new ones and iter them at the same item
+        model._groups = []
+        group = self.group
+
+        for parent, _items, match in reversed(self._groups):
+            items = iter(parent if parent.ref is None else parent.ref)
+            for obj in items:
+                if obj is group:
+                    model._groups.append((parent, items, match))
+                    group = parent
+                    break
+
+        model._groups.reverse()
+
+        model.items = model.iter_group()
+        for obj in model.items:
+            if obj is model.element:
+                break
+
+        return model
+
+    @property
+    def stoppable(self) -> bool:
+        """Returns `True` if the model is stoppable from the current status without errors."""
+        if self.element is None:
+            return True
+
+        model = copy(self)
+        for _error in model.stop():
+            return False
+        else:
+            return True
+
+    def get_model_particle(self, particle: Optional[ModelParticleType] = None) \
+            -> ModelParticleType:
+        """
+        Checks if the provided particle belongs to the current model, raising
+        a `XMLSchemaModelError` in case if it's not. Defaults to current element
+        if no particle is provided, raising a `XMLSchemaValueError` if the model
+        is ended.
+        """
+        if particle is not None:
+            for _group in self.root.get_subgroups(particle):
+                break
+            return particle
+        elif self.element is not None:
+            return self.element
+        else:
+            raise XMLSchemaValueError(f"can't defaults to current element, {self!r} is ended!")
+
+    def overall_min_occurs(self, particle: Optional[ModelParticleType] = None) -> int:
+        """
+        Returns the overall min occurs of a particle in the model subtracting the
+        occurrences already registered by the occurs counter. Defaults to current
+        element.
+        """
+        particle = self.get_model_particle(particle)
+        min_occurs = 1
+        for group in self.root.get_subgroups(particle):
+            group_min_occurs = group.min_occurs - self.occurs[group]
+            if group_min_occurs <= 0 or group.model == 'choice' and len(group) > 1:
+                return 0
+            min_occurs *= group_min_occurs
+
+        return max(0, min_occurs * particle.min_occurs - self.occurs[particle])
+
+    def overall_max_occurs(self, particle: Optional[ModelParticleType] = None) -> Optional[int]:
+        """
+        Returns the overall max occurs of a particle in the model subtracting the
+        occurrences already registered by the occurs counter. Defaults to current
+        element.
+        """
+        particle = self.get_model_particle(particle)
+        max_occurs: Optional[int] = 1
+
+        for group in self.root.get_subgroups(particle):
+            group_max_occurs = group.max_occurs
+            if group_max_occurs == 0:
+                return 0
+            elif max_occurs is None:
+                continue
+            elif group_max_occurs is None:
+                max_occurs = None
+            else:
+                group_max_occurs -= self.occurs[group]
+                if group_max_occurs <= 0:
+                    return 0
+                max_occurs *= group_max_occurs
+
+        if particle.max_occurs == 0:
+            return 0
+        elif particle.max_occurs is None or max_occurs is None:
+            return None
+        else:
+            return max_occurs * particle.max_occurs - self.occurs[particle]
+
+    def is_optional(self, particle: Optional[ModelParticleType] = None) -> bool:
+        """
+        Tests if the particle can be omitted in the current model status.
+        Defaults to current element.
+        """
+        particle = self.get_model_particle(particle)
+        return self.overall_min_occurs(particle) == 0
+
+    def is_missing(self, particle: Optional[ModelParticleType] = None) -> bool:
+        """
+        Tests if particle occurrences are under the minimum. If the argument is
+        `None` then tests the current element.
+        """
+        return self.get_model_particle(particle).is_missing(self.occurs)
+
+    def is_over(self, particle: Optional[ModelParticleType] = None) -> bool:
+        """
+        Tests if particle occurrences are equal or over the maximum. If the
+        argument is `None` then tests the current element.
+        """
+        return self.get_model_particle(particle).is_over(self.occurs)
+
+    def is_exceeded(self, particle: Optional[ModelParticleType] = None) -> bool:
+        """
+        Tests if particle occurrences are over the maximum. If the argument
+        is `None` then tests the current element.
+        """
+        return self.get_model_particle(particle).is_exceeded(self.occurs)
+
+    def advance_to(self, element: SchemaElementType) -> Iterator[AdvanceYieldedType]:
+        """
+        Advances to the XSD element of the model. Stops after an error in advancing.
+        If the elements hasn't residual occurs or if the model ends before the XSD
+        element is reached throws an `XMLSchemaValueError`.
+        """
+        if self.overall_max_occurs(element) == 0:
+            raise XMLSchemaValueError(f"{self!r} hasn't residual occurs")
+
+        _err: Optional[AdvanceYieldedType] = None
+        while True:
+            if _err is not None:
+                return
+            elif self.element is None:
+                raise XMLSchemaValueError(f"can't advance, {self!r} is ended!")
+            elif self.element is element:
+                return
+            else:
+                for _err in self.advance(False):
+                    yield _err
+
+    def advance_until(self, target: Union[str, SchemaElementType],
+                      occurs: int = 1) -> Iterator[AdvanceYieldedType]:
+        """
+        Advances until an element matching `target` is found. Stops after
+        an error in advancing. If the model ends before the tag is found,
+        it throws an `XMLSchemaValueError`.
+
+        :param target: can be a tag or an XSD element/wildcard of the model.
+        :param occurs: number of occurrences to consume for target element, \
+        for default consumes one occurrence. The consumed occurrences can be \
+        non-consecutive.
+        """
+        _err: Optional[AdvanceYieldedType] = None
+        while True:
+            if _err is not None:
+                return
+            elif self.element is None:
+                raise XMLSchemaValueError(f"can't advance, {self!r} is ended!")
+            elif isinstance(target, str):
+                while self.match_element(target):
+                    if occurs >= 1:
+                        yield from self.advance(True)
+                    occurs -= 1
+                    if occurs <= 0:
+                        return
+                else:
+                    for _err in self.advance(False):
+                        yield _err
+            else:
+                while target is self.element:
+                    if occurs >= 1:
+                        yield from self.advance(True)
+                    occurs -= 1
+                    if occurs <= 0:
+                        return
+                else:
+                    for _err in self.advance(False):
+                        yield _err
+
+    def check_following(self, *steps: StepType) -> bool:
+        """
+        Returns `True` if the model can be advanced without errors applying
+        the provided sequence of steps.
+
+        :param steps: sequence of steps to apply, each step can be an XSD element \
+        of the model or a tag, or the same info coupled with a non-negative integer \
+        that represents the occurs to be applied on the element (1 for default).
+        """
+        if not steps:
+            raise XMLSchemaTypeError("at least one step must be provided")
+
+        model = copy(self)
+        for step in steps:
+            target, occurs = step if isinstance(step, tuple) else (step, 1)
+
+            try:
+                for _err in model.advance_until(target, occurs):
+                    return False
+            except XMLSchemaValueError:
+                return False
+        else:
+            return True
+
+    def advance_safe(self, *steps: str) -> bool:
+        """
+        Advance the model with the provided sequence of steps if the advance doesn't
+        produce errors or the ending of the model. Returns `True` if the advance has
+        been done, `False` otherwise.
+        """
+        if not self.check_following(*steps):
+            return False
+
+        for step in steps:
+            target, occurs = step if isinstance(step, tuple) else (step, 1)
+            for _err in self.advance_until(target, occurs):
+                raise XMLSchemaRuntimeError("Unexpected advance error")
+        else:
+            return True
 
 
 class InterleavedModelVisitor(ModelVisitor):

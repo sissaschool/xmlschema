@@ -11,11 +11,12 @@ import os.path
 import platform
 from collections.abc import MutableMapping
 from typing import Optional, Iterable
-from urllib.parse import urlsplit, urlunsplit, unquote
+
+from urllib.parse import urlsplit, unquote
 
 from xmlschema.aliases import NormalizedLocationsType, LocationsType
 from xmlschema.utils.urls import is_local_url, is_local_scheme, encode_url
-from xmlschema.utils.paths import LocationPath
+from xmlschema.utils.paths import get_uri, LocationPath
 
 
 def normalize_url(url: str, base_url: Optional[str] = None,
@@ -34,28 +35,28 @@ def normalize_url(url: str, base_url: Optional[str] = None,
     the whitespaces are replaced with `+` characters.
     :return: a normalized URL string.
     """
-    url_parts = urlsplit(url)
+    url_parts = urlsplit(url.lstrip())
     if not is_local_scheme(url_parts.scheme):
-        return encode_url(url_parts.geturl(), method)
+        return encode_url(get_uri(*url_parts), method)
 
     path = LocationPath.from_uri(url)
     if path.is_absolute():
         return path.normalize().as_uri()
 
     if base_url is not None:
-        base_url_parts = urlsplit(base_url)
+        base_url_parts = urlsplit(base_url.lstrip())
         base_path = LocationPath.from_uri(base_url)
 
         if is_local_scheme(base_url_parts.scheme):
             path = base_path.joinpath(path)
         elif not url_parts.scheme:
-            url = urlunsplit((
+            url = get_uri(
                 base_url_parts.scheme,
                 base_url_parts.netloc,
                 base_path.joinpath(path).normalize().as_posix(),
                 url_parts.query,
                 url_parts.fragment
-            ))
+            )
             return encode_url(url, method)
 
     if path.is_absolute() or keep_relative:

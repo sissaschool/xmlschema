@@ -529,6 +529,7 @@ DATA_DICT = {
     'decimal_value': [Decimal('1')],
     'hexbin': 'AABBCCDD',
     'menù': 'baccalà mantecato',
+    'qname': 'ns:foo',
     'complex_boolean': [
         {'$': True, '@Type': 2}, {'$': False, '@Type': 1}, True, False
     ],

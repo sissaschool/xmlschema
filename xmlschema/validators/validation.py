@@ -26,7 +26,7 @@ from xmlschema.aliases import DecodeType, DepthFillerType, ElementType, \
     IterEncodeType, ModelParticleType, NsmapType, SerializerType, SchemaElementType, \
     SchemaType, ValidationHookType, ValueHookType, IOType, ErrorsType
 from xmlschema.translation import gettext as _
-from xmlschema.utils.decoding import EmptyType, Empty, raw_encode_value
+from xmlschema.utils.decoding import EmptyType, raw_encode_value
 from xmlschema.utils.etree import is_etree_element, is_etree_document
 from xmlschema.utils.logger import format_xmlschema_stack
 from xmlschema.utils.qnames import get_prefixed_qname

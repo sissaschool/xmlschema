@@ -1,0 +1,17 @@
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+  <xs:complexType name="mixedElement" mixed="true">
+    <xs:choice minOccurs="0" maxOccurs="unbounded">
+      <xs:element name="elem"/>
+    </xs:choice>
+  </xs:complexType>
+
+  <xs:element name="root">
+    <xs:complexType mixed="false">
+      <xs:complexContent>
+        <xs:extension base="mixedElement"/>
+      </xs:complexContent>
+    </xs:complexType>
+  </xs:element>
+
+</xs:schema>
