@@ -193,6 +193,8 @@ class ValidationContext:
 
     def raise_or_collect(self, validation: str, error: XMLSchemaValidationError) \
             -> XMLSchemaValidationError:
+        if validation == 'skip':
+            return error
 
         if error.elem is None and self.elem is not None:
             error.elem = self.elem

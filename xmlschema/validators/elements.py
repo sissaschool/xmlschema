@@ -52,6 +52,7 @@ from .simple_types import XsdSimpleType
 from .attributes import XsdAttribute
 from .wildcards import XsdAnyElement
 
+from . import groups
 if TYPE_CHECKING:
     from .attributes import XsdAttributeGroup
     from .groups import XsdGroup
@@ -136,7 +137,7 @@ class XsdElement(XsdComponent, ParticleMixin,
             list(self.occurs)
         )
 
-    def __setattr__(self, name: str, value: Any) -> None:
+    def _____setattr__(self, name: str, value: Any) -> None:
         if name == "type":
             if isinstance(value, XsdSimpleType):
                 self.attributes = self.schema.create_empty_attribute_group(self)
@@ -144,9 +145,21 @@ class XsdElement(XsdComponent, ParticleMixin,
                 self.attributes = value.attributes
         super().__setattr__(name, value)
 
+    def _set_type(self, value: BaseXsdType) -> None:
+        self.type = value
+        if isinstance(value, XsdSimpleType):
+            self.attributes = self.schema.create_empty_attribute_group(self)
+            self.content = ()
+        else:
+            self.attributes = value.attributes
+            if isinstance(value.content, XsdSimpleType):
+                self.content = ()
+            else:
+                self.content = value.content
+
     def __iter__(self) -> Iterator[SchemaElementType]:
-        if self.type.has_complex_content():
-            yield from self.type.content.iter_elements()  # type: ignore[union-attr]
+        if self.content:
+            yield from self.type.content.iter_elements()
 
     def _parse(self) -> None:
         if not self._build:
@@ -168,11 +181,11 @@ class XsdElement(XsdComponent, ParticleMixin,
             try:
                 xsd_element: XsdElement = self.maps.lookup_element(self.name)
             except KeyError:
-                self.type = self.any_type
+                self._set_type(self.any_type)
                 self.parse_error(_('unknown element %r') % self.name)
             else:
                 self.ref = xsd_element
-                self.type = xsd_element.type
+                self._set_type(xsd_element.type)
                 self.abstract = xsd_element.abstract
                 self.nillable = xsd_element.nillable
                 self.qualified = xsd_element.qualified
@@ -250,16 +263,16 @@ class XsdElement(XsdComponent, ParticleMixin,
                 extended_name = self.schema.resolve_qname(type_name)
             except (KeyError, ValueError, RuntimeError) as err:
                 self.parse_error(err)
-                self.type = self.any_type
+                self._set_type(self.any_type)
             else:
                 if extended_name == XSD_ANY_TYPE:
-                    self.type = self.any_type
+                    self._set_type(self.any_type)
                 else:
                     try:
-                        self.type = self.maps.lookup_type(extended_name)
+                        self._set_type(self.maps.lookup_type(extended_name))
                     except KeyError:
                         self.parse_error(_('unknown type {!r}').format(type_name))
-                        self.type = self.any_type
+                        self._set_type(self.any_type)
             finally:
                 child = self._parse_child_component(self.elem, strict=False)
                 if child is not None and child.tag in (XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE):
@@ -269,13 +282,13 @@ class XsdElement(XsdComponent, ParticleMixin,
         else:
             child = self._parse_child_component(self.elem, strict=False)
             if child is None:
-                self.type = self.any_type
+                self._set_type(self.any_type)
             elif child.tag == XSD_COMPLEX_TYPE:
-                self.type = self.schema.xsd_complex_type_class(child, self.schema, self)
+                self._set_type(self.schema.xsd_complex_type_class(child, self.schema, self))
             elif child.tag == XSD_SIMPLE_TYPE:
-                self.type = self.schema.simple_type_factory(child, self.schema, self)
+                self._set_type(self.schema.simple_type_factory(child, self.schema, self))
             else:
-                self.type = self.any_type
+                self._set_type(self.any_type)
 
     def _parse_constraints(self) -> None:
         # Value constraints
@@ -856,7 +869,7 @@ class XsdElement(XsdComponent, ParticleMixin,
         xsd_element = self if self.ref is None else self.ref
         if xsd_element.type is not xsd_type:
             xsd_element = _copy(xsd_element)
-            xsd_element.type = xsd_type
+            xsd_element._set_type(xsd_type)
 
         # Collect field values for identities that refer to this element.
         for identity in self.selected_by:

@@ -37,7 +37,7 @@ class XMLSchemaValidatorError(XMLSchemaException):
     :param source: the XML resource or the decoded data that contains the error.
     :param namespaces: is an optional mapping from namespace prefix to URI.
     """
-    _path: Optional[str]
+    _path: Optional[str] = None
 
     # Optional dump of the execution stack that can be set in collected
     # validator errors for debugging purposes.
@@ -48,7 +48,6 @@ class XMLSchemaValidatorError(XMLSchemaException):
                  elem: Optional[ElementType] = None,
                  source: Optional[Any] = None,
                  namespaces: Optional[NsmapType] = None) -> None:
-        self._path = None
         self.validator = validator
         self.message = message[:-1] if message[-1] in ('.', ':') else message
         self.namespaces = namespaces
@@ -85,15 +84,17 @@ class XMLSchemaValidatorError(XMLSchemaException):
                     "'elem' attribute requires an Element, not %r." % type(value)
                 )
             if isinstance(self.source, XMLResource):
-                self._path = etree_getpath(
-                    elem=value,
-                    root=self.source.root,
-                    namespaces=self.namespaces,
-                    relative=False,
-                    add_position=True
-                )
                 if self.source.is_lazy():
-                    value = None  # Don't save the element of a lazy resource
+                    # Don't save the element of a lazy resource but save the path
+                    self._path = etree_getpath(
+                        elem=value,
+                        root=self.source.root,
+                        namespaces=self.namespaces,
+                        relative=False,
+                        add_position=True
+                    )
+                    value = None
+
         super().__setattr__(name, value)
 
     @property
@@ -134,16 +135,16 @@ class XMLSchemaValidatorError(XMLSchemaException):
     @property
     def path(self) -> Optional[str]:
         """The XPath of the element, if it's not `None` and the XML resource is set."""
-        if self.elem is None or not isinstance(self.source, XMLResource):
-            return self._path
-
-        return etree_getpath(
-            elem=self.elem,
-            root=self.source.root,
-            namespaces=self.namespaces,
-            relative=False,
-            add_position=True
-        )
+        if self._path is None:
+            if self.elem is not None and isinstance(self.source, XMLResource) and not self.source.is_lazy():
+                self._path = etree_getpath(
+                    elem=self.elem,
+                    root=self.source.root,
+                    namespaces=self.namespaces,
+                    relative=False,
+                    add_position=True
+                )
+        return self._path
 
     def get_elem_as_string(self, indent: str = '', max_lines: Optional[int] = None) -> str:
         """Returns a string representation of elem attribute."""
