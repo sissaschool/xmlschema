@@ -20,7 +20,7 @@ def run_timeit(stmt='pass', setup='pass', number=1000):
 
 if __name__ == '__main__':
     from xmlschema import XMLResource
-    from validators.validation import DecodeContext
+    from xmlschema.validators import DecodeContext
 
     print('*' * 50)
     print("*** Decoder profile for xmlschema package ***")

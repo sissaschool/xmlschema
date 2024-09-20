@@ -7,18 +7,15 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from collections import Counter
-from typing import Any, Callable, Iterator, Optional, Tuple
+import importlib
+import re
+from itertools import pairwise
+from typing import Any, Callable, Iterator, List, Optional, Tuple, Union
+from xml.etree import ElementTree
 
 from xmlschema.names import XSI_SCHEMA_LOCATION, XSI_NONS_SCHEMA_LOCATION
 from xmlschema.aliases import ElementType, NsmapType
 from xmlschema.utils.qnames import get_namespace, get_prefixed_qname
-from xmlschema.utils.decorators import catchable_xmlschema_error
-
-from elementpath.etree import etree_tostring as _etree_tostring
-
-# Import API from elementpath
-etree_tostring = catchable_xmlschema_error(_etree_tostring)
 
 
 def is_etree_element(obj: object) -> bool:
@@ -46,49 +43,32 @@ def is_lxml_document(obj: Any) -> bool:
     return is_etree_document(obj) and hasattr(obj, 'xpath') and hasattr(obj, 'xslt')
 
 
-def etree_iterpath(elem: ElementType,
-                   tag: Optional[str] = None,
-                   path: str = '.',
-                   namespaces: Optional[NsmapType] = None,
-                   add_position: bool = False) -> Iterator[Tuple[ElementType, str]]:
+def etree_get_ancestors(elem: ElementType, root: ElementType) -> Optional[List[ElementType]]:
     """
-    Creates an iterator for the element and its subelements that yield elements and paths.
-    If tag is not `None` or '*', only elements whose matches tag are returned from the iterator.
-
-    :param elem: the element to iterate.
-    :param tag: tag filtering.
-    :param path: the current path, '.' for default.
-    :param namespaces: is an optional mapping from namespace prefix to URI.
-    :param add_position: add context position to child elements that appear multiple times.
+    Returns a list with ancestors of `elem`, `None` if `elem` is not a descendant of `root`.
     """
-    if tag == "*":
-        tag = None
-    if not path:
-        path = '.'
-    if tag is None or elem.tag == tag:
-        yield elem, path
-
-    if add_position:
-        children_tags = Counter(e.tag for e in elem)
-        positions = Counter(t for t in children_tags if children_tags[t] > 1)
+    if elem is root:
+        return []
     else:
-        positions = Counter()
+        ancestors = [root]
 
-    for child in elem:
-        if callable(child.tag):
-            continue  # Skip comments and PIs
+    children = iter(root)
+    iterators = []
+    while True:
+        for child in children:
+            if elem is child:
+                return ancestors
 
-        child_name = child.tag if namespaces is None else get_prefixed_qname(child.tag, namespaces)
-        if path == '/':
-            child_path = f'/{child_name}'
+            if len(child):
+                ancestors.append(child)
+                iterators.append(children)
+                children = iter(child)
+                break
         else:
-            child_path = '/'.join((path, child_name))
-
-        if child.tag in positions:
-            child_path += '[%d]' % positions[child.tag]
-            positions[child.tag] += 1
-
-        yield from etree_iterpath(child, tag, child_path, namespaces, add_position)
+            if not iterators:
+                return None
+            ancestors.pop()
+            children = iterators.pop()
 
 
 def etree_getpath(elem: ElementType,
@@ -108,22 +88,39 @@ def etree_getpath(elem: ElementType,
     :param parent_path: if set to `True` returns the parent path. Default is `False`.
     :return: An XPath expression or `None` if *elem* is not a descendant of *root*.
     """
-    if relative:
-        path = '.'
-    elif namespaces:
-        path = f'/{get_prefixed_qname(root.tag, namespaces)}'
-    else:
-        path = f'/{root.tag}'
+    ancestors = etree_get_ancestors(elem, root)
+    if ancestors is None:
+        return None
+    elif not parent_path:
+        ancestors.append(elem)
+    elif not ancestors:
+        return None
 
-    if not parent_path:
-        for e, path in etree_iterpath(root, elem.tag, path, namespaces, add_position):
-            if e is elem:
-                return path
+    if relative:
+        parts = ['.']
+    elif namespaces:
+        parts = ['', get_prefixed_qname(root.tag, namespaces)]
     else:
-        for e, path in etree_iterpath(root, None, path, namespaces, add_position):
-            if elem in e:
-                return path
-    return None
+        parts = ['', root.tag]
+
+    for parent, child in pairwise(ancestors):
+        name = get_prefixed_qname(child.tag, namespaces) if namespaces else child.tag
+        if add_position:
+            position = siblings = 1
+            for c in parent:
+                if c is child:
+                    position = siblings
+                elif c.tag == child.tag:
+                    siblings += 1
+
+            if siblings != 1:
+                parts.append(f'{name}[{position}]')
+            else:
+                parts.append(name)
+        else:
+            parts.append(name)
+
+    return '/'.join(parts)
 
 
 def etree_iter_location_hints(elem: ElementType) -> Iterator[Tuple[Any, Any]]:
@@ -183,3 +180,106 @@ def prune_etree(root: ElementType, selector: Callable[[ElementType], bool]) \
         return True
     _prune_subtree(root)
     return None
+
+
+def etree_tostring(elem: ElementType,
+                   namespaces: Optional[NsmapType] = None,
+                   indent: str = '',
+                   max_lines: Optional[int] = None,
+                   spaces_for_tab: Optional[int] = 4,
+                   xml_declaration: Optional[bool] = None,
+                   encoding: str = 'unicode',
+                   method: str = 'xml') -> Union[str, bytes]:
+    """
+    Serialize an Element tree to a string.
+
+    :param elem: the Element instance.
+    :param namespaces: is an optional mapping from namespace prefix to URI. \
+    Provided namespaces are registered before serialization. Ignored if the \
+    provided *elem* argument is a lxml Element instance.
+    :param indent: the baseline indentation.
+    :param max_lines: if truncate serialization after a number of lines \
+    (default: do not truncate).
+    :param spaces_for_tab: number of spaces for replacing tab characters. For \
+    default tabs are replaced with 4 spaces, provide `None` to keep tab characters.
+    :param xml_declaration: if set to `True` inserts the XML declaration at the head.
+    :param encoding: if "unicode" (the default) the output is a string, \
+    otherwise it’s binary.
+    :param method: is either "xml" (the default), "html" or "text".
+    :return: a Unicode string.
+    """
+    def reindent(line: str) -> str:
+        if not line:
+            return line
+        elif line.startswith(min_indent):
+            return line[start:] if start >= 0 else indent[start:] + line
+        else:
+            return indent + line
+
+    etree_module: Any
+    if isinstance(elem, ElementTree.Element):
+        etree_module = ElementTree
+    elif is_lxml_element(elem):
+        etree_module = importlib.import_module('lxml.etree')
+    else:
+        raise TypeError(f"can't serialize {elem!r}")
+
+    if namespaces and not hasattr(elem, 'nsmap'):
+        default_namespace = namespaces.get('')
+        for prefix, uri in namespaces.items():
+            if prefix and not re.match(r'ns\d+$', prefix):
+                etree_module.register_namespace(prefix, uri)
+                if uri == default_namespace:
+                    default_namespace = None
+
+        if default_namespace:
+            etree_module.register_namespace('', default_namespace)
+
+    xml_text = etree_module.tostring(elem, encoding=encoding, method=method)
+    if isinstance(xml_text, bytes):
+        xml_text = xml_text.decode('utf-8')
+
+    if spaces_for_tab is not None:
+        xml_text = xml_text.replace('\t', ' ' * spaces_for_tab)
+
+    if xml_text.startswith('<?xml '):
+        if xml_declaration is False:
+            lines = xml_text.splitlines()[1:]
+        else:
+            lines = xml_text.splitlines()
+    elif xml_declaration and encoding.lower() != 'unicode':
+        lines = ['<?xml version="1.0" encoding="{}"?>'.format(encoding)]
+        lines.extend(xml_text.splitlines())
+    else:
+        lines = xml_text.splitlines()
+
+    # Clear ending empty lines
+    while lines and not lines[-1].strip():
+        lines.pop(-1)
+
+    if not lines or method == 'text' or (not indent and not max_lines):
+        if encoding == 'unicode':
+            return '\n'.join(lines)
+        return '\n'.join(lines).encode(encoding)
+
+    last_indent = ' ' * min(k for k in range(len(lines[-1])) if lines[-1][k] != ' ')
+    if len(lines) > 2:
+        try:
+            child_indent = ' ' * min(
+                k for line in lines[1:-1] for k in range(len(line)) if line[k] != ' '
+            )
+        except ValueError:
+            child_indent = ''
+
+        min_indent = min(child_indent, last_indent)
+    else:
+        min_indent = child_indent = last_indent
+
+    start = len(min_indent) - len(indent)
+
+    if max_lines is not None and len(lines) > max_lines + 2:
+        lines = lines[:max_lines] + [child_indent + '...'] * 2 + lines[-1:]
+
+    if encoding == 'unicode':
+        return '\n'.join(reindent(line) for line in lines)
+    return '\n'.join(reindent(line) for line in lines).encode(encoding)

@@ -24,8 +24,8 @@ except ImportError:
 from xmlschema import XMLSchema, XMLSchemaParseError
 from xmlschema.names import XSD_NAMESPACE, XSI_NAMESPACE, XSD_SCHEMA, \
     XSD_ELEMENT, XSD_SIMPLE_TYPE, XSD_ANNOTATION, XSI_TYPE
-from xmlschema.utils.etree import prune_etree, etree_iterpath, etree_getpath, \
-    etree_iter_location_hints
+from xmlschema.utils.etree import prune_etree, etree_get_ancestors, etree_getpath, \
+    etree_iter_location_hints, etree_tostring
 from xmlschema.utils.qnames import get_namespace, get_qname, local_name, \
     get_prefixed_qname, get_extended_qname, update_namespaces
 from xmlschema.utils.logger import set_logging_level, logged
@@ -41,6 +41,10 @@ from xmlschema.validators.helpers import get_xsd_derivation_attribute, \
     int_validator, long_validator, unsigned_byte_validator, \
     unsigned_short_validator, negative_int_validator, error_type_validator
 from xmlschema.validators.particles import OccursCalculator
+
+XML_WITH_NAMESPACES = '<pfa:root xmlns:pfa="http://xpath.test/nsa">\n' \
+                      '  <pfb:elem xmlns:pfb="http://xpath.test/nsb"/>\n' \
+                      '</pfa:root>'
 
 
 class TestUtils(unittest.TestCase):
@@ -336,25 +340,15 @@ class TestUtils(unittest.TestCase):
                                  '': 'http://example.com/ns2',
                                  'default1': 'http://example.com/ns3'})
 
-    def test_etree_iterpath(self):
+    def test_etree_get_ancestors(self):
         root = ElementTree.XML('<a><b1><c1/><c2/></b1><b2/><b3><c3/></b3></a>')
+        elem = ElementTree.XML('<a/>')
 
-        items = list(etree_iterpath(root))
-        self.assertListEqual(items, [
-            (root, '.'), (root[0], './b1'), (root[0][0], './b1/c1'),
-            (root[0][1], './b1/c2'), (root[1], './b2'), (root[2], './b3'),
-            (root[2][0], './b3/c3')
-        ])
-
-        self.assertListEqual(items, list(etree_iterpath(root, tag='*')))
-        self.assertListEqual(items, list(etree_iterpath(root, path='')))
-        self.assertListEqual(items, list(etree_iterpath(root, path=None)))
-
-        self.assertListEqual(list(etree_iterpath(root, path='/')), [
-            (root, '/'), (root[0], '/b1'), (root[0][0], '/b1/c1'),
-            (root[0][1], '/b1/c2'), (root[1], '/b2'), (root[2], '/b3'),
-            (root[2][0], '/b3/c3')
-        ])
+        self.assertIsNone(etree_get_ancestors(elem, root))
+        self.assertListEqual(etree_get_ancestors(root, root), [])
+        self.assertListEqual(etree_get_ancestors(root[0], root), [root])
+        self.assertListEqual(etree_get_ancestors(root[0][0], root), [root, root[0]])
+        self.assertListEqual(etree_get_ancestors(root[2][0], root), [root, root[2]])
 
     def test_etree_getpath(self):
         root = ElementTree.XML('<a><b1><c1/><c2/></b1><b2/><b3><c3/></b3></a>')
@@ -365,9 +359,23 @@ class TestUtils(unittest.TestCase):
         self.assertEqual(etree_getpath(root[0], root, parent_path=True), '.')
         self.assertEqual(etree_getpath(root[2][0], root, parent_path=True), './b3')
 
+        self.assertEqual(etree_getpath(root, root, relative=False), '/a')
+        self.assertEqual(etree_getpath(root[0], root, relative=False), '/a/b1')
+        self.assertEqual(etree_getpath(root[2][0], root, relative=False), '/a/b3/c3')
+        self.assertEqual(
+            etree_getpath(root[0], root, relative=False, parent_path=True), '/a'
+        )
+        self.assertEqual(
+            etree_getpath(root[2][0], root, relative=False, parent_path=True), '/a/b3'
+        )
+
         self.assertIsNone(etree_getpath(root, root[0]))
         self.assertIsNone(etree_getpath(root[0], root[1]))
         self.assertIsNone(etree_getpath(root, root, parent_path=True))
+
+        self.assertIsNone(etree_getpath(root, root[0], relative=False))
+        self.assertIsNone(etree_getpath(root[0], root[1], relative=False))
+        self.assertIsNone(etree_getpath(root, root, relative=False, parent_path=True))
 
     def test_etree_elements_assert_equal(self):
         e1 = ElementTree.XML('<a><b1>text<c1 a="1"/></b1>\n<b2/><b3/></a>\n')
@@ -518,6 +526,149 @@ class TestUtils(unittest.TestCase):
         root = ElementTree.XML('<a><b1><c1/><c2/></b1><b2/><b3><c3/></b3></a>')
         prune_etree(root, selector=lambda x: x.tag.startswith('c'))
         self.assertListEqual([e.tag for e in root.iter()], ['a', 'b1', 'b2', 'b3'])
+
+    def test_etree_tostring(self):
+        self.assertRaises(TypeError, etree_tostring, '<element/>')
+
+        elem = ElementTree.Element('element')
+        self.assertEqual(etree_tostring(elem), '<element />')
+        self.assertEqual(etree_tostring(elem, xml_declaration=True), '<element />')
+
+        self.assertEqual(etree_tostring(elem, encoding='us-ascii'), b'<element />')
+        self.assertEqual(etree_tostring(elem, encoding='us-ascii', indent='    '),
+                         b'    <element />')
+        self.assertEqual(etree_tostring(elem, encoding='us-ascii', xml_declaration=True),
+                         b'<?xml version="1.0" encoding="us-ascii"?>\n<element />')
+
+        elem.text = '\t'
+        self.assertEqual(etree_tostring(elem), '<element>    </element>')
+        self.assertEqual(etree_tostring(elem, spaces_for_tab=2), '<element>  </element>')
+        self.assertEqual(etree_tostring(elem, spaces_for_tab=0), '<element></element>')
+        self.assertEqual(etree_tostring(elem, spaces_for_tab=None), '<element>\t</element>')
+
+        elem.text = '\n\n'
+        self.assertEqual(etree_tostring(elem), '<element>\n\n</element>')
+        self.assertEqual(etree_tostring(elem, indent='  '), '  <element>\n\n  </element>')
+
+        elem.text = '\nfoo\n'
+        self.assertEqual(etree_tostring(elem), '<element>\nfoo\n</element>')
+        self.assertEqual(etree_tostring(elem, indent=' '), ' <element>\n foo\n </element>')
+
+        elem.text = None
+
+        self.assertEqual(etree_tostring(elem, encoding='ascii'),
+                         b"<?xml version='1.0' encoding='ascii'?>\n<element />")
+        self.assertEqual(etree_tostring(elem, encoding='ascii', xml_declaration=False),
+                         b'<element />')
+        self.assertEqual(etree_tostring(elem, encoding='utf-8'), b'<element />')
+        self.assertEqual(etree_tostring(elem, encoding='utf-8', xml_declaration=True),
+                         b'<?xml version="1.0" encoding="utf-8"?>\n<element />')
+
+        self.assertEqual(etree_tostring(elem, encoding='iso-8859-1'),
+                         b"<?xml version='1.0' encoding='iso-8859-1'?>\n<element />")
+        self.assertEqual(etree_tostring(elem, encoding='iso-8859-1', xml_declaration=False),
+                         b"<element />")
+
+        self.assertEqual(etree_tostring(elem, method='html'), '<element></element>')
+        self.assertEqual(etree_tostring(elem, method='text'), '')
+
+        root = ElementTree.XML('<root>\n'
+                               '  text1\n'
+                               '  <elem>text2</elem>\n'
+                               '</root>')
+        self.assertEqual(etree_tostring(root, method='text'), '\n  text1\n  text2')
+        self.assertEqual(etree_tostring(root, max_lines=1), '<root>\n  ...\n  ...\n</root>')
+
+        root = ElementTree.XML(XML_WITH_NAMESPACES)
+        result = etree_tostring(root)
+        self.assertNotEqual(result, XML_WITH_NAMESPACES)
+        self.assertNotIn('pxa', result)
+        self.assertNotIn('pxa', result)
+        self.assertRegex(result, r'xmlns:ns\d="http://xpath.test/nsa')
+        self.assertRegex(result, r'xmlns:ns\d="http://xpath.test/nsb')
+
+        namespaces = {
+            'pxa': "http://xpath.test/nsa",
+            'pxb': "http://xpath.test/nsb"
+        }
+        expected = '<pxa:root xmlns:pxa="http://xpath.test/nsa" ' \
+                   'xmlns:pxb="http://xpath.test/nsb">\n' \
+                   '  <pxb:elem />\n' \
+                   '</pxa:root>'
+        self.assertEqual(etree_tostring(root, namespaces), expected)
+
+        namespaces = {
+            '': "http://xpath.test/nsa",
+            'pxa': "http://xpath.test/nsa",
+            'pxb': "http://xpath.test/nsb"
+        }
+        self.assertEqual(etree_tostring(root, namespaces), expected)
+
+        namespaces = {
+            '': "http://xpath.test/nsa",
+            'pxb': "http://xpath.test/nsb"
+        }
+        expected = '<root xmlns="http://xpath.test/nsa" ' \
+                   'xmlns:pxb="http://xpath.test/nsb">\n' \
+                   '  <pxb:elem />\n' \
+                   '</root>'
+        self.assertEqual(etree_tostring(root, namespaces), expected)
+
+    @unittest.skipIf(lxml_etree is None, 'lxml is not installed ...')
+    def test_etree_tostring_with_lxml_element(self):
+        elem = lxml_etree.Element('element')
+        self.assertEqual(etree_tostring(elem), '<element/>')
+        self.assertEqual(etree_tostring(elem, xml_declaration=True), '<element/>')
+
+        self.assertEqual(etree_tostring(elem, encoding='us-ascii'), b'<element/>')
+        self.assertEqual(etree_tostring(elem, encoding='us-ascii', indent='    '),
+                         b'    <element/>')
+
+        elem.text = '\t'
+        self.assertEqual(etree_tostring(elem), '<element>    </element>')
+        self.assertEqual(etree_tostring(elem, spaces_for_tab=2), '<element>  </element>')
+        self.assertEqual(etree_tostring(elem, spaces_for_tab=0), '<element></element>')
+        self.assertEqual(etree_tostring(elem, spaces_for_tab=None), '<element>\t</element>')
+        elem.text = None
+
+        self.assertEqual(etree_tostring(elem, encoding='us-ascii'), b'<element/>')
+        self.assertEqual(etree_tostring(elem, encoding='us-ascii', xml_declaration=True),
+                         b'<?xml version="1.0" encoding="us-ascii"?>\n<element/>')
+
+        self.assertEqual(etree_tostring(elem, encoding='ascii'), b'<element/>')
+        self.assertEqual(etree_tostring(elem, encoding='ascii', xml_declaration=True),
+                         b'<?xml version="1.0" encoding="ascii"?>\n<element/>')
+
+        self.assertEqual(etree_tostring(elem, encoding='utf-8'), b'<element/>')
+        self.assertEqual(etree_tostring(elem, encoding='utf-8', xml_declaration=True),
+                         b'<?xml version="1.0" encoding="utf-8"?>\n<element/>')
+
+        self.assertEqual(etree_tostring(elem, encoding='iso-8859-1'),
+                         b"<?xml version='1.0' encoding='iso-8859-1'?>\n<element/>")
+        self.assertEqual(etree_tostring(elem, encoding='iso-8859-1', xml_declaration=False),
+                         b"<element/>")
+
+        self.assertEqual(etree_tostring(elem, method='html'), '<element></element>')
+        self.assertEqual(etree_tostring(elem, method='text'), '')
+
+        root = lxml_etree.XML('<root>\n'
+                              '  text1\n'
+                              '  <elem>text2</elem>\n'
+                              '</root>')
+        self.assertEqual(etree_tostring(root, method='text'), '\n  text1\n  text2')
+
+        root = lxml_etree.XML(XML_WITH_NAMESPACES)
+        self.assertEqual(etree_tostring(root), XML_WITH_NAMESPACES)
+
+        namespaces = {
+            'tns0': "http://xpath.test/nsa",
+            'tns1': "http://xpath.test/nsb"
+        }
+        self.assertEqual(etree_tostring(root, namespaces), XML_WITH_NAMESPACES)
+
+        for prefix, uri in namespaces.items():
+            lxml_etree.register_namespace(prefix, uri)
+        self.assertEqual(etree_tostring(root), XML_WITH_NAMESPACES)
 
     def test_decimal_validator(self):
         self.assertIsNone(decimal_validator(10))
