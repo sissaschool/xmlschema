@@ -595,8 +595,21 @@ class XsdElement(XsdComponent, ParticleMixin,
         result: Any
 
         if self.abstract:
-            reason = _("cannot use an abstract element for validation")
-            yield self.validation_error(validation, reason, obj, **kwargs)
+            if self.name == obj.tag:
+                reason = _("can't use an abstract element in an instance")
+                yield self.validation_error(validation, reason, obj, **kwargs)
+            elif self.name not in self.maps.substitution_groups:
+                reason = _("can't use an abstract XSD element for validation "
+                           "unless it's the head of a substitution group")
+                yield self.validation_error(validation, reason, obj, **kwargs)
+            else:
+                for xsd_element in self.iter_substitutes():
+                    if obj.tag == xsd_element.name:
+                        yield from xsd_element.iter_decode(obj, validation, **kwargs)
+                        return
+                else:
+                    reason = _("can't use an abstract XSD element for validation")
+                    yield self.validation_error(validation, reason, obj, **kwargs)
 
         # Control validation on element and its descendants or stop validation
         if 'validation_hook' in kwargs:
@@ -956,6 +969,7 @@ class XsdElement(XsdComponent, ParticleMixin,
         validation or encoding errors.
         """
         errors: List[Union[str, Exception]] = []
+        result: Any
 
         try:
             converter = kwargs['converter']
@@ -975,6 +989,31 @@ class XsdElement(XsdComponent, ParticleMixin,
         except (ValueError, TypeError) as err:
             yield self.validation_error(validation, err, obj, **kwargs)
             return
+
+        if self.abstract:
+            if self.name == element_data.tag and converter.losslessly:
+                reason = _("can't use an abstract element in an instance")
+                yield self.validation_error(validation, reason, obj, **kwargs)
+            elif self.name not in self.maps.substitution_groups:
+                reason = _("can't use an abstract XSD element for validation "
+                           "unless it's the head of a substitution group")
+                yield self.validation_error(validation, reason, obj, **kwargs)
+            else:
+                for xsd_element in self.iter_substitutes():
+                    if element_data.tag == xsd_element.name:
+                        yield from xsd_element.iter_encode(obj, validation, **kwargs)
+                        return
+                else:
+                    # In some cases the original tag could be missed, so try each
+                    # substitute before generate an error.
+                    for xsd_element in self.iter_substitutes():
+                        for result in xsd_element.iter_encode(obj, validation, **kwargs):
+                            if not isinstance(result, XMLSchemaValidationError):
+                                yield result
+                                return
+                    else:
+                        reason = _("can't use an abstract XSD element for validation")
+                        yield self.validation_error(validation, reason, obj, **kwargs)
 
         if 'max_depth' in kwargs and kwargs['max_depth'] == 0 and not level:
             for e in errors:
@@ -1010,7 +1049,6 @@ class XsdElement(XsdComponent, ParticleMixin,
                             del element_data.attributes[k]
 
         attribute_group = self.get_attributes(xsd_type)
-        result: Any
         for result in attribute_group.iter_encode(element_data.attributes, validation, **kwargs):
             if isinstance(result, XMLSchemaValidationError):
                 errors.append(result)

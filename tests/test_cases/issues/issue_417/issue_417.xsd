@@ -1,0 +1,4 @@
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+    <xs:element name="abstractSubgroupHead" type="xs:integer" abstract="true"/>
+    <xs:element name="subgroupMember" type="xs:positiveInteger" substitutionGroup="abstractSubgroupHead"/>
+</xs:schema>

@@ -95,22 +95,22 @@ class ParkerConverter(XMLSchemaConverter):
                 return result_dict if result_dict else None
 
     def element_encode(self, obj: Any, xsd_element: 'XsdElement', level: int = 0) -> ElementData:
-        name: str = xsd_element.name
+        tag: str = xsd_element.name
         if not isinstance(obj, MutableMapping):
             if obj == '':
                 obj = None
             if xsd_element.type.simple_type is not None:
-                return ElementData(xsd_element.name, obj, None, {}, None)
+                return ElementData(tag, obj, None, {}, None)
             else:
-                return ElementData(xsd_element.name, None, obj, {}, None)
+                return ElementData(tag, None, obj, {}, None)
         else:
             if not obj:
-                return ElementData(xsd_element.name, None, None, {}, None)
+                return ElementData(tag, None, None, {}, None)
             elif self.preserve_root:
                 try:
-                    items = obj[self.map_qname(name)]
+                    items = obj[self.map_qname(tag)]
                 except KeyError:
-                    return ElementData(xsd_element.name, None, None, {}, None)
+                    return ElementData(tag, None, None, {}, None)
             else:
                 items = obj
 
@@ -135,6 +135,6 @@ class ParkerConverter(XMLSchemaConverter):
                             content.extend((ns_name, item) for item in value)
 
             except AttributeError:
-                return ElementData(xsd_element.name, items, None, {}, None)
+                return ElementData(tag, items, None, {}, None)
             else:
-                return ElementData(xsd_element.name, None, content, {}, None)
+                return ElementData(tag, None, content, {}, None)

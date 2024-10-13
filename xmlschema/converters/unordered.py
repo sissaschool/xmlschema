@@ -70,7 +70,9 @@ class UnorderedConverter(XMLSchemaConverter):
 
         xmlns = self.set_context(obj, level)
 
-        if element_name is not None:
+        if element_name is None:
+            tag = xsd_element.name
+        else:
             tag = self.unmap_qname(element_name)
             if not xsd_element.is_matching(tag, self.default_namespace):
                 raise XMLSchemaValueError("data tag does not match XSD element name")
@@ -80,15 +82,13 @@ class UnorderedConverter(XMLSchemaConverter):
                 text = value
             elif self.cdata_prefix is not None and \
                     name.startswith(self.cdata_prefix) and \
-                    name[len(self.cdata_prefix):].isdigit():
-                index = int(name[len(self.cdata_prefix):])
-                content_lu[index] = value
+                    (index := name[len(self.cdata_prefix):]).isdigit():
+                content_lu[int(index)] = value
             elif self.is_xmlns(name):
                 continue
             elif self.attr_prefix and \
                     name.startswith(self.attr_prefix) and \
-                    name != self.attr_prefix:
-                attr_name = name[len(self.attr_prefix):]
+                    (attr_name := name[len(self.attr_prefix):]):
                 ns_name = self.unmap_qname(attr_name, xsd_element.attributes)
                 attributes[ns_name] = value
             elif not isinstance(value, MutableSequence) or not value:
@@ -111,4 +111,4 @@ class UnorderedConverter(XMLSchemaConverter):
                 else:
                     content_lu[ns_name] = value
 
-        return ElementData(xsd_element.name, text, content_lu, attributes, xmlns)
+        return ElementData(tag, text, content_lu, attributes, xmlns)

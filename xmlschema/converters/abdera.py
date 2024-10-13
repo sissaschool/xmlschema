@@ -10,9 +10,9 @@
 from collections.abc import MutableMapping, MutableSequence
 from typing import TYPE_CHECKING, Any, Optional, List, Dict, Type, Union
 
+from ..helpers import local_name
 from ..exceptions import XMLSchemaValueError
 from ..aliases import NamespacesType, BaseXsdType
-from ..helpers import local_name
 from ..resources import XMLResource
 from .default import ElementData, XMLSchemaConverter
 
@@ -92,64 +92,59 @@ class AbderaConverter(XMLSchemaConverter):
         return result if level else self.dict([(self.map_qname(data.tag), result)])
 
     def element_encode(self, obj: Any, xsd_element: 'XsdElement', level: int = 0) -> ElementData:
-        tag = xsd_element.qualified_name if level == 0 else xsd_element.name
-
         if not isinstance(obj, MutableMapping):
-            if obj == []:
+            if not obj and isinstance(obj, MutableSequence):
                 obj = None
-            return ElementData(tag, obj, None, {}, None)
-        else:
+            return ElementData(xsd_element.name, obj, None, {}, None)
+        elif len(obj) != 1:
             tag = xsd_element.name
-            if level or len(obj) != 1:
-                pass
-            elif tag in obj:
-                obj = obj[tag]
+        else:
+            key, value = next(iter(obj.items()))
+            tag = self.unmap_qname(key)
+            if xsd_element.is_matching(tag):
+                obj = value
+            elif not self.namespaces and local_name(tag) == xsd_element.local_name:
+                obj = value
             else:
-                try:
-                    obj = obj[self.map_qname(tag)]
-                except KeyError:
-                    for k, v in obj.items():
-                        if k.endswith(local_name(tag)):
-                            obj = v
-                            break
+                tag = xsd_element.name
 
-            attributes: Dict[str, Any] = {}
-            children: Union[List[Any], MutableMapping[str, Any]]
+        attributes: Dict[str, Any] = {}
+        children: Union[List[Any], MutableMapping[str, Any]]
 
-            try:
-                attributes.update((self.unmap_qname(k, xsd_element.attributes), v)
-                                  for k, v in obj['attributes'].items())
-            except KeyError:
-                children = obj
+        try:
+            attributes.update((self.unmap_qname(k, xsd_element.attributes), v)
+                              for k, v in obj['attributes'].items())
+        except KeyError:
+            children = obj
+        else:
+            children = obj.get('children', [])
+
+        if isinstance(children, MutableMapping):
+            children = [children]
+        elif children and not isinstance(children[0], MutableMapping):
+            if len(children) > 1:
+                raise XMLSchemaValueError("Element %r should have only one child" % tag)
             else:
-                children = obj.get('children', [])
+                return ElementData(tag, children[0], None, attributes, None)
 
-            if isinstance(children, MutableMapping):
-                children = [children]
-            elif children and not isinstance(children[0], MutableMapping):
-                if len(children) > 1:
-                    raise XMLSchemaValueError("Element %r should have only one child" % tag)
+        content = []
+        for child in children:
+            for name, value in child.items():
+                if not isinstance(value, MutableSequence) or not value:
+                    content.append((self.unmap_qname(name), value))
+                elif isinstance(value[0], (MutableMapping, MutableSequence)):
+                    ns_name = self.unmap_qname(name)
+                    for item in value:
+                        content.append((ns_name, item))
                 else:
-                    return ElementData(tag, children[0], None, attributes, None)
-
-            content = []
-            for child in children:
-                for name, value in child.items():
-                    if not isinstance(value, MutableSequence) or not value:
-                        content.append((self.unmap_qname(name), value))
-                    elif isinstance(value[0], (MutableMapping, MutableSequence)):
-                        ns_name = self.unmap_qname(name)
-                        for item in value:
-                            content.append((ns_name, item))
-                    else:
-                        ns_name = self.unmap_qname(name)
-                        xsd_child = xsd_element.match_child(ns_name)
-                        if xsd_child is not None:
-                            if xsd_child.type and xsd_child.type.is_list():
-                                content.append((ns_name, value))
-                            else:
-                                content.extend((ns_name, item) for item in value)
+                    ns_name = self.unmap_qname(name)
+                    xsd_child = xsd_element.match_child(ns_name)
+                    if xsd_child is not None:
+                        if xsd_child.type and xsd_child.type.is_list():
+                            content.append((ns_name, value))
                         else:
                             content.extend((ns_name, item) for item in value)
+                    else:
+                        content.extend((ns_name, item) for item in value)
 
-            return ElementData(tag, None, content, attributes, None)
+        return ElementData(tag, None, content, attributes, None)

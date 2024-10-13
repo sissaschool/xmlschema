@@ -118,28 +118,29 @@ class GDataConverter(XMLSchemaConverter):
 
     @stackable
     def element_encode(self, obj: Any, xsd_element: 'XsdElement', level: int = 0) -> ElementData:
-        tag = xsd_element.name
         if not isinstance(obj, MutableMapping):
             raise XMLSchemaTypeError(f"A dictionary expected, got {type(obj)} instead.")
         elif len(obj) != 1 or '$t' in obj:
-            element_data = obj
+            tag = xsd_element.name
         else:
-            for k, v in obj.items():
-                if isinstance(v, MutableMapping):
-                    if '$' in k and not k.startswith(('$', '{')):
-                        k = k.replace('$', ':')
-                    if k == tag or local_name(k) == local_name(tag):
-                        element_data = v
-                        break
+            key, value = next(iter(obj.items()))
+            if not isinstance(value, MutableMapping):
+                tag = xsd_element.name
             else:
-                element_data = obj
+                tag = self.unmap_qname(key, xmlns=self.get_xmlns_from_data(value))
+                if xsd_element.is_matching(tag):
+                    obj = value
+                elif not self.namespaces and local_name(tag) == xsd_element.local_name:
+                    obj = value
+                else:
+                    tag = xsd_element.name
 
         text = None
         content: List[Tuple[Union[str, int], Any]] = []
         attributes = {}
 
-        xmlns = self.set_context(element_data, level)
-        for name, value in element_data.items():
+        xmlns = self.set_context(obj, level)
+        for name, value in obj.items():
             if name == '$t':
                 text = value
             elif name[0] == '$' and name[1:].isdigit():

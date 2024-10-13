@@ -98,11 +98,13 @@ class JsonMLConverter(XMLSchemaConverter):
 
         xmlns = self.set_context(obj, level)
 
+        tag = self.unmap_qname(obj[0])
+        if not xsd_element.is_matching(tag):
+            raise XMLSchemaValueError("Unmatched tag")
+
         data_len = len(obj)
         if data_len == 1:
-            if not xsd_element.is_matching(self.unmap_qname(obj[0]), self._namespaces.get('')):
-                raise XMLSchemaValueError("Unmatched tag")
-            return ElementData(xsd_element.name, None, None, {}, None)
+            return ElementData(tag, None, None, {}, None)
 
         attributes: Dict[str, Any] = {}
         if isinstance(obj[1], MutableMapping):
@@ -113,15 +115,12 @@ class JsonMLConverter(XMLSchemaConverter):
         else:
             content_index = 1
 
-        if not xsd_element.is_matching(self.unmap_qname(obj[0]), self._namespaces.get('')):
-            raise XMLSchemaValueError("Unmatched tag")
-
         if data_len <= content_index:
-            return ElementData(xsd_element.name, None, [], attributes, xmlns)
+            return ElementData(tag, None, [], attributes, xmlns)
         elif data_len == content_index + 1 and \
                 (xsd_element.type.simple_type is not None or not
                  xsd_element.type.content and xsd_element.type.mixed):
-            return ElementData(xsd_element.name, obj[content_index], [], attributes, xmlns)
+            return ElementData(tag, obj[content_index], [], attributes, xmlns)
         else:
             cdata_num = iter(range(1, data_len))
             content = [
@@ -129,4 +128,4 @@ class JsonMLConverter(XMLSchemaConverter):
                 if isinstance(e, MutableSequence)
                 else (next(cdata_num), e) for e in obj[content_index:]
             ]
-            return ElementData(xsd_element.name, None, content, attributes, xmlns)
+            return ElementData(tag, None, content, attributes, xmlns)

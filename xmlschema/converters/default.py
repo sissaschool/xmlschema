@@ -251,40 +251,33 @@ class XMLSchemaConverter(NamespaceMapper):
             -> Iterator[Tuple[str, Any]]:
         """
         Creates an iterator for converting decoded attributes to a data structure with
-        appropriate prefixes. If the instance has a not-empty map of namespaces registers
-        the mapped URIs and prefixes.
+        appropriate prefixes.
 
         :param attributes: A sequence or an iterator of couples with the name of \
         the attribute and the decoded value. Default is `None` (for `simpleType` \
         elements, that don't have attributes).
         """
-        if self.attr_prefix is None or not attributes:
-            return
-        else:
+        if self.attr_prefix is not None and attributes:
             for name, value in attributes:
                 yield self.attr_prefix + self.map_qname(name), value
 
     def map_content(self, content: Iterable[Tuple[str, Any, Any]]) \
             -> Iterator[Tuple[str, Any, Any]]:
         """
-        A generator function for converting decoded content to a data structure.
-        If the instance has a not-empty map of namespaces registers the mapped URIs
-        and prefixes.
+        A generator function for converting the decoded content to a data structure.
 
         :param content: A sequence or an iterator of tuples with the name of the \
         element, the decoded value and the `XsdElement` instance associated.
         """
-        if not content:
-            return
-
-        for name, value, xsd_child in content:
-            if isinstance(name, int):
-                if self.cdata_prefix is not None:
-                    yield f'{self.cdata_prefix}{name}', value, xsd_child
-            elif name[0] == '{':
-                yield self.map_qname(name), value, xsd_child
-            else:
-                yield name, value, xsd_child
+        if content:
+            for name, value, xsd_child in content:
+                if isinstance(name, int):
+                    if self.cdata_prefix is not None:
+                        yield f'{self.cdata_prefix}{name}', value, xsd_child
+                elif name[0] == '{':
+                    yield self.map_qname(name), value, xsd_child
+                else:
+                    yield name, value, xsd_child
 
     def etree_element(self, tag: str,
                       text: Optional[str] = None,
@@ -476,7 +469,9 @@ class XMLSchemaConverter(NamespaceMapper):
 
         xmlns = self.set_context(obj, level)
 
-        if element_name is not None:
+        if element_name is None:
+            tag = xsd_element.name
+        else:
             tag = self.unmap_qname(element_name)
             if not xsd_element.is_matching(tag, self.default_namespace):
                 raise XMLSchemaValueError("data tag does not match XSD element name")
@@ -486,15 +481,13 @@ class XMLSchemaConverter(NamespaceMapper):
                 text = value
             elif self.cdata_prefix is not None and \
                     name.startswith(self.cdata_prefix) and \
-                    name[len(self.cdata_prefix):].isdigit():
-                index = int(name[len(self.cdata_prefix):])
-                content.append((index, value))
+                    (index := name[len(self.cdata_prefix):]).isdigit():
+                content.append((int(index), value))
             elif self.is_xmlns(name):
                 continue
             elif self.attr_prefix and \
                     name.startswith(self.attr_prefix) and \
-                    name != self.attr_prefix:
-                attr_name = name[len(self.attr_prefix):]
+                    (attr_name := name[len(self.attr_prefix):]):
                 ns_name = self.unmap_qname(attr_name, xsd_element.attributes)
                 attributes[ns_name] = value
             elif not isinstance(value, MutableSequence) or not value:
@@ -516,4 +509,4 @@ class XMLSchemaConverter(NamespaceMapper):
                 else:
                     content.extend((ns_name, item) for item in value)
 
-        return ElementData(xsd_element.name, text, content, attributes, xmlns)
+        return ElementData(tag, text, content, attributes, xmlns)
