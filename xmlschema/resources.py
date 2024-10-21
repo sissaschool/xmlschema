@@ -716,19 +716,24 @@ class XMLResource:
         self._parent_map = None
         self._source = source
 
-    def get_xpath_node(self, elem: ElementType) -> ElementNode:
+    def get_xpath_node(self, elem: ElementType,
+                       namespaces: Optional[NamespacesType] = None) -> ElementNode:
         """
         Returns an XPath node for the element, fetching it from the XPath root node.
         Returns a new lazy element node if the matching element node is not found.
         """
-        xpath_node = self.xpath_root.get_element_node(elem)
-        if xpath_node is not None:
-            return xpath_node
-
-        try:
+        if elem in self._nsmaps:
+            xpath_node = self.xpath_root.get_element_node(elem)
+            if xpath_node is not None:
+                return xpath_node
             return LazyElementNode(elem, nsmap=self._nsmaps[elem])
-        except KeyError:
+        elif not namespaces:
+            xpath_node = self.xpath_root.get_element_node(elem)
+            if xpath_node is not None:
+                return xpath_node
             return LazyElementNode(elem)
+        else:
+            return LazyElementNode(elem, nsmap=namespaces)
 
     def get_nsmap(self, elem: ElementType) -> Optional[Dict[str, str]]:
         """
@@ -773,7 +778,7 @@ class XMLResource:
 
         return self.tostring(xml_declaration=True)
 
-    def tostring(self, namespaces: Optional[MutableMapping[str, str]] = None,
+    def tostring(self, namespaces: Optional[NamespacesType] = None,
                  indent: str = '', max_lines: Optional[int] = None,
                  spaces_for_tab: int = 4, xml_declaration: bool = False,
                  encoding: str = 'unicode', method: str = 'xml') -> str:

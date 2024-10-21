@@ -9,15 +9,17 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import unittest
+import os
 import xml.etree.ElementTree as ElementTree
 
 from xmlschema import XMLSchemaParseError, XMLSchemaValidationError
 from xmlschema.validators import XMLSchema11
-from xmlschema.validators.identities import IdentityCounter, KeyrefCounter
+from xmlschema.validators.identities import IdentityCounter, KeyrefCounter, FieldValueSelector
 from xmlschema.testing import XsdValidatorTestCase
 
 
 class TestXsdIdentities(XsdValidatorTestCase):
+    TEST_CASES_DIR = os.path.join(os.path.dirname(__file__), '../test_cases')
 
     def test_key_definition(self):
         schema = self.check_schema("""
@@ -323,7 +325,12 @@ class TestXsdIdentities(XsdValidatorTestCase):
                 </xs:complexType>
             </xs:element>""")
 
-        self.assertEqual(schema.identities['key1'].elements, {schema.elements['a']: None})
+        self.assertIn(schema.elements['a'], schema.identities['key1'].elements)
+        self.assertEqual(len(schema.identities['key1'].elements), 1)
+        self.assertTrue(all(
+            isinstance(x, FieldValueSelector)
+            for x in schema.identities['key1'].elements[schema.elements['a']]
+        ))
 
     def test_identity_counter(self):
         schema = self.check_schema("""
@@ -383,6 +390,22 @@ class TestXsdIdentities(XsdValidatorTestCase):
         self.assertIn("value ('2',) not found", str(errors[0]))
         self.assertIn("value ('3',) not found", str(errors[1]))
         self.assertIn("(2 times)", str(errors[1]))
+
+    @unittest.skip
+    def test_key_multiple_values__issue_418(self):
+        xsd_file = self.casepath('issues/issue_418/issue_418.xsd')
+        schema = self.schema_class(xsd_file)
+
+        xml_file = self.casepath('issues/issue_418/issue_418.xml')
+        self.assertIsNone(schema.validate(xml_file))
+
+        xml_file = self.casepath('issues/issue_418/issue_418-invalid.xml')
+        with self.assertRaises(XMLSchemaValidationError):
+            schema.validate(xml_file)
+
+        xml_file = self.casepath('issues/issue_418/issue_418-invalid2.xml')
+        with self.assertRaises(XMLSchemaValidationError):
+            schema.validate(xml_file)
 
 
 class TestXsd11Identities(TestXsdIdentities):

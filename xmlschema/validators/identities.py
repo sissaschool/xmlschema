@@ -10,24 +10,27 @@
 """
 This module contains classes for other XML Schema identity constraints.
 """
+import copy
 import re
 import math
-from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Pattern, \
-    Set, Tuple, Union, Counter
-from elementpath import ElementPathError, XPathToken, XPathContext, \
-    ElementNode, translate_pattern, datatypes
+from typing import TYPE_CHECKING, cast, Any, Dict, Iterator, List, Optional, Pattern, \
+    Tuple, Union, Counter
+
+from elementpath import ElementPathError, XPathContext, \
+    ElementNode, translate_pattern, AttributeNode
+from elementpath.datatypes import UntypedAtomic
 
 from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
-from ..names import XSD_QNAME, XSD_UNIQUE, XSD_KEY, XSD_KEYREF, XSD_SELECTOR, XSD_FIELD
+from ..names import XSD_UNIQUE, XSD_KEY, XSD_KEYREF, XSD_SELECTOR, XSD_FIELD
 from ..translation import gettext as _
 from ..helpers import get_qname, get_extended_qname
-from ..aliases import ElementType, SchemaType, NamespacesType, AtomicValueType
-from ..xpath import IdentityXPathParser
+from ..aliases import ElementType, SchemaType, NamespacesType, AtomicValueType, BaseXsdType
+from ..xpath import IdentityXPathParser, XPathElement
 from .exceptions import XMLSchemaNotBuiltError
 from .xsdbase import XsdComponent
 from .attributes import XsdAttribute
 from .wildcards import XsdAnyElement
-from . import elements
+from . import elements as elements_module
 
 if TYPE_CHECKING:
     from .elements import XsdElement
@@ -36,24 +39,7 @@ IdentityFieldItemType = Union[AtomicValueType, XsdAttribute, Tuple[Any, ...], No
 IdentityCounterType = Tuple[IdentityFieldItemType, ...]
 IdentityMapType = Dict[Union['XsdKey', 'XsdKeyref', str, None],
                        Union['IdentityCounter', 'KeyrefCounter']]
-
-
-# XSD identities use a restricted XPath 2.0 parser. The XMLSchemaProxy is
-# not used for the specific selection of fields and elements and the XSD
-# fields are collected at first validation run.
-
-def iter_root_elements(token: XPathToken) -> Iterator[XPathToken]:
-    if token.symbol in ('(name)', ':', '*', '.'):
-        yield token
-    elif token.symbol in ('//', '/'):
-        yield from iter_root_elements(token[0])
-        for tk in token[1].iter():
-            if tk.symbol == '|':
-                yield from iter_root_elements(tk[1])
-                break
-    elif token.symbol in '|':
-        for tk in token:
-            yield from iter_root_elements(tk)
+IdentityNodeType = Union[ElementNode, AttributeNode]
 
 
 class XsdSelector(XsdComponent):
@@ -68,8 +54,6 @@ class XsdSelector(XsdComponent):
         lazy_quantifiers=False,
         anchors=False
     )
-    token: Optional[XPathToken] = None
-    parser: Optional[IdentityXPathParser] = None
 
     def __init__(self, elem: ElementType, schema: SchemaType,
                  parent: Optional['XsdIdentity']) -> None:
@@ -119,7 +103,7 @@ class XsdSelector(XsdComponent):
 
     @property
     def built(self) -> bool:
-        return self.token is not None
+        return True
 
     @property
     def target_namespace(self) -> str:
@@ -161,11 +145,10 @@ class XsdIdentity(XsdComponent):
     ref: Optional['XsdIdentity']
 
     selector: Optional[XsdSelector] = None
-    fields: Union[Tuple[()], List[XsdFieldSelector]] = ()
+    fields: List[XsdFieldSelector]
 
     # XSD elements bound by selector (for speed-up and for lazy mode)
-    elements: Union[Tuple[()], Dict['XsdElement', Optional[IdentityCounterType]]] = ()
-    root_elements: Union[Tuple[()], Set['XsdElement']] = ()
+    elements: Dict['XsdElement', List['FieldValueSelector']]
 
     def __init__(self, elem: ElementType, schema: SchemaType,
                  parent: Optional['XsdElement']) -> None:
@@ -208,129 +191,51 @@ class XsdIdentity(XsdComponent):
 
         if self.selector is None:
             return  # Do not raise, already found by meta-schema validation.
-        elif self.selector.token is None:
-            raise XMLSchemaNotBuiltError(self, "identity selector is not built")
 
-        context = XPathContext(self.schema.xpath_node, item=self.parent.xpath_node)
-        self.elements = {}
+        self.elements = self.get_selected_elements(base_element=self.parent)
 
+    def get_selected_elements(self, base_element: Union['XsdElement', XPathElement]) \
+            -> Dict['XsdElement', List['FieldValueSelector']]:
+        elements: Dict['XsdElement', List['FieldValueSelector']] = {}
+        if self.selector is None:
+            return elements
+
+        context = XPathContext(self.schema.xpath_node, item=base_element.xpath_node)
         for e in self.selector.token.select_results(context):
-            if isinstance(e, elements.XsdElement):
+            if isinstance(e, elements_module.XsdElement):
                 if e.name is not None:
                     if e.ref is not None:
                         e = e.ref
-                    self.elements[e] = None  # XSD fields must be added during validation
-                    e.selected_by.add(self)
+                    if e not in elements:
+                        elements[e] = [FieldValueSelector(f, e) for f in self.fields]
+                        e.selected_by.add(self)
+
             elif not isinstance(e, XsdAnyElement):
                 msg = _("selector xpath expression can only select elements")
                 self.parse_error(msg)
 
-        if not self.elements:
+        if not elements:
             # Try to detect target XSD elements extracting QNames
             # of the leaf elements from the XPath expression and
             # use them to match global elements.
 
             qname: Any
             for qname in self.selector.token.iter_leaf_elements():
-                xsd_element = self.maps.elements.get(
+                e1 = self.maps.elements.get(
                     get_extended_qname(qname, self.namespaces)
                 )
-                if xsd_element is not None and \
-                        not isinstance(xsd_element, tuple) and \
-                        xsd_element not in self.elements:
-                    if xsd_element.ref is not None:
-                        xsd_element = xsd_element.ref
+                if e1 is not None and not isinstance(e1, tuple) and e1 not in elements:
+                    if e1.ref is not None:
+                        e1 = e1.ref
+                    if e1 not in elements:
+                        elements[e1] = [FieldValueSelector(f, e1) for f in self.fields]
+                        e1.selected_by.add(self)
 
-                    self.elements[xsd_element] = None
-                    xsd_element.selected_by.add(self)
-
-        self.root_elements = set()
-        for token in iter_root_elements(self.selector.token):
-            context = XPathContext(self.schema.xpath_node, item=self.parent.xpath_node)
-            for e in token.select_results(context):
-                if isinstance(e, elements.XsdElement):
-                    self.root_elements.add(e)
+        return elements
 
     @property
     def built(self) -> bool:
-        return not isinstance(self.elements, tuple)
-
-    def get_fields(self, element_node: ElementNode,
-                   namespaces: Optional[NamespacesType] = None,
-                   decoders: Optional[Tuple[XsdAttribute, ...]] = None) -> IdentityCounterType:
-        """
-        Get fields for a schema or instance context element.
-
-        :param element_node: an Element or an XsdElement
-        :param namespaces: is an optional mapping from namespace prefix to URI.
-        :param decoders: context schema fields decoders.
-        :return: a tuple with field values. An empty field is replaced by `None`.
-        """
-        fields: List[IdentityFieldItemType] = []
-
-        def append_fields() -> None:
-            if isinstance(value, list):
-                fields.append(tuple(value))
-            elif isinstance(value, bool):
-                fields.append((value, bool))
-            elif not isinstance(value, float):
-                fields.append(value)
-            elif math.isnan(value):
-                fields.append(('nan', float))
-            else:
-                fields.append((value, float))
-
-        result: Any
-        value: Union[AtomicValueType, None]
-
-        for k, field in enumerate(self.fields):
-            if field.token is None:
-                msg = f"identity field {field} is not built"
-                raise XMLSchemaNotBuiltError(self, msg)
-
-            context = XPathContext(element_node)
-            result = field.token.get_results(context)
-
-            if not result:
-                if decoders is not None and decoders[k] is not None:
-                    value = decoders[k].value_constraint
-                    if value is not None:
-                        if decoders[k].type.root_type.name == XSD_QNAME:
-                            value = get_extended_qname(value, namespaces)
-
-                        append_fields()
-                        continue
-
-                if not isinstance(self, XsdKey) or 'ref' in element_node.elem.attrib and \
-                        self.schema.meta_schema is None and self.schema.XSD_VERSION != '1.0':
-                    fields.append(None)
-                elif field.target_namespace not in self.maps.namespaces:
-                    fields.append(None)
-                else:
-                    msg = _("missing key field {0!r} for {1!r}")
-                    raise XMLSchemaValueError(msg.format(field.path, self))
-
-            elif len(result) == 1:
-                if decoders is None or decoders[k] is None:
-                    fields.append(result[0])
-                else:
-                    if decoders[k].type.content_type_label not in ('simple', 'mixed'):
-                        msg = _("%r field doesn't have a simple type!")
-                        raise XMLSchemaTypeError(msg % field)
-
-                    value = decoders[k].data_value(result[0])
-                    if decoders[k].type.root_type.name == XSD_QNAME:
-                        if isinstance(value, str):
-                            value = get_extended_qname(value, namespaces)
-                        elif isinstance(value, datatypes.QName):
-                            value = value.expanded_name
-
-                    append_fields()
-            else:
-                msg = _("%r field selects multiple values!")
-                raise XMLSchemaValueError(msg % field)
-
-        return tuple(fields)
+        return 'elements' in self.__dict__
 
     def get_counter(self, elem: ElementType) -> 'IdentityCounter':
         return IdentityCounter(self, elem)
@@ -493,3 +398,116 @@ class KeyrefCounter(IdentityCounter):
             else:
                 msg = "value {} not found for {!r}"
                 yield XMLSchemaValueError(msg.format(v, self.identity.refer))
+
+
+class FieldValueSelector:
+
+    def __init__(self, field: XsdFieldSelector, xsd_element: 'XsdElement') -> None:
+        if field.token is None:
+            msg = f"identity field {field} is not built"
+            raise XMLSchemaNotBuiltError(field, msg)
+
+        self.field = field
+        self.xsd_element = xsd_element
+        self.value_constraints = {}
+
+        if isinstance(field.parent, XsdKey):
+            self.admit_empty = False
+        else:
+            self.admit_empty = True
+
+        self.token = copy.deepcopy(field.token)
+        schema_context = xsd_element.xpath_proxy.get_context()
+        self.decoders = []
+
+        for node in self.token.select(schema_context):
+            if not isinstance(node, (AttributeNode, ElementNode)):
+                raise XMLSchemaTypeError(
+                    "xs:field path must select only attributes and elements"
+                )
+
+            comp = cast(Union['XsdElement', XsdAttribute], node.value)
+            self.decoders.append(comp)
+            value_constraint = comp.value_constraint
+            if value_constraint is not None:
+                self.value_constraints[node.name] = comp.type.text_decode(value_constraint)
+                if isinstance(comp, XsdAttribute):
+                    self.value_constraints[None] = self.value_constraints[node.name]
+
+        if len(self.decoders) > 1 and None in self.value_constraints:
+            self.value_constraints.pop(None)
+
+    def get_value(self, element_node: ElementNode,
+                  namespaces: Optional[NamespacesType] = None) -> IdentityFieldItemType:
+        """
+        Get field value from an element node for a schema or instance context element.
+
+        :param element_node: a no Element
+        :param namespaces: is an optional mapping from namespace prefix to URI.
+        """
+        value: Union[AtomicValueType, List[AtomicValueType], None] = None
+        context = XPathContext(element_node, namespaces=namespaces)
+
+        empty = True
+        for node in cast(Iterator[IdentityNodeType], self.token.select(context)):
+
+            if empty:
+                empty = False
+            else:
+                msg = _("%r field selects multiple values!")
+                raise XMLSchemaValueError(msg % self.field)
+
+            try:
+                xsd_type = cast(Optional[BaseXsdType], node.xsd_type)
+            except AttributeError:
+                msg = _("%r field selects a %r!")
+                raise XMLSchemaTypeError(msg % (self.field, type(node)))
+
+            if xsd_type is None:
+                value = node.string_value
+            elif xsd_type.content_type_label not in ('simple', 'mixed'):
+                msg = _("%r field doesn't have a simple type!")
+                raise XMLSchemaTypeError(msg % self.field)
+            elif xsd_type.is_qname():
+                value = get_extended_qname(node.string_value.strip(), namespaces)
+            elif xsd_type.is_boolean():
+                # Workarounds for discovered issues with XPath processors
+                value = xsd_type.text_decode(node.string_value.strip())
+            else:
+                try:
+                    value = node.typed_value  # type: ignore[assignment,unused-ignore]
+                except (KeyError, ValueError):
+                    for decoder in self.decoders:
+                        if node.match_name(decoder.name):
+                            value = decoder.type.text_decode(node.string_value)
+                            break
+                    else:
+                        value = node.string_value
+
+            if value is None:
+                value = self.value_constraints.get(node.name)
+        else:
+            if empty:
+                value = self.value_constraints.get(None)
+
+        if value is None:
+            if not isinstance(self.field.parent, XsdKey) or \
+                    'ref' in element_node.elem.attrib and \
+                    self.field.schema.meta_schema is None and \
+                    self.field.schema.XSD_VERSION != '1.0':
+                return None
+            else:
+                msg = _("missing key field {0!r} for {1!r}")
+                raise XMLSchemaValueError(msg.format(self.field.path, self))
+        elif isinstance(value, list):
+            return tuple(value)
+        elif isinstance(value, UntypedAtomic):
+            return str(value)
+        elif isinstance(value, bool):
+            return value, bool
+        elif not isinstance(value, float):
+            return value
+        elif math.isnan(value):
+            return 'nan', float
+        else:
+            return value, float

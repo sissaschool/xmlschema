@@ -88,6 +88,24 @@ Accessing a specific type of global component a dictionary access may be preferr
 .. doctest:: collection
 
     >>> schema.elements['person']
+            XsdElement(name='person', occurs=[1, 1])
+            >>> schema.types['personType']
+            XsdComplexType(name='personType')
+
+        The schema object has a dictionary attribute for each type of XSD declarations
+        (
+        XsdElement(name='person', occurs=[1, 1])
+        >>> schema.types['personType']
+        XsdComplexType(name='personType')
+
+    The schema object has a dictionary attribute for each type of XSD declarations
+    (
+        XsdElement(name='person', occurs=[1, 1])
+        >>> schema.types['personType']
+        XsdComplexType(name='personType')
+
+    The schema object has a dictionary attribute for each type of XSD declarations
+    (
     XsdElement(name='person', occurs=[1, 1])
     >>> schema.types['personType']
     XsdComplexType(name='personType')
@@ -108,6 +126,98 @@ loaded schemas in a structure called *maps*:
 .. doctest:: collection
 
     >>> person = schema.elements['person']
+            >>> person
+            XsdElement(name='person', occurs=[1, 1])
+            >>> schema.maps.elements[person.qualified_name]
+            XsdElement(name='person', occurs=[1, 1])
+            >>> person
+            XsdElement(name='person', occurs=[1, 1])
+            >>> schema.maps.xsd_elements[person.qualified_name]
+            XsdElement(name='person', occurs=[1, 1])
+            >>> person
+            XsdElement(name='person', occurs=[1, 1])
+            >>> schema.maps.xsd_elements[person.qualified_name]
+            XsdElement(name='person', occurs=[1, 1])
+        >>> person
+        XsdElement(name='person', occurs=[1, 1])
+        >>> schema.maps.elements[person.qualified_name]
+        XsdElement(name='person', occurs=[1, 1])
+            >>> person
+            XsdElement(name='person', occurs=[1, 1])
+            >>> schema.maps.elements[person.qualified_name]
+            XsdElement(name='person', occurs=[1, 1])
+            >>> person
+            XsdElement(name='person', occurs=[1, 1])
+            >>> schema.maps.elements[person.qualified_name]
+            XsdElement(name='person', occurs=[1, 1])
+            >>> person
+            XsdElement(name='person', occurs=[1, 1])
+            >>> schema.maps.xsd_elements[person.qualified_name]
+            XsdElement(name='person', occurs=[1, 1])
+        >>> person
+        XsdElement(name='person', occurs=[1, 1])
+        >>> schema.maps.elements[person.qualified_name]
+        XsdElement(name='person', occurs=[1, 1])
+            >>> person
+            XsdElement(name='person', occurs=[1, 1])
+            >>> schema.maps.elements[person.qualified_name]
+            XsdElement(name='person', occurs=[1, 1])
+            >>> person
+            XsdElement(name='person', occurs=[1, 1])
+            >>> schema.maps.elements[person.qualified_name]
+            XsdElement(name='person', occurs=[1, 1])
+            >>> person
+            XsdElement(name='person', occurs=[1, 1])
+            >>> schema.maps.xsd_elements[person.qualified_name]
+            XsdElement(name='person', occurs=[1, 1])
+        >>> person
+        XsdElement(name='person', occurs=[1, 1])
+        >>> schema.maps.elements[person.qualified_name]
+        XsdElement(name='person', occurs=[1, 1])
+            >>> person
+            XsdElement(name='person', occurs=[1, 1])
+            >>> schema.maps.elements[person.qualified_name]
+            XsdElement(name='person', occurs=[1, 1])
+            >>> person
+            XsdElement(name='person', occurs=[1, 1])
+            >>> schema.maps.xsd_elements[person.qualified_name]
+            XsdElement(name='person', occurs=[1, 1])
+            >>> person
+            XsdElement(name='person', occurs=[1, 1])
+            >>> schema.maps.elements[person.qualified_name]
+            XsdElement(name='person', occurs=[1, 1])
+        >>> person
+        XsdElement(name='person', occurs=[1, 1])
+        >>> schema.maps.elements[person.qualified_name]
+        XsdElement(name='person', occurs=[1, 1])
+            >>> person
+            XsdElement(name='person', occurs=[1, 1])
+            >>> schema.maps.elements[person.qualified_name]
+            XsdElement(name='person', occurs=[1, 1])
+            >>> person
+            XsdElement(name='person', occurs=[1, 1])
+            >>> schema.maps.xsd_elements[person.qualified_name]
+            XsdElement(name='person', occurs=[1, 1])
+            >>> person
+            XsdElement(name='person', occurs=[1, 1])
+            >>> schema.maps.elements[person.qualified_name]
+            XsdElement(name='person', occurs=[1, 1])
+        >>> person
+        XsdElement(name='person', occurs=[1, 1])
+        >>> schema.maps.elements[person.qualified_name]
+        XsdElement(name='person', occurs=[1, 1])
+        >>> person
+        XsdElement(name='person', occurs=[1, 1])
+        >>> schema.maps.elements[person.qualified_name]
+        XsdElement(name='person', occurs=[1, 1])
+        >>> person
+        XsdElement(name='person', occurs=[1, 1])
+        >>> schema.maps.xsd_elements[person.qualified_name]
+        XsdElement(name='person', occurs=[1, 1])
+        >>> person
+        XsdElement(name='person', occurs=[1, 1])
+        >>> schema.maps.xsd_elements[person.qualified_name]
+        XsdElement(name='person', occurs=[1, 1])
     >>> person
     XsdElement(name='person', occurs=[1, 1])
     >>> schema.maps.elements[person.qualified_name]
@@ -151,6 +261,18 @@ XSD schema document:
 .. doctest:: collection
 
     >>> person = schema.elements['person']
+            >>> person.schema
+            XMLSchema10(name='collection.xsd', namespace='http://example.com/ns/collection')
+            >>> person.elem
+            <Element '{
+        >>> person.schema
+        XMLSchema10(name='collection.xsd', namespace='http://example.com/ns/collection')
+        >>> person.elem
+        <Element '{
+        >>> person.schema
+        XMLSchema10(name='collection.xsd', namespace='http://example.com/ns/collection')
+        >>> person.elem
+        <Element '{
     >>> person.schema
     XMLSchema10(name='collection.xsd', namespace='http://example.com/ns/collection')
     >>> person.elem
@@ -191,6 +313,104 @@ Every schema component includes methods for data conversion:
 .. doctest::
 
     >>> schema = xmlschema.XMLSchema('tests/test_cases/examples/vehicles/vehicles.xsd')
+            >>> schema.types['vehicleType'].decode
+            <bound method XsdComplexType.decode of XsdComplexType(name='vehicleType')>
+            >>> schema.elements['cars'].encode
+            <bound method ValidationMixin.encode of XsdElement(name='vh:cars', occurs=[1, 1])>
+
+
+        Those methods can be used to decode the correspondents parts of the XML document:
+            >>> schema.types['vehicleType'].decode
+            <bound method XsdComplexType.decode of XsdComplexType(name='vehicleType')>
+            >>> schema.xsd_elements['cars'].encode
+            <bound method ValidationMixin.encode of XsdElement(name='vh:cars', occurs=[1, 1])>
+
+
+        Those methods can be used to decode the correspondents parts of the XML document:
+        >>> schema.types['vehicleType'].decode
+        <bound method XsdComplexType.decode of XsdComplexType(name='vehicleType')>
+        >>> schema.elements['cars'].encode
+        <bound method ValidationMixin.encode of XsdElement(name='vh:cars', occurs=[1, 1])>
+
+
+    Those methods can be used to decode the correspondents parts of the XML document:
+            >>> schema.types['vehicleType'].decode
+            <bound method XsdComplexType.decode of XsdComplexType(name='vehicleType')>
+            >>> schema.elements['cars'].encode
+            <bound method ValidationMixin.encode of XsdElement(name='vh:cars', occurs=[1, 1])>
+
+
+        Those methods can be used to decode the correspondents parts of the XML document:
+            >>> schema.types['vehicleType'].decode
+            <bound method XsdComplexType.decode of XsdComplexType(name='vehicleType')>
+            >>> schema.xsd_elements['cars'].encode
+            <bound method ValidationMixin.encode of XsdElement(name='vh:cars', occurs=[1, 1])>
+
+
+        Those methods can be used to decode the correspondents parts of the XML document:
+        >>> schema.types['vehicleType'].decode
+        <bound method XsdComplexType.decode of XsdComplexType(name='vehicleType')>
+        >>> schema.elements['cars'].encode
+        <bound method ValidationMixin.encode of XsdElement(name='vh:cars', occurs=[1, 1])>
+
+
+    Those methods can be used to decode the correspondents parts of the XML document:
+            >>> schema.types['vehicleType'].decode
+            <bound method XsdComplexType.decode of XsdComplexType(name='vehicleType')>
+            >>> schema.xsd_elements['cars'].encode
+            <bound method ValidationMixin.encode of XsdElement(name='vh:cars', occurs=[1, 1])>
+
+
+        Those methods can be used to decode the correspondents parts of the XML document:
+            >>> schema.types['vehicleType'].decode
+            <bound method XsdComplexType.decode of XsdComplexType(name='vehicleType')>
+            >>> schema.elements['cars'].encode
+            <bound method ValidationMixin.encode of XsdElement(name='vh:cars', occurs=[1, 1])>
+
+
+        Those methods can be used to decode the correspondents parts of the XML document:
+        >>> schema.types['vehicleType'].decode
+        <bound method XsdComplexType.decode of XsdComplexType(name='vehicleType')>
+        >>> schema.elements['cars'].encode
+        <bound method ValidationMixin.encode of XsdElement(name='vh:cars', occurs=[1, 1])>
+
+
+    Those methods can be used to decode the correspondents parts of the XML document:
+            >>> schema.types['vehicleType'].decode
+            <bound method XsdComplexType.decode of XsdComplexType(name='vehicleType')>
+            >>> schema.xsd_elements['cars'].encode
+            <bound method ValidationMixin.encode of XsdElement(name='vh:cars', occurs=[1, 1])>
+
+
+        Those methods can be used to decode the correspondents parts of the XML document:
+            >>> schema.types['vehicleType'].decode
+            <bound method XsdComplexType.decode of XsdComplexType(name='vehicleType')>
+            >>> schema.elements['cars'].encode
+            <bound method ValidationMixin.encode of XsdElement(name='vh:cars', occurs=[1, 1])>
+
+
+        Those methods can be used to decode the correspondents parts of the XML document:
+        >>> schema.types['vehicleType'].decode
+        <bound method XsdComplexType.decode of XsdComplexType(name='vehicleType')>
+        >>> schema.elements['cars'].encode
+        <bound method ValidationMixin.encode of XsdElement(name='vh:cars', occurs=[1, 1])>
+
+
+    Those methods can be used to decode the correspondents parts of the XML document:
+        >>> schema.types['vehicleType'].decode
+        <bound method XsdComplexType.decode of XsdComplexType(name='vehicleType')>
+        >>> schema.xsd_elements['cars'].encode
+        <bound method ValidationMixin.encode of XsdElement(name='vh:cars', occurs=[1, 1])>
+
+
+    Those methods can be used to decode the correspondents parts of the XML document:
+        >>> schema.types['vehicleType'].decode
+        <bound method XsdComplexType.decode of XsdComplexType(name='vehicleType')>
+        >>> schema.xsd_elements['cars'].encode
+        <bound method ValidationMixin.encode of XsdElement(name='vh:cars', occurs=[1, 1])>
+
+
+    Those methods can be used to decode the correspondents parts of the XML document:
     >>> schema.types['vehicleType'].decode
     <bound method XsdComplexType.decode of XsdComplexType(name='vehicleType')>
     >>> schema.elements['cars'].encode
@@ -202,6 +422,27 @@ Those methods can be used to decode the correspondents parts of the XML document
 .. doctest::
 
     >>> import xmlschema
+            >>> from pprint import pprint
+            >>> from xml.etree import ElementTree
+            >>> xs = xmlschema.XMLSchema('tests/test_cases/examples/vehicles/vehicles.xsd')
+            >>> xt = ElementTree.parse('tests/test_cases/examples/vehicles/vehicles.xml')
+            >>> root = xt.getroot()
+            >>> pprint(xs.elements['cars'].decode(root[0]))
+            {'{
+        >>> from pprint import pprint
+        >>> from xml.etree import ElementTree
+        >>> xs = xmlschema.XMLSchema('tests/test_cases/examples/vehicles/vehicles.xsd')
+        >>> xt = ElementTree.parse('tests/test_cases/examples/vehicles/vehicles.xml')
+        >>> root = xt.getroot()
+        >>> pprint(xs.elements['cars'].decode(root[0]))
+        {'{
+        >>> from pprint import pprint
+        >>> from xml.etree import ElementTree
+        >>> xs = xmlschema.XMLSchema('tests/test_cases/examples/vehicles/vehicles.xsd')
+        >>> xt = ElementTree.parse('tests/test_cases/examples/vehicles/vehicles.xml')
+        >>> root = xt.getroot()
+        >>> pprint(xs.xsd_elements['cars'].decode(root[0]))
+        {'{
     >>> from pprint import pprint
     >>> from xml.etree import ElementTree
     >>> xs = xmlschema.XMLSchema('tests/test_cases/examples/vehicles/vehicles.xsd')
@@ -209,6 +450,314 @@ Those methods can be used to decode the correspondents parts of the XML document
     >>> root = xt.getroot()
     >>> pprint(xs.elements['cars'].decode(root[0]))
     {'{http://example.com/vehicles}car': [{'@make': 'Porsche', '@model': '911'},
+                                                  {'@make': 'Porsche', '@model': '911'}]}
+            >>> pprint(xs.xsd_elements['cars'].decode(xt.getroot()[1], validation='skip'))
+            None
+            >>> pprint(xs.elements['bikes'].decode(root[1], namespaces={'vh': 'http://example.com/vehicles'}))
+            {'@xmlns:vh': 'http://example.com/vehicles',
+             'vh:bike': [{'@make': 'Harley-Davidson', '@model': 'WL'},
+                         {'@make': 'Yamaha', '@model': 'XS650'}]}
+                                                  {'@make': 'Porsche', '@model': '911'}]}
+            >>> pprint(xs.elements['cars'].decode(xt.getroot()[1], validation='skip'))
+            None
+            >>> pprint(xs.elements['bikes'].decode(root[1], namespaces={'vh': 'http://example.com/vehicles'}))
+            {'@xmlns:vh': 'http://example.com/vehicles',
+             'vh:bike': [{'@make': 'Harley-Davidson', '@model': 'WL'},
+                         {'@make': 'Yamaha', '@model': 'XS650'}]}
+                                                  {'@make': 'Porsche', '@model': '911'}]}
+            >>> pprint(xs.elements['cars'].decode(xt.getroot()[1], validation='skip'))
+            None
+            >>> pprint(xs.xsd_elements['bikes'].decode(root[1], namespaces={'vh': 'http://example.com/vehicles'}))
+            {'@xmlns:vh': 'http://example.com/vehicles',
+             'vh:bike': [{'@make': 'Harley-Davidson', '@model': 'WL'},
+                         {'@make': 'Yamaha', '@model': 'XS650'}]}
+                                                  {'@make': 'Porsche', '@model': '911'}]}
+            >>> pprint(xs.elements['cars'].decode(xt.getroot()[1], validation='skip'))
+            None
+            >>> pprint(xs.xsd_elements['bikes'].decode(root[1], namespaces={'vh': 'http://example.com/vehicles'}))
+            {'@xmlns:vh': 'http://example.com/vehicles',
+             'vh:bike': [{'@make': 'Harley-Davidson', '@model': 'WL'},
+                         {'@make': 'Yamaha', '@model': 'XS650'}]}
+                                              {'@make': 'Porsche', '@model': '911'}]}
+        >>> pprint(xs.elements['cars'].decode(xt.getroot()[1], validation='skip'))
+        None
+        >>> pprint(xs.elements['bikes'].decode(root[1], namespaces={'vh': 'http://example.com/vehicles'}))
+        {'@xmlns:vh': 'http://example.com/vehicles',
+         'vh:bike': [{'@make': 'Harley-Davidson', '@model': 'WL'},
+                     {'@make': 'Yamaha', '@model': 'XS650'}]}
+                                                  {'@make': 'Porsche', '@model': '911'}]}
+            >>> pprint(xs.xsd_elements['cars'].decode(xt.getroot()[1], validation='skip'))
+            None
+            >>> pprint(xs.elements['bikes'].decode(root[1], namespaces={'vh': 'http://example.com/vehicles'}))
+            {'@xmlns:vh': 'http://example.com/vehicles',
+             'vh:bike': [{'@make': 'Harley-Davidson', '@model': 'WL'},
+                         {'@make': 'Yamaha', '@model': 'XS650'}]}
+                                                  {'@make': 'Porsche', '@model': '911'}]}
+            >>> pprint(xs.elements['cars'].decode(xt.getroot()[1], validation='skip'))
+            None
+            >>> pprint(xs.elements['bikes'].decode(root[1], namespaces={'vh': 'http://example.com/vehicles'}))
+            {'@xmlns:vh': 'http://example.com/vehicles',
+             'vh:bike': [{'@make': 'Harley-Davidson', '@model': 'WL'},
+                         {'@make': 'Yamaha', '@model': 'XS650'}]}
+                                                  {'@make': 'Porsche', '@model': '911'}]}
+            >>> pprint(xs.elements['cars'].decode(xt.getroot()[1], validation='skip'))
+            None
+            >>> pprint(xs.xsd_elements['bikes'].decode(root[1], namespaces={'vh': 'http://example.com/vehicles'}))
+            {'@xmlns:vh': 'http://example.com/vehicles',
+             'vh:bike': [{'@make': 'Harley-Davidson', '@model': 'WL'},
+                         {'@make': 'Yamaha', '@model': 'XS650'}]}
+                                                  {'@make': 'Porsche', '@model': '911'}]}
+            >>> pprint(xs.elements['cars'].decode(xt.getroot()[1], validation='skip'))
+            None
+            >>> pprint(xs.xsd_elements['bikes'].decode(root[1], namespaces={'vh': 'http://example.com/vehicles'}))
+            {'@xmlns:vh': 'http://example.com/vehicles',
+             'vh:bike': [{'@make': 'Harley-Davidson', '@model': 'WL'},
+                         {'@make': 'Yamaha', '@model': 'XS650'}]}
+                                              {'@make': 'Porsche', '@model': '911'}]}
+        >>> pprint(xs.elements['cars'].decode(xt.getroot()[1], validation='skip'))
+        None
+        >>> pprint(xs.elements['bikes'].decode(root[1], namespaces={'vh': 'http://example.com/vehicles'}))
+        {'@xmlns:vh': 'http://example.com/vehicles',
+         'vh:bike': [{'@make': 'Harley-Davidson', '@model': 'WL'},
+                     {'@make': 'Yamaha', '@model': 'XS650'}]}
+                                                  {'@make': 'Porsche', '@model': '911'}]}
+            >>> pprint(xs.xsd_elements['cars'].decode(xt.getroot()[1], validation='skip'))
+            None
+            >>> pprint(xs.elements['bikes'].decode(root[1], namespaces={'vh': 'http://example.com/vehicles'}))
+            {'@xmlns:vh': 'http://example.com/vehicles',
+             'vh:bike': [{'@make': 'Harley-Davidson', '@model': 'WL'},
+                         {'@make': 'Yamaha', '@model': 'XS650'}]}
+                                                  {'@make': 'Porsche', '@model': '911'}]}
+            >>> pprint(xs.xsd_elements['cars'].decode(xt.getroot()[1], validation='skip'))
+            None
+            >>> pprint(xs.elements['bikes'].decode(root[1], namespaces={'vh': 'http://example.com/vehicles'}))
+            {'@xmlns:vh': 'http://example.com/vehicles',
+             'vh:bike': [{'@make': 'Harley-Davidson', '@model': 'WL'},
+                         {'@make': 'Yamaha', '@model': 'XS650'}]}
+                                                  {'@make': 'Porsche', '@model': '911'}]}
+            >>> pprint(xs.elements['cars'].decode(xt.getroot()[1], validation='skip'))
+            None
+            >>> pprint(xs.xsd_elements['bikes'].decode(root[1], namespaces={'vh': 'http://example.com/vehicles'}))
+            {'@xmlns:vh': 'http://example.com/vehicles',
+             'vh:bike': [{'@make': 'Harley-Davidson', '@model': 'WL'},
+                         {'@make': 'Yamaha', '@model': 'XS650'}]}
+                                                  {'@make': 'Porsche', '@model': '911'}]}
+            >>> pprint(xs.elements['cars'].decode(xt.getroot()[1], validation='skip'))
+            None
+            >>> pprint(xs.elements['bikes'].decode(root[1], namespaces={'vh': 'http://example.com/vehicles'}))
+            {'@xmlns:vh': 'http://example.com/vehicles',
+             'vh:bike': [{'@make': 'Harley-Davidson', '@model': 'WL'},
+                         {'@make': 'Yamaha', '@model': 'XS650'}]}
+                                              {'@make': 'Porsche', '@model': '911'}]}
+        >>> pprint(xs.elements['cars'].decode(xt.getroot()[1], validation='skip'))
+        None
+        >>> pprint(xs.elements['bikes'].decode(root[1], namespaces={'vh': 'http://example.com/vehicles'}))
+        {'@xmlns:vh': 'http://example.com/vehicles',
+         'vh:bike': [{'@make': 'Harley-Davidson', '@model': 'WL'},
+                     {'@make': 'Yamaha', '@model': 'XS650'}]}
+                                                  {'@make': 'Porsche', '@model': '911'}]}
+            >>> pprint(xs.xsd_elements['cars'].decode(xt.getroot()[1], validation='skip'))
+            None
+            >>> pprint(xs.elements['bikes'].decode(root[1], namespaces={'vh': 'http://example.com/vehicles'}))
+            {'@xmlns:vh': 'http://example.com/vehicles',
+             'vh:bike': [{'@make': 'Harley-Davidson', '@model': 'WL'},
+                         {'@make': 'Yamaha', '@model': 'XS650'}]}
+                                                  {'@make': 'Porsche', '@model': '911'}]}
+            >>> pprint(xs.xsd_elements['cars'].decode(xt.getroot()[1], validation='skip'))
+            None
+            >>> pprint(xs.elements['bikes'].decode(root[1], namespaces={'vh': 'http://example.com/vehicles'}))
+            {'@xmlns:vh': 'http://example.com/vehicles',
+             'vh:bike': [{'@make': 'Harley-Davidson', '@model': 'WL'},
+                         {'@make': 'Yamaha', '@model': 'XS650'}]}
+                                                  {'@make': 'Porsche', '@model': '911'}]}
+            >>> pprint(xs.elements['cars'].decode(xt.getroot()[1], validation='skip'))
+            None
+            >>> pprint(xs.xsd_elements['bikes'].decode(root[1], namespaces={'vh': 'http://example.com/vehicles'}))
+            {'@xmlns:vh': 'http://example.com/vehicles',
+             'vh:bike': [{'@make': 'Harley-Davidson', '@model': 'WL'},
+                         {'@make': 'Yamaha', '@model': 'XS650'}]}
+                                                  {'@make': 'Porsche', '@model': '911'}]}
+            >>> pprint(xs.elements['cars'].decode(xt.getroot()[1], validation='skip'))
+            None
+            >>> pprint(xs.elements['bikes'].decode(root[1], namespaces={'vh': 'http://example.com/vehicles'}))
+            {'@xmlns:vh': 'http://example.com/vehicles',
+             'vh:bike': [{'@make': 'Harley-Davidson', '@model': 'WL'},
+                         {'@make': 'Yamaha', '@model': 'XS650'}]}
+                                              {'@make': 'Porsche', '@model': '911'}]}
+        >>> pprint(xs.elements['cars'].decode(xt.getroot()[1], validation='skip'))
+        None
+        >>> pprint(xs.elements['bikes'].decode(root[1], namespaces={'vh': 'http://example.com/vehicles'}))
+        {'@xmlns:vh': 'http://example.com/vehicles',
+         'vh:bike': [{'@make': 'Harley-Davidson', '@model': 'WL'},
+                     {'@make': 'Yamaha', '@model': 'XS650'}]}
+                                                  {'@make': 'Porsche', '@model': '911'}]}
+            >>> pprint(xs.elements['cars'].decode(xt.getroot()[1], validation='skip'))
+            None
+            >>> pprint(xs.elements['bikes'].decode(root[1], namespaces={'vh': 'http://example.com/vehicles'}))
+            {'@xmlns:vh': 'http://example.com/vehicles',
+             'vh:bike': [{'@make': 'Harley-Davidson', '@model': 'WL'},
+                         {'@make': 'Yamaha', '@model': 'XS650'}]}
+                                                  {'@make': 'Porsche', '@model': '911'}]}
+            >>> pprint(xs.xsd_elements['cars'].decode(xt.getroot()[1], validation='skip'))
+            None
+            >>> pprint(xs.elements['bikes'].decode(root[1], namespaces={'vh': 'http://example.com/vehicles'}))
+            {'@xmlns:vh': 'http://example.com/vehicles',
+             'vh:bike': [{'@make': 'Harley-Davidson', '@model': 'WL'},
+                         {'@make': 'Yamaha', '@model': 'XS650'}]}
+                                                  {'@make': 'Porsche', '@model': '911'}]}
+            >>> pprint(xs.elements['cars'].decode(xt.getroot()[1], validation='skip'))
+            None
+            >>> pprint(xs.xsd_elements['bikes'].decode(root[1], namespaces={'vh': 'http://example.com/vehicles'}))
+            {'@xmlns:vh': 'http://example.com/vehicles',
+             'vh:bike': [{'@make': 'Harley-Davidson', '@model': 'WL'},
+                         {'@make': 'Yamaha', '@model': 'XS650'}]}
+                                                  {'@make': 'Porsche', '@model': '911'}]}
+            >>> pprint(xs.elements['cars'].decode(xt.getroot()[1], validation='skip'))
+            None
+            >>> pprint(xs.xsd_elements['bikes'].decode(root[1], namespaces={'vh': 'http://example.com/vehicles'}))
+            {'@xmlns:vh': 'http://example.com/vehicles',
+             'vh:bike': [{'@make': 'Harley-Davidson', '@model': 'WL'},
+                         {'@make': 'Yamaha', '@model': 'XS650'}]}
+                                              {'@make': 'Porsche', '@model': '911'}]}
+        >>> pprint(xs.elements['cars'].decode(xt.getroot()[1], validation='skip'))
+        None
+        >>> pprint(xs.elements['bikes'].decode(root[1], namespaces={'vh': 'http://example.com/vehicles'}))
+        {'@xmlns:vh': 'http://example.com/vehicles',
+         'vh:bike': [{'@make': 'Harley-Davidson', '@model': 'WL'},
+                     {'@make': 'Yamaha', '@model': 'XS650'}]}
+                                                  {'@make': 'Porsche', '@model': '911'}]}
+            >>> pprint(xs.elements['cars'].decode(xt.getroot()[1], validation='skip'))
+            None
+            >>> pprint(xs.elements['bikes'].decode(root[1], namespaces={'vh': 'http://example.com/vehicles'}))
+            {'@xmlns:vh': 'http://example.com/vehicles',
+             'vh:bike': [{'@make': 'Harley-Davidson', '@model': 'WL'},
+                         {'@make': 'Yamaha', '@model': 'XS650'}]}
+                                                  {'@make': 'Porsche', '@model': '911'}]}
+            >>> pprint(xs.xsd_elements['cars'].decode(xt.getroot()[1], validation='skip'))
+            None
+            >>> pprint(xs.elements['bikes'].decode(root[1], namespaces={'vh': 'http://example.com/vehicles'}))
+            {'@xmlns:vh': 'http://example.com/vehicles',
+             'vh:bike': [{'@make': 'Harley-Davidson', '@model': 'WL'},
+                         {'@make': 'Yamaha', '@model': 'XS650'}]}
+                                                  {'@make': 'Porsche', '@model': '911'}]}
+            >>> pprint(xs.elements['cars'].decode(xt.getroot()[1], validation='skip'))
+            None
+            >>> pprint(xs.xsd_elements['bikes'].decode(root[1], namespaces={'vh': 'http://example.com/vehicles'}))
+            {'@xmlns:vh': 'http://example.com/vehicles',
+             'vh:bike': [{'@make': 'Harley-Davidson', '@model': 'WL'},
+                         {'@make': 'Yamaha', '@model': 'XS650'}]}
+                                                  {'@make': 'Porsche', '@model': '911'}]}
+            >>> pprint(xs.elements['cars'].decode(xt.getroot()[1], validation='skip'))
+            None
+            >>> pprint(xs.xsd_elements['bikes'].decode(root[1], namespaces={'vh': 'http://example.com/vehicles'}))
+            {'@xmlns:vh': 'http://example.com/vehicles',
+             'vh:bike': [{'@make': 'Harley-Davidson', '@model': 'WL'},
+                         {'@make': 'Yamaha', '@model': 'XS650'}]}
+                                              {'@make': 'Porsche', '@model': '911'}]}
+        >>> pprint(xs.elements['cars'].decode(xt.getroot()[1], validation='skip'))
+        None
+        >>> pprint(xs.elements['bikes'].decode(root[1], namespaces={'vh': 'http://example.com/vehicles'}))
+        {'@xmlns:vh': 'http://example.com/vehicles',
+         'vh:bike': [{'@make': 'Harley-Davidson', '@model': 'WL'},
+                     {'@make': 'Yamaha', '@model': 'XS650'}]}
+                                                  {'@make': 'Porsche', '@model': '911'}]}
+            >>> pprint(xs.xsd_elements['cars'].decode(xt.getroot()[1], validation='skip'))
+            None
+            >>> pprint(xs.elements['bikes'].decode(root[1], namespaces={'vh': 'http://example.com/vehicles'}))
+            {'@xmlns:vh': 'http://example.com/vehicles',
+             'vh:bike': [{'@make': 'Harley-Davidson', '@model': 'WL'},
+                         {'@make': 'Yamaha', '@model': 'XS650'}]}
+                                                  {'@make': 'Porsche', '@model': '911'}]}
+            >>> pprint(xs.xsd_elements['cars'].decode(xt.getroot()[1], validation='skip'))
+            None
+            >>> pprint(xs.elements['bikes'].decode(root[1], namespaces={'vh': 'http://example.com/vehicles'}))
+            {'@xmlns:vh': 'http://example.com/vehicles',
+             'vh:bike': [{'@make': 'Harley-Davidson', '@model': 'WL'},
+                         {'@make': 'Yamaha', '@model': 'XS650'}]}
+                                                  {'@make': 'Porsche', '@model': '911'}]}
+            >>> pprint(xs.elements['cars'].decode(xt.getroot()[1], validation='skip'))
+            None
+            >>> pprint(xs.elements['bikes'].decode(root[1], namespaces={'vh': 'http://example.com/vehicles'}))
+            {'@xmlns:vh': 'http://example.com/vehicles',
+             'vh:bike': [{'@make': 'Harley-Davidson', '@model': 'WL'},
+                         {'@make': 'Yamaha', '@model': 'XS650'}]}
+                                                  {'@make': 'Porsche', '@model': '911'}]}
+            >>> pprint(xs.elements['cars'].decode(xt.getroot()[1], validation='skip'))
+            None
+            >>> pprint(xs.xsd_elements['bikes'].decode(root[1], namespaces={'vh': 'http://example.com/vehicles'}))
+            {'@xmlns:vh': 'http://example.com/vehicles',
+             'vh:bike': [{'@make': 'Harley-Davidson', '@model': 'WL'},
+                         {'@make': 'Yamaha', '@model': 'XS650'}]}
+                                              {'@make': 'Porsche', '@model': '911'}]}
+        >>> pprint(xs.elements['cars'].decode(xt.getroot()[1], validation='skip'))
+        None
+        >>> pprint(xs.elements['bikes'].decode(root[1], namespaces={'vh': 'http://example.com/vehicles'}))
+        {'@xmlns:vh': 'http://example.com/vehicles',
+         'vh:bike': [{'@make': 'Harley-Davidson', '@model': 'WL'},
+                     {'@make': 'Yamaha', '@model': 'XS650'}]}
+                                                  {'@make': 'Porsche', '@model': '911'}]}
+            >>> pprint(xs.xsd_elements['cars'].decode(xt.getroot()[1], validation='skip'))
+            None
+            >>> pprint(xs.elements['bikes'].decode(root[1], namespaces={'vh': 'http://example.com/vehicles'}))
+            {'@xmlns:vh': 'http://example.com/vehicles',
+             'vh:bike': [{'@make': 'Harley-Davidson', '@model': 'WL'},
+                         {'@make': 'Yamaha', '@model': 'XS650'}]}
+                                                  {'@make': 'Porsche', '@model': '911'}]}
+            >>> pprint(xs.xsd_elements['cars'].decode(xt.getroot()[1], validation='skip'))
+            None
+            >>> pprint(xs.elements['bikes'].decode(root[1], namespaces={'vh': 'http://example.com/vehicles'}))
+            {'@xmlns:vh': 'http://example.com/vehicles',
+             'vh:bike': [{'@make': 'Harley-Davidson', '@model': 'WL'},
+                         {'@make': 'Yamaha', '@model': 'XS650'}]}
+                                                  {'@make': 'Porsche', '@model': '911'}]}
+            >>> pprint(xs.elements['cars'].decode(xt.getroot()[1], validation='skip'))
+            None
+            >>> pprint(xs.elements['bikes'].decode(root[1], namespaces={'vh': 'http://example.com/vehicles'}))
+            {'@xmlns:vh': 'http://example.com/vehicles',
+             'vh:bike': [{'@make': 'Harley-Davidson', '@model': 'WL'},
+                         {'@make': 'Yamaha', '@model': 'XS650'}]}
+                                                  {'@make': 'Porsche', '@model': '911'}]}
+            >>> pprint(xs.elements['cars'].decode(xt.getroot()[1], validation='skip'))
+            None
+            >>> pprint(xs.xsd_elements['bikes'].decode(root[1], namespaces={'vh': 'http://example.com/vehicles'}))
+            {'@xmlns:vh': 'http://example.com/vehicles',
+             'vh:bike': [{'@make': 'Harley-Davidson', '@model': 'WL'},
+                         {'@make': 'Yamaha', '@model': 'XS650'}]}
+                                              {'@make': 'Porsche', '@model': '911'}]}
+        >>> pprint(xs.elements['cars'].decode(xt.getroot()[1], validation='skip'))
+        None
+        >>> pprint(xs.elements['bikes'].decode(root[1], namespaces={'vh': 'http://example.com/vehicles'}))
+        {'@xmlns:vh': 'http://example.com/vehicles',
+         'vh:bike': [{'@make': 'Harley-Davidson', '@model': 'WL'},
+                     {'@make': 'Yamaha', '@model': 'XS650'}]}
+                                              {'@make': 'Porsche', '@model': '911'}]}
+        >>> pprint(xs.xsd_elements['cars'].decode(xt.getroot()[1], validation='skip'))
+        None
+        >>> pprint(xs.elements['bikes'].decode(root[1], namespaces={'vh': 'http://example.com/vehicles'}))
+        {'@xmlns:vh': 'http://example.com/vehicles',
+         'vh:bike': [{'@make': 'Harley-Davidson', '@model': 'WL'},
+                     {'@make': 'Yamaha', '@model': 'XS650'}]}
+                                              {'@make': 'Porsche', '@model': '911'}]}
+        >>> pprint(xs.xsd_elements['cars'].decode(xt.getroot()[1], validation='skip'))
+        None
+        >>> pprint(xs.elements['bikes'].decode(root[1], namespaces={'vh': 'http://example.com/vehicles'}))
+        {'@xmlns:vh': 'http://example.com/vehicles',
+         'vh:bike': [{'@make': 'Harley-Davidson', '@model': 'WL'},
+                     {'@make': 'Yamaha', '@model': 'XS650'}]}
+                                              {'@make': 'Porsche', '@model': '911'}]}
+        >>> pprint(xs.elements['cars'].decode(xt.getroot()[1], validation='skip'))
+        None
+        >>> pprint(xs.xsd_elements['bikes'].decode(root[1], namespaces={'vh': 'http://example.com/vehicles'}))
+        {'@xmlns:vh': 'http://example.com/vehicles',
+         'vh:bike': [{'@make': 'Harley-Davidson', '@model': 'WL'},
+                     {'@make': 'Yamaha', '@model': 'XS650'}]}
+                                              {'@make': 'Porsche', '@model': '911'}]}
+        >>> pprint(xs.elements['cars'].decode(xt.getroot()[1], validation='skip'))
+        None
+        >>> pprint(xs.xsd_elements['bikes'].decode(root[1], namespaces={'vh': 'http://example.com/vehicles'}))
+        {'@xmlns:vh': 'http://example.com/vehicles',
+         'vh:bike': [{'@make': 'Harley-Davidson', '@model': 'WL'},
+                     {'@make': 'Yamaha', '@model': 'XS650'}]}
                                           {'@make': 'Porsche', '@model': '911'}]}
     >>> pprint(xs.elements['cars'].decode(xt.getroot()[1], validation='skip'))
     None
@@ -226,6 +775,12 @@ Every element or attribute declaration has a *type* attribute for accessing its 
 .. doctest:: collection
 
     >>> person = schema.elements['person']
+            >>> person.type
+            XsdComplexType(name='personType')
+        >>> person.type
+        XsdComplexType(name='personType')
+        >>> person.type
+        XsdComplexType(name='personType')
     >>> person.type
     XsdComplexType(name='personType')
 
@@ -288,6 +843,39 @@ cases *content* is a not-empty `XsdGroup`:
 .. doctest:: collection
 
     >>> person = schema.elements['person']
+            >>> person.type.has_complex_content()
+            True
+            >>> person.type.content
+            XsdGroup(model='sequence', occurs=[1, 1])
+            >>> for item in person.type.content:
+            ...     item
+            ...
+            XsdElement(name='name', occurs=[1, 1])
+            XsdElement(name='born', occurs=[1, 1])
+            XsdElement(name='dead', occurs=[0, 1])
+            XsdElement(name='qualification', occurs=[0, 1])
+        >>> person.type.has_complex_content()
+        True
+        >>> person.type.content
+        XsdGroup(model='sequence', occurs=[1, 1])
+        >>> for item in person.type.content:
+        ...     item
+        ...
+        XsdElement(name='name', occurs=[1, 1])
+        XsdElement(name='born', occurs=[1, 1])
+        XsdElement(name='dead', occurs=[0, 1])
+        XsdElement(name='qualification', occurs=[0, 1])
+        >>> person.type.has_complex_content()
+        True
+        >>> person.type.content
+        XsdGroup(model='sequence', occurs=[1, 1])
+        >>> for item in person.type.content:
+        ...     item
+        ...
+        XsdElement(name='name', occurs=[1, 1])
+        XsdElement(name='born', occurs=[1, 1])
+        XsdElement(name='dead', occurs=[0, 1])
+        XsdElement(name='qualification', occurs=[0, 1])
     >>> person.type.has_complex_content()
     True
     >>> person.type.content

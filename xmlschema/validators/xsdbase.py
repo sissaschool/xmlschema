@@ -22,7 +22,8 @@ from elementpath.etree import etree_tostring
 from ..exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from ..names import XSD_ANNOTATION, XSD_APPINFO, XSD_DOCUMENTATION, \
     XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_ID, \
-    XSD_QNAME, XSD_OVERRIDE, XSD_NOTATION_TYPE, XSD_DECIMAL, XMLNS_NAMESPACE
+    XSD_QNAME, XSD_OVERRIDE, XSD_NOTATION_TYPE, XSD_DECIMAL, \
+    XMLNS_NAMESPACE, XSD_BOOLEAN
 from ..aliases import ElementType, NamespacesType, SchemaType, BaseXsdType, \
     ComponentClassType, ExtraValidatorType, DecodeType, IterDecodeType, \
     EncodeType, IterEncodeType
@@ -935,6 +936,9 @@ class XsdType(XsdComponent):
 
     def is_decimal(self) -> bool:
         return self.name == XSD_DECIMAL or self.is_derived(self.maps.types[XSD_DECIMAL])
+
+    def is_boolean(self) -> bool:
+        return self.name == XSD_BOOLEAN or self.is_derived(self.maps.types[XSD_BOOLEAN])
 
     def text_decode(self, text: str) -> Any:
         raise NotImplementedError()
