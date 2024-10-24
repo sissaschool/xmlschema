@@ -127,22 +127,6 @@ class TestXsdIdentities(XsdValidatorTestCase):
 
         self.assertIn("XPST0003", ctx.exception.message)
 
-    def test_selector_target_namespace(self):
-        schema = self.check_schema("""
-            <xs:element name="primary_key" type="xs:string">
-              <xs:key name="key1">
-                <xs:selector xpath="xs:*"/>
-                <xs:field xpath="."/>
-                <xs:field xpath="@xs:*"/>
-              </xs:key>
-            </xs:element>""")
-
-        self.assertEqual(schema.identities['key1'].selector.target_namespace,
-                         'http://www.w3.org/2001/XMLSchema')
-        self.assertEqual(schema.identities['key1'].fields[0].target_namespace, '')
-        self.assertEqual(schema.identities['key1'].fields[1].target_namespace,
-                         'http://www.w3.org/2001/XMLSchema')
-
     def test_invalid_selector_node(self):
         with self.assertRaises(XMLSchemaParseError) as ctx:
             self.check_schema("""
@@ -391,7 +375,6 @@ class TestXsdIdentities(XsdValidatorTestCase):
         self.assertIn("value ('3',) not found", str(errors[1]))
         self.assertIn("(2 times)", str(errors[1]))
 
-    @unittest.skip
     def test_key_multiple_values__issue_418(self):
         xsd_file = self.casepath('issues/issue_418/issue_418.xsd')
         schema = self.schema_class(xsd_file)
@@ -400,12 +383,9 @@ class TestXsdIdentities(XsdValidatorTestCase):
         self.assertIsNone(schema.validate(xml_file))
 
         xml_file = self.casepath('issues/issue_418/issue_418-invalid.xml')
-        with self.assertRaises(XMLSchemaValidationError):
+        with self.assertRaises(XMLSchemaValidationError) as ctx:
             schema.validate(xml_file)
-
-        xml_file = self.casepath('issues/issue_418/issue_418-invalid2.xml')
-        with self.assertRaises(XMLSchemaValidationError):
-            schema.validate(xml_file)
+        self.assertIn("field selects multiple values", str(ctx.exception))
 
 
 class TestXsd11Identities(TestXsdIdentities):

@@ -24,12 +24,13 @@ from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from ..names import XSD_UNIQUE, XSD_KEY, XSD_KEYREF, XSD_SELECTOR, XSD_FIELD
 from ..translation import gettext as _
 from ..helpers import get_qname, get_extended_qname
-from ..aliases import ElementType, SchemaType, NamespacesType, AtomicValueType, BaseXsdType
+from ..aliases import ElementType, SchemaType, NamespacesType, AtomicValueType, \
+    BaseXsdType, SchemaElementType, SchemaAttributeType
 from ..xpath import IdentityXPathParser, XPathElement
 from .exceptions import XMLSchemaNotBuiltError
 from .xsdbase import XsdComponent
 from .attributes import XsdAttribute
-from .wildcards import XsdAnyElement
+from .wildcards import XsdAnyElement, XsdWildcard
 from . import elements as elements_module
 
 if TYPE_CHECKING:
@@ -40,6 +41,7 @@ IdentityCounterType = Tuple[IdentityFieldItemType, ...]
 IdentityMapType = Dict[Union['XsdKey', 'XsdKeyref', str, None],
                        Union['IdentityCounter', 'KeyrefCounter']]
 IdentityNodeType = Union[ElementNode, AttributeNode]
+FieldDecoderType = Union[SchemaElementType, SchemaAttributeType]
 
 
 class XsdSelector(XsdComponent):
@@ -104,16 +106,6 @@ class XsdSelector(XsdComponent):
     @property
     def built(self) -> bool:
         return True
-
-    @property
-    def target_namespace(self) -> str:
-        if self.token is None:
-            pass  # xpathDefaultNamespace="##targetNamespace"
-        elif self.token.symbol == ':':
-            return self.token[1].namespace or self.xpath_default_namespace
-        elif self.token.symbol == '@' and self.token[0].symbol == ':':
-            return self.token[0][1].namespace or self.xpath_default_namespace
-        return self.schema.target_namespace
 
 
 class XsdFieldSelector(XsdSelector):
@@ -402,6 +394,8 @@ class KeyrefCounter(IdentityCounter):
 
 class FieldValueSelector:
 
+    skip_wildcard = False
+
     def __init__(self, field: XsdFieldSelector, xsd_element: 'XsdElement') -> None:
         if field.token is None:
             msg = f"identity field {field} is not built"
@@ -410,11 +404,6 @@ class FieldValueSelector:
         self.field = field
         self.xsd_element = xsd_element
         self.value_constraints = {}
-
-        if isinstance(field.parent, XsdKey):
-            self.admit_empty = False
-        else:
-            self.admit_empty = True
 
         self.token = copy.deepcopy(field.token)
         schema_context = xsd_element.xpath_proxy.get_context()
@@ -426,13 +415,17 @@ class FieldValueSelector:
                     "xs:field path must select only attributes and elements"
                 )
 
-            comp = cast(Union['XsdElement', XsdAttribute], node.value)
+            comp = cast(FieldDecoderType, node.value)
             self.decoders.append(comp)
-            value_constraint = comp.value_constraint
-            if value_constraint is not None:
-                self.value_constraints[node.name] = comp.type.text_decode(value_constraint)
-                if isinstance(comp, XsdAttribute):
-                    self.value_constraints[None] = self.value_constraints[node.name]
+            if isinstance(comp, XsdWildcard):
+                if comp.process_contents == 'skip':
+                    self.skip_wildcard = True
+            else:
+                value_constraint = comp.value_constraint
+                if value_constraint is not None:
+                    self.value_constraints[node.name] = comp.type.text_decode(value_constraint)
+                    if isinstance(comp, XsdAttribute):
+                        self.value_constraints[None] = self.value_constraints[node.name]
 
         if len(self.decoders) > 1 and None in self.value_constraints:
             self.value_constraints.pop(None)
@@ -450,7 +443,6 @@ class FieldValueSelector:
 
         empty = True
         for node in cast(Iterator[IdentityNodeType], self.token.select(context)):
-
             if empty:
                 empty = False
             else:
@@ -464,7 +456,10 @@ class FieldValueSelector:
                 raise XMLSchemaTypeError(msg % (self.field, type(node)))
 
             if xsd_type is None:
-                value = node.string_value
+                if self.skip_wildcard:
+                    value = None
+                else:
+                    value = node.string_value
             elif xsd_type.content_type_label not in ('simple', 'mixed'):
                 msg = _("%r field doesn't have a simple type!")
                 raise XMLSchemaTypeError(msg % self.field)
@@ -478,9 +473,10 @@ class FieldValueSelector:
                     value = node.typed_value  # type: ignore[assignment,unused-ignore]
                 except (KeyError, ValueError):
                     for decoder in self.decoders:
-                        if node.match_name(decoder.name):
-                            value = decoder.type.text_decode(node.string_value)
-                            break
+                        if not isinstance(decoder, XsdWildcard):
+                            if decoder.is_matching(node.name):
+                                value = decoder.type.text_decode(node.string_value)
+                                break
                     else:
                         value = node.string_value
 

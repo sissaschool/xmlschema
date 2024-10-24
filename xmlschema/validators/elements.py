@@ -15,7 +15,7 @@ from copy import copy as _copy
 from decimal import Decimal
 from types import GeneratorType
 from typing import TYPE_CHECKING, cast, Any, Dict, Iterator, List, Optional, \
-    Set, Tuple, Type, Union, reveal_type
+    Set, Tuple, Type, Union
 from xml.etree.ElementTree import Element, ParseError
 
 from elementpath import XPath2Parser, ElementPathError, XPathContext, XPathToken, \
