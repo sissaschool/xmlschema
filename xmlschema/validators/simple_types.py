@@ -38,7 +38,7 @@ from .facets import XsdFacet, XsdWhiteSpaceFacet, XsdPatternFacets, \
     XSD_11_LIST_FACETS, XSD_10_UNION_FACETS, XSD_11_UNION_FACETS, MULTIPLE_FACETS
 
 FacetsValueType = Union[XsdFacet, Callable[[Any], None], List[XsdAssertionFacet]]
-PythonTypeClasses = Type[Any]
+PythonTypeClasses = Union[Type[Any], Tuple[Type[Any]]]
 
 
 class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType]):
@@ -67,8 +67,10 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
     allow_empty = True
     facets: Dict[Optional[str], FacetsValueType]
 
-    python_type: PythonTypeClasses
-    instance_types: Union[PythonTypeClasses, Tuple[PythonTypeClasses]]
+    python_type: Type[Any]
+    instance_types: PythonTypeClasses
+    to_python: Union[Type[Any], Callable[[Any], Any]]
+    from_python: Union[Type[str], Callable[[Any], Any]]
 
     # Unicode string as default datatype for XSD simple types
     python_type = instance_types = to_python = from_python = str
@@ -577,12 +579,12 @@ class XsdAtomicBuiltin(XsdAtomic):
     def __init__(self, elem: ElementType,
                  schema: SchemaType,
                  name: str,
-                 python_type: Type[Any],
+                 python_type: PythonTypeClasses,
                  base_type: Optional['XsdAtomicBuiltin'] = None,
                  admitted_facets: Optional[Set[str]] = None,
                  facets: Optional[Dict[Optional[str], FacetsValueType]] = None,
-                 to_python: Any = None,
-                 from_python: Any = None) -> None:
+                 to_python: Optional[Callable[[Any], Any]] = None,
+                 from_python: Optional[Callable[[Any], Any]] = None) -> None:
         """
         :param name: the XSD type's qualified name.
         :param python_type: the correspondent Python's type. If a tuple of types \
@@ -597,8 +599,9 @@ class XsdAtomicBuiltin(XsdAtomic):
             self.instance_types, python_type = python_type, python_type[0]
         else:
             self.instance_types = python_type
-        if not callable(python_type):
-            raise XMLSchemaTypeError("%r object is not callable" % python_type.__class__)
+
+        if not isinstance(python_type, type):
+            raise XMLSchemaTypeError(f"{python_type!r} object is not a type")
 
         if base_type is None and not admitted_facets and name != XSD_ERROR:
             raise XMLSchemaValueError("argument 'admitted_facets' must be "
