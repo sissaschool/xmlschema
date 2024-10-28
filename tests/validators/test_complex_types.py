@@ -788,6 +788,46 @@ class TestXsdComplexType(XsdValidatorTestCase):
                 </xs:complexType>
             </xs:schema>"""))
 
+    def test_illegal_restriction__issue_425(self):
+
+        schema_source = dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+              <xs:element name="elem1"/>
+              <xs:element name="elem2"/>
+              <xs:element name="elem3"/>
+              <xs:element name="elem4" substitutionGroup="elem3"/>
+              <xs:attribute name="a" type="xs:string"/>
+
+              <xs:complexType name="baseType">
+                <xs:sequence>
+                  <xs:element ref="elem1" minOccurs="0" maxOccurs="unbounded"/>
+                  <xs:element ref="elem2" minOccurs="0"/>
+                  <xs:element ref="elem3" maxOccurs="unbounded"/>
+                </xs:sequence>
+                <xs:attribute ref="a" use="required"/>
+              </xs:complexType>
+
+              <xs:complexType name="derivedType">
+                <xs:complexContent>
+                  <xs:restriction base="baseType">
+                    <xs:sequence>
+                      <xs:element ref="elem1" minOccurs="0" maxOccurs="unbounded"/>
+                      <xs:element ref="elem4"/>
+                    </xs:sequence>
+                    <xs:attribute ref="a" use="required"/>
+                  </xs:restriction>
+                </xs:complexContent>
+              </xs:complexType>
+            </xs:schema>""")
+
+        if self.schema_class.XSD_VERSION == '1.0':
+            with self.assertRaises(XMLSchemaParseError):
+                self.schema_class(schema_source)
+        else:
+            schema = self.schema_class(schema_source)
+            self.assertIsInstance(schema, XMLSchema11)
+
 
 class TestXsd11ComplexType(TestXsdComplexType):
 
