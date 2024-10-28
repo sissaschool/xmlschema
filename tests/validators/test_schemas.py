@@ -352,20 +352,16 @@ class TestXMLSchema10(XsdValidatorTestCase):
             self.schema_class(self.vh_xsd_file, loglevel=logging.INFO)
 
         self.assertEqual(logger.level, logging.WARNING)
-        self.assertEqual(len(ctx.output), 7)
-        self.assertIn("INFO:xmlschema:Include schema from 'types.xsd'", ctx.output)
-        self.assertIn("INFO:xmlschema:Resource 'types.xsd' is already loaded", ctx.output)
+        self.assertEqual(len(ctx.output), 3)
+        self.assertIn("INFO:xmlschema:Include schema from ", ctx.output[0])
 
         with self.assertLogs('xmlschema', level='DEBUG') as ctx:
             self.schema_class(self.vh_xsd_file, loglevel=logging.DEBUG)
 
         self.assertEqual(logger.level, logging.WARNING)
-        self.assertEqual(len(ctx.output), 19)
-        self.assertIn("INFO:xmlschema:Include schema from 'cars.xsd'", ctx.output)
-        self.assertIn("INFO:xmlschema:Resource 'cars.xsd' is already loaded", ctx.output)
+        self.assertEqual(len(ctx.output), 38)
         self.assertIn("DEBUG:xmlschema:Schema targetNamespace is "
                       "'http://example.com/vehicles'", ctx.output)
-        self.assertIn("INFO:xmlschema:Resource 'cars.xsd' is already loaded", ctx.output)
 
         # With string argument
         with self.assertRaises(ValueError) as ctx:
@@ -374,11 +370,11 @@ class TestXMLSchema10(XsdValidatorTestCase):
 
         with self.assertLogs('xmlschema', level='INFO') as ctx:
             self.schema_class(self.vh_xsd_file, loglevel='INFO')
-        self.assertEqual(len(ctx.output), 7)
+        self.assertEqual(len(ctx.output), 3)
 
         with self.assertLogs('xmlschema', level='INFO') as ctx:
             self.schema_class(self.vh_xsd_file, loglevel='  Info ')
-        self.assertEqual(len(ctx.output), 7)
+        self.assertEqual(len(ctx.output), 3)
 
     def test_target_namespace(self):
         schema = self.schema_class(dedent("""\

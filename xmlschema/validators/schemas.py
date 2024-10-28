@@ -350,7 +350,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 source, base_url, allow, defuse, timeout, uri_mapper=uri_mapper
             )
 
-        logger.debug("Read schema from %r", self.source.url or self.source.source)
+        logger.debug("Load schema from %r", self.source.url or self.source.source)
 
         self.imports = {}
         self._import_statements = set()
@@ -389,7 +389,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             raise XMLSchemaValueError(msg)
 
         logger.debug("Schema targetNamespace is %r", self.target_namespace)
-        logger.debug("Declared namespaces: %r", self.namespaces)
+        logger.debug("Schema namespaces: %r", self.namespaces)
 
         # Parses the schema defaults
         if 'attributeFormDefault' in root.attrib:
@@ -1191,6 +1191,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
     def _parse_inclusions(self) -> None:
         """Processes schema document inclusions and redefinitions/overrides."""
+        logger.debug("Processing inclusions of schema %r", self)
+
         for child in self.source.root:
             if 'schemaLocation' not in child.attrib:
                 continue
@@ -1198,7 +1200,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             location = child.attrib['schemaLocation'].strip()
             if child.tag == XSD_INCLUDE:
                 try:
-                    logger.info("Include schema from %r", location)
+                    logger.debug("Include schema from %r", location)
                     self.include_schema(location, self.base_url)
                 except OSError as err:
                     # It is not an error if the location fail to resolve:
@@ -1249,6 +1251,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 else:
                     schema.override = self
 
+        logger.debug("Inclusions of schema %r processed", self)
+
     def include_schema(self, location: str, base_url: Optional[str] = None,
                        build: bool = False) -> SchemaType:
         """
@@ -1261,11 +1265,13 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         """
         schema: SchemaType
         url = normalize_url(location, base_url)
+
         for schema in self.maps.namespaces[self.target_namespace]:
             if url == schema.url:
-                logger.info("Resource %r is already loaded", location)
+                logger.debug("Resource %r is already loaded", url)
                 break
         else:
+            logger.info("Include schema from %r", url)
             schema = type(self)(
                 source=url,
                 namespace=self.target_namespace,
@@ -1295,6 +1301,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         Parse namespace import elements. Imports are done on namespace basis, not on
         single resource. A warning is generated for a failure of a namespace import.
         """
+        logger.debug("Processing imports of schema %r", self)
         namespace_imports = NamespaceResourcesMap(map(
             lambda x: (x.get('namespace'), x.get('schemaLocation')),
             filter(lambda x: x.tag == XSD_IMPORT, self.source.root)
@@ -1347,6 +1354,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 locations.append(self.fallback_locations[namespace])
 
             self._import_namespace(namespace, locations)
+
+        logger.debug("Imports of schema %r processed", self)
 
     def _import_namespace(self, namespace: str, locations: List[str]) -> None:
         import_error: Optional[Exception] = None
