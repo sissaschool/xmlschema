@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<mqttservices xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:noNamespaceSchemaLocation="issue_418.xsd" active="true">
+  <events>
+    <event trigger="TS01" command="powu56.py" parameters="-on -ports '1,2,3'" />
+    <event trigger="TS08" command="powu56.py" parameters="-off -ports '1,2,3'"/>
+    <event trigger="TS06" attime="2:00" command="powu56.py" parameters="-off -ports '1,2,3'"/>
+  </events>
+</mqttservices>
+

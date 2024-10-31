@@ -10,7 +10,7 @@
 from collections.abc import MutableMapping, MutableSequence
 from typing import TYPE_CHECKING, Any, Optional, List, Dict, Type, Union, Tuple
 
-from xmlschema.aliases import NsmapType, BaseXsdType
+from xmlschema.aliases import NsmapType, BaseXsdType, XmlnsType
 from xmlschema.exceptions import XMLSchemaTypeError
 from xmlschema.names import XSD_ANY_TYPE
 from xmlschema.utils.qnames import local_name
@@ -27,7 +27,7 @@ class BadgerFishConverter(XMLSchemaConverter):
     XML Schema based converter class for Badgerfish convention.
 
     ref: http://www.sklar.com/badgerfish/
-    ref: http://badgerfish.ning.com/
+    ref: https://badgerfish.ning.com/
 
     :param namespaces: Map from namespace prefixes to URI.
     :param dict_class: Dictionary class to use for decoded data. Default is `dict`.
@@ -46,7 +46,7 @@ class BadgerFishConverter(XMLSchemaConverter):
     def lossy(self) -> bool:
         return False
 
-    def get_xmlns_from_data(self, obj: Any) -> Optional[List[Tuple[str, str]]]:
+    def get_xmlns_from_data(self, obj: Any) -> XmlnsType:
         if not self._use_namespaces or not isinstance(obj, MutableMapping) or '@xmlns' not in obj:
             return None
         return [(k if k != '$' else '', v) for k, v in obj['@xmlns'].items()]
@@ -97,31 +97,27 @@ class BadgerFishConverter(XMLSchemaConverter):
 
     @stackable
     def element_encode(self, obj: Any, xsd_element: 'XsdElement', level: int = 0) -> ElementData:
-        tag = xsd_element.name
         if not isinstance(obj, MutableMapping):
             raise XMLSchemaTypeError(f"A dictionary expected, got {type(obj)} instead.")
-        elif len(obj) != 1 or '$' in obj:
-            element_data = obj
-        elif tag in obj:
-            element_data = obj[tag]
+        elif len(obj) != 1 or all(k.startswith(('$', '@')) for k in obj):
+            tag = xsd_element.name
         else:
-            try:
-                element_data = obj[self.map_qname(tag)]
-            except KeyError:
-                for k, v in obj.items():
-                    if not k.startswith(('$', '@')) and local_name(k) == local_name(tag):
-                        element_data = v
-                        break
-                else:
-                    element_data = obj
+            key, value = next(iter(obj.items()))
+            tag = self.unmap_qname(key, xmlns=self.get_xmlns_from_data(value))
+            if xsd_element.is_matching(tag):
+                obj = value
+            elif not self.namespaces and local_name(tag) == xsd_element.local_name:
+                obj = value
+            else:
+                tag = xsd_element.name
 
         text = None
         content: List[Tuple[Union[str, int], Any]] = []
         attributes = {}
 
-        xmlns = self.set_context(element_data, level)
+        xmlns = self.set_context(obj, level)
 
-        for name, value in element_data.items():
+        for name, value in obj.items():
             if name == '@xmlns':
                 continue
             elif name == '$':

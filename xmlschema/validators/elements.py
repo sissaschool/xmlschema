@@ -39,20 +39,19 @@ from xmlschema.converters import ElementData, XMLSchemaConverter
 from xmlschema.xpath import XMLSchemaProxy, ElementPathMixin, XPathElement
 from xmlschema.resources import XMLResource
 
-from .exceptions import XMLSchemaNotBuiltError, XMLSchemaValidationError, \
-    XMLSchemaParseError, XMLSchemaStopValidation, XMLSchemaTypeTableWarning
+from .exceptions import XMLSchemaValidationError, XMLSchemaParseError, \
+    XMLSchemaStopValidation, XMLSchemaTypeTableWarning
 from .validation import XSD_VALIDATION_MODES, DecodeContext, \
     EncodeContext, ValidationMixin
 from .helpers import get_xsd_derivation_attribute
 from .xsdbase import XSD_TYPE_DERIVATIONS, XSD_ELEMENT_DERIVATIONS, XsdComponent
 from .particles import ParticleMixin, OccursCalculator
 from .identities import XsdIdentity, XsdKey, XsdUnique, \
-    XsdKeyref, KeyrefCounter, IdentityCounterType
+    XsdKeyref, KeyrefCounter, FieldValueSelector
 from .simple_types import XsdSimpleType
 from .attributes import XsdAttribute
 from .wildcards import XsdAnyElement
 
-from . import groups
 if TYPE_CHECKING:
     from .attributes import XsdAttributeGroup
     from .groups import XsdGroup
@@ -108,8 +107,8 @@ class XsdElement(XsdComponent, ParticleMixin,
 
     identities: List[XsdIdentity]
     selected_by: Set[XsdIdentity]
-    alternatives = ()  # type: Union[Tuple[()], List[XsdAlternative]]
-    inheritable = ()  # type: Union[Tuple[()], Dict[str, XsdAttribute]]
+    alternatives: Union[Tuple[()], List['XsdAlternative']] = ()
+    inheritable: Union[Tuple[()], Dict[str, XsdAttribute]] = ()
 
     _ADMITTED_TAGS = {XSD_ELEMENT}
     _block: Optional[str] = None
@@ -602,8 +601,20 @@ class XsdElement(XsdComponent, ParticleMixin,
         result: Any
 
         if self.abstract:
-            reason = _("cannot use an abstract element for validation")
-            context.validation_error(validation, self, reason, obj)
+            if self.name == obj.tag:
+                reason = _("can't use an abstract element in an instance")
+                context.validation_error(validation, self, reason, obj)
+            elif self.name not in self.maps.substitution_groups:
+                reason = _("can't use an abstract XSD element for validation "
+                           "unless it's the head of a substitution group")
+                context.validation_error(validation, self, reason, obj)
+            else:
+                for xsd_element in self.iter_substitutes():
+                    if obj.tag == xsd_element.name:
+                        return xsd_element.raw_decode(obj, validation, context)
+                else:
+                    reason = _("can't use an abstract XSD element for validation")
+                    context.validation_error(validation, self, reason, obj)
 
         if context.validation_hook is not None:
             # Control validation on element and its descendants or stop validation
@@ -649,26 +660,11 @@ class XsdElement(XsdComponent, ParticleMixin,
                 if self.identities:
                     xpath_element = XPathElement(self.name, xsd_type)
                     for identity in self.identities:
-                        if isinstance(identity.elements, tuple) \
-                                or identity.selector is None:
+                        if not identity.built or identity.selector is None:
                             continue  # Skip unbuilt or incomplete identities
-                        elif identity.selector.token is None:
-                            raise XMLSchemaNotBuiltError(
-                                identity, "identity selector is not built"
-                            )
-
-                        xpath_context = XPathContext(
-                            root=self.schema.xpath_node, item=xpath_element
+                        identity.elements.update(
+                            identity.get_selected_elements(xpath_element)
                         )
-
-                        for e in identity.selector.token.select_results(xpath_context):
-                            if isinstance(e, XsdElement):
-                                if e not in identity.elements:
-                                    identity.elements[e] = None
-                                    e.selected_by.add(identity)
-                            elif not isinstance(e, XsdAnyElement):
-                                reason = _("selector xpath expression can only select elements")
-                                context.validation_error(validation, self, reason, e)
 
             if xsd_type.is_blocked(self):
                 reason = _("usage of %r is blocked") % xsd_type
@@ -861,8 +857,6 @@ class XsdElement(XsdComponent, ParticleMixin,
                            validation: str, nilled: bool, context: DecodeContext) -> None:
 
         element_node: Union[ElementNode, LazyElementNode]
-        xsd_fields: Optional[IdentityCounterType]
-
         element_node = context.source.get_xpath_node(obj)
         namespaces = context.namespaces
 
@@ -871,7 +865,7 @@ class XsdElement(XsdComponent, ParticleMixin,
             xsd_element = _copy(xsd_element)
             xsd_element._set_type(xsd_type)
 
-        # Collect field values for identities that refer to this element.
+        # Collect field values for identities that refer to this XSD element.
         for identity in self.selected_by:
             try:
                 counter = context.identities[identity]
@@ -885,7 +879,7 @@ class XsdElement(XsdComponent, ParticleMixin,
                 # Apply selector on Element ancestor for obtain the selected elements
                 root_node = context.source.get_xpath_node(counter.elem)
                 xpath_context = XPathContext(root_node)
-                assert identity.selector is not None and identity.selector.token is not None
+                assert identity.selector is not None
                 counter.elements = {
                     x for x in identity.selector.token.select_results(xpath_context)
                 }
@@ -893,20 +887,13 @@ class XsdElement(XsdComponent, ParticleMixin,
             if obj not in counter.elements:
                 continue
 
+            if xsd_element in identity.elements:
+                selectors = identity.elements[xsd_element]
+            else:
+                selectors = [FieldValueSelector(f, xsd_element) for f in identity.fields]
+
             try:
-                if xsd_element.type is self.type and xsd_element in identity.elements:
-                    xsd_fields = identity.elements[xsd_element]
-                    if xsd_fields is None:
-                        xsd_fields = identity.get_fields(xsd_element.xpath_node)
-                        identity.elements[xsd_element] = xsd_fields
-                else:
-                    xsd_fields = identity.get_fields(xsd_element.xpath_node)
-
-                if all(x is None for x in xsd_fields):
-                    continue
-
-                decoders = cast(Tuple[XsdAttribute, ...], xsd_fields)
-                fields = identity.get_fields(element_node, namespaces, decoders=decoders)
+                fields = tuple(s.get_value(element_node, namespaces) for s in selectors)
             except (XMLSchemaValueError, XMLSchemaTypeError) as err:
                 context.validation_error(validation, self, err, obj)
             else:
@@ -944,6 +931,7 @@ class XsdElement(XsdComponent, ParticleMixin,
         :return: returns an Element.
         """
         errors: List[Union[str, Exception]] = []
+        result: Any
 
         try:
             element_data = context.converter.element_encode(obj, self, context.level)
@@ -953,6 +941,27 @@ class XsdElement(XsdComponent, ParticleMixin,
 
         if context.max_depth is not None and context.max_depth == 0 and not context.level:
             return None
+
+        if self.abstract:
+            if self.name == element_data.tag and context.converter.losslessly:
+                reason = _("can't use an abstract element in an instance")
+                context.validation_error(validation, self, reason, obj)
+            elif self.name not in self.maps.substitution_groups:
+                reason = _("can't use an abstract XSD element for validation "
+                           "unless it's the head of a substitution group")
+                context.validation_error(validation, self, reason, obj)
+            else:
+                for xsd_element in self.iter_substitutes():
+                    if element_data.tag == xsd_element.name:
+                        return xsd_element.raw_encode(obj, validation, context)
+                else:
+                    # In some cases the original tag could be missed, so try each
+                    # substitute before generate an error.
+                    for xsd_element in self.iter_substitutes():
+                        return xsd_element.raw_encode(obj, validation, context)
+                    else:
+                        reason = _("can't use an abstract XSD element for validation")
+                        context.validation_error(validation, self, reason, obj)
 
         elem = context.create_element(element_data.tag)
 

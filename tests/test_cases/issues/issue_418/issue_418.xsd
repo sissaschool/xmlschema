@@ -1,0 +1,31 @@
+<xs:schema attributeFormDefault="unqualified" elementFormDefault="qualified" 
+           xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:complexType name="eventType">
+    <xs:simpleContent>
+      <xs:extension base="xs:string">
+        <xs:attribute type="xs:string" name="trigger"/>
+        <xs:attribute type="xs:string" name="attime"/>
+        <xs:attribute type="xs:string" name="command" use="optional"/>
+        <xs:attribute type="xs:string" name="parameters" use="optional"/>
+      </xs:extension>
+    </xs:simpleContent>
+  </xs:complexType>
+  <xs:complexType name="eventsType">
+    <xs:sequence>
+      <xs:element type="eventType" name="event" maxOccurs="unbounded" minOccurs="0">
+        <xs:key name="attributeKey">
+          <xs:selector xpath="."/>
+          <xs:field xpath="@trigger|@attime"/>
+        </xs:key>
+      </xs:element>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="mqttservicesType">
+    <xs:sequence>
+      <xs:element type="eventsType" name="events"/>
+    </xs:sequence>
+    <xs:attribute type="xs:string" name="active"/>
+  </xs:complexType>
+  <xs:element name="mqttservices" type="mqttservicesType"/>
+</xs:schema>
+

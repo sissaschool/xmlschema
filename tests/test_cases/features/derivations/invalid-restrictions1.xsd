@@ -11,6 +11,17 @@
         </xs:sequence>
     </xs:complexType>
 
+    <!-- Invalid with XSD 1.0, see: https://www.w3.org/Bugs/Public/show_bug.cgi?id=4147 -->
+    <xs:complexType name="restrictedType0">
+        <xs:complexContent>
+            <xs:restriction base="basicType1">
+                <xs:sequence>
+                    <xs:element ref="elem2"/>
+                </xs:sequence>
+            </xs:restriction>
+        </xs:complexContent>
+    </xs:complexType>
+
     <!-- UPA violation minOccurs < maxOccurs -->
     <xs:complexType name="restrictedType1">
         <xs:complexContent>
