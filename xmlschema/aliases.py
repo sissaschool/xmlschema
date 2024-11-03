@@ -42,6 +42,7 @@ __all__ = ['ElementType', 'ElementTreeType', 'XMLSourceType', 'NsmapType',
 
 if TYPE_CHECKING:
     from .namespaces import NamespaceResourcesMap
+    from .locations import LocationHints
     from .resources import XMLResource
     from .converters import ElementData
     from .validators import XMLSchemaValidationError, XsdComponent, XMLSchemaBase, \
@@ -59,7 +60,7 @@ ElementTreeType = ElementTree
 NsmapType = MutableMapping[str, str]
 NormalizedLocationsType = List[Tuple[str, str]]
 LocationsType = Union[Tuple[Tuple[str, str], ...], Dict[str, str],
-                      NormalizedLocationsType, 'NamespaceResourcesMap']
+                      NormalizedLocationsType, 'LocationsMap']
 XmlnsType = Optional[List[Tuple[str, str]]]
 
 ##

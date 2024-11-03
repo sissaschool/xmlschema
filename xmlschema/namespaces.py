@@ -8,7 +8,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-This module contains classes for managing maps related to namespaces.
+This module contains mapping classes for managing namespaces.
 """
 import re
 import copy
@@ -341,7 +341,10 @@ class NamespaceMapper(MutableMapping[str, str]):
                 return f'{{{uri}}}{name}' if uri else name
 
 
-class NamespaceResourcesMap(MutableMapping[str, Any]):
+T = TypeVar('T')
+
+
+class NamespaceResourcesMap(MutableMapping[str, T]):
     """
     Dictionary for storing information about namespace resources. Values are
     lists of objects. Setting an existing value appends the object to the value.
@@ -350,8 +353,8 @@ class NamespaceResourcesMap(MutableMapping[str, Any]):
     __slots__ = ('_store',)
 
     def __init__(self, *args: Any, **kwargs: Any):
-        self._store: Dict[str, List[Any]] = {}
-        self.update(*args, **kwargs)
+        self._store: Dict[str, List[T]] = {}
+        self.update(args, **kwargs)
 
     def __getitem__(self, uri: str) -> Any:
         return self._store[uri]
@@ -379,9 +382,6 @@ class NamespaceResourcesMap(MutableMapping[str, Any]):
 
     def clear(self) -> None:
         self._store.clear()
-
-
-T = TypeVar('T')
 
 
 class NamespaceView(Mapping[str, T]):

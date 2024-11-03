@@ -12,11 +12,10 @@ import os
 
 from xmlschema.exceptions import XMLSchemaException, XMLSchemaValueError
 from xmlschema.names import XSD_NAMESPACE, WSDL_NAMESPACE, SOAP_NAMESPACE, \
-    SCHEMAS_DIR, XSD_ANY_TYPE, XSD_SCHEMA
+    XSD_ANY_TYPE, XSD_SCHEMA
 from xmlschema.utils.qnames import get_qname, local_name, get_extended_qname, \
     get_prefixed_qname
-from xmlschema.namespaces import NamespaceResourcesMap
-from xmlschema.locations import normalize_url
+from xmlschema.locations import normalize_url, SCHEMAS_DIR, LocationHints
 from xmlschema.documents import SCHEMA_KWARGS, XmlDocument
 from xmlschema.validators import XMLSchemaBase, XMLSchema10
 
@@ -509,12 +508,12 @@ class Wsdl11Document(XmlDocument):
             )
             self.maps = Wsdl11Maps(self)
 
-        if isinstance(locations, NamespaceResourcesMap):
+        if isinstance(locations, LocationHints):
             self.locations = locations
         elif locations:
-            self.locations = NamespaceResourcesMap(locations)
+            self.locations = LocationHints(locations)
         else:
-            self.locations = NamespaceResourcesMap()
+            self.locations = LocationHints()
 
         super().__init__(
             source=source,
@@ -623,7 +622,7 @@ class Wsdl11Document(XmlDocument):
                 self.maps.services[service.name] = service
 
     def _parse_imports(self):
-        namespace_imports = NamespaceResourcesMap(map(
+        namespace_imports = LocationHints(map(
             lambda x: (x.get('namespace', ''), x.get('location', '')),
             filter(lambda x: x.tag == WSDL_IMPORT, self.root)
         ))

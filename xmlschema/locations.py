@@ -17,6 +17,8 @@ from urllib.parse import urlsplit, unquote
 from xmlschema.aliases import NormalizedLocationsType, LocationsType
 from xmlschema.utils.urls import is_local_url, is_local_scheme, encode_url
 from xmlschema.utils.paths import get_uri, LocationPath
+from xmlschema.namespaces import NamespaceResourcesMap
+import xmlschema.names as nm
 
 
 def normalize_url(url: str, base_url: Optional[str] = None,
@@ -137,3 +139,45 @@ def match_location(url: str, locations: Iterable[str]) -> Optional[str]:
                 matching_url = other_url
 
     return matching_url
+
+
+SCHEMAS_DIR = os.path.join(os.path.dirname(__file__), 'schemas/')
+
+
+class LocationHints(NamespaceResourcesMap[str]):
+
+    fallback_locations = {
+        # Locally saved schemas
+        nm.HFP_NAMESPACE: f'{SCHEMAS_DIR}HFP/XMLSchema-hasFacetAndProperty_minimal.xsd',
+        nm.VC_NAMESPACE: f'{SCHEMAS_DIR}XSI/XMLSchema-versioning.xsd',
+        nm.XLINK_NAMESPACE: f'{SCHEMAS_DIR}XLINK/xlink.xsd',
+        nm.XHTML_NAMESPACE: f'{SCHEMAS_DIR}XHTML/xhtml1-strict.xsd',
+        nm.WSDL_NAMESPACE: f'{SCHEMAS_DIR}WSDL/wsdl.xsd',
+        nm.SOAP_NAMESPACE: f'{SCHEMAS_DIR}WSDL/wsdl-soap.xsd',
+        nm.SOAP_ENVELOPE_NAMESPACE: f'{SCHEMAS_DIR}WSDL/soap-envelope.xsd',
+        nm.SOAP_ENCODING_NAMESPACE: f'{SCHEMAS_DIR}WSDL/soap-encoding.xsd',
+        nm.DSIG_NAMESPACE: f'{SCHEMAS_DIR}DSIG/xmldsig-core-schema.xsd',
+        nm.DSIG11_NAMESPACE: f'{SCHEMAS_DIR}DSIG/xmldsig11-schema.xsd',
+        nm.XENC_NAMESPACE: f'{SCHEMAS_DIR}XENC/xenc-schema.xsd',
+        nm.XENC11_NAMESPACE: f'{SCHEMAS_DIR}XENC/xenc-schema-11.xsd',
+
+        # Remote locations: contributors can propose additional official locations
+        # for other namespaces for extending this list.
+        nm.XSLT_NAMESPACE: 'http://www.w3.org/2007/schema-for-xslt20.xsd',
+    }
+    "Fallback schema location hints"
+
+    def __init__(self, locations: Optional[LocationsType] = None,
+                 base_url: Optional[str] = None,
+                 use_fallback: bool = False):
+        if not locations:
+            super().__init__()
+        elif isinstance(locations, (tuple, LocationHints)):
+            super().__init__(locations)
+        else:
+            # Locations provided by a list of tuples or a dict
+            super().__init__(normalize_locations(locations, base_url))
+
+        self.base_url = base_url
+        if not use_fallback:
+            self.fallback_locations = {}
