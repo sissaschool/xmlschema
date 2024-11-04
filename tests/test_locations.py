@@ -18,14 +18,12 @@ from urllib.parse import urlsplit
 from pathlib import Path, PurePath, PureWindowsPath, PurePosixPath
 from unittest.mock import patch, MagicMock
 
-import xmlschema.locations
-
 from xmlschema.utils.paths import DRIVE_LETTERS, get_uri, get_uri_path, is_unc_path, \
     is_drive_path, LocationPath, LocationPosixPath, LocationWindowsPath
 from xmlschema.utils.urls import is_url, is_local_url, is_remote_url, is_encoded_url, \
-    is_safe_url, encode_url, decode_url
-from xmlschema.locations import location_is_file, normalize_url, normalize_locations, \
+    is_safe_url, encode_url, decode_url, location_is_file, normalize_url, normalize_locations, \
     match_location
+import xmlschema.utils.urls
 
 TEST_CASES_DIR = str(pathlib.Path(__file__).absolute().parent.joinpath('test_cases'))
 
@@ -319,7 +317,7 @@ class TestLocations(unittest.TestCase):
             self.assertIs(path.__class__, PureWindowsPath)
             self.assertEqual(path.as_uri(), url)
 
-            self.assertEqual(xmlschema.locations.os.name, 'nt')
+            self.assertEqual(xmlschema.utils.urls.os.name, 'nt')
             path = LocationPath(unc_path)
             self.assertIs(path.__class__, LocationWindowsPath)
             self.assertEqual(path.as_uri(), url_host_in_path)
@@ -332,7 +330,7 @@ class TestLocations(unittest.TestCase):
             self.assertEqual(str(path), unc_path)
             self.assertRaises(ValueError, path.as_uri)  # Not recognized as UNC path
 
-            self.assertEqual(xmlschema.locations.os.name, 'posix')
+            self.assertEqual(xmlschema.utils.urls.os.name, 'posix')
             path = LocationPath(unc_path)
             self.assertIs(path.__class__, LocationPosixPath)
             self.assertEqual(str(path), unc_path)

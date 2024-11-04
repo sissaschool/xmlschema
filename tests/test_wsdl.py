@@ -178,8 +178,11 @@ class TestWsdlDocuments(unittest.TestCase):
         for service in wsdl_document.maps.services.values():
             self.assertIsInstance(service, WsdlService)
 
-        wsdl_document = Wsdl11Document(WSDL_DOCUMENT_EXAMPLE, locations=[('x', 'y'), ('x', 'z')])
+        wsdl_document = Wsdl11Document(WSDL_DOCUMENT_EXAMPLE, locations=(('x', 'y'), ('x', 'z')))
         self.assertEqual(wsdl_document.locations, {'x': ['y', 'z']})
+
+        wsdl_document = Wsdl11Document(WSDL_DOCUMENT_EXAMPLE, locations=[('x', 'y'), ('x', 'z')])
+        self.assertNotEqual(wsdl_document.locations, {'x': ['y', 'z']})  # Normalized
 
     def test_schema_class(self):
         wsdl_document = Wsdl11Document(WSDL_DOCUMENT_EXAMPLE)

@@ -10,7 +10,6 @@
 from . import limits
 from . import translation
 from .exceptions import XMLSchemaException
-from .locations import normalize_url, normalize_locations
 from .resources import fetch_resource, fetch_namespaces, fetch_schema_locations, \
     fetch_schema, XMLResource, XMLResourceError
 from .xpath import ElementPathMixin
@@ -22,6 +21,7 @@ from .documents import validate, is_valid, iter_errors, iter_decode, \
     to_dict, to_json, to_etree, from_json, XmlDocument
 from .exports import download_schemas
 from .utils.etree import etree_tostring
+from .utils.urls import normalize_url, normalize_locations
 
 from .validators import (
     XMLSchemaValidatorError, XMLSchemaParseError, XMLSchemaNotBuiltError,

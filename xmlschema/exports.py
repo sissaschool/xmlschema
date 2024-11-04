@@ -21,8 +21,7 @@ from xmlschema.exceptions import XMLSchemaValueError
 from xmlschema.names import XSD_SCHEMA, XSD_IMPORT, XSD_INCLUDE, XSD_REDEFINE, XSD_OVERRIDE
 from xmlschema.utils.logger import logged
 from xmlschema.utils.paths import LocationPath
-from xmlschema.utils.urls import is_remote_url
-from xmlschema.locations import normalize_url, match_location
+from xmlschema.utils.urls import is_remote_url, normalize_url, match_location
 from xmlschema.translation import gettext as _
 from xmlschema.resources import XMLResourceError, XMLResource
 

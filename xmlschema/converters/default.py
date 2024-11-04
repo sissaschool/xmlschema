@@ -14,10 +14,9 @@ from xml.etree.ElementTree import Element
 
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from xmlschema.aliases import NsmapType, BaseXsdType, XmlnsType
-from xmlschema.namespaces import NamespaceMapper
 from xmlschema.resources import XMLResource
 from xmlschema.utils.qnames import get_namespace
-
+from xmlschema.namespaces import NamespaceMapper
 from .element_data import ElementData
 
 if TYPE_CHECKING:

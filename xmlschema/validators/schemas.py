@@ -31,6 +31,10 @@ from xml.etree.ElementTree import Element, ParseError
 
 from elementpath import XPathToken, SchemaElementNode, build_schema_node_tree
 
+from xmlschema.aliases import XMLSourceType, NsmapType, LocationsType, UriMapperType, \
+    SchemaType, SchemaSourceType, ComponentClassType, DecodeType, EncodeType, \
+    BaseXsdType, ExtraValidatorType, ValidationHookType, SchemaGlobalType, \
+    FillerType, DepthFillerType, ValueHookType, ElementHookType
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaKeyError, \
     XMLSchemaRuntimeError, XMLSchemaValueError, XMLSchemaNamespaceError
 from xmlschema.names import VC_MIN_VERSION, VC_MAX_VERSION, VC_TYPE_AVAILABLE, \
@@ -38,21 +42,16 @@ from xmlschema.names import VC_MIN_VERSION, VC_MAX_VERSION, VC_TYPE_AVAILABLE, \
     XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_GROUP, XSD_SIMPLE_TYPE, XSI_TYPE, \
     XSD_COMPLEX_TYPE, XSD_ELEMENT, XSD_SEQUENCE, XSD_CHOICE, XSD_ALL, XSD_ANY, \
     XSD_ANY_ATTRIBUTE, XSD_ANY_TYPE, XSD_NAMESPACE, XML_NAMESPACE, XSI_NAMESPACE, \
-    VC_NAMESPACE, SCHEMAS_DIR, LOCATION_HINTS, XSD_ANNOTATION, XSD_INCLUDE, \
-    XSD_IMPORT, XSD_REDEFINE, XSD_OVERRIDE, XSD_DEFAULT_OPEN_CONTENT, \
-    XSD_ANY_SIMPLE_TYPE, XSD_UNION, XSD_LIST, XSD_RESTRICTION, XMLNS_NAMESPACE
-from xmlschema.aliases import XMLSourceType, NsmapType, LocationsType, UriMapperType, \
-    SchemaType, SchemaSourceType, ComponentClassType, DecodeType, EncodeType, \
-    BaseXsdType, ExtraValidatorType, ValidationHookType, SchemaGlobalType, \
-    FillerType, DepthFillerType, ValueHookType, ElementHookType
+    VC_NAMESPACE, XSD_ANNOTATION, XSD_INCLUDE, XSD_IMPORT, XSD_REDEFINE, \
+    XSD_OVERRIDE, XSD_DEFAULT_OPEN_CONTENT, XSD_ANY_SIMPLE_TYPE, XSD_UNION, \
+    XSD_LIST, XSD_RESTRICTION, XMLNS_NAMESPACE
 from xmlschema.translation import gettext as _
 from xmlschema.utils.decoding import Empty
 from xmlschema.utils.logger import set_logging_level
 from xmlschema.utils.etree import prune_etree, is_etree_element
 from xmlschema.utils.qnames import get_namespace, get_qname
-from xmlschema.namespaces import NamespaceResourcesMap, NamespaceView
-from xmlschema.utils.urls import is_local_url, is_remote_url
-from xmlschema.locations import location_is_file, normalize_url, normalize_locations
+from xmlschema.namespaces import NamespaceView, SCHEMAS_DIR, LocationHints
+from xmlschema.utils.urls import is_local_url, is_remote_url, location_is_file, normalize_url
 from xmlschema.resources import XMLResource, XMLResourceBlocked, XMLResourceForbidden
 from xmlschema.converters import XMLSchemaConverter, ConverterType, \
     check_converter_argument, get_converter
@@ -203,7 +202,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
     :cvar XSD_VERSION: store the XSD version (1.0 or 1.1).
     :cvar BASE_SCHEMAS: a dictionary from namespace to schema resource for meta-schema bases.
-    :cvar fallback_locations: fallback schema location hints for other standard namespaces.
     :cvar meta_schema: the XSD meta-schema instance.
     :cvar attribute_form_default: the schema's *attributeFormDefault* attribute. \
     Default is 'unqualified'.
@@ -252,7 +250,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     source: XMLResource
     namespaces: NsmapType
     converter: ConverterType
-    locations: NamespaceResourcesMap
+    locations: LocationHints
     maps: XsdGlobals
     imports: Dict[str, Optional[SchemaType]]
     _import_statements: Set[str]
@@ -269,9 +267,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     identities: NamespaceView[XsdIdentity]
 
     XSD_VERSION: str = '1.0'
-    meta_schema: Optional['XMLSchemaBase'] = None
     BASE_SCHEMAS: Dict[str, str] = {}
-    fallback_locations: Dict[str, str] = LOCATION_HINTS.copy()
+    meta_schema: Optional['XMLSchemaBase'] = None
     _annotations: Optional[List[XsdAnnotation]] = None
     _components = None
     _root_elements: Optional[Set[str]] = None
@@ -430,7 +427,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 self.parse_error(err, root)
 
         if self.meta_schema is None:
-            self.locations = NamespaceResourcesMap()
+            self.locations = LocationHints()
 
             # Meta-schema maps creation (MetaXMLSchema10/11 classes)
             self.maps = global_maps or XsdGlobals(self)
@@ -442,20 +439,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         # Complete the namespace map with internal declarations, remapping
         # identical prefixes that refer to different namespaces.
         self.namespaces = self.source.get_namespaces(self.namespaces, root_only=False)
-
-        if isinstance(locations, NamespaceResourcesMap):
-            self.locations = locations
-        elif not locations:
-            self.locations = NamespaceResourcesMap()
-        elif isinstance(locations, tuple):
-            self.locations = NamespaceResourcesMap(locations)
-        else:
-            self.locations = NamespaceResourcesMap(
-                normalize_locations(locations, self.base_url)
-            )
-
-        if not use_fallback:
-            self.fallback_locations = {}
+        self.locations = LocationHints(locations, base_url, use_fallback)
 
         with self.meta_schema.lock:
             if not self.meta_schema.maps.types:
@@ -490,8 +474,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             for e in self.meta_schema.iter_errors(root, namespaces=self.namespaces):
                 self.parse_error(e.reason or e, elem=e.elem)
 
-        self._parse_inclusions()
-        self._parse_imports()
+        self.add_components()
 
         # Imports by argument (usually from xsi:schemaLocation attribute).
         for ns in self.locations:
@@ -1029,7 +1012,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         schema.errors = self.errors[:]
         schema.warnings = self.warnings[:]
         schema.namespaces = dict(self.namespaces)
-        schema.locations = NamespaceResourcesMap(self.locations)
+        schema.locations = LocationHints(self.locations)
         schema.imports = self.imports.copy()
         schema.includes = self.includes.copy()
         schema.maps = self.maps.copy(validator=schema)
@@ -1149,19 +1132,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             if not isinstance(xsd_global, tuple):
                 yield from xsd_global.iter_components(xsd_classes)
 
-    def get_schema(self, namespace: str) -> SchemaType:
-        """
-        Returns the first schema loaded for a namespace. Raises a
-        `KeyError` if the requested namespace is not loaded.
-        """
-        try:
-            return cast(SchemaType, self.maps.namespaces[namespace][0])
-        except KeyError:
-            if not namespace:
-                return self
-            msg = _('the namespace {!r} is not loaded')
-            raise XMLSchemaKeyError(msg.format(namespace)) from None
-
     def get_converter(self, converter: Optional[ConverterType] = None,
                       **kwargs: Any) -> XMLSchemaConverter:
         """
@@ -1178,10 +1148,20 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
     def get_locations(self, namespace: str) -> List[str]:
         """Get a list of location hints for a namespace."""
+        return self.locations.get_locations(namespace)
+
+    def get_schema(self, namespace: str) -> SchemaType:
+        """
+        Returns the first schema loaded for a namespace. Raises a
+        `KeyError` if the requested namespace is not loaded.
+        """
         try:
-            return list(self.locations[namespace])
+            return cast(SchemaType, self.maps.namespaces[namespace][0])
         except KeyError:
-            return []
+            if not namespace:
+                return self
+            msg = _('the namespace {!r} is not loaded')
+            raise XMLSchemaKeyError(msg.format(namespace)) from None
 
     def get_element(self, tag: str, path: Optional[str] = None,
                     namespaces: Optional[NsmapType] = None) -> Optional[XsdElement]:
@@ -1209,70 +1189,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         for xsd_component in self.iter_components():
             if isinstance(xsd_component, XsdElement):
                 xsd_component.get_binding(*bases, replace_existing=True, **attrs)
-
-    def _parse_inclusions(self) -> None:
-        """Processes schema document inclusions and redefinitions/overrides."""
-        logger.debug("Processing inclusions of schema %r", self)
-
-        for child in self.source.root:
-            if 'schemaLocation' not in child.attrib:
-                continue
-
-            location = child.attrib['schemaLocation'].strip()
-            if child.tag == XSD_INCLUDE:
-                try:
-                    logger.debug("Include schema from %r", location)
-                    self.include_schema(location, self.base_url)
-                except OSError as err:
-                    # It is not an error if the location fail to resolve:
-                    #   https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/#compound-schema
-                    #   https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/#src-include
-                    self.warnings.append("Include schema failed: %s." % str(err))
-                    warnings.warn(self.warnings[-1], XMLSchemaIncludeWarning, stacklevel=3)
-                except (XMLSchemaParseError, XMLSchemaTypeError, ParseError) as err:
-                    msg = _('cannot include schema {0!r}: {1}')
-                    if isinstance(err, (XMLSchemaParseError, ParseError)):
-                        self.parse_error(msg.format(location, err), child)
-                    else:
-                        raise type(err)(msg.format(location, err))
-
-            elif child.tag == XSD_REDEFINE:
-                try:
-                    logger.info("Redefine schema %r", location)
-                    schema = self.include_schema(location, self.base_url)
-                except OSError as err:
-                    # If the xs:redefine doesn't contain components (annotation excluded)
-                    # the statement is equivalent to an include, so no error is generated,
-                    # otherwise fails.
-                    self.warnings.append(_("Redefine schema failed: %s") % str(err))
-                    warnings.warn(self.warnings[-1], XMLSchemaIncludeWarning, stacklevel=3)
-                    if any(e.tag != XSD_ANNOTATION and not callable(e.tag) for e in child):
-                        self.parse_error(err, child)
-                except (XMLSchemaParseError, XMLSchemaTypeError, ParseError) as err:
-                    msg = _('cannot redefine schema {0!r}: {1}')
-                    if isinstance(err, (XMLSchemaParseError, ParseError)):
-                        self.parse_error(msg.format(location, err), child)
-                    else:
-                        raise type(err)(msg.format(location, err))
-                else:
-                    schema.redefine = self
-
-            elif child.tag == XSD_OVERRIDE and self.XSD_VERSION != '1.0':
-                try:
-                    logger.info("Override schema %r", location)
-                    schema = self.include_schema(location, self.base_url)
-                except OSError as err:
-                    # If the override doesn't contain components (annotation excluded)
-                    # the statement is equivalent to an include, so no error is generated,
-                    # otherwise fails.
-                    self.warnings.append(_("Override schema failed: %s") % str(err))
-                    warnings.warn(self.warnings[-1], XMLSchemaIncludeWarning, stacklevel=3)
-                    if any(e.tag != XSD_ANNOTATION and not callable(e.tag) for e in child):
-                        self.parse_error(str(err), child)
-                else:
-                    schema.override = self
-
-        logger.debug("Inclusions of schema %r processed", self)
 
     def include_schema(self, location: str, base_url: Optional[str] = None,
                        build: bool = False) -> SchemaType:
@@ -1318,66 +1234,88 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             self.includes[url] = schema
         return schema
 
-    def _parse_imports(self) -> None:
-        """
-        Parse namespace import elements. Imports are done on namespace basis, not on
-        single resource. A warning is generated for a failure of a namespace import.
-        """
-        logger.debug("Processing imports of schema %r", self)
-        namespace_imports = NamespaceResourcesMap(map(
-            lambda x: (x.get('namespace'), x.get('schemaLocation')),
-            filter(lambda x: x.tag == XSD_IMPORT, self.source.root)
-        ))
+    def add_components(self) -> None:
+        """Add schema documents from imports, inclusions and redefinitions/overrides."""
+        logger.debug("Processing inclusions and imports of schema %r", self)
 
-        for namespace, locations in namespace_imports.items():
+        for child in self.source.root:
+            if child.tag in XSD_ANNOTATION:
+                continue
+            elif child.tag not in (XSD_IMPORT, XSD_INCLUDE, XSD_REDEFINE) \
+                    and (child.tag != XSD_OVERRIDE or self.XSD_VERSION == '1.0'):
+                break
 
-            # Checks the namespace against the targetNamespace of the schema
-            if namespace is None:
-                namespace = ''
+            if child.tag == XSD_IMPORT:
+                try:
+                    namespace = child.attrib['namespace'].strip()
+                except KeyError:
+                    namespace = ''
+
+                # Checks the namespace against the targetNamespace of the schema
                 if namespace == self.target_namespace:
-                    msg = _("if the 'namespace' attribute is not present on "
-                            "the import statement then the imported schema "
-                            "must have a 'targetNamespace'")
+                    if namespace == '':
+                        msg = _("if the 'namespace' attribute is not present on "
+                                "the import statement then the imported schema "
+                                "must have a 'targetNamespace'")
+                    else:
+                        msg = _("the attribute 'namespace' must be different "
+                                "from schema's 'targetNamespace'")
                     self.parse_error(msg)
                     continue
-            elif namespace == self.target_namespace:
-                msg = _("the attribute 'namespace' must be different "
-                        "from schema's 'targetNamespace'")
-                self.parse_error(msg)
-                continue
 
-            # Register if the namespace has a xs:import statement
-            self._import_statements.add(namespace)
+                # Register the namespace has a xs:import statement
+                self._import_statements.add(namespace)
 
-            # Skip import of already imported namespaces
-            if self.imports.get(namespace) is not None:
-                continue
-            elif namespace in self.maps.namespaces:
-                self.imports[namespace] = self.maps.namespaces[namespace][0]
-                continue
+                try:
+                    location = child.attrib['schemaLocation'].strip()
+                except KeyError:
+                    locations = self.locations.get_locations(namespace)
+                else:
+                    locations = [location]
+                    if namespace in self.locations:
+                        locations.extend(self.locations.get_locations(namespace))
 
-            locations = [url for url in locations if url]
-            if not namespace:
-                pass
-            elif not locations:
-                locations = self.get_locations(namespace)
-            elif all(is_remote_url(url) for url in locations):
-                # If all import schema locations are remote URLs and there are local hints
-                # that match a local file path, try the local hints before schema locations.
-                # This is not the standard processing for XSD imports, but resolve the problem
-                # of local processing of schemas tested to work from a http server, providing
-                # explicit local hints.
-                local_hints = [url for url in self.get_locations(namespace)
-                               if url and location_is_file(url)]
-                if local_hints:
-                    locations = local_hints + locations
+                self._import_namespace(namespace, locations)
 
-            if namespace in self.fallback_locations:
-                locations.append(self.fallback_locations[namespace])
+            else:
+                try:
+                    location = child.attrib['schemaLocation'].strip()
+                except KeyError:
+                    continue
+                else:
+                    operation = child.tag.split('}')[-1]
 
-            self._import_namespace(namespace, locations)
+                try:
+                    logger.debug("%s schema from %s", operation, location)
+                    schema = self.include_schema(location, self.base_url)
+                except OSError as err:
+                    # It is not an error if the location fails to resolve:
+                    #   https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/#compound-schema
+                    #   https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/#src-include
+                    msg = _("%s schema failed: {}" % operation.capitalize()).format(err)
+                    self.warnings.append(msg)
+                    warnings.warn(self.warnings[-1], XMLSchemaIncludeWarning, stacklevel=3)
 
-        logger.debug("Imports of schema %r processed", self)
+                    # If the xs:redefine/xs:override doesn't contain components (annotation
+                    # excluded) the statement is equivalent to an include, so no error is
+                    # generated, otherwise fails.
+                    if child.tag != XSD_INCLUDE and \
+                            any(e.tag != XSD_ANNOTATION and not callable(e.tag) for e in child):
+                        self.parse_error(str(err), child)
+
+                except (XMLSchemaParseError, XMLSchemaTypeError, ParseError) as err:
+                    msg = _("can't %s schema {!r}: {}" % operation.capitalize())
+                    if isinstance(err, (XMLSchemaParseError, ParseError)):
+                        self.parse_error(msg.format(location, err), child)
+                    else:
+                        raise type(err)(msg.format(location, err))
+                else:
+                    if operation == 'redefine':
+                        schema.redefine = self
+                    elif operation == 'override':
+                        schema.override = self
+
+        logger.debug("Inclusions and imports of schema %r processed", self)
 
     def _import_namespace(self, namespace: str, locations: List[str]) -> None:
         import_error: Optional[Exception] = None

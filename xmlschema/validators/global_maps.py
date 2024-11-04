@@ -526,22 +526,6 @@ class XsdGlobals(XsdValidator):
                 else:
                     return True
 
-        # Try from library location hint, if there is any.
-        if namespace in self.validator.fallback_locations:
-            url = self.validator.fallback_locations[namespace]
-            if url not in self.missing_locations:
-                try:
-                    if self.validator.import_schema(namespace, url) is not None:
-                        if build:
-                            self.build()
-                except OSError:
-                    return False
-                except XMLSchemaNotBuiltError:
-                    self.clear(remove_schemas=True, only_unbuilt=True)
-                    self.missing_locations.append(url)
-                else:
-                    return True
-
         return False
 
     def clear(self, remove_schemas: bool = False, only_unbuilt: bool = False) -> None:

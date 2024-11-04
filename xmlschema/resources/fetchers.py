@@ -13,7 +13,7 @@ from urllib.request import urlopen
 from xmlschema.names import XSD_NAMESPACE
 from xmlschema.aliases import NsmapType, NormalizedLocationsType, \
     LocationsType, XMLSourceType, UriMapperType
-from xmlschema.locations import normalize_url
+from xmlschema.utils.urls import normalize_url
 
 from .exceptions import XMLResourceError, XMLResourceValueError, XMLResourceOSError
 from .xml_resource import XMLResource

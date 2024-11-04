@@ -1,5 +1,5 @@
 #
-# Copyright (c), 2016-2020, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2024, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -10,16 +10,22 @@
 """
 This module contains mapping classes for managing namespaces.
 """
-import re
 import copy
-from typing import Any, Callable, Container, Dict, Iterator, List, \
-    Optional, MutableMapping, Mapping, NamedTuple, Union, Tuple, TypeVar
+import os
+import re
+from collections.abc import Mapping, MutableMapping
+from typing import Any, Callable, Container, Dict, Iterator, List, NamedTuple, \
+    Optional, Tuple, TypeVar, Union
 
-from xmlschema.aliases import NsmapType, XmlnsType, ElementType
-from xmlschema.exceptions import XMLSchemaValueError, XMLSchemaTypeError
-from xmlschema.utils.qnames import local_name, update_namespaces, get_namespace_map
+from xmlschema.aliases import NsmapType, ElementType, LocationsType, XmlnsType
+from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from xmlschema.utils.decoding import iter_decoded_data
+from xmlschema.utils.qnames import get_namespace_map, update_namespaces, local_name
+from xmlschema.utils.urls import normalize_locations
 from xmlschema.resources import XMLResource
+import xmlschema.names as nm
+
+XMLNS_PROCESSING_MODES = frozenset(('stacked', 'collapsed', 'root-only', 'none'))
 
 
 class NamespaceMapperContext(NamedTuple):
@@ -28,9 +34,6 @@ class NamespaceMapperContext(NamedTuple):
     xmlns: XmlnsType
     namespaces: NsmapType
     reverse: NsmapType
-
-
-XMLNS_PROCESSING_MODES = frozenset(('stacked', 'collapsed', 'root-only', 'none'))
 
 
 class NamespaceMapper(MutableMapping[str, str]):
@@ -354,7 +357,9 @@ class NamespaceResourcesMap(MutableMapping[str, T]):
 
     def __init__(self, *args: Any, **kwargs: Any):
         self._store: Dict[str, List[T]] = {}
-        self.update(args, **kwargs)
+        for item in args:
+            self.update(item)
+        self.update(**kwargs)
 
     def __getitem__(self, uri: str) -> Any:
         return self._store[uri]
@@ -382,6 +387,58 @@ class NamespaceResourcesMap(MutableMapping[str, T]):
 
     def clear(self) -> None:
         self._store.clear()
+
+
+SCHEMAS_DIR = os.path.join(os.path.dirname(__file__), 'schemas/')
+
+
+class LocationHints(NamespaceResourcesMap[str]):
+
+    fallback_locations = {
+        # Locally saved schemas
+        nm.HFP_NAMESPACE: f'{SCHEMAS_DIR}HFP/XMLSchema-hasFacetAndProperty_minimal.xsd',
+        nm.VC_NAMESPACE: f'{SCHEMAS_DIR}XSI/XMLSchema-versioning.xsd',
+        nm.XLINK_NAMESPACE: f'{SCHEMAS_DIR}XLINK/xlink.xsd',
+        nm.XHTML_NAMESPACE: f'{SCHEMAS_DIR}XHTML/xhtml1-strict.xsd',
+        nm.WSDL_NAMESPACE: f'{SCHEMAS_DIR}WSDL/wsdl.xsd',
+        nm.SOAP_NAMESPACE: f'{SCHEMAS_DIR}WSDL/wsdl-soap.xsd',
+        nm.SOAP_ENVELOPE_NAMESPACE: f'{SCHEMAS_DIR}WSDL/soap-envelope.xsd',
+        nm.SOAP_ENCODING_NAMESPACE: f'{SCHEMAS_DIR}WSDL/soap-encoding.xsd',
+        nm.DSIG_NAMESPACE: f'{SCHEMAS_DIR}DSIG/xmldsig-core-schema.xsd',
+        nm.DSIG11_NAMESPACE: f'{SCHEMAS_DIR}DSIG/xmldsig11-schema.xsd',
+        nm.XENC_NAMESPACE: f'{SCHEMAS_DIR}XENC/xenc-schema.xsd',
+        nm.XENC11_NAMESPACE: f'{SCHEMAS_DIR}XENC/xenc-schema-11.xsd',
+
+        # Remote locations: contributors can propose additional official locations
+        # for other namespaces for extending this list.
+        nm.XSLT_NAMESPACE: 'http://www.w3.org/2007/schema-for-xslt20.xsd',
+    }
+    "Fallback schema location hints"
+
+    def __init__(self, locations: Optional[LocationsType] = None,
+                 base_url: Optional[str] = None,
+                 use_fallback: bool = False):
+        if not locations:
+            super().__init__()
+        elif isinstance(locations, (tuple, LocationHints)):
+            super().__init__(locations)
+        else:
+            super().__init__(normalize_locations(locations, base_url))
+
+        if not use_fallback:
+            self.fallback_locations = {}
+
+    def get_locations(self, namespace: str) -> List[str]:
+        locations: List[str]
+
+        if namespace not in self._store:
+            locations = []
+        else:
+            locations = [x for x in self._store[namespace]]
+
+        if namespace in self.fallback_locations:
+            locations.append(self.fallback_locations[namespace])
+        return locations
 
 
 class NamespaceView(Mapping[str, T]):

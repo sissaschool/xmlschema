@@ -20,7 +20,8 @@ from xml.etree.ElementTree import Element
 
 import xmlschema
 from xmlschema import XMLSchemaParseError, XMLSchemaIncludeWarning, XMLSchemaImportWarning
-from xmlschema.names import XML_NAMESPACE, LOCATION_HINTS, SCHEMAS_DIR, XSD_ELEMENT, XSI_TYPE
+from xmlschema.names import XML_NAMESPACE, XSD_ELEMENT, XSI_TYPE
+from xmlschema.namespaces import SCHEMAS_DIR, LocationHints
 from xmlschema.validators import XMLSchemaBase, XMLSchema10, XMLSchema11, \
     XsdGlobals, XsdComponent
 from xmlschema.testing import SKIP_REMOTE_TESTS, XsdValidatorTestCase
@@ -150,11 +151,11 @@ class TestXMLSchema10(XsdValidatorTestCase):
             """)
             self.assertEqual(len(context), 3, "Wrong number of include/import warnings")
             self.assertEqual(context[0].category, XMLSchemaIncludeWarning)
-            self.assertEqual(context[1].category, XMLSchemaIncludeWarning)
-            self.assertEqual(context[2].category, XMLSchemaImportWarning)
+            self.assertEqual(context[1].category, XMLSchemaImportWarning)
+            self.assertEqual(context[2].category, XMLSchemaIncludeWarning)
             self.assertTrue(str(context[0].message).startswith("Include"))
-            self.assertTrue(str(context[1].message).startswith("Redefine"))
-            self.assertTrue(str(context[2].message).startswith("Import of namespace"))
+            self.assertTrue(str(context[1].message).startswith("Import of namespace"))
+            self.assertTrue(str(context[2].message).startswith("Redefine"))
 
     def test_import_mismatch_with_locations__issue_324(self):
         xsd1_path = self.casepath('../test_cases/features/namespaces/import-case5a.xsd')
@@ -359,7 +360,7 @@ class TestXMLSchema10(XsdValidatorTestCase):
             self.schema_class(self.vh_xsd_file, loglevel=logging.DEBUG)
 
         self.assertEqual(logger.level, logging.WARNING)
-        self.assertEqual(len(ctx.output), 51)
+        self.assertEqual(len(ctx.output), 43)
         self.assertIn("DEBUG:xmlschema:Schema targetNamespace is "
                       "'http://example.com/vehicles'", ctx.output)
 
@@ -469,9 +470,10 @@ class TestXMLSchema10(XsdValidatorTestCase):
             </xs:schema>""")
 
         schema = self.schema_class(source)
-        self.assertEqual(schema.fallback_locations, LOCATION_HINTS)
+        self.assertEqual(schema.locations.fallback_locations,
+                         LocationHints.fallback_locations)
         schema = self.schema_class(source, use_fallback=False)
-        self.assertEqual(schema.fallback_locations, {})
+        self.assertEqual(schema.locations.fallback_locations, {})
 
     def test_global_maps(self):
         source = dedent("""\

@@ -8,7 +8,6 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import io
-import sys
 import os.path
 from collections import deque
 from io import StringIO, BytesIO
@@ -29,8 +28,8 @@ from xmlschema.utils.paths import LocationPath
 from xmlschema.utils.etree import etree_tostring, etree_iter_location_hints
 from xmlschema.utils.streams import is_file_object
 from xmlschema.utils.qnames import update_namespaces, get_namespace_map
-from xmlschema.utils.urls import is_url, is_remote_url, is_local_url
-from xmlschema.locations import normalize_url, normalize_locations
+from xmlschema.utils.urls import is_url, is_remote_url, is_local_url, normalize_url, \
+    normalize_locations
 
 from .exceptions import XMLResourceError, XMLResourceOSError, XMLResourceTypeError, \
     XMLResourceValueError, XMLResourceBlocked
@@ -38,11 +37,6 @@ from .sax import defuse_xml
 from .arguments import Argument, SourceArgument, BaseUrlArgument, AllowArgument, \
     DefuseArgument, TimeoutArgument, UriMapperArgument, OpenerArgument
 from .loader import _ResourceLoader
-
-if sys.version_info < (3, 9):
-    from typing import Deque
-else:
-    Deque = deque
 
 
 class XMLResource(_ResourceLoader):
@@ -466,7 +460,7 @@ class XMLResource(_ResourceLoader):
 
         tag = '*' if tag is None else tag.strip()
         lazy_depth = int(self._lazy)
-        subtree_elements: Deque[ElementType] = deque()
+        subtree_elements: deque[ElementType] = deque()
         ancestors = []
         level = 0
 

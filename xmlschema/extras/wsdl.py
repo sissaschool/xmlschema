@@ -15,7 +15,8 @@ from xmlschema.names import XSD_NAMESPACE, WSDL_NAMESPACE, SOAP_NAMESPACE, \
     XSD_ANY_TYPE, XSD_SCHEMA
 from xmlschema.utils.qnames import get_qname, local_name, get_extended_qname, \
     get_prefixed_qname
-from xmlschema.locations import normalize_url, SCHEMAS_DIR, LocationHints
+from xmlschema.utils.urls import normalize_url
+from xmlschema.namespaces import SCHEMAS_DIR, LocationHints
 from xmlschema.documents import SCHEMA_KWARGS, XmlDocument
 from xmlschema.validators import XMLSchemaBase, XMLSchema10
 
@@ -510,10 +511,8 @@ class Wsdl11Document(XmlDocument):
 
         if isinstance(locations, LocationHints):
             self.locations = locations
-        elif locations:
-            self.locations = LocationHints(locations)
         else:
-            self.locations = LocationHints()
+            self.locations = LocationHints(locations)
 
         super().__init__(
             source=source,
@@ -622,17 +621,18 @@ class Wsdl11Document(XmlDocument):
                 self.maps.services[service.name] = service
 
     def _parse_imports(self):
-        namespace_imports = LocationHints(map(
-            lambda x: (x.get('namespace', ''), x.get('location', '')),
-            filter(lambda x: x.tag == WSDL_IMPORT, self.root)
-        ))
+        for child in self.root:
+            if child.tag != WSDL_IMPORT:
+                continue
 
-        for namespace, locations in namespace_imports.items():
-            locations = [url for url in locations if url]
-            try:
-                locations.extend(self.locations[namespace])
-            except KeyError:
-                pass
+            namespace = child.get('namespace', '').strip()
+            location = child.get('location', '').strip()
+
+            if not location:
+                locations = self.locations.get_locations(namespace)
+            else:
+                locations = [location]
+                locations.extend(self.locations.get_locations(namespace))
 
             import_error = None
             for url in locations:

@@ -32,8 +32,7 @@ from xmlschema.translation import gettext as _
 from xmlschema.utils.etree import etree_iter_location_hints, etree_iter_namespaces
 from xmlschema.utils.decoding import Empty, raw_encode_attributes, strictly_equal
 from xmlschema.utils.qnames import get_qname
-
-from xmlschema.locations import normalize_url
+from xmlschema.utils.urls import normalize_url
 from xmlschema import dataobjects
 from xmlschema.converters import ElementData, XMLSchemaConverter
 from xmlschema.xpath import XMLSchemaProxy, ElementPathMixin, XPathElement
