@@ -16,8 +16,7 @@ from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from xmlschema.aliases import NsmapType, BaseXsdType, XmlnsType
 from xmlschema.resources import XMLResource
 from xmlschema.utils.qnames import get_namespace
-from xmlschema.namespaces import NamespaceMapper
-from .element_data import ElementData
+from .base import ElementData, NamespaceMapper
 
 if TYPE_CHECKING:
     from xmlschema.validators import XsdElement

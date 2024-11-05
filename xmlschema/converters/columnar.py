@@ -10,11 +10,11 @@
 from collections.abc import MutableMapping, MutableSequence
 from typing import TYPE_CHECKING, Any, Optional, List, Dict, Type, Tuple
 
-from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
-from ..aliases import NsmapType, BaseXsdType
-from ..resources import XMLResource
+from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError
+from xmlschema.aliases import NsmapType, BaseXsdType
+from xmlschema.resources import XMLResource
 
-from .element_data import ElementData
+from .base import ElementData
 from .default import XMLSchemaConverter
 
 if TYPE_CHECKING:

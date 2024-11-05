@@ -21,7 +21,7 @@ from xml.etree.ElementTree import Element
 import xmlschema
 from xmlschema import XMLSchemaParseError, XMLSchemaIncludeWarning, XMLSchemaImportWarning
 from xmlschema.names import XML_NAMESPACE, XSD_ELEMENT, XSI_TYPE
-from xmlschema.namespaces import SCHEMAS_DIR, LocationHints
+from xmlschema.loaders import SCHEMAS_DIR, SchemaLoader
 from xmlschema.validators import XMLSchemaBase, XMLSchema10, XMLSchema11, \
     XsdGlobals, XsdComponent
 from xmlschema.testing import SKIP_REMOTE_TESTS, XsdValidatorTestCase
@@ -470,10 +470,10 @@ class TestXMLSchema10(XsdValidatorTestCase):
             </xs:schema>""")
 
         schema = self.schema_class(source)
-        self.assertEqual(schema.locations.fallback_locations,
-                         LocationHints.fallback_locations)
+        self.assertEqual(schema.maps.loader.fallback_locations,
+                         SchemaLoader.fallback_locations)
         schema = self.schema_class(source, use_fallback=False)
-        self.assertEqual(schema.locations.fallback_locations, {})
+        self.assertEqual(schema.maps.loader.fallback_locations, {})
 
     def test_global_maps(self):
         source = dedent("""\
@@ -554,12 +554,12 @@ class TestXMLSchema10(XsdValidatorTestCase):
             </xs:schema>"""))
 
         with self.assertRaises(ValueError) as ctx:
-            schema.meta_schema.maps = XsdGlobals(schema, schema.validation)
+            schema.meta_schema.maps = XsdGlobals(schema)
         self.assertEqual(str(ctx.exception),
                          "cannot change the global maps instance of a meta-schema")
 
         self.assertTrue(schema.built)
-        maps, schema.maps = schema.maps, XsdGlobals(schema, schema.validation)
+        maps, schema.maps = schema.maps, XsdGlobals(schema)
         self.assertIsNot(maps, schema.maps)
         self.assertFalse(schema.built)
         schema.maps = maps

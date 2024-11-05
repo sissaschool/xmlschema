@@ -30,7 +30,7 @@ class TestXsdGlobalsMaps(unittest.TestCase):
         self.assertEqual(
             repr(XMLSchema10.meta_schema.maps),
             "XsdGlobals(validator=MetaXMLSchema10(name='XMLSchema.xsd', "
-            "namespace='http://www.w3.org/2001/XMLSchema'), validation='strict')"
+            "namespace='http://www.w3.org/2001/XMLSchema'))"
         )
 
     def test_lookup(self):

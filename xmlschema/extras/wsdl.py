@@ -16,7 +16,7 @@ from xmlschema.names import XSD_NAMESPACE, WSDL_NAMESPACE, SOAP_NAMESPACE, \
 from xmlschema.utils.qnames import get_qname, local_name, get_extended_qname, \
     get_prefixed_qname
 from xmlschema.utils.urls import normalize_url
-from xmlschema.namespaces import SCHEMAS_DIR, LocationHints
+from xmlschema.loaders import SCHEMAS_DIR, LocationHints
 from xmlschema.documents import SCHEMA_KWARGS, XmlDocument
 from xmlschema.validators import XMLSchemaBase, XMLSchema10
 
@@ -482,10 +482,12 @@ class Wsdl11Document(XmlDocument):
     soap_binding = False
 
     def __init__(self, source, schema=None, cls=None, validation='strict',
-                 namespaces=None, maps=None, locations=None, **kwargs):
+                 namespaces=None, maps=None, locations=None, base_url=None, **kwargs):
 
         if kwargs.get('lazy'):
             raise WsdlParseError(f"{self.__class__!r} instance cannot be lazy")
+
+        self.locations = LocationHints.from_args(locations, base_url=base_url)
 
         if maps is not None:
             self.maps = maps
@@ -505,14 +507,10 @@ class Wsdl11Document(XmlDocument):
             self.schema = cls(
                 source=os.path.join(SCHEMAS_DIR, 'WSDL/wsdl.xsd'),
                 global_maps=global_maps,
+                locations=locations,
                 **{k: v for k, v in kwargs.items() if k in SCHEMA_KWARGS}
             )
             self.maps = Wsdl11Maps(self)
-
-        if isinstance(locations, LocationHints):
-            self.locations = locations
-        else:
-            self.locations = LocationHints(locations)
 
         super().__init__(
             source=source,
@@ -627,12 +625,9 @@ class Wsdl11Document(XmlDocument):
 
             namespace = child.get('namespace', '').strip()
             location = child.get('location', '').strip()
-
-            if not location:
-                locations = self.locations.get_locations(namespace)
-            else:
-                locations = [location]
-                locations.extend(self.locations.get_locations(namespace))
+            locations = [location] if location else []
+            if namespace in self.locations:
+                locations.extend(self.locations[namespace])
 
             import_error = None
             for url in locations:

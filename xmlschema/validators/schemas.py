@@ -50,12 +50,12 @@ from xmlschema.utils.decoding import Empty
 from xmlschema.utils.logger import set_logging_level
 from xmlschema.utils.etree import prune_etree, is_etree_element
 from xmlschema.utils.qnames import get_namespace, get_qname
-from xmlschema.namespaces import NamespaceView, SCHEMAS_DIR, LocationHints
 from xmlschema.utils.urls import is_local_url, is_remote_url, location_is_file, normalize_url
 from xmlschema.resources import XMLResource, XMLResourceBlocked, XMLResourceForbidden
 from xmlschema.converters import XMLSchemaConverter, ConverterType, \
     check_converter_argument, get_converter
 from xmlschema.xpath import XMLSchemaProxy, ElementPathMixin
+from xmlschema.loaders import SCHEMAS_DIR, SchemaLoader, NamespaceResourcesMap, LocationHints
 from xmlschema.exports import export_schema
 from xmlschema import dataobjects
 
@@ -77,7 +77,7 @@ from .groups import XsdGroup, Xsd11Group
 from .elements import XsdElement, Xsd11Element
 from .wildcards import XsdAnyElement, XsdAnyAttribute, Xsd11AnyElement, \
     Xsd11AnyAttribute, XsdDefaultOpenContent
-from .global_maps import XsdGlobals
+from .global_maps import NamespaceView, XsdGlobals
 
 logger = logging.getLogger('xmlschema')
 
@@ -194,7 +194,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     :param use_fallback: if `True` the schema processor uses the validator fallback \
     location hints to load well-known namespaces (e.g. xhtml).
     :param use_xpath3: if `True` an XSD 1.1 schema instance uses the XPath 3 processor \
-    for assertions. For default a full XPath 2.0 processor is used for XSD 1.1 assertions.
+    for assertions. For default a full XPath 2.0 processor is used.
     :param loglevel: for setting a different logging level for schema initialization \
     and building. For default is WARNING (30). For INFO level set it with 20, for \
     DEBUG level with 10. The default loglevel is restored after schema building, \
@@ -223,7 +223,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     :class:`XsdGlobals`, that stores the *global_maps* argument or a new object \
     when this argument is not provided.
     :ivar converter: the default converter used for XML data decoding/encoding.
-    :ivar locations: schema location hints.
     :ivar namespaces: a dictionary that maps from the prefixes used by the schema \
     into namespace URI.
     :ivar imports: a dictionary of namespace imports of the schema, that maps namespace \
@@ -250,7 +249,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     source: XMLResource
     namespaces: NsmapType
     converter: ConverterType
-    locations: LocationHints
     maps: XsdGlobals
     imports: Dict[str, Optional[SchemaType]]
     _import_statements: Set[str]
@@ -320,6 +318,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                  timeout: int = 300,
                  uri_mapper: Optional[UriMapperType] = None,
                  opener: Optional[OpenerDirector] = None,
+                 loader: Optional[Type[SchemaLoader]] = None,
                  build: bool = True,
                  use_meta: bool = True,
                  use_fallback: bool = True,
@@ -427,8 +426,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 self.parse_error(err, root)
 
         if self.meta_schema is None:
-            self.locations = LocationHints()
-
             # Meta-schema maps creation (MetaXMLSchema10/11 classes)
             self.maps = global_maps or XsdGlobals(self)
             for child in self.source.root:
@@ -439,7 +436,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         # Complete the namespace map with internal declarations, remapping
         # identical prefixes that refer to different namespaces.
         self.namespaces = self.source.get_namespaces(self.namespaces, root_only=False)
-        self.locations = LocationHints(locations, base_url, use_fallback)
 
         with self.meta_schema.lock:
             if not self.meta_schema.maps.types:
@@ -452,10 +448,13 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             raise XMLSchemaTypeError(
                 _("'global_maps' argument must be an %r instance") % XsdGlobals
             )
-        elif use_meta and self.target_namespace not in self.meta_schema.maps.namespaces:
-            self.maps = self.meta_schema.maps.copy(self, validation)
         else:
-            self.maps = XsdGlobals(self, validation)
+            if loader is None:
+                loader = SchemaLoader(locations, base_url, use_fallback)
+            if use_meta and self.target_namespace not in self.meta_schema.maps.namespaces:
+                self.maps = self.meta_schema.maps.copy(self, loader)
+            else:
+                self.maps = XsdGlobals(self, loader)
 
         if use_xpath3 and self.XSD_VERSION > '1.0':
             self.use_xpath3 = True
@@ -477,9 +476,10 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         self.add_components()
 
         # Imports by argument (usually from xsi:schemaLocation attribute).
-        for ns in self.locations:
-            if ns not in self.maps.namespaces:
-                self._import_namespace(ns, self.locations[ns])
+        if global_maps is None:
+            for ns in self.locations:
+                if ns not in self.maps.namespaces:
+                    self._import_namespace(ns, self.locations[ns])
 
         # XSD 1.1 default declarations (defaultAttributes, defaultOpenContent,
         # xpathDefaultNamespace)
@@ -515,16 +515,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         finally:
             if loglevel is not None:
                 logger.setLevel(logging.WARNING)  # Restore default logging
-
-    def __getstate__(self) -> Dict[str, Any]:
-        state = self.__dict__.copy()
-        state.pop('lock', None)
-        state.pop('xpath_tokens', None)
-        return state
-
-    def __setstate__(self, state: Dict[str, Any]) -> None:
-        self.__dict__.update(state)
-        self.lock = threading.Lock()
 
     def __repr__(self) -> str:
         if self.url:
@@ -564,6 +554,35 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
     def __len__(self) -> int:
         return len(self.elements)
+
+    def __getstate__(self) -> Dict[str, Any]:
+        state = self.__dict__.copy()
+        state.pop('lock', None)
+        state.pop('xpath_tokens', None)
+        return state
+
+    def __setstate__(self, state: Dict[str, Any]) -> None:
+        self.__dict__.update(state)
+        self.lock = threading.Lock()
+
+    def __copy__(self) -> SchemaType:
+        schema: SchemaType = object.__new__(self.__class__)
+        schema.__dict__.update(self.__dict__)
+        schema.source = _copy(self.source)
+        schema.errors = self.errors[:]
+        schema.warnings = self.warnings[:]
+        schema.namespaces = dict(self.namespaces)
+        schema.imports = self.imports.copy()
+        schema.includes = self.includes.copy()
+        schema.maps = self.maps.copy(validator=schema)
+        return schema
+
+    def copy(self):
+        """
+        Makes a copy of the schema instance. The new instance has independent maps
+        but shares the already built XSD components.
+        """
+        return self.__copy__()
 
     @property
     def xpath_proxy(self) -> XMLSchemaProxy:
@@ -653,6 +672,10 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     def version(self) -> Optional[str]:
         """The schema's *version* attribute, defaults to ``None``."""
         return self.source.root.get('version')
+
+    @property
+    def locations(self) -> LocationHints:
+        return self.maps.loader.locations
 
     @property
     def schema_location(self) -> List[Tuple[str, str]]:
@@ -1001,25 +1024,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             elem.text = text
         return self.xsd_element_class(elem=elem, schema=self, parent=parent)
 
-    def copy(self) -> SchemaType:
-        """
-        Makes a copy of the schema instance. The new instance has independent maps
-        of shared XSD components.
-        """
-        schema: SchemaType = object.__new__(self.__class__)
-        schema.__dict__.update(self.__dict__)
-        schema.source = _copy(self.source)
-        schema.errors = self.errors[:]
-        schema.warnings = self.warnings[:]
-        schema.namespaces = dict(self.namespaces)
-        schema.locations = LocationHints(self.locations)
-        schema.imports = self.imports.copy()
-        schema.includes = self.includes.copy()
-        schema.maps = self.maps.copy(validator=schema)
-        return schema
-
-    __copy__ = copy
-
     def check_validator(self, validation: str = 'strict') -> None:
         """Checks the status of a schema validator against a validation mode."""
         check_validation_mode(validation)
@@ -1148,7 +1152,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
     def get_locations(self, namespace: str) -> List[str]:
         """Get a list of location hints for a namespace."""
-        return self.locations.get_locations(namespace)
+        return self.maps.loader.get_locations(namespace)
 
     def get_schema(self, namespace: str) -> SchemaType:
         """
@@ -1215,7 +1219,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 validation=self.validation,
                 global_maps=self.maps,
                 converter=self.converter,
-                locations=self.locations,
                 base_url=self.base_url,
                 allow=self.allow,
                 defuse=self.defuse,
@@ -1269,11 +1272,11 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 try:
                     location = child.attrib['schemaLocation'].strip()
                 except KeyError:
-                    locations = self.locations.get_locations(namespace)
+                    locations = self.maps.loader.get_locations(namespace)
                 else:
                     locations = [location]
-                    if namespace in self.locations:
-                        locations.extend(self.locations.get_locations(namespace))
+                    if namespace in self.maps.loader.locations:
+                        locations.extend(self.maps.loader.get_locations(namespace))
 
                 self._import_namespace(namespace, locations)
 
@@ -1395,7 +1398,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             validation=self.validation,
             global_maps=self.maps,
             converter=self.converter,
-            locations=locations,
             base_url=self.base_url,
             allow=self.allow,
             defuse=self.defuse,
@@ -1438,7 +1440,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             validation=self.validation,
             global_maps=self.maps,
             converter=self.converter,
-            locations=locations,
             base_url=self.base_url,
             allow=self.allow,
             defuse=self.defuse,

@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any, Optional, List, Dict, Type
 from xmlschema.aliases import NsmapType, BaseXsdType
 from xmlschema.resources import XMLResource
 
-from .element_data import ElementData
+from .base import ElementData
 from .default import XMLSchemaConverter
 
 if TYPE_CHECKING:

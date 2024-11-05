@@ -8,24 +8,36 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-This module contains mapping classes for managing namespaces.
+This module contains the base definitions for xmlschema's converters.
 """
 import copy
-import os
 import re
-from collections.abc import Mapping, MutableMapping
-from typing import Any, Callable, Container, Dict, Iterator, List, NamedTuple, \
-    Optional, Tuple, TypeVar, Union
+from collections import namedtuple
+from collections.abc import Callable, Container, Iterator, MutableMapping
+from typing import Any, List, NamedTuple, Optional, Tuple, Union
 
-from xmlschema.aliases import NsmapType, ElementType, LocationsType, XmlnsType
+from xmlschema.aliases import NsmapType, ElementType, XmlnsType
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from xmlschema.utils.decoding import iter_decoded_data
 from xmlschema.utils.qnames import get_namespace_map, update_namespaces, local_name
-from xmlschema.utils.urls import normalize_locations
 from xmlschema.resources import XMLResource
-import xmlschema.names as nm
 
 XMLNS_PROCESSING_MODES = frozenset(('stacked', 'collapsed', 'root-only', 'none'))
+
+
+ElementData = namedtuple('ElementData',
+                         ['tag', 'text', 'content', 'attributes', 'xmlns'],
+                         defaults=(None, None, None, None))
+"""
+Namedtuple for Element data interchange between decoders and converters.
+The field *tag* is a string containing the Element's tag, *text* can be `None`
+or a string representing the Element's text, *content* can be `None`, a list
+containing the Element's children or a dictionary containing element name to
+list of element contents for the Element's children (used for unordered input
+data), *attributes* can be `None` or a dictionary containing the Element's
+attributes, *xmlns* can be `None` or a list of couples containing namespace
+declarations.
+"""
 
 
 class NamespaceMapperContext(NamedTuple):
@@ -342,159 +354,3 @@ class NamespaceMapper(MutableMapping[str, str]):
                 return qname
             else:
                 return f'{{{uri}}}{name}' if uri else name
-
-
-T = TypeVar('T')
-
-
-class NamespaceResourcesMap(MutableMapping[str, T]):
-    """
-    Dictionary for storing information about namespace resources. Values are
-    lists of objects. Setting an existing value appends the object to the value.
-    Setting a value with a list sets/replaces the value.
-    """
-    __slots__ = ('_store',)
-
-    def __init__(self, *args: Any, **kwargs: Any):
-        self._store: Dict[str, List[T]] = {}
-        for item in args:
-            self.update(item)
-        self.update(**kwargs)
-
-    def __getitem__(self, uri: str) -> Any:
-        return self._store[uri]
-
-    def __setitem__(self, uri: str, value: Any) -> None:
-        if isinstance(value, list):
-            self._store[uri] = value[:]
-        else:
-            try:
-                self._store[uri].append(value)
-            except KeyError:
-                self._store[uri] = [value]
-
-    def __delitem__(self, uri: str) -> None:
-        del self._store[uri]
-
-    def __iter__(self) -> Iterator[str]:
-        return iter(self._store)
-
-    def __len__(self) -> int:
-        return len(self._store)
-
-    def __repr__(self) -> str:
-        return repr(self._store)
-
-    def clear(self) -> None:
-        self._store.clear()
-
-
-SCHEMAS_DIR = os.path.join(os.path.dirname(__file__), 'schemas/')
-
-
-class LocationHints(NamespaceResourcesMap[str]):
-
-    fallback_locations = {
-        # Locally saved schemas
-        nm.HFP_NAMESPACE: f'{SCHEMAS_DIR}HFP/XMLSchema-hasFacetAndProperty_minimal.xsd',
-        nm.VC_NAMESPACE: f'{SCHEMAS_DIR}XSI/XMLSchema-versioning.xsd',
-        nm.XLINK_NAMESPACE: f'{SCHEMAS_DIR}XLINK/xlink.xsd',
-        nm.XHTML_NAMESPACE: f'{SCHEMAS_DIR}XHTML/xhtml1-strict.xsd',
-        nm.WSDL_NAMESPACE: f'{SCHEMAS_DIR}WSDL/wsdl.xsd',
-        nm.SOAP_NAMESPACE: f'{SCHEMAS_DIR}WSDL/wsdl-soap.xsd',
-        nm.SOAP_ENVELOPE_NAMESPACE: f'{SCHEMAS_DIR}WSDL/soap-envelope.xsd',
-        nm.SOAP_ENCODING_NAMESPACE: f'{SCHEMAS_DIR}WSDL/soap-encoding.xsd',
-        nm.DSIG_NAMESPACE: f'{SCHEMAS_DIR}DSIG/xmldsig-core-schema.xsd',
-        nm.DSIG11_NAMESPACE: f'{SCHEMAS_DIR}DSIG/xmldsig11-schema.xsd',
-        nm.XENC_NAMESPACE: f'{SCHEMAS_DIR}XENC/xenc-schema.xsd',
-        nm.XENC11_NAMESPACE: f'{SCHEMAS_DIR}XENC/xenc-schema-11.xsd',
-
-        # Remote locations: contributors can propose additional official locations
-        # for other namespaces for extending this list.
-        nm.XSLT_NAMESPACE: 'http://www.w3.org/2007/schema-for-xslt20.xsd',
-    }
-    "Fallback schema location hints"
-
-    def __init__(self, locations: Optional[LocationsType] = None,
-                 base_url: Optional[str] = None,
-                 use_fallback: bool = False):
-        if not locations:
-            super().__init__()
-        elif isinstance(locations, (tuple, LocationHints)):
-            super().__init__(locations)
-        else:
-            super().__init__(normalize_locations(locations, base_url))
-
-        if not use_fallback:
-            self.fallback_locations = {}
-
-    def get_locations(self, namespace: str) -> List[str]:
-        locations: List[str]
-
-        if namespace not in self._store:
-            locations = []
-        else:
-            locations = [x for x in self._store[namespace]]
-
-        if namespace in self.fallback_locations:
-            locations.append(self.fallback_locations[namespace])
-        return locations
-
-
-class NamespaceView(Mapping[str, T]):
-    """
-    A read-only map for filtered access to a dictionary that stores
-    objects mapped from QNames in extended format.
-    """
-    __slots__ = 'target_dict', 'namespace', '_key_prefix'
-
-    def __init__(self, qname_dict: Dict[str, T], namespace_uri: str):
-        self.target_dict = qname_dict
-        self.namespace = namespace_uri
-        self._key_prefix = f'{{{namespace_uri}}}' if namespace_uri else ''
-
-    def __getitem__(self, key: str) -> T:
-        return self.target_dict[self._key_prefix + key]
-
-    def __len__(self) -> int:
-        if not self.namespace:
-            return len([k for k in self.target_dict if not k or k[0] != '{'])
-        return len([k for k in self.target_dict
-                    if k and k[0] == '{' and self.namespace == k[1:k.rindex('}')]])
-
-    def __iter__(self) -> Iterator[str]:
-        if not self.namespace:
-            for k in self.target_dict:
-                if not k or k[0] != '{':
-                    yield k
-        else:
-            for k in self.target_dict:
-                if k and k[0] == '{' and self.namespace == k[1:k.rindex('}')]:
-                    yield k[k.rindex('}') + 1:]
-
-    def __repr__(self) -> str:
-        return '%s(%s)' % (self.__class__.__name__, str(self.as_dict()))
-
-    def __contains__(self, key: object) -> bool:
-        if isinstance(key, str):
-            return self._key_prefix + key in self.target_dict
-        return key in self.target_dict
-
-    def __eq__(self, other: Any) -> Any:
-        return self.as_dict() == other
-
-    def as_dict(self, fqn_keys: bool = False) -> Dict[str, T]:
-        if not self.namespace:
-            return {
-                k: v for k, v in self.target_dict.items() if not k or k[0] != '{'
-            }
-        elif fqn_keys:
-            return {
-                k: v for k, v in self.target_dict.items()
-                if k and k[0] == '{' and self.namespace == k[1:k.rindex('}')]
-            }
-        else:
-            return {
-                k[k.rindex('}') + 1:]: v for k, v in self.target_dict.items()
-                if k and k[0] == '{' and self.namespace == k[1:k.rindex('}')]
-            }

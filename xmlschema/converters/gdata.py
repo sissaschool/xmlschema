@@ -16,7 +16,7 @@ from xmlschema.aliases import NsmapType, BaseXsdType
 from xmlschema.names import XSD_ANY_TYPE
 from xmlschema.utils.qnames import local_name
 
-from .element_data import ElementData
+from .base import ElementData
 from .default import stackable, XMLSchemaConverter
 
 if TYPE_CHECKING:

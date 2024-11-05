@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Any, Dict, Union
 
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError
 
-from .element_data import ElementData
+from .base import ElementData
 from .default import stackable, XMLSchemaConverter
 
 if TYPE_CHECKING:

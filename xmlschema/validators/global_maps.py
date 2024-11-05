@@ -1,5 +1,5 @@
 #
-# Copyright (c), 2016-2020, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2024, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -11,20 +11,22 @@
 This module contains functions and classes for namespaces XSD declarations/definitions.
 """
 import warnings
-from collections import Counter
-from typing import cast, Any, Callable, Dict, List, Iterable, Iterator, \
-    MutableMapping, Optional, Set, Union, Tuple, Type, TYPE_CHECKING
+from collections.abc import Iterator, Iterable, Mapping, Set
+from typing import cast, Any, Callable, Dict, List, Optional, Union, Tuple, \
+    Type, TYPE_CHECKING, TypeVar
 
 from xmlschema.exceptions import XMLSchemaKeyError, XMLSchemaTypeError, \
     XMLSchemaValueError, XMLSchemaWarning
-from xmlschema.names import XSD_NAMESPACE, XSD_REDEFINE, XSD_OVERRIDE, XSD_NOTATION, \
+from xmlschema.names import XSD_NAMESPACE, XSD_NOTATION, \
     XSD_ANY_TYPE, XSD_SIMPLE_TYPE, XSD_COMPLEX_TYPE, XSD_GROUP, \
     XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ELEMENT, XSI_TYPE
 from xmlschema.aliases import ComponentClassType, ElementType, SchemaType, BaseXsdType, \
-    SchemaGlobalType
-from xmlschema.namespaces import NamespaceResourcesMap
+    SchemaGlobalType, NsmapType
 from xmlschema.translation import gettext as _
-from xmlschema.utils.qnames import get_qname, local_name, get_extended_qname
+from xmlschema.utils.qnames import get_extended_qname
+from xmlschema.loaders import load_xsd_simple_types, load_xsd_attributes, \
+    load_xsd_attribute_groups, load_xsd_complex_types, load_xsd_elements, \
+    load_xsd_groups, load_xsd_notations, NamespaceResourcesMap, SchemaLoader
 
 from .exceptions import XMLSchemaNotBuiltError, XMLSchemaModelError, XMLSchemaModelDepthError, \
     XMLSchemaParseError
@@ -38,108 +40,67 @@ if TYPE_CHECKING:
     from .schemas import XMLSchemaBase
 
 
-#
-# Defines the load functions for XML Schema structures
-def create_load_function(tag: str) \
-        -> Callable[[Dict[str, Any], Iterable[SchemaType]], None]:
-
-    def load_xsd_globals(xsd_globals: Dict[str, Any],
-                         schemas: Iterable[SchemaType]) -> None:
-        redefinitions = []
-        for schema in schemas:
-            target_namespace = schema.target_namespace
-
-            for elem in schema.root:
-                if elem.tag not in {XSD_REDEFINE, XSD_OVERRIDE}:
-                    continue
-
-                location = elem.get('schemaLocation')
-                if location is None:
-                    continue
-                for child in filter(lambda x: x.tag == tag and 'name' in x.attrib, elem):
-                    qname = get_qname(target_namespace, child.attrib['name'])
-                    redefinitions.append((qname, elem, child, schema, schema.includes[location]))
-
-            for elem in filter(lambda x: x.tag == tag and 'name' in x.attrib, schema.root):
-                qname = get_qname(target_namespace, elem.attrib['name'])
-                if qname not in xsd_globals:
-                    xsd_globals[qname] = (elem, schema)
-                else:
-                    try:
-                        other_schema = xsd_globals[qname][1]
-                    except (TypeError, IndexError):
-                        pass
-                    else:
-                        # It's ignored or replaced in case of an override
-                        if other_schema.override is schema:
-                            continue
-                        elif schema.override is other_schema:
-                            xsd_globals[qname] = (elem, schema)
-                            continue
-
-                    msg = _("global {0} with name={1!r} is already defined")
-                    schema.parse_error(
-                        error=msg.format(local_name(tag), qname),
-                        elem=elem
-                    )
-
-        redefined_names = Counter(x[0] for x in redefinitions)
-        for qname, elem, child, schema, redefined_schema in reversed(redefinitions):
-
-            # Checks multiple redefinitions
-            if redefined_names[qname] > 1:
-                redefined_names[qname] = 1
-
-                redefined_schemas: Any
-                redefined_schemas = [x[-1] for x in redefinitions if x[0] == qname]
-                if any(redefined_schemas.count(x) > 1 for x in redefined_schemas):
-                    msg = _("multiple redefinition for {0} {1!r}")
-                    schema.parse_error(
-                        error=msg.format(local_name(child.tag), qname),
-                        elem=child
-                    )
-                else:
-                    redefined_schemas = {x[-1]: x[-2] for x in redefinitions if x[0] == qname}
-                    for rs, s in redefined_schemas.items():
-                        while True:
-                            try:
-                                s = redefined_schemas[s]
-                            except KeyError:
-                                break
-
-                            if s is rs:
-                                msg = _("circular redefinition for {0} {1!r}")
-                                schema.parse_error(
-                                    error=msg.format(local_name(child.tag), qname),
-                                    elem=child
-                                )
-                                break
-
-            if elem.tag == XSD_OVERRIDE:
-                # Components which match nothing in the target schema are ignored. See the
-                # period starting with "Source declarations not present in the target set"
-                # of the paragraph https://www.w3.org/TR/xmlschema11-1/#override-schema.
-                if qname in xsd_globals:
-                    xsd_globals[qname] = (child, schema)
-            else:
-                # Append to a list if it's a redefinition
-                try:
-                    xsd_globals[qname].append((child, schema))
-                except KeyError:
-                    schema.parse_error(_("not a redefinition!"), child)
-                except AttributeError:
-                    xsd_globals[qname] = [xsd_globals[qname], (child, schema)]
-
-    return load_xsd_globals
+T = TypeVar('T')
 
 
-load_xsd_simple_types = create_load_function(XSD_SIMPLE_TYPE)
-load_xsd_attributes = create_load_function(XSD_ATTRIBUTE)
-load_xsd_attribute_groups = create_load_function(XSD_ATTRIBUTE_GROUP)
-load_xsd_complex_types = create_load_function(XSD_COMPLEX_TYPE)
-load_xsd_elements = create_load_function(XSD_ELEMENT)
-load_xsd_groups = create_load_function(XSD_GROUP)
-load_xsd_notations = create_load_function(XSD_NOTATION)
+class NamespaceView(Mapping[str, T]):
+    """
+    A read-only map for filtered access to a dictionary that stores
+    objects mapped from QNames in extended format.
+    """
+    __slots__ = 'target_dict', 'namespace', '_key_prefix'
+
+    def __init__(self, qname_dict: Dict[str, T], namespace_uri: str):
+        self.target_dict = qname_dict
+        self.namespace = namespace_uri
+        self._key_prefix = f'{{{namespace_uri}}}' if namespace_uri else ''
+
+    def __getitem__(self, key: str) -> T:
+        return self.target_dict[self._key_prefix + key]
+
+    def __len__(self) -> int:
+        if not self.namespace:
+            return len([k for k in self.target_dict if not k or k[0] != '{'])
+        return len([k for k in self.target_dict
+                    if k and k[0] == '{' and self.namespace == k[1:k.rindex('}')]])
+
+    def __iter__(self) -> Iterator[str]:
+        if not self.namespace:
+            for k in self.target_dict:
+                if not k or k[0] != '{':
+                    yield k
+        else:
+            for k in self.target_dict:
+                if k and k[0] == '{' and self.namespace == k[1:k.rindex('}')]:
+                    yield k[k.rindex('}') + 1:]
+
+    def __repr__(self) -> str:
+        return '%s(%s)' % (self.__class__.__name__, str(self.as_dict()))
+
+    def __contains__(self, key: object) -> bool:
+        if isinstance(key, str):
+            return self._key_prefix + key in self.target_dict
+        return key in self.target_dict
+
+    def __eq__(self, other: Any) -> Any:
+        return self.as_dict() == other
+
+    def as_dict(self, fqn_keys: bool = False) -> Dict[str, T]:
+        if not self.namespace:
+            return {
+                k: v for k, v in self.target_dict.items() if not k or k[0] != '{'
+            }
+        elif fqn_keys:
+            return {
+                k: v for k, v in self.target_dict.items()
+                if k and k[0] == '{' and self.namespace == k[1:k.rindex('}')]
+            }
+        else:
+            return {
+                k[k.rindex('}') + 1:]: v for k, v in self.target_dict.items()
+                if k and k[0] == '{' and self.namespace == k[1:k.rindex('}')]
+            }
+
 
 
 class XsdGlobals(XsdValidator):
@@ -149,7 +110,7 @@ class XsdGlobals(XsdValidator):
     add its declarations to the global maps.
 
     :param validator: the origin schema class/instance used for creating the global maps.
-    :param validation: the XSD validation mode to use, can be 'strict', 'lax' or 'skip'.
+    :param loader: the schema loader instance. Optional.
     """
     types: Dict[str, Union[BaseXsdType, Tuple[ElementType, SchemaType]]]
     attributes: Dict[str, Union[XsdAttribute, Tuple[ElementType, SchemaType]]]
@@ -175,11 +136,12 @@ class XsdGlobals(XsdValidator):
         XSD_NOTATION: 'lookup_notation',
     }
 
-    def __init__(self, validator: SchemaType, validation: str = 'strict') -> None:
-        super().__init__(validation)
+    def __init__(self, validator: SchemaType, loader: Optional[SchemaLoader] = None) -> None:
+        super().__init__(validator.validation)
 
         self.validator = validator
-        self.namespaces = NamespaceResourcesMap()  # Registered schemas by namespace URI
+        self.loader = SchemaLoader() if loader is None else loader
+        self.namespaces = self.loader.namespaces  # Registered schemas by namespace URI
         self.missing_locations = []     # Missing or failing resource locations
 
         self.types = {}                 # Global types (both complex and simple)
@@ -206,12 +168,12 @@ class XsdGlobals(XsdValidator):
         self._loaded_schemas = set()
 
     def __repr__(self) -> str:
-        return '%s(validator=%r, validation=%r)' % (
-            self.__class__.__name__, self.validator, self.validation
+        return '%s(validator=%r)' % (
+            self.__class__.__name__, self.validator
         )
 
     def copy(self, validator: Optional[SchemaType] = None,
-             validation: Optional[str] = None) -> 'XsdGlobals':
+             loader: Optional[SchemaLoader] = None) -> 'XsdGlobals':
         """
         Creates a shallow copy of the object. The associated schemas do not change
         the original global maps. This is useful for sharing the same meta-schema
@@ -219,7 +181,7 @@ class XsdGlobals(XsdValidator):
         """
         obj = self.__class__(
             validator=self.validator if validator is None else validator,
-            validation=validation or self.validation
+            loader=self.loader.__copy__() if loader is None else loader,
         )
         obj.namespaces.update(self.namespaces)
         obj.types.update(self.types)
@@ -371,7 +333,7 @@ class XsdGlobals(XsdValidator):
             raise XMLSchemaTypeError(msg.format(obj))
 
     def get_instance_type(self, type_name: str, base_type: BaseXsdType,
-                          namespaces: MutableMapping[str, str]) -> BaseXsdType:
+                          namespaces: NsmapType) -> BaseXsdType:
         """
         Returns the instance XSI type from global maps, validating it with the reference base type.
 

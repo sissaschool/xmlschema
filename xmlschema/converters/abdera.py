@@ -15,7 +15,7 @@ from xmlschema.aliases import NsmapType, BaseXsdType
 from xmlschema.utils.qnames import local_name
 from xmlschema.resources import XMLResource
 
-from .element_data import ElementData
+from .base import ElementData
 from .default import XMLSchemaConverter
 
 if TYPE_CHECKING:

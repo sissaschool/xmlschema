@@ -12,7 +12,7 @@ from typing import Any, Optional, Type, Union
 from xmlschema.exceptions import XMLSchemaTypeError
 from xmlschema.translation import gettext as _
 
-from .element_data import ElementData
+from .base import ElementData, NamespaceMapper
 from .default import XMLSchemaConverter
 from .unordered import UnorderedConverter
 from .parker import ParkerConverter
