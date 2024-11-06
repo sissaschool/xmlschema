@@ -9,8 +9,9 @@
 #
 import logging
 import traceback
+from collections.abc import Callable
 from functools import wraps
-from typing import Any, Callable, Optional, TypeVar, Union
+from typing import Any, Optional, TypeVar, Union
 
 from xmlschema.exceptions import XMLSchemaValueError
 from xmlschema.translation import gettext as _
@@ -21,7 +22,7 @@ LOG_LEVELS = {'DEBUG', 'INFO', 'WARN', 'WARNING', 'ERROR', 'CRITICAL'}
 
 
 def set_logging_level(level: Union[str, int]) -> None:
-    """Set logging level of xmlschema's logger."""
+    """set logging level of xmlschema's logger."""
     if isinstance(level, str):
         _level = level.strip().upper()
         if _level not in LOG_LEVELS:

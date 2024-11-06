@@ -10,8 +10,8 @@
 """
 This module contains classes for XML Schema wildcards.
 """
-from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, \
-    Tuple, Union
+from collections.abc import Callable, Iterator, Iterable
+from typing import Any, Optional, Union
 
 from elementpath import SchemaElementNode, build_schema_node_tree
 
@@ -35,9 +35,9 @@ from . import elements
 
 class XsdWildcard(XsdComponent):
     names = ()
-    namespace: Union[Tuple[str], List[str]] = ('##any',)
-    not_namespace: Union[Tuple[()], List[str]] = ()
-    not_qname: Union[Tuple[()], List[str]] = ()
+    namespace: Union[tuple[str], list[str]] = ('##any',)
+    not_namespace: Union[tuple[()], list[str]] = ()
+    not_qname: Union[tuple[()], list[str]] = ()
     process_contents = 'strict'
 
     # For compatibility with protocol of XSD elements/attributes
@@ -181,7 +181,7 @@ class XsdWildcard(XsdComponent):
         else:
             return namespace in self.namespace
 
-    def deny_namespaces(self, namespaces: List[str]) -> bool:
+    def deny_namespaces(self, namespaces: list[str]) -> bool:
         if self.not_namespace:
             return all(x in self.not_namespace for x in namespaces)
         elif '##any' in self.namespace:
@@ -404,7 +404,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
         </any>
     """
     _ADMITTED_TAGS = {XSD_ANY}
-    precedences: Dict[ModelGroupType, List[ModelParticleType]]
+    precedences: dict[ModelGroupType, list[ModelParticleType]]
     copy: Callable[['XsdAnyElement'], 'XsdAnyElement']
 
     def __init__(self, elem: ElementType, schema: SchemaType, parent: XsdComponent) -> None:
@@ -528,7 +528,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
         )
         return xsd_element.raw_decode(obj, validation, context)
 
-    def raw_encode(self, obj: Tuple[str, ElementType], validation: str,
+    def raw_encode(self, obj: tuple[str, ElementType], validation: str,
                    context: EncodeContext) -> Any:
         name, value = obj
         namespace = get_namespace(name)
@@ -612,7 +612,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
         return True
 
 
-class XsdAnyAttribute(XsdWildcard, ValidationMixin[Tuple[str, str], DecodedValueType]):
+class XsdAnyAttribute(XsdWildcard, ValidationMixin[tuple[str, str], DecodedValueType]):
     """
     Class for XSD 1.0 *anyAttribute* wildcards.
 
@@ -657,7 +657,7 @@ class XsdAnyAttribute(XsdWildcard, ValidationMixin[Tuple[str, str], DecodedValue
         except LookupError:
             return None
 
-    def raw_decode(self, obj: Tuple[str, str], validation: str,
+    def raw_decode(self, obj: tuple[str, str], validation: str,
                    context: DecodeContext) -> Union[DecodedValueType, EmptyType]:
         name, value = obj
 
@@ -684,7 +684,7 @@ class XsdAnyAttribute(XsdWildcard, ValidationMixin[Tuple[str, str], DecodedValue
 
         return value
 
-    def raw_encode(self, obj: Tuple[str, AtomicValueType], validation: str,
+    def raw_encode(self, obj: tuple[str, AtomicValueType], validation: str,
                    context: EncodeContext) -> Union[str, None, EmptyType]:
 
         name, value = obj

@@ -10,10 +10,10 @@
 import io
 import os.path
 from collections import deque
+from collections.abc import Iterator, MutableMapping
 from io import StringIO, BytesIO
 from pathlib import Path
-from typing import cast, Any, Dict, Optional, IO, Iterator, \
-    List, MutableMapping, Union, Tuple
+from typing import cast, Any, Optional, IO, Union
 from urllib.request import urlopen, OpenerDirector
 from urllib.parse import urlsplit, unquote
 from urllib.error import URLError
@@ -120,7 +120,7 @@ class XMLResource(_ResourceLoader):
             msg = "block access to files out of sandbox requires 'base_url' to be set"
             raise XMLResourceValueError(msg)
 
-        # Set and validate arguments
+        # set and validate arguments
         self.base_url = base_url
         self.allow = allow
         self.defuse = defuse
@@ -264,7 +264,7 @@ class XMLResource(_ResourceLoader):
             setattr(self, name, getattr(other, name))
         del other
 
-    def get_arguments(self) -> Dict[str, Any]:
+    def get_arguments(self) -> dict[str, Any]:
         """Returns keyword arguments for rebuilding the XML resource."""
         return {k: getattr(self, k) for k, v in self.__class__.__dict__.items()
                 if isinstance(v, Argument)}
@@ -492,7 +492,7 @@ class XMLResource(_ResourceLoader):
 
                     self._clear(node, ancestors)
 
-    def iter_location_hints(self, tag: Optional[str] = None) -> Iterator[Tuple[str, str]]:
+    def iter_location_hints(self, tag: Optional[str] = None) -> Iterator[tuple[str, str]]:
         """
         Yields all schema location hints of the XML resource. If tag
         is not None or '*', only location hints of elements whose tag
@@ -501,7 +501,7 @@ class XMLResource(_ResourceLoader):
         for elem in self.iter(tag):
             yield from etree_iter_location_hints(elem)
 
-    def iter_depth(self, mode: int = 1, ancestors: Optional[List[ElementType]] = None) \
+    def iter_depth(self, mode: int = 1, ancestors: Optional[list[ElementType]] = None) \
             -> Iterator[ElementType]:
         """
         Iterates XML subtrees. For fully loaded resources yields the root element.
@@ -571,7 +571,7 @@ class XMLResource(_ResourceLoader):
 
     def _select_elements(self, token: XPathToken,
                          node: ResourceNodeType,
-                         ancestors: Optional[List[ElementType]] = None) -> Iterator[ElementType]:
+                         ancestors: Optional[list[ElementType]] = None) -> Iterator[ElementType]:
         context = XPathContext(node)
         for item in token.select(context):
             if not isinstance(item, ElementNode):  # pragma: no cover
@@ -595,7 +595,7 @@ class XMLResource(_ResourceLoader):
 
     def iterfind(self, path: str,
                  namespaces: Optional[NsmapType] = None,
-                 ancestors: Optional[List[ElementType]] = None) -> Iterator[ElementType]:
+                 ancestors: Optional[list[ElementType]] = None) -> Iterator[ElementType]:
         """
         Apply XPath selection to XML resource that yields full subtrees.
 
@@ -656,11 +656,11 @@ class XMLResource(_ResourceLoader):
 
     def find(self, path: str,
              namespaces: Optional[NsmapType] = None,
-             ancestors: Optional[List[ElementType]] = None) -> Optional[ElementType]:
+             ancestors: Optional[list[ElementType]] = None) -> Optional[ElementType]:
         return next(self.iterfind(path, namespaces, ancestors), None)
 
     def findall(self, path: str, namespaces: Optional[NsmapType] = None) \
-            -> List[ElementType]:
+            -> list[ElementType]:
         return list(self.iterfind(path, namespaces))
 
     def get_namespaces(self, namespaces: Optional[NsmapType] = None,

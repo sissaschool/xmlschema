@@ -15,7 +15,7 @@ are created using the XSD 1.0 meta-schema or with and additional base schema for
 """
 from decimal import Decimal
 from elementpath import datatypes
-from typing import cast, Any, Dict, Optional, Type, Tuple, Union
+from typing import cast, Any, Optional, Type, Union
 from xml.etree.ElementTree import Element
 
 from xmlschema.exceptions import XMLSchemaValueError
@@ -72,7 +72,7 @@ XSD11_FLOAT_PATTERN_ELEMENT = Element(
 )
 
 
-XSD_COMMON_BUILTIN_TYPES: Tuple[Dict[str, Any], ...] = (
+XSD_COMMON_BUILTIN_TYPES: tuple[dict[str, Any], ...] = (
     # ***********************
     # *** Primitive types ***
     # ***********************
@@ -317,7 +317,7 @@ XSD_COMMON_BUILTIN_TYPES: Tuple[Dict[str, Any], ...] = (
     },  # only negative value allowed [< 0]
 )
 
-XSD_10_BUILTIN_TYPES: Tuple[Dict[str, Any], ...] = XSD_COMMON_BUILTIN_TYPES + (
+XSD_10_BUILTIN_TYPES: tuple[dict[str, Any], ...] = XSD_COMMON_BUILTIN_TYPES + (
     {
         'name': nm.XSD_DOUBLE,
         'python_type': float,
@@ -364,7 +364,7 @@ XSD_10_BUILTIN_TYPES: Tuple[Dict[str, Any], ...] = XSD_COMMON_BUILTIN_TYPES + (
     },  # [-][Y*]YYYY-MM
 )
 
-XSD_11_BUILTIN_TYPES: Tuple[Dict[str, Any], ...] = XSD_COMMON_BUILTIN_TYPES + (
+XSD_11_BUILTIN_TYPES: tuple[dict[str, Any], ...] = XSD_COMMON_BUILTIN_TYPES + (
     {
         'name': nm.XSD_DOUBLE,
         'python_type': float,
@@ -441,7 +441,7 @@ XSD_11_BUILTIN_TYPES: Tuple[Dict[str, Any], ...] = XSD_COMMON_BUILTIN_TYPES + (
 
 def xsd_builtin_types_factory(
         meta_schema: SchemaType,
-        xsd_types: Dict[str, Union[BaseXsdType, Tuple[ElementType, SchemaType]]],
+        xsd_types: dict[str, Union[BaseXsdType, tuple[ElementType, SchemaType]]],
         atomic_builtin_class: Optional[Type[XsdAtomicBuiltin]] = None) -> None:
     """
     Builds the dictionary for XML Schema built-in types mapping.
@@ -484,7 +484,7 @@ def xsd_builtin_types_factory(
         item = item.copy()
         name: str = item['name']
         try:
-            value = cast(Tuple[ElementType, SchemaType], xsd_types[name])
+            value = cast(tuple[ElementType, SchemaType], xsd_types[name])
         except KeyError:
             # If builtin type element is missing create a dummy element. Necessary for the
             # meta-schema XMLSchema.xsd of XSD 1.1, that not includes builtins declarations.
@@ -494,7 +494,7 @@ def xsd_builtin_types_factory(
             if schema is not meta_schema:
                 raise XMLSchemaValueError("loaded entry schema is not the meta-schema!")
 
-        base_type: Union[None, BaseXsdType, Tuple[ElementType, SchemaType]]
+        base_type: Union[None, BaseXsdType, tuple[ElementType, SchemaType]]
         if 'base_type' in item:
             base_type = item['base_type'] = xsd_types[item['base_type']]
         else:

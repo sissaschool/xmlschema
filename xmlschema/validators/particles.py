@@ -7,7 +7,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from typing import cast, Any, List, Optional, Tuple, Union
+from typing import cast, Any, Optional, Union
 
 from xmlschema.exceptions import XMLSchemaValueError
 from xmlschema.aliases import ElementType, ModelGroupType, ModelParticleType, \
@@ -35,7 +35,7 @@ class ParticleMixin:
 
     min_occurs: int = 1
     max_occurs: Optional[int] = 1
-    oid: Optional[Tuple[ModelGroupType]] = None
+    oid: Optional[tuple[ModelGroupType]] = None
     skip: bool = False
 
     def __init__(self, min_occurs: int = 1, max_occurs: Optional[int] = 1) -> None:
@@ -43,7 +43,7 @@ class ParticleMixin:
         self.max_occurs = max_occurs
 
     @property
-    def occurs(self) -> Tuple[int, Optional[int]]:
+    def occurs(self) -> tuple[int, Optional[int]]:
         return self.min_occurs, self.max_occurs
 
     @property
@@ -116,7 +116,7 @@ class ParticleMixin:
             return False
         return self.max_occurs < occurs[self]
 
-    def get_expected(self, occurs: OccursCounterType) -> List[SchemaElementType]:
+    def get_expected(self, occurs: OccursCounterType) -> list[SchemaElementType]:
         return [cast(SchemaElementType, self)] if self.min_occurs > occurs[self] else []
 
     def has_occurs_restriction(self, other: Union[ModelParticleType, 'OccursCalculator']) -> bool:
@@ -176,7 +176,7 @@ class OccursCalculator:
     max_occurs: Optional[int]
 
     @property
-    def occurs(self) -> Tuple[int, Optional[int]]:
+    def occurs(self) -> tuple[int, Optional[int]]:
         return self.min_occurs, self.max_occurs
 
     def __init__(self) -> None:

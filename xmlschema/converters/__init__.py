@@ -24,7 +24,7 @@ from .columnar import ColumnarConverter
 
 __all__ = ['XMLSchemaConverter', 'UnorderedConverter', 'ParkerConverter',
            'BadgerFishConverter', 'AbderaConverter', 'JsonMLConverter',
-           'ColumnarConverter', 'ElementData', 'GDataConverter',
+           'ColumnarConverter', 'ElementData', 'GDataConverter', 'NamespaceMapper',
            'ConverterType', 'check_converter_argument', 'get_converter']
 
 

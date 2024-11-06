@@ -7,7 +7,8 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from typing import cast, Any, Iterator, Optional, Union, TYPE_CHECKING
+from collections.abc import Iterator
+from typing import cast, Any, Optional, Union, TYPE_CHECKING
 
 from elementpath import XPath2Parser, XPathSchemaContext, AbstractSchemaProxy, \
     SchemaElementNode, LazyElementNode

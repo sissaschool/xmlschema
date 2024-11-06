@@ -10,11 +10,11 @@
 """
 This module contains classes for XML Schema attributes and attribute groups.
 """
+from collections.abc import Callable, Iterator, MutableMapping
 from copy import copy as _copy
 from decimal import Decimal
 from elementpath.datatypes import AbstractDateTime, Duration, AbstractBinary
-from typing import cast, Any, Callable, Union, Dict, List, Optional, \
-    Iterator, MutableMapping, Tuple
+from typing import cast, Any, Optional, Union
 
 from xmlschema.exceptions import XMLSchemaValueError
 from xmlschema.names import XSI_NAMESPACE, XSD_ANY_SIMPLE_TYPE, XSD_SIMPLE_TYPE, \
@@ -32,8 +32,8 @@ from .xsdbase import XsdComponent, XsdAnnotation
 from .simple_types import XsdSimpleType
 from .wildcards import XsdAnyAttribute
 
-AttributeGroupDecodeType = Optional[List[Tuple[str, DecodedValueType]]]
-AttributeGroupEncodeType = Optional[List[Tuple[str, str]]]
+AttributeGroupDecodeType = Optional[list[tuple[str, DecodedValueType]]]
+AttributeGroupEncodeType = Optional[list[tuple[str, str]]]
 
 
 class XsdAttribute(XsdComponent, ValidationMixin[str, DecodedValueType]):
@@ -351,7 +351,7 @@ class XsdAttributeGroup(
                  derivation: Optional[str] = None,
                  base_attributes: Optional['XsdAttributeGroup'] = None) -> None:
 
-        self._attribute_group: Dict[Optional[str], Union[XsdAttribute, XsdAnyAttribute]] = {}
+        self._attribute_group: dict[Optional[str], Union[XsdAttribute, XsdAnyAttribute]] = {}
         self.derivation = derivation
         self.base_attributes = base_attributes
         XsdComponent.__init__(self, elem, schema, parent)
@@ -403,7 +403,7 @@ class XsdAttributeGroup(
 
         any_attribute = None
         attribute_group_refs = []
-        attributes: Dict[Optional[str], Union[XsdAttribute, XsdAnyAttribute]] = {}
+        attributes: dict[Optional[str], Union[XsdAttribute, XsdAnyAttribute]] = {}
 
         for child in self.elem:
             if child.tag == XSD_ANNOTATION or callable(child.tag):
@@ -636,7 +636,7 @@ class XsdAttributeGroup(
                 if v.use == 'required':
                     yield k
 
-    def iter_value_constraints(self, use_defaults: bool = True) -> Iterator[Tuple[str, str]]:
+    def iter_value_constraints(self, use_defaults: bool = True) -> Iterator[tuple[str, str]]:
         if use_defaults:
             for k, v in self._attribute_group.items():
                 if v.fixed is not None and k:

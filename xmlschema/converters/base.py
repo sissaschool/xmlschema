@@ -14,7 +14,7 @@ import copy
 import re
 from collections import namedtuple
 from collections.abc import Callable, Container, Iterator, MutableMapping
-from typing import Any, List, NamedTuple, Optional, Tuple, Union
+from typing import Any, NamedTuple, Optional, Union
 
 from xmlschema.aliases import NsmapType, ElementType, XmlnsType
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError
@@ -78,7 +78,7 @@ class NamespaceMapper(MutableMapping[str, str]):
         'xmlns_processing', 'source', '_xmlns_getter', '__dict__'
 
     _namespaces: NsmapType
-    _contexts: List[NamespaceMapperContext]
+    _contexts: list[NamespaceMapperContext]
     _xmlns_getter: Optional[Callable[[ElementType], XmlnsType]]
 
     def __init__(self, namespaces: Optional[NsmapType] = None,
@@ -194,7 +194,7 @@ class NamespaceMapper(MutableMapping[str, str]):
 
     def set_context(self, obj: Any, level: int) -> XmlnsType:
         """
-        Set the right context for the XML data and its level, updating the namespace
+        set the right context for the XML data and its level, updating the namespace
         map if necessary. Returns the xmlns declarations of the provided XML data.
         """
         xmlns = None
@@ -303,7 +303,7 @@ class NamespaceMapper(MutableMapping[str, str]):
 
     def unmap_qname(self, qname: str,
                     name_table: Optional[Container[Optional[str]]] = None,
-                    xmlns: Optional[List[Tuple[str, str]]] = None) -> str:
+                    xmlns: Optional[list[tuple[str, str]]] = None) -> str:
         """
         Converts a QName in prefixed format or a local name to the extended QName format.
         Local names are converted only if a default namespace is included in the instance.

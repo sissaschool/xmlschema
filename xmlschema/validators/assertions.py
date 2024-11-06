@@ -9,7 +9,8 @@
 #
 import threading
 import warnings
-from typing import TYPE_CHECKING, Any, Dict, Iterator, Union, Type
+from collections.abc import Iterator
+from typing import TYPE_CHECKING, Any, Union, Type
 
 from elementpath import ElementPathError, XPath2Parser, XPathContext, \
     LazyElementNode, SchemaElementNode, build_schema_node_tree
@@ -67,7 +68,7 @@ class XsdAssert(XsdComponent, ElementPathMixin[Union['XsdAssert', SchemaElementT
         else:
             return '%s(test=%r)' % (self.__class__.__name__, self.path[:37] + '...')
 
-    def __getstate__(self) -> Dict[str, Any]:
+    def __getstate__(self) -> dict[str, Any]:
         state = self.__dict__.copy()
         state.pop('_xpath_lock', None)
         return state
@@ -146,7 +147,7 @@ class XsdAssert(XsdComponent, ElementPathMixin[Union['XsdAssert', SchemaElementT
         if value is not None:
             value = self.base_type.text_decode(value, context=context)
 
-        kwargs: Dict[str, Any] = {
+        kwargs: dict[str, Any] = {
             'uri': context.source.url,
             'fragment': True,
             'variables': {'value': value},

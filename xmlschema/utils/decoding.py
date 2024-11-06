@@ -8,8 +8,8 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from decimal import Decimal
-from typing import Any, Dict, Iterator, MutableMapping, MutableSequence, \
-    Optional, Tuple, Union
+from collections.abc import Iterator, MutableMapping, MutableSequence
+from typing import Any, Optional, Union
 
 from xmlschema.aliases import DecodedValueType, NumericValueType
 
@@ -29,7 +29,7 @@ Empty = EmptyType()
 """A singleton instance for representing empty decode/encode results."""
 
 
-def count_digits(number: NumericValueType) -> Tuple[int, int]:
+def count_digits(number: NumericValueType) -> tuple[int, int]:
     """
     Counts the digits of a number.
 
@@ -80,8 +80,8 @@ def raw_encode_value(value: DecodedValueType) -> Optional[str]:
 
 
 def raw_encode_attributes(attributes: DecodedAttributesType = None) \
-        -> Dict[str, str]:
-    attrib: Dict[str, str] = {}
+        -> dict[str, str]:
+    attrib: dict[str, str] = {}
     if attributes:
         for k, v in attributes.items():
             value = raw_encode_value(v)
@@ -91,7 +91,7 @@ def raw_encode_attributes(attributes: DecodedAttributesType = None) \
 
 
 def iter_decoded_data(obj: Any, level: int = 0) \
-        -> Iterator[Tuple[Union[MutableMapping[Any, Any], MutableSequence[Any]], int]]:
+        -> Iterator[tuple[Union[MutableMapping[Any, Any], MutableSequence[Any]], int]]:
     """
     Iterates a nested object composed by lists and dictionaries,
     pairing with the level depth.

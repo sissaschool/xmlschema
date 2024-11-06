@@ -12,25 +12,24 @@ This module contains mapping classes for managing namespaces.
 """
 import os
 from collections import Counter
-from collections.abc import Iterable
-from typing import Any, Callable, Dict, List, Optional, Set, TypeVar, Union, MutableMapping, Sequence, Tuple, Iterator
+from collections.abc import Callable, Iterable, Iterator, MutableMapping, Sequence
+from typing import Any, Optional, TypeVar, Union
 
 from xmlschema.aliases import LocationsType, SchemaType
 from xmlschema.translation import gettext as _
 from xmlschema.utils.qnames import get_qname, local_name
 from xmlschema.utils.urls import normalize_locations
-from xmlschema.resources import XMLResource
 import xmlschema.names as nm
 
 SCHEMAS_DIR = os.path.join(os.path.dirname(__file__), 'schemas/')
 
 ##
 # Resources maps
-T = TypeVar('T')
-ResourceMapArg = Union[MutableMapping[str, T], Sequence[Tuple[str, T]]]
+T = TypeVar('T', bound=Any)
+ResourceMapArg = Union[MutableMapping[str, T], Sequence[tuple[str, T]]]
 
 
-class NamespaceResourcesMap(MutableMapping[str, T]):
+class NamespaceResourcesMap(MutableMapping[str, list[T]]):
     """
     Dictionary for storing information about namespace resources. Values are
     lists of objects. Setting an existing value appends the object to the value.
@@ -38,13 +37,13 @@ class NamespaceResourcesMap(MutableMapping[str, T]):
     """
     __slots__ = ('_store',)
 
-    def __init__(self, *args: ResourceMapArg, **kwargs: T):
-        self._store: Dict[str, List[T]] = {}
+    def __init__(self, *args: ResourceMapArg[T], **kwargs: T):
+        self._store: dict[str, list[T]] = {}
         for item in args:
             self.update(item)
         self.update(**kwargs)
 
-    def __getitem__(self, uri: str) -> Any:
+    def __getitem__(self, uri: str) -> list[T]:
         return self._store[uri]
 
     def __setitem__(self, uri: str, value: Any) -> None:
@@ -71,13 +70,12 @@ class NamespaceResourcesMap(MutableMapping[str, T]):
     def clear(self) -> None:
         self._store.clear()
 
-    def __copy__(self) -> 'NamespaceResourcesMap[T]':
+    def copy(self) -> 'NamespaceResourcesMap[T]':
         obj: NamespaceResourcesMap[T] = object.__new__(self.__class__)
         obj._store = {k: v.copy() for k, v in self.items()}
         return obj
 
-    def copy(self) -> 'NamespaceResourcesMap[T]':
-        return self.__copy__()
+    __copy__ = copy
 
 
 class LocationHints(NamespaceResourcesMap[str]):
@@ -98,9 +96,9 @@ class LocationHints(NamespaceResourcesMap[str]):
 #
 # Defines the load functions for XML Schema structures
 def create_load_function(tag: str) \
-        -> Callable[[Dict[str, Any], Iterable[SchemaType]], None]:
+        -> Callable[[dict[str, Any], Iterable[SchemaType]], None]:
 
-    def load_xsd_globals(xsd_globals: Dict[str, Any],
+    def load_xsd_globals(xsd_globals: dict[str, Any],
                          schemas: Iterable[SchemaType]) -> None:
         redefinitions = []
         for schema in schemas:
@@ -221,9 +219,10 @@ class SchemaLoader:
         nm.XSLT_NAMESPACE: 'http://www.w3.org/2007/schema-for-xslt20.xsd',
     }
 
-    schemas: Set[SchemaType]
+    schemas: set[SchemaType]
     namespaces: NamespaceResourcesMap[SchemaType]
-    locations: NamespaceResourcesMap[str]
+    locations: LocationHints
+    missing_locations: set[str]
 
     def __init__(self, locations: Optional[LocationsType] = None,
                  base_url: Optional[str] = None,
@@ -235,10 +234,10 @@ class SchemaLoader:
         if not use_fallback:
             self.fallback_locations = {}
 
-        self.missing_locations = []  # Missing or failing resource locations
+        self.missing_locations = set()  # Missing or failing resource locations
 
-    def get_locations(self, namespace: str) -> List[str]:
-        locations: List[str]
+    def get_locations(self, namespace: str) -> list[str]:
+        locations: list[str]
 
         if namespace not in self.locations:
             locations = []
@@ -249,13 +248,13 @@ class SchemaLoader:
             locations.append(self.fallback_locations[namespace])
         return locations
 
-    def __copy__(self):
+    def __copy__(self) -> 'SchemaLoader':
         loader: SchemaLoader = object.__new__(self.__class__)
         loader.__dict__.update(self.__dict__)
-        loader.schemas = self.schemas.copy()
+        loader.schemas = {s for s in self.schemas}
         loader.namespaces = self.namespaces.copy()
         loader.locations = self.locations.copy()
         return loader
 
-    def copy(self):
+    def copy(self) -> 'SchemaLoader':
         return self.__copy__()

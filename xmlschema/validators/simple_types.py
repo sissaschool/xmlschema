@@ -12,8 +12,8 @@ This module contains classes for XML Schema simple data types.
 """
 from copy import copy as _copy
 from decimal import DecimalException
-from typing import cast, Any, Callable, Dict, Iterator, List, \
-    Optional, Set, Union, Tuple, Type
+from collections.abc import Callable, Iterator
+from typing import cast, Any, Optional, Union, Type
 from xml.etree import ElementTree
 
 from xmlschema.aliases import ElementType, AtomicValueType, ComponentClassType, \
@@ -38,8 +38,8 @@ from .facets import XsdFacet, XsdWhiteSpaceFacet, XsdPatternFacets, \
     XSD_11_FACETS_BUILDERS, XSD_10_FACETS, XSD_11_FACETS, XSD_10_LIST_FACETS, \
     XSD_11_LIST_FACETS, XSD_10_UNION_FACETS, XSD_11_UNION_FACETS, MULTIPLE_FACETS
 
-FacetsValueType = Union[XsdFacet, Callable[[Any], None], List[XsdAssertionFacet]]
-PythonTypeClasses = Union[Type[Any], Tuple[Type[Any]]]
+FacetsValueType = Union[XsdFacet, Callable[[Any], None], list[XsdAssertionFacet]]
+PythonTypeClasses = Union[Type[Any], tuple[Type[Any]]]
 
 
 class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType]):
@@ -64,9 +64,9 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
     max_length: Optional[int] = None
     white_space: Optional[str] = None
     patterns = None
-    validators: Union[Tuple[()], List[Union[XsdFacet, Callable[[Any], None]]]] = ()
+    validators: Union[tuple[()], list[Union[XsdFacet, Callable[[Any], None]]]] = ()
     allow_empty = True
-    facets: Dict[Optional[str], FacetsValueType]
+    facets: dict[Optional[str], FacetsValueType]
 
     python_type: Type[Any]
     instance_types: PythonTypeClasses
@@ -80,7 +80,7 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
                  schema: SchemaType,
                  parent: Optional[XsdComponent] = None,
                  name: Optional[str] = None,
-                 facets: Optional[Dict[Optional[str], FacetsValueType]] = None) -> None:
+                 facets: Optional[dict[Optional[str], FacetsValueType]] = None) -> None:
 
         super().__init__(elem, schema, parent, name)
         if not hasattr(self, 'facets'):
@@ -111,14 +111,14 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
                 self.allow_empty = False
 
             if value:
-                validators: List[Union[XsdFacet, Callable[[Any], None]]]
+                validators: list[Union[XsdFacet, Callable[[Any], None]]]
                 if None in value:
                     validators = [value[None]]  # Use only the validator function!
                 else:
                     validators = [v for k, v in value.items()
                                   if k not in {XSD_WHITE_SPACE, XSD_PATTERN, XSD_ASSERTION}]
                 if XSD_ASSERTION in value:
-                    assertions: Union[XsdAssertionFacet, List[XsdAssertionFacet]]
+                    assertions: Union[XsdAssertionFacet, list[XsdAssertionFacet]]
                     assertions = value[XSD_ASSERTION]
                     if isinstance(assertions, list):
                         validators.extend(assertions)
@@ -322,14 +322,14 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
             return max_inclusive
 
     @property
-    def enumeration(self) -> Optional[List[Optional[AtomicValueType]]]:
+    def enumeration(self) -> Optional[list[Optional[AtomicValueType]]]:
         enumeration = self.get_facet(XSD_ENUMERATION)
         if isinstance(enumeration, XsdEnumerationFacets):
             return enumeration.enumeration
         return None
 
     @property
-    def admitted_facets(self) -> Set[str]:
+    def admitted_facets(self) -> set[str]:
         return XSD_10_FACETS if self.xsd_version == '1.0' else XSD_11_FACETS
 
     @property
@@ -394,7 +394,7 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
     def is_element_only(self) -> bool:
         return False
 
-    def is_derived(self, other: Union[BaseXsdType, Tuple[ElementType, SchemaType]],
+    def is_derived(self, other: Union[BaseXsdType, tuple[ElementType, SchemaType]],
                    derivation: Optional[str] = None) -> bool:
         if self is other:
             return True
@@ -523,7 +523,7 @@ class XsdAtomic(XsdSimpleType):
                  schema: SchemaType,
                  parent: Optional[XsdComponent] = None,
                  name: Optional[str] = None,
-                 facets: Optional[Dict[Optional[str], FacetsValueType]] = None,
+                 facets: Optional[dict[Optional[str], FacetsValueType]] = None,
                  base_type: Optional[BaseXsdType] = None) -> None:
 
         if base_type is None:
@@ -561,7 +561,7 @@ class XsdAtomic(XsdSimpleType):
         return 'atomic'
 
     @property
-    def admitted_facets(self) -> Set[str]:
+    def admitted_facets(self) -> set[str]:
         if self.primitive_type.is_complex():
             return XSD_10_FACETS if self.xsd_version == '1.0' else XSD_11_FACETS
         return self.primitive_type.admitted_facets
@@ -598,8 +598,8 @@ class XsdAtomicBuiltin(XsdAtomic):
                  name: str,
                  python_type: PythonTypeClasses,
                  base_type: Optional['XsdAtomicBuiltin'] = None,
-                 admitted_facets: Optional[Set[str]] = None,
-                 facets: Optional[Dict[Optional[str], FacetsValueType]] = None,
+                 admitted_facets: Optional[set[str]] = None,
+                 facets: Optional[dict[Optional[str], FacetsValueType]] = None,
                  to_python: Optional[Callable[[Any], Any]] = None,
                  from_python: Optional[Callable[[Any], Any]] = None) -> None:
         """
@@ -634,7 +634,7 @@ class XsdAtomicBuiltin(XsdAtomic):
         return '%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
 
     @property
-    def admitted_facets(self) -> Set[str]:
+    def admitted_facets(self) -> set[str]:
         return self._admitted_facets or self.primitive_type.admitted_facets
 
     def raw_decode(self, obj: Union[str, bytes], validation: str,
@@ -811,7 +811,7 @@ class XsdList(XsdSimpleType):
                  schema: SchemaType,
                  parent: Optional[XsdComponent],
                  name: Optional[str] = None) -> None:
-        facets: Optional[Dict[Optional[str], FacetsValueType]] = {
+        facets: Optional[dict[Optional[str], FacetsValueType]] = {
             XSD_WHITE_SPACE: XsdWhiteSpaceFacet(self._white_space_elem, schema, self, self)
         }
         super().__init__(elem, schema, parent, name, facets)
@@ -901,7 +901,7 @@ class XsdList(XsdSimpleType):
         return 'list'
 
     @property
-    def admitted_facets(self) -> Set[str]:
+    def admitted_facets(self) -> set[str]:
         return XSD_10_LIST_FACETS if self.xsd_version == '1.0' else XSD_11_LIST_FACETS
 
     @property
@@ -914,7 +914,7 @@ class XsdList(XsdSimpleType):
     def is_list(self) -> bool:
         return True
 
-    def is_derived(self, other: Union[BaseXsdType, Tuple[ElementType, SchemaType]],
+    def is_derived(self, other: Union[BaseXsdType, tuple[ElementType, SchemaType]],
                    derivation: Optional[str] = None) -> bool:
         if self is other:
             return True
@@ -938,7 +938,7 @@ class XsdList(XsdSimpleType):
             yield from self.item_type.iter_components(xsd_classes)
 
     def raw_decode(self, obj: Union[str, bytes], validation: str, context: DecodeContext) \
-            -> List[Optional[AtomicValueType]]:
+            -> list[Optional[AtomicValueType]]:
         items = []
         for chunk in self.normalize(obj).split():
             result = self.item_type.raw_decode(chunk, validation, context)
@@ -951,7 +951,7 @@ class XsdList(XsdSimpleType):
         if not hasattr(obj, '__iter__') or isinstance(obj, (str, bytes)):
             obj = [obj]
 
-        encoded_items: List[Any] = []
+        encoded_items: list[Any] = []
         for item in obj:
             encoded_items.append(self.item_type.raw_encode(item, validation, context))
 
@@ -965,12 +965,12 @@ class XsdUnion(XsdSimpleType):
 
     ..  <union
           id = ID
-          memberTypes = List of QName
+          memberTypes = list of QName
           {any attributes with non-schema namespace ...}>
           Content: (annotation?, simpleType*)
         </union>
     """
-    member_types: List[XsdSimpleType]
+    member_types: list[XsdSimpleType]
     _ADMITTED_TYPES: Any = XsdSimpleType
     _ADMITTED_TAGS = {XSD_UNION}
 
@@ -1062,7 +1062,7 @@ class XsdUnion(XsdSimpleType):
         return 'union'
 
     @property
-    def admitted_facets(self) -> Set[str]:
+    def admitted_facets(self) -> set[str]:
         return XSD_10_UNION_FACETS if self.xsd_version == '1.0' else XSD_11_UNION_FACETS
 
     def is_atomic(self) -> bool:
@@ -1448,7 +1448,7 @@ class XsdAtomicRestriction(XsdAtomic):
                 except XMLSchemaValidationError as err:
                     context.validation_error(validation, self, err)
 
-        if self.patterns and not isinstance(self.primitive_type, XsdUnion):
+        if self.patterns and not isinstance(self.primitive_type, XsdUnion) and result is not None:
             try:
                 self.patterns(result)
             except XMLSchemaValidationError as err:

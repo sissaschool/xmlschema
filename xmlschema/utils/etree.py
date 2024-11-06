@@ -9,8 +9,9 @@
 #
 import importlib
 import re
+from collections.abc import Callable, Iterator
 from itertools import pairwise
-from typing import Any, Callable, Iterator, List, Optional, Tuple, Union
+from typing import Any, Optional, Union
 from xml.etree import ElementTree
 
 from xmlschema.names import XSI_SCHEMA_LOCATION, XSI_NONS_SCHEMA_LOCATION
@@ -43,7 +44,7 @@ def is_lxml_document(obj: Any) -> bool:
     return is_etree_document(obj) and hasattr(obj, 'xpath') and hasattr(obj, 'xslt')
 
 
-def etree_get_ancestors(elem: ElementType, root: ElementType) -> Optional[List[ElementType]]:
+def etree_get_ancestors(elem: ElementType, root: ElementType) -> Optional[list[ElementType]]:
     """
     Returns a list with ancestors of `elem`, `None` if `elem` is not a descendant of `root`.
     """
@@ -123,7 +124,7 @@ def etree_getpath(elem: ElementType,
     return '/'.join(parts)
 
 
-def etree_iter_location_hints(elem: ElementType) -> Iterator[Tuple[Any, Any]]:
+def etree_iter_location_hints(elem: ElementType) -> Iterator[tuple[Any, Any]]:
     """Yields schema location hints contained in the attributes of an element."""
     if XSI_SCHEMA_LOCATION in elem.attrib:
         locations = elem.attrib[XSI_SCHEMA_LOCATION].split()

@@ -7,7 +7,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from typing import Any, Optional, Tuple, Union
+from typing import Any, Optional, Union
 from urllib.request import urlopen
 
 from xmlschema.names import XSD_NAMESPACE
@@ -57,7 +57,7 @@ def fetch_schema_locations(source: Union['XMLResource', XMLSourceType],
                            timeout: int = 30,
                            uri_mapper: Optional[UriMapperType] = None,
                            root_only: bool = True,
-                           **_kwargs: Any) -> Tuple[str, NormalizedLocationsType]:
+                           **_kwargs: Any) -> tuple[str, NormalizedLocationsType]:
     """
     Fetches schema location hints from an XML data source and a list of location hints.
     If an accessible schema location is not found raises a ValueError.

@@ -8,7 +8,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from collections.abc import MutableMapping, MutableSequence
-from typing import TYPE_CHECKING, Any, Optional, List, Dict, Type, Union
+from typing import TYPE_CHECKING, Any, Optional, Type, Union
 
 from xmlschema.exceptions import XMLSchemaValueError
 from xmlschema.aliases import NsmapType, BaseXsdType
@@ -30,14 +30,14 @@ class AbderaConverter(XMLSchemaConverter):
     ref: https://cwiki.apache.org/confluence/display/ABDERA/JSON+Serialization
 
     :param namespaces: Map from namespace prefixes to URI.
-    :param dict_class: Dictionary class to use for decoded data. Default is `dict`.
-    :param list_class: List class to use for decoded data. Default is `list`.
+    :param dict_class: dictionary class to use for decoded data. Default is `dict`.
+    :param list_class: list class to use for decoded data. Default is `list`.
     """
     __slots__ = ()
 
     def __init__(self, namespaces: Optional[NsmapType] = None,
-                 dict_class: Optional[Type[Dict[str, Any]]] = None,
-                 list_class: Optional[Type[List[Any]]] = None,
+                 dict_class: Optional[Type[dict[str, Any]]] = None,
+                 list_class: Optional[Type[list[Any]]] = None,
                  **kwargs: Any) -> None:
         kwargs.update(attr_prefix='', text_key='', cdata_prefix=None)
         super().__init__(namespaces, dict_class, list_class, **kwargs)
@@ -77,7 +77,7 @@ class AbderaConverter(XMLSchemaConverter):
             if not children:
                 children = data.text
 
-        result: Union[List[Any], Dict[str, Any]]
+        result: Union[list[Any], dict[str, Any]]
         if data.attributes:
             result = self.dict([
                 ('attributes',
@@ -110,8 +110,8 @@ class AbderaConverter(XMLSchemaConverter):
             else:
                 tag = xsd_element.name
 
-        attributes: Dict[str, Any] = {}
-        children: Union[List[Any], MutableMapping[str, Any]]
+        attributes: dict[str, Any] = {}
+        children: Union[list[Any], MutableMapping[str, Any]]
 
         try:
             attributes.update((self.unmap_qname(k, xsd_element.attributes), v)

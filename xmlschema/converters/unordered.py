@@ -8,7 +8,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from collections.abc import MutableMapping, MutableSequence
-from typing import TYPE_CHECKING, Any, Dict, Union
+from typing import TYPE_CHECKING, Any, Union
 
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError
 
@@ -68,7 +68,7 @@ class UnorderedConverter(XMLSchemaConverter):
         # in a list to retain that structure. Character data are not wrapped into
         # lists because they are divided from the rest of the content into the
         # unordered mode generator function of the ModelVisitor class.
-        content_lu: Dict[Union[int, str], Any] = {}
+        content_lu: dict[Union[int, str], Any] = {}
 
         xmlns = self.set_context(obj, level)
 

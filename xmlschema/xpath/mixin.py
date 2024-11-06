@@ -8,8 +8,8 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from abc import abstractmethod
-from typing import cast, overload, Any, Dict, Iterator, List, Optional, \
-    Sequence, Set, TypeVar, Union, TYPE_CHECKING
+from collections.abc import Iterator, Sequence
+from typing import cast, overload, Any, Optional, TypeVar, Union, TYPE_CHECKING
 import re
 
 from elementpath import XPath2Parser, XPathSchemaContext, LazyElementNode, SchemaElementNode
@@ -89,14 +89,14 @@ class ElementPathMixin(Sequence[E_co]):
         raise NotImplementedError
 
     def _get_xpath_namespaces(self, namespaces: Optional[NsmapType] = None) \
-            -> Dict[str, str]:
+            -> dict[str, str]:
         """
         Returns a dictionary with namespaces for XPath selection.
 
         :param namespaces: an optional map from namespace prefix to namespace URI. \
         If this argument is not provided the schema's namespaces are used.
         """
-        xpath_namespaces: Dict[str, str] = XPath2Parser.DEFAULT_NAMESPACES.copy()
+        xpath_namespaces: dict[str, str] = XPath2Parser.DEFAULT_NAMESPACES.copy()
         if namespaces is None:
             xpath_namespaces.update(self.namespaces)
         else:
@@ -124,7 +124,7 @@ class ElementPathMixin(Sequence[E_co]):
 
         return cast(Optional[E_co], next(parser.parse(path).select_results(context), None))
 
-    def findall(self, path: str, namespaces: Optional[NsmapType] = None) -> List[E_co]:
+    def findall(self, path: str, namespaces: Optional[NsmapType] = None) -> list[E_co]:
         """
         Finds all XSD subelements matching the path.
 
@@ -138,7 +138,7 @@ class ElementPathMixin(Sequence[E_co]):
         parser = XPath2Parser(namespaces, strict=False)
         context = XPathSchemaContext(self.xpath_node)
 
-        return cast(List[E_co], parser.parse(path).get_results(context))
+        return cast(list[E_co], parser.parse(path).get_results(context))
 
     def iterfind(self, path: str, namespaces: Optional[NsmapType] = None) -> Iterator[E_co]:
         """
@@ -177,7 +177,7 @@ class ElementPathMixin(Sequence[E_co]):
 
         if tag == '*':
             tag = None
-        local_elements: Set[E_co] = set()
+        local_elements: set[E_co] = set()
         return safe_iter(self)
 
     def iterchildren(self, tag: Optional[str] = None) -> Iterator[E_co]:

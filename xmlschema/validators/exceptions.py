@@ -8,8 +8,9 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import textwrap
+from collections.abc import Callable, Iterable
 from pprint import PrettyPrinter
-from typing import TYPE_CHECKING, Any, Optional, cast, Iterable, Union, Callable
+from typing import TYPE_CHECKING, Any, cast, Optional, Union
 
 from elementpath.etree import etree_tostring
 
@@ -136,7 +137,9 @@ class XMLSchemaValidatorError(XMLSchemaException):
     def path(self) -> Optional[str]:
         """The XPath of the element, if it's not `None` and the XML resource is set."""
         if self._path is None:
-            if self.elem is not None and isinstance(self.source, XMLResource) and not self.source.is_lazy():
+            if self.elem is not None \
+                    and isinstance(self.source, XMLResource) \
+                    and not self.source.is_lazy():
                 self._path = etree_getpath(
                     elem=self.elem,
                     root=self.source.root,

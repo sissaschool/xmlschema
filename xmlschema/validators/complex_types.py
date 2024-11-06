@@ -7,7 +7,8 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from typing import cast, Any, Callable, Iterator, List, Optional, Tuple, Union
+from collections.abc import Callable, Iterator
+from typing import cast, Any, Optional, Union
 
 from elementpath.datatypes import AnyAtomicType
 
@@ -60,7 +61,7 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
 
     abstract: bool = False
     mixed: bool = False
-    assertions: Union[Tuple[()], List[XsdAssert]] = ()
+    assertions: Union[tuple[()], list[XsdAssert]] = ()
     open_content: Optional[XsdOpenContent] = None
     _block: Optional[str] = None
 
@@ -650,7 +651,7 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
             return self.mixed or self.base_type is not None and \
                 self.base_type.is_valid(obj, **kwargs)
 
-    def is_derived(self, other: Union[BaseXsdType, Tuple[ElementType, SchemaType]],
+    def is_derived(self, other: Union[BaseXsdType, tuple[ElementType, SchemaType]],
                    derivation: Optional[str] = None) -> bool:
         if derivation and derivation == self.derivation:
             derivation = None  # derivation mode checked

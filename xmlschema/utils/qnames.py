@@ -9,7 +9,8 @@
 #
 """Helper functions for QNames and namespaces."""
 import re
-from typing import Iterable, MutableMapping, Optional, Tuple
+from collections.abc import Iterable, MutableMapping
+from typing import Optional
 
 from xmlschema.exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from xmlschema.names import XML_NAMESPACE
@@ -138,7 +139,7 @@ def get_extended_qname(qname: str, namespaces: Optional[MutableMapping[str, str]
 
 
 def update_namespaces(namespaces: NsmapType,
-                      xmlns: Iterable[Tuple[str, str]],
+                      xmlns: Iterable[tuple[str, str]],
                       root_declarations: bool = False) -> None:
     """
     Update a namespace map without overwriting existing declarations.

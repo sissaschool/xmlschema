@@ -11,8 +11,8 @@ import os.path
 import platform
 from pathlib import Path
 from string import ascii_letters
-from collections.abc import MutableMapping
-from typing import Optional, Iterable
+from collections.abc import Iterable, MutableMapping
+from typing import Optional
 from urllib.parse import urlsplit, urlunsplit, quote, quote_plus, unquote, unquote_plus
 
 from xmlschema.aliases import NormalizedLocationsType, LocationsType
@@ -257,4 +257,3 @@ def match_location(url: str, locations: Iterable[str]) -> Optional[str]:
                 matching_url = other_url
 
     return matching_url
-

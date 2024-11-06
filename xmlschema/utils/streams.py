@@ -9,7 +9,7 @@
 #
 from io import BufferedIOBase
 from threading import Lock
-from typing import List, Optional, Union
+from typing import Optional, Union
 
 
 DEFAULT_BUFFER_SIZE = 8 * 1024
@@ -117,7 +117,7 @@ class DefusableReader(BufferedIOBase):
             chunk = self._fp.readall()
             data = buffer if not chunk else buffer + chunk
         else:
-            chunks: List[Union[bytes, bytearray]] = [buffer]
+            chunks: list[Union[bytes, bytearray]] = [buffer]
             while True:
                 chunk = self._fp.read()
                 if not chunk:

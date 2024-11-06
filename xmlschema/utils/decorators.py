@@ -9,7 +9,8 @@
 #
 import warnings
 from functools import wraps
-from typing import Callable, cast, Any, TypeVar
+from collections.abc import Callable
+from typing import cast, Any, TypeVar
 
 from xmlschema.exceptions import XMLSchemaException, XMLSchemaValueError, \
     XMLSchemaTypeError, XMLSchemaAttributeError, XMLSchemaKeyError, \

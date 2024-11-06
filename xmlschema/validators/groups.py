@@ -11,10 +11,9 @@
 This module contains classes for XML Schema model groups.
 """
 import warnings
-from collections.abc import MutableMapping
+from collections.abc import Iterable, Iterator, MutableMapping, MutableSequence
 from copy import copy as _copy
-from typing import TYPE_CHECKING, cast, overload, Any, Iterable, Iterator, \
-    List, MutableSequence, Optional, Tuple, Union
+from typing import TYPE_CHECKING, cast, overload, Any, Optional, Union
 from xml.etree import ElementTree
 
 from xmlschema import limits
@@ -50,8 +49,8 @@ ANY_ELEMENT = ElementTree.Element(
         'maxOccurs': 'unbounded'
     })
 
-GroupDecodeType = Optional[List[Tuple[Union[str, int], Any, Optional[SchemaElementType]]]]
-GroupEncodeType = Tuple[Optional[str], Optional[List[ElementType]]]
+GroupDecodeType = Optional[list[tuple[Union[str, int], Any, Optional[SchemaElementType]]]]
+GroupEncodeType = tuple[Optional[str], Optional[list[ElementType]]]
 
 
 class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
@@ -97,7 +96,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
     model: str
     mixed: bool = False
     ref: Optional['XsdGroup']  # Not None if the instance is a ref to a global group
-    content: List[ModelParticleType]  # Direct access to children also from a ref group
+    content: list[ModelParticleType]  # Direct access to children also from a ref group
     restriction: Optional['XsdGroup'] = None
 
     # For XSD 1.1 openContent processing
@@ -109,7 +108,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                  schema: SchemaType,
                  parent: Optional[Union['XsdComplexType', 'XsdGroup']] = None) -> None:
 
-        self._group: List[ModelParticleType] = []
+        self._group: list[ModelParticleType] = []
         self.content = self._group
         self.oid = (self,)
         if parent is not None and parent.mixed:
@@ -205,7 +204,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         if not self.min_occurs or not self:
             return 0
 
-        effective_items: List[Any]
+        effective_items: list[Any]
         min_occurs: int
         effective_items = [e for e in self.iter_model() if e.effective_max_occurs != 0]
         if not effective_items:
@@ -231,7 +230,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         if self.max_occurs == 0 or not self:
             return 0
 
-        effective_items: List[Any]
+        effective_items: list[Any]
         max_occurs: int
 
         model_items = [(e, e.effective_max_occurs) for e in self.iter_model()]
@@ -319,7 +318,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         Raises `XMLSchemaModelDepthError` if the *depth* of the model is over
         `limits.MAX_MODEL_DEPTH` value.
         """
-        iterators: List[Iterator[ModelParticleType]] = []
+        iterators: list[Iterator[ModelParticleType]] = []
         particles = iter(self)
 
         while True:
@@ -346,7 +345,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         if self.max_occurs == 0:
             return
 
-        iterators: List[Iterator[ModelParticleType]] = []
+        iterators: list[Iterator[ModelParticleType]] = []
         particles = iter(self)
 
         while True:
@@ -368,13 +367,13 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                 except IndexError:
                     return
 
-    def get_subgroups(self, particle: ModelParticleType) -> List['XsdGroup']:
+    def get_subgroups(self, particle: ModelParticleType) -> list['XsdGroup']:
         """
         Returns a list of the groups that represent the path to the enclosed particle.
         Raises an `XMLSchemaModelError` if the argument is not a particle of the model
         group.
         """
-        subgroups: List[Tuple[XsdGroup, Iterator[ModelParticleType]]] = []
+        subgroups: list[tuple[XsdGroup, Iterator[ModelParticleType]]] = []
         group, children = self, iter(self if self.ref is None else self.ref)
 
         while True:
@@ -428,13 +427,13 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         value = occurs[self.oid] or occurs[self]
         return not self.is_emptiable() if value == 0 else self.min_occurs > value
 
-    def get_expected(self, occurs: OccursCounterType) -> List[SchemaElementType]:
+    def get_expected(self, occurs: OccursCounterType) -> list[SchemaElementType]:
         """
         Returns the expected elements of the current and descendant groups
         given a counter of occurrences. Returns an empty list if the group
         reached the maximum number of occurrences.
         """
-        expected: List[SchemaElementType] = []
+        expected: list[SchemaElementType] = []
         items: Union['XsdGroup', Iterator[ModelParticleType]]
 
         if self.is_over(occurs):
@@ -843,7 +842,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                 reason = _("substitution of %r is blocked") % model_element
                 raise XMLSchemaValidationError(model_element, elem, reason)
 
-        alternatives: Union[Tuple[()], List[XsdAlternative]] = []
+        alternatives: Union[tuple[()], list[XsdAlternative]] = []
         if isinstance(xsd_element, XsdAnyElement):
             if xsd_element.process_contents == 'skip':
                 return
@@ -980,9 +979,9 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
             reason = _("XML data depth exceeded (MAX_XML_DEPTH=%r)") % limits.MAX_XML_DEPTH
             context.validation_error('strict', self, reason, obj)
 
-        errors: List[Tuple[int, ModelParticleType, int, Optional[List[SchemaElementType]]]]
+        errors: list[tuple[int, ModelParticleType, int, Optional[list[SchemaElementType]]]]
         xsd_element: Optional[SchemaElementType]
-        expected: Optional[List[SchemaElementType]]
+        expected: Optional[list[SchemaElementType]]
 
         errors = []
         broken_model = False
@@ -1086,7 +1085,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         :return: returns a couple with the text of the Element and a list of child \
         elements.
         """
-        children: Optional[List[ElementType]]
+        children: Optional[list[ElementType]]
 
         errors = []
         text = raw_encode_value(obj.text)
@@ -1370,7 +1369,7 @@ class Xsd11Group(XsdGroup):
 
         # If the base includes more wildcard, calculates and appends a
         # wildcard union for validating wildcard unions in restriction
-        wildcards: List[XsdAnyElement] = []
+        wildcards: list[XsdAnyElement] = []
         for w1 in base_items:
             if isinstance(w1, XsdAnyElement):
                 for w2 in wildcards:

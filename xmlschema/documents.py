@@ -9,8 +9,8 @@
 #
 import json
 from io import IOBase, TextIOBase
-from typing import Any, Dict, List, Optional, Type, Union, Tuple, \
-    IO, BinaryIO, TextIO, Iterator
+from collections.abc import Iterator
+from typing import Any, Optional, Type, Union, IO, BinaryIO, TextIO
 from xml.etree import ElementTree
 
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError
@@ -36,7 +36,7 @@ def get_context(xml_document: Union[XMLSourceType, XMLResource],
                 locations: Optional[LocationsType] = None,
                 use_location_hints: bool = True,
                 dummy_schema: bool = False,
-                **kwargs: Any) -> Tuple[XMLResource, XMLSchemaBase]:
+                **kwargs: Any) -> tuple[XMLResource, XMLSchemaBase]:
     """
     Get the XML document validation/decode context.
 
@@ -109,7 +109,7 @@ def get_dummy_schema(tag: str, cls: Type[XMLSchemaBase]) -> XMLSchemaBase:
         )
 
 
-def get_lazy_json_encoder(errors: List[XMLSchemaValidationError]) -> Type[json.JSONEncoder]:
+def get_lazy_json_encoder(errors: list[XMLSchemaValidationError]) -> Type[json.JSONEncoder]:
 
     class JSONLazyEncoder(json.JSONEncoder):
         def default(self, obj: Any) -> Any:
@@ -160,7 +160,7 @@ def validate(xml_document: Union[XMLSourceType, XMLResource],
     has to be built.
     :param use_location_hints: for default, in case a schema instance has \
     to be built, uses also schema locations hints provided within XML data. \
-    Set this option to `False` to ignore these schema location hints.
+    set this option to `False` to ignore these schema location hints.
     :param kwargs: other optional arguments for building :class:`XMLResource` or \
     :class:`XMLSchema` instances provided as keyword arguments.
     """
@@ -242,7 +242,7 @@ def iter_decode(xml_document: Union[XMLSourceType, XMLResource],
     has to be built.
     :param use_location_hints: for default, in case a schema instance has \
     to be built, uses also schema locations hints provided within XML data. \
-    Set this option to `False` to ignore these schema location hints.
+    set this option to `False` to ignore these schema location hints.
     :param kwargs: other optional arguments of :meth:`XMLSchemaBase.iter_decode` \
     or for building :class:`XMLResource` or :class:`XMLSchema` instances provided \
     as keyword arguments.
@@ -288,7 +288,7 @@ def to_json(xml_document: Union[XMLSourceType, XMLResource],
             validation: str = 'strict',
             locations: Optional[LocationsType] = None,
             use_location_hints: bool = True,
-            json_options: Optional[Dict[str, Any]] = None,
+            json_options: Optional[dict[str, Any]] = None,
             **kwargs: Any) -> JsonDecodeType:
     """
     Serialize an XML document to JSON. For default the XML data is validated during
@@ -312,7 +312,7 @@ def to_json(xml_document: Union[XMLSourceType, XMLResource],
     has to be built.
     :param use_location_hints: for default, in case a schema instance has \
     to be built, uses also schema locations hints provided within XML data. \
-    Set this option to `False` to ignore these schema location hints.
+    set this option to `False` to ignore these schema location hints.
     :param json_options: a dictionary with options for the JSON serializer.
     :param kwargs: optional arguments of :meth:`XMLSchemaBase.iter_decode` as keyword arguments \
     to variate the decoding process.
@@ -331,7 +331,7 @@ def to_json(xml_document: Union[XMLSourceType, XMLResource],
     if 'decimal_type' not in kwargs:
         kwargs['decimal_type'] = float
 
-    errors: List[XMLSchemaValidationError] = []
+    errors: list[XMLSchemaValidationError] = []
 
     if path is None and source.is_lazy() and 'cls' not in json_options:
         json_options['cls'] = get_lazy_json_encoder(errors)
@@ -443,7 +443,7 @@ def from_json(source: Union[str, bytes, IO[str]],
               use_defaults: bool = True,
               converter: Optional[ConverterType] = None,
               unordered: bool = False,
-              json_options: Optional[Dict[str, Any]] = None,
+              json_options: Optional[dict[str, Any]] = None,
               **kwargs: Any) -> EncodeType[ElementType]:
     """
     Deserialize JSON data to an XML Element.
@@ -514,11 +514,11 @@ class XmlDocument(XMLResource):
     sequence of couples (namespace URI, resource URL).
     :param use_location_hints: for default, in case a schema instance has \
     to be built, uses also schema locations hints provided within XML data. \
-    Set this option to `False` to ignore these schema location hints.
+    set this option to `False` to ignore these schema location hints.
     :param kwargs: other optional arguments for building :class:`XMLResource` or \
     :class:`XMLSchema` instances provided as keyword arguments.
     """
-    errors: Union[Tuple[()], List[XMLSchemaValidationError]] = ()
+    errors: Union[tuple[()], list[XMLSchemaValidationError]] = ()
 
     def __init__(self, source: XMLSourceType,
                  schema: Optional[Union[XMLSchemaBase, SchemaSourceType]] = None,
@@ -549,7 +549,7 @@ class XmlDocument(XMLResource):
         elif validation != 'skip':
             raise XMLSchemaValueError("%r is not a validation mode" % validation)
 
-    def get_arguments(self) -> Dict[str, Any]:
+    def get_arguments(self) -> dict[str, Any]:
         """Returns keyword arguments for rebuilding the XML document."""
         kwargs = super().get_arguments()
         kwargs.update(
@@ -600,7 +600,7 @@ class XmlDocument(XMLResource):
         return obj[0] if isinstance(obj, tuple) else obj
 
     def to_json(self, fp: Optional[IO[str]] = None,
-                json_options: Optional[Dict[str, Any]] = None,
+                json_options: Optional[dict[str, Any]] = None,
                 **kwargs: Any) -> JsonDecodeType:
         """
         Converts loaded XML data to a JSON string or file.
@@ -619,7 +619,7 @@ class XmlDocument(XMLResource):
         if 'decimal_type' not in kwargs:
             kwargs['decimal_type'] = float
 
-        errors: List[XMLSchemaValidationError] = []
+        errors: list[XMLSchemaValidationError] = []
 
         if path is None and self._lazy and 'cls' not in json_options:
             json_options['cls'] = get_lazy_json_encoder(errors)
@@ -650,7 +650,7 @@ class XmlDocument(XMLResource):
         if self._lazy:
             raise XMLResourceError("cannot serialize a lazy XML resource")
 
-        kwargs: Dict[str, Any] = {
+        kwargs: dict[str, Any] = {
             'xml_declaration': xml_declaration,
             'encoding': encoding,
             'method': method,
@@ -658,7 +658,7 @@ class XmlDocument(XMLResource):
         if not default_namespace:
             kwargs['namespaces'] = self.namespaces
         else:
-            namespaces: Optional[Dict[Optional[str], str]]
+            namespaces: Optional[dict[Optional[str], str]]
             namespaces = {k: v for k, v in self.namespaces.items()}
 
             if hasattr(self.root, 'nsmap'):

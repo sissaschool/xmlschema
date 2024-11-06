@@ -8,7 +8,8 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from itertools import zip_longest
-from typing import cast, Any, Dict, Optional, Iterator, List, Union, Tuple
+from collections.abc import Iterator
+from typing import cast, Any, Optional, Union
 
 from elementpath import ElementNode, LazyElementNode, DocumentNode, \
     build_lxml_node_tree, build_node_tree
@@ -38,8 +39,8 @@ class _ResourceLoader:
 
     # Protected attributes for XML data
     _xpath_root: Union[None, ElementNode, DocumentNode]
-    _nsmaps: Dict[ElementType, Dict[str, str]]
-    _xmlns: Dict[ElementType, List[Tuple[str, str]]]
+    _nsmaps: dict[ElementType, dict[str, str]]
+    _xmlns: dict[ElementType, list[tuple[str, str]]]
     _parent_map: Optional[ParentMapType]
 
     root: ElementType
@@ -91,7 +92,7 @@ class _ResourceLoader:
         return get_namespace(self.root.tag)
 
     @property
-    def parent_map(self) -> Dict[ElementType, Optional[ElementType]]:
+    def parent_map(self) -> dict[ElementType, Optional[ElementType]]:
         if self._lazy:
             raise XMLResourceError("can't create the parent map of a lazy XML resource")
         if self._parent_map is None:
@@ -132,7 +133,7 @@ class _ResourceLoader:
         else:
             self._clear(elem)
 
-    def get_nsmap(self, elem: ElementType) -> Optional[Dict[str, str]]:
+    def get_nsmap(self, elem: ElementType) -> Optional[dict[str, str]]:
         """
         Returns the namespace map (nsmap) of the element. Returns `None` if no nsmap is
         found for the element. Lazy resources have only the nsmap for the root element.
@@ -142,7 +143,7 @@ class _ResourceLoader:
         except KeyError:
             return getattr(elem, 'nsmap', None)  # an lxml element
 
-    def get_xmlns(self, elem: ElementType) -> Optional[List[Tuple[str, str]]]:
+    def get_xmlns(self, elem: ElementType) -> Optional[list[tuple[str, str]]]:
         """
         Returns the list of namespaces declarations (xmlns and xmlns:<prefix> attributes)
         of the element. Returns `None` if the element doesn't have namespace declarations.
@@ -177,14 +178,14 @@ class _ResourceLoader:
     ##
     # Protected parsing and clearing methods
 
-    def _lazy_iterparse(self, fp: IOType) -> Iterator[Tuple[str, ElementType]]:
-        events: Tuple[str, ...]
+    def _lazy_iterparse(self, fp: IOType) -> Iterator[tuple[str, ElementType]]:
+        events: tuple[str, ...]
         events = 'start-ns', 'end-ns', 'start', 'end'
 
         root_started = False
-        start_ns: List[Tuple[str, str]] = []
+        start_ns: list[tuple[str, str]] = []
         end_ns = False
-        nsmap_stack: List[Dict[str, str]] = [{}]
+        nsmap_stack: list[dict[str, str]] = [{}]
 
         self._nsmaps.clear()
         self._xmlns.clear()
@@ -228,12 +229,12 @@ class _ResourceLoader:
 
     def _parse(self, fp: IOType) -> None:
         root_started = False
-        start_ns: List[Tuple[str, str]] = []
+        start_ns: list[tuple[str, str]] = []
         end_ns = False
         nsmaps = self._nsmaps
         xmlns = self._xmlns
         events = 'start-ns', 'end-ns', 'start'
-        nsmap_stack: List[Dict[str, str]] = [{}]
+        nsmap_stack: list[dict[str, str]] = [{}]
 
         try:
             for event, node in self._iterparse(fp, events):
@@ -258,7 +259,7 @@ class _ResourceLoader:
             raise XMLResourceParseError(str(err)) from err
 
     def _clear(self, elem: ElementType,
-               ancestors: Optional[List[ElementType]] = None) -> None:
+               ancestors: Optional[list[ElementType]] = None) -> None:
 
         if ancestors and self._thin_lazy:
             # Delete preceding elements

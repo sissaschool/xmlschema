@@ -9,10 +9,9 @@
 #
 import io
 import os
-from collections.abc import MutableMapping
+from collections.abc import Callable, Iterable, MutableMapping
 from pathlib import Path
-from typing import cast, overload, Any, Callable, Generic, Iterable, \
-    Optional, Tuple, Type, TYPE_CHECKING, TypeVar, Union
+from typing import cast, overload, Any, Generic, Optional, Type, TYPE_CHECKING, TypeVar, Union
 from urllib.request import OpenerDirector
 from xml.etree import ElementTree
 
@@ -30,7 +29,7 @@ from .exceptions import XMLResourceAttributeError, XMLResourceTypeError, XMLReso
 DEFUSE_MODES = frozenset(('never', 'remote', 'nonlocal', 'always'))
 SECURITY_MODES = frozenset(('all', 'remote', 'local', 'sandbox', 'none'))
 
-ClassInfoType = Union[Type[Any], Tuple[Type[Any], ...]]
+ClassInfoType = Union[Type[Any], tuple[Type[Any], ...]]
 
 AT = TypeVar('AT')
 

@@ -15,8 +15,9 @@ imports, are set with a common.
 """
 from decimal import Decimal
 from pathlib import Path
-from typing import Any, AnyStr, Callable, Counter, Dict, List, IO, Iterator, MutableMapping, \
-    Optional, Sequence, Tuple, Type, TYPE_CHECKING, TypeVar, Union
+from collections import Counter
+from collections.abc import Callable, Iterator, MutableMapping, Sequence
+from typing import Any, AnyStr, IO, Optional, Type, TYPE_CHECKING, TypeVar, Union
 from xml.etree.ElementTree import Element, ElementTree
 
 from elementpath.datatypes import NormalizedString, QName, Float10, Integer, \
@@ -41,13 +42,13 @@ __all__ = ['ElementType', 'ElementTreeType', 'XMLSourceType', 'NsmapType',
            'ResourceNodeType', 'NsmapsMapType', 'XmlnsMapType', 'ErrorsType']
 
 if TYPE_CHECKING:
-    from .resources import XMLResource
-    from loaders import NamespaceResourcesMap
-    from .converters import ElementData
-    from .validators import XMLSchemaValidationError, XsdComponent, XMLSchemaBase, \
+    from xmlschema.resources import XMLResource
+    from xmlschema.loaders import LocationHints
+    from xmlschema.converters import ElementData  # noqa
+    from xmlschema.validators import XMLSchemaValidationError, XsdComponent, \
         XsdComplexType, XsdSimpleType, XsdElement, XsdAnyElement, XsdAttribute, \
         XsdAnyAttribute, XsdAssert, XsdGroup, XsdAttributeGroup, XsdNotation, \
-        ParticleMixin
+        ParticleMixin, XMLSchemaBase
 
 ##
 # Type aliases for ElementTree
@@ -57,10 +58,10 @@ ElementTreeType = ElementTree
 ##
 # Type aliases for namespaces
 NsmapType = MutableMapping[str, str]
-NormalizedLocationsType = List[Tuple[str, str]]
-LocationsType = Union[Tuple[Tuple[str, str], ...], Dict[str, str],
-    NormalizedLocationsType, 'NamespaceResourcesMap[str]']
-XmlnsType = Optional[List[Tuple[str, str]]]
+NormalizedLocationsType = list[tuple[str, str]]
+LocationsType = Union[tuple[tuple[str, str], ...], dict[str, str],
+                      NormalizedLocationsType, 'LocationHints']
+XmlnsType = Optional[list[tuple[str, str]]]
 
 ##
 # Type aliases for XML resources
@@ -72,10 +73,10 @@ XMLSourceType = Union[SourceType, EtreeType]
 ResourceNodeType = Union[ElementNode, LazyElementNode, DocumentNode]
 LazyType = Union[bool, int]
 UriMapperType = Union[MutableMapping[str, str], Callable[[str], str]]
-IterparseType = Callable[[IOType, Optional[Sequence[str]]], Iterator[Tuple[str, Any]]]
-ParentMapType = Dict[ElementType, Optional[ElementType]]
-NsmapsMapType = Dict[ElementType, Dict[str, str]]
-XmlnsMapType = Dict[ElementType, List[Tuple[str, str]]]
+IterparseType = Callable[[IOType, Optional[Sequence[str]]], Iterator[tuple[str, Any]]]
+ParentMapType = dict[ElementType, Optional[ElementType]]
+NsmapsMapType = dict[ElementType, dict[str, str]]
+XmlnsMapType = dict[ElementType, list[tuple[str, str]]]
 
 ##
 # Type aliases for XSD components
@@ -92,13 +93,13 @@ SchemaGlobalType = Union['XsdNotation', 'BaseXsdType', 'XsdElement',
 ModelGroupType = Union['XsdGroup']
 ModelParticleType = Union['XsdElement', 'XsdAnyElement', 'XsdGroup']
 OccursCounterType = Counter[
-    Union['ParticleMixin', ModelParticleType, Tuple[ModelGroupType], None]
+    Union['ParticleMixin', ModelParticleType, tuple[ModelGroupType], None]
 ]
-ComponentClassType = Union[None, Type['XsdComponent'], Tuple[Type['XsdComponent'], ...]]
+ComponentClassType = Union[None, Type['XsdComponent'], tuple[Type['XsdComponent'], ...]]
 XPathElementType = Union['XsdElement', 'XsdAnyElement', 'XsdAssert']
 
 C = TypeVar('C')
-GlobalMapType = Dict[str, Union[C, Tuple[Element, SchemaType]]]
+GlobalMapType = dict[str, Union[C, tuple[Element, SchemaType]]]
 
 ##
 # Type aliases for datatypes
@@ -110,23 +111,23 @@ DateTimeType = Union[OrderedDateTime, Time]
 
 ##
 # Type aliases for validation/decoding/encoding
-ErrorsType = List['XMLSchemaValidationError']
+ErrorsType = list['XMLSchemaValidationError']
 ExtraValidatorType = Callable[[ElementType, 'XsdElement'],
                               Optional[Iterator['XMLSchemaValidationError']]]
 ValidationHookType = Callable[[ElementType, 'XsdElement'], Union[bool, str]]
 
 D = TypeVar('D')
-DecodeType = Union[Optional[D], Tuple[Optional[D], ErrorsType]]
+DecodeType = Union[Optional[D], tuple[Optional[D], ErrorsType]]
 IterDecodeType = Iterator[Union[D, 'XMLSchemaValidationError']]
 
 E = TypeVar('E')
-EncodeType = Union[E, Tuple[E, ErrorsType]]
+EncodeType = Union[E, tuple[E, ErrorsType]]
 IterEncodeType = Iterator[Union[E, 'XMLSchemaValidationError']]
 
-JsonDecodeType = Union[str, None, Tuple['XMLSchemaValidationError', ...],
-                       Tuple[Union[str, None], Tuple['XMLSchemaValidationError', ...]]]
+JsonDecodeType = Union[str, None, tuple['XMLSchemaValidationError', ...],
+                       tuple[Union[str, None], tuple['XMLSchemaValidationError', ...]]]
 
-DecodedValueType = Union[None, AtomicValueType, List[Optional[AtomicValueType]]]
+DecodedValueType = Union[None, AtomicValueType, list[Optional[AtomicValueType]]]
 FillerType = Callable[[Union['XsdElement', 'XsdAttribute']], DecodedValueType]
 DepthFillerType = Callable[['XsdElement'], Any]
 ValueHookType = Callable[[Optional[AtomicValueType], 'BaseXsdType'], DecodedValueType]

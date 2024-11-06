@@ -14,8 +14,8 @@ import warnings
 from copy import copy as _copy
 from decimal import Decimal
 from types import GeneratorType
-from typing import TYPE_CHECKING, cast, Any, Dict, Iterator, List, Optional, \
-    Set, Tuple, Type, Union
+from collections.abc import Iterator
+from typing import TYPE_CHECKING, cast, Any, Optional, Type, Union
 from xml.etree.ElementTree import Element, ParseError
 
 from elementpath import XPath2Parser, ElementPathError, XPathContext, XPathToken, \
@@ -96,6 +96,7 @@ class XsdElement(XsdComponent, ParticleMixin,
     attributes: 'XsdAttributeGroup'
 
     type: BaseXsdType
+    content: Union[tuple[()], 'XsdGroup']
     abstract = False
     nillable = False
     qualified = False
@@ -104,10 +105,10 @@ class XsdElement(XsdComponent, ParticleMixin,
     fixed: Optional[str] = None
     substitution_group: Optional[str] = None
 
-    identities: List[XsdIdentity]
-    selected_by: Set[XsdIdentity]
-    alternatives: Union[Tuple[()], List['XsdAlternative']] = ()
-    inheritable: Union[Tuple[()], Dict[str, XsdAttribute]] = ()
+    identities: list[XsdIdentity]
+    selected_by: set[XsdIdentity]
+    alternatives: Union[tuple[()], list['XsdAlternative']] = ()
+    inheritable: Union[tuple[()], dict[str, XsdAttribute]] = ()
 
     _ADMITTED_TAGS = {XSD_ELEMENT}
     _block: Optional[str] = None
@@ -157,7 +158,7 @@ class XsdElement(XsdComponent, ParticleMixin,
 
     def __iter__(self) -> Iterator[SchemaElementType]:
         if self.content:
-            yield from self.type.content.iter_elements()
+            yield from self.content.iter_elements()
 
     def _parse(self) -> None:
         if not self._build:
@@ -488,7 +489,7 @@ class XsdElement(XsdComponent, ParticleMixin,
         return self.binding
 
     def get_type(self, elem: Union[ElementType, ElementData],
-                 inherited: Optional[Dict[str, Any]] = None) -> BaseXsdType:
+                 inherited: Optional[dict[str, Any]] = None) -> BaseXsdType:
         return self._head_type or self.type
 
     def get_attributes(self, xsd_type: BaseXsdType) -> 'XsdAttributeGroup':
@@ -510,7 +511,7 @@ class XsdElement(XsdComponent, ParticleMixin,
         an ancestor of the element.
         :param reverse: if set to `True` returns the reverse path, from the element to ancestor.
         """
-        path: List[str] = []
+        path: list[str] = []
         xsd_component: Optional[XsdComponent] = self
         while xsd_component is not None:
             if xsd_component is ancestor:
@@ -929,8 +930,7 @@ class XsdElement(XsdComponent, ParticleMixin,
         :param context: the encoding context.
         :return: returns an Element.
         """
-        errors: List[Union[str, Exception]] = []
-        result: Any
+        errors: list[Union[str, Exception]] = []
 
         try:
             element_data = context.converter.element_encode(obj, self, context.level)
@@ -1335,7 +1335,7 @@ class Xsd11Element(XsdElement):
                 yield from xsd_element.iter_substitutes()
 
     def get_type(self, elem: Union[ElementType, ElementData],
-                 inherited: Optional[Dict[str, Any]] = None) -> BaseXsdType:
+                 inherited: Optional[dict[str, Any]] = None) -> BaseXsdType:
         if not self.alternatives:
             return self._head_type or self.type
 

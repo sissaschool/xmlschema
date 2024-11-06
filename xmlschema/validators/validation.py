@@ -8,17 +8,13 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import copy
-import sys
 import logging
 from abc import abstractmethod
-from typing import Any, Dict, Generic, List, Iterable, Iterator, Optional, \
-    Type, TYPE_CHECKING, TypeVar, Union
+from collections.abc import Iterable, Iterator
+from typing import Any, Generic, Optional, Type, TYPE_CHECKING, TypeVar, Union
 from xml.etree.ElementTree import Element
 
-if sys.version_info >= (3, 9):
-    from collections import Counter
-else:
-    from typing import Counter
+from collections import Counter
 
 from xmlschema.exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from xmlschema.aliases import DecodeType, DepthFillerType, ElementType, \
@@ -77,17 +73,17 @@ class ValidationContext:
     serializer: Optional[SerializerType[str]] = None
 
     # Common status: set once, updated by validators.
-    errors: List[XMLSchemaValidationError]
+    errors: list[XMLSchemaValidationError]
     converter: Union[XMLSchemaConverter, NamespaceMapper]
     id_map: Counter[str]
-    identities: Dict['XsdIdentity', 'IdentityCounter']
+    identities: dict['XsdIdentity', 'IdentityCounter']
     source: Union[XMLResource, Any]
 
     # Set and used by one or more XSD components.
     elem: Optional[ElementType]
     attribute: Optional[str]
-    id_list: Optional[List[Any]]
-    inherited: Optional[Dict[str, str]]
+    id_list: Optional[list[Any]]
+    inherited: Optional[dict[str, str]]
     patterns: Optional['XsdPatternFacets']
     level: int
 
@@ -380,7 +376,7 @@ class EncodeContext(ValidationContext):
         return self.elem
 
     def set_element_content(self, elem: Element, text: Optional[str],
-                            children: List[Element]) -> None:
+                            children: list[Element]) -> None:
         if children:
             if children[-1].tail is None:
                 children[-1].tail = self.padding

@@ -21,11 +21,11 @@ import threading
 import warnings
 import re
 import sys
+from collections.abc import Callable, ItemsView, Iterator
 from copy import copy as _copy, deepcopy
 from operator import attrgetter
 from pathlib import Path
-from typing import cast, Callable, ItemsView, List, Optional, Dict, Any, \
-    Set, Union, Tuple, Type, Iterator
+from typing import Any, cast, Optional, Union, Type
 from urllib.request import OpenerDirector
 from xml.etree.ElementTree import Element, ParseError
 
@@ -34,30 +34,23 @@ from elementpath import XPathToken, SchemaElementNode, build_schema_node_tree
 from xmlschema.aliases import XMLSourceType, NsmapType, LocationsType, UriMapperType, \
     SchemaType, SchemaSourceType, ComponentClassType, DecodeType, EncodeType, \
     BaseXsdType, ExtraValidatorType, ValidationHookType, SchemaGlobalType, \
-    FillerType, DepthFillerType, ValueHookType, ElementHookType
+    FillerType, DepthFillerType, ValueHookType, ElementHookType, ElementType
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaKeyError, \
     XMLSchemaRuntimeError, XMLSchemaValueError, XMLSchemaNamespaceError
-from xmlschema.names import VC_MIN_VERSION, VC_MAX_VERSION, VC_TYPE_AVAILABLE, \
-    VC_TYPE_UNAVAILABLE, VC_FACET_AVAILABLE, VC_FACET_UNAVAILABLE, XSD_NOTATION, \
-    XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_GROUP, XSD_SIMPLE_TYPE, XSI_TYPE, \
-    XSD_COMPLEX_TYPE, XSD_ELEMENT, XSD_SEQUENCE, XSD_CHOICE, XSD_ALL, XSD_ANY, \
-    XSD_ANY_ATTRIBUTE, XSD_ANY_TYPE, XSD_NAMESPACE, XML_NAMESPACE, XSI_NAMESPACE, \
-    VC_NAMESPACE, XSD_ANNOTATION, XSD_INCLUDE, XSD_IMPORT, XSD_REDEFINE, \
-    XSD_OVERRIDE, XSD_DEFAULT_OPEN_CONTENT, XSD_ANY_SIMPLE_TYPE, XSD_UNION, \
-    XSD_LIST, XSD_RESTRICTION, XMLNS_NAMESPACE
 from xmlschema.translation import gettext as _
 from xmlschema.utils.decoding import Empty
 from xmlschema.utils.logger import set_logging_level
 from xmlschema.utils.etree import prune_etree, is_etree_element
 from xmlschema.utils.qnames import get_namespace, get_qname
-from xmlschema.utils.urls import is_local_url, is_remote_url, location_is_file, normalize_url
+from xmlschema.utils.urls import is_local_url, normalize_url
 from xmlschema.resources import XMLResource, XMLResourceBlocked, XMLResourceForbidden
 from xmlschema.converters import XMLSchemaConverter, ConverterType, \
     check_converter_argument, get_converter
 from xmlschema.xpath import XMLSchemaProxy, ElementPathMixin
-from xmlschema.loaders import SCHEMAS_DIR, SchemaLoader, NamespaceResourcesMap, LocationHints
+from xmlschema.loaders import SCHEMAS_DIR, SchemaLoader, LocationHints
 from xmlschema.exports import export_schema
 from xmlschema import dataobjects
+import xmlschema.names as nm
 
 from .exceptions import XMLSchemaParseError, XMLSchemaValidationError, \
     XMLSchemaEncodeError, XMLSchemaNotBuiltError, XMLSchemaStopValidation, \
@@ -86,13 +79,13 @@ name_attribute = attrgetter('name')
 XSD_VERSION_PATTERN = re.compile(r'^\d+\.\d+$')
 
 # Elements for building dummy groups
-ATTRIBUTE_GROUP_ELEMENT = Element(XSD_ATTRIBUTE_GROUP)
+ATTRIBUTE_GROUP_ELEMENT = Element(nm.XSD_ATTRIBUTE_GROUP)
 ANY_ATTRIBUTE_ELEMENT = Element(
-    XSD_ANY_ATTRIBUTE, attrib={'namespace': '##any', 'processContents': 'lax'}
+    nm.XSD_ANY_ATTRIBUTE, attrib={'namespace': '##any', 'processContents': 'lax'}
 )
-SEQUENCE_ELEMENT = Element(XSD_SEQUENCE)
+SEQUENCE_ELEMENT = Element(nm.XSD_SEQUENCE)
 ANY_ELEMENT = Element(
-    XSD_ANY,
+    nm.XSD_ANY,
     attrib={
         'namespace': '##any',
         'processContents': 'lax',
@@ -100,15 +93,17 @@ ANY_ELEMENT = Element(
         'maxOccurs': 'unbounded'
     })
 
-GLOBAL_TAGS = frozenset((XSD_NOTATION, XSD_SIMPLE_TYPE, XSD_COMPLEX_TYPE,
-                         XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_GROUP, XSD_ELEMENT))
+GLOBAL_TAGS = frozenset((
+    nm.XSD_NOTATION, nm.XSD_SIMPLE_TYPE, nm.XSD_COMPLEX_TYPE,
+    nm.XSD_ATTRIBUTE, nm.XSD_ATTRIBUTE_GROUP, nm.XSD_GROUP, nm.XSD_ELEMENT
+))
 
 
 class XMLSchemaMeta(ABCMeta):
     XSD_VERSION: str
     create_meta_schema: Callable[['XMLSchemaBase', Optional[str]], SchemaType]
 
-    def __new__(mcs, name: str, bases: Tuple[Type[Any], ...], dict_: Dict[str, Any]) \
+    def __new__(mcs, name: str, bases: tuple[Type[Any]], dict_: dict[str, Any]) \
             -> 'XMLSchemaMeta':
         assert bases, "a base class is mandatory"
         base_class = bases[0]
@@ -250,10 +245,10 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     namespaces: NsmapType
     converter: ConverterType
     maps: XsdGlobals
-    imports: Dict[str, Optional[SchemaType]]
-    _import_statements: Set[str]
-    includes: Dict[str, SchemaType]
-    warnings: List[str]
+    imports: dict[str, Optional[SchemaType]]
+    _import_statements: set[str]
+    includes: dict[str, SchemaType]
+    warnings: list[str]
 
     notations: NamespaceView[XsdNotation]
     types: NamespaceView[BaseXsdType]
@@ -261,15 +256,15 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     attribute_groups: NamespaceView[XsdAttributeGroup]
     groups: NamespaceView[XsdGroup]
     elements: NamespaceView[XsdElement]
-    substitution_groups: NamespaceView[List[XsdElement]]
+    substitution_groups: NamespaceView[list[XsdElement]]
     identities: NamespaceView[XsdIdentity]
 
     XSD_VERSION: str = '1.0'
-    BASE_SCHEMAS: Dict[str, str] = {}
+    BASE_SCHEMAS: dict[str, str] = {}
     meta_schema: Optional['XMLSchemaBase'] = None
-    _annotations: Optional[List[XsdAnnotation]] = None
-    _components = None
-    _root_elements: Optional[Set[str]] = None
+    _annotations: Optional[list[XsdAnnotation]] = None
+    _components: Optional[dict[ElementType, XsdComponent]]
+    _root_elements: Optional[set[str]] = None
     _xpath_node: Optional[SchemaElementNode]
     _validation_context: Optional[DecodeContext] = None
 
@@ -304,9 +299,9 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     use_xpath3: bool = False
 
     # Store XPath constructors tokens (for schema and its assertions)
-    xpath_tokens: Optional[Dict[str, Type[XPathToken]]] = None
+    xpath_tokens: Optional[dict[str, Type[XPathToken]]] = None
 
-    def __init__(self, source: Union[SchemaSourceType, List[SchemaSourceType]],
+    def __init__(self, source: Union[SchemaSourceType, list[SchemaSourceType]],
                  namespace: Optional[str] = None,
                  validation: str = 'strict',
                  global_maps: Optional[XsdGlobals] = None,
@@ -338,7 +333,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             assert isinstance(source, str)
             base_url = os.path.dirname(normalize_url(source))
 
-        other_sources: List[SchemaSourceType]
+        other_sources: list[SchemaSourceType]
         if isinstance(source, list):
             if not source:
                 raise XMLSchemaValueError(_("no XSD source provided!"))
@@ -371,7 +366,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         root = self.source.root
 
         # Initialize schema's namespaces, the XML namespace is implicitly declared.
-        self.namespaces = self.source.get_namespaces({'xml': XML_NAMESPACE})
+        self.namespaces = self.source.get_namespaces({'xml': nm.XML_NAMESPACE})
 
         if 'targetNamespace' in root.attrib:
             self.target_namespace = root.attrib['targetNamespace'].strip()
@@ -393,9 +388,9 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             # If not declared map the default namespace to no namespace
             self.namespaces[''] = ''
 
-        if self.target_namespace == XMLNS_NAMESPACE:
+        if self.target_namespace == nm.XMLNS_NAMESPACE:
             # https://www.w3.org/TR/xmlschema11-1/#sec-nss-special
-            msg = _(f"The namespace {XMLNS_NAMESPACE} cannot be used as 'targetNamespace'")
+            msg = _(f"The namespace {nm.XMLNS_NAMESPACE} cannot be used as 'targetNamespace'")
             raise XMLSchemaValueError(msg)
 
         logger.debug("Schema targetNamespace is %r", self.target_namespace)
@@ -429,7 +424,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             # Meta-schema maps creation (MetaXMLSchema10/11 classes)
             self.maps = global_maps or XsdGlobals(self)
             for child in self.source.root:
-                if child.tag == XSD_OVERRIDE:
+                if child.tag == nm.XSD_OVERRIDE:
                     self.include_schema(child.attrib['schemaLocation'], self.base_url)
             return  # Meta-schemas don't need to be checked and don't process imports
 
@@ -442,30 +437,32 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 self.meta_schema.maps.build()
 
         # Create or set the XSD global maps instance
-        if isinstance(global_maps, XsdGlobals):
+        if global_maps is None:
+            loader_class = SchemaLoader if loader is None else loader
+            _loader = loader_class(locations, base_url, use_fallback)
+
+            if use_meta and self.target_namespace not in self.meta_schema.maps.namespaces:
+                self.maps = self.meta_schema.maps.copy(self, _loader)
+            else:
+                self.maps = XsdGlobals(self, _loader)
+
+        elif isinstance(global_maps, XsdGlobals):
             self.maps = global_maps
-        elif global_maps is not None:
+        else:
             raise XMLSchemaTypeError(
                 _("'global_maps' argument must be an %r instance") % XsdGlobals
             )
-        else:
-            if loader is None:
-                loader = SchemaLoader(locations, base_url, use_fallback)
-            if use_meta and self.target_namespace not in self.meta_schema.maps.namespaces:
-                self.maps = self.meta_schema.maps.copy(self, loader)
-            else:
-                self.maps = XsdGlobals(self, loader)
 
         if use_xpath3 and self.XSD_VERSION > '1.0':
             self.use_xpath3 = True
 
-        if any(ns == VC_NAMESPACE for ns in self.namespaces.values()):
+        if any(ns == nm.VC_NAMESPACE for ns in self.namespaces.values()):
             # For XSD 1.1+ apply versioning filter to schema tree. See the paragraph
             # 4.2.2 of XSD 1.1 (Part 1: Structures) definition for details.
             # Ref: https://www.w3.org/TR/xmlschema11-1/#cip
             if prune_etree(root, selector=lambda x: not self.version_check(x)):
                 for k in list(root.attrib):
-                    if k not in ('targetNamespace', VC_MIN_VERSION, VC_MAX_VERSION):
+                    if k not in ('targetNamespace', nm.VC_MIN_VERSION, nm.VC_MAX_VERSION):
                         del root.attrib[k]
 
         # Validate the schema document (transforming validation errors to parse errors)
@@ -492,7 +489,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                     self.parse_error(err, root)
 
             for child in root:
-                if child.tag == XSD_DEFAULT_OPEN_CONTENT:
+                if child.tag == nm.XSD_DEFAULT_OPEN_CONTENT:
                     self.default_open_content = XsdDefaultOpenContent(child, self)
                     break
 
@@ -555,17 +552,21 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     def __len__(self) -> int:
         return len(self.elements)
 
-    def __getstate__(self) -> Dict[str, Any]:
+    def __getstate__(self) -> dict[str, Any]:
         state = self.__dict__.copy()
         state.pop('lock', None)
         state.pop('xpath_tokens', None)
         return state
 
-    def __setstate__(self, state: Dict[str, Any]) -> None:
+    def __setstate__(self, state: dict[str, Any]) -> None:
         self.__dict__.update(state)
         self.lock = threading.Lock()
 
-    def __copy__(self) -> SchemaType:
+    def copy(self) -> 'XMLSchemaBase':
+        """
+        Makes a copy of the schema instance. The new instance has independent maps
+        but shares the already built XSD components.
+        """
         schema: SchemaType = object.__new__(self.__class__)
         schema.__dict__.update(self.__dict__)
         schema.source = _copy(self.source)
@@ -577,12 +578,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         schema.maps = self.maps.copy(validator=schema)
         return schema
 
-    def copy(self):
-        """
-        Makes a copy of the schema instance. The new instance has independent maps
-        but shares the already built XSD components.
-        """
-        return self.__copy__()
+    __copy__ = copy
 
     @property
     def xpath_proxy(self) -> XMLSchemaProxy:
@@ -678,7 +674,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         return self.maps.loader.locations
 
     @property
-    def schema_location(self) -> List[Tuple[str, str]]:
+    def schema_location(self) -> list[tuple[str, str]]:
         """
         A list of location hints extracted from the *xsi:schemaLocation* attribute of the schema.
         """
@@ -714,7 +710,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             raise XMLSchemaRuntimeError(_("meta-schema unavailable for %r") % cls)
 
         try:
-            meta_schema: SchemaType = cls.meta_schema.maps.namespaces[XSD_NAMESPACE][0]
+            meta_schema: SchemaType = cls.meta_schema.maps.namespaces[nm.XSD_NAMESPACE][0]
             builtin_types = meta_schema.types
         except KeyError:
             raise XMLSchemaNotBuiltError(
@@ -726,7 +722,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             return builtin_types
 
     @property
-    def annotations(self) -> List[XsdAnnotation]:
+    def annotations(self) -> list[XsdAnnotation]:
         """
         Annotations related to schema object. This list includes the annotations
         of xs:include, xs:import, xs:redefine and xs:override elements.
@@ -734,23 +730,23 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         if self._annotations is None:
             self._annotations = []
             for elem in self.source.root:
-                if elem.tag == XSD_ANNOTATION:
+                if elem.tag == nm.XSD_ANNOTATION:
                     self._annotations.append(XsdAnnotation(elem, self))
-                elif elem.tag in (XSD_IMPORT, XSD_INCLUDE, XSD_DEFAULT_OPEN_CONTENT):
+                elif elem.tag in (nm.XSD_IMPORT, nm.XSD_INCLUDE, nm.XSD_DEFAULT_OPEN_CONTENT):
                     child = get_xsd_annotation_child(elem)
                     if child is not None:
                         annotation = XsdAnnotation(child, self, parent_elem=elem)
                         self._annotations.append(annotation)
-                elif elem.tag in (XSD_REDEFINE, XSD_OVERRIDE):
+                elif elem.tag in (nm.XSD_REDEFINE, nm.XSD_OVERRIDE):
                     for child in elem:
-                        if child.tag == XSD_ANNOTATION:
+                        if child.tag == nm.XSD_ANNOTATION:
                             annotation = XsdAnnotation(child, self, parent_elem=elem)
                             self._annotations.append(annotation)
 
         return self._annotations
 
     @property
-    def components(self) -> Dict[Element, XsdComponent]:
+    def components(self) -> dict[ElementType, XsdComponent]:
         """A map from XSD ElementTree elements to their schema components."""
         if self._components is None:
             self.check_validator(self.validation)
@@ -760,7 +756,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         return self._components
 
     @property
-    def root_elements(self) -> List[XsdElement]:
+    def root_elements(self) -> list[XsdElement]:
         """
         The list of global elements that are not used by reference in any model of the schema.
         This is implemented as lazy property because it's computationally expensive to build
@@ -802,19 +798,19 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         return self._validation_context
 
     @property
-    def simple_types(self) -> List[XsdSimpleType]:
+    def simple_types(self) -> list[XsdSimpleType]:
         """Returns a list containing the global simple types."""
         return [x for x in self.types.values() if isinstance(x, XsdSimpleType)]
 
     @property
-    def complex_types(self) -> List[XsdComplexType]:
+    def complex_types(self) -> list[XsdComplexType]:
         """Returns a list containing the global complex types."""
         return [x for x in self.types.values() if isinstance(x, XsdComplexType)]
 
     @classmethod
     def create_meta_schema(cls, source: Optional[str] = None,
-                           base_schemas: Union[None, Dict[str, str],
-                                               List[Tuple[str, str]]] = None,
+                           base_schemas: Union[None, dict[str, str],
+                                               list[tuple[str, str]]] = None,
                            global_maps: Optional[XsdGlobals] = None) -> SchemaType:
         """
         Creates a new meta-schema instance.
@@ -833,7 +829,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 raise XMLSchemaValueError(_("Missing meta-schema source URL"))
             source = cls.meta_schema.url
 
-        _base_schemas: Union[ItemsView[str, str], List[Tuple[str, str]]]
+        _base_schemas: Union[ItemsView[str, str], list[tuple[str, str]]]
         if base_schemas is None:
             _base_schemas = cls.BASE_SCHEMAS.items()
         elif isinstance(base_schemas, dict):
@@ -850,16 +846,16 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         meta_schema_class = cls if cls.meta_schema is None else cls.meta_schema.__class__
 
         if global_maps is None:
-            meta_schema = meta_schema_class(source, XSD_NAMESPACE, defuse='never', build=False)
+            meta_schema = meta_schema_class(source, nm.XSD_NAMESPACE, defuse='never', build=False)
             global_maps = meta_schema.maps
-        elif XSD_NAMESPACE not in global_maps.namespaces:
-            meta_schema = meta_schema_class(source, XSD_NAMESPACE, global_maps=global_maps,
+        elif nm.XSD_NAMESPACE not in global_maps.namespaces:
+            meta_schema = meta_schema_class(source, nm.XSD_NAMESPACE, global_maps=global_maps,
                                             defuse='never', build=False)
         else:
-            meta_schema = global_maps.namespaces[XSD_NAMESPACE][0]
+            meta_schema = global_maps.namespaces[nm.XSD_NAMESPACE][0]
 
         for ns, location in _base_schemas:
-            if ns == XSD_NAMESPACE:
+            if ns == nm.XSD_NAMESPACE:
                 meta_schema.include_schema(location=location)
             elif ns not in global_maps.namespaces:
                 meta_schema.import_schema(namespace=ns, location=location)
@@ -881,28 +877,28 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         try:
             child = elem[0]
         except IndexError:
-            return cast(XsdSimpleType, self.maps.types[XSD_ANY_SIMPLE_TYPE])
+            return cast(XsdSimpleType, self.maps.types[nm.XSD_ANY_SIMPLE_TYPE])
         else:
-            if child.tag == XSD_ANNOTATION:
+            if child.tag == nm.XSD_ANNOTATION:
                 annotation = XsdAnnotation(child, schema, parent)
                 try:
                     child = elem[1]
                 except IndexError:
                     msg = _("(restriction | list | union) expected")
                     schema.parse_error(msg, elem)
-                    return cast(XsdSimpleType, self.maps.types[XSD_ANY_SIMPLE_TYPE])
+                    return cast(XsdSimpleType, self.maps.types[nm.XSD_ANY_SIMPLE_TYPE])
 
         xsd_type: XsdSimpleType
-        if child.tag == XSD_RESTRICTION:
+        if child.tag == nm.XSD_RESTRICTION:
             xsd_type = self.xsd_atomic_restriction_class(child, schema, parent)
-        elif child.tag == XSD_LIST:
+        elif child.tag == nm.XSD_LIST:
             xsd_type = self.xsd_list_class(child, schema, parent)
-        elif child.tag == XSD_UNION:
+        elif child.tag == nm.XSD_UNION:
             xsd_type = self.xsd_union_class(child, schema, parent)
         else:
             msg = _("(restriction | list | union) expected")
             schema.parse_error(msg, elem)
-            return cast(XsdSimpleType, self.maps.types[XSD_ANY_SIMPLE_TYPE])
+            return cast(XsdSimpleType, self.maps.types[nm.XSD_ANY_SIMPLE_TYPE])
 
         if annotation is not None:
             xsd_type._annotation = annotation
@@ -954,11 +950,11 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     def create_empty_content_group(self, parent: Union[XsdComplexType, XsdGroup],
                                    model: str = 'sequence', **attrib: Any) -> XsdGroup:
         if model == 'sequence':
-            group_elem = Element(XSD_SEQUENCE, **attrib)
+            group_elem = Element(nm.XSD_SEQUENCE, **attrib)
         elif model == 'choice':
-            group_elem = Element(XSD_CHOICE, **attrib)
+            group_elem = Element(nm.XSD_CHOICE, **attrib)
         elif model == 'all':
-            group_elem = Element(XSD_ALL, **attrib)
+            group_elem = Element(nm.XSD_ALL, **attrib)
         else:
             msg = _("'model' argument must be (sequence | choice | all)")
             raise XMLSchemaValueError(msg)
@@ -998,7 +994,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         """
         schema = self.meta_schema or self
         any_type = self.xsd_complex_type_class(
-            elem=Element(XSD_COMPLEX_TYPE, name=XSD_ANY_TYPE),
+            elem=Element(nm.XSD_COMPLEX_TYPE, name=nm.XSD_ANY_TYPE),
             schema=schema, parent=None, mixed=True, block='', final=''
         )
         assert isinstance(any_type.content, XsdGroup)
@@ -1019,7 +1015,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         Used as dummy element for validation/decoding/encoding
         operations of wildcards and complex types.
         """
-        elem = Element(XSD_ELEMENT, name=name, **attrib)
+        elem = Element(nm.XSD_ELEMENT, name=name, **attrib)
         if text is not None:
             elem.text = text
         return self.xsd_element_class(elem=elem, schema=self, parent=parent)
@@ -1063,7 +1059,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         # No XSD globals: check with a lookup of schema child elements.
         prefix = f'{{{self.target_namespace}}}' if self.target_namespace else ''
         for child in self.source.root:
-            if child.tag in {XSD_REDEFINE, XSD_OVERRIDE}:
+            if child.tag in (nm.XSD_REDEFINE, nm.XSD_OVERRIDE):
                 for e in filter(lambda x: x.tag in GLOBAL_TAGS, child):
                     name = e.get('name')
                     if name is not None:
@@ -1093,7 +1089,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             return 'none'
 
     def iter_globals(self, schema: Optional[SchemaType] = None) \
-            -> Iterator[Union[SchemaGlobalType, Tuple[Any, ...]]]:
+            -> Iterator[Union[SchemaGlobalType, tuple[Any, ...]]]:
         """
         Creates an iterator for XSD global definitions/declarations related to schema namespace.
 
@@ -1107,7 +1103,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             yield from self.groups.values()
             yield from self.elements.values()
         else:
-            def schema_filter(x: Union[XsdComponent, Tuple[Element, SchemaType]]) -> bool:
+            def schema_filter(x: Union[XsdComponent, tuple[Element, SchemaType]]) -> bool:
                 if isinstance(x, tuple):
                     return x[1] is schema
                 return x.schema is schema
@@ -1150,7 +1146,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             converter = self.converter
         return get_converter(converter, **kwargs)
 
-    def get_locations(self, namespace: str) -> List[str]:
+    def get_locations(self, namespace: str) -> list[str]:
         """Get a list of location hints for a namespace."""
         return self.maps.loader.get_locations(namespace)
 
@@ -1242,13 +1238,13 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         logger.debug("Processing inclusions and imports of schema %r", self)
 
         for child in self.source.root:
-            if child.tag in XSD_ANNOTATION:
+            if child.tag in nm.XSD_ANNOTATION:
                 continue
-            elif child.tag not in (XSD_IMPORT, XSD_INCLUDE, XSD_REDEFINE) \
-                    and (child.tag != XSD_OVERRIDE or self.XSD_VERSION == '1.0'):
+            elif child.tag not in (nm.XSD_IMPORT, nm.XSD_INCLUDE, nm.XSD_REDEFINE) \
+                    and (child.tag != nm.XSD_OVERRIDE or self.XSD_VERSION == '1.0'):
                 break
 
-            if child.tag == XSD_IMPORT:
+            if child.tag == nm.XSD_IMPORT:
                 try:
                     namespace = child.attrib['namespace'].strip()
                 except KeyError:
@@ -1302,8 +1298,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                     # If the xs:redefine/xs:override doesn't contain components (annotation
                     # excluded) the statement is equivalent to an include, so no error is
                     # generated, otherwise fails.
-                    if child.tag != XSD_INCLUDE and \
-                            any(e.tag != XSD_ANNOTATION and not callable(e.tag) for e in child):
+                    if child.tag != nm.XSD_INCLUDE and \
+                            any(e.tag != nm.XSD_ANNOTATION and not callable(e.tag) for e in child):
                         self.parse_error(str(err), child)
 
                 except (XMLSchemaParseError, XMLSchemaTypeError, ParseError) as err:
@@ -1320,7 +1316,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
         logger.debug("Inclusions and imports of schema %r processed", self)
 
-    def _import_namespace(self, namespace: str, locations: List[str]) -> None:
+    def _import_namespace(self, namespace: str, locations: list[str]) -> None:
         import_error: Optional[Exception] = None
         for url in locations:
             try:
@@ -1453,8 +1449,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     def export(self, target: Union[str, Path],
                save_remote: bool = False,
                remove_residuals: bool = True,
-               exclude_locations: Optional[List[str]] = None,
-               loglevel: Optional[Union[str, int]] = None) -> Dict[str, str]:
+               exclude_locations: Optional[list[str]] = None,
+               loglevel: Optional[Union[str, int]] = None) -> dict[str, str]:
         """
         Exports a schema instance. The schema instance is exported to a
         directory with also the hierarchy of imported/included schemas.
@@ -1486,8 +1482,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         :return: `True` if the schema element is compatible with the validator, \
         `False` otherwise.
         """
-        if VC_MIN_VERSION in elem.attrib:
-            vc_min_version = elem.attrib[VC_MIN_VERSION]
+        if nm.VC_MIN_VERSION in elem.attrib:
+            vc_min_version = elem.attrib[nm.VC_MIN_VERSION]
             if not XSD_VERSION_PATTERN.match(vc_min_version):
                 if self.XSD_VERSION > '1.0':
                     msg = _("invalid attribute vc:minVersion value")
@@ -1495,8 +1491,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             elif vc_min_version > self.XSD_VERSION:
                 return False
 
-        if VC_MAX_VERSION in elem.attrib:
-            vc_max_version = elem.attrib[VC_MAX_VERSION]
+        if nm.VC_MAX_VERSION in elem.attrib:
+            vc_max_version = elem.attrib[nm.VC_MAX_VERSION]
             if not XSD_VERSION_PATTERN.match(vc_max_version):
                 if self.XSD_VERSION > '1.0':
                     msg = _("invalid attribute vc:maxVersion value")
@@ -1504,8 +1500,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             elif vc_max_version <= self.XSD_VERSION:
                 return False
 
-        if VC_TYPE_AVAILABLE in elem.attrib:
-            for qname in elem.attrib[VC_TYPE_AVAILABLE].split():
+        if nm.VC_TYPE_AVAILABLE in elem.attrib:
+            for qname in elem.attrib[nm.VC_TYPE_AVAILABLE].split():
                 try:
                     if self.resolve_qname(qname) not in self.maps.types:
                         return False
@@ -1514,8 +1510,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 except (KeyError, ValueError) as err:
                     self.parse_error(str(err), elem)
 
-        if VC_TYPE_UNAVAILABLE in elem.attrib:
-            for qname in elem.attrib[VC_TYPE_UNAVAILABLE].split():
+        if nm.VC_TYPE_UNAVAILABLE in elem.attrib:
+            for qname in elem.attrib[nm.VC_TYPE_UNAVAILABLE].split():
                 try:
                     if self.resolve_qname(qname) not in self.maps.types:
                         break
@@ -1526,8 +1522,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             else:
                 return False
 
-        if VC_FACET_AVAILABLE in elem.attrib:
-            for qname in elem.attrib[VC_FACET_AVAILABLE].split():
+        if nm.VC_FACET_AVAILABLE in elem.attrib:
+            for qname in elem.attrib[nm.VC_FACET_AVAILABLE].split():
                 try:
                     facet_name = self.resolve_qname(qname)
                 except XMLSchemaNamespaceError:
@@ -1541,8 +1537,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                     elif facet_name not in XSD_11_FACETS:
                         return False
 
-        if VC_FACET_UNAVAILABLE in elem.attrib:
-            for qname in elem.attrib[VC_FACET_UNAVAILABLE].split():
+        if nm.VC_FACET_UNAVAILABLE in elem.attrib:
+            for qname in elem.attrib[nm.VC_FACET_UNAVAILABLE].split():
                 try:
                     facet_name = self.resolve_qname(qname)
                 except XMLSchemaNamespaceError:
@@ -1609,7 +1605,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             return local_name
         elif namespace_imported and self.meta_schema is not None and \
                 namespace != self.target_namespace and \
-                namespace not in {XSD_NAMESPACE, XSI_NAMESPACE} and \
+                namespace not in (nm.XSD_NAMESPACE, nm.XSI_NAMESPACE) and \
                 namespace not in self._import_statements:
             msg = _("the QName {0!r} is mapped to the namespace {1!r}, but this "
                     "namespace has not an xs:import statement in the schema.")
@@ -1709,9 +1705,9 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         else:
             resource = XMLResource(source, defuse=self.defuse, timeout=self.timeout)
 
-        ancestors: List[Element] = []
-        prev_ancestors: List[Element] = []
-        kwargs: Dict[Any, Any] = {
+        ancestors: list[Element] = []
+        prev_ancestors: list[Element] = []
+        kwargs: dict[Any, Any] = {
             'level': resource.lazy_depth or bool(path),
             'namespaces': namespaces,
             'validation_only': True,
@@ -1755,7 +1751,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                             break
 
                     path_ = f"{'/'.join(e.tag for e in ancestors)}/ancestor-or-self::node()"
-                    xsd_ancestors = cast(List[XsdElement],
+                    xsd_ancestors = cast(list[XsdElement],
                                          schema.findall(path_, namespaces)[1:])
 
                     # Clear identity constraints counters
@@ -1770,7 +1766,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
             xsd_element = schema.get_element(elem.tag, schema_path, namespaces)
             if xsd_element is None:
-                if XSI_TYPE in elem.attrib:
+                if nm.XSI_TYPE in elem.attrib:
                     xsd_element = self.create_element(name=elem.tag)
                 elif elem is not resource.root and ancestors:
                     continue
@@ -1829,7 +1825,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         for elem in selector:
             xsd_element = self.get_element(elem.tag, schema_path, context.namespaces)
             if xsd_element is None:
-                if XSI_TYPE in elem.attrib:
+                if nm.XSI_TYPE in elem.attrib:
                     xsd_element = self.create_element(name=elem.tag)
                 else:
                     reason = _("{!r} is not an element of the schema").format(elem)
@@ -1869,7 +1865,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                     validation_hook: Optional[ValidationHookType] = None,
                     value_hook: Optional[ValueHookType] = None,
                     element_hook: Optional[ElementHookType] = None,
-                    errors: Optional[List[XMLSchemaValidationError]] = None,
+                    errors: Optional[list[XMLSchemaValidationError]] = None,
                     **kwargs: Any) -> Iterator[Union[Any, XMLSchemaValidationError]]:
         """
         Creates an iterator for decoding an XML source to a data structure.
@@ -2008,7 +2004,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         for elem in selector:
             xsd_element = schema.get_element(elem.tag, schema_path, namespaces)
             if xsd_element is None:
-                if XSI_TYPE in elem.attrib:
+                if nm.XSI_TYPE in elem.attrib:
                     xsd_element = self.create_element(name=elem.tag)
                 else:
                     reason = _("{!r} is not an element of the schema").format(elem)
@@ -2220,8 +2216,8 @@ class XMLSchema10(XMLSchemaBase):
     meta_schema: XMLSchemaBase
     meta_schema = os.path.join(SCHEMAS_DIR, 'XSD_1.0/XMLSchema.xsd')  # type: ignore
     BASE_SCHEMAS = {
-        XML_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XML/xml_minimal.xsd'),
-        XSI_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XSI/XMLSchema-instance_minimal.xsd'),
+        nm.XML_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XML/xml_minimal.xsd'),
+        nm.XSI_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XSI/XMLSchema-instance_minimal.xsd'),
     }
 
 
@@ -2265,10 +2261,10 @@ class XMLSchema11(XMLSchemaBase):
     XSD_VERSION = '1.1'
 
     BASE_SCHEMAS = {
-        XML_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XML/xml_minimal.xsd'),
-        XSI_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XSI/XMLSchema-instance_minimal.xsd'),
-        XSD_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XSD_1.1/xsd11-extra.xsd'),
-        VC_NAMESPACE: os.path.join(SCHEMAS_DIR, 'VC/XMLSchema-versioning.xsd'),
+        nm.XML_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XML/xml_minimal.xsd'),
+        nm.XSI_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XSI/XMLSchema-instance_minimal.xsd'),
+        nm.XSD_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XSD_1.1/xsd11-extra.xsd'),
+        nm.VC_NAMESPACE: os.path.join(SCHEMAS_DIR, 'VC/XMLSchema-versioning.xsd'),
     }
 
     xsd_complex_type_class = Xsd11ComplexType

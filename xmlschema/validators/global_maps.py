@@ -11,9 +11,8 @@
 This module contains functions and classes for namespaces XSD declarations/definitions.
 """
 import warnings
-from collections.abc import Iterator, Iterable, Mapping, Set
-from typing import cast, Any, Callable, Dict, List, Optional, Union, Tuple, \
-    Type, TYPE_CHECKING, TypeVar
+from collections.abc import Callable, Iterator, Iterable, Mapping, MutableMapping
+from typing import cast, Any, Optional, Union, Type, TYPE_CHECKING, TypeVar
 
 from xmlschema.exceptions import XMLSchemaKeyError, XMLSchemaTypeError, \
     XMLSchemaValueError, XMLSchemaWarning
@@ -50,7 +49,7 @@ class NamespaceView(Mapping[str, T]):
     """
     __slots__ = 'target_dict', 'namespace', '_key_prefix'
 
-    def __init__(self, qname_dict: Dict[str, T], namespace_uri: str):
+    def __init__(self, qname_dict: dict[str, T], namespace_uri: str):
         self.target_dict = qname_dict
         self.namespace = namespace_uri
         self._key_prefix = f'{{{namespace_uri}}}' if namespace_uri else ''
@@ -85,7 +84,7 @@ class NamespaceView(Mapping[str, T]):
     def __eq__(self, other: Any) -> Any:
         return self.as_dict() == other
 
-    def as_dict(self, fqn_keys: bool = False) -> Dict[str, T]:
+    def as_dict(self, fqn_keys: bool = False) -> MutableMapping[str, T]:
         if not self.namespace:
             return {
                 k: v for k, v in self.target_dict.items() if not k or k[0] != '{'
@@ -102,7 +101,6 @@ class NamespaceView(Mapping[str, T]):
             }
 
 
-
 class XsdGlobals(XsdValidator):
     """
     Mediator class for related XML schema instances. It stores the global
@@ -112,20 +110,19 @@ class XsdGlobals(XsdValidator):
     :param validator: the origin schema class/instance used for creating the global maps.
     :param loader: the schema loader instance. Optional.
     """
-    types: Dict[str, Union[BaseXsdType, Tuple[ElementType, SchemaType]]]
-    attributes: Dict[str, Union[XsdAttribute, Tuple[ElementType, SchemaType]]]
-    attribute_groups: Dict[str, Union[XsdAttributeGroup, Tuple[ElementType, SchemaType]]]
-    groups: Dict[str, Union[XsdGroup, Tuple[ElementType, SchemaType]]]
-    notations: Dict[str, Union[XsdNotation, Tuple[ElementType, SchemaType]]]
-    elements: Dict[str, Union[XsdElement, Tuple[ElementType, SchemaType]]]
+    loader: SchemaLoader
+    types: dict[str, Union[BaseXsdType, tuple[ElementType, SchemaType]]]
+    attributes: dict[str, Union[XsdAttribute, tuple[ElementType, SchemaType]]]
+    attribute_groups: dict[str, Union[XsdAttributeGroup, tuple[ElementType, SchemaType]]]
+    groups: dict[str, Union[XsdGroup, tuple[ElementType, SchemaType]]]
+    notations: dict[str, Union[XsdNotation, tuple[ElementType, SchemaType]]]
+    elements: dict[str, Union[XsdElement, tuple[ElementType, SchemaType]]]
 
-    substitution_groups: Dict[str, Set[XsdElement]]
-    identities: Dict[str, XsdIdentity]
-    global_maps: Tuple[Dict[str, Any], ...]
+    substitution_groups: dict[str, set[XsdElement]]
+    identities: dict[str, XsdIdentity]
+    missing_locations: list[str]
 
-    missing_locations: List[str]
-
-    _loaded_schemas: Set['XMLSchemaBase']
+    _loaded_schemas: set[SchemaType]
     _lookup_function_resolver = {
         XSD_SIMPLE_TYPE: 'lookup_type',
         XSD_COMPLEX_TYPE: 'lookup_type',
@@ -156,7 +153,7 @@ class XsdGlobals(XsdValidator):
         self.global_maps = (self.notations, self.types, self.attributes,
                             self.attribute_groups, self.groups, self.elements)
 
-        self._builders: Dict[str, Callable[[ElementType, SchemaType], Any]] = {
+        self._builders: dict[str, Callable[[ElementType, SchemaType], Any]] = {
             XSD_NOTATION: validator.xsd_notation_class,
             XSD_SIMPLE_TYPE: validator.simple_type_factory,
             XSD_COMPLEX_TYPE: validator.xsd_complex_type_class,
@@ -165,7 +162,7 @@ class XsdGlobals(XsdValidator):
             XSD_GROUP: validator.xsd_group_class,
             XSD_ELEMENT: validator.xsd_element_class,
         }
-        self._loaded_schemas = set()
+        self._loaded_schemas: set[XMLSchemaBase] = set()
 
     def __repr__(self) -> str:
         return '%s(validator=%r)' % (
@@ -279,7 +276,7 @@ class XsdGlobals(XsdValidator):
             return cast(XsdElement, self._build_global(obj, qname, self.elements))
 
     def _build_global(self, obj: Any, qname: str,
-                      global_map: Dict[str, Any]) -> Any:
+                      global_map: dict[str, Any]) -> Any:
         factory_or_class: Callable[[ElementType, SchemaType], Any]
 
         if isinstance(obj, tuple):
@@ -369,7 +366,7 @@ class XsdGlobals(XsdValidator):
         return all(schema.built for schema in self.iter_schemas())
 
     @property
-    def unbuilt(self) -> List[Union[XsdComponent, SchemaType]]:
+    def unbuilt(self) -> list[Union[XsdComponent, SchemaType]]:
         """Property that returns a list with unbuilt components."""
         return [c for s in self.iter_schemas() for c in s.iter_components()
                 if c is not s and not c.built]
@@ -399,7 +396,7 @@ class XsdGlobals(XsdValidator):
         return self.validator.XSD_VERSION
 
     @property
-    def all_errors(self) -> List[XMLSchemaParseError]:
+    def all_errors(self) -> list[XMLSchemaParseError]:
         errors = []
         for schema in self.iter_schemas():
             errors.extend(schema.all_errors)
@@ -497,7 +494,7 @@ class XsdGlobals(XsdValidator):
         :param remove_schemas: removes also the schema instances.
         :param only_unbuilt: removes only not built objects/schemas.
         """
-        global_map: Dict[str, XsdComponent]
+        global_map: dict[str, XsdComponent]
         if only_unbuilt:
             not_built_schemas = {s for s in self.iter_schemas() if not s.built}
             if not not_built_schemas:
@@ -516,7 +513,7 @@ class XsdGlobals(XsdValidator):
             self._loaded_schemas.difference_update(not_built_schemas)
 
             if remove_schemas:
-                namespaces = NamespaceResourcesMap()
+                namespaces: NamespaceResourcesMap[SchemaType] = NamespaceResourcesMap()
                 for uri, value in self.namespaces.items():
                     for schema in value:
                         if schema not in not_built_schemas:

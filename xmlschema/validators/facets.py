@@ -14,9 +14,9 @@ import re
 import math
 import operator
 from abc import abstractmethod
+from collections.abc import MutableSequence
 from copy import copy
-from typing import TYPE_CHECKING, cast, overload, Any, Dict, List, \
-    MutableSequence, Optional, Pattern, Union, Tuple, Type
+from typing import TYPE_CHECKING, Any, cast, overload, Optional, Type, Union
 from xml.etree.ElementTree import Element
 
 from elementpath import XPathContext, ElementPathError, \
@@ -40,7 +40,7 @@ from .xsdbase import XsdComponent, XsdAnnotation
 if TYPE_CHECKING:
     from .simple_types import XsdList, XsdAtomicRestriction
 
-LaxDecodeType = Tuple[Any, List[XMLSchemaValidationError]]
+LaxDecodeType = tuple[Any, list[XMLSchemaValidationError]]
 
 
 class XsdFacet(XsdComponent):
@@ -90,7 +90,7 @@ class XsdFacet(XsdComponent):
                 msg = _("{0!r} facet value is fixed to {1!r}")
                 self.parse_error(msg.format(local_name(self.elem.tag), base_facet.value))
 
-    def _parse_value(self, elem: ElementType) -> Union[None, AtomicValueType, Pattern[str]]:
+    def _parse_value(self, elem: ElementType) -> Union[None, AtomicValueType, re.Pattern[str]]:
         self.value = elem.attrib['value']  # pragma: no cover
         return None
 
@@ -686,7 +686,7 @@ class XsdPatternFacets(MutableSequence[ElementType], XsdFacet):
         </pattern>
     """
     _ADMITTED_TAGS = {XSD_PATTERN}
-    patterns: List[Pattern[str]]
+    patterns: list[re.Pattern[str]]
 
     def __init__(self, elem: ElementType,
                  schema: SchemaType,
@@ -698,7 +698,7 @@ class XsdPatternFacets(MutableSequence[ElementType], XsdFacet):
         self._elements = [self.elem]
         self.patterns = [self._parse_value(self.elem)]
 
-    def _parse_value(self, elem: ElementType) -> Pattern[str]:
+    def _parse_value(self, elem: ElementType) -> re.Pattern[str]:
         try:
             python_pattern = translate_pattern(
                 pattern=elem.attrib['value'],
@@ -760,7 +760,7 @@ class XsdPatternFacets(MutableSequence[ElementType], XsdFacet):
             raise XMLSchemaValidationError(self, text, str(err)) from None
 
     @property
-    def regexps(self) -> List[str]:
+    def regexps(self) -> list[str]:
         return [e.attrib.get('value', '') for e in self._elements]
 
     def get_annotation(self, i: int) -> Optional[XsdAnnotation]:
@@ -843,7 +843,7 @@ class XsdAssertionFacet(XsdFacet):
             raise XMLSchemaValidationError(self, value, reason=str(err)) from None
 
 
-XSD_10_FACETS_BUILDERS: Dict[str, Type[XsdFacet]] = {
+XSD_10_FACETS_BUILDERS: dict[str, Type[XsdFacet]] = {
     XSD_WHITE_SPACE: XsdWhiteSpaceFacet,
     XSD_LENGTH: XsdLengthFacet,
     XSD_MIN_LENGTH: XsdMinLengthFacet,
@@ -858,7 +858,7 @@ XSD_10_FACETS_BUILDERS: Dict[str, Type[XsdFacet]] = {
     XSD_PATTERN: XsdPatternFacets
 }
 
-XSD_11_FACETS_BUILDERS: Dict[str, Type[XsdFacet]] = XSD_10_FACETS_BUILDERS.copy()
+XSD_11_FACETS_BUILDERS: dict[str, Type[XsdFacet]] = XSD_10_FACETS_BUILDERS.copy()
 XSD_11_FACETS_BUILDERS.update({
     XSD_ASSERTION: XsdAssertionFacet,
     XSD_EXPLICIT_TIMEZONE: XsdExplicitTimezoneFacet

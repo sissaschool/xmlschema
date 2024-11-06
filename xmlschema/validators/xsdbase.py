@@ -12,8 +12,8 @@ This module contains base functions and classes XML Schema components.
 """
 import logging
 import re
-from typing import TYPE_CHECKING, cast, Any, List, Iterator, Optional, \
-    Set, Tuple, Union, MutableMapping
+from collections.abc import Iterator, MutableMapping
+from typing import TYPE_CHECKING, cast, Any, Optional, Union
 from xml.etree import ElementTree
 
 from elementpath import select
@@ -65,7 +65,7 @@ class XsdValidator:
     """
     elem: Optional[ElementTree.Element] = None
     namespaces: Any = None
-    errors: List[XMLSchemaParseError]
+    errors: list[XMLSchemaParseError]
 
     def __init__(self, validation: str = 'strict') -> None:
         self.validation = validation
@@ -120,7 +120,7 @@ class XsdValidator:
         raise NotImplementedError()
 
     @property
-    def all_errors(self) -> List[XMLSchemaParseError]:
+    def all_errors(self) -> list[XMLSchemaParseError]:
         """
         A list with all the building errors of the XSD validator and its components.
         """
@@ -236,16 +236,17 @@ class XsdComponent(XsdValidator):
     """
     _REGEX_SPACE = re.compile(r'\s')
     _REGEX_SPACES = re.compile(r'\s+')
-    _ADMITTED_TAGS: Union[Set[str], Tuple[str, ...], Tuple[()]] = ()
+    _ADMITTED_TAGS: Union[set[str], tuple[str, ...], tuple[()]] = ()
 
     elem: ElementType
+    schema: SchemaType
     parent = None
-    name = None
+    name: Optional[str] = None
     ref: Optional['XsdComponent'] = None
     qualified = True
     redefine = None
     _annotation = None
-    _annotations: List['XsdAnnotation']
+    _annotations: list['XsdAnnotation']
     _target_namespace: Optional[str]
 
     def __init__(self, elem: ElementType,
@@ -348,7 +349,7 @@ class XsdComponent(XsdValidator):
         return self._annotation
 
     @property
-    def annotations(self) -> List['XsdAnnotation']:
+    def annotations(self) -> list['XsdAnnotation']:
         """A list containing all the annotations of the XSD component."""
         if '_annotations' not in self.__dict__:
             self._annotations = []
@@ -813,7 +814,7 @@ class XsdType(XsdComponent):
         """
         raise NotImplementedError()
 
-    def is_derived(self, other: Union[BaseXsdType, Tuple[ElementType, SchemaType]],
+    def is_derived(self, other: Union[BaseXsdType, tuple[ElementType, SchemaType]],
                    derivation: Optional[str] = None) -> bool:
         """
         Returns `True` if the instance is derived from *other*, `False` otherwise.

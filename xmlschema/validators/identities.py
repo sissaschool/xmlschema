@@ -13,8 +13,9 @@ This module contains classes for other XML Schema identity constraints.
 import copy
 import re
 import math
-from typing import TYPE_CHECKING, cast, Any, Dict, Iterator, List, Optional, \
-    Tuple, Union, Counter, Set
+from collections import Counter
+from collections.abc import Iterator
+from typing import TYPE_CHECKING, cast, Any, Optional, Union
 
 from elementpath import ElementPathError, XPathContext, XPathToken, \
     ElementNode, translate_pattern, AttributeNode
@@ -37,8 +38,8 @@ from . import elements as elements_module
 if TYPE_CHECKING:
     from .elements import XsdElement
 
-IdentityFieldItemType = Union[AtomicValueType, XsdAttribute, Tuple[Any, ...], None]
-IdentityCounterType = Tuple[IdentityFieldItemType, ...]
+IdentityFieldItemType = Union[AtomicValueType, XsdAttribute, tuple[Any, ...], None]
+IdentityCounterType = tuple[IdentityFieldItemType, ...]
 
 
 # XSD identities use a restricted XPath 2.0 parser. The XMLSchemaProxy is
@@ -58,7 +59,8 @@ def iter_root_elements(token: XPathToken) -> Iterator[XPathToken]:
         for tk in token:
             yield from iter_root_elements(tk)
 
-IdentityMapType = Dict[Union['XsdKey', 'XsdKeyref', str, None],
+
+IdentityMapType = dict[Union['XsdKey', 'XsdKeyref', str, None],
                        Union['IdentityCounter', 'KeyrefCounter']]
 IdentityNodeType = Union[ElementNode, AttributeNode]
 FieldDecoderType = Union[SchemaElementType, SchemaAttributeType]
@@ -156,10 +158,10 @@ class XsdIdentity(XsdComponent):
     ref: Optional['XsdIdentity']
 
     selector: Optional[XsdSelector] = None
-    fields: List[XsdFieldSelector]
+    fields: list[XsdFieldSelector]
 
     # XSD elements bound by selector (for speed-up and for lazy mode)
-    elements: Dict['XsdElement', List['FieldValueSelector']]
+    elements: dict['XsdElement', list['FieldValueSelector']]
 
     def __init__(self, elem: ElementType, schema: SchemaType,
                  parent: Optional['XsdElement']) -> None:
@@ -206,8 +208,8 @@ class XsdIdentity(XsdComponent):
         self.elements = self.get_selected_elements(base_element=self.parent)
 
     def get_selected_elements(self, base_element: Union['XsdElement', XPathElement]) \
-            -> Dict['XsdElement', List['FieldValueSelector']]:
-        elements: Dict['XsdElement', List['FieldValueSelector']] = {}
+            -> dict['XsdElement', list['FieldValueSelector']]:
+        elements: dict['XsdElement', list['FieldValueSelector']] = {}
         if self.selector is None:
             return elements
 
@@ -367,7 +369,7 @@ class Xsd11Keyref(XsdKeyref):
 
 
 class IdentityCounter:
-    elements: Optional[Set[Any]]  # don't need to check, should be only etree elements anyway
+    elements: Optional[set[Any]]  # don't need to check, should be only etree elements anyway
 
     def __init__(self, identity: XsdIdentity, elem: ElementType) -> None:
         self.counter: Counter[IdentityCounterType] = Counter[IdentityCounterType]()
@@ -403,7 +405,7 @@ class KeyrefCounter(IdentityCounter):
     def increase(self, fields: IdentityCounterType) -> None:
         self.counter[fields] += 1
 
-    def iter_errors(self, identities: Dict[XsdIdentity, IdentityCounter]) \
+    def iter_errors(self, identities: dict[XsdIdentity, IdentityCounter]) \
             -> Iterator[XMLSchemaValueError]:
         if self.refer is None:
             return  # don't validate with an unbuilt keyref
@@ -467,7 +469,7 @@ class FieldValueSelector:
         :param element_node: a no Element
         :param namespaces: is an optional mapping from namespace prefix to URI.
         """
-        value: Union[AtomicValueType, List[AtomicValueType], None] = None
+        value: Union[AtomicValueType, list[AtomicValueType], None] = None
         context = XPathContext(element_node, namespaces=namespaces)
 
         empty = True
