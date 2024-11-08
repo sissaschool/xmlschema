@@ -137,7 +137,7 @@ class XsdGlobals(XsdValidator):
         super().__init__(validator.validation)
 
         self.validator = validator
-        self.loader = SchemaLoader() if loader is None else loader
+        self.loader = SchemaLoader(validator) if loader is None else loader
         self.namespaces = self.loader.namespaces  # Registered schemas by namespace URI
         self.missing_locations = []     # Missing or failing resource locations
 
@@ -447,6 +447,8 @@ class XsdGlobals(XsdValidator):
             elif not any(schema.url == obj.url and schema.__class__ is obj.__class__
                          for obj in ns_schemas):
                 ns_schemas.append(schema)
+
+        self.loader.schemas.add(schema)
 
     def load_namespace(self, namespace: str, build: bool = True) -> bool:
         """

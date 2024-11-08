@@ -263,7 +263,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     BASE_SCHEMAS: dict[str, str] = {}
     meta_schema: Optional['XMLSchemaBase'] = None
     _annotations: Optional[list[XsdAnnotation]] = None
-    _components: Optional[dict[ElementType, XsdComponent]]
+    _components: Optional[dict[ElementType, XsdComponent]] = None
     _root_elements: Optional[set[str]] = None
     _xpath_node: Optional[SchemaElementNode]
     _validation_context: Optional[DecodeContext] = None
@@ -439,7 +439,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         # Create or set the XSD global maps instance
         if global_maps is None:
             loader_class = SchemaLoader if loader is None else loader
-            _loader = loader_class(locations, base_url, use_fallback)
+            _loader = loader_class(self, locations, base_url, use_fallback)
 
             if use_meta and self.target_namespace not in self.meta_schema.maps.namespaces:
                 self.maps = self.meta_schema.maps.copy(self, _loader)
@@ -470,13 +470,13 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             for e in self.meta_schema.iter_errors(root, namespaces=self.namespaces):
                 self.parse_error(e.reason or e, elem=e.elem)
 
-        self.add_components()
+        self.maps.loader.load_components(self)
 
-        # Imports by argument (usually from xsi:schemaLocation attribute).
+        # Import namespaces by argument (usually from xsi:schemaLocation attribute).
         if global_maps is None:
             for ns in self.locations:
                 if ns not in self.maps.namespaces:
-                    self._import_namespace(ns, self.locations[ns])
+                    self.maps.loader.import_namespace(self, ns, self.locations[ns])
 
         # XSD 1.1 default declarations (defaultAttributes, defaultOpenContent,
         # xpathDefaultNamespace)
@@ -1200,173 +1200,20 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         :param build: defines when to build the imported schema, the default is to not build.
         :return: the included :class:`XMLSchema` instance.
         """
-        schema: SchemaType
-        url = normalize_url(location, base_url)
-
-        for schema in self.maps.namespaces[self.target_namespace]:
-            if url == schema.url:
-                logger.debug("Resource %r is already loaded", url)
-                break
-        else:
-            logger.info("Include schema from %r", url)
-            schema = type(self)(
-                source=url,
-                namespace=self.target_namespace,
-                validation=self.validation,
-                global_maps=self.maps,
-                converter=self.converter,
-                base_url=self.base_url,
-                allow=self.allow,
-                defuse=self.defuse,
-                timeout=self.timeout,
-                uri_mapper=self.uri_mapper,
-                opener=self.opener,
-                build=build,
-                use_xpath3=self.use_xpath3,
-            )
-
-        if schema is self:
-            return self
-        elif location not in self.includes:
-            self.includes[location] = schema
-        elif self.includes[location] is not schema:
-            self.includes[url] = schema
-        return schema
-
-    def add_components(self) -> None:
-        """Add schema documents from imports, inclusions and redefinitions/overrides."""
-        logger.debug("Processing inclusions and imports of schema %r", self)
-
-        for child in self.source.root:
-            if child.tag in nm.XSD_ANNOTATION:
-                continue
-            elif child.tag not in (nm.XSD_IMPORT, nm.XSD_INCLUDE, nm.XSD_REDEFINE) \
-                    and (child.tag != nm.XSD_OVERRIDE or self.XSD_VERSION == '1.0'):
-                break
-
-            if child.tag == nm.XSD_IMPORT:
-                try:
-                    namespace = child.attrib['namespace'].strip()
-                except KeyError:
-                    namespace = ''
-
-                # Checks the namespace against the targetNamespace of the schema
-                if namespace == self.target_namespace:
-                    if namespace == '':
-                        msg = _("if the 'namespace' attribute is not present on "
-                                "the import statement then the imported schema "
-                                "must have a 'targetNamespace'")
-                    else:
-                        msg = _("the attribute 'namespace' must be different "
-                                "from schema's 'targetNamespace'")
-                    self.parse_error(msg)
-                    continue
-
-                # Register the namespace has a xs:import statement
-                self._import_statements.add(namespace)
-
-                try:
-                    location = child.attrib['schemaLocation'].strip()
-                except KeyError:
-                    locations = self.maps.loader.get_locations(namespace)
-                else:
-                    locations = [location]
-                    if namespace in self.maps.loader.locations:
-                        locations.extend(self.maps.loader.get_locations(namespace))
-
-                self._import_namespace(namespace, locations)
-
-            else:
-                try:
-                    location = child.attrib['schemaLocation'].strip()
-                except KeyError:
-                    continue
-                else:
-                    operation = child.tag.split('}')[-1]
-
-                try:
-                    logger.debug("%s schema from %s", operation, location)
-                    schema = self.include_schema(location, self.base_url)
-                except OSError as err:
-                    # It is not an error if the location fails to resolve:
-                    #   https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/#compound-schema
-                    #   https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/#src-include
-                    msg = _("%s schema failed: {}" % operation.capitalize()).format(err)
-                    self.warnings.append(msg)
-                    warnings.warn(self.warnings[-1], XMLSchemaIncludeWarning, stacklevel=3)
-
-                    # If the xs:redefine/xs:override doesn't contain components (annotation
-                    # excluded) the statement is equivalent to an include, so no error is
-                    # generated, otherwise fails.
-                    if child.tag != nm.XSD_INCLUDE and \
-                            any(e.tag != nm.XSD_ANNOTATION and not callable(e.tag) for e in child):
-                        self.parse_error(str(err), child)
-
-                except (XMLSchemaParseError, XMLSchemaTypeError, ParseError) as err:
-                    msg = _("can't %s schema {!r}: {}" % operation.capitalize())
-                    if isinstance(err, (XMLSchemaParseError, ParseError)):
-                        self.parse_error(msg.format(location, err), child)
-                    else:
-                        raise type(err)(msg.format(location, err))
-                else:
-                    if operation == 'redefine':
-                        schema.redefine = self
-                    elif operation == 'override':
-                        schema.override = self
-
-        logger.debug("Inclusions and imports of schema %r processed", self)
-
-    def _import_namespace(self, namespace: str, locations: list[str]) -> None:
-        import_error: Optional[Exception] = None
-        for url in locations:
-            try:
-                logger.debug("Import namespace %r from %r", namespace, url)
-                self.import_schema(namespace, url, self.base_url)
-            except (OSError, XMLResourceBlocked, XMLResourceForbidden) as err:
-                # It's not an error if the location access fails (ref. section 4.2.6.2):
-                #   https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/#composition-schemaImport
-                #
-                # Also consider block or defuse of XML data as a location access fail.
-                logger.debug('%s', err)
-                if import_error is None:
-                    import_error = err
-            except (XMLSchemaParseError, XMLSchemaTypeError, ParseError) as err:
-                if namespace:
-                    msg = _("cannot import namespace {0!r}: {1}").format(namespace, err)
-                else:
-                    msg = _("cannot import chameleon schema: %s") % err
-                if isinstance(err, (XMLSchemaParseError, ParseError)):
-                    self.parse_error(msg)
-                else:
-                    raise type(err)(msg)
-
-            except XMLSchemaValueError as err:
-                self.parse_error(err)
-            else:
-                logger.info("Namespace %r imported from %r", namespace, url)
-                break
-        else:
-            if import_error is not None:
-                msg = "Import of namespace {!r} from {!r} failed: {}."
-                self.warnings.append(msg.format(namespace, locations, str(import_error)))
-                warnings.warn(self.warnings[-1], XMLSchemaImportWarning, stacklevel=4)
-            self.imports[namespace] = None
+        return self.maps.loader.include_schema(self, location, base_url, build)
 
     def import_schema(self, namespace: str, location: str, base_url: Optional[str] = None,
                       force: bool = False, build: bool = False) -> Optional[SchemaType]:
         """
-        Imports a schema for an external namespace, from a specific URL.
+        Imports a schema for an external namespace from a specific location.
 
         :param namespace: is the URI of the external namespace.
         :param location: is the URL of the schema.
         :param base_url: is an optional base URL for fetching the schema resource.
         :param force: if set to `True` imports the schema also if the namespace is already imported.
         :param build: defines when to build the imported schema, the default is to not build.
-        :return: the imported :class:`XMLSchema` instance.
+        :return: the imported :class:`XMLSchema` instance, or `None` if the schema is already imported.
         """
-        if location == self.url:
-            return self
-
         if not force:
             if self.imports.get(namespace) is not None:
                 return self.imports[namespace]
