@@ -353,8 +353,8 @@ class TestXMLSchema10(XsdValidatorTestCase):
             self.schema_class(self.vh_xsd_file, loglevel=logging.INFO)
 
         self.assertEqual(logger.level, logging.WARNING)
-        self.assertEqual(len(ctx.output), 3)
-        self.assertIn("INFO:xmlschema:Include schema from ", ctx.output[0])
+        self.assertEqual(len(ctx.output), 7)
+        self.assertIn("INFO:xmlschema:Process xs:include schema from ", ctx.output[0])
 
         with self.assertLogs('xmlschema', level='DEBUG') as ctx:
             self.schema_class(self.vh_xsd_file, loglevel=logging.DEBUG)
@@ -371,11 +371,11 @@ class TestXMLSchema10(XsdValidatorTestCase):
 
         with self.assertLogs('xmlschema', level='INFO') as ctx:
             self.schema_class(self.vh_xsd_file, loglevel='INFO')
-        self.assertEqual(len(ctx.output), 3)
+        self.assertEqual(len(ctx.output), 7)
 
         with self.assertLogs('xmlschema', level='INFO') as ctx:
             self.schema_class(self.vh_xsd_file, loglevel='  Info ')
-        self.assertEqual(len(ctx.output), 3)
+        self.assertEqual(len(ctx.output), 7)
 
     def test_target_namespace(self):
         schema = self.schema_class(dedent("""\
@@ -632,6 +632,11 @@ class TestXMLSchema10(XsdValidatorTestCase):
                 <xs:element name="elem2"/>
             </xs:schema>""")
 
+        source2_ = dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:element name="elem2"/>
+            </xs:schema>""")
+
         source3 = dedent("""\
              <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
                      targetNamespace="http://xmlschema.test/ns1">
@@ -644,9 +649,12 @@ class TestXMLSchema10(XsdValidatorTestCase):
         self.assertEqual(len(schema.maps.namespaces['http://xmlschema.test/ns']), 1)
         self.assertEqual(len(schema.maps.namespaces['']), 1)
 
-        # Less checks on duplicate objects for schemas added after the build
+        # Doesn't raise if the source is the same object
+        schema.add_schema(source2, build=True)
+
+        # Doesn't check equality of the sources, only URL matching.
         with self.assertRaises(XMLSchemaParseError) as ctx:
-            schema.add_schema(source2, build=True)
+            schema.add_schema(source2_, build=True)
 
         self.assertIn("global element with name='elem2' is already defined",
                       str(ctx.exception))

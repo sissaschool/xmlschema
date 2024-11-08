@@ -437,7 +437,7 @@ class TestWsdlDocuments(unittest.TestCase):
         malformed_file = casepath('resources/malformed.xml')
         with self.assertRaises(WsdlParseError) as ctx:
             Wsdl11Document(wsdl_template.format(malformed_file))
-        self.assertIn('cannot import namespace', str(ctx.exception))
+        self.assertIn('can\'t import namespace', str(ctx.exception))
         self.assertIn('no element found', str(ctx.exception))
 
         wsdl_template = """<?xml version="1.0"?>

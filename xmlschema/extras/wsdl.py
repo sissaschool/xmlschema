@@ -637,7 +637,7 @@ class Wsdl11Document(XmlDocument):
                     if import_error is None:
                         import_error = err
                 except SyntaxError as err:
-                    msg = f"cannot import namespace {namespace!r}: {err}."
+                    msg = f"can't import namespace {namespace!r}: {err}."
                     self.parse_error(msg)
                 except XMLSchemaValueError as err:
                     self.parse_error(err)

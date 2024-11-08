@@ -18,7 +18,7 @@ from collections.abc import Callable, Iterable, Iterator, MutableMapping, Sequen
 from typing import Any, Optional, TypeVar, Union
 from xml.etree.ElementTree import ParseError
 
-from xmlschema.aliases import ElementType, LocationsType, SchemaType
+from xmlschema.aliases import ElementType, LocationsType, SchemaType, SchemaSourceType
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from xmlschema.translation import gettext as _
 from xmlschema.utils.qnames import get_qname, local_name
@@ -242,6 +242,7 @@ class SchemaLoader:
         self.schemas = set()
         self.namespaces = NamespaceResourcesMap()
         self.locations = LocationHints.from_args(locations, base_url)
+        self.base_url = base_url
 
         if not use_fallback:
             self.fallback_locations = {}
@@ -334,26 +335,38 @@ class SchemaLoader:
                                      schema: SchemaType, location: str) -> None:
         """A valid xs:include/xs:redefine/xs:override element."""
         operation = elem.tag.split('}')[-1]
-        logger.debug("%s schema from %s", operation, location)
+        logger.info("Process xs:%s schema from %s", operation, location)
         try:
             _schema = self.include_schema(schema, location, schema.base_url)
         except OSError as err:
             # It is not an error if the location fails to resolve:
             #   https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/#compound-schema
             #   https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/#src-include
-            msg = _("%s schema failed: {}" % operation.capitalize()).format(err)
+            if elem.tag == nm.XSD_INCLUDE:
+                msg = _("Include schema failed: {}").format(err)
+            else:
+                # If the xs:redefine/xs:override doesn't contain components (annotation
+                # excluded) the statement is equivalent to an include, so no error is
+                # generated, otherwise fails.
+                if any(e.tag != nm.XSD_ANNOTATION and not callable(e.tag) for e in elem):
+                    schema.parse_error(str(err), elem)
+
+                if elem.tag == nm.XSD_REDEFINE:
+                    msg = _("Redefine schema failed: {}").format(err)
+                else:
+                    msg = _("Override schema failed: {}").format(err)
+
             schema.warnings.append(msg)
             warnings.warn(msg, XMLSchemaIncludeWarning, stacklevel=3)
 
-            # If the xs:redefine/xs:override doesn't contain components (annotation
-            # excluded) the statement is equivalent to an include, so no error is
-            # generated, otherwise fails.
-            if elem.tag != nm.XSD_INCLUDE and \
-                    any(e.tag != nm.XSD_ANNOTATION and not callable(e.tag) for e in elem):
-                schema.parse_error(str(err), elem)
-
         except (XMLSchemaParseError, XMLSchemaTypeError, ParseError) as err:
-            msg = _("can't %s schema {!r}: {}" % operation)
+            if elem.tag == nm.XSD_INCLUDE:
+                msg = _("can't include schema {!r}: {}")
+            elif elem.tag == nm.XSD_REDEFINE:
+                msg = _("can't redefine schema {!r}: {}")
+            else:
+                msg = _("can't override schema {!r}: {}")
+
             if isinstance(err, (XMLSchemaParseError, ParseError)):
                 schema.parse_error(msg.format(location, err), elem)
             else:
@@ -371,7 +384,7 @@ class SchemaLoader:
         import_error: Optional[Exception] = None
         for location in location_hints:
             try:
-                logger.debug("Import namespace %r from %r", namespace, location)
+                logger.info("Import namespace %r from %r", namespace, location)
                 self.import_schema(schema, namespace, location, schema.base_url)
             except (OSError, XMLResourceBlocked, XMLResourceForbidden) as err:
                 # It's not an error if the location access fails (ref. section 4.2.6.2):
@@ -398,9 +411,9 @@ class SchemaLoader:
                 break
         else:
             if import_error is not None:
-                msg = "Import of namespace {!r} from {!r} failed: {}."
+                msg = _("Import of namespace {!r} from {!r} failed: {}.")
                 schema.warnings.append(msg.format(namespace, location_hints, str(import_error)))
-                warnings.warn(msg, XMLSchemaImportWarning, stacklevel=4)
+                warnings.warn(schema.warnings[-1], XMLSchemaImportWarning, stacklevel=4)
             schema.imports[namespace] = None
 
     def import_schema(self, target_schema: SchemaType,
@@ -414,17 +427,31 @@ class SchemaLoader:
         :param target_schema: the importer schema.
         :param namespace: is the URI of the external namespace.
         :param location: is the URL of the schema.
-        :param base_url: is an optional base URL for fetching the schema resource.
+        :param base_url: is an optional base URL for fetching the schema resource, \
+        otherwise use the base url of the loader, if any.
         :param build: defines when to build the imported schema, the default is to not build.
         :return: the imported :class:`XMLSchema` instance.
         """
+        if base_url is None:
+            base_url = self.base_url
+
         url = normalize_url(location, base_url)
+        if location in target_schema.imports:
+            return target_schema.imports[location]
+        elif url in target_schema.imports:
+            return target_schema.imports[url]
+
         schema = self.load_schema(url, build=build)
         if schema.target_namespace != namespace:
             msg = _('imported schema {!r} has an unmatched namespace {!r}')
             raise XMLSchemaValueError(msg.format(location, namespace))
 
-        target_schema.imports[namespace] = schema
+        if target_schema is schema:
+            return schema
+        elif location not in target_schema.imports:
+            target_schema.imports[location] = schema
+        elif target_schema.imports[location] is not schema:
+            target_schema.imports[url] = schema
         return schema
 
     def include_schema(self, target_schema: SchemaType,
@@ -432,6 +459,11 @@ class SchemaLoader:
                        base_url: Optional[str] = None,
                        build: bool = False) -> SchemaType:
         url = normalize_url(location, base_url)
+        if location in target_schema.includes:
+            return target_schema.includes[location]
+        elif url in target_schema.includes:
+            return target_schema.includes[url]
+
         schema = self.load_schema(url, target_schema.target_namespace, build)
 
         if target_schema is schema:
@@ -442,26 +474,31 @@ class SchemaLoader:
             target_schema.includes[url] = schema
         return schema
 
-    def load_schema(self, url: str,
+    def load_schema(self, source: SchemaSourceType,
                     namespace: Optional[str] = None,
+                    base_url: Optional[str] = None,
                     build: bool = False) -> SchemaType:
         """
         Loads a schema from a location.
 
-        :param url: the URL of the XSD resource to load.
+        :param source: a URI that reference to a resource or a file path or a file-like \
+        object or a string containing the schema or an Element or an ElementTree document.
         :param namespace: is the URI of the namespace that the schema belongs to.
+        :param base_url: is an optional base URL for fetching the schema resource, \
+        otherwise use the base url of the loader, if any.
         :param build: defines when to build the loaded schema, the default is to not build.
         :return: the loaded schema or the schema that matches the URL if it's already loaded.
         """
         for schema in self.schemas:
-            if schema.url == url:
-                logger.debug("Resource %r is already loaded", url)
+            if schema.url == source or schema.source is source or schema.source.source is source:
+                logger.info("Resource %r is already loaded", source)
                 return schema
 
-        logger.debug("Load schema from %r", url)
+        logger.debug("Load schema from %r", source)
         return self.schema_class(
-            source=url,
+            source=source,
             namespace=namespace,
+            base_url=base_url or self.base_url,
             global_maps=self.validator.maps,
             build=build,
             **self.options,

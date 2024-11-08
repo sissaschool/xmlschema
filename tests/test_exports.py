@@ -30,7 +30,6 @@ def casepath(relative_path):
     return str(pathlib.Path(TEST_CASES_DIR).joinpath(relative_path))
 
 
-@unittest.skip
 class TestExports(unittest.TestCase):
 
     schema_class = XMLSchema10

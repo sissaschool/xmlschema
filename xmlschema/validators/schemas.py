@@ -1214,53 +1214,15 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         :param build: defines when to build the imported schema, the default is to not build.
         :return: the imported :class:`XMLSchema` instance, or `None` if the schema is already imported.
         """
-        if not force:
-            if self.imports.get(namespace) is not None:
-                return self.imports[namespace]
-            elif namespace in self.maps.namespaces:
-                self.imports[namespace] = self.maps.namespaces[namespace][0]
-                return self.imports[namespace]
-
-        schema: SchemaType
-        url = normalize_url(location, base_url)
-        imported_ns = self.imports.get(namespace)
-        if imported_ns is not None and imported_ns.url == url:
-            return imported_ns
-        elif namespace in self.maps.namespaces:
-            for schema in self.maps.namespaces[namespace]:
-                if url == schema.url:
-                    self.imports[namespace] = schema
-                    return schema
-
-        locations = deepcopy(self.locations)
-        if namespace in locations:
-            locations.pop(namespace)
-
-        schema = type(self)(
-            source=url,
-            validation=self.validation,
-            global_maps=self.maps,
-            converter=self.converter,
-            base_url=self.base_url,
-            allow=self.allow,
-            defuse=self.defuse,
-            timeout=self.timeout,
-            uri_mapper=self.uri_mapper,
-            opener=self.opener,
-            build=build,
-            use_xpath3=self.use_xpath3,
-        )
-        if schema.target_namespace != namespace:
-            msg = _('imported schema {0!r} has an unmatched namespace {1!r}')
-            raise XMLSchemaValueError(msg.format(location, namespace))
-
-        self.imports[namespace] = schema
-        return schema
+        if not force and namespace in self.maps.namespaces:
+            return self.maps.namespaces[namespace][0]
+        return self.maps.loader.import_schema(self, namespace, location, base_url, build)
 
     def add_schema(self, source: SchemaSourceType,
                    namespace: Optional[str] = None, build: bool = False) -> SchemaType:
         """
-        Add another schema source to the maps of the instance.
+        Add another schema source to the maps of the instance without affecting imports or
+        includes registrations.
 
         :param source: a URI that reference to a resource or a file path or a file-like \
         object or a string containing the schema or an Element or an ElementTree document.
@@ -1270,28 +1232,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         :param build: defines when to build the imported schema, the default is to not build.
         :return: the added :class:`XMLSchema` instance.
         """
-        locations = deepcopy(self.locations)
-        if namespace is None:
-            if '' in locations:
-                locations.pop('')
-        elif namespace in locations:
-            locations.pop(namespace)
-
-        return type(self)(
-            source=source,
-            namespace=namespace,
-            validation=self.validation,
-            global_maps=self.maps,
-            converter=self.converter,
-            base_url=self.base_url,
-            allow=self.allow,
-            defuse=self.defuse,
-            timeout=self.timeout,
-            uri_mapper=self.uri_mapper,
-            opener=self.opener,
-            build=build,
-            use_xpath3=self.use_xpath3,
-        )
+        return self.maps.loader.load_schema(source, namespace, build=build)
 
     def export(self, target: Union[str, Path],
                save_remote: bool = False,
