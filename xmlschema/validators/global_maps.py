@@ -14,13 +14,13 @@ import warnings
 from collections.abc import Callable, Iterator, Iterable, Mapping, MutableMapping
 from typing import cast, Any, Optional, Union, Type, TYPE_CHECKING, TypeVar
 
+from xmlschema.aliases import ComponentClassType, ElementType, \
+    SchemaType, BaseXsdType, SchemaGlobalType, NsmapType
 from xmlschema.exceptions import XMLSchemaKeyError, XMLSchemaTypeError, \
     XMLSchemaValueError, XMLSchemaWarning
 from xmlschema.names import XSD_NAMESPACE, XSD_NOTATION, \
     XSD_ANY_TYPE, XSD_SIMPLE_TYPE, XSD_COMPLEX_TYPE, XSD_GROUP, \
     XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ELEMENT, XSI_TYPE
-from xmlschema.aliases import ComponentClassType, ElementType, SchemaType, BaseXsdType, \
-    SchemaGlobalType, NsmapType
 from xmlschema.translation import gettext as _
 from xmlschema.utils.qnames import get_extended_qname
 from xmlschema.loaders import load_xsd_simple_types, load_xsd_attributes, \
@@ -108,19 +108,21 @@ class XsdGlobals(XsdValidator):
     add its declarations to the global maps.
 
     :param validator: the origin schema class/instance used for creating the global maps.
-    :param loader: the schema loader instance. Optional.
+    :param validation: the XSD validation mode to use, can be 'strict', 'lax' or 'skip'.
+    :param
     """
+    namespaces: NamespaceResourcesMap[SchemaType]
+    schemas: set[SchemaType]
     loader: SchemaLoader
+
     types: dict[str, Union[BaseXsdType, tuple[ElementType, SchemaType]]]
     attributes: dict[str, Union[XsdAttribute, tuple[ElementType, SchemaType]]]
     attribute_groups: dict[str, Union[XsdAttributeGroup, tuple[ElementType, SchemaType]]]
     groups: dict[str, Union[XsdGroup, tuple[ElementType, SchemaType]]]
     notations: dict[str, Union[XsdNotation, tuple[ElementType, SchemaType]]]
     elements: dict[str, Union[XsdElement, tuple[ElementType, SchemaType]]]
-
     substitution_groups: dict[str, set[XsdElement]]
     identities: dict[str, XsdIdentity]
-    missing_locations: list[str]
 
     _loaded_schemas: set[SchemaType]
     _lookup_function_resolver = {
@@ -133,13 +135,13 @@ class XsdGlobals(XsdValidator):
         XSD_NOTATION: 'lookup_notation',
     }
 
-    def __init__(self, validator: SchemaType, loader: Optional[SchemaLoader] = None) -> None:
-        super().__init__(validator.validation)
+    def __init__(self, validator: SchemaType, validation: str = 'strict',
+                 loader: Optional[Type[SchemaLoader]] = None, **kwargs) -> None:
 
+        super().__init__(validation)
         self.validator = validator
-        self.loader = SchemaLoader(validator) if loader is None else loader
-        self.namespaces = self.loader.namespaces  # Registered schemas by namespace URI
-        self.missing_locations = []     # Missing or failing resource locations
+        self.namespaces = NamespaceResourcesMap()  # Registered schemas by namespace URI
+        self.schemas = set()
 
         self.types = {}                 # Global types (both complex and simple)
         self.attributes = {}            # Global attributes
@@ -163,24 +165,23 @@ class XsdGlobals(XsdValidator):
             XSD_ELEMENT: validator.xsd_element_class,
         }
         self._loaded_schemas: set[XMLSchemaBase] = set()
+        self.loader = (loader or SchemaLoader)(self)
 
     def __repr__(self) -> str:
         return '%s(validator=%r)' % (
             self.__class__.__name__, self.validator
         )
 
-    def copy(self, validator: Optional[SchemaType] = None,
-             loader: Optional[SchemaLoader] = None) -> 'XsdGlobals':
+    def replace(self, validator: SchemaType) -> 'XsdGlobals':
         """
-        Creates a shallow copy of the object. The associated schemas do not change
-        the original global maps. This is useful for sharing the same meta-schema
-        without copying the full tree objects, saving time and memory.
+        Returns a new global map instance with a new origin validator. The new object
+        inherit all the schemas and components already loaded and built. This is useful
+        for sharing the same meta-schema without reloading and rebuilding the validators.
         """
-        obj = self.__class__(
-            validator=self.validator if validator is None else validator,
-            loader=self.loader.__copy__() if loader is None else loader,
-        )
+        obj = self.__class__(validator)
+        obj.schemas.update(self.schemas)
         obj.namespaces.update(self.namespaces)
+        obj._loaded_schemas.update(self._loaded_schemas)
         obj.types.update(self.types)
         obj.attributes.update(self.attributes)
         obj.attribute_groups.update(self.attribute_groups)
@@ -189,8 +190,12 @@ class XsdGlobals(XsdValidator):
         obj.elements.update(self.elements)
         obj.substitution_groups.update(self.substitution_groups)
         obj.identities.update(self.identities)
-        obj._loaded_schemas.update(self._loaded_schemas)
+        obj.loader.urls.update(s.url for s in obj.schemas if s.url is not None)
         return obj
+
+    def copy(self, validator: Optional[SchemaType] = None,
+             validation: Optional[str] = None) -> 'XsdGlobals':
+        return self.replace(validator)
 
     __copy__ = copy
 
@@ -448,7 +453,7 @@ class XsdGlobals(XsdValidator):
                          for obj in ns_schemas):
                 ns_schemas.append(schema)
 
-        self.loader.schemas.add(schema)
+        self.schemas.add(schema)
 
     def load_namespace(self, namespace: str, build: bool = True) -> bool:
         """
@@ -461,33 +466,7 @@ class XsdGlobals(XsdValidator):
         :param build: if left with `True` value builds the maps after load. If the \
         build fails the resource URL is added to missing locations.
         """
-        namespace = namespace.strip()
-        if namespace in self.namespaces:
-            return True
-        elif self.validator.meta_schema is None:
-            return False  # Do not load additional namespaces for meta-schema (XHTML)
-
-        # Try from schemas location hints: usually the namespaces related to these
-        # hints are already loaded during schema construction, but it's better to
-        # retry once if the initial load has failed.
-        for schema in self.iter_schemas():
-            for url in schema.get_locations(namespace):
-                if url in self.missing_locations:
-                    continue
-
-                try:
-                    if schema.import_schema(namespace, url, schema.base_url) is not None:
-                        if build:
-                            self.build()
-                except OSError:
-                    pass
-                except XMLSchemaNotBuiltError:
-                    self.clear(remove_schemas=True, only_unbuilt=True)
-                    self.missing_locations.append(url)
-                else:
-                    return True
-
-        return False
+        return self.validator.loader.load_namespace(namespace, build)
 
     def clear(self, remove_schemas: bool = False, only_unbuilt: bool = False) -> None:
         """
@@ -523,7 +502,6 @@ class XsdGlobals(XsdValidator):
                 self.namespaces = namespaces
 
         else:
-            del self.missing_locations[:]
             for global_map in self.global_maps:
                 global_map.clear()
             self.substitution_groups.clear()

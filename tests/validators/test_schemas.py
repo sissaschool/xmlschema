@@ -770,7 +770,7 @@ class TestXMLSchema10(XsdValidatorTestCase):
                 <xs:element name="root"/>
             </xs:schema>"""), use_xpath3=True)
 
-        self.assertFalse(schema.use_xpath3)
+        self.assertTrue(schema.use_xpath3)
 
     def test_xmlns_namespace_forbidden(self):
         source = dedent("""\

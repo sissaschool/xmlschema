@@ -15,21 +15,27 @@ import logging
 import warnings
 from collections import Counter
 from collections.abc import Callable, Iterable, Iterator, MutableMapping, Sequence
-from typing import Any, Optional, TypeVar, Union
+from operator import attrgetter
+from typing import Any, Optional, overload, Type, TypeVar, TYPE_CHECKING, Union
 from xml.etree.ElementTree import ParseError
 
 from xmlschema.aliases import ElementType, LocationsType, SchemaType, SchemaSourceType
-from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError
+from xmlschema.exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, \
+    XMLSchemaValueError
 from xmlschema.translation import gettext as _
 from xmlschema.utils.qnames import get_qname, local_name
 from xmlschema.utils.urls import normalize_url, normalize_locations
 from xmlschema.resources import XMLResourceBlocked, XMLResourceForbidden
 import xmlschema.names as nm
 
-from xmlschema.validators import XMLSchemaParseError, XMLSchemaIncludeWarning, \
-    XMLSchemaImportWarning
+from xmlschema.validators import XMLSchemaParseError, XMLSchemaNotBuiltError, \
+    XMLSchemaIncludeWarning, XMLSchemaImportWarning
+
+if TYPE_CHECKING:
+    from xmlschema.validators import XsdGlobals
 
 logger = logging.getLogger('xmlschema')
+base_url_attribute = attrgetter('name')
 
 SCHEMAS_DIR = os.path.join(os.path.dirname(__file__), 'schemas/')
 
@@ -88,20 +94,40 @@ class NamespaceResourcesMap(MutableMapping[str, list[T]]):
     __copy__ = copy
 
 
-class LocationHints(NamespaceResourcesMap[str]):
+class LocationHints:
+    """A descriptor for handling the location argument of a schema."""
 
-    @classmethod
-    def from_args(cls, locations: Optional[LocationsType],
-                  base_url: Optional[str] = None) -> 'LocationHints':
-        if isinstance(locations, cls):
-            return locations
-        elif locations is None:
-            return cls()
-        elif isinstance(locations, tuple):
-            return cls(locations)
+    @overload
+    def __get__(self, instance: None, owner: Type[SchemaType]) -> 'LocationHints': ...
+
+    @overload
+    def __get__(self, instance: SchemaType, owner: Type[SchemaType]) -> NamespaceResourcesMap[str]: ...
+
+    def __get__(self, instance: Optional[SchemaType], owner: Type[SchemaType]) \
+            -> Union['LocationHints', NamespaceResourcesMap[str]]:
+        if instance is None:
+            return self
+        elif isinstance(instance._locations, NamespaceResourcesMap):
+            return instance._locations
+        elif instance._locations is None:
+            return NamespaceResourcesMap()
+        elif isinstance(instance._locations, tuple):
+            return NamespaceResourcesMap(instance._locations)
         else:
-            return cls(normalize_locations(locations, base_url=base_url))
+            return NamespaceResourcesMap(normalize_locations(instance._locations, instance.base_url))
 
+    def __set__(self, instance: SchemaType, value: LocationsType) -> None:
+        if value is None:
+            return
+        elif not isinstance(value, (NamespaceResourcesMap, Iterable)):
+            raise XMLSchemaTypeError(
+                _('wrong type {!r} for locations argument').format(type(value))
+            )
+        else:
+            instance._locations = value
+
+    def __delete__(self, instance: Any) -> None:
+        raise XMLSchemaAttributeError(_("Can't delete attribute {!r}").format(self._name))
 
 #
 # Defines the load functions for XML Schema structures
@@ -229,28 +255,25 @@ class SchemaLoader:
         nm.XSLT_NAMESPACE: 'http://www.w3.org/2007/schema-for-xslt20.xsd',
     }
 
-    schemas: set[SchemaType]
-    namespaces: NamespaceResourcesMap[SchemaType]
+    urls: set[Optional[str]]
     locations: LocationHints
     missing_locations: set[str]
 
-    def __init__(self, validator: SchemaType,
-                 locations: Optional[LocationsType] = None,
-                 base_url: Optional[str] = None,
-                 use_fallback: bool = False):
-        self.validator = validator
-        self.schemas = set()
-        self.namespaces = NamespaceResourcesMap()
-        self.locations = LocationHints.from_args(locations, base_url)
-        self.base_url = base_url
-
-        if not use_fallback:
-            self.fallback_locations = {}
-
+    def __init__(self, maps: 'XsdGlobals'):
+        self.maps = maps
+        self.urls = {s.url for s in self.maps.schemas if s.url is not None}
         self.missing_locations = set()  # Missing or failing resource locations
 
+        # Set locations from validator init options
+        validator = maps.validator
         self.schema_class = type(validator)
-        self.options = {
+        self.base_url = validator.source.base_url
+        self.locations = validator.locations
+        if not validator.use_fallback:
+            self.fallback_locations = {}
+
+        # Save other validator init options, used for creating new schemas.
+        self.init_options = {
             'validation': validator.validation,
             'converter': validator.converter,
             'allow': validator.source.allow,
@@ -264,7 +287,7 @@ class SchemaLoader:
     def is_missing(self, namespace: str,
                    location: Optional[str] = None,
                    base_url: Optional[str] = None) -> bool:
-        return namespace not in self.namespaces
+        return namespace not in self.maps.namespaces
 
     def get_locations(self, namespace: str, location: Optional[str] = None) -> list[str]:
         locations: list[str] = [location] if location else []
@@ -275,19 +298,15 @@ class SchemaLoader:
             locations.append(self.fallback_locations[namespace])
         return locations
 
-    def copy(self) -> 'SchemaLoader':
+    def __copy__(self) -> 'SchemaLoader':
         loader: SchemaLoader = object.__new__(self.__class__)
         loader.__dict__.update(self.__dict__)
-        loader.schemas = {s for s in self.schemas}
-        loader.namespaces = self.namespaces.copy()
         loader.locations = self.locations.copy()
         return loader
 
-    __copy__ = copy
-
     def load_components(self, schema) -> None:
         """Add schema documents from imports, inclusions and redefinitions/overrides."""
-        if schema not in self.schemas:
+        if schema not in self.maps.schemas:
             raise XMLSchemaValueError(f"{schema} is not loaded!")
 
         logger.debug("Processing inclusions and imports of schema %r", self)
@@ -313,7 +332,7 @@ class SchemaLoader:
                     schema.parse_error(msg)
                     continue
 
-                schema._import_statements.add(namespace)
+                schema.imported_namespaces.append(namespace)
                 if not self.is_missing(namespace, location):
                     continue
 
@@ -414,7 +433,6 @@ class SchemaLoader:
                 msg = _("Import of namespace {!r} from {!r} failed: {}.")
                 schema.warnings.append(msg.format(namespace, location_hints, str(import_error)))
                 warnings.warn(schema.warnings[-1], XMLSchemaImportWarning, stacklevel=4)
-            schema.imports[namespace] = None
 
     def import_schema(self, target_schema: SchemaType,
                       namespace: str,
@@ -489,7 +507,7 @@ class SchemaLoader:
         :param build: defines when to build the loaded schema, the default is to not build.
         :return: the loaded schema or the schema that matches the URL if it's already loaded.
         """
-        for schema in self.schemas:
+        for schema in self.maps.schemas:
             if schema.url == source or schema.source is source or schema.source.source is source:
                 logger.info("Resource %r is already loaded", source)
                 return schema
@@ -499,7 +517,60 @@ class SchemaLoader:
             source=source,
             namespace=namespace,
             base_url=base_url or self.base_url,
-            global_maps=self.validator.maps,
+            global_maps=self.maps,
             build=build,
-            **self.options,
+            **self.init_options,
         )
+
+    def load_namespace(self, namespace: str, build: bool = True) -> bool:
+        if namespace in self.maps.namespaces:
+            return True
+        elif self.maps.validator.meta_schema is None:
+            return False  # Do not load additional namespaces for meta-schema (XHTML)
+
+        loaded_schemas = []
+        location_hints = self.get_locations(namespace)
+
+        for location in location_hints:
+            url = normalize_url(location, self.base_url)
+            if not self.is_missing(namespace, url):
+                break
+            elif url in self.missing_locations:
+                continue
+
+            try:
+                loaded_schemas.append(self.load_schema(url, namespace))
+            except OSError:
+                self.missing_locations.add(url)
+
+        if loaded_schemas and build:
+            try:
+                loaded_schemas[0].build()
+            except XMLSchemaNotBuiltError:
+                self.maps.clear(remove_schemas=True, only_unbuilt=True)
+
+        return namespace in self.maps.namespaces
+
+
+class UrlSchemaLoader(SchemaLoader):
+
+    def is_missing(self, namespace: str,
+                   location: Optional[str] = None,
+                   base_url: Optional[str] = None) -> bool:
+        return namespace not in self.maps.namespaces or location is None \
+            or normalize_url(location, base_url) not in self.urls
+
+
+class SafeSchemaLoader(SchemaLoader):
+
+    def load_schema(self, source: SchemaSourceType,
+                    namespace: Optional[str] = None,
+                    base_url: Optional[str] = None,
+                    build: bool = False) -> SchemaType:
+        schema = super().load_schema(source, namespace, base_url)
+
+        other_schemas = self.maps.namespaces[schema.target_namespace]
+        for child in schema.root:
+            if (name := child.get('name')) is not None:
+                pass
+        return schema
