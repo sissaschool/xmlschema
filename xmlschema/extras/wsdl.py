@@ -522,7 +522,7 @@ class Wsdl11Document(XmlDocument):
         self.target_namespace = self.root.get('targetNamespace', '')
         self.soap_binding = SOAP_NAMESPACE in self.namespaces.values()
         self.locations = locations
-        
+
         if self.namespace == XSD_NAMESPACE:
             self.schema.__class__(
                 source=self,

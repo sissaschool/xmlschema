@@ -136,14 +136,6 @@ class XsdElement(XsdComponent, ParticleMixin,
             list(self.occurs)
         )
 
-    def _____setattr__(self, name: str, value: Any) -> None:
-        if name == "type":
-            if isinstance(value, XsdSimpleType):
-                self.attributes = self.schema.create_empty_attribute_group(self)
-            else:
-                self.attributes = value.attributes
-        super().__setattr__(name, value)
-
     def _set_type(self, value: BaseXsdType) -> None:
         self.type = value
         if isinstance(value, XsdSimpleType):
