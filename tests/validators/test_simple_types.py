@@ -30,9 +30,9 @@ class TestXsdSimpleTypes(XsdValidatorTestCase):
             <xs:union memberTypes="xs:string xs:integer xs:boolean"/>
         </xs:simpleType>
         """)
-        xs.types['test_list'].elem = xs.root[0]  # elem.tag == 'simpleType'
+        xs.types['test_list'].parse(xs.root[0])  # elem.tag == 'simpleType'
         self.assertEqual(xs.types['test_list'].elem.tag, XSD_LIST)
-        xs.types['test_union'].elem = xs.root[1]  # elem.tag == 'simpleType'
+        xs.types['test_union'].parse(xs.root[1])  # elem.tag == 'simpleType'
         self.assertEqual(xs.types['test_union'].elem.tag, XSD_UNION)
 
     def test_variety_property(self):

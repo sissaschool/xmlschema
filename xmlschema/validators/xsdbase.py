@@ -261,21 +261,13 @@ class XsdComponent(XsdValidator):
             self.parent = parent
         self.schema = schema
         self.maps: XsdGlobals = schema.maps
-        self.elem = elem
+        self.parse(elem)
 
-    def __setattr__(self, name: str, value: Any) -> None:
-        if name == 'elem':
-            if value.tag not in self._ADMITTED_TAGS:
-                msg = "wrong XSD element {!r} for {!r}, must be one of {!r}"
-                raise XMLSchemaValueError(
-                    msg.format(value.tag, self.__class__, self._ADMITTED_TAGS)
-                )
-            super().__setattr__(name, value)
-            if self.errors:
-                self.errors.clear()
-            self._parse()
+    def __repr__(self) -> str:
+        if self.ref is not None:
+            return '%s(ref=%r)' % (self.__class__.__name__, self.prefixed_name)
         else:
-            super().__setattr__(name, value)
+            return '%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
 
     @property
     def xsd_version(self) -> str:
@@ -369,11 +361,17 @@ class XsdComponent(XsdValidator):
 
         return self._annotations
 
-    def __repr__(self) -> str:
-        if self.ref is not None:
-            return '%s(ref=%r)' % (self.__class__.__name__, self.prefixed_name)
-        else:
-            return '%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
+    def parse(self, elem: ElementType) -> None:
+        """Set and parse the component Element."""
+        if elem.tag not in self._ADMITTED_TAGS:
+            msg = "wrong XSD element {!r} for {!r}, must be one of {!r}"
+            raise XMLSchemaValueError(
+                msg.format(elem.tag, self.__class__, self._ADMITTED_TAGS)
+            )
+        self.elem = elem
+        if self.errors:
+            self.errors.clear()
+        self._parse()
 
     def _parse(self) -> None:
         return

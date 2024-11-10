@@ -16,16 +16,15 @@ import warnings
 from collections import Counter
 from collections.abc import Callable, Iterable, Iterator, MutableMapping, Sequence
 from operator import attrgetter
-from typing import Any, Optional, overload, Type, TypeVar, TYPE_CHECKING, Union
+from typing import Any, Optional, TypeVar, TYPE_CHECKING, Union
 from xml.etree.ElementTree import ParseError
 
-from xmlschema.aliases import ElementType, LocationsType, SchemaType, SchemaSourceType
-from xmlschema.exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, \
-    XMLSchemaValueError
+from xmlschema.aliases import ElementType, SchemaType, SchemaSourceType
+from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError, \
+    XMLResourceBlocked, XMLResourceForbidden
 from xmlschema.translation import gettext as _
 from xmlschema.utils.qnames import get_qname, local_name
 from xmlschema.utils.urls import normalize_url, normalize_locations
-from xmlschema.resources import XMLResourceBlocked, XMLResourceForbidden
 import xmlschema.names as nm
 
 from xmlschema.validators import XMLSchemaParseError, XMLSchemaNotBuiltError, \
@@ -41,8 +40,7 @@ SCHEMAS_DIR = os.path.join(os.path.dirname(__file__), 'schemas/')
 
 ##
 # Resources maps
-T = TypeVar('T', bound=Any)
-ResourceMapArg = Union[MutableMapping[str, T], Sequence[tuple[str, T]]]
+T = TypeVar('T', bound=object)
 
 
 class NamespaceResourcesMap(MutableMapping[str, list[T]]):
@@ -53,7 +51,8 @@ class NamespaceResourcesMap(MutableMapping[str, list[T]]):
     """
     __slots__ = ('_store',)
 
-    def __init__(self, *args: ResourceMapArg[T], **kwargs: T):
+    def __init__(self, *args: Union[MutableMapping[str, T], Sequence[tuple[str, T]]],
+                 **kwargs: T):
         self._store: dict[str, list[T]] = {}
         for item in args:
             self.update(item)
@@ -93,41 +92,6 @@ class NamespaceResourcesMap(MutableMapping[str, list[T]]):
 
     __copy__ = copy
 
-
-class LocationHints:
-    """A descriptor for handling the location argument of a schema."""
-
-    @overload
-    def __get__(self, instance: None, owner: Type[SchemaType]) -> 'LocationHints': ...
-
-    @overload
-    def __get__(self, instance: SchemaType, owner: Type[SchemaType]) -> NamespaceResourcesMap[str]: ...
-
-    def __get__(self, instance: Optional[SchemaType], owner: Type[SchemaType]) \
-            -> Union['LocationHints', NamespaceResourcesMap[str]]:
-        if instance is None:
-            return self
-        elif isinstance(instance._locations, NamespaceResourcesMap):
-            return instance._locations
-        elif instance._locations is None:
-            return NamespaceResourcesMap()
-        elif isinstance(instance._locations, tuple):
-            return NamespaceResourcesMap(instance._locations)
-        else:
-            return NamespaceResourcesMap(normalize_locations(instance._locations, instance.base_url))
-
-    def __set__(self, instance: SchemaType, value: LocationsType) -> None:
-        if value is None:
-            return
-        elif not isinstance(value, (NamespaceResourcesMap, Iterable)):
-            raise XMLSchemaTypeError(
-                _('wrong type {!r} for locations argument').format(type(value))
-            )
-        else:
-            instance._locations = value
-
-    def __delete__(self, instance: Any) -> None:
-        raise XMLSchemaAttributeError(_("Can't delete attribute {!r}").format(self._name))
 
 #
 # Defines the load functions for XML Schema structures
@@ -256,7 +220,7 @@ class SchemaLoader:
     }
 
     urls: set[Optional[str]]
-    locations: LocationHints
+    locations: NamespaceResourcesMap[str]
     missing_locations: set[str]
 
     def __init__(self, maps: 'XsdGlobals'):
@@ -268,9 +232,23 @@ class SchemaLoader:
         validator = maps.validator
         self.schema_class = type(validator)
         self.base_url = validator.source.base_url
-        self.locations = validator.locations
         if not validator.use_fallback:
             self.fallback_locations = {}
+
+        # Load location hints from validator init argument
+        if validator.locations is None:
+            self.locations = NamespaceResourcesMap()
+        elif isinstance(validator.locations, NamespaceResourcesMap):
+            self.locations = validator.locations
+        elif isinstance(validator.locations, tuple):
+            self.locations = NamespaceResourcesMap(validator.locations)
+        elif isinstance(validator.locations, Iterable):
+            self.locations = NamespaceResourcesMap(
+                normalize_locations(validator.locations, self.base_url)
+            )
+        else:
+            msg = _('wrong type {!r} for locations argument')
+            raise XMLSchemaTypeError(msg.format(type(validator.locations)))
 
         # Save other validator init options, used for creating new schemas.
         self.init_options = {

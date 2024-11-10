@@ -556,7 +556,7 @@ class TestXMLSchema10(XsdValidatorTestCase):
         with self.assertRaises(ValueError) as ctx:
             schema.meta_schema.maps = XsdGlobals(schema)
         self.assertEqual(str(ctx.exception),
-                         "cannot change the global maps instance of a meta-schema")
+                         "can't change the global maps instance of a meta-schema")
 
         self.assertTrue(schema.built)
         maps, schema.maps = schema.maps, XsdGlobals(schema)

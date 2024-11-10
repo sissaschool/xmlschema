@@ -13,9 +13,9 @@ from xml.sax import expatreader  # type: ignore[attr-defined]
 from xml.dom import pulldom
 
 from xmlschema.aliases import IOType
+from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError, \
+    XMLResourceError, XMLResourceForbidden, XMLResourceOSError
 from xmlschema.utils.streams import DefusableReader
-from .exceptions import XMLResourceError, XMLResourceForbidden, XMLResourceOSError, \
-    XMLResourceTypeError, XMLResourceValueError
 
 
 class SafeExpatParser(expatreader.ExpatParser):  # type: ignore[misc]
@@ -64,9 +64,9 @@ def defuse_xml(fp: IOType, rewind: bool = True) -> IOType:
                 if isinstance(err, OSError):
                     raise XMLResourceOSError(err)
                 elif isinstance(err, TypeError):
-                    raise XMLResourceTypeError(err)
+                    raise XMLSchemaTypeError(err)
                 else:
-                    raise XMLResourceValueError(err)
+                    raise XMLSchemaValueError(err)
         else:
             msg = f"can't defuse {fp!r}: it can't be rewound after the check"
             raise XMLResourceError(msg)

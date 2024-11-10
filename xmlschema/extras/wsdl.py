@@ -480,14 +480,13 @@ class Wsdl11Document(XmlDocument):
     """
     target_namespace = ''
     soap_binding = False
+    locations = LocationHints()
 
     def __init__(self, source, schema=None, cls=None, validation='strict',
                  namespaces=None, maps=None, locations=None, base_url=None, **kwargs):
 
         if kwargs.get('lazy'):
             raise WsdlParseError(f"{self.__class__!r} instance cannot be lazy")
-
-        self.locations = LocationHints.from_args(locations, base_url=base_url)
 
         if maps is not None:
             self.maps = maps
@@ -522,7 +521,8 @@ class Wsdl11Document(XmlDocument):
         )
         self.target_namespace = self.root.get('targetNamespace', '')
         self.soap_binding = SOAP_NAMESPACE in self.namespaces.values()
-
+        self.locations = locations
+        
         if self.namespace == XSD_NAMESPACE:
             self.schema.__class__(
                 source=self,

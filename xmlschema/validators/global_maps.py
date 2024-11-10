@@ -190,6 +190,7 @@ class XsdGlobals(XsdValidator):
         obj.elements.update(self.elements)
         obj.substitution_groups.update(self.substitution_groups)
         obj.identities.update(self.identities)
+        obj.loader.urls.clear()
         obj.loader.urls.update(s.url for s in obj.schemas if s.url is not None)
         return obj
 
@@ -326,7 +327,7 @@ class XsdGlobals(XsdValidator):
                 component.redefine = component.copy()
                 component.redefine.parent = component
                 component.schema = schema
-                component.elem = elem
+                component.parse(elem)
 
             return global_map[qname]
 
@@ -439,10 +440,23 @@ class XsdGlobals(XsdValidator):
 
     def register(self, schema: SchemaType) -> None:
         """Registers an XMLSchema instance."""
+        namespace = schema.target_namespace
+
+        schema.notations = NamespaceView(self.notations, namespace)
+        schema.types = NamespaceView(self.types, namespace)
+        schema.attributes = NamespaceView(self.attributes, namespace)
+        schema.attribute_groups = NamespaceView(self.attribute_groups, namespace)
+        schema.groups = NamespaceView(self.groups, namespace)
+        schema.elements = NamespaceView(self.elements, namespace)
+        schema.substitution_groups = NamespaceView(self.substitution_groups, namespace)
+        schema.identities = NamespaceView(self.identities, namespace)
+
+        self.schemas.add(schema)
+
         try:
-            ns_schemas = self.namespaces[schema.target_namespace]
+            ns_schemas = self.namespaces[namespace]
         except KeyError:
-            self.namespaces[schema.target_namespace] = [schema]
+            self.namespaces[namespace] = [schema]
         else:
             if schema in ns_schemas:
                 return
@@ -452,8 +466,6 @@ class XsdGlobals(XsdValidator):
             elif not any(schema.url == obj.url and schema.__class__ is obj.__class__
                          for obj in ns_schemas):
                 ns_schemas.append(schema)
-
-        self.schemas.add(schema)
 
     def load_namespace(self, namespace: str, build: bool = True) -> bool:
         """

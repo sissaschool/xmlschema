@@ -186,7 +186,7 @@ class TestXsdComponent(unittest.TestCase):
         self.assertEqual(len(xsd_element.errors), 1)
 
         xsd_element.elem.attrib.pop('type')
-        xsd_element.elem = xsd_element.elem
+        xsd_element.parse(xsd_element.elem)
 
         self.assertEqual(len(schema.all_errors), 0)
         self.assertEqual(len(xsd_element.errors), 0)

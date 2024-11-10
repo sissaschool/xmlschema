@@ -13,14 +13,14 @@ from collections.abc import Iterator
 from typing import Any, Optional, Type, Union, IO, BinaryIO, TextIO
 from xml.etree import ElementTree
 
-from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError
+from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError, XMLResourceError
 from xmlschema.names import XSD_NAMESPACE, XSI_TYPE, XSD_SCHEMA
 from xmlschema.aliases import ElementType, NsmapType, LocationsType, SchemaSourceType, \
     DecodeType, EncodeType, JsonDecodeType, XMLSourceType
 from xmlschema.translation import gettext as _
 from xmlschema.utils.etree import is_etree_document, etree_tostring
 from xmlschema.utils.qnames import get_extended_qname, update_namespaces, get_namespace_map
-from xmlschema.resources import fetch_schema_locations, XMLResource, XMLResourceError
+from xmlschema.resources import fetch_schema_locations, XMLResource
 from xmlschema.converters import ConverterType
 from xmlschema.validators import check_validation_mode, XMLSchema10, XMLSchemaBase, \
     XMLSchemaValidationError

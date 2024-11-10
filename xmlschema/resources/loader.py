@@ -17,9 +17,9 @@ from elementpath.protocols import LxmlElementProtocol
 
 from xmlschema.aliases import ElementType, ElementTreeType, \
     EtreeType, IOType, IterparseType, ParentMapType
+from xmlschema.exceptions import XMLResourceError, XMLResourceParseError
 from xmlschema.utils.qnames import get_namespace
 
-from .exceptions import XMLResourceError, XMLResourceParseError
 from .arguments import LazyArgument, ThinLazyArgument, IterparseArgument
 
 

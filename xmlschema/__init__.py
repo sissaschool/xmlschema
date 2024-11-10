@@ -9,9 +9,9 @@
 #
 from . import limits
 from . import translation
-from .exceptions import XMLSchemaException
+from .exceptions import XMLSchemaException, XMLResourceError
 from .resources import fetch_resource, fetch_namespaces, fetch_schema_locations, \
-    fetch_schema, XMLResource, XMLResourceError
+    fetch_schema, XMLResource
 from .xpath import ElementPathMixin
 from .converters import ElementData, XMLSchemaConverter, \
     UnorderedConverter, ParkerConverter, BadgerFishConverter, \

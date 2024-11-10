@@ -32,7 +32,8 @@ ConverterType = Union[Type[XMLSchemaConverter], XMLSchemaConverter]
 
 
 def check_converter_argument(converter: ConverterType) -> None:
-    if (not isinstance(converter, type) or not issubclass(converter, XMLSchemaConverter)) \
+    if converter is not None and \
+            (not isinstance(converter, type) or not issubclass(converter, XMLSchemaConverter)) \
             and not isinstance(converter, XMLSchemaConverter):
         msg = _("'converter' argument must be a {0!r} subclass or instance: {1!r}")
         raise XMLSchemaTypeError(msg.format(XMLSchemaConverter, converter))

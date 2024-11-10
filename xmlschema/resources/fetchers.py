@@ -13,9 +13,9 @@ from urllib.request import urlopen
 from xmlschema.names import XSD_NAMESPACE
 from xmlschema.aliases import NsmapType, NormalizedLocationsType, \
     LocationsType, XMLSourceType, UriMapperType
+from xmlschema.exceptions import XMLResourceError, XMLResourceOSError, XMLSchemaValueError
 from xmlschema.utils.urls import normalize_url
 
-from .exceptions import XMLResourceError, XMLResourceValueError, XMLResourceOSError
 from .xml_resource import XMLResource
 
 
@@ -30,7 +30,7 @@ def fetch_resource(location: str, base_url: Optional[str] = None, timeout: int =
     :return: a normalized URL.
     """
     if not location:
-        raise XMLResourceValueError("the 'location' argument must contain a not empty string")
+        raise XMLSchemaValueError("the 'location' argument must contain a not empty string")
 
     url = normalize_url(location, base_url)
     try:
@@ -86,7 +86,7 @@ def fetch_schema_locations(source: Union['XMLResource', XMLSourceType],
 
     locations = resource.get_locations(locations, root_only=root_only)
     if not locations:
-        raise XMLResourceValueError("provided arguments don't contain any schema location hint")
+        raise XMLSchemaValueError("provided arguments don't contain any schema location hint")
 
     namespace = resource.namespace
     for ns, location in sorted(locations, key=lambda x: x[0] != namespace):
@@ -99,7 +99,7 @@ def fetch_schema_locations(source: Union['XMLResource', XMLSourceType],
         if resource.namespace == XSD_NAMESPACE and resource.url:
             return resource.url, locations
     else:
-        raise XMLResourceValueError("not found a schema for provided XML source")
+        raise XMLSchemaValueError("not found a schema for provided XML source")
 
 
 def fetch_schema(source: Union['XMLResource', XMLSourceType],

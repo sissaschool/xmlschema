@@ -18,13 +18,13 @@ from typing import TYPE_CHECKING, Any, Optional, Union
 from urllib.parse import unquote, urlsplit
 from xml.etree import ElementTree
 
-from xmlschema.exceptions import XMLSchemaValueError
+from xmlschema.exceptions import XMLSchemaValueError, XMLResourceOSError
 from xmlschema.names import XSD_SCHEMA, XSD_IMPORT, XSD_INCLUDE, XSD_REDEFINE, XSD_OVERRIDE
 from xmlschema.utils.logger import logged
 from xmlschema.utils.paths import LocationPath
 from xmlschema.utils.urls import is_remote_url, normalize_url, match_location
 from xmlschema.translation import gettext as _
-from xmlschema.resources import XMLResourceError, XMLResource
+from xmlschema.resources import XMLResource
 
 if TYPE_CHECKING:
     from xmlschema.validators import XMLSchemaBase

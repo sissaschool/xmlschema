@@ -116,17 +116,18 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         super().__init__(elem, schema, parent)
 
     def __repr__(self) -> str:
+        model = getattr(self, 'model', None)
         if self.name is None:
             return '%s(model=%r, occurs=%r)' % (
-                self.__class__.__name__, self.model, list(self.occurs)
+                self.__class__.__name__, model, list(self.occurs)
             )
         elif self.ref is None:
             return '%s(name=%r, model=%r, occurs=%r)' % (
-                self.__class__.__name__, self.prefixed_name, self.model, list(self.occurs)
+                self.__class__.__name__, self.prefixed_name, model, list(self.occurs)
             )
         else:
             return '%s(ref=%r, model=%r, occurs=%r)' % (
-                self.__class__.__name__, self.prefixed_name, self.model, list(self.occurs)
+                self.__class__.__name__, self.prefixed_name, model, list(self.occurs)
             )
 
     @overload
@@ -535,7 +536,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                             msg = _("attribute 'maxOccurs' not allowed in a global group")
                             self.parse_error(msg, content_model)
 
-                    if content_model.tag in {XSD_SEQUENCE, XSD_ALL, XSD_CHOICE}:
+                    if content_model.tag in (XSD_SEQUENCE, XSD_ALL, XSD_CHOICE):
                         self._parse_content_model(content_model)
                     else:
                         msg = _('unexpected tag %r')
@@ -617,7 +618,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
             elif not item.ref and not item.built:
                 return False
 
-        return True if self.model else False
+        return True if hasattr(self, 'model') and self.model else False
 
     @property
     def validation_attempted(self) -> str:

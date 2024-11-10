@@ -46,7 +46,7 @@ from xmlschema.resources import XMLResource
 from xmlschema.converters import XMLSchemaConverter, ConverterType, \
     check_converter_argument, get_converter
 from xmlschema.xpath import XMLSchemaProxy, ElementPathMixin
-from xmlschema.loaders import SCHEMAS_DIR, SchemaLoader, LocationHints
+from xmlschema.loaders import SCHEMAS_DIR, SchemaLoader
 from xmlschema.exports import export_schema
 from xmlschema import dataobjects
 import xmlschema.names as nm
@@ -243,8 +243,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     # Instance attributes type annotations
     source: XMLResource
     namespaces: NsmapType
-    converter: ConverterType
     maps: XsdGlobals
+    loader: SchemaLoader
 
     imported_namespaces: list[str]
     imports: dict[str, Optional[SchemaType]]
@@ -268,10 +268,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     _root_elements: Optional[set[str]] = None
     _xpath_node: Optional[SchemaElementNode]
     _validation_context: Optional[DecodeContext] = None
-
-    # Arguments handled with descriptors
-    locations = LocationHints()
-    _locations: LocationsType = None
 
     # XSD components classes
     xsd_notation_class = XsdNotation
@@ -356,12 +352,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
         logger.debug("Load schema from %r", self.source.url or self.source.source)
 
-        if converter is None:
-            self.converter = XMLSchemaConverter
-        else:
-            check_converter_argument(converter)
-            self.converter = converter
-
+        self.converter = converter
         self.locations = locations
         self.use_fallback = use_fallback
         self.use_xpath3 = use_xpath3
@@ -478,9 +469,9 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
         # Import namespaces by argument (usually from xsi:schemaLocation attribute).
         if global_maps is None:
-            for ns in self.locations:
+            for ns in self.loader.locations:
                 if ns not in self.maps.namespaces:
-                    self.loader.import_namespace(self, ns, self.locations[ns])
+                    self.loader.import_namespace(self, ns, self.loader.locations[ns])
 
         # XSD 1.1 default declarations (defaultAttributes, defaultOpenContent,
         # xpathDefaultNamespace)
@@ -527,24 +518,16 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     def __setattr__(self, name: str, value: Any) -> None:
         if name == 'maps':
             if self.meta_schema is None and hasattr(self, 'maps'):
-                msg = _("cannot change the global maps instance of a meta-schema")
+                msg = _("can't change the global maps instance of a meta-schema")
                 raise XMLSchemaValueError(msg)
-
             super().__setattr__(name, value)
-            self.notations = NamespaceView(value.notations, self.target_namespace)
-            self.types = NamespaceView(value.types, self.target_namespace)
-            self.attributes = NamespaceView(value.attributes, self.target_namespace)
-            self.attribute_groups = NamespaceView(value.attribute_groups,
-                                                  self.target_namespace)
-            self.groups = NamespaceView(value.groups, self.target_namespace)
-            self.elements = NamespaceView(value.elements, self.target_namespace)
-            self.substitution_groups = NamespaceView(value.substitution_groups,
-                                                     self.target_namespace)
-            self.identities = NamespaceView(value.identities, self.target_namespace)
-            value.register(self)
+            self.maps.register(self)
+            self.loader = self.maps.loader
         else:
             if name == 'validation':
                 check_validation_mode(value)
+            elif name == 'converter':
+                check_converter_argument(value)
             super().__setattr__(name, value)
 
     def __iter__(self) -> Iterator[XsdElement]:

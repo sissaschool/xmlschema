@@ -24,17 +24,18 @@ from elementpath import XPathToken, XPathContext, XPath2Parser, ElementNode
 from xmlschema.aliases import ElementType, EtreeType, NsmapType, \
     NormalizedLocationsType, LocationsType, XMLSourceType, IOType, \
     ResourceNodeType, LazyType, IterparseType, UriMapperType
+from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError, \
+XMLResourceError, XMLResourceOSError, XMLResourceBlocked
 from xmlschema.utils.paths import LocationPath
 from xmlschema.utils.etree import etree_tostring, etree_iter_location_hints
 from xmlschema.utils.streams import is_file_object
 from xmlschema.utils.qnames import update_namespaces, get_namespace_map
 from xmlschema.utils.urls import is_url, is_remote_url, is_local_url, normalize_url, \
     normalize_locations
+from xmlschema.utils.arguments import Argument
 
-from .exceptions import XMLResourceError, XMLResourceOSError, XMLResourceTypeError, \
-    XMLResourceValueError, XMLResourceBlocked
 from .sax import defuse_xml
-from .arguments import Argument, SourceArgument, BaseUrlArgument, AllowArgument, \
+from .arguments import SourceArgument, BaseUrlArgument, AllowArgument, \
     DefuseArgument, TimeoutArgument, UriMapperArgument, OpenerArgument
 from .loader import _ResourceLoader
 
@@ -118,7 +119,7 @@ class XMLResource(_ResourceLoader):
 
         if allow == 'sandbox' and base_url is None:
             msg = "block access to files out of sandbox requires 'base_url' to be set"
-            raise XMLResourceValueError(msg)
+            raise XMLSchemaValueError(msg)
 
         # set and validate arguments
         self.base_url = base_url
@@ -335,7 +336,7 @@ class XMLResource(_ResourceLoader):
                 break
         else:
             msg = "{!r} is not an element or the XML resource tree"
-            raise XMLResourceValueError(msg.format(elem))
+            raise XMLSchemaValueError(msg.format(elem))
 
         resource = XMLResource(elem, self.base_url, self._allow, self._defuse, self._timeout)
         if not hasattr(elem, 'nsmap'):
@@ -519,7 +520,7 @@ class XMLResource(_ResourceLoader):
         :param ancestors: provide a list for tracking the ancestors of yielded elements.
         """
         if mode not in (1, 2, 3, 4, 5):
-            raise XMLResourceValueError(f"invalid argument mode={mode!r}")
+            raise XMLSchemaValueError(f"invalid argument mode={mode!r}")
 
         if ancestors is not None:
             ancestors.clear()
@@ -576,8 +577,9 @@ class XMLResource(_ResourceLoader):
         for item in token.select(context):
             if not isinstance(item, ElementNode):  # pragma: no cover
                 msg = "XPath expressions on XML resources can select only elements"
-                raise XMLResourceTypeError(msg)
-            elif ancestors is not None:
+                raise XMLSchemaTypeError(msg)
+
+            if ancestors is not None:
                 if item.elem is self.root:
                     ancestors.clear()
                 else:
@@ -625,9 +627,9 @@ class XMLResource(_ResourceLoader):
             path_depth = path.count('/') + 1
 
         if not path_depth:
-            raise XMLResourceValueError(f"can't use path {path!r} on a lazy resource")
+            raise XMLSchemaValueError(f"can't use path {path!r} on a lazy resource")
         elif path_depth < lazy_depth:
-            raise XMLResourceValueError(f"can't use path {path!r} on a lazy resource "
+            raise XMLSchemaValueError(f"can't use path {path!r} on a lazy resource "
                                         f"with lazy_depth=={lazy_depth}")
 
         if ancestors is not None:
