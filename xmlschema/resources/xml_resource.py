@@ -27,7 +27,7 @@ from xmlschema.aliases import ElementType, EtreeType, NsmapType, \
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError, \
 XMLResourceError, XMLResourceOSError, XMLResourceBlocked
 from xmlschema.utils.paths import LocationPath
-from xmlschema.utils.etree import etree_tostring, etree_iter_location_hints
+from xmlschema.utils.etree import is_etree_element, etree_tostring, etree_iter_location_hints
 from xmlschema.utils.streams import is_file_object
 from xmlschema.utils.qnames import update_namespaces, get_namespace_map
 from xmlschema.utils.urls import is_url, is_remote_url, is_local_url, normalize_url, \
@@ -330,6 +330,8 @@ class XMLResource(_ResourceLoader):
         """Create an XMLResource instance from a subelement of a non-lazy XML tree."""
         if self._lazy:
             raise XMLResourceError("can't create a subresource from a lazy XML resource")
+        elif not is_etree_element(elem):
+            raise XMLSchemaTypeError("argument must be an Element instance")
 
         for e in self.root.iter():  # pragma: no cover
             if e is elem:
