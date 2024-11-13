@@ -19,12 +19,12 @@ from operator import attrgetter
 from typing import Any, Optional, TypeVar, TYPE_CHECKING, Union
 from xml.etree.ElementTree import ParseError
 
-from xmlschema.aliases import ElementType, SchemaType, SchemaSourceType
+from xmlschema.aliases import ElementType, SchemaType, SchemaSourceType, LocationsType
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError, \
     XMLResourceBlocked, XMLResourceForbidden
 from xmlschema.translation import gettext as _
 from xmlschema.utils.qnames import get_qname, local_name
-from xmlschema.utils.urls import normalize_url, normalize_locations
+from xmlschema.utils.urls import is_url, normalize_url, normalize_locations
 import xmlschema.names as nm
 
 from xmlschema.validators import XMLSchemaParseError, XMLSchemaNotBuiltError, \
@@ -91,6 +91,22 @@ class NamespaceResourcesMap(MutableMapping[str, list[T]]):
         return obj
 
     __copy__ = copy
+
+
+def get_locations(locations: Optional[LocationsType], base_url: Optional[str] = None) \
+        -> NamespaceResourcesMap[str]:
+    """Returns a NamespaceResourcesMap with location hints provided at schema initialization."""
+    if locations is None:
+        return NamespaceResourcesMap()
+    elif isinstance(locations, NamespaceResourcesMap):
+        return locations
+    elif isinstance(locations, tuple):
+        return NamespaceResourcesMap(locations)
+    elif not isinstance(locations, Iterable):
+        msg = _('wrong type {!r} for locations argument')
+        raise XMLSchemaTypeError(msg.format(type(locations)))
+    else:
+        return NamespaceResourcesMap(normalize_locations(locations, base_url))
 
 
 #
@@ -225,30 +241,15 @@ class SchemaLoader:
 
     def __init__(self, maps: 'XsdGlobals'):
         self.maps = maps
-        self.urls = {s.url for s in self.maps.schemas if s.url is not None}
         self.missing_locations = set()  # Missing or failing resource locations
 
         # Set locations from validator init options
         validator = maps.validator
         self.schema_class = type(validator)
         self.base_url = validator.source.base_url
+        self.locations = get_locations(validator.locations)
         if not validator.use_fallback:
             self.fallback_locations = {}
-
-        # Load location hints from validator init argument
-        if validator.locations is None:
-            self.locations = NamespaceResourcesMap()
-        elif isinstance(validator.locations, NamespaceResourcesMap):
-            self.locations = validator.locations
-        elif isinstance(validator.locations, tuple):
-            self.locations = NamespaceResourcesMap(validator.locations)
-        elif isinstance(validator.locations, Iterable):
-            self.locations = NamespaceResourcesMap(
-                normalize_locations(validator.locations, self.base_url)
-            )
-        else:
-            msg = _('wrong type {!r} for locations argument')
-            raise XMLSchemaTypeError(msg.format(type(validator.locations)))
 
         # Save other validator init options, used for creating new schemas.
         self.init_options = {
@@ -261,6 +262,21 @@ class SchemaLoader:
             'opener': validator.source.opener,
             'use_xpath3': validator.use_xpath3,
         }
+
+        # Set tags map for loading components
+        self._tags = {
+            nm.XSD_SIMPLE_TYPE: maps.types,
+            nm.XSD_COMPLEX_TYPE: maps.types,
+            nm.XSD_ATTRIBUTE: maps.attributes,
+            nm.XSD_ATTRIBUTE_GROUP: maps.attribute_groups,
+            nm.XSD_GROUP: maps.groups,
+            nm.XSD_ELEMENT: maps.elements,
+            nm.XSD_NOTATION: maps.notations,
+        }
+
+    @property
+    def urls(self):
+        return [s.url for s in self.maps.schemas if s.url is not None]
 
     def is_missing(self, namespace: str,
                    location: Optional[str] = None,
@@ -276,18 +292,15 @@ class SchemaLoader:
             locations.append(self.fallback_locations[namespace])
         return locations
 
-    def __copy__(self) -> 'SchemaLoader':
-        loader: SchemaLoader = object.__new__(self.__class__)
-        loader.__dict__.update(self.__dict__)
-        loader.locations = self.locations.copy()
-        return loader
-
-    def load_components(self, schema) -> None:
-        """Add schema documents from imports, inclusions and redefinitions/overrides."""
+    def load_declared_schemas(self, schema) -> None:
+        """
+        Processes xs:include, xs:redefine, xs:override and xs:import statements,
+        loading the schemas and/or the namespaced referred into declarations.
+        """
         if schema not in self.maps.schemas:
             raise XMLSchemaValueError(f"{schema} is not loaded!")
 
-        logger.debug("Processing inclusions and imports of schema %r", self)
+        logger.debug("Processes inclusions and imports of schema %r", self)
 
         for child in schema.source.root:
             if child.tag in nm.XSD_ANNOTATION:
@@ -324,11 +337,11 @@ class SchemaLoader:
                 # Process xs:include/xs:redefine/xs:override only if it has a
                 # schemaLocation attribute. If not an error has been already
                 # generated by the XSD validation with against the meta-schema.
-                self._process_inclusion_statement(child, schema, location)
+                self._process_inclusions(child, schema, location)
 
         logger.debug("Inclusions and imports of schema %r processed", schema)
 
-    def _process_inclusion_statement(self, elem: ElementType,
+    def _process_inclusions(self, elem: ElementType,
                                      schema: SchemaType, location: str) -> None:
         """A valid xs:include/xs:redefine/xs:override element."""
         operation = elem.tag.split('}')[-1]
@@ -486,7 +499,7 @@ class SchemaLoader:
         :return: the loaded schema or the schema that matches the URL if it's already loaded.
         """
         for schema in self.maps.schemas:
-            if schema.url == source or schema.source is source or schema.source.source is source:
+            if schema.url == source or schema.source.source is source:
                 logger.info("Resource %r is already loaded", source)
                 return schema
 
@@ -528,6 +541,108 @@ class SchemaLoader:
                 self.maps.clear(remove_schemas=True, only_unbuilt=True)
 
         return namespace in self.maps.namespaces
+
+    def load_components(self, schemas: Iterable[SchemaType]) -> None:
+        redefinitions = []
+        for schema in schemas:
+            target_namespace = schema.target_namespace
+            target_prefix = '' if not target_namespace else f'{{{target_namespace}}}%s'
+
+            for elem in schema.root:
+                if elem.tag in (nm.XSD_REDEFINE, nm.XSD_OVERRIDE):
+                    location = elem.get('schemaLocation')
+                    if location is None:
+                        continue
+
+                    for child in elem:
+                        try:
+                            if not target_prefix:
+                                qname = child.attrib['name']
+                            else:
+                                qname = target_prefix % child.attrib['name']
+                        except KeyError:
+                            continue
+
+                        redefinitions.append(
+                            (qname, elem, child, schema, schema.includes[location])
+                        )
+
+                if (tag := elem.tag) in self._tags and 'name' in elem.attrib:
+                    xsd_globals = self._tags[tag]
+
+                    if not target_prefix:
+                        qname = elem.attrib['name']
+                    else:
+                        qname = target_prefix % elem.attrib['name']
+
+                    if qname not in xsd_globals:
+                        xsd_globals[qname] = (elem, schema)
+                    else:
+                        try:
+                            other_schema = xsd_globals[qname][1]
+                        except (TypeError, IndexError):
+                            pass
+                        else:
+                            # It's ignored or replaced in case of an override
+                            if other_schema.override is schema:
+                                continue
+                            elif schema.override is other_schema:
+                                xsd_globals[qname] = (elem, schema)
+                                continue
+
+                        msg = _("global {0} with name={1!r} is already defined")
+                        schema.parse_error(
+                            error=msg.format(local_name(elem.tag), qname),
+                            elem=elem
+                        )
+
+        redefined_names = Counter(x[0] for x in redefinitions)
+        for qname, elem, child, schema, redefined_schema in reversed(redefinitions):
+
+            # Checks multiple redefinitions
+            if redefined_names[qname] > 1:
+                redefined_names[qname] = 1
+
+                redefined_schemas: Any
+                redefined_schemas = [x[-1] for x in redefinitions if x[0] == qname]
+                if any(redefined_schemas.count(x) > 1 for x in redefined_schemas):
+                    msg = _("multiple redefinition for {0} {1!r}")
+                    schema.parse_error(
+                        error=msg.format(local_name(child.tag), qname),
+                        elem=child
+                    )
+                else:
+                    redefined_schemas = {x[-1]: x[-2] for x in redefinitions if x[0] == qname}
+                    for rs, s in redefined_schemas.items():
+                        while True:
+                            try:
+                                s = redefined_schemas[s]
+                            except KeyError:
+                                break
+
+                            if s is rs:
+                                msg = _("circular redefinition for {0} {1!r}")
+                                schema.parse_error(
+                                    error=msg.format(local_name(child.tag), qname),
+                                    elem=child
+                                )
+                                break
+
+            xsd_globals = self._tags[child.tag]
+            if elem.tag == nm.XSD_OVERRIDE:
+                # Components which match nothing in the target schema are ignored. See the
+                # period starting with "Source declarations not present in the target set"
+                # of the paragraph https://www.w3.org/TR/xmlschema11-1/#override-schema.
+                if qname in xsd_globals:
+                    xsd_globals[qname] = (child, schema)
+            else:
+                # Append to a list if it's a redefinition
+                try:
+                    xsd_globals[qname].append((child, schema))
+                except KeyError:
+                    schema.parse_error(_("not a redefinition!"), child)
+                except AttributeError:
+                    xsd_globals[qname] = [xsd_globals[qname], (child, schema)]
 
 
 class UrlSchemaLoader(SchemaLoader):

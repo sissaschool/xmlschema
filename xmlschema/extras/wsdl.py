@@ -16,7 +16,7 @@ from xmlschema.names import XSD_NAMESPACE, WSDL_NAMESPACE, SOAP_NAMESPACE, \
 from xmlschema.utils.qnames import get_qname, local_name, get_extended_qname, \
     get_prefixed_qname
 from xmlschema.utils.urls import normalize_url
-from xmlschema.loaders import SCHEMAS_DIR, LocationHints
+from xmlschema.loaders import SCHEMAS_DIR, get_locations
 from xmlschema.documents import SCHEMA_KWARGS, XmlDocument
 from xmlschema.validators import XMLSchemaBase, XMLSchema10
 
@@ -480,7 +480,6 @@ class Wsdl11Document(XmlDocument):
     """
     target_namespace = ''
     soap_binding = False
-    locations = LocationHints()
 
     def __init__(self, source, schema=None, cls=None, validation='strict',
                  namespaces=None, maps=None, locations=None, base_url=None, **kwargs):
@@ -521,7 +520,7 @@ class Wsdl11Document(XmlDocument):
         )
         self.target_namespace = self.root.get('targetNamespace', '')
         self.soap_binding = SOAP_NAMESPACE in self.namespaces.values()
-        self.locations = locations
+        self.locations = get_locations(locations, base_url)
 
         if self.namespace == XSD_NAMESPACE:
             self.schema.__class__(

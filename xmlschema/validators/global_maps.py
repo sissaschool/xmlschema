@@ -23,6 +23,7 @@ from xmlschema.names import XSD_NAMESPACE, XSD_NOTATION, \
     XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ELEMENT, XSI_TYPE
 from xmlschema.translation import gettext as _
 from xmlschema.utils.qnames import get_extended_qname
+from xmlschema.utils.decorators import deprecated
 from xmlschema.loaders import load_xsd_simple_types, load_xsd_attributes, \
     load_xsd_attribute_groups, load_xsd_complex_types, load_xsd_elements, \
     load_xsd_groups, load_xsd_notations, NamespaceResourcesMap, SchemaLoader
@@ -172,13 +173,19 @@ class XsdGlobals(XsdValidator):
             self.__class__.__name__, self.validator
         )
 
-    def replace(self, validator: SchemaType) -> 'XsdGlobals':
+    def copy(self, validator: Optional[SchemaType] = None,
+             validation: Optional[str] = None,
+             loader: Optional[Type[SchemaLoader]] = None, **kwargs) -> 'XsdGlobals':
         """
         Returns a new global map instance with a new origin validator. The new object
         inherit all the schemas and components already loaded and built. This is useful
         for sharing the same meta-schema without reloading and rebuilding the validators.
         """
-        obj = self.__class__(validator)
+        obj = self.__class__(
+            validator=self.validator if validator is None else validator,
+            validation=self.validation if validation is None else validation,
+            loader=self.loader.__class__ if loader is None else loader
+        )
         obj.schemas.update(self.schemas)
         obj.namespaces.update(self.namespaces)
         obj._loaded_schemas.update(self._loaded_schemas)
@@ -190,15 +197,38 @@ class XsdGlobals(XsdValidator):
         obj.elements.update(self.elements)
         obj.substitution_groups.update(self.substitution_groups)
         obj.identities.update(self.identities)
-        obj.loader.urls.clear()
-        obj.loader.urls.update(s.url for s in obj.schemas if s.url is not None)
         return obj
 
-    def copy(self, validator: Optional[SchemaType] = None,
-             validation: Optional[str] = None) -> 'XsdGlobals':
-        return self.replace(validator)
+    def __copy__(self):
+        return self.copy()
 
-    __copy__ = copy
+    @property
+    def meta_schema(self) -> SchemaType:
+        """Returns the meta-schema instance of the global map."""
+        meta_schema: Optional['XMLSchemaBase']
+
+        try:
+            meta_schema = self.namespaces[XSD_NAMESPACE][0]
+        except KeyError:
+            if self.validator.meta_schema is None:
+                msg = _("missing XSD namespace in a meta-schema instance {!r}")
+                raise XMLSchemaValueError(msg.format(self.validator))
+
+            # XSD namespace not imported
+            meta_schema = self.validator.create_meta_schema(global_maps=self)
+        else:
+            if meta_schema.meta_schema is None:
+                return meta_schema
+
+            # XSD namespace not managed by a meta-schema.
+            meta_schema = self.validator.create_meta_schema(global_maps=self)
+
+        # Replaces the default meta-schema instance in all registered schemas.
+        for schema in self.schemas:
+            if schema.meta_schema is not None:
+                schema.meta_schema = meta_schema
+
+        return meta_schema
 
     def lookup(self, tag: str, qname: str) -> SchemaGlobalType:
         """
@@ -435,8 +465,7 @@ class XsdGlobals(XsdValidator):
 
     def iter_schemas(self) -> Iterator[SchemaType]:
         """Creates an iterator for the registered schemas."""
-        for schemas in self.namespaces.values():
-            yield from schemas
+        yield from self.schemas
 
     def register(self, schema: SchemaType) -> None:
         """Registers an XMLSchema instance."""
@@ -467,6 +496,7 @@ class XsdGlobals(XsdValidator):
                          for obj in ns_schemas):
                 ns_schemas.append(schema)
 
+    @deprecated('5.0', alt='use SchemaLoader.load_namespaces() instead.')
     def load_namespace(self, namespace: str, build: bool = True) -> bool:
         """
         Load namespace from available location hints. Returns `True` if the namespace
@@ -533,7 +563,7 @@ class XsdGlobals(XsdValidator):
             meta_schema = self.namespaces[XSD_NAMESPACE][0]
         except KeyError:
             if self.validator.meta_schema is None:
-                msg = _("missing XSD namespace in meta-schema instance {!r}")
+                msg = _("missing XSD namespace in a meta-schema instance {!r}")
                 raise XMLSchemaValueError(msg.format(self.validator))
             meta_schema = None
 
@@ -558,13 +588,15 @@ class XsdGlobals(XsdValidator):
             self._loaded_schemas.add(schema)
 
         # Load and build global declarations
-        load_xsd_simple_types(self.types, not_loaded_schemas)
-        load_xsd_complex_types(self.types, not_loaded_schemas)
-        load_xsd_notations(self.notations, not_loaded_schemas)
-        load_xsd_attributes(self.attributes, not_loaded_schemas)
-        load_xsd_attribute_groups(self.attribute_groups, not_loaded_schemas)
-        load_xsd_elements(self.elements, not_loaded_schemas)
-        load_xsd_groups(self.groups, not_loaded_schemas)
+        self.loader.load_components(not_loaded_schemas)
+
+        # load_xsd_simple_types(self.types, not_loaded_schemas)
+        # load_xsd_complex_types(self.types, not_loaded_schemas)
+        # load_xsd_notations(self.notations, not_loaded_schemas)
+        # load_xsd_attributes(self.attributes, not_loaded_schemas)
+        # load_xsd_attribute_groups(self.attribute_groups, not_loaded_schemas)
+        # load_xsd_elements(self.elements, not_loaded_schemas)
+        # load_xsd_groups(self.groups, not_loaded_schemas)
 
         if not meta_schema.built:
             xsd_builtin_types_factory(meta_schema, self.types)

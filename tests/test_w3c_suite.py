@@ -372,7 +372,7 @@ def create_w3c_test_group_case(args, filename, group_elem, group_num, xsd_versio
         @classmethod
         def get_add_info(cls, error=None, *files):
             if len(args.numbers) != 1:
-                return ''
+                return str(error) if error is not None else ''
 
             if error is None:
                 msg = ''

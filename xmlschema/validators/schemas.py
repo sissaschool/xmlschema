@@ -445,11 +445,9 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 _("'global_maps' argument must be an %r instance") % XsdGlobals
             )
         elif use_meta and self.target_namespace not in self.meta_schema.maps.namespaces:
-            self.maps = self.meta_schema.maps.replace(self)
+            self.maps = self.meta_schema.maps.copy(self)
         else:
             self.maps = XsdGlobals(self)
-
-        self.loader = self.maps.loader
 
         if any(ns == nm.VC_NAMESPACE for ns in self.namespaces.values()):
             # For XSD 1.1+ apply versioning filter to schema tree. See the paragraph
@@ -465,7 +463,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             for e in self.meta_schema.iter_errors(root, namespaces=self.namespaces):
                 self.parse_error(e.reason or e, elem=e.elem)
 
-        self.loader.load_components(self)
+        self.loader.load_declared_schemas(self)
 
         # Import namespaces by argument (usually from xsi:schemaLocation attribute).
         if global_maps is None:
