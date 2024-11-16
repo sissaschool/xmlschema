@@ -439,8 +439,12 @@ def create_w3c_test_group_case(args, filename, group_elem, group_num, xsd_versio
                                     schema = schema_class(source, use_meta=use_meta,
                                                           use_fallback=use_fallback, build=False)
                                     for other in item['sources'][1:]:
-                                        schema_class(other, global_maps=schema.maps,
-                                                     use_fallback=use_fallback, build=False)
+                                        for s in schema.maps.iter_schemas():
+                                            if s.use_resource(other):
+                                                break
+                                        else:
+                                            schema_class(other, global_maps=schema.maps,
+                                                         use_fallback=use_fallback, build=False)
                                     schema.build()
                         except XMLSchemaException as err:
                             schema = None

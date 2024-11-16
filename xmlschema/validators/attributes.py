@@ -504,7 +504,7 @@ class XsdAttributeGroup(
 
         # Check and copy base attributes
         if self.base_attributes is not None:
-            wildcard = self.base_attributes.get(None)
+            wildcard: XsdAnyAttribute = self.base_attributes.get(None)
             for name, attr in attributes.items():
                 if name not in self.base_attributes:
                     if self.derivation != 'restriction':

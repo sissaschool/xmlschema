@@ -142,7 +142,7 @@ class TestWsdlDocuments(unittest.TestCase):
         wsdl_document = Wsdl11Document(WSDL_DOCUMENT_EXAMPLE, cls=XMLSchema11)
         self.assertIsInstance(wsdl_document.schema, XMLSchema11)
 
-        self.assertIn('http://example.com/stockquote.xsd', wsdl_document.schema.maps.namespaces)
+        self.assertIn('http://example.com/stockquote.xsd', wsdl_document.schema.maps)
         self.assertIn('{http://example.com/stockquote.xsd}TradePriceRequest',
                       wsdl_document.schema.maps.elements)
         self.assertIn('{http://example.com/stockquote.xsd}TradePrice',

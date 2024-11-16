@@ -1163,8 +1163,8 @@ class TestResources(unittest.TestCase):
 
         schema = XMLSchema(xsd_source, allow='all')
         self.assertTrue(isinstance(schema, XMLSchema))
-        self.assertIn("http://example.com/vehicles", schema.maps.namespaces)
-        self.assertEqual(len(schema.maps.namespaces["http://example.com/vehicles"]), 4)
+        self.assertIn("http://example.com/vehicles", schema.maps)
+        self.assertEqual(len(schema.maps["http://example.com/vehicles"]), 4)
 
         with warnings.catch_warnings(record=True) as ctx:
             warnings.simplefilter("always")
@@ -1174,8 +1174,8 @@ class TestResources(unittest.TestCase):
 
         schema = XMLSchema(xsd_source, allow='local')
         self.assertTrue(isinstance(schema, XMLSchema))
-        self.assertIn("http://example.com/vehicles", schema.maps.namespaces)
-        self.assertEqual(len(schema.maps.namespaces["http://example.com/vehicles"]), 4)
+        self.assertIn("http://example.com/vehicles", schema.maps)
+        self.assertEqual(len(schema.maps["http://example.com/vehicles"]), 4)
 
         with self.assertRaises(XMLSchemaValueError) as ctx:
             XMLSchema(xsd_source, allow='sandbox')
@@ -1185,8 +1185,8 @@ class TestResources(unittest.TestCase):
             xsd_source, base_url=os.path.dirname(self.vh_xsd_file), allow='all'
         )
         self.assertTrue(isinstance(schema, XMLSchema))
-        self.assertIn("http://example.com/vehicles", schema.maps.namespaces)
-        self.assertEqual(len(schema.maps.namespaces["http://example.com/vehicles"]), 4)
+        self.assertIn("http://example.com/vehicles", schema.maps)
+        self.assertEqual(len(schema.maps["http://example.com/vehicles"]), 4)
 
         with warnings.catch_warnings(record=True) as ctx:
             warnings.simplefilter("always")
@@ -1341,8 +1341,8 @@ class TestResources(unittest.TestCase):
             'test_cases/issues/issue_237/dir1/issue_237.xsd'
         ))
         schema = XMLSchema(relative_path)
-        self.assertEqual(schema.maps.namespaces[''][1].name, 'issue_237a.xsd')
-        self.assertEqual(schema.maps.namespaces[''][2].name, 'issue_237b.xsd')
+        self.assertEqual(schema.maps[''][1].name, 'issue_237a.xsd')
+        self.assertEqual(schema.maps[''][2].name, 'issue_237b.xsd')
 
     def test_uri_mapper(self):
         urn = 'urn:example:xmlschema:vehicles.xsd'

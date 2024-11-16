@@ -35,13 +35,14 @@ from xmlschema.aliases import XMLSourceType, NsmapType, LocationsType, UriMapper
     BaseXsdType, ExtraValidatorType, ValidationHookType, SchemaGlobalType, \
     FillerType, DepthFillerType, ValueHookType, ElementHookType, ElementType
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaKeyError, \
-    XMLSchemaRuntimeError, XMLSchemaValueError, XMLSchemaNamespaceError
+    XMLSchemaRuntimeError, XMLSchemaValueError, XMLSchemaNamespaceError, \
+    XMLSchemaAttributeError
 from xmlschema.translation import gettext as _
 from xmlschema.utils.decoding import Empty
 from xmlschema.utils.logger import set_logging_level
 from xmlschema.utils.etree import prune_etree, is_etree_element
 from xmlschema.utils.qnames import get_namespace, get_qname
-from xmlschema.utils.urls import is_local_url, normalize_url
+from xmlschema.utils.urls import is_url, is_local_url, normalize_url
 from xmlschema.resources import XMLResource
 from xmlschema.converters import XMLSchemaConverter, ConverterType, \
     check_converter_argument, get_converter
@@ -439,15 +440,18 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
         # Create or set the XSD global maps instance
         if isinstance(global_maps, XsdGlobals):
-            self.maps = global_maps
-        elif global_maps is not None:
+            try:
+                self.maps = global_maps
+            except XMLSchemaValueError:
+                # Another schema instance with the same URL is already registered,
+                # this makes the schema unusable.
+                raise
+        elif global_maps is None:
+            self.maps = XsdGlobals(self, validation, loader, use_meta)
+        else:
             raise XMLSchemaTypeError(
                 _("'global_maps' argument must be an %r instance") % XsdGlobals
             )
-        elif use_meta and self.target_namespace not in self.meta_schema.maps.namespaces:
-            self.maps = self.meta_schema.maps.copy(self)
-        else:
-            self.maps = XsdGlobals(self)
 
         if any(ns == nm.VC_NAMESPACE for ns in self.namespaces.values()):
             # For XSD 1.1+ apply versioning filter to schema tree. See the paragraph
@@ -468,7 +472,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         # Import namespaces by argument (usually from xsi:schemaLocation attribute).
         if global_maps is None:
             for ns in self.loader.locations:
-                if ns not in self.maps.namespaces:
+                if ns not in self.maps:
                     self.loader.import_namespace(self, ns, self.loader.locations[ns])
 
         # XSD 1.1 default declarations (defaultAttributes, defaultOpenContent,
@@ -517,7 +521,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         if name == 'maps':
             if self.meta_schema is None and hasattr(self, 'maps'):
                 msg = _("can't change the global maps instance of a meta-schema")
-                raise XMLSchemaValueError(msg)
+                raise XMLSchemaAttributeError(msg)
             super().__setattr__(name, value)
             self.maps.register(self)
             self.loader = self.maps.loader
@@ -547,6 +551,26 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         self.__dict__.update(state)
         self.lock = threading.Lock()
 
+    def use_resource(self, source: SchemaSourceType) -> bool:
+        """Returns `True` if the schema is built using the provided XML resource."""
+        if isinstance(source, XMLResource):
+            if self.source is source or self.url is not None and self.url == source.url:
+                return True
+            elif self.source.text is not None and self.source.text == source.text:
+                return True
+            else:
+                return self.source.source is source.source
+
+        elif isinstance(source, (str, bytes, Path)):
+            if is_url(source):
+                return self.url == self.source.get_url(source)
+            elif isinstance(source, bytes):
+                return self.text == source.decode()
+            else:
+                return self.text == source
+        else:
+            return source is self.source.source
+
     def copy(self) -> 'XMLSchemaBase':
         """
         Makes a copy of the schema instance. The new instance has independent maps
@@ -560,7 +584,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         schema.namespaces = dict(self.namespaces)
         schema.imports = self.imports.copy()
         schema.includes = self.includes.copy()
-        schema.maps = self.maps.copy(validator=schema)
+        schema.maps = self.maps.replace(validator=schema)
         return schema
 
     __copy__ = copy
@@ -691,7 +715,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             raise XMLSchemaRuntimeError(_("meta-schema unavailable for %r") % cls)
 
         try:
-            meta_schema: SchemaType = cls.meta_schema.maps.namespaces[nm.XSD_NAMESPACE][0]
+            meta_schema: SchemaType = cls.meta_schema.maps[nm.XSD_NAMESPACE][0]
             builtin_types = meta_schema.types
         except KeyError:
             raise XMLSchemaNotBuiltError(
@@ -829,16 +853,16 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         if global_maps is None:
             meta_schema = meta_schema_class(source, nm.XSD_NAMESPACE, defuse='never', build=False)
             global_maps = meta_schema.maps
-        elif nm.XSD_NAMESPACE not in global_maps.namespaces:
+        elif nm.XSD_NAMESPACE not in global_maps:
             meta_schema = meta_schema_class(source, nm.XSD_NAMESPACE, global_maps=global_maps,
                                             defuse='never', build=False)
         else:
-            meta_schema = global_maps.namespaces[nm.XSD_NAMESPACE][0]
+            meta_schema = global_maps[nm.XSD_NAMESPACE][0]
 
         for ns, location in _base_schemas:
             if ns == nm.XSD_NAMESPACE:
                 meta_schema.include_schema(location=location)
-            elif ns not in global_maps.namespaces:
+            elif ns not in global_maps:
                 meta_schema.import_schema(namespace=ns, location=location)
 
         return meta_schema
@@ -1064,7 +1088,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         if self.built:
             return 'full'
         elif any(isinstance(comp, tuple) or comp.validation_attempted == 'partial'
-                 for comp in self.iter_globals()):
+                 for comp in self.iter_globals(self)):
             return 'partial'
         else:
             return 'none'
@@ -1195,8 +1219,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         :param build: defines when to build the imported schema, the default is to not build.
         :return: the imported :class:`XMLSchema` instance, or `None` if the schema is already imported.
         """
-        if not force and namespace in self.maps.namespaces:
-            return self.maps.namespaces[namespace][0]
+        if not force and namespace in self.maps:
+            return self.maps[namespace][0]
         return self.loader.import_schema(self, namespace, location, base_url, build)
 
     def add_schema(self, source: SchemaSourceType,
@@ -1214,6 +1238,19 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         :return: the added :class:`XMLSchema` instance.
         """
         return self.loader.load_schema(source, namespace, build=build)
+
+    def load_namespace(self, namespace: str, build: bool = True) -> bool:
+        """
+        Load namespace from available location hints. Returns `True` if the namespace
+        is already loaded or if the namespace can be loaded from one of the locations,
+        returns `False` otherwise. Failing locations are inserted into the missing
+        locations list.
+
+        :param namespace: the namespace to load.
+        :param build: if left with `True` value builds the maps after load. If the \
+        build fails the resource URL is added to missing locations.
+        """
+        return self.loader.load_namespace(namespace, build)
 
     def export(self, target: Union[str, Path],
                save_remote: bool = False,

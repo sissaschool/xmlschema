@@ -67,7 +67,6 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
     patterns = None
     validators: Union[tuple[()], list[Union[XsdFacet, Callable[[Any], None]]]] = ()
     allow_empty = True
-    facets: dict[Optional[str], FacetsValueType]
 
     python_type: Type[Any]
     instance_types: PythonTypeClasses
@@ -113,7 +112,7 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
         patterns = self.get_facet(XSD_PATTERN)
         if isinstance(patterns, XsdPatternFacets):
             self.patterns = patterns
-            p: re.Pattern
+            p: re.Pattern[str]
             if all(p.match('') is None for p in patterns.patterns):
                 self.allow_empty = False
 

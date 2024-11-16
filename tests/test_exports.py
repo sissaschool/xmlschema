@@ -127,7 +127,7 @@ class TestExports(unittest.TestCase):
 
             schema_file = pathlib.Path(dirname).joinpath('issue_187_1.xsd')
             schema = self.schema_class(schema_file)
-            ns_schemas = schema.maps.namespaces['http://example.com/vehicles']
+            ns_schemas = schema.maps['http://example.com/vehicles']
 
             self.assertEqual(len(ns_schemas), 4)
             self.assertEqual(ns_schemas[0].name, 'issue_187_1.xsd')
@@ -191,7 +191,7 @@ class TestExports(unittest.TestCase):
 
             schema_file = pathlib.Path(dirname).joinpath('issue_187_2.xsd')
             schema = self.schema_class(schema_file)
-            ns_schemas = schema.maps.namespaces['http://example.com/vehicles']
+            ns_schemas = schema.maps['http://example.com/vehicles']
 
             self.assertEqual(len(ns_schemas), 4)
             self.assertEqual(ns_schemas[0].name, 'issue_187_2.xsd')
@@ -295,7 +295,7 @@ class TestDownloads(unittest.TestCase):
 
             xsd_path = pathlib.Path(dirname).joinpath('vehicles.xsd')
             schema = XMLSchema10(xsd_path)
-            for xs in schema.maps.namespaces['http://example.com/vehicles']:
+            for xs in schema.maps['http://example.com/vehicles']:
                 self.assertTrue(xs.url.startswith('file://'))
 
             self.assertTrue(pathlib.Path(dirname).joinpath('__init__.py').is_file())
@@ -317,7 +317,7 @@ class TestDownloads(unittest.TestCase):
 
             xsd_path = pathlib.Path(dirname).joinpath('issue_187_2.xsd')
             schema = XMLSchema10(xsd_path)
-            for xs in schema.maps.namespaces['http://example.com/vehicles']:
+            for xs in schema.maps['http://example.com/vehicles']:
                 self.assertTrue(xs.url.startswith('file://'))
 
             self.assertTrue(pathlib.Path(dirname).joinpath('__init__.py').is_file())
@@ -329,7 +329,7 @@ class TestDownloads(unittest.TestCase):
 
             xsd_path = pathlib.Path(dirname).joinpath('issue_187_2.xsd')
             schema = XMLSchema10(xsd_path)
-            for k, xs in enumerate(schema.maps.namespaces['http://example.com/vehicles']):
+            for k, xs in enumerate(schema.maps['http://example.com/vehicles']):
                 if k:
                     self.assertTrue(xs.url.startswith('https://'))
                 else:
@@ -353,9 +353,9 @@ class TestDownloads(unittest.TestCase):
 
             xsd_path = pathlib.Path(dirname).joinpath('BeerXML.xsd')
             schema = XMLSchema10(xsd_path)
-            for ns in schema.maps.namespaces:
+            for ns in schema.maps:
                 if ns.startswith('urn:beerxml:'):
-                    for k, xs in enumerate(schema.maps.namespaces[ns]):
+                    for k, xs in enumerate(schema.maps[ns]):
                         self.assertEqual(k, 0)
                         self.assertTrue(xs.url.startswith('file://'))
 

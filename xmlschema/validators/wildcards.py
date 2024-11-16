@@ -499,8 +499,8 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
             return Empty
 
         namespace = get_namespace(obj.tag)
-        if namespace not in self.maps.namespaces and not self.maps.load_namespace(namespace):
-            reason = f"unavailable namespace {namespace!r}"
+        if namespace not in self.maps and not self.maps.loader.load_namespace(namespace):
+            reason = _("unavailable namespace {!r}").format(namespace)
         else:
             try:
                 xsd_element = self.maps.lookup_element(obj.tag)
@@ -540,8 +540,8 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
         if self.process_contents == 'skip' and not context.process_skipped:
             return Empty
 
-        if not self.maps.load_namespace(namespace):
-            reason = f"unavailable namespace {namespace!r}"
+        if namespace not in self.maps and not self.schema.loader.load_namespace(namespace):
+            reason = _("unavailable namespace {!r}").format(namespace)
         else:
             try:
                 xsd_element = self.maps.lookup_element(name)
@@ -668,7 +668,8 @@ class XsdAnyAttribute(XsdWildcard, ValidationMixin[tuple[str, str], DecodedValue
         if self.process_contents == 'skip' and not context.process_skipped:
             return Empty
 
-        if self.maps.load_namespace(get_namespace(name)):
+        namespace = get_namespace(name)
+        if namespace not in self.maps and self.schema.loader.load_namespace(namespace):
             try:
                 xsd_attribute = self.maps.lookup_attribute(name)
             except LookupError:
@@ -697,7 +698,7 @@ class XsdAnyAttribute(XsdWildcard, ValidationMixin[tuple[str, str], DecodedValue
         if self.process_contents == 'skip' and not context.process_skipped:
             return Empty
 
-        if self.maps.load_namespace(namespace):
+        if namespace not in self.maps and self.maps.loader.load_namespace(namespace):
             try:
                 xsd_attribute = self.maps.lookup_attribute(name)
             except LookupError:
@@ -708,7 +709,7 @@ class XsdAnyAttribute(XsdWildcard, ValidationMixin[tuple[str, str], DecodedValue
                 return xsd_attribute.raw_encode(value, validation, context)
 
         elif validation != 'skip' and self.process_contents == 'strict':
-            reason = _("unavailable namespace {!r}").format(get_namespace(name))
+            reason = _("unavailable namespace {!r}").format(namespace)
             context.validation_error(validation, self, reason)
 
         return raw_encode_value(value)

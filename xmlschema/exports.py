@@ -355,7 +355,7 @@ def download_schemas(url: str,
 
                 try:
                     ref_resource = XMLResource(url, defuse=defuse, timeout=timeout)
-                except (OSError, XMLResourceError) as err:
+                except (OSError, XMLResourceOSError) as err:
                     logger.error('Error accessing resource at URL %s: %s', url, err)
                     continue
                 except ElementTree.ParseError as err:

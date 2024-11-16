@@ -78,6 +78,34 @@ def is_local_url(obj: object) -> bool:
         return False
 
 
+def get_url(obj: object) -> Optional[str]:
+    """If the argument is a URL returns it as a string, returns `None` otherwise."""
+    if isinstance(obj, str):
+        if '\n' in obj or obj.lstrip().startswith('<'):
+            return None
+        try:
+            urlsplit(obj.strip()).geturl()
+        except ValueError:  # pragma: no cover
+            return None
+        else:
+            return obj
+
+    elif isinstance(obj, bytes):
+        if b'\n' in obj or obj.lstrip().startswith(b'<'):
+            return None
+        try:
+            urlsplit(obj.strip()).geturl()
+        except ValueError:  # pragma: no cover
+            return None
+        else:
+            return obj.decode()
+
+    elif isinstance(obj, Path):
+        return str(obj)
+    else:
+        return None
+
+
 def is_encoded_url(url: str) -> bool:
     """
     Determines whether the given URL is encoded. The case with '+' and without

@@ -521,7 +521,7 @@ class TestXMLSchema10(XsdValidatorTestCase):
 
         locations = {'http://example.com/vehicles': self.vh_xsd_file}
         schema = self.schema_class(source, locations=locations)
-        self.assertEqual(len(schema.maps.namespaces['http://example.com/vehicles']), 4)
+        self.assertEqual(len(schema.maps['http://example.com/vehicles']), 4)
 
     def test_use_meta_property(self):
         self.assertTrue(self.vh_schema.use_meta)
@@ -598,10 +598,10 @@ class TestXMLSchema10(XsdValidatorTestCase):
 
         schema = self.schema_class([source1, source2, source3])
         self.assertEqual(len(schema.elements), 3)
-        self.assertEqual(len(schema.maps.namespaces['']), 3)
+        self.assertEqual(len(schema.maps['']), 3)
         self.assertIs(schema.elements['elem1'].schema, schema)
-        self.assertIs(schema.elements['elem2'].schema, schema.maps.namespaces[''][1])
-        self.assertIs(schema.elements['elem3'].schema, schema.maps.namespaces[''][2])
+        self.assertIs(schema.elements['elem2'].schema, schema.maps[''][1])
+        self.assertIs(schema.elements['elem3'].schema, schema.maps[''][2])
 
         with self.assertRaises(XMLSchemaParseError) as ec:
             self.schema_class([source1, source2, source2])
@@ -615,10 +615,10 @@ class TestXMLSchema10(XsdValidatorTestCase):
 
         schema = self.schema_class([source1, source2])
         self.assertEqual(len(schema.elements), 2)
-        self.assertEqual(len(schema.maps.namespaces['http://xmlschema.test/ns']), 2)
+        self.assertEqual(len(schema.maps['http://xmlschema.test/ns']), 2)
         self.assertIs(schema.elements['elem1'].schema, schema)
         self.assertIs(schema.elements['elem2'].schema,
-                      schema.maps.namespaces['http://xmlschema.test/ns'][1])
+                      schema.maps['http://xmlschema.test/ns'][1])
 
     def test_add_schema(self):
         source1 = dedent("""\
@@ -646,8 +646,8 @@ class TestXMLSchema10(XsdValidatorTestCase):
         schema = self.schema_class(source1)
         schema.add_schema(source2, build=True)
         self.assertEqual(len(schema.elements), 1)
-        self.assertEqual(len(schema.maps.namespaces['http://xmlschema.test/ns']), 1)
-        self.assertEqual(len(schema.maps.namespaces['']), 1)
+        self.assertEqual(len(schema.maps['http://xmlschema.test/ns']), 1)
+        self.assertEqual(len(schema.maps['']), 1)
 
         # Doesn't raise if the source is the same object
         schema.add_schema(source2, build=True)
@@ -666,7 +666,7 @@ class TestXMLSchema10(XsdValidatorTestCase):
 
         schema = self.schema_class(source1)
         schema.add_schema(source2, namespace='http://xmlschema.test/ns', build=True)
-        self.assertEqual(len(schema.maps.namespaces['http://xmlschema.test/ns']), 2)
+        self.assertEqual(len(schema.maps['http://xmlschema.test/ns']), 2)
 
         # Don't need a full rebuild to add elem2 from added schema ...
         self.assertEqual(len(schema.elements), 2)
@@ -682,7 +682,7 @@ class TestXMLSchema10(XsdValidatorTestCase):
 
         # Adding other namespaces do not require rebuild
         schema3 = schema.add_schema(source3, build=True)
-        self.assertEqual(len(schema.maps.namespaces['http://xmlschema.test/ns1']), 1)
+        self.assertEqual(len(schema.maps['http://xmlschema.test/ns1']), 1)
         self.assertEqual(len(schema3.elements), 1)
 
     def test_pickling_subclassed_schema__issue_263(self):
@@ -742,8 +742,8 @@ class TestXMLSchema10(XsdValidatorTestCase):
                 <xs:element name="root"/>
             </xs:schema>"""))
 
-        self.assertIn(dsig_namespace, schema.maps.namespaces)
-        url = schema.maps.namespaces[dsig_namespace][0].url
+        self.assertIn(dsig_namespace, schema.maps)
+        url = schema.maps[dsig_namespace][0].url
         self.assertIsInstance(url, str)
         self.assertTrue(url.endswith('schemas/DSIG/xmldsig-core-schema.xsd'))
 
