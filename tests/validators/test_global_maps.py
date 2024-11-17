@@ -11,7 +11,8 @@
 import unittest
 
 from xmlschema import XMLSchema10, XMLSchema11
-from xmlschema.names import XSD_ELEMENT, XSD_STRING, XSD_SIMPLE_TYPE
+from xmlschema.validators.exceptions import XMLSchemaParseError
+import xmlschema.names as nm
 
 
 class TestXsdGlobalsMaps(unittest.TestCase):
@@ -20,6 +21,8 @@ class TestXsdGlobalsMaps(unittest.TestCase):
     def setUpClass(cls):
         XMLSchema10.meta_schema.build()
         XMLSchema11.meta_schema.build()
+        cls.tot_xsd10_components = XMLSchema10.meta_schema.maps.total_globals
+        cls.tot_xsd11_components = XMLSchema11.meta_schema.maps.total_globals
 
     @classmethod
     def tearDownClass(cls):
@@ -35,13 +38,28 @@ class TestXsdGlobalsMaps(unittest.TestCase):
 
     def test_lookup(self):
         with self.assertRaises(KeyError):
-            XMLSchema10.meta_schema.maps.lookup(XSD_ELEMENT, 'wrong')
+            XMLSchema10.meta_schema.maps.lookup(nm.XSD_ELEMENT, 'wrong')
 
-        xs_string = XMLSchema10.meta_schema.maps.lookup(XSD_SIMPLE_TYPE, XSD_STRING)
-        self.assertEqual(xs_string.name, XSD_STRING)
+        xs_string = XMLSchema10.meta_schema.maps.lookup(nm.XSD_SIMPLE_TYPE, nm.XSD_STRING)
+        self.assertEqual(xs_string.name, nm.XSD_STRING)
 
         with self.assertRaises(ValueError):
-            XMLSchema10.meta_schema.maps.lookup('simpleType', XSD_STRING)
+            XMLSchema10.meta_schema.maps.lookup('simpleType', nm.XSD_STRING)
+
+    def test_copy(self):
+        maps = XMLSchema10.meta_schema.maps.copy()
+        orig = XMLSchema10.meta_schema.maps
+
+        self.assertIsNot(maps, orig)
+        for name in ('types', 'attributes', 'elements', 'groups', 'attribute_groups',
+                     'notations', 'identities', 'substitution_groups'):
+            self.assertIsNot(getattr(maps, name), getattr(orig, name))
+
+        self.assertEqual(maps.validation, orig.validation)
+        self.assertIs(maps.validator, orig.validator)
+        self.assertIsNot(maps.loader, orig.loader)
+
+        self.assertEqual(maps.total_globals, self.tot_xsd10_components)
 
     def test_clear(self):
         maps = XMLSchema10.meta_schema.maps.copy()
@@ -49,7 +67,7 @@ class TestXsdGlobalsMaps(unittest.TestCase):
         self.assertEqual(len(list(maps.iter_globals())), 158)
 
         maps.clear(only_unbuilt=True)
-        self.assertEqual(len(list(maps.iter_globals())), 158)
+        self.assertEqual(maps.total_globals, 158)
 
         maps.clear()
         self.assertEqual(len(list(maps.iter_globals())), 0)
@@ -58,8 +76,15 @@ class TestXsdGlobalsMaps(unittest.TestCase):
 
         maps.clear(remove_schemas=True)
         self.assertEqual(len(list(maps.iter_globals())), 0)
-        with self.assertRaises(ValueError):
-            maps.build()  # missing XSD meta-schema
+        with self.assertRaises(XMLSchemaParseError):
+            maps.build()  # XSD meta-schema is still there but incomplete
+
+        maps.clear()
+        maps.loader.load_namespace(nm.XML_NAMESPACE)
+        maps.build()
+
+        self.assertEqual(maps.total_globals, 154)  # missing XSI namespace
+        self.assertEqual(XMLSchema10.meta_schema.maps.total_globals, 158)
 
     def test_xsd_10_globals(self):
         self.assertEqual(len(XMLSchema10.meta_schema.maps.notations), 2)

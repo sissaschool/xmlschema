@@ -565,8 +565,8 @@ class XsdElement(XsdComponent, ParticleMixin,
                 context.validation_error(validation, self, reason, elem)
 
             try:
-                if ns in self.maps:
-                    schema = self.maps[ns][0]
+                if ns in self.maps.namespaces:
+                    schema = self.maps.namespaces[ns][0]
                     schema.include_schema(url)
                     self.schema.clear()
                     self.schema.build()
@@ -1416,8 +1416,8 @@ class Xsd11Element(XsdElement):
                 continue
 
             try:
-                if ns in self.maps:
-                    schema = self.maps[ns][0]
+                if ns in self.maps.namespaces:
+                    schema = self.maps.namespaces[ns][0]
                     schema.include_schema(url)
                     schema.clear()
                     schema.build()

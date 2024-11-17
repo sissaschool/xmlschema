@@ -216,6 +216,10 @@ load_xsd_notations = create_load_function(nm.XSD_NOTATION)
 class SchemaLoader:
 
     fallback_locations = {
+        # Loaded for default with meta-schema
+        nm.XML_NAMESPACE: f'{SCHEMAS_DIR}XML/xml_minimal.xsd',
+        nm.XSI_NAMESPACE: f'{SCHEMAS_DIR}XSI/XMLSchema-instance_minimal.xsd',
+
         # Locally saved schemas
         nm.HFP_NAMESPACE: f'{SCHEMAS_DIR}HFP/XMLSchema-hasFacetAndProperty_minimal.xsd',
         nm.VC_NAMESPACE: f'{SCHEMAS_DIR}XSI/XMLSchema-versioning.xsd',
@@ -293,8 +297,8 @@ class SchemaLoader:
         Processes xs:include, xs:redefine, xs:override and xs:import statements,
         loading the schemas and/or the namespaced referred into declarations.
         """
-        if schema.maps is not self.maps:
-            raise XMLSchemaValueError(f"{schema} is not loaded!")
+        if schema not in self.maps:
+            raise XMLSchemaValueError(f"{schema} is not registered in {self.maps}!")
 
         logger.debug("Processes inclusions and imports of schema %r", self)
 
@@ -480,9 +484,9 @@ class SchemaLoader:
         :param build: defines when to build the loaded schema, the default is to not build.
         :return: the loaded schema or the schema that matches the URL if it's already loaded.
         """
+        url = get_url(source)
         base_url = base_url or self.base_url
 
-        url = get_url(source)
         if url is None:
             logger.debug("Load schema from %r", type(source))
         else:
@@ -503,9 +507,9 @@ class SchemaLoader:
         )
 
     def load_namespace(self, namespace: str, build: bool = True) -> bool:
-        if namespace in self.maps:
+        if namespace in self.maps.namespaces:
             return True
-        elif self.maps.validator.meta_schema is None:
+        elif False and self.maps.validator.meta_schema is None:
             return False  # Do not load additional namespaces for meta-schema (XHTML)
 
         loaded_schemas = []
