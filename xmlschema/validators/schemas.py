@@ -35,7 +35,8 @@ from xmlschema.aliases import XMLSourceType, NsmapType, LocationsType, UriMapper
     BaseXsdType, ExtraValidatorType, ValidationHookType, SchemaGlobalType, \
     FillerType, DepthFillerType, ValueHookType, ElementHookType, ElementType
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaKeyError, \
-    XMLSchemaRuntimeError, XMLSchemaValueError, XMLSchemaNamespaceError
+    XMLSchemaRuntimeError, XMLSchemaValueError, XMLSchemaNamespaceError, \
+    XMLSchemaAttributeError
 from xmlschema.translation import gettext as _
 from xmlschema.utils.decoding import Empty
 from xmlschema.utils.logger import set_logging_level
@@ -265,6 +266,9 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     meta_schema: Optional['XMLSchemaBase'] = None
     _annotations: Optional[list[XsdAnnotation]] = None
     _components: Optional[dict[ElementType, XsdComponent]] = None
+    _expected_globals: Optional[int] = None
+    _expected_redefinitions: Optional[int] = None
+    _expected_overrides: Optional[int] = None
     _root_elements: Optional[set[str]] = None
     _xpath_node: Optional[SchemaElementNode]
     _validation_context: Optional[DecodeContext] = None
@@ -445,7 +449,11 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 # this makes the schema unusable.
                 raise
         elif global_maps is None:
-            self.maps = XsdGlobals(self, loader=loader, use_meta=use_meta)
+            self.maps = XsdGlobals(
+                validator=self,
+                loader=loader,
+                parent=self.meta_schema if use_meta else None
+            )
         else:
             raise XMLSchemaTypeError(
                 _("'global_maps' argument must be an %r instance") % XsdGlobals
@@ -517,6 +525,10 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
     def __setattr__(self, name: str, value: Any) -> None:
         if name == 'maps':
+            if self.meta_schema is None and getattr(self, 'maps', self) is not self:
+                msg = _("can't change the global maps instance of a meta-schema")
+                raise XMLSchemaAttributeError(msg)
+
             value.register(self)
         elif name == 'validation':
             check_validation_mode(value)
@@ -699,11 +711,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 return prefix
         return ''
 
-    def is_meta(self) -> bool:
-        if self.meta_schema is not None:
-            return False
-        return self is XMLSchema10.meta_schema or self is XMLSchema11.meta_schema
-
     @classmethod
     def builtin_types(cls) -> NamespaceView[BaseXsdType]:
         """Returns the XSD built-in types of the meta-schema."""
@@ -755,6 +762,35 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 c.elem: c for c in self.iter_components() if isinstance(c, XsdComponent)
             }
         return self._components
+
+    @property
+    def expected_globals(self) -> int:
+        if self._expected_globals is None:
+            self._expected_globals = sum(c.tag in GLOBAL_TAGS for c in self.root) + \
+                                     self.expected_redefinitions + self.expected_overrides
+
+            if self.redefine is not None:
+                self._expected_globals -= self.redefine.expected_redefinitions
+            if self.override is not None:
+                self._expected_globals -= self.override.expected_overrides
+
+        return self._expected_globals
+
+    @property
+    def expected_redefinitions(self) -> int:
+        if self._expected_redefinitions is None:
+            self._expected_redefinitions = 0
+            for elem in self.root.iterfind(nm.XSD_REDEFINE):
+                self._expected_redefinitions += sum(c.tag in GLOBAL_TAGS for c in elem)
+        return self._expected_redefinitions
+
+    @property
+    def expected_overrides(self) -> int:
+        if self._expected_overrides is None:
+            self._expected_overrides = 0
+            for elem in self.root.iterfind(nm.XSD_OVERRIDE):
+                self._expected_overrides += sum(c.tag in GLOBAL_TAGS for c in elem)
+        return self._expected_overrides
 
     @property
     def root_elements(self) -> list[XsdElement]:
@@ -1046,6 +1082,9 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         self._xpath_node = None
         self._annotations = None
         self._components = None
+        self._expected_globals = None
+        self._expected_redefinitions = None
+        self._expected_overrides = None
         self._root_elements = None
 
     @property
@@ -1083,8 +1122,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     def validation_attempted(self) -> str:
         if self.built:
             return 'full'
-        elif any(isinstance(comp, tuple) or comp.validation_attempted == 'partial'
-                 for comp in self.iter_globals()):
+        elif any(not isinstance(comp, tuple) for comp in self.iter_globals(self)):
             return 'partial'
         else:
             return 'none'
@@ -1246,7 +1284,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         :param build: if left with `True` value builds the maps after load. If the \
         build fails the resource URL is added to missing locations.
         """
-        return self.loader.load_namespace(namespace, build)
+        return self.maps.load_namespace(namespace, build)
 
     def export(self, target: Union[str, Path],
                save_remote: bool = False,

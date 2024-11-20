@@ -24,7 +24,7 @@ from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError, \
     XMLResourceBlocked, XMLResourceForbidden
 from xmlschema.translation import gettext as _
 from xmlschema.utils.qnames import get_qname, local_name
-from xmlschema.utils.urls import get_url, normalize_url, normalize_locations
+from xmlschema.utils.urls import is_url, normalize_url, normalize_locations
 import xmlschema.names as nm
 
 from xmlschema.validators import XMLSchemaParseError, XMLSchemaNotBuiltError, \
@@ -445,6 +445,7 @@ class SchemaLoader:
         if location in target_schema.imports:
             return target_schema.imports[location]
 
+        logger.debug("Load schema from %r", location)
         schema = self.load_schema(location, base_url=base_url, build=build)
         if schema.target_namespace != namespace:
             msg = _('imported schema {!r} has an unmatched namespace {!r}')
@@ -484,18 +485,15 @@ class SchemaLoader:
         :param build: defines when to build the loaded schema, the default is to not build.
         :return: the loaded schema or the schema that matches the URL if it's already loaded.
         """
-        url = get_url(source)
-        base_url = base_url or self.base_url
+        schema = self.maps.match_source(source, base_url)
+        if schema is not None:
+            logger.info("Resource %r is already loaded", schema.source)
+            return schema
 
-        if url is None:
-            logger.debug("Load schema from %r", type(source))
+        if is_url(source):
+            logger.debug("Load schema from URL %r", source)
         else:
-            schema = self.maps.urls.get(normalize_url(url, base_url))
-            if schema is not None:
-                logger.info("Resource at URL %r is already loaded", schema.url)
-                return schema
-
-            logger.debug("Load schema from %r", url)
+            logger.debug("Load schema from %r", type(source))
 
         return self.schema_class(
             source=source,
@@ -506,12 +504,7 @@ class SchemaLoader:
             **self.init_options,
         )
 
-    def load_namespace(self, namespace: str, build: bool = True) -> bool:
-        if namespace in self.maps.namespaces:
-            return True
-        elif False and self.maps.validator.meta_schema is None:
-            return False  # Do not load additional namespaces for meta-schema (XHTML)
-
+    def load_namespace(self, namespace: str) -> list[SchemaType]:
         loaded_schemas = []
         location_hints = self.get_locations(namespace)
 
@@ -527,13 +520,7 @@ class SchemaLoader:
             except OSError:
                 self.missing_locations.add(url)
 
-        if loaded_schemas and build:
-            try:
-                loaded_schemas[0].build()
-            except XMLSchemaNotBuiltError:
-                self.maps.clear(remove_schemas=True, only_unbuilt=True)
-
-        return namespace in self.maps
+        return loaded_schemas
 
     def load_components(self, schemas: Iterable[SchemaType]) -> None:
         redefinitions = []
@@ -571,19 +558,24 @@ class SchemaLoader:
                     if qname not in xsd_globals:
                         xsd_globals[qname] = (elem, schema)
                     else:
-                        try:
-                            other_schema = xsd_globals[qname][1]
-                        except (TypeError, IndexError):
-                            pass
+                        value = xsd_globals[qname]
+                        if not isinstance(value, (list, tuple)):
+                            if value.schema is schema:
+                                continue
                         else:
-                            # It's ignored or replaced in case of an override
-                            if other_schema.override is schema:
-                                continue
-                            elif schema.override is other_schema:
-                                xsd_globals[qname] = (elem, schema)
-                                continue
+                            try:
+                                other_schema = xsd_globals[qname][1]
+                            except IndexError:
+                                pass
+                            else:
+                                # It's ignored or replaced in case of an override
+                                if other_schema.override is schema:
+                                    continue
+                                elif schema.override is other_schema:
+                                    xsd_globals[qname] = (elem, schema)
+                                    continue
 
-                        msg = _("global {0} with name={1!r} is already defined")
+                        msg = _("global {} with name={!r} is already defined")
                         schema.parse_error(
                             error=msg.format(local_name(elem.tag), qname),
                             elem=elem
@@ -599,7 +591,7 @@ class SchemaLoader:
                 redefined_schemas: Any
                 redefined_schemas = [x[-1] for x in redefinitions if x[0] == qname]
                 if any(redefined_schemas.count(x) > 1 for x in redefined_schemas):
-                    msg = _("multiple redefinition for {0} {1!r}")
+                    msg = _("multiple redefinition for {} {!r}")
                     schema.parse_error(
                         error=msg.format(local_name(child.tag), qname),
                         elem=child
@@ -614,7 +606,7 @@ class SchemaLoader:
                                 break
 
                             if s is rs:
-                                msg = _("circular redefinition for {0} {1!r}")
+                                msg = _("circular redefinition for {} {!r}")
                                 schema.parse_error(
                                     error=msg.format(local_name(child.tag), qname),
                                     elem=child
@@ -643,7 +635,7 @@ class UrlSchemaLoader(SchemaLoader):
     def is_missing(self, namespace: str,
                    location: Optional[str] = None,
                    base_url: Optional[str] = None) -> bool:
-        return namespace not in self.maps or location is None \
+        return namespace not in self.maps.namespaces or location is None \
             or normalize_url(location, base_url) not in self.urls
 
 
