@@ -55,7 +55,7 @@ def get_context(xml_document: Union[XMLSourceType, XMLResource],
         resource_kwargs = {k: v for k, v in kwargs.items() if k in RESOURCE_KWARGS}
         resource = XMLResource(xml_document, **resource_kwargs)
 
-    if isinstance(schema, XMLSchemaBase) and resource.namespace in schema.maps:
+    if isinstance(schema, XMLSchemaBase) and resource.namespace in schema.maps.namespaces:
         return resource, schema
     if isinstance(resource, XmlDocument) and hasattr(resource, 'schema'):
         return resource, resource.schema

@@ -186,10 +186,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     location hints to load well-known namespaces (e.g. xhtml).
     :param use_xpath3: if `True` an XSD 1.1 schema instance uses the XPath 3 processor \
     for assertions. For default a full XPath 2.0 processor is used.
-    :param use_meta: if `True` the schema processor uses the validator meta-schema, \
-    otherwise a new meta-schema is added at the end. In the latter case the meta-schema \
-    is rebuilt if any base namespace has been overridden by an import. Ignored if the \
-    argument *global_maps* is provided.
+    :param use_meta: if `True` the schema processor uses the validator meta-schema as \
+    parent schema. Ignored if the argument *global_maps* is provided.
     :param loglevel: for setting a different logging level for schema initialization \
     and building. For default is WARNING (30). For INFO level set it with 20, for \
     DEBUG level with 10. The default loglevel is restored after schema building, \
@@ -338,14 +336,13 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             assert isinstance(source, str)
             base_url = os.path.dirname(normalize_url(source))
 
-        other_sources: list[SchemaSourceType]
-        if isinstance(source, list):
-            if not source:
-                raise XMLSchemaValueError(_("no XSD source provided!"))
+        if not isinstance(source, list):
+            other_sources: list[SchemaSourceType] = []
+        elif source:
             other_sources = source[1:]
             source = source[0]
         else:
-            other_sources = []
+            raise XMLSchemaValueError(_("no XSD source provided!"))
 
         if isinstance(source, XMLResource):
             self.source = source
@@ -424,18 +421,19 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             except ValueError as err:
                 self.parse_error(err, root)
 
+        # Meta-schema maps creation (MetaXMLSchema10/11 classes)
         if self.meta_schema is None:
-            # Meta-schema maps creation (MetaXMLSchema10/11 classes)
             self.maps = XsdGlobals(self) if global_maps is None else global_maps
-            for child in self.source.root:
-                if child.tag == nm.XSD_OVERRIDE:
-                    self.include_schema(child.attrib['schemaLocation'], self.base_url)
+
+            if self.name == 'xsd11-extra.xsd':
+                # Process the patch schema for XSD 1.1 meta-schema
+                for child in self.source.root:
+                    if child.tag == nm.XSD_OVERRIDE:
+                        self.include_schema(child.attrib['schemaLocation'], self.base_url)
+
             return  # Meta-schemas don't need to be checked and don't process imports
 
-        # Complete the namespace map with internal declarations, remapping
-        # identical prefixes that refer to different namespaces.
-        self.namespaces = self.source.get_namespaces(self.namespaces, root_only=False)
-
+        # Build or rebuild the meta-schema components if they are missing
         with self.meta_schema.lock:
             if not self.meta_schema.maps.types:
                 self.meta_schema.maps.build()
@@ -446,7 +444,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 self.maps = global_maps
             except XMLSchemaValueError:
                 # Another schema instance with the same URL is already registered,
-                # this makes the schema unusable.
+                # this makes this schema unusable.
                 raise
         elif global_maps is None:
             self.maps = XsdGlobals(
@@ -459,27 +457,18 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 _("'global_maps' argument must be an %r instance") % XsdGlobals
             )
 
+        # Complete the namespace map with internal declarations, remapping
+        # identical prefixes that refer to different namespaces.
+        self.namespaces = self.source.get_namespaces(self.namespaces, root_only=False)
+
         if any(ns == nm.VC_NAMESPACE for ns in self.namespaces.values()):
-            # For XSD 1.1+ apply versioning filter to schema tree. See the paragraph
+            # Apply versioning filter to schema tree. See the paragraph
             # 4.2.2 of XSD 1.1 (Part 1: Structures) definition for details.
             # Ref: https://www.w3.org/TR/xmlschema11-1/#cip
             if prune_etree(root, selector=lambda x: not self.version_check(x)):
                 for k in list(root.attrib):
                     if k not in ('targetNamespace', nm.VC_MIN_VERSION, nm.VC_MAX_VERSION):
                         del root.attrib[k]
-
-        # Validate the schema document (transforming validation errors to parse errors)
-        if validation != 'skip':
-            for e in self.meta_schema.iter_errors(root, namespaces=self.namespaces):
-                self.parse_error(e.reason or e, elem=e.elem)
-
-        self.loader.load_declared_schemas(self)
-
-        # Import namespaces by argument (usually from xsi:schemaLocation attribute).
-        if global_maps is None:
-            for ns in self.loader.locations:
-                if ns not in self.maps:
-                    self.loader.import_namespace(self, ns, self.loader.locations[ns])
 
         # XSD 1.1 default declarations (defaultAttributes, defaultOpenContent,
         # xpathDefaultNamespace)
@@ -496,18 +485,22 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                     self.default_open_content = XsdDefaultOpenContent(child, self)
                     break
 
-        _source: Union[SchemaSourceType, XMLResource]
-        for _source in other_sources:
-            if isinstance(_source, XMLResource):
-                resource: XMLResource = _source
-            else:
-                resource = XMLResource(_source, base_url, allow, defuse, timeout)
+        # Validate the schema document (transforming validation errors to parse errors)
+        if validation != 'skip':
+            for e in self.meta_schema.iter_errors(root, namespaces=self.namespaces):
+                self.parse_error(e.reason or e, elem=e.elem)
 
-            if not resource.root.get('targetNamespace') and self.target_namespace:
-                # Adding a chameleon schema: set the namespace with targetNamespace
-                self.add_schema(resource, namespace=self.target_namespace)
-            else:
-                self.add_schema(resource)
+        self.loader.load_declared_schemas(self)
+
+        # Import namespaces by argument (usually from xsi:schemaLocation attribute).
+        if global_maps is None:
+            for ns in self.loader.locations:
+                if ns not in self.maps.namespaces:
+                    self.loader.import_namespace(self, ns, self.loader.locations[ns])
+
+        # Add explicitly provided other schemas
+        for other in other_sources:
+            self.add_schema(other, base_url=base_url)
 
         try:
             if build:
@@ -663,7 +656,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     @property
     def use_meta(self) -> bool:
         """Returns `True` if the class meta-schema is used."""
-        return self.meta_schema is self.__class__.meta_schema
+        return self.meta_schema is None or self.maps.use_meta
 
     # Schema root attributes
     @property
@@ -1089,12 +1082,19 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
     @property
     def built(self) -> bool:
-        if any(not isinstance(g, XsdComponent) or not g.built for g in self.iter_globals()):
-            return False
-        for _xsd_global in self.iter_globals():
+        total = 0
+        for total, comp in enumerate(self.iter_globals(self), start=1):
+            if not isinstance(comp, XsdComponent) or not comp.built:
+                return False
+        if total == self.expected_globals:
+            return True
+        for _xsd_global in self.iter_globals(self):
             return True
         if self.meta_schema is None:
             return False
+        print(total, self.expected_globals)
+
+        # print(built_components)
 
         # No XSD globals: check with a lookup of schema child elements.
         prefix = f'{{{self.target_namespace}}}' if self.target_namespace else ''
@@ -1143,16 +1143,11 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             yield from self.elements.values()
         else:
             def schema_filter(x: Union[XsdComponent, tuple[Element, SchemaType]]) -> bool:
-                if isinstance(x, tuple):
-                    return x[1] is schema
-                return x.schema is schema
+                if isinstance(x, XsdComponent):
+                    return x.schema is schema
+                return x[1] is schema if len(x) == 2 else x[0][1] is schema
 
-            yield from filter(schema_filter, self.notations.values())
-            yield from filter(schema_filter, self.types.values())
-            yield from filter(schema_filter, self.attributes.values())
-            yield from filter(schema_filter, self.attribute_groups.values())
-            yield from filter(schema_filter, self.groups.values())
-            yield from filter(schema_filter, self.elements.values())
+            yield from filter(schema_filter, self.maps.iter_globals())
 
     def iter_components(self, xsd_classes: ComponentClassType = None) \
             -> Iterator[Union[XsdComponent, SchemaType]]:
@@ -1253,12 +1248,15 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         :param build: defines when to build the imported schema, the default is to not build.
         :return: the imported :class:`XMLSchema` instance, or `None` if the schema is already imported.
         """
-        if not force and namespace in self.maps.namespaces:
+        if namespace not in self.maps.namespaces:
+            return self.loader.import_schema(self, namespace, location, base_url, build)
+        elif not force:
             return self.maps.namespaces[namespace][0]
-        return self.loader.import_schema(self, namespace, location, base_url, build)
+        else:
+            return self.loader.load_schema(location, namespace, base_url, build)
 
-    def add_schema(self, source: SchemaSourceType,
-                   namespace: Optional[str] = None, build: bool = False) -> SchemaType:
+    def add_schema(self, source: SchemaSourceType, namespace: Optional[str] = None,
+                   base_url: Optional[str] = None, build: bool = False) -> SchemaType:
         """
         Add another schema source to the maps of the instance without affecting imports or
         includes registrations.
@@ -1266,12 +1264,26 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         :param source: a URI that reference to a resource or a file path or a file-like \
         object or a string containing the schema or an Element or an ElementTree document.
         :param namespace: is an optional argument that contains the URI of the namespace \
-        that has to used in case the schema has no namespace (chameleon schema). For other \
-        cases, when specified, it must be equal to the *targetNamespace* of the schema.
+        that has to used in case the schema has no namespace (chameleon schema). It must \
+        be equal to the *targetNamespace* of the schema. If not provided, the resource is \
+        examined and if the schema has no namespace it's added as a chameleon schema.
+        :param base_url: is an optional base URL for fetching the schema resource.
         :param build: defines when to build the imported schema, the default is to not build.
         :return: the added :class:`XMLSchema` instance.
         """
-        return self.loader.load_schema(source, namespace, build=build)
+        if namespace is not None:
+            return self.loader.load_schema(source, namespace, base_url, build)
+        elif isinstance(source, XMLResource):
+            resource: XMLResource = source
+            base_url = base_url or source.base_url
+        else:
+            resource = XMLResource(source, base_url, self.allow, self.defuse, self.timeout)
+
+        if not resource.root.get('targetNamespace') and self.target_namespace:
+            # Adding a chameleon schema: set the namespace with targetNamespace
+            return self.loader.load_schema(resource, self.target_namespace, base_url, build)
+        else:
+            return self.loader.load_schema(resource, base_url=base_url, build=build)
 
     def load_namespace(self, namespace: str, build: bool = True) -> bool:
         """

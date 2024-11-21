@@ -484,12 +484,17 @@ def xsd_builtin_types_factory(
         item = item.copy()
         name: str = item['name']
         try:
-            value = cast(tuple[ElementType, SchemaType], xsd_types[name])
+            value = xsd_types[name]
         except KeyError:
             # If builtin type element is missing create a dummy element. Necessary for the
             # meta-schema XMLSchema.xsd of XSD 1.1, that not includes builtins declarations.
             elem = Element(nm.XSD_SIMPLE_TYPE, name=name, id=name)
         else:
+            if isinstance(value, XsdAtomicBuiltin):
+                if value.schema is not meta_schema:
+                    raise XMLSchemaValueError("built component schema is not the meta-schema!")
+                continue
+
             elem, schema = value
             if schema is not meta_schema:
                 raise XMLSchemaValueError("loaded entry schema is not the meta-schema!")

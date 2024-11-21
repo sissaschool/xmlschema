@@ -27,7 +27,7 @@ from xmlschema.utils.qnames import get_qname, local_name
 from xmlschema.utils.urls import is_url, normalize_url, normalize_locations
 import xmlschema.names as nm
 
-from xmlschema.validators import XMLSchemaParseError, XMLSchemaNotBuiltError, \
+from xmlschema.validators import XMLSchemaParseError, \
     XMLSchemaIncludeWarning, XMLSchemaImportWarning
 
 if TYPE_CHECKING:
@@ -281,7 +281,7 @@ class SchemaLoader:
     def is_missing(self, namespace: str,
                    location: Optional[str] = None,
                    base_url: Optional[str] = None) -> bool:
-        return namespace not in self.maps
+        return namespace not in self.maps.namespaces
 
     def get_locations(self, namespace: str, location: Optional[str] = None) -> list[str]:
         locations: list[str] = [location] if location else []
@@ -504,11 +504,11 @@ class SchemaLoader:
             **self.init_options,
         )
 
-    def load_namespace(self, namespace: str) -> list[SchemaType]:
-        loaded_schemas = []
-        location_hints = self.get_locations(namespace)
+    def load_namespace(self, namespace: str) -> bool:
+        if namespace in self.maps.namespaces:
+            return True
 
-        for location in location_hints:
+        for location in self.get_locations(namespace):
             url = normalize_url(location, self.base_url)
             if not self.is_missing(namespace, url):
                 break
@@ -516,11 +516,11 @@ class SchemaLoader:
                 continue
 
             try:
-                loaded_schemas.append(self.load_schema(url, namespace))
+                self.load_schema(url, namespace)
             except OSError:
                 self.missing_locations.add(url)
 
-        return loaded_schemas
+        return namespace in self.maps.namespaces
 
     def load_components(self, schemas: Iterable[SchemaType]) -> None:
         redefinitions = []
@@ -647,7 +647,7 @@ class SafeSchemaLoader(SchemaLoader):
                     build: bool = False) -> SchemaType:
         schema = super().load_schema(source, namespace, base_url)
 
-        other_schemas = self.maps[schema.target_namespace]
+        other_schemas = self.maps.namespaces[schema.target_namespace]
         for child in schema.root:
             if (name := child.get('name')) is not None:
                 pass

@@ -578,14 +578,14 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
             self.assertEqual(len(errors), expected_errors, msg=xml_file)
 
             module_api_errors = list(xmlschema.iter_errors(xml_file, schema=self.schema))
-            self.assertEqual(len(errors), len(module_api_errors), msg=xml_file)
             for e, api_error in zip(errors, module_api_errors):
                 compare_error_reasons(e.reason, api_error.reason)
+            self.assertEqual(len(errors), len(module_api_errors), msg=xml_file)
 
             lazy_errors = list(xmlschema.iter_errors(xml_file, schema=self.schema, lazy=True))
-            self.assertEqual(len(errors), len(lazy_errors), msg=xml_file)
             for e, lazy_error in zip(errors, lazy_errors):
                 compare_error_reasons(e.reason, lazy_error.reason)
+            self.assertEqual(len(errors), len(lazy_errors), msg=xml_file)
 
             # TODO: Test also lazy validation with lazy=2.
             #  This needs two fixes in XPath:

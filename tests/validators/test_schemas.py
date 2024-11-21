@@ -529,13 +529,11 @@ class TestXMLSchema10(XsdValidatorTestCase):
         self.assertTrue(self.vh_schema.use_meta)
         self.assertTrue(self.col_schema.use_meta)
 
-        meta_schema = self.schema_class.meta_schema
-
         schema = self.schema_class(dedent("""\
             <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
                 <xs:element name="foo"/>
             </xs:schema>"""), use_meta=False)
-        self.assertIsNot(meta_schema, schema.meta_schema)
+        self.assertIs(self.schema_class.meta_schema, schema.meta_schema)
         self.assertFalse(schema.use_meta)
 
     def test_other_schema_root_attributes(self):
@@ -744,7 +742,7 @@ class TestXMLSchema10(XsdValidatorTestCase):
                 <xs:element name="root"/>
             </xs:schema>"""))
 
-        self.assertIn(dsig_namespace, schema.maps)
+        self.assertIn(dsig_namespace, schema.maps.namespaces)
         url = schema.maps.namespaces[dsig_namespace][0].url
         self.assertIsInstance(url, str)
         self.assertTrue(url.endswith('schemas/DSIG/xmldsig-core-schema.xsd'))
