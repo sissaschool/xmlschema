@@ -57,7 +57,7 @@ class TestXsdGlobalsMaps(unittest.TestCase):
 
         self.assertEqual(maps.validation, orig.validation)
         self.assertIs(maps.validator, orig.validator)
-        self.assertIsNot(maps.loader, orig.loader)
+        self.assertIs(maps.loader, orig.loader)
 
         self.assertEqual(maps.total_globals, self.tot_xsd10_components)
 

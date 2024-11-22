@@ -11,8 +11,7 @@
 This module contains functions and classes for namespaces XSD declarations/definitions.
 """
 import warnings
-from collections import Counter
-from collections.abc import Callable, Collection, Iterator, Iterable, Mapping, \
+from collections.abc import Callable, Iterator, Iterable, Mapping, \
     MutableMapping, MutableSet
 from copy import copy as shallow_copy
 from typing import cast, Any, Optional, Union, Type, TypeVar
@@ -426,10 +425,6 @@ class XsdGlobals(XsdValidator):
             return 'notKnown'
 
     @property
-    def schema(self):
-        return self.validator
-
-    @property
     def use_meta(self):
         if self.validator.meta_schema is None:
             return True
@@ -443,33 +438,19 @@ class XsdGlobals(XsdValidator):
         return sum(1 for _comp in self.iter_globals())
 
     @property
-    def unbuilt_globals(self):
-        return sum(1 for _comp in self.iter_globals() if isinstance(_comp, tuple))
+    def built_globals(self):
+        return sum(1 for c in self.iter_globals() if isinstance(c, XsdComponent) and c.built)
 
     @property
-    def built_globals(self):
-        return sum(1 for _comp in self.iter_globals()
-                   if not isinstance(_comp, tuple) and _comp.built)
+    def unbuilt_globals(self):
+        return sum(1 for c in self.iter_globals()
+                   if not isinstance(c, XsdComponent) or not c.built)
 
     @property
     def unbuilt(self) -> list[Union[XsdComponent, SchemaType]]:
         """Property that returns a list with unbuilt components."""
         return [c for s in self._schemas for c in s.iter_components()
                 if c is not s and not c.built]
-
-    @property
-    def unbuilt_schemas(self) -> list[SchemaType]:
-        built_components: Counter[SchemaType] = Counter()
-        unbuilt_components: Counter[SchemaType] = Counter()
-        for xsd_global in self.iter_globals():
-            if isinstance(xsd_global, tuple):
-                unbuilt_components[xsd_global[1]] += 1
-            elif xsd_global.built:
-                built_components[xsd_global.schema] += 1
-            else:
-                unbuilt_components[xsd_global.schema] += 1
-        return [s for s in self._schemas if s in unbuilt_components
-                or s.expected_globals > built_components[s]]
 
     @property
     def xsd_version(self) -> str:
@@ -588,13 +569,14 @@ class XsdGlobals(XsdValidator):
         else:
             return True
 
-    def clear(self, remove_schemas: bool = False) -> None:
+    def clear(self, remove_schemas: bool = False, only_unbuilt: bool = False) -> None:
         """
         Clears the instance maps and schemas.
 
         :param remove_schemas: removes also the schema instances, keeping only the \
         validator that created the global maps instance and schemas and namespaces \
         inherited from ancestors.
+        :param only_unbuilt: removes only not built objects/schemas.
         """
         global_map: dict[str, XsdComponent]
         for global_map in self._global_maps:
@@ -615,15 +597,13 @@ class XsdGlobals(XsdValidator):
         updated adding and building the globals of not built registered schemas.
         """
         self.check_schemas()
-        if self.built:
-            return
 
         target_schemas = [s for s in self._schemas if s.maps is self]
         for schema in target_schemas:
             schema._root_elements = None
 
         # Load and global components
-        self.loader.load_components(target_schemas)
+        self.loader.load_globals(target_schemas)
 
         if self.validator.meta_schema is None or nm.XSD_STRING not in self.types:
             xsd_builtin_types_factory(self.validator, self.types)

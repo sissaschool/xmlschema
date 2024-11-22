@@ -634,7 +634,7 @@ class TestXMLSchema10(XsdValidatorTestCase):
 
         source2_ = dedent("""\
             <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
-                <xs:element name="elem2"/>
+                <xs:element name="elem2" />
             </xs:schema>""")
 
         source3 = dedent("""\
@@ -644,17 +644,22 @@ class TestXMLSchema10(XsdValidatorTestCase):
              </xs:schema>""")
 
         schema = self.schema_class(source1)
-        schema.add_schema(source2, build=True)
+
+        # Provide a namespace, otherwise source2 is considered a chameleon schema
+        schema.add_schema(source2, namespace='', build=True)
         self.assertEqual(len(schema.elements), 1)
         self.assertEqual(len(schema.maps.namespaces['http://xmlschema.test/ns']), 1)
         self.assertEqual(len(schema.maps.namespaces['']), 1)
 
         # Doesn't raise if the source is the same object
-        schema.add_schema(source2, build=True)
+        schema.add_schema(source2, namespace='', build=True)
+        self.assertEqual(len(schema.elements), 1)
+        self.assertEqual(len(schema.maps.namespaces['http://xmlschema.test/ns']), 1)
+        self.assertEqual(len(schema.maps.namespaces['']), 1)
 
         # Doesn't check equality of the sources, only URL matching.
         with self.assertRaises(XMLSchemaParseError) as ctx:
-            schema.add_schema(source2_, build=True)
+            schema.add_schema(source2_, namespace='', build=True)
 
         self.assertIn("global element with name='elem2' is already defined",
                       str(ctx.exception))
