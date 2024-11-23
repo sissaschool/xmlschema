@@ -286,6 +286,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     _root_elements: Optional[set[str]] = None
     _xpath_node: Optional[SchemaElementNode]
     _validation_context: Optional[DecodeContext] = None
+    _ns_prefix: str
+    _ns_prefix_length: int
 
     # XSD components classes
     xsd_notation_class = XsdNotation
@@ -543,6 +545,11 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             check_validation_mode(value)
         elif name == 'converter':
             check_converter_argument(value)
+        elif name == 'target_namespace':
+            ns_prefix = f'{{{value}}}' if value else ''
+            super().__setattr__('_ns_prefix', ns_prefix)
+            super().__setattr__('_ns_prefix_length', len(ns_prefix))
+
         super().__setattr__(name, value)
 
     def __iter__(self) -> Iterator[XsdElement]:

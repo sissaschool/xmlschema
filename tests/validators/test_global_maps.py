@@ -10,9 +10,70 @@
 #
 import unittest
 
-from xmlschema import XMLSchema10, XMLSchema11
+from xmlschema import XMLSchema10, XMLSchema11, XsdComponent
 from xmlschema.validators.exceptions import XMLSchemaParseError
+from xmlschema.validators.global_maps import NamespaceView
 import xmlschema.names as nm
+
+
+class TestGlobalMapsViews(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        XMLSchema10.meta_schema.build()
+        cls.comp0 = XMLSchema10.meta_schema.maps.types[nm.XSD_STRING]
+        cls.comp1 = XMLSchema10.meta_schema.maps.types[nm.XSD_DOUBLE]
+        cls.comp2 = XMLSchema10.meta_schema.maps.types[nm.XSD_INT]
+
+    @classmethod
+    def tearDownClass(cls):
+        XMLSchema10.meta_schema.clear()
+
+    def test_init(self):
+        components = {'{tns0}name0': 0, '{tns1}name1': 1, 'name2': 2}
+        ns_view = NamespaceView(components, 'tns1')
+        self.assertEqual(ns_view, {'name1': 1})
+
+    def test_repr(self):
+        qnames = {'{tns0}name0': 0, '{tns1}name1': 1, 'name2': 2}
+        ns_view = NamespaceView(qnames, 'tns0')
+        self.assertEqual(repr(ns_view), "NamespaceView({'name0': 0})")
+
+    def test_getitem(self):
+        qnames = {'{tns0}name0': 0, '{tns1}name1': 1, 'name2': 2}
+        ns_view = NamespaceView(qnames, 'tns1')
+
+        self.assertEqual(ns_view['name1'], 1)
+
+        with self.assertRaises(KeyError):
+            ns_view['name0']
+
+    def test_contains(self):
+        qnames = {'{tns0}name0': 0, '{tns1}name1': 1, 'name2': 2}
+        ns_view = NamespaceView(qnames, 'tns1')
+
+        self.assertIn('name1', ns_view)
+        self.assertNotIn('{tns1}name1', ns_view)
+        self.assertNotIn('{tns0}name0', ns_view)
+        self.assertNotIn('name0', ns_view)
+        self.assertNotIn('name2', ns_view)
+        self.assertNotIn(1, ns_view)
+
+    def test_as_dict(self):
+        qnames = {'{tns0}name0': 0, '{tns1}name1': 1, '{tns1}name2': 2, 'name3': 3}
+        ns_view = NamespaceView(qnames, 'tns1')
+        self.assertEqual(ns_view.as_dict(), {'name1': 1, 'name2': 2})
+
+        ns_view = NamespaceView(qnames, '')
+        self.assertEqual(ns_view.as_dict(), {'name3': 3})
+        self.assertEqual(ns_view.as_dict(True), {'name3': 3})
+
+    def test_iter(self):
+        qnames = {'{tns0}name0': 0, '{tns1}name1': 1, '{tns1}name2': 2, 'name3': 3}
+        ns_view = NamespaceView(qnames, 'tns1')
+        self.assertListEqual(list(ns_view), ['name1', 'name2'])
+        ns_view = NamespaceView(qnames, '')
+        self.assertListEqual(list(ns_view), ['name3'])
 
 
 class TestXsdGlobalsMaps(unittest.TestCase):

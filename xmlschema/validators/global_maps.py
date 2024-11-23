@@ -14,7 +14,7 @@ import warnings
 from collections.abc import Callable, Iterator, Iterable, Mapping, \
     MutableMapping, MutableSet
 from copy import copy as shallow_copy
-from typing import cast, Any, Optional, Union, Type, TypeVar
+from typing import Any, cast, Optional, Union, Type, TypeVar
 
 from xmlschema.aliases import ComponentClassType, ElementType, SchemaSourceType, \
     SchemaType, BaseXsdType, SchemaGlobalType, NsmapType
@@ -40,65 +40,60 @@ from . import XsdAttribute, XsdSimpleType, XsdComplexType, XsdElement, XsdAttrib
 
 T = TypeVar('T')
 
-NamespaceViewType = dict[str, Union[T, tuple[ElementType, SchemaType]]]
+GlobalDictType = dict[
+    str, Union[T, tuple[ElementType, SchemaType], list[tuple[ElementType, SchemaType]]]
+]
 
 
 class NamespaceView(Mapping[str, T]):
     """
-    A read-only map for filtered access to a dictionary that stores
-    objects mapped from QNames in extended format.
+    A mapping for filtered access to a dictionary that stores objects by FQDN.
     """
-    __slots__ = 'target_dict', 'namespace', '_key_prefix'
+    __slots__ = '_target_dict', '_namespace', '_prefix', '_prefix_len'
 
-    def __init__(self, qname_dict: NamespaceViewType[T], namespace_uri: str):
-        self.target_dict = qname_dict
-        self.namespace = namespace_uri
-        self._key_prefix = f'{{{namespace_uri}}}' if namespace_uri else ''
+    def __init__(self, target_dict: dict[str, T], namespace: str):
+        self._target_dict = target_dict
+        self._namespace = namespace
+        self._prefix = f'{{{namespace}}}' if namespace else ''
+        self._prefix_len = len(self._prefix)
 
     def __getitem__(self, key: str) -> T:
-        return self.target_dict[self._key_prefix + key]
+        try:
+            return self._target_dict[self._prefix + key]
+        except KeyError:
+            raise KeyError(key) from None
 
     def __len__(self) -> int:
-        if not self.namespace:
-            return len([k for k in self.target_dict if not k or k[0] != '{'])
-        return len([k for k in self.target_dict
-                    if k and k[0] == '{' and self.namespace == k[1:k.rindex('}')]])
+        if not self._namespace:
+            return sum(1 for k in self._target_dict if k[:1] != '{')
+        return sum(1 for k in self._target_dict if self._prefix == k[:self._prefix_len])
 
     def __iter__(self) -> Iterator[str]:
-        if not self.namespace:
-            for k in self.target_dict:
-                if not k or k[0] != '{':
+        if not self._namespace:
+            for k in self._target_dict:
+                if k[:1] != '{':
                     yield k
         else:
-            for k in self.target_dict:
-                if k and k[0] == '{' and self.namespace == k[1:k.rindex('}')]:
-                    yield k[k.rindex('}') + 1:]
+            for k in self._target_dict:
+                if self._prefix == k[:self._prefix_len]:
+                    yield k[self._prefix_len:]
 
     def __repr__(self) -> str:
         return '%s(%s)' % (self.__class__.__name__, str(self.as_dict()))
 
     def __contains__(self, key: object) -> bool:
-        if isinstance(key, str):
-            return self._key_prefix + key in self.target_dict
-        return key in self.target_dict
+        return isinstance(key, str) and (self._prefix + key) in self._target_dict
 
     def __eq__(self, other: Any) -> Any:
         return self.as_dict() == other
 
-    def as_dict(self, fqn_keys: bool = False) -> MutableMapping[str, T]:
-        if not self.namespace:
-            return {
-                k: v for k, v in self.target_dict.items() if not k or k[0] != '{'
-            }
-        elif fqn_keys:
-            return {
-                k: v for k, v in self.target_dict.items()
-                if k and k[0] == '{' and self.namespace == k[1:k.rindex('}')]
-            }
+    def as_dict(self) -> MutableMapping[str, T]:
+        if not self._namespace:
+            return {k: v for k, v in self._target_dict.items() if k[:1] != '{'}
         else:
             return {
-                k[k.rindex('}') + 1:]: v for k, v in self.target_dict.items()
-                if k and k[0] == '{' and self.namespace == k[1:k.rindex('}')]
+                k[self._prefix_len:]: v for k, v in self._target_dict.items()
+                if self._prefix == k[:self._prefix_len]
             }
 
 
@@ -121,12 +116,19 @@ class XsdGlobals(XsdValidator):
     _schemas: set[SchemaType]
     loader: SchemaLoader
 
-    types: NamespaceViewType[BaseXsdType]
-    attributes: NamespaceViewType[XsdAttribute]
-    attribute_groups: NamespaceViewType[XsdAttributeGroup]
-    groups: NamespaceViewType[XsdGroup]
-    notations: NamespaceViewType[XsdNotation]
-    elements: NamespaceViewType[XsdElement]
+    _types: GlobalDictType[BaseXsdType]
+    _attributes: GlobalDictType[XsdAttribute]
+    _attribute_groups: GlobalDictType[XsdAttributeGroup]
+    _groups: GlobalDictType[XsdGroup]
+    _notations: GlobalDictType[XsdNotation]
+    _elements: GlobalDictType[XsdElement]
+
+    types: dict[str, BaseXsdType]
+    attributes: dict[str, XsdAttribute]
+    attribute_groups: dict[str, XsdAttributeGroup]
+    groups: dict[str, XsdGroup]
+    notations: dict[str, XsdNotation]
+    elements: dict[str, XsdElement]
     substitution_groups: dict[str, set[XsdElement]]
     identities: dict[str, XsdIdentity]
 
