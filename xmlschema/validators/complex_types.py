@@ -32,7 +32,7 @@ from .simple_types import FacetsValueType, XsdSimpleType, XsdUnion, XsdAtomic
 from .groups import XsdGroup
 from .wildcards import XsdAnyElement, XsdOpenContent, XsdDefaultOpenContent
 
-XSD_MODEL_GROUP_TAGS = {XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE}
+XSD_MODEL_GROUP_TAGS = frozenset([XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE])
 
 
 class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], Any]):

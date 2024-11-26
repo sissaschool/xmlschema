@@ -1242,7 +1242,7 @@ class XsdAtomicRestriction(XsdAtomic):
                         base_type = self.any_atomic_type
                     else:
                         if isinstance(base_type, tuple):
-                            msg = _("circular definition found between {0!r} and {1!r}")
+                            msg = _("circular definition found between {!r} and {!r}")
                             self.parse_error(msg.format(self, base_qname))
                             base_type = self.any_atomic_type
 

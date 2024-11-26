@@ -66,7 +66,6 @@ class TestGlobalMapsViews(unittest.TestCase):
 
         ns_view = NamespaceView(qnames, '')
         self.assertEqual(ns_view.as_dict(), {'name3': 3})
-        self.assertEqual(ns_view.as_dict(True), {'name3': 3})
 
     def test_iter(self):
         qnames = {'{tns0}name0': 0, '{tns1}name1': 1, '{tns1}name2': 2, 'name3': 3}
@@ -117,19 +116,22 @@ class TestXsdGlobalsMaps(unittest.TestCase):
             self.assertIsNot(getattr(maps, name), getattr(orig, name))
 
         self.assertEqual(maps.validation, orig.validation)
-        self.assertIs(maps.validator, orig.validator)
-        self.assertIs(maps.loader, orig.loader)
+        self.assertIsNot(maps.validator, orig.validator)
+        self.assertIsNot(maps.loader, orig.loader)
+        self.assertEqual(maps.total_globals, 0)
 
+        maps.build()
         self.assertEqual(maps.total_globals, self.tot_xsd10_components)
 
     def test_clear(self):
         maps = XMLSchema10.meta_schema.maps.copy()
+        orig = XMLSchema10.meta_schema.maps
 
+        self.assertEqual(len(list(maps.iter_globals())), 0)
+        self.assertEqual(len(list(orig.iter_globals())), 158)
+
+        maps.build()
         self.assertEqual(len(list(maps.iter_globals())), 158)
-
-        maps.clear(only_unbuilt=True)
-        self.assertEqual(maps.total_globals, 158)
-
         maps.clear()
         self.assertEqual(len(list(maps.iter_globals())), 0)
         maps.build()

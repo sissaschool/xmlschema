@@ -313,17 +313,17 @@ class XsdComponent(XsdValidator):
     @property
     def any_type(self) -> 'XsdComplexType':
         """Property that references to the xs:anyType instance of the global maps."""
-        return cast('XsdComplexType', self.maps.types[XSD_ANY_TYPE])
+        return cast('XsdComplexType', self.maps.lookup_type(XSD_ANY_TYPE))
 
     @property
     def any_simple_type(self) -> 'XsdSimpleType':
         """Property that references to the xs:anySimpleType instance of the global maps."""
-        return cast('XsdSimpleType', self.maps.types[XSD_ANY_SIMPLE_TYPE])
+        return cast('XsdSimpleType', self.maps.lookup_type(XSD_ANY_SIMPLE_TYPE))
 
     @property
     def any_atomic_type(self) -> 'XsdSimpleType':
         """Property that references to the xs:anyAtomicType instance of the global maps."""
-        return cast('XsdSimpleType', self.maps.types[XSD_ANY_ATOMIC_TYPE])
+        return cast('XsdSimpleType', self.maps.lookup_type(XSD_ANY_ATOMIC_TYPE))
 
     @property
     def annotation(self) -> Optional['XsdAnnotation']:
@@ -846,19 +846,20 @@ class XsdType(XsdComponent):
         raise NotImplementedError()
 
     def is_key(self) -> bool:
-        return self.name == XSD_ID or self.is_derived(self.maps.types[XSD_ID])
+        return self.name == XSD_ID or self.is_derived(self.maps.lookup_type(XSD_ID))
 
     def is_qname(self) -> bool:
-        return self.name == XSD_QNAME or self.is_derived(self.maps.types[XSD_QNAME])
+        return self.name == XSD_QNAME or self.is_derived(self.maps.lookup_type(XSD_QNAME))
 
     def is_notation(self) -> bool:
-        return self.name == XSD_NOTATION_TYPE or self.is_derived(self.maps.types[XSD_NOTATION_TYPE])
+        return self.name == XSD_NOTATION_TYPE or \
+            self.is_derived(self.maps.lookup_type(XSD_NOTATION_TYPE))
 
     def is_decimal(self) -> bool:
-        return self.name == XSD_DECIMAL or self.is_derived(self.maps.types[XSD_DECIMAL])
+        return self.name == XSD_DECIMAL or self.is_derived(self.maps.lookup_type(XSD_DECIMAL))
 
     def is_boolean(self) -> bool:
-        return self.name == XSD_BOOLEAN or self.is_derived(self.maps.types[XSD_BOOLEAN])
+        return self.name == XSD_BOOLEAN or self.is_derived(self.maps.lookup_type(XSD_BOOLEAN))
 
     def text_decode(self, text: str, validation: str = 'skip',
                     context: Optional[DecodeContext] = None) -> DecodedValueType:

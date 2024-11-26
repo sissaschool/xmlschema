@@ -31,7 +31,7 @@ from xmlschema.validators import XMLSchemaParseError, \
     XMLSchemaIncludeWarning, XMLSchemaImportWarning
 
 if TYPE_CHECKING:
-    from xmlschema.validators import XsdGlobals
+    from xmlschema.validators.global_maps import GlobalMaps, XsdGlobals
 
 logger = logging.getLogger('xmlschema')
 base_url_attribute = attrgetter('name')
@@ -56,7 +56,7 @@ class NamespaceResourcesMap(MutableMapping[str, list[T]]):
         self._store: dict[str, list[T]] = {}
         for item in args:
             self.update(item)
-        self.update(**kwargs)
+        self.update(kwargs)
 
     def __getitem__(self, uri: str) -> list[T]:
         return self._store[uri]
@@ -150,9 +150,6 @@ class SchemaLoader:
         if not validator.use_fallback:
             self.fallback_locations = {}
 
-        # Number of components loaded per schema
-        self._total_globals: Counter[SchemaType] = Counter()
-
         # Save other validator init options, used for creating new schemas.
         self._init_options = {
             'validation': validator.validation,
@@ -163,17 +160,6 @@ class SchemaLoader:
             'uri_mapper': validator.source.uri_mapper,
             'opener': validator.source.opener,
             'use_xpath3': validator.use_xpath3,
-        }
-
-        # Set tags map for loading components
-        self._tags = {
-            nm.XSD_SIMPLE_TYPE: maps.types,
-            nm.XSD_COMPLEX_TYPE: maps.types,
-            nm.XSD_ATTRIBUTE: maps.attributes,
-            nm.XSD_ATTRIBUTE_GROUP: maps.attribute_groups,
-            nm.XSD_GROUP: maps.groups,
-            nm.XSD_ELEMENT: maps.elements,
-            nm.XSD_NOTATION: maps.notations,
         }
 
     def is_missing(self, namespace: str,
@@ -419,139 +405,6 @@ class SchemaLoader:
                 self.missing_locations.add(url)
 
         return namespace in self.maps.namespaces
-
-    def get_loaded_globals(self, schema: SchemaType) -> Optional[int]:
-        """
-        Returns the total number of loaded XSD globals for the schema. If the loader
-        has no global components loaded for the provided schema returns `None`.
-        """
-        if schema not in self._total_globals:
-            return None
-        else:
-            return self._total_globals[schema]
-
-    def load_globals(self, schemas: Iterable[SchemaType]) -> None:
-        """Loads global XSD components for the given schemas."""
-        redefinitions = []
-        self._total_globals.clear()
-
-        for schema in schemas:
-            self._total_globals[schema] = 0
-            target_namespace = schema.target_namespace
-            target_prefix = '' if not target_namespace else f'{{{target_namespace}}}%s'
-
-            for elem in schema.root:
-                if elem.tag in (nm.XSD_REDEFINE, nm.XSD_OVERRIDE):
-                    location = elem.get('schemaLocation')
-                    if location is None:
-                        continue
-
-                    for child in elem:
-                        try:
-                            if not target_prefix:
-                                qname = child.attrib['name']
-                            else:
-                                qname = target_prefix % child.attrib['name']
-                        except KeyError:
-                            continue
-
-                        redefinitions.append(
-                            (qname, elem, child, schema, schema.includes[location])
-                        )
-
-                if (tag := elem.tag) in self._tags and 'name' in elem.attrib:
-                    xsd_globals = self._tags[tag]
-
-                    if not target_prefix:
-                        qname = elem.attrib['name']
-                    else:
-                        qname = target_prefix % elem.attrib['name']
-
-                    if qname not in xsd_globals:
-                        xsd_globals[qname] = (elem, schema)
-                        self._total_globals[schema] += 1
-                    else:
-                        value = xsd_globals[qname]
-                        if not isinstance(value, (list, tuple)):
-                            if value.schema is schema:
-                                continue
-                        else:
-                            try:
-                                other_schema = xsd_globals[qname][1]
-                            except IndexError:
-                                pass
-                            else:
-                                # It's ignored or replaced in case of an override
-                                if other_schema.override is schema:
-                                    continue
-                                elif schema.override is other_schema:
-                                    xsd_globals[qname] = (elem, schema)
-                                    self._total_globals[schema] += 1
-                                    self._total_globals[other_schema] -= 1
-                                    continue
-
-                        msg = _("global {} with name={!r} is already defined")
-                        schema.parse_error(
-                            error=msg.format(local_name(elem.tag), qname),
-                            elem=elem
-                        )
-
-        redefined_names = Counter(x[0] for x in redefinitions)
-        for qname, elem, child, schema, redefined_schema in reversed(redefinitions):
-
-            # Checks multiple redefinitions
-            if redefined_names[qname] > 1:
-                redefined_names[qname] = 1
-
-                redefined_schemas: Any
-                redefined_schemas = [x[-1] for x in redefinitions if x[0] == qname]
-                if any(redefined_schemas.count(x) > 1 for x in redefined_schemas):
-                    msg = _("multiple redefinition for {} {!r}")
-                    schema.parse_error(
-                        error=msg.format(local_name(child.tag), qname),
-                        elem=child
-                    )
-                else:
-                    redefined_schemas = {x[-1]: x[-2] for x in redefinitions if x[0] == qname}
-                    for rs, s in redefined_schemas.items():
-                        while True:
-                            try:
-                                s = redefined_schemas[s]
-                            except KeyError:
-                                break
-
-                            if s is rs:
-                                msg = _("circular redefinition for {} {!r}")
-                                schema.parse_error(
-                                    error=msg.format(local_name(child.tag), qname),
-                                    elem=child
-                                )
-                                break
-
-            xsd_globals = self._tags[child.tag]
-            try:
-                item = xsd_globals[qname]
-            except KeyError:
-                # Overrides that match nothing in the target schema are ignored. See the
-                # period starting with "Source declarations not present in the target set"
-                # of the paragraph https://www.w3.org/TR/xmlschema11-1/#override-schema.
-                if elem.tag == nm.XSD_OVERRIDE:
-                    continue
-
-                schema.parse_error(_("not a redefinition!"), child)
-            else:
-                if elem.tag == nm.XSD_OVERRIDE:
-                    self._total_globals[schema] += 1
-                    self._total_globals[item[1]] -= 1
-                    xsd_globals[qname] = (child, schema)
-                elif isinstance(item, list):
-                    self._total_globals[schema] += 1
-                    self._total_globals[item[-1][1]] -= 1
-                    item.append((child, schema))
-                else:
-                    self._total_globals[schema] += 1
-                    self._total_globals[item[1]] -= 1
-                    xsd_globals[qname] = [item, (child, schema)]
 
 
 class UrlSchemaLoader(SchemaLoader):

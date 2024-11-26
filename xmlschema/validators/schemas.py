@@ -69,7 +69,7 @@ from .groups import XsdGroup, Xsd11Group
 from .elements import XsdElement, Xsd11Element
 from .wildcards import XsdAnyElement, XsdAnyAttribute, Xsd11AnyElement, \
     Xsd11AnyAttribute, XsdDefaultOpenContent
-from .global_maps import NamespaceView, XsdGlobals
+from .global_maps import GLOBAL_TAGS, XsdBuilders, NamespaceView, XsdGlobals
 
 logger = logging.getLogger('xmlschema')
 
@@ -92,10 +92,6 @@ ANY_ELEMENT = Element(
         'maxOccurs': 'unbounded'
     })
 
-GLOBAL_TAGS = frozenset((
-    nm.XSD_NOTATION, nm.XSD_SIMPLE_TYPE, nm.XSD_COMPLEX_TYPE,
-    nm.XSD_ATTRIBUTE, nm.XSD_ATTRIBUTE_GROUP, nm.XSD_GROUP, nm.XSD_ELEMENT
-))
 
 class XMLSchemaMeta(ABCMeta):
     XSD_VERSION: str
@@ -536,7 +532,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
     def __setattr__(self, name: str, value: Any) -> None:
         if name == 'maps':
-            if self._meta_schema is None and getattr(self, 'maps', self) is not self:
+            if self._meta_schema is None and getattr(self, 'maps', self) is not self \
+                    and self.__class__._meta_schema:
                 msg = _("can't change the global maps instance of a meta-schema")
                 raise XMLSchemaAttributeError(msg)
 
@@ -857,6 +854,23 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         """Returns a list containing the global complex types."""
         return [x for x in self.types.values() if isinstance(x, XsdComplexType)]
 
+
+    def get_builders(self) -> XsdBuilders:
+
+        def xsd_type_builder(elem: ElementType, schema: SchemaType) -> BaseXsdType:
+            if elem.tag == nm.XSD_COMPLEX_TYPE:
+                return self.xsd_complex_type_class(elem, schema)
+            return self.simple_type_factory(elem, schema)
+
+        return XsdBuilders(
+            self.xsd_notation_class,
+            self.xsd_attribute_class,
+            self.xsd_attribute_group_class,
+            xsd_type_builder,
+            self.xsd_group_class,
+            self.xsd_element_class,
+        )
+
     @classmethod
     def create_meta_schema(cls, source: Optional[str] = None,
                            base_schemas: Union[None, dict[str, str],
@@ -1090,8 +1104,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         self.maps.build()
 
     def clear(self) -> None:
-        """Clears the schema's XSD global maps."""
-        self.maps.clear()
         self._xpath_node = None
         self._annotations = None
         self._components = None
@@ -1099,42 +1111,17 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
     @property
     def built(self) -> bool:
-        if self._meta_schema is None:
-            if self.target_namespace != nm.XSD_NAMESPACE:
-                if not self.attributes:
-                    return False
-
-                total = 0
-                for total, comp in enumerate(self.iter_globals(), start=1):
-                    if not isinstance(comp, XsdComponent) or not comp.built:
-                        return False
-
-                return total >= self.expected_globals
-            elif not self.maps.types:
-                return False
-
-        total = 0
-        for total, comp in enumerate(self.iter_globals(), start=1):
-            if not isinstance(comp, XsdComponent) or not comp.built:
-                return False
-
-        if self._meta_schema is None:
-            return total >= self.expected_globals
-
-        loaded_globals = self.loader.get_loaded_globals(self)
-        if loaded_globals is None:
-            return total >= self.expected_globals
-        else:
-            return total >= loaded_globals
+        return self.maps.built
 
     @property
     def validation_attempted(self) -> str:
-        if self.built:
-            return 'full'
-        elif any(isinstance(comp, XsdComponent) for comp in self.iter_globals()):
+        if (value := self.maps.validation_attempted) != 'partial':
+            return value
+        elif any(item for item in self.maps.iter_unbuilt()
+                 if item[-1] is self):
             return 'partial'
         else:
-            return 'none'
+            return 'full'
 
     def iter_globals(self) -> Iterator[Union[SchemaGlobalType, tuple[Any, ...]]]:
         """Creates an iterator for XSD global definitions/declarations of the schema."""

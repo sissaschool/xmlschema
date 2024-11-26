@@ -38,7 +38,7 @@ __all__ = ['ElementType', 'ElementTreeType', 'XMLSourceType', 'NsmapType',
            'JsonDecodeType', 'EncodeType', 'IterEncodeType', 'DecodedValueType',
            'FillerType', 'DepthFillerType', 'ValueHookType', 'ElementHookType',
            'SerializerType', 'OccursCounterType', 'LazyType', 'SourceType',
-           'UriMapperType', 'IterparseType', 'EtreeType', 'IOType',
+           'UriMapperType', 'IterparseType', 'EtreeType', 'IOType', 'ClassInfoType',
            'ResourceNodeType', 'NsmapsMapType', 'XmlnsMapType', 'ErrorsType']
 
 if TYPE_CHECKING:
@@ -100,6 +100,7 @@ XPathElementType = Union['XsdElement', 'XsdAnyElement', 'XsdAssert']
 
 C = TypeVar('C')
 GlobalMapType = dict[str, Union[C, tuple[Element, SchemaType]]]
+ClassInfoType = Union[Type[Any], tuple[Type[Any], ...]]
 
 ##
 # Type aliases for datatypes
