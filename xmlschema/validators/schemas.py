@@ -857,16 +857,12 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
     def get_builders(self) -> XsdBuilders:
 
-        def xsd_type_builder(elem: ElementType, schema: SchemaType) -> BaseXsdType:
-            if elem.tag == nm.XSD_COMPLEX_TYPE:
-                return self.xsd_complex_type_class(elem, schema)
-            return self.simple_type_factory(elem, schema)
-
         return XsdBuilders(
             self.xsd_notation_class,
             self.xsd_attribute_class,
             self.xsd_attribute_group_class,
-            xsd_type_builder,
+            self.simple_type_factory,
+            self.xsd_complex_type_class,
             self.xsd_group_class,
             self.xsd_element_class,
         )

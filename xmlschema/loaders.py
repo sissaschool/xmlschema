@@ -165,7 +165,8 @@ class SchemaLoader:
     def is_missing(self, namespace: str,
                    location: Optional[str] = None,
                    base_url: Optional[str] = None) -> bool:
-        return namespace not in self.maps.namespaces
+        return namespace not in self.maps.namespaces \
+            or not any(s.maps is self.maps for s in self.maps.namespaces[namespace])
 
     def get_locations(self, namespace: str, location: Optional[str] = None) -> list[str]:
         locations: list[str] = [location] if location else []

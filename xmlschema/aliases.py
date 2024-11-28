@@ -100,7 +100,7 @@ XPathElementType = Union['XsdElement', 'XsdAnyElement', 'XsdAssert']
 
 C = TypeVar('C')
 GlobalMapType = dict[str, Union[C, tuple[Element, SchemaType]]]
-ClassInfoType = Union[Type[Any], tuple[Type[Any], ...]]
+ClassInfoType = Union[Type[C], tuple[Type[C], ...]]
 
 ##
 # Type aliases for datatypes
