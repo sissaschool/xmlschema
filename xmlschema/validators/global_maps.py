@@ -11,6 +11,7 @@
 This module contains functions and classes for namespaces XSD declarations/definitions.
 """
 import dataclasses
+import threading
 import warnings
 from collections import Counter
 from collections.abc import Callable, Collection, ItemsView, Iterator, Iterable, \
@@ -23,7 +24,8 @@ from xml.etree.ElementTree import Element
 from xmlschema.aliases import ClassInfoType, ElementType, SchemaSourceType, \
     SchemaType, BaseXsdType, SchemaGlobalType, NsmapType
 from xmlschema.exceptions import XMLSchemaKeyError, XMLSchemaTypeError, \
-    XMLSchemaValueError, XMLSchemaWarning, XMLSchemaNamespaceError
+    XMLSchemaValueError, XMLSchemaWarning, XMLSchemaNamespaceError, \
+    XMLSchemaRuntimeError
 from xmlschema.translation import gettext as _
 from xmlschema.utils.qnames import local_name, get_extended_qname
 from xmlschema.utils.urls import get_url, normalize_url
@@ -32,7 +34,7 @@ from xmlschema.resources import XMLResource
 import xmlschema.names as nm
 
 from .exceptions import XMLSchemaNotBuiltError, XMLSchemaModelError, XMLSchemaModelDepthError, \
-    XMLSchemaParseError
+    XMLSchemaParseError, XMLSchemaValidatorError, XMLSchemaValidationError
 from .xsdbase import XsdValidator, XsdComponent
 from .facets import XSD_11_FACETS_BUILDERS, XSD_10_FACETS_BUILDERS
 from .builtins import XSD_11_BUILTIN_TYPES, XSD_10_BUILTIN_TYPES
@@ -136,8 +138,14 @@ class StagedMap(MutableMapping[str, CT]):
             comp = self._store[qname]
             if comp.schema is schema:
                 msg = _("global xs:{} with name={!r} is already built")
-            else:
+            elif comp.schema.maps is schema.maps or comp.schema.meta_schema is None:
                 msg = _("global xs:{} with name={!r} is already defined")
+            else:
+                # Allows rebuilding of parent maps components for descendant maps
+                # but not allows substitution of meta-schema components.
+                self._staging[qname] = elem, schema
+                return
+
         elif qname in self._staging:
             obj = self._staging[qname]
             if len(obj) == 2:
@@ -366,7 +374,7 @@ class GlobalMaps(NamedTuple):
         for item in self:
             yield from item.values()
 
-    def iter_unbuilt(self) -> Iterator[StagingItemType]:
+    def iter_staged(self) -> Iterator[StagingItemType]:
         for item in self:
             yield from item.staging.values()
 
@@ -539,6 +547,15 @@ class XsdGlobals(XsdValidator):
         nm.XSD_GROUP: 'lookup_group',
     }
 
+    def __getstate__(self) -> dict[str, Any]:
+        state = self.__dict__.copy()
+        state.pop('_build_lock', None)
+        return state
+
+    def __setstate__(self, state: dict[str, Any]) -> None:
+        self.__dict__.update(state)
+        self._build_lock = threading.Lock()
+
     def __init__(self, validator: SchemaType, validation: str = _strict,
                  loader: Optional[Type[SchemaLoader]] = None,
                  parent: Optional[SchemaType] = None) -> None:
@@ -548,8 +565,9 @@ class XsdGlobals(XsdValidator):
             warnings.warn(msg, DeprecationWarning, stacklevel=1)
 
         super().__init__(validator.validation)
-        self._built = False
+        self._build_lock = threading.Lock()
         self._validation_attempted = 'none'
+        self._validity = 'notKnown'
 
         self._schemas = set()
         self.validator = validator
@@ -560,16 +578,6 @@ class XsdGlobals(XsdValidator):
             self._builders = validator.get_builders()
         else:
             self._builders = self.parent.maps._builders
-
-        builders: dict[str, Callable[[ElementType, SchemaType], Any]] = {
-            nm.XSD_NOTATION: validator.xsd_notation_class,
-            nm.XSD_SIMPLE_TYPE: validator.simple_type_factory,
-            nm.XSD_COMPLEX_TYPE: validator.xsd_complex_type_class,
-            nm.XSD_ATTRIBUTE: validator.xsd_attribute_class,
-            nm.XSD_ATTRIBUTE_GROUP: validator.xsd_attribute_group_class,
-            nm.XSD_GROUP: validator.xsd_group_class,
-            nm.XSD_ELEMENT: validator.xsd_element_class,
-        }
 
         self.types = StagedTypesMap(self.validator)
         self.notations = StagedMap(self.validator, XsdNotation)
@@ -585,30 +593,37 @@ class XsdGlobals(XsdValidator):
         self.loader = (loader or SchemaLoader)(self)
 
         if parent is not None:
-            self._include_schemas(parent.maps)
+            self._include_schemas(parent)
         self.register(self.validator)
 
     @property
     def schemas(self) -> set[SchemaType]:
         return self._schemas
 
-    def _include_schemas(self, maps: 'XsdGlobals') -> None:
-        """Includes parent schemas, recursively."""
-        if maps.parent is not None:
-            self._include_schemas(maps.parent.maps)
-        self._schemas.update(maps._schemas)
-        self.namespaces.update(maps.namespaces)
+    def _include_schemas(self, parent: SchemaType) -> None:
+        """Includes schemas of parent maps, recursively."""
+        if parent.meta_schema is None:
+            if self.validator.target_namespace in parent.maps.namespaces:
+                return  # don't include meta-schema if namespaces overlap
 
-    def _include_maps(self, maps: 'XsdGlobals') -> None:
+        if parent.maps.parent is not None:
+            self._include_schemas(parent.maps.parent)
+        self._schemas.update(parent.maps._schemas)
+        self.namespaces.update(parent.maps.namespaces)
+
+    def _include_maps(self, parent: SchemaType) -> None:
         """Reuse components of the maps of the parent schema, recursively."""
-        if maps.parent is not None:
-            self._include_maps(maps.parent.maps)
-        if not maps.built:
-            maps.build()
+        if parent.meta_schema is None:
+            if self.validator.target_namespace in parent.maps.namespaces:
+                return  # don't include meta-schema if namespaces overlap
 
-        self.global_maps.update(maps.global_maps)
-        self.substitution_groups.update(maps.substitution_groups)
-        self.identities.update(maps.identities)
+        if parent.maps.parent is not None:
+            self._include_maps(parent.maps.parent)
+
+        parent.maps.build()
+        self.global_maps.update(parent.maps.global_maps)
+        self.substitution_groups.update(parent.maps.substitution_groups)
+        self.identities.update(parent.maps.identities)
 
     def __repr__(self) -> str:
         return '%s(validator=%r)' % (self.__class__.__name__, self.validator)
@@ -709,25 +724,27 @@ class XsdGlobals(XsdValidator):
 
     @property
     def built(self) -> bool:
-        return self._built
+        if self._validation_attempted == 'none':
+            return False
+        elif self._validation_attempted == 'full':
+            return True
+        else:
+            return self.validation != 'strict'
 
     @property
     def validation_attempted(self) -> str:
-        if self.built:
-            return 'full'
-        elif any(True for _t in self.iter_unbuilt()):
-            return 'partial'
-        else:
-            return 'none'
+        return self._validation_attempted
 
     @property
     def validity(self) -> str:
-        if not self or all(not g for g in self.global_maps):
-            return 'notKnown'
-        if all(s.validity == 'valid' for s in self._schemas):
-            return 'valid'
-        elif any(s.validity == 'invalid' for s in self._schemas):
-            return 'invalid'
+        if self.parent is None:
+            return self._validity
+
+        validity = self.parent.maps.validity
+        if validity == self._validity:
+            return validity
+        elif validity == 'valid':
+            return self._validity
         else:
             return 'notKnown'
 
@@ -742,15 +759,22 @@ class XsdGlobals(XsdValidator):
 
     @property
     def total_globals(self):
-        return sum(len(self.global_maps[k]) for k in range(6))
+        """Total number of global components, fully and partially built."""
+        return sum(len(m) for m in self.global_maps)
 
     @property
     def built_globals(self):
-        return sum(1 for c in self.iter_globals() if isinstance(c, XsdComponent) and c.built)
+        """Total number of fully built global components."""
+        return sum(1 for c in self.global_maps.iter_globals() if c.built)
 
     @property
-    def unbuilt_globals(self):
-        return sum(self.global_maps[k].unbuilt for k in range(6))
+    def incomplete_globals(self):
+        """Total number of partially built global components."""
+        return sum(1 for c in self.global_maps.iter_globals() if not c.built)
+
+    @property
+    def staged_globals(self):
+        return sum(1 for c in self.global_maps.iter_staged())
 
     @property
     def unbuilt(self) -> list[Union[XsdComponent, SchemaType]]:
@@ -765,6 +789,10 @@ class XsdGlobals(XsdValidator):
     @property
     def all_errors(self) -> list[XMLSchemaParseError]:
         return [e for s in self._schemas for e in s.all_errors]
+
+    @property
+    def total_errors(self) -> int:
+        return sum(s.total_errors for s in self._schemas)
 
     def create_bindings(self, *bases: Type[Any], **attrs: Any) -> None:
         """Creates data object bindings for the XSD elements of built schemas."""
@@ -790,8 +818,8 @@ class XsdGlobals(XsdValidator):
         """Creates an iterator for the XSD global components of built schemas."""
         return self.global_maps.iter_globals()
 
-    def iter_unbuilt(self) -> Iterator[StagingItemType]:
-        return self.global_maps.iter_unbuilt()
+    def iter_staged(self) -> Iterator[StagingItemType]:
+        return self.global_maps.iter_staged()
 
     def iter_schemas(self) -> Iterator[SchemaType]:
         """Creates an iterator for the registered schemas."""
@@ -892,90 +920,102 @@ class XsdGlobals(XsdValidator):
 
         for schema in self._schemas:
             if schema.maps is self:
+                schema.errors.clear()
                 schema.clear()
 
         if remove_schemas:
             self._schemas.clear()
             self.namespaces.clear()
             if self.parent is not None:
-                self._include_schemas(self.parent.maps)
+                self._include_schemas(self.parent)
             self.register(self.validator)
 
-        self._built = False
         self._validation_attempted = 'none'
+        self._validity = 'notKnown'
 
     def build(self) -> None:
         """
         Build the maps of XSD global definitions/declarations. The global maps are
         updated adding and building the globals of not built registered schemas.
         """
-        self.check_schemas()
-        self.clear()
+        if self.built:
+            return
 
-        if self.parent is not None:
-            self._include_maps(self.parent.maps)
+        with self._build_lock:
+            if self.built:
+                return
 
-        target_schemas = [s for s in self.schemas if s.maps is self]
+            self.check_schemas()
+            self.clear()
+            if self.parent is not None:
+                self._include_maps(self.parent)
 
-        self.global_maps.load_globals(target_schemas)
+            target_schemas = [s for s in self.schemas if s.maps is self]
 
-        if self.parent is None or \
-                any(s.target_namespace in self.validator.BASE_SCHEMAS for s in target_schemas):
-            self.types.build_builtins()
-        else:
-            self.types[nm.XSD_ANY_TYPE] = self.validator.create_any_type()
+            self.global_maps.load_globals(target_schemas)
+            initial_staged = self.staged_globals
 
-        self.notations.build()
-        self.attributes.build()
-        self.attribute_groups.build()
-
-        for schema in target_schemas:
-            if not isinstance(schema.default_attributes, str):
-                continue
-
-            try:
-                attributes = schema.maps.attribute_groups[schema.default_attributes]
-            except KeyError:
-                schema.default_attributes = None
-                msg = _("defaultAttributes={0!r} doesn't match any attribute group of {1!r}")
-                schema.parse_error(
-                    error=msg.format(schema.root.get('defaultAttributes'), schema),
-                    elem=schema.root
-                )
+            if self.parent is None or \
+                    any(s.target_namespace in self.validator.BASE_SCHEMAS for s in target_schemas):
+                self.types.build_builtins()
             else:
-                schema.default_attributes = cast(XsdAttributeGroup, attributes)
+                self.types[nm.XSD_ANY_TYPE] = self.validator.create_any_type()
 
-        self.types.build()
-        self.elements.build()
-        self.groups.build()
+            self.notations.build()
+            self.attributes.build()
+            self.attribute_groups.build()
 
-        # parent_components = len(self._staging_maps)
+            for schema in target_schemas:
+                if not isinstance(schema.default_attributes, str):
+                    continue
 
-        # Build element declarations inside model groups.
-        for schema in target_schemas:
-            for group in schema.iter_components(XsdGroup):
-                group.build()
+                try:
+                    attributes = schema.maps.attribute_groups[schema.default_attributes]
+                except KeyError:
+                    schema.default_attributes = None
+                    msg = _("defaultAttributes={0!r} doesn't match any attribute group of {1!r}")
+                    schema.parse_error(
+                        error=msg.format(schema.root.get('defaultAttributes'), schema),
+                        elem=schema.root
+                    )
+                else:
+                    schema.default_attributes = cast(XsdAttributeGroup, attributes)
 
-        # Build identity references and XSD 1.1 assertions
-        for schema in target_schemas:
-            for obj in schema.iter_components((XsdIdentity, XsdAssert)):
-                obj.build()
+            self.types.build()
+            self.elements.build()
+            self.groups.build()
 
-        self._built = True
+            # Build element declarations inside model groups.
+            for schema in target_schemas:
+                for group in schema.iter_components(XsdGroup):
+                    group.build()
 
-        if self.validator.meta_schema is not None:
-            self.check_components(target_schemas)
+            # Build identity references and XSD 1.1 assertions
+            for schema in target_schemas:
+                for obj in schema.iter_components((XsdIdentity, XsdAssert)):
+                    obj.build()
 
-        if self.unbuilt_globals:
-            self._validation_attempted = 'partial'
-            print('UNBUILT!')
-        elif any(not c.built for c in self.iter_globals()):
-            print("UNBUILT COMPONENTS!")
-            self._validation_attempted = 'partial'
-        else:
-            self._validation_attempted = 'full'
+            if self.validator.meta_schema is not None:
+                self.check_components(target_schemas)
+
+            if not initial_staged:
+                self._validation_attempted = 'full'
+            elif 0 < (still_staged := self.staged_globals) < initial_staged:
+                self._validation_attempted = 'partial'
+            else:
+                self._validation_attempted = 'none' if still_staged else 'full'
+
+            if self.total_errors:
+                self._validity = 'invalid'
+            elif self._validation_attempted != 'full':
+                self._validity = 'notKnown'
+            else:
+                self._validity = 'valid'
+
+            self.check_validator()
 
     def check_schemas(self) -> None:
+        """Checks the coherence of schema registrations."""
         if self.validator not in self._schemas:
             raise XMLSchemaValueError(_('global maps main validator is not registered'))
 
@@ -1003,9 +1043,7 @@ class XsdGlobals(XsdValidator):
         :param schemas: optional argument with the set of the schemas to check.
         :raise: XMLSchemaParseError
         """
-        if not self._built:
-            raise XMLSchemaNotBuiltError(self.validator, _("global map is not built"))
-
+        self.check_validator()
         if schemas is None:
             _schemas = [s for s in self._schemas if s.maps is self]
         else:
@@ -1018,12 +1056,6 @@ class XsdGlobals(XsdValidator):
             if any(e is xsd_element for e in xsd_element.iter_substitutes()):
                 msg = _("circularity found for substitution group with head element {}")
                 xsd_element.parse_error(msg.format(xsd_element))
-
-        if self.validation == 'strict':
-            if any(not (schema := s).validation_attempted for s in _schemas):
-                raise XMLSchemaNotBuiltError(
-                    schema, _("global map has unbuilt components: %r") % self.unbuilt
-                )
 
         # Check redefined global groups restrictions
         for group in self.groups.values():

@@ -447,11 +447,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
             return  # Meta-schemas don't need to be checked and don't process imports
 
-        # Build or rebuild the meta-schema components if they are missing
-        with self._meta_schema.lock:
-            if not self._meta_schema.maps.types:
-                self._meta_schema.maps.build()
-
         # Create or set the XSD global maps instance
         if isinstance(global_maps, XsdGlobals):
             try:
@@ -486,6 +481,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
         # Validate the schema document (transforming validation errors to parse errors)
         if validation != 'skip':
+            self._meta_schema.build()
             for e in self._meta_schema.iter_errors(root, namespaces=self.namespaces):
                 self.parse_error(e.reason or e, elem=e.elem)
 
@@ -730,10 +726,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         if cls._meta_schema is None:
             raise XMLSchemaRuntimeError(_("meta-schema unavailable for %r") % cls)
 
-        with cls._meta_schema.lock:
-            if not cls._meta_schema.maps.types:
-                cls._meta_schema.maps.build()
-
+        cls._meta_schema.maps.build()
         return cls._meta_schema.types
 
     @property
@@ -1079,21 +1072,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         if text is not None:
             elem.text = text
         return self.xsd_element_class(elem=elem, schema=self, parent=parent)
-
-    def check_validator(self, validation: str = 'strict') -> None:
-        """Checks the status of a schema validator against a validation mode."""
-        check_validation_mode(validation)
-
-        if self.built:
-            pass
-        elif self._meta_schema is None:
-            self.build()  # Meta-schema lazy build
-        elif validation == 'skip' and self.validation == 'skip' and \
-                any(isinstance(comp, tuple) or comp.validation_attempted == 'partial'
-                    for comp in self.iter_globals()):
-            pass
-        else:
-            raise XMLSchemaNotBuiltError(self, _("schema %r is not built") % self)
 
     def build(self) -> None:
         """Builds the schema's XSD global maps."""

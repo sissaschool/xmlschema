@@ -32,7 +32,7 @@ from xmlschema.utils.logger import format_xmlschema_stack
 from xmlschema.resources import XMLResource
 
 from .validation import check_validation_mode, DecodeContext
-from .exceptions import XMLSchemaParseError
+from .exceptions import XMLSchemaParseError, XMLSchemaNotBuiltError
 from .helpers import get_xsd_annotation_child
 
 if TYPE_CHECKING:
@@ -109,6 +109,21 @@ class XsdValidator:
         else:
             return 'notKnown'
 
+    def check_validator(self, validation: Optional[str] = None) -> None:
+        """Checks the status of a schema validator against a validation mode."""
+        if validation is None:
+            validation = self.validation
+        else:
+            check_validation_mode(validation)
+
+        if self.validation_attempted == 'none' and self.validity == 'notKnown':
+            return
+        elif validation == 'strict':
+            if self.validation_attempted == 'partial':
+                raise XMLSchemaNotBuiltError(self, _("%r is not built") % self)
+            if self.validity != 'valid':
+                raise XMLSchemaNotBuiltError(self, _("%r is invalid") % self)
+
     def iter_components(self, xsd_classes: ComponentClassType = None) \
             -> Iterator[Union['XsdComponent', SchemaType, 'XsdGlobals']]:
         """
@@ -129,6 +144,10 @@ class XsdValidator:
             if comp.errors:
                 errors.extend(comp.errors)
         return errors
+
+    @property
+    def total_errors(self) -> int:
+        return sum(len(comp.errors) for comp in self.iter_components())
 
     def copy(self) -> 'XsdValidator':
         validator: 'XsdValidator' = object.__new__(self.__class__)
