@@ -22,10 +22,10 @@ from typing import Any, cast, NamedTuple, Optional, Union, Type, TypeVar
 from xml.etree.ElementTree import Element
 
 from xmlschema.aliases import ClassInfoType, ElementType, SchemaSourceType, \
-    SchemaType, BaseXsdType, SchemaGlobalType, NsmapType
+    SchemaType, BaseXsdType, SchemaGlobalType, NsmapType, StagedItemType
 from xmlschema.exceptions import XMLSchemaKeyError, XMLSchemaTypeError, \
     XMLSchemaValueError, XMLSchemaWarning, XMLSchemaNamespaceError, \
-    XMLSchemaRuntimeError
+    XMLSchemaAttributeError
 from xmlschema.translation import gettext as _
 from xmlschema.utils.qnames import local_name, get_extended_qname
 from xmlschema.utils.urls import get_url, normalize_url
@@ -34,7 +34,7 @@ from xmlschema.resources import XMLResource
 import xmlschema.names as nm
 
 from .exceptions import XMLSchemaNotBuiltError, XMLSchemaModelError, XMLSchemaModelDepthError, \
-    XMLSchemaParseError, XMLSchemaValidatorError, XMLSchemaValidationError
+    XMLSchemaParseError
 from .xsdbase import XsdValidator, XsdComponent
 from .facets import XSD_11_FACETS_BUILDERS, XSD_10_FACETS_BUILDERS
 from .builtins import XSD_11_BUILTIN_TYPES, XSD_10_BUILTIN_TYPES
@@ -50,8 +50,6 @@ GLOBAL_TAGS = frozenset((
 
 CT = TypeVar('CT', bound=XsdComponent)
 
-LoadedItemType = tuple[ElementType, SchemaType]
-StagingItemType = Union[LoadedItemType, tuple[LoadedItemType], list[LoadedItemType]]
 BuilderType =  Callable[[ElementType, SchemaType], CT]
 
 
@@ -84,7 +82,7 @@ class StagedMap(MutableMapping[str, CT]):
 
     def __init__(self, validator: SchemaType, xsd_classes: ClassInfoType[CT]):
         self._store: dict[str, CT] = {}
-        self._staging: dict[str, StagingItemType] = {}
+        self._staging: dict[str, StagedItemType] = {}
         self.staging = self._staging
         self._validator = validator
         self._builders: XsdBuilders = validator.get_builders()
@@ -127,10 +125,10 @@ class StagedMap(MutableMapping[str, CT]):
     def unbuilt(self) -> int:
         return len(self._staging)
 
-    def unbuilt_items(self) -> ItemsView[str, StagingItemType]:
+    def unbuilt_items(self) -> ItemsView[str, StagedItemType]:
         return self._staging.items()
 
-    def unbuilt_values(self) -> ValuesView[StagingItemType]:
+    def unbuilt_values(self) -> ValuesView[StagedItemType]:
         return self._staging.values()
 
     def load(self, qname, elem: ElementType, schema: SchemaType) -> None:
@@ -147,6 +145,7 @@ class StagedMap(MutableMapping[str, CT]):
                 return
 
         elif qname in self._staging:
+
             obj = self._staging[qname]
             if len(obj) == 2:
                 _elem, _schema = obj
@@ -159,7 +158,7 @@ class StagedMap(MutableMapping[str, CT]):
                     self._staging[qname] = (elem, schema)
                     return
 
-            msg = _("element xs:{} with name={!r} is already loaded")
+            msg = _("global xs:{} with name={!r} is already loaded")
         else:
             self._staging[qname] = elem, schema
             return
@@ -374,7 +373,7 @@ class GlobalMaps(NamedTuple):
         for item in self:
             yield from item.values()
 
-    def iter_staged(self) -> Iterator[StagingItemType]:
+    def iter_staged(self) -> Iterator[StagedItemType]:
         for item in self:
             yield from item.staging.values()
 
@@ -628,6 +627,13 @@ class XsdGlobals(XsdValidator):
     def __repr__(self) -> str:
         return '%s(validator=%r)' % (self.__class__.__name__, self.validator)
 
+    def __setattr__(self, name: str, value: Any) -> None:
+        if name[:1] != '_' and name in self.__dict__ and value is not self.__dict__[name]:
+            print(repr(name))
+            msg = _("can't change attribute {!r} of a global maps instance")
+            raise XMLSchemaAttributeError(msg.format(name))
+        super().__setattr__(name, value)
+
     def __len__(self) -> int:
         return len(self._schemas)
 
@@ -815,10 +821,11 @@ class XsdGlobals(XsdValidator):
             yield from xsd_global.iter_components(xsd_classes)
 
     def iter_globals(self) -> Iterator[SchemaGlobalType]:
-        """Creates an iterator for the XSD global components of built schemas."""
+        """Creates an iterator for the built XSD global components."""
         return self.global_maps.iter_globals()
 
-    def iter_staged(self) -> Iterator[StagingItemType]:
+    def iter_staged(self) -> Iterator[StagedItemType]:
+        """Creates an iterator for the unbuilt XSD global components."""
         return self.global_maps.iter_staged()
 
     def iter_schemas(self) -> Iterator[SchemaType]:
@@ -858,6 +865,11 @@ class XsdGlobals(XsdValidator):
                 self.namespaces[namespace].append(schema)
             except KeyError:
                 self.namespaces[namespace] = [schema]
+
+            if self._validation_attempted == 'full':
+                self._validation_attempted = 'partial'
+            if self._validity == 'valid':
+                self._validity = 'notKnown'
 
         schema.notations = NamespaceView(self.notations, namespace)
         schema.types = NamespaceView(self.types, namespace)
@@ -920,8 +932,7 @@ class XsdGlobals(XsdValidator):
 
         for schema in self._schemas:
             if schema.maps is self:
-                schema.errors.clear()
-                schema.clear()
+                schema.clear()   # clear XPath and component lazy properties
 
         if remove_schemas:
             self._schemas.clear()

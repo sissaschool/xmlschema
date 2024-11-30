@@ -33,7 +33,8 @@ from elementpath import XPathToken, SchemaElementNode, build_schema_node_tree
 from xmlschema.aliases import XMLSourceType, NsmapType, LocationsType, UriMapperType, \
     SchemaType, SchemaSourceType, ComponentClassType, DecodeType, EncodeType, \
     BaseXsdType, ExtraValidatorType, ValidationHookType, SchemaGlobalType, \
-    FillerType, DepthFillerType, ValueHookType, ElementHookType, ElementType
+    FillerType, DepthFillerType, ValueHookType, ElementHookType, ElementType, \
+    StagedItemType
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaKeyError, \
     XMLSchemaRuntimeError, XMLSchemaValueError, XMLSchemaNamespaceError, \
     XMLSchemaAttributeError
@@ -53,7 +54,7 @@ from xmlschema import dataobjects
 import xmlschema.names as nm
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaEncodeError, \
-    XMLSchemaNotBuiltError, XMLSchemaStopValidation
+    XMLSchemaStopValidation
 from .validation import check_validation_mode, DecodeContext, EncodeContext
 from .helpers import get_xsd_derivation_attribute, get_xsd_annotation_child
 from .xsdbase import XSD_ELEMENT_DERIVATIONS, XsdValidator, XsdComponent, XsdAnnotation
@@ -528,8 +529,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
     def __setattr__(self, name: str, value: Any) -> None:
         if name == 'maps':
-            if self._meta_schema is None and getattr(self, 'maps', self) is not self \
-                    and self.__class__._meta_schema:
+            if self._meta_schema is None \
+                    and 'maps' in self.__dict__ and value is not self.__dict__[name]:
                 msg = _("can't change the global maps instance of a meta-schema")
                 raise XMLSchemaAttributeError(msg)
 
@@ -1078,6 +1079,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         self.maps.build()
 
     def clear(self) -> None:
+        """Clears the schema cache."""
         self._xpath_node = None
         self._annotations = None
         self._components = None
@@ -1085,26 +1087,32 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
     @property
     def built(self) -> bool:
-        return self.maps.built
+        if (validation_attempted := self.validation_attempted) == 'none':
+            return False
+        return validation_attempted == 'full' or self.validation != 'strict'
 
     @property
     def validation_attempted(self) -> str:
-        if (value := self.maps.validation_attempted) != 'partial':
-            return value
-        elif any(item for item in self.maps.iter_unbuilt()
-                 if item[-1] is self):
+        if (validation_attempted := self.maps.validation_attempted) != 'partial':
+            return validation_attempted
+        elif any(item for item in self.iter_staged()):
             return 'partial'
         else:
             return 'full'
 
-    def iter_globals(self) -> Iterator[Union[SchemaGlobalType, tuple[Any, ...]]]:
-        """Creates an iterator for XSD global definitions/declarations of the schema."""
-        def schema_filter(x: Union[XsdComponent, tuple[Element, SchemaType]]) -> bool:
-            if isinstance(x, XsdComponent):
-                return x.schema is self
-            return x[1] is self if len(x) == 2 else x[0][1] is self
+    def iter_globals(self) -> Iterator[SchemaGlobalType]:
+        """Iterates XSD global definitions/declarations of the schema."""
+        def schema_filter(comp: XsdComponent) -> bool:
+            return comp.schema is self
 
         yield from filter(schema_filter, self.maps.iter_globals())
+
+    def iter_staged(self) -> Iterator[StagedItemType]:
+        """Iterates the unbuilt XSD global definitions/declarations of the schema."""
+        def schema_filter(x: Union[XsdComponent, tuple[Element, SchemaType]]) -> bool:
+            return x[1] is self if len(x) == 2 else x[0][1] is self
+
+        yield from filter(schema_filter, self.maps.iter_staged())
 
     def iter_components(self, xsd_classes: ComponentClassType = None) \
             -> Iterator[Union[XsdComponent, SchemaType]]:

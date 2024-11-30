@@ -133,7 +133,10 @@ class TestXMLSchema10(XsdValidatorTestCase):
             <xs:group name="wrong_child">
               <xs:element name="foo"/>
             </xs:group>""", validation='lax')
+
         self.assertEqual(len(schema.errors), 1)
+        self.assertEqual(len(schema.all_errors), 2)  # error in xs:group
+        self.assertEqual(schema.total_errors, 2)
 
         self.check_schema('<xs:group name="empty" />', XMLSchemaParseError)
         self.check_schema('<xs:group name="empty"><xs:annotation/></xs:group>', XMLSchemaParseError)
@@ -603,9 +606,19 @@ class TestXMLSchema10(XsdValidatorTestCase):
         self.assertIs(schema.elements['elem2'].schema, schema.maps.namespaces[''][1])
         self.assertIs(schema.elements['elem3'].schema, schema.maps.namespaces[''][2])
 
+        # Insert the same schema twice has no effect anymore (skips the duplicate),
+        # duplicates as detected by resource URL or identity (not for equality).
+        schema = self.schema_class([source1, source2, source2])
+        self.assertEqual(len(schema.elements), 2)
+        self.assertEqual(len(schema.maps.namespaces['']), 2)
+        self.assertIs(schema.elements['elem1'].schema, schema)
+        self.assertIs(schema.elements['elem2'].schema, schema.maps.namespaces[''][1])
+
+        source2a = '<?xml version="1.0" encoding="UTF-8"?>\n' + source2
         with self.assertRaises(XMLSchemaParseError) as ec:
-            self.schema_class([source1, source2, source2])
-        self.assertIn("global element with name='elem2' is already defined", str(ec.exception))
+            self.schema_class([source1, source2, source2a])
+        self.assertIn("global xs:element with name='elem2' is already loaded",
+                      str(ec.exception))
 
         source1 = dedent("""\
             <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
@@ -661,13 +674,14 @@ class TestXMLSchema10(XsdValidatorTestCase):
         with self.assertRaises(XMLSchemaParseError) as ctx:
             schema.add_schema(source2_, namespace='', build=True)
 
-        self.assertIn("global element with name='elem2' is already defined",
+        self.assertIn("global xs:element with name='elem2' is already loaded",
                       str(ctx.exception))
 
         with self.assertRaises(XMLSchemaParseError) as ec:
             schema.maps.clear()
             schema.build()
-        self.assertIn("global element with name='elem2' is already defined", str(ec.exception))
+        self.assertIn("global xs:element with name='elem2' is already loaded",
+                      str(ec.exception))
 
         schema = self.schema_class(source1)
         schema.add_schema(source2, namespace='http://xmlschema.test/ns', build=True)
@@ -766,7 +780,7 @@ class TestXMLSchema10(XsdValidatorTestCase):
                     <xs:element name="elem2"/>
                 </xs:schema>"""), global_maps=schema.maps)
 
-        self.assertIn("global element with name='elem1' is already defined",
+        self.assertIn("global xs:element with name='elem1' is already loaded",
                       str(ctx.exception))
 
     def test_use_xpath3(self):

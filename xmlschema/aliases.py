@@ -34,7 +34,8 @@ __all__ = ['ElementType', 'ElementTreeType', 'XMLSourceType', 'NsmapType',
            'SchemaAttributeType', 'SchemaGlobalType', 'GlobalMapType', 'ModelGroupType',
            'ModelParticleType', 'XPathElementType', 'AtomicValueType', 'NumericValueType',
            'DateTimeType', 'SchemaSourceType', 'ComponentClassType',
-           'ExtraValidatorType', 'ValidationHookType', 'DecodeType', 'IterDecodeType',
+           'LoadedItemType', 'StagedItemType', 'ExtraValidatorType',
+           'ValidationHookType', 'DecodeType', 'IterDecodeType',
            'JsonDecodeType', 'EncodeType', 'IterEncodeType', 'DecodedValueType',
            'FillerType', 'DepthFillerType', 'ValueHookType', 'ElementHookType',
            'SerializerType', 'OccursCounterType', 'LazyType', 'SourceType',
@@ -101,6 +102,9 @@ XPathElementType = Union['XsdElement', 'XsdAnyElement', 'XsdAssert']
 C = TypeVar('C')
 GlobalMapType = dict[str, Union[C, tuple[Element, SchemaType]]]
 ClassInfoType = Union[Type[C], tuple[Type[C], ...]]
+
+LoadedItemType = tuple[ElementType, SchemaType]
+StagedItemType = Union[LoadedItemType, tuple[LoadedItemType], list[LoadedItemType]]
 
 ##
 # Type aliases for datatypes
