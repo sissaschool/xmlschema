@@ -649,10 +649,10 @@ class XsdGlobals(XsdValidator):
             loader=self.loader.__class__,
             parent=self.parent
         )
-        obj.validator.maps = obj
+        obj.validator.__dict__['maps'] = obj
         for schema in self._schemas:
             if schema.maps is self and schema is not self.validator:
-                schema.copy().maps = obj
+                schema.copy().__dict__['maps'] = obj
         return obj
 
     __copy__ = copy
@@ -871,6 +871,7 @@ class XsdGlobals(XsdValidator):
             if self._validity == 'valid':
                 self._validity = 'notKnown'
 
+        # TODO: rebuild NamespaceView using a using a descriptor that checks maps binding
         schema.notations = NamespaceView(self.notations, namespace)
         schema.types = NamespaceView(self.types, namespace)
         schema.attributes = NamespaceView(self.attributes, namespace)

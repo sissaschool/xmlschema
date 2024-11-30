@@ -1185,7 +1185,7 @@ class TestResources(unittest.TestCase):
             xsd_source, base_url=os.path.dirname(self.vh_xsd_file), allow='all'
         )
         self.assertTrue(isinstance(schema, XMLSchema))
-        self.assertIn("http://example.com/vehicles", schema.maps)
+        self.assertIn("http://example.com/vehicles", schema.maps.namespaces)
         self.assertEqual(len(schema.maps.namespaces["http://example.com/vehicles"]), 4)
 
         with warnings.catch_warnings(record=True) as ctx:

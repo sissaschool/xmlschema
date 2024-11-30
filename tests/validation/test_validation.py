@@ -713,7 +713,7 @@ class TestValidation11(TestValidation):
         with self.assertRaises(XMLSchemaValidationError) as ctx:
             xmlschema.validate(xml_file, cls=self.schema_class)
 
-        self.assertIn("global element with name='elem1' is already defined",
+        self.assertIn("global xs:element with name='elem1' is already loaded",
                       str(ctx.exception))
 
         xml_file = self.casepath('features/namespaces/dynamic-case1-2.xml')

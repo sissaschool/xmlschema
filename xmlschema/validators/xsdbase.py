@@ -112,17 +112,25 @@ class XsdValidator:
     def check_validator(self, validation: Optional[str] = None) -> None:
         """Checks the status of a schema validator against a validation mode."""
         if validation is None:
+            # Validator self-check
             validation = self.validation
+            if self.validation_attempted == 'none' and self.validity == 'notKnown':
+                return
         else:
+            # Check called before validation
             check_validation_mode(validation)
 
-        if self.validation_attempted == 'none' and self.validity == 'notKnown':
-            return
-        elif validation == 'strict':
-            if self.validation_attempted == 'partial':
-                raise XMLSchemaNotBuiltError(self, _("%r is not built") % self)
+        if self.validation_attempted == 'none':
+            msg = _("%r is not built") % self
+            raise XMLSchemaNotBuiltError(self, msg)
+        
+        if validation == 'strict':
+            if self.validation_attempted != 'full':
+                msg = _("validation mode is 'strict' and %r is not built") % self
+                raise XMLSchemaNotBuiltError(self, msg)
             if self.validity != 'valid':
-                raise XMLSchemaNotBuiltError(self, _("%r is invalid") % self)
+                msg = _("validation mode is 'strict' and %r is not valid") % self
+                raise XMLSchemaNotBuiltError(self, msg)
 
     def iter_components(self, xsd_classes: ComponentClassType = None) \
             -> Iterator[Union['XsdComponent', SchemaType, 'XsdGlobals']]:
