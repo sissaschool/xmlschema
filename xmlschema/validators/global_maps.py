@@ -15,7 +15,7 @@ import threading
 import warnings
 from collections import Counter
 from collections.abc import Callable, Collection, ItemsView, Iterator, Iterable, \
-    Mapping, MutableMapping, ValuesView
+    Mapping, ValuesView
 from operator import attrgetter, itemgetter
 from types import MappingProxyType
 from typing import Any, cast, NamedTuple, Optional, Union, Type, TypeVar
@@ -34,7 +34,7 @@ from xmlschema.resources import XMLResource
 import xmlschema.names as nm
 
 from .exceptions import XMLSchemaNotBuiltError, XMLSchemaModelError, XMLSchemaModelDepthError, \
-    XMLSchemaParseError
+    XMLSchemaParseError, XMLSchemaValidatorError
 from .xsdbase import XsdValidator, XsdComponent
 from .facets import XSD_11_FACETS_BUILDERS, XSD_10_FACETS_BUILDERS
 from .builtins import XSD_11_BUILTIN_TYPES, XSD_10_BUILTIN_TYPES
@@ -77,16 +77,18 @@ class XsdBuilders:
         return self._builder_getters[tag](self)
 
 
-class StagedMap(MutableMapping[str, CT]):
+class StagedMap(Mapping[str, CT]):
     label = 'component'
 
-    def __init__(self, validator: SchemaType, xsd_classes: ClassInfoType[CT]):
+    def __init__(self, validator: SchemaType):
         self._store: dict[str, CT] = {}
         self._staging: dict[str, StagedItemType] = {}
-        self.staging = self._staging
         self._validator = validator
         self._builders: XsdBuilders = validator.get_builders()
-        self._xsd_classes = xsd_classes
+
+        # Schema counters for built and staged component
+        self._store_counter: Counter[SchemaType] = Counter()
+        self._staging_counter: Counter[SchemaType] = Counter()
 
     def __getitem__(self, qname: str) -> CT:
         try:
@@ -94,12 +96,6 @@ class StagedMap(MutableMapping[str, CT]):
         except KeyError:
             msg = _('global {} {!r} not found').format(self.label, qname)
             raise XMLSchemaKeyError(msg) from None
-
-    def __setitem__(self, qname: str, value: Any) -> None:
-        self._store[qname] = value
-
-    def __delitem__(self, qname: str) -> None:
-        del self._store[qname]
 
     def __iter__(self) -> Iterator[CT]:
         yield from self._store
@@ -115,20 +111,37 @@ class StagedMap(MutableMapping[str, CT]):
         obj.__dict__.update(self.__dict__)
         obj._staging = self._staging.copy()
         obj._store = self._store.copy()
+        obj._store_counter = self._store_counter.copy()
+        obj._staging_counter = self._staging_counter.copy()
         return obj
 
     def clear(self) -> None:
         self._store.clear()
         self._staging.clear()
+        self._store_counter.clear()
+        self._staging_counter.clear()
+
+    def update(self, other: 'StagedMap[CT]') -> None:
+        if not isinstance(other, self.__class__):
+            raise XMLSchemaTypeError(_("argument global map must be of the same type"))
+        self._store.update(other._store)
+
+    def get_total(self, schema: Optional[SchemaType] = None) -> int:
+        return len(self._store) if schema is None else self._store_counter[schema]
+
+    def get_total_staged(self, schema: Optional[SchemaType] = None) -> int:
+        return len(self._staging) if schema is None else self._staging_counter[schema]
 
     @property
-    def unbuilt(self) -> int:
-        return len(self._staging)
+    def staged(self) -> list[str]:
+        return list(self._staging)
 
-    def unbuilt_items(self) -> ItemsView[str, StagedItemType]:
+    @property
+    def staged_items(self) -> ItemsView[str, StagedItemType]:
         return self._staging.items()
 
-    def unbuilt_values(self) -> ValuesView[StagedItemType]:
+    @property
+    def staged_values(self) -> ValuesView[StagedItemType]:
         return self._staging.values()
 
     def load(self, qname, elem: ElementType, schema: SchemaType) -> None:
@@ -188,11 +201,11 @@ class StagedMap(MutableMapping[str, CT]):
 
         self._staging[qname] = elem, schema
 
-    def lookup(self, qname: str) -> CT:
+    def lookup(self, qname: str) -> Union[CT, StagedItemType]:
         if qname not in self._staging:
             return self.__getitem__(qname)
         elif self._validator.built:
-            msg = _('global {} {!r} failed to build').format(self.label, qname)
+            msg = _('global XSD {} {!r} failed to build').format(self.label, qname)
             raise XMLSchemaKeyError(msg) from None
         else:
             return self._build_global(qname)
@@ -202,7 +215,7 @@ class StagedMap(MutableMapping[str, CT]):
             if name in self._staging:
                 self._build_global(name)
 
-    def _build_global(self, qname: str) -> CT:
+    def _build_global(self, qname: str) -> Union[CT, StagedItemType]:
         factory_or_class: Callable[[ElementType, SchemaType], Any]
 
         obj = self._staging[qname]
@@ -217,11 +230,15 @@ class StagedMap(MutableMapping[str, CT]):
                 factory_or_class = self._builders[elem.tag]
             except KeyError:
                 msg = _("wrong element {!r} for XSD {}s global map")
-                raise XMLSchemaKeyError(msg.format(elem, self._name))
+                raise XMLSchemaKeyError(msg.format(elem, self.label))
 
             self._staging[qname] = obj,  # Encapsulate into a tuple to catch circular builds
             self._store[qname] = factory_or_class(elem, schema)
             self._staging.pop(qname)
+
+            self._store_counter[schema] += 1
+            self._staging_counter[schema] -= 1
+
             return self._store[qname]
 
         elif isinstance(obj, list):
@@ -229,17 +246,22 @@ class StagedMap(MutableMapping[str, CT]):
             try:
                 elem, schema = obj[0]
             except ValueError:
+                if not isinstance(obj, tuple):
+                    raise
                 return obj[0][0]  # Circular build, simply return (elem, schema) couple
 
             try:
                 factory_or_class = self._builders[elem.tag]
             except KeyError:
                 msg = _("wrong element {!r} for XSD {}s global map")
-                raise XMLSchemaKeyError(msg.format(elem, self._name))
+                raise XMLSchemaKeyError(msg.format(elem, self.label))
 
             self._staging[qname] = obj[0],  # To catch circular builds
             self._store[qname] = component = factory_or_class(elem, schema)
             self._staging.pop(qname)
+
+            self._store_counter[schema] += 1
+            self._staging_counter[schema] -= 1
 
             # Apply redefinitions (changing elem involve reparse of the component)
             for elem, schema in obj[1:]:
@@ -256,16 +278,24 @@ class StagedMap(MutableMapping[str, CT]):
 
         else:
             msg = _("unexpected instance {!r} in XSD {} global map")
-            raise XMLSchemaTypeError(msg.format(obj, self._xsd_classes))
+            raise XMLSchemaTypeError(msg.format(obj, self.label))
+
+
+class Notations(StagedMap[XsdNotation]):
+    pass
 
 
 class StagedTypesMap(StagedMap[BaseXsdType]):
-    _atomic_builtin_class = XsdAtomicBuiltin
-
-    def __init__(self, validator: SchemaType):
-        super().__init__(validator, (XsdSimpleType, XsdComplexType))
+    @property
+    def label(self):
+        return 'type'
 
     def build_builtins(self):
+        if self._validator.meta_schema is not None and nm.XSD_ANY_TYPE in self._store:
+            # builtin types already provided, rebuild only xs:anyType for wildcards
+            self._store[nm.XSD_ANY_TYPE] = self._validator.create_any_type()
+            return
+
         if self._validator.XSD_VERSION == '1.1':
             builtin_types = XSD_11_BUILTIN_TYPES
             facets_map = XSD_11_FACETS_BUILDERS
@@ -325,7 +355,7 @@ class StagedTypesMap(StagedMap[BaseXsdType]):
                 base_type = None
 
             facets = item.pop('facets', None)
-            xsd_type = self._atomic_builtin_class(elem, self._validator, **item)
+            xsd_type = XsdAtomicBuiltin(elem, self._validator, **item)
             if facets:
                 built_facets = xsd_type.facets
                 for e in facets:
@@ -375,7 +405,7 @@ class GlobalMaps(NamedTuple):
 
     def iter_staged(self) -> Iterator[StagedItemType]:
         for item in self:
-            yield from item.staging.values()
+            yield from item.staged_values()
 
     def load_globals(self, schemas: Iterable[SchemaType]) -> None:
         """Loads global XSD components for the given schemas."""
@@ -462,7 +492,7 @@ class NamespaceView(Mapping[str, T]):
     """
     __slots__ = '_target_dict', '_namespace', '_prefix', '_prefix_len'
 
-    def __init__(self, target_dict: MutableMapping[str, T], namespace: str):
+    def __init__(self, target_dict: Mapping[str, T], namespace: str):
         self._target_dict = target_dict
         self._namespace = namespace
         self._prefix = f'{{{namespace}}}' if namespace else ''
@@ -565,25 +595,26 @@ class XsdGlobals(XsdValidator):
 
         super().__init__(validator.validation)
         self._build_lock = threading.Lock()
+        self._staged_globals = 0
         self._validation_attempted = 'none'
         self._validity = 'notKnown'
 
         self._schemas = set()
         self.validator = validator
-        self.parent = parent
+        self._parent = parent
 
         self.namespaces = NamespaceResourcesMap()  # Registered schemas by namespace URI
         if parent is None:
             self._builders = validator.get_builders()
         else:
-            self._builders = self.parent.maps._builders
+            self._builders = self._parent.maps._builders
 
         self.types = StagedTypesMap(self.validator)
-        self.notations = StagedMap(self.validator, XsdNotation)
-        self.attributes = StagedMap(self.validator, XsdAttribute)
-        self.attribute_groups = StagedMap(self.validator, XsdAttributeGroup)
-        self.elements = StagedMap(self.validator, XsdElement)
-        self.groups = StagedMap(self.validator, XsdGroup)
+        self.notations = StagedMap(self.validator)
+        self.attributes = StagedMap(self.validator)
+        self.attribute_groups = StagedMap(self.validator)
+        self.elements = StagedMap(self.validator)
+        self.groups = StagedMap(self.validator)
         self.global_maps = GlobalMaps(*(getattr(self, n) for n in GlobalMaps._fields))
 
         self.substitution_groups = {}
@@ -591,13 +622,20 @@ class XsdGlobals(XsdValidator):
 
         self.loader = (loader or SchemaLoader)(self)
 
-        if parent is not None:
-            self._include_schemas(parent)
+        for ancestor in self.iter_ancestors():
+            self._schemas.update(ancestor.maps.schemas)
+            self.namespaces.update(ancestor.maps.namespaces)
+
         self.register(self.validator)
+
 
     @property
     def schemas(self) -> set[SchemaType]:
         return self._schemas
+
+    @property
+    def parent(self) -> Optional[SchemaType]:
+        return self._parent
 
     def _include_schemas(self, parent: SchemaType) -> None:
         """Includes schemas of parent maps, recursively."""
@@ -605,8 +643,8 @@ class XsdGlobals(XsdValidator):
             if self.validator.target_namespace in parent.maps.namespaces:
                 return  # don't include meta-schema if namespaces overlap
 
-        if parent.maps.parent is not None:
-            self._include_schemas(parent.maps.parent)
+        if parent.maps._parent is not None:
+            self._include_schemas(parent.maps._parent)
         self._schemas.update(parent.maps._schemas)
         self.namespaces.update(parent.maps.namespaces)
 
@@ -616,8 +654,8 @@ class XsdGlobals(XsdValidator):
             if self.validator.target_namespace in parent.maps.namespaces:
                 return  # don't include meta-schema if namespaces overlap
 
-        if parent.maps.parent is not None:
-            self._include_maps(parent.maps.parent)
+        if parent.maps._parent is not None:
+            self._include_maps(parent.maps._parent)
 
         parent.maps.build()
         self.global_maps.update(parent.maps.global_maps)
@@ -629,7 +667,6 @@ class XsdGlobals(XsdValidator):
 
     def __setattr__(self, name: str, value: Any) -> None:
         if name[:1] != '_' and name in self.__dict__ and value is not self.__dict__[name]:
-            print(repr(name))
             msg = _("can't change attribute {!r} of a global maps instance")
             raise XMLSchemaAttributeError(msg.format(name))
         super().__setattr__(name, value)
@@ -647,12 +684,16 @@ class XsdGlobals(XsdValidator):
         obj = type(self)(
             validator=self.validator.copy(),
             loader=self.loader.__class__,
-            parent=self.parent
+            parent=self._parent
         )
         obj.validator.__dict__['maps'] = obj
         for schema in self._schemas:
             if schema.maps is self and schema is not self.validator:
-                schema.copy().__dict__['maps'] = obj
+                schema = schema.copy()
+                obj.register(schema)
+                schema.__dict__['maps'] = obj
+
+        obj.clear()
         return obj
 
     __copy__ = copy
@@ -730,23 +771,40 @@ class XsdGlobals(XsdValidator):
 
     @property
     def built(self) -> bool:
-        if self._validation_attempted == 'none':
+        if (validation_attempted := self.validation_attempted) == 'none':
             return False
-        elif self._validation_attempted == 'full':
-            return True
-        else:
-            return self.validation != 'strict'
+        return validation_attempted == 'full' or self.validation != 'strict'
 
     @property
     def validation_attempted(self) -> str:
+        if self._staged_globals < self.staged_globals:
+            self._staged_globals = self.staged_globals
+
+            for schema in self._schemas:
+                if schema.maps is self:
+                    schema.clear()  # clear XPath and component lazy properties
+
+            if self._validation_attempted == 'full':
+                self._validation_attempted = 'partial'
+
         return self._validation_attempted
 
     @property
     def validity(self) -> str:
-        if self.parent is None:
+        if self._staged_globals < self.staged_globals:
+            self._staged_globals = self.staged_globals
+
+            for schema in self._schemas:
+                if schema.maps is self:
+                    schema.clear()  # clear XPath and component lazy properties
+
+            if self._validity == 'valid':
+                self._validity = 'notKnown'
+
+        if self._parent is None:
             return self._validity
 
-        validity = self.parent.maps.validity
+        validity = self._parent.maps.validity
         if validity == self._validity:
             return validity
         elif validity == 'valid':
@@ -756,12 +814,8 @@ class XsdGlobals(XsdValidator):
 
     @property
     def use_meta(self):
-        if self.validator.meta_schema is None:
-            return True
-        elif self.parent is None:
-            return False
-        else:
-            return self.parent.use_meta
+        return self.validator.meta_schema is None or \
+            self.validator.meta_schema in self._schemas
 
     @property
     def total_globals(self):
@@ -780,7 +834,7 @@ class XsdGlobals(XsdValidator):
 
     @property
     def staged_globals(self):
-        return sum(1 for c in self.global_maps.iter_staged())
+        return sum(m.get_total_staged() for m in self.global_maps)
 
     @property
     def unbuilt(self) -> list[Union[XsdComponent, SchemaType]]:
@@ -832,22 +886,33 @@ class XsdGlobals(XsdValidator):
         """Creates an iterator for the registered schemas."""
         yield from self._schemas
 
-    def match_source(self, source: SchemaSourceType, base_url: Optional[str] = None) \
+    def iter_ancestors(self) -> Iterator[SchemaType]:
+        ancestors: list[SchemaType] = []
+        parent = self._parent
+        while parent is not None:
+            ancestors.append(parent)
+            parent = parent.maps._parent
+
+        yield from reversed(ancestors)
+
+    def get_schema(self, source: SchemaSourceType, base_url: Optional[str] = None) \
             -> Optional[SchemaType]:
-        url = get_url(source)
+
+        if isinstance(source, XMLResource):
+            url = source.url
+            source = source.source
+        else:
+            url = get_url(source)
+
         if url is not None:
             url = normalize_url(url, base_url)
             for schema in self._schemas:
                 if url == schema.url:
                     return schema
-        elif isinstance(source, XMLResource):
-            for schema in self._schemas:
-                if source is schema.source or source.source is schema.source.source:
-                    return schema
-        else:
-            for schema in self._schemas:
-                if source is schema.source.source:
-                    return schema
+
+        for schema in self._schemas:
+            if source is schema.source.source:
+                return schema
 
         return None
 
@@ -855,16 +920,24 @@ class XsdGlobals(XsdValidator):
         """Registers an XMLSchema instance."""
         namespace = schema.target_namespace
         if schema not in self._schemas:
-            if self.match_source(schema.url or schema.source) is not None:
-                raise XMLSchemaValueError(
-                    f"another schema loaded from {schema.source} is already registered"
-                )
+            if (other_schema := self.get_schema(schema.url or schema.source)) is not None:
+                if other_schema.maps is self:
+                    raise XMLSchemaValueError(
+                        f"another schema loaded from {schema.source} is already registered"
+                    )
+
             self._schemas.add(schema)
 
             try:
-                self.namespaces[namespace].append(schema)
+                ns_schemas = self.namespaces[namespace]
             except KeyError:
                 self.namespaces[namespace] = [schema]
+            else:
+                ns_schemas.append(schema)
+                if ns_schemas[0].maps is not self:
+                    if not hasattr(schema, 'maps'):
+                        schema.maps = self
+                    self.collapse_to(ns_schemas[0].maps.validator)
 
             if self._validation_attempted == 'full':
                 self._validation_attempted = 'partial'
@@ -919,6 +992,19 @@ class XsdGlobals(XsdValidator):
         else:
             return True
 
+    def collapse_to(self, ancestor: SchemaType) -> None:
+        self.clear()
+        do_copy = True
+        for validator in self.iter_ancestors():
+            if ancestor is validator:
+                do_copy = True
+                self._parent = validator.maps._parent
+            if do_copy:
+                maps = validator.maps
+                for schema in maps._schemas:
+                    if schema.maps is maps:
+                        schema.copy().__dict__['maps'] = self
+
     def clear(self, remove_schemas: bool = False) -> None:
         """
         Clears the instance maps and schemas.
@@ -938,8 +1024,11 @@ class XsdGlobals(XsdValidator):
         if remove_schemas:
             self._schemas.clear()
             self.namespaces.clear()
-            if self.parent is not None:
-                self._include_schemas(self.parent)
+
+            for ancestor in self.iter_ancestors():
+                self._schemas.update(ancestor.maps._schemas)
+                self.namespaces.update(ancestor.maps.namespaces)
+
             self.register(self.validator)
 
         self._validation_attempted = 'none'
@@ -959,20 +1048,19 @@ class XsdGlobals(XsdValidator):
 
             self.check_schemas()
             self.clear()
-            if self.parent is not None:
-                self._include_maps(self.parent)
+
+            for ancestor in self.iter_ancestors():
+                ancestor.maps.build()
+                self.global_maps.update(ancestor.maps.global_maps)
+                self.substitution_groups.update(ancestor.maps.substitution_groups)
+                self.identities.update(ancestor.maps.identities)
 
             target_schemas = [s for s in self.schemas if s.maps is self]
 
             self.global_maps.load_globals(target_schemas)
             initial_staged = self.staged_globals
 
-            if self.parent is None or \
-                    any(s.target_namespace in self.validator.BASE_SCHEMAS for s in target_schemas):
-                self.types.build_builtins()
-            else:
-                self.types[nm.XSD_ANY_TYPE] = self.validator.create_any_type()
-
+            self.types.build_builtins()
             self.notations.build()
             self.attributes.build()
             self.attribute_groups.build()
@@ -1010,6 +1098,9 @@ class XsdGlobals(XsdValidator):
             if self.validator.meta_schema is not None:
                 self.check_components(target_schemas)
 
+            # Save totals for a fast integrity check on globals maps
+            self._staged_globals = self.staged_globals
+
             if not initial_staged:
                 self._validation_attempted = 'full'
             elif 0 < (still_staged := self.staged_globals) < initial_staged:
@@ -1030,6 +1121,9 @@ class XsdGlobals(XsdValidator):
         """Checks the coherence of schema registrations."""
         if self.validator not in self._schemas:
             raise XMLSchemaValueError(_('global maps main validator is not registered'))
+
+        if nm.XML_NAMESPACE not in self.namespaces:
+            self.load_namespace(nm.XML_NAMESPACE)
 
         registered_schemas = set()
         for namespace, schemas in self.namespaces.items():

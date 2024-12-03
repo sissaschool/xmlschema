@@ -370,7 +370,7 @@ class SchemaLoader:
         :param build: defines when to build the loaded schema, the default is to not build.
         :return: the loaded schema or the schema that matches the URL if it's already loaded.
         """
-        schema = self.maps.match_source(source, base_url)
+        schema = self.maps.get_schema(source, base_url)
         if schema is not None:
             logger.info("Resource %r is already loaded", schema.source)
             return schema

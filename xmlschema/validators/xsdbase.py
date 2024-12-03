@@ -123,7 +123,7 @@ class XsdValidator:
         if self.validation_attempted == 'none':
             msg = _("%r is not built") % self
             raise XMLSchemaNotBuiltError(self, msg)
-        
+
         if validation == 'strict':
             if self.validation_attempted != 'full':
                 msg = _("validation mode is 'strict' and %r is not built") % self

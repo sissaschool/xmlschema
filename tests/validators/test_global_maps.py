@@ -120,6 +120,11 @@ class TestXsdGlobalsMaps(unittest.TestCase):
         self.assertIsNot(maps.loader, orig.loader)
         self.assertEqual(maps.total_globals, 0)
 
+        self.assertEqual(len(maps.namespaces), len(orig.namespaces))
+        for k, v in orig.namespaces.items():
+            self.assertIn(k, maps.namespaces)
+            self.assertEqual(len(maps.namespaces[k]), len(v))
+
         maps.build()
         self.assertEqual(maps.total_globals, self.tot_xsd10_components)
 

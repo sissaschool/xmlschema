@@ -104,7 +104,9 @@ GlobalMapType = dict[str, Union[C, tuple[Element, SchemaType]]]
 ClassInfoType = Union[Type[C], tuple[Type[C], ...]]
 
 LoadedItemType = tuple[ElementType, SchemaType]
-StagedItemType = Union[LoadedItemType, tuple[LoadedItemType], list[LoadedItemType]]
+StagedItemType = Union[
+    LoadedItemType, tuple[LoadedItemType], list[LoadedItemType], tuple[list[LoadedItemType]]
+]
 
 ##
 # Type aliases for datatypes

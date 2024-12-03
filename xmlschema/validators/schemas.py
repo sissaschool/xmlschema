@@ -1095,7 +1095,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     def validation_attempted(self) -> str:
         if (validation_attempted := self.maps.validation_attempted) != 'partial':
             return validation_attempted
-        elif any(item for item in self.iter_staged()):
+        elif sum(m.get_total_staged(self) for m in self.maps.global_maps):
             return 'partial'
         else:
             return 'full'
