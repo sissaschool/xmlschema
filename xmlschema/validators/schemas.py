@@ -94,6 +94,10 @@ ANY_ELEMENT = Element(
     })
 
 
+# Registry for schema instances that are real meta-schema of a schema class
+_meta_registry = set()
+
+
 class XMLSchemaMeta(ABCMeta):
     XSD_VERSION: str
     BASE_SCHEMAS: dict[str, str]
@@ -138,6 +142,7 @@ class XMLSchemaMeta(ABCMeta):
 
             meta_schema = meta_schema_class.create_meta_schema(meta_schema_file)
             dict_['_meta_schema'] = meta_schema
+            _meta_registry.add(meta_schema)
 
         # Create the class and check some basic attributes
         cls = super().__new__(mcs, name, bases, dict_)
@@ -148,6 +153,7 @@ class XMLSchemaMeta(ABCMeta):
     @property
     def meta_schema(cls) -> Optional[SchemaType]:
         return cls._meta_schema
+
 
 
 class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]],
@@ -529,11 +535,16 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
     def __setattr__(self, name: str, value: Any) -> None:
         if name == 'maps':
-            if self._meta_schema is None \
-                    and 'maps' in self.__dict__ and value is not self.__dict__[name]:
-                msg = _("can't change the global maps instance of a meta-schema")
-                raise XMLSchemaAttributeError(msg)
-
+            if 'maps' in self.__dict__:
+                if value is self.__dict__[name]:
+                    return
+                elif self.is_meta():
+                    msg = _("can't change the global maps instance of a main meta-schema")
+                    raise XMLSchemaAttributeError(msg)
+                elif value.validator is self and self.maps.validator is not self:
+                    # can change only if it's the main validator of the new global maps
+                    msg = _("can't change the global maps instance of {!r}")
+                    raise XMLSchemaAttributeError(msg.format(self))
             value.register(self)
         elif name == 'validation':
             check_validation_mode(value)
@@ -673,7 +684,12 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     @property
     def use_meta(self) -> bool:
         """Returns `True` if the class meta-schema is used."""
-        return self._meta_schema is None or self.maps.use_meta
+        return self.is_meta() or self.maps.use_meta
+
+    def is_meta(self) -> bool:
+        """Returns `True` if it's a schema of a class meta-schema."""
+        return self._meta_schema is None \
+            and self in _meta_registry or self.maps.validator in _meta_registry
 
     # Schema root attributes
     @property

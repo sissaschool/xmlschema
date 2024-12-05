@@ -16,6 +16,7 @@ import warnings
 from collections import Counter
 from collections.abc import Callable, Collection, ItemsView, Iterator, Iterable, \
     Mapping, ValuesView
+from itertools import dropwhile
 from operator import attrgetter, itemgetter
 from types import MappingProxyType
 from typing import Any, cast, NamedTuple, Optional, Union, Type, TypeVar
@@ -168,6 +169,12 @@ class StagedMap(Mapping[str, CT]):
                     return  # ignored: the loaded component is overridden
                 elif schema.override is _schema:
                     # replaced: the loaded component is an override
+                    self._staging[qname] = (elem, schema)
+                    return
+                elif schema.meta_schema is None and _schema.meta_schema is not None:
+                    return  # ignore merged meta-schema components
+                elif _schema.meta_schema is None and schema.meta_schema is not None:
+                    # Override merged meta-schema component
                     self._staging[qname] = (elem, schema)
                     return
 
@@ -340,13 +347,8 @@ class StagedTypesMap(StagedMap[BaseXsdType]):
                 elem = Element(nm.XSD_SIMPLE_TYPE, name=name, id=name)
             else:
                 if isinstance(value, XsdAtomicBuiltin):
-                    if value.schema is not self._validator:
-                        raise XMLSchemaValueError("built component schema is not the meta-schema!")
                     continue
-
                 elem, schema = value
-                if schema is not self._validator:
-                    raise XMLSchemaValueError("loaded entry schema is not the meta-schema!")
 
             base_type: Union[None, BaseXsdType, tuple[ElementType, SchemaType]]
             if 'base_type' in item:
@@ -473,14 +475,10 @@ class GlobalMaps(NamedTuple):
                                 )
                                 break
 
-            try:
-                if elem.tag == nm.XSD_REDEFINE:
-                    self._map_getters[child.tag](self).load_redefine(qname, child, schema)
-                else:
-                    self._map_getters[child.tag](self).load_override(qname, child, schema)
-            except KeyError:
-                print("MISSING")
-                continue
+            if elem.tag == nm.XSD_REDEFINE:
+                self._map_getters[child.tag](self).load_redefine(qname, child, schema)
+            else:
+                self._map_getters[child.tag](self).load_override(qname, child, schema)
 
 
 T = TypeVar('T')
@@ -626,8 +624,7 @@ class XsdGlobals(XsdValidator):
             self._schemas.update(ancestor.maps.schemas)
             self.namespaces.update(ancestor.maps.namespaces)
 
-        self.register(self.validator)
-
+        self.validator.maps = self
 
     @property
     def schemas(self) -> set[SchemaType]:
@@ -636,31 +633,6 @@ class XsdGlobals(XsdValidator):
     @property
     def parent(self) -> Optional[SchemaType]:
         return self._parent
-
-    def _include_schemas(self, parent: SchemaType) -> None:
-        """Includes schemas of parent maps, recursively."""
-        if parent.meta_schema is None:
-            if self.validator.target_namespace in parent.maps.namespaces:
-                return  # don't include meta-schema if namespaces overlap
-
-        if parent.maps._parent is not None:
-            self._include_schemas(parent.maps._parent)
-        self._schemas.update(parent.maps._schemas)
-        self.namespaces.update(parent.maps.namespaces)
-
-    def _include_maps(self, parent: SchemaType) -> None:
-        """Reuse components of the maps of the parent schema, recursively."""
-        if parent.meta_schema is None:
-            if self.validator.target_namespace in parent.maps.namespaces:
-                return  # don't include meta-schema if namespaces overlap
-
-        if parent.maps._parent is not None:
-            self._include_maps(parent.maps._parent)
-
-        parent.maps.build()
-        self.global_maps.update(parent.maps.global_maps)
-        self.substitution_groups.update(parent.maps.substitution_groups)
-        self.identities.update(parent.maps.identities)
 
     def __repr__(self) -> str:
         return '%s(validator=%r)' % (self.__class__.__name__, self.validator)
@@ -686,12 +658,9 @@ class XsdGlobals(XsdValidator):
             loader=self.loader.__class__,
             parent=self._parent
         )
-        obj.validator.__dict__['maps'] = obj
         for schema in self._schemas:
             if schema.maps is self and schema is not self.validator:
-                schema = schema.copy()
-                obj.register(schema)
-                schema.__dict__['maps'] = obj
+                schema.copy().maps = obj
 
         obj.clear()
         return obj
@@ -918,33 +887,17 @@ class XsdGlobals(XsdValidator):
 
     def register(self, schema: SchemaType) -> None:
         """Registers an XMLSchema instance."""
+        if schema in self._schemas:
+            return
+
+        if (other_schema := self.get_schema(schema.url or schema.source)) is not None:
+            if other_schema.maps is self:
+                raise XMLSchemaValueError(
+                    f"another schema loaded from {schema.source} is already registered"
+                )
+
         namespace = schema.target_namespace
-        if schema not in self._schemas:
-            if (other_schema := self.get_schema(schema.url or schema.source)) is not None:
-                if other_schema.maps is self:
-                    raise XMLSchemaValueError(
-                        f"another schema loaded from {schema.source} is already registered"
-                    )
 
-            self._schemas.add(schema)
-
-            try:
-                ns_schemas = self.namespaces[namespace]
-            except KeyError:
-                self.namespaces[namespace] = [schema]
-            else:
-                ns_schemas.append(schema)
-                if ns_schemas[0].maps is not self:
-                    if not hasattr(schema, 'maps'):
-                        schema.maps = self
-                    self.collapse_to(ns_schemas[0].maps.validator)
-
-            if self._validation_attempted == 'full':
-                self._validation_attempted = 'partial'
-            if self._validity == 'valid':
-                self._validity = 'notKnown'
-
-        # TODO: rebuild NamespaceView using a using a descriptor that checks maps binding
         schema.notations = NamespaceView(self.notations, namespace)
         schema.types = NamespaceView(self.types, namespace)
         schema.attributes = NamespaceView(self.attributes, namespace)
@@ -953,7 +906,24 @@ class XsdGlobals(XsdValidator):
         schema.elements = NamespaceView(self.elements, namespace)
         schema.substitution_groups = NamespaceView(self.substitution_groups, namespace)
         schema.identities = NamespaceView(self.identities, namespace)
+
         schema.loader = self.loader
+
+        self._schemas.add(schema)
+
+        if namespace not in self.namespaces:
+            self.namespaces[namespace] = [schema]
+        elif (ns_schemas := self.namespaces[namespace])[0].maps is self:
+            ns_schemas.append(schema)
+        else:
+            ns_schemas.append(schema)
+            schema.maps = self
+            self.merge(ancestor=ns_schemas[0].maps.validator)
+
+        if self._validation_attempted == 'full':
+            self._validation_attempted = 'partial'
+        if self._validity == 'valid':
+            self._validity = 'notKnown'
 
     def load_namespace(self, namespace: str, build: bool = True) -> bool:
         """
@@ -992,18 +962,24 @@ class XsdGlobals(XsdValidator):
         else:
             return True
 
-    def collapse_to(self, ancestor: SchemaType) -> None:
+    def merge(self, ancestor: SchemaType) -> None:
+        """Merge the global maps until to a specific ancestor."""
         self.clear()
-        do_copy = True
-        for validator in self.iter_ancestors():
-            if ancestor is validator:
-                do_copy = True
-                self._parent = validator.maps._parent
-            if do_copy:
-                maps = validator.maps
-                for schema in maps._schemas:
-                    if schema.maps is maps:
-                        schema.copy().__dict__['maps'] = self
+        for validator in dropwhile(lambda x: x is not ancestor, self.iter_ancestors()):
+            maps = validator.maps
+            for schema in maps._schemas:
+                if schema.maps is maps:
+                    namespace = schema.target_namespace
+                    self._schemas.remove(schema)
+                    k = self.namespaces[namespace].index(schema)
+
+                    schema = schema.copy()
+                    schema.__dict__['maps'] = self
+
+                    self._schemas.add(schema)
+                    self.namespaces[namespace][k] = schema
+
+        self._parent = ancestor.maps._parent
 
     def clear(self, remove_schemas: bool = False) -> None:
         """
