@@ -502,12 +502,19 @@ class Wsdl11Document(XmlDocument):
             else:
                 global_maps = None
 
-            self.schema = cls(
-                source=os.path.join(SCHEMAS_DIR, 'WSDL/wsdl.xsd'),
-                global_maps=global_maps,
-                locations=locations,
-                **{k: v for k, v in kwargs.items() if k in SCHEMA_KWARGS}
-            )
+            xsd_filepath = os.path.join(SCHEMAS_DIR, 'WSDL/wsdl.xsd')
+
+            if global_maps is None or \
+                    (schema := global_maps.get_schema(xsd_filepath)) is None:
+                self.schema = cls(
+                    source=xsd_filepath,
+                    global_maps=global_maps,
+                    locations=locations,
+                    **{k: v for k, v in kwargs.items() if k in SCHEMA_KWARGS}
+                )
+            else:
+                self.schema = schema
+
             self.maps = Wsdl11Maps(self)
 
         super().__init__(
@@ -522,7 +529,7 @@ class Wsdl11Document(XmlDocument):
         self.soap_binding = SOAP_NAMESPACE in self.namespaces.values()
         self.locations = get_locations(locations, base_url)
 
-        if self.namespace == XSD_NAMESPACE:
+        if self.namespace == XSD_NAMESPACE and self.schema.maps.get_schema(self.url) is None:
             self.schema.__class__(
                 source=self,
                 global_maps=self.schema.maps,

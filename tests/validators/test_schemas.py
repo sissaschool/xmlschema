@@ -555,18 +555,29 @@ class TestXMLSchema10(XsdValidatorTestCase):
             <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
                 <xs:element name="root"/>
             </xs:schema>"""))
+        self.assertTrue(schema.built)
 
         with self.assertRaises(AttributeError) as ctx:
-            schema.meta_schema.maps = XsdGlobals(schema)
+            schema.meta_schema.maps = XsdGlobals(schema.copy())
         self.assertEqual(str(ctx.exception),
-                         "can't change the global maps instance of a meta-schema")
+                         "can't change the global maps instance of a class meta-schema")
+
+        with self.assertRaises(AttributeError) as ctx:
+            _xsd_globals = XsdGlobals(schema)
+        self.assertEqual(str(ctx.exception),
+                         "can't change the global maps instance of a schema that "
+                         "is the main validator of another global maps instance")
 
         self.assertTrue(schema.built)
+        schema = schema.copy()
         maps, schema.maps = schema.maps, XsdGlobals(schema)
         self.assertIsNot(maps, schema.maps)
         self.assertFalse(schema.built)
-        schema.maps = maps
-        self.assertTrue(schema.built)
+
+        schema = schema.copy()
+        with self.assertRaises(ValueError) as ctx:
+            schema.maps = maps
+        self.assertIn("is already registered", str(ctx.exception))
 
     def test_listed_and_reversed_elements(self):
         schema = self.schema_class(dedent("""\

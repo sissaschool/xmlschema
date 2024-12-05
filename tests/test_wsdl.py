@@ -12,6 +12,7 @@
 
 import unittest
 import pathlib
+import warnings
 from xml.etree import ElementTree
 
 from xmlschema import XMLSchemaValidationError, XMLSchema10, XMLSchema11
@@ -179,11 +180,20 @@ class TestWsdlDocuments(unittest.TestCase):
         for service in wsdl_document.maps.services.values():
             self.assertIsInstance(service, WsdlService)
 
-        wsdl_document = Wsdl11Document(WSDL_DOCUMENT_EXAMPLE, locations=(('x', 'y'), ('x', 'z')))
-        self.assertEqual(wsdl_document.locations, {'x': ['y', 'z']})
+        with warnings.catch_warnings(record=True) as ctx:
+            warnings.simplefilter("always")
+            wsdl_document = Wsdl11Document(WSDL_DOCUMENT_EXAMPLE, locations=(('x', 'y'), ('x', 'z')))
+            self.assertEqual(wsdl_document.locations, {'x': ['y', 'z']})
+            self.assertEqual(len(ctx), 1, "Expected one import warning")
+            self.assertIn("Import of namespace 'x' from ['y', 'z'] failed", str(ctx[0].message))
 
-        wsdl_document = Wsdl11Document(WSDL_DOCUMENT_EXAMPLE, locations=[('x', 'y'), ('x', 'z')])
-        self.assertNotEqual(wsdl_document.locations, {'x': ['y', 'z']})  # Normalized
+        with warnings.catch_warnings(record=True) as ctx:
+            warnings.simplefilter("always")
+            wsdl_document = Wsdl11Document(WSDL_DOCUMENT_EXAMPLE, locations=[('x', 'y'), ('x', 'z')])
+            self.assertNotEqual(wsdl_document.locations, {'x': ['y', 'z']})  # Normalized
+            self.assertEqual(len(ctx), 1, "Expected one import warning")
+            self.assertRegex(str(ctx[0].message),
+                             r"Import of namespace 'x' from \[[^]]*\] failed")
 
     def test_schema_class(self):
         wsdl_document = Wsdl11Document(WSDL_DOCUMENT_EXAMPLE)
@@ -431,9 +441,11 @@ class TestWsdlDocuments(unittest.TestCase):
         self.assertIn('import of namespace', str(ctx.exception))
 
         locations = [('http://example.com/ns', 'missing-file2')]
-        with self.assertRaises(WsdlParseError) as ctx:
-            Wsdl11Document(wsdl_template.format('missing-file'), locations=locations)
-        self.assertIn('import of namespace', str(ctx.exception))
+        with warnings.catch_warnings(record=True) as ctx:
+            warnings.simplefilter("always")
+            with self.assertRaises(WsdlParseError) as ctx:
+                Wsdl11Document(wsdl_template.format('missing-file'), locations=locations)
+            self.assertIn('import of namespace', str(ctx.exception))
 
         malformed_file = casepath('resources/malformed.xml')
         with self.assertRaises(WsdlParseError) as ctx:

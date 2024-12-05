@@ -539,12 +539,16 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 if value is self.__dict__[name]:
                     return
                 elif self.is_meta():
-                    msg = _("can't change the global maps instance of a main meta-schema")
+                    msg = _("can't change the global maps instance of a class meta-schema")
                     raise XMLSchemaAttributeError(msg)
-                elif value.validator is self and self.maps.validator is not self:
+                elif self.maps.validator is self:
                     # can change only if it's the main validator of the new global maps
-                    msg = _("can't change the global maps instance of {!r}")
+                    msg = _("can't change the global maps instance of a schema that is "
+                            "the main validator of another global maps instance")
                     raise XMLSchemaAttributeError(msg.format(self))
+                #else:
+                #    value.unregister(self)
+
             value.register(self)
         elif name == 'validation':
             check_validation_mode(value)
@@ -688,8 +692,10 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
     def is_meta(self) -> bool:
         """Returns `True` if it's a schema of a class meta-schema."""
-        return self._meta_schema is None \
-            and self in _meta_registry or self.maps.validator in _meta_registry
+        if self._meta_schema is not None:
+            return False
+        return self in _meta_registry or \
+            self.maps.validator in _meta_registry and self in self.maps.schemas
 
     # Schema root attributes
     @property
