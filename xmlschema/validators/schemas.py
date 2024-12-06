@@ -155,7 +155,6 @@ class XMLSchemaMeta(ABCMeta):
         return cls._meta_schema
 
 
-
 class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]],
                     metaclass=XMLSchemaMeta):
     """
@@ -546,8 +545,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                     msg = _("can't change the global maps instance of a schema that is "
                             "the main validator of another global maps instance")
                     raise XMLSchemaAttributeError(msg.format(self))
-                #else:
-                #    value.unregister(self)
 
             value.register(self)
         elif name == 'validation':
@@ -870,9 +867,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         """Returns a list containing the global complex types."""
         return [x for x in self.types.values() if isinstance(x, XsdComplexType)]
 
-
     def get_builders(self) -> XsdBuilders:
-
         return XsdBuilders(
             self.xsd_notation_class,
             self.xsd_attribute_class,
@@ -1231,9 +1226,11 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         :param namespace: is the URI of the external namespace.
         :param location: is the URL of the schema.
         :param base_url: is an optional base URL for fetching the schema resource.
-        :param force: if set to `True` imports the schema also if the namespace is already imported.
+        :param force: if set to `True` imports the schema also if the namespace \
+        is already imported.
         :param build: defines when to build the imported schema, the default is to not build.
-        :return: the imported :class:`XMLSchema` instance, or `None` if the schema is already imported.
+        :return: the imported :class:`XMLSchema` instance, or `None` if the schema \
+        is already imported.
         """
         if namespace not in self.maps.namespaces:
             return self.loader.import_schema(self, namespace, location, base_url, build)

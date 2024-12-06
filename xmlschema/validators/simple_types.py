@@ -10,7 +10,6 @@
 """
 This module contains classes for XML Schema simple data types.
 """
-import re
 from copy import copy as _copy
 from decimal import DecimalException
 from collections.abc import Callable, Iterator
@@ -31,7 +30,8 @@ from xmlschema.translation import gettext as _
 from xmlschema.utils.qnames import local_name, get_extended_qname
 from xmlschema.resources import XMLResource
 
-from .exceptions import XMLSchemaValidationError, XMLSchemaParseError
+from .exceptions import XMLSchemaValidationError, XMLSchemaParseError, \
+    XMLSchemaCircularityError
 from .validation import DecodeContext, EncodeContext, ValidationMixin
 from .xsdbase import XsdComponent, XsdType
 from .facets import XsdFacet, XsdWhiteSpaceFacet, XsdPatternFacets, \
@@ -112,7 +112,6 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
         patterns = self.get_facet(XSD_PATTERN)
         if isinstance(patterns, XsdPatternFacets):
             self.patterns = patterns
-            p: re.Pattern[str]
             if all(p.match('') is None for p in patterns.patterns):
                 self.allow_empty = False
 
@@ -877,11 +876,9 @@ class XsdList(XsdSimpleType):
                     msg = _("unknown type {!r}")
                     self.parse_error(msg.format(self.elem.attrib['itemType']))
                     item_type = self.any_atomic_type
-                else:
-                    if isinstance(item_type, tuple):
-                        msg = _("circular definition found for type {!r}")
-                        self.parse_error(msg.format(item_qname))
-                        item_type = self.any_atomic_type
+                except XMLSchemaCircularityError as err:
+                    self.parse_error(err, err.elem)
+                    item_type = self.any_atomic_type
 
         if item_type.final == '#all' or 'list' in item_type.final:
             msg = _("'final' value of the itemType %r forbids derivation by list")
@@ -1029,12 +1026,11 @@ class XsdUnion(XsdSimpleType):
                 except XMLSchemaParseError as err:
                     self.parse_error(err)
                     mt = self.any_atomic_type
-
-                if isinstance(mt, tuple):
-                    msg = _("circular definition found on xs:union type {!r}")
-                    self.parse_error(msg.format(self.name))
+                except XMLSchemaCircularityError as err:
+                    self.parse_error(err, err.elem)
                     continue
-                elif not isinstance(mt, self._ADMITTED_TYPES):
+
+                if not isinstance(mt, self._ADMITTED_TYPES):
                     msg = _("a {0!r} required, not {1!r}")
                     self.parse_error(msg.format(self._ADMITTED_TYPES, mt))
                     continue
@@ -1240,11 +1236,9 @@ class XsdAtomicRestriction(XsdAtomic):
                     except XMLSchemaParseError as err:
                         self.parse_error(err)
                         base_type = self.any_atomic_type
-                    else:
-                        if isinstance(base_type, tuple):
-                            msg = _("circular definition found between {!r} and {!r}")
-                            self.parse_error(msg.format(self, base_qname))
-                            base_type = self.any_atomic_type
+                    except XMLSchemaCircularityError as err:
+                        self.parse_error(err, err.elem)
+                        base_type = self.any_atomic_type
 
             if base_type.is_simple() and base_type.name == XSD_ANY_SIMPLE_TYPE:
                 msg = _("wrong base type %r, an atomic type required")

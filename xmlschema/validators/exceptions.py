@@ -15,11 +15,12 @@ from typing import TYPE_CHECKING, Any, cast, Optional, Union
 from elementpath.etree import etree_tostring
 
 from xmlschema.exceptions import XMLSchemaException, XMLSchemaWarning, XMLSchemaValueError
-from xmlschema.aliases import ElementType, NsmapType, SchemaElementType, ModelParticleType
+from xmlschema.aliases import ElementType, NsmapType, SchemaType, SchemaElementType, \
+    ModelParticleType
 from xmlschema.translation import gettext as _
 from xmlschema.resources import XMLResource
 from xmlschema.utils.etree import etree_getpath, is_etree_element
-from xmlschema.utils.qnames import get_prefixed_qname
+from xmlschema.utils.qnames import get_prefixed_qname, local_name
 
 if TYPE_CHECKING:
     from .xsdbase import XsdValidator
@@ -161,6 +162,21 @@ class XMLSchemaValidatorError(XMLSchemaException):
             return cast(str, etree_tostring(**kwargs))  # type: ignore[arg-type]
         except (ValueError, TypeError):
             return indent + repr(self.elem)
+
+
+class XMLSchemaCircularityError(XMLSchemaValidatorError):
+    """
+    Raised when a circularity is found building a global component.
+    """
+    def __init__(self, name: str, elem: ElementType, schema: SchemaType) -> None:
+        msg = _("Circular definition detected for xs:{} {!r}")
+        super().__init__(
+            validator=schema,
+            message=msg.format(local_name(elem.tag), name),
+            elem=elem,
+            source=schema.source,
+            namespaces=schema.namespaces
+        )
 
 
 class XMLSchemaNotBuiltError(XMLSchemaValidatorError, RuntimeError):

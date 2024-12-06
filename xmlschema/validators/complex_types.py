@@ -22,7 +22,7 @@ from xmlschema.aliases import ElementType, NsmapType, SchemaType, ComponentClass
 from xmlschema.translation import gettext as _
 from xmlschema.utils.qnames import get_qname, local_name
 
-from .exceptions import XMLSchemaDecodeError
+from .exceptions import XMLSchemaCircularityError, XMLSchemaDecodeError
 from .validation import DecodeContext, EncodeContext, ValidationMixin
 from .helpers import get_xsd_derivation_attribute
 from .xsdbase import XSD_TYPE_DERIVATIONS, XsdComponent, XsdType
@@ -289,12 +289,11 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
                 return self.any_type
             else:
                 return self.any_simple_type
+        except XMLSchemaCircularityError as err:
+            self.parse_error(err, err.elem)
+            return self.any_type
         else:
-            if isinstance(base_type, tuple):
-                msg = _("circular definition found between {0!r} and {1!r}")
-                self.parse_error(msg.format(self, base_qname), elem)
-                return self.any_type
-            elif complex_content and base_type.is_simple():
+            if complex_content and base_type.is_simple():
                 msg = _("a complexType ancestor required: {!r}")
                 self.parse_error(msg.format(base_type), elem)
                 return self.any_type

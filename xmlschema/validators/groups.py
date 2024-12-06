@@ -28,7 +28,7 @@ from xmlschema.utils.decoding import Empty, raw_encode_value
 from xmlschema.utils.qnames import get_qname, local_name
 
 from .exceptions import XMLSchemaModelError, XMLSchemaModelDepthError, \
-    XMLSchemaValidationError, XMLSchemaTypeTableWarning
+    XMLSchemaValidationError, XMLSchemaTypeTableWarning, XMLSchemaCircularityError
 from .validation import DecodeContext, EncodeContext, ValidationMixin
 from .xsdbase import XsdComponent, XsdType
 from .particles import ParticleMixin, OccursCalculator
@@ -484,8 +484,13 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
             except KeyError:
                 self.parse_error(_("missing group %r") % self.prefixed_name)
                 xsd_group = self.schema.create_any_content_group(parent=self)
-
-            if isinstance(xsd_group, XsdGroup):
+            except XMLSchemaCircularityError as err:
+                # Circular definition, substituted with any content group.
+                self.parse_error(err, err.elem)
+                self.model = 'sequence'
+                self.mixed = True
+                self._group.append(self.schema.xsd_any_class(ANY_ELEMENT, self.schema, self))
+            else:
                 self.model = xsd_group.model
                 if self.model == 'all':
                     if self.max_occurs != 1:
@@ -500,13 +505,6 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                 self._group.append(xsd_group)
                 self.ref = xsd_group
                 self.content = xsd_group._group
-            else:
-                # Disallowed circular definition, substitute with any content group.
-                msg = _("Circular definition detected for group %r")
-                self.parse_error(msg % self.name, xsd_group[0])
-                self.model = 'sequence'
-                self.mixed = True
-                self._group.append(self.schema.xsd_any_class(ANY_ELEMENT, self.schema, self))
 
         else:
             attrib = self.elem.attrib

@@ -15,11 +15,9 @@ are created using the XSD 1.0 meta-schema or with and additional base schema for
 """
 from decimal import Decimal
 from elementpath import datatypes
-from typing import cast, Any, Optional, Type, Union
+from typing import Any
 from xml.etree.ElementTree import Element
 
-from xmlschema.exceptions import XMLSchemaValueError
-from xmlschema.aliases import ElementType, SchemaType, BaseXsdType
 import xmlschema.names as nm
 
 from .helpers import decimal_validator, qname_validator, byte_validator, \
@@ -28,8 +26,6 @@ from .helpers import decimal_validator, qname_validator, byte_validator, \
     negative_int_validator, positive_int_validator, non_positive_int_validator, \
     non_negative_int_validator, hex_binary_validator, base64_binary_validator, \
     error_type_validator, boolean_to_python, python_to_boolean, python_to_float
-from .facets import XSD_10_FACETS_BUILDERS, XSD_11_FACETS_BUILDERS
-from .simple_types import XsdSimpleType, XsdAtomicBuiltin
 
 #
 # Admitted facets sets for XSD atomic types
@@ -437,85 +433,3 @@ XSD_11_BUILTIN_TYPES: tuple[dict[str, Any], ...] = XSD_COMMON_BUILTIN_TYPES + (
         'facets': [error_type_validator],
     },  # xs:error has no value space and no lexical space
 )
-
-
-def xsd_builtin_types_factory(
-        meta_schema: SchemaType,
-        xsd_types: dict[str, Union[BaseXsdType, tuple[ElementType, SchemaType]]],
-        atomic_builtin_class: Optional[Type[XsdAtomicBuiltin]] = None) -> None:
-    """
-    Builds the dictionary for XML Schema built-in types mapping.
-    """
-    atomic_builtin_class = atomic_builtin_class or XsdAtomicBuiltin
-    if meta_schema.XSD_VERSION == '1.1':
-        builtin_types = XSD_11_BUILTIN_TYPES
-        facets_map = XSD_11_FACETS_BUILDERS
-    else:
-        builtin_types = XSD_10_BUILTIN_TYPES
-        facets_map = XSD_10_FACETS_BUILDERS
-
-    #
-    # Special builtin types.
-    #
-    # xs:anyType
-    # Ref: https://www.w3.org/TR/xmlschema11-1/#builtin-ctd
-    xsd_types[nm.XSD_ANY_TYPE] = meta_schema.create_any_type()
-
-    # xs:anySimpleType
-    # Ref: https://www.w3.org/TR/xmlschema11-2/#builtin-stds
-    xsd_any_simple_type = xsd_types[nm.XSD_ANY_SIMPLE_TYPE] = XsdSimpleType(
-        elem=Element(nm.XSD_SIMPLE_TYPE, name=nm.XSD_ANY_SIMPLE_TYPE),
-        schema=meta_schema,
-        parent=None,
-        name=nm.XSD_ANY_SIMPLE_TYPE
-    )
-
-    # xs:anyAtomicType
-    # Ref: https://www.w3.org/TR/xmlschema11-2/#builtin-stds
-    xsd_types[nm.XSD_ANY_ATOMIC_TYPE] = meta_schema.xsd_atomic_restriction_class(
-        elem=Element(nm.XSD_SIMPLE_TYPE, name=nm.XSD_ANY_ATOMIC_TYPE),
-        schema=meta_schema,
-        parent=None,
-        name=nm.XSD_ANY_ATOMIC_TYPE,
-        base_type=xsd_any_simple_type,
-    )
-
-    for item in builtin_types:
-        item = item.copy()
-        name: str = item['name']
-        try:
-            value = xsd_types[name]
-        except KeyError:
-            # If builtin type element is missing create a dummy element. Necessary for the
-            # meta-schema XMLSchema.xsd of XSD 1.1, that not includes builtins declarations.
-            elem = Element(nm.XSD_SIMPLE_TYPE, name=name, id=name)
-        else:
-            if isinstance(value, XsdAtomicBuiltin):
-                if value.schema is not meta_schema:
-                    raise XMLSchemaValueError("built component schema is not the meta-schema!")
-                continue
-
-            elem, schema = value
-            if schema is not meta_schema:
-                raise XMLSchemaValueError("loaded entry schema is not the meta-schema!")
-
-        base_type: Union[None, BaseXsdType, tuple[ElementType, SchemaType]]
-        if 'base_type' in item:
-            base_type = item['base_type'] = xsd_types[item['base_type']]
-        else:
-            base_type = None
-
-        facets = item.pop('facets', None)
-        builtin_type: XsdAtomicBuiltin = atomic_builtin_class(elem, meta_schema, **item)
-        if facets:
-            built_facets = builtin_type.facets
-            for e in facets:
-                try:
-                    cls: Any = facets_map[e.tag]
-                except AttributeError:
-                    built_facets[None] = e
-                else:
-                    built_facets[e.tag] = cls(e, meta_schema, builtin_type, base_type)
-            builtin_type.facets = built_facets
-
-        xsd_types[name] = builtin_type

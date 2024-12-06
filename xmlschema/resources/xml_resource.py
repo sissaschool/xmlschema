@@ -25,7 +25,7 @@ from xmlschema.aliases import ElementType, EtreeType, NsmapType, \
     NormalizedLocationsType, LocationsType, XMLSourceType, IOType, \
     ResourceNodeType, LazyType, IterparseType, UriMapperType
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError, \
-XMLResourceError, XMLResourceOSError, XMLResourceBlocked
+    XMLResourceError, XMLResourceOSError, XMLResourceBlocked
 from xmlschema.utils.paths import LocationPath
 from xmlschema.utils.etree import is_etree_element, etree_tostring, etree_iter_location_hints
 from xmlschema.utils.streams import is_file_object
@@ -632,7 +632,7 @@ class XMLResource(_ResourceLoader):
             raise XMLSchemaValueError(f"can't use path {path!r} on a lazy resource")
         elif path_depth < lazy_depth:
             raise XMLSchemaValueError(f"can't use path {path!r} on a lazy resource "
-                                        f"with lazy_depth=={lazy_depth}")
+                                      f"with lazy_depth=={lazy_depth}")
 
         if ancestors is not None:
             ancestors.clear()

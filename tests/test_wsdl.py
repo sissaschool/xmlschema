@@ -182,14 +182,18 @@ class TestWsdlDocuments(unittest.TestCase):
 
         with warnings.catch_warnings(record=True) as ctx:
             warnings.simplefilter("always")
-            wsdl_document = Wsdl11Document(WSDL_DOCUMENT_EXAMPLE, locations=(('x', 'y'), ('x', 'z')))
+            wsdl_document = Wsdl11Document(
+                WSDL_DOCUMENT_EXAMPLE, locations=(('x', 'y'), ('x', 'z'))
+            )
             self.assertEqual(wsdl_document.locations, {'x': ['y', 'z']})
             self.assertEqual(len(ctx), 1, "Expected one import warning")
             self.assertIn("Import of namespace 'x' from ['y', 'z'] failed", str(ctx[0].message))
 
         with warnings.catch_warnings(record=True) as ctx:
             warnings.simplefilter("always")
-            wsdl_document = Wsdl11Document(WSDL_DOCUMENT_EXAMPLE, locations=[('x', 'y'), ('x', 'z')])
+            wsdl_document = Wsdl11Document(
+                WSDL_DOCUMENT_EXAMPLE, locations=[('x', 'y'), ('x', 'z')]
+            )
             self.assertNotEqual(wsdl_document.locations, {'x': ['y', 'z']})  # Normalized
             self.assertEqual(len(ctx), 1, "Expected one import warning")
             self.assertRegex(str(ctx[0].message),

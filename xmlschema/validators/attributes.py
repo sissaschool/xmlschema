@@ -27,6 +27,7 @@ from xmlschema.translation import gettext as _
 from xmlschema.utils.decoding import EmptyType
 from xmlschema.utils.qnames import get_namespace, get_qname
 
+from .exceptions import XMLSchemaCircularityError
 from .validation import DecodeContext, EncodeContext, ValidationMixin
 from .xsdbase import XsdComponent, XsdAnnotation
 from .simple_types import XsdSimpleType
@@ -478,25 +479,22 @@ class XsdAttributeGroup(
                     except LookupError:
                         msg = _("unknown attribute group {!r}")
                         self.parse_error(msg.format(child.attrib['ref']))
+                    except XMLSchemaCircularityError as err:
+                        if self.xsd_version == '1.0':
+                            self.parse_error(err, err.elem)
                     else:
-                        if not isinstance(ref_attributes, tuple):
-                            for name, base_attr in ref_attributes.items():
-                                if name not in attributes:
-                                    attributes[name] = base_attr
-                                elif name is not None:
-                                    if base_attr is not attributes[name]:
-                                        msg = _("multiple declaration of attribute {!r}")
-                                        self.parse_error(msg.format(name))
-                                else:
-                                    assert isinstance(base_attr, XsdAnyAttribute)
-                                    attributes[None] = attr = _copy(attributes[None])
-                                    assert isinstance(attr, XsdAnyAttribute)
-                                    attr.intersection(base_attr)
-
-                        elif self.xsd_version == '1.0':
-                            msg = _("Circular reference found between "
-                                    "attribute groups {0!r} and {1!r}")
-                            self.parse_error(msg.format(self.name, attribute_group_qname))
+                        for name, base_attr in ref_attributes.items():
+                            if name not in attributes:
+                                attributes[name] = base_attr
+                            elif name is not None:
+                                if base_attr is not attributes[name]:
+                                    msg = _("multiple declaration of attribute {!r}")
+                                    self.parse_error(msg.format(name))
+                            else:
+                                assert isinstance(base_attr, XsdAnyAttribute)
+                                attributes[None] = attr = _copy(attributes[None])
+                                assert isinstance(attr, XsdAnyAttribute)
+                                attr.intersection(base_attr)
 
             elif self.name is not None:
                 msg = _("(attribute | attributeGroup) expected, found {!r}.")

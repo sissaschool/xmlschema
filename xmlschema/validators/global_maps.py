@@ -34,8 +34,8 @@ from xmlschema.loaders import NamespaceResourcesMap, SchemaLoader
 from xmlschema.resources import XMLResource
 import xmlschema.names as nm
 
-from .exceptions import XMLSchemaNotBuiltError, XMLSchemaModelError, XMLSchemaModelDepthError, \
-    XMLSchemaParseError, XMLSchemaValidatorError
+from .exceptions import XMLSchemaNotBuiltError, XMLSchemaModelError, \
+    XMLSchemaModelDepthError, XMLSchemaParseError, XMLSchemaCircularityError
 from .xsdbase import XsdValidator, XsdComponent
 from .facets import XSD_11_FACETS_BUILDERS, XSD_10_FACETS_BUILDERS
 from .builtins import XSD_11_BUILTIN_TYPES, XSD_10_BUILTIN_TYPES
@@ -51,7 +51,7 @@ GLOBAL_TAGS = frozenset((
 
 CT = TypeVar('CT', bound=XsdComponent)
 
-BuilderType =  Callable[[ElementType, SchemaType], CT]
+BuilderType = Callable[[ElementType, SchemaType], CT]
 
 
 @dataclasses.dataclass(frozen=True)
@@ -64,7 +64,7 @@ class XsdBuilders:
     group: BuilderType[XsdGroup]
     element: BuilderType[XsdElement]
 
-    _builder_getters = {
+    _builder_getters = MappingProxyType({
         nm.XSD_SIMPLE_TYPE: attrgetter('simple_type'),
         nm.XSD_COMPLEX_TYPE: attrgetter('complex_type'),
         nm.XSD_NOTATION: attrgetter('notation'),
@@ -72,7 +72,7 @@ class XsdBuilders:
         nm.XSD_ATTRIBUTE_GROUP: attrgetter('attribute_group'),
         nm.XSD_ELEMENT: attrgetter('element'),
         nm.XSD_GROUP: attrgetter('group'),
-    }
+    })
 
     def __getitem__(self, tag: str) -> BuilderType[XsdComponent]:
         return self._builder_getters[tag](self)
@@ -208,21 +208,18 @@ class StagedMap(Mapping[str, CT]):
 
         self._staging[qname] = elem, schema
 
-    def lookup(self, qname: str) -> Union[CT, StagedItemType]:
+    def lookup(self, qname: str) -> CT:
         if qname not in self._staging:
             return self.__getitem__(qname)
-        elif self._validator.built:
-            msg = _('global XSD {} {!r} failed to build').format(self.label, qname)
-            raise XMLSchemaKeyError(msg) from None
         else:
             return self._build_global(qname)
 
-    def build(self):
+    def build(self) -> None:
         for name in [x for x in self._staging]:
             if name in self._staging:
                 self._build_global(name)
 
-    def _build_global(self, qname: str) -> Union[CT, StagedItemType]:
+    def _build_global(self, qname: str) -> CT:
         factory_or_class: Callable[[ElementType, SchemaType], Any]
 
         obj = self._staging[qname]
@@ -231,7 +228,7 @@ class StagedMap(Mapping[str, CT]):
             try:
                 elem, schema = obj
             except ValueError:
-                return obj[0]  # Circular build, simply return (elem, schema) couple
+                raise XMLSchemaCircularityError(qname, *obj[0])
 
             try:
                 factory_or_class = self._builders[elem.tag]
@@ -255,7 +252,7 @@ class StagedMap(Mapping[str, CT]):
             except ValueError:
                 if not isinstance(obj, tuple):
                     raise
-                return obj[0][0]  # Circular build, simply return (elem, schema) couple
+                raise XMLSchemaCircularityError(qname, *obj[0][0])
 
             try:
                 factory_or_class = self._builders[elem.tag]
@@ -297,7 +294,7 @@ class StagedTypesMap(StagedMap[BaseXsdType]):
     def label(self):
         return 'type'
 
-    def build_builtins(self):
+    def build_builtins(self) -> None:
         if self._validator.meta_schema is not None and nm.XSD_ANY_TYPE in self._store:
             # builtin types already provided, rebuild only xs:anyType for wildcards
             self._store[nm.XSD_ANY_TYPE] = self._validator.create_any_type()
@@ -390,7 +387,7 @@ class GlobalMaps(NamedTuple):
         nm.XSD_GROUP: itemgetter(5),
     }
 
-    def clear(self):
+    def clear(self) -> None:
         for item in self:
             item.clear()
 
@@ -540,7 +537,7 @@ class NamespaceView(Mapping[str, T]):
 _strict = type('str', (str,), {})('strict')
 
 
-class XsdGlobals(XsdValidator):
+class XsdGlobals(XsdValidator, Collection[SchemaType]):
     """
     Mediator set for composing XML schema instances and provides lookup maps. It stores the global
     declarations defined in the registered schemas. Register a schema to
@@ -553,6 +550,7 @@ class XsdGlobals(XsdValidator):
     no use of the target namespace of the validator.
     """
     _schemas: set[SchemaType]
+    namespaces: NamespaceResourcesMap[SchemaType]
     loader: SchemaLoader
 
     types: StagedTypesMap
@@ -782,27 +780,27 @@ class XsdGlobals(XsdValidator):
             return 'notKnown'
 
     @property
-    def use_meta(self):
+    def use_meta(self) -> bool:
         return self.validator.meta_schema is None or \
             self.validator.meta_schema in self._schemas
 
     @property
-    def total_globals(self):
+    def total_globals(self) -> int:
         """Total number of global components, fully and partially built."""
         return sum(len(m) for m in self.global_maps)
 
     @property
-    def built_globals(self):
+    def built_globals(self) -> int:
         """Total number of fully built global components."""
         return sum(1 for c in self.global_maps.iter_globals() if c.built)
 
     @property
-    def incomplete_globals(self):
+    def incomplete_globals(self) -> int:
         """Total number of partially built global components."""
         return sum(1 for c in self.global_maps.iter_globals() if not c.built)
 
     @property
-    def staged_globals(self):
+    def staged_globals(self) -> int:
         return sum(m.get_total_staged() for m in self.global_maps)
 
     @property
@@ -860,7 +858,7 @@ class XsdGlobals(XsdValidator):
         parent = self._parent
         while parent is not None:
             ancestors.append(parent)
-            parent = parent.maps._parent
+            parent = parent.maps.parent
 
         yield from reversed(ancestors)
 
@@ -1031,7 +1029,7 @@ class XsdGlobals(XsdValidator):
                 self.substitution_groups.update(ancestor.maps.substitution_groups)
                 self.identities.update(ancestor.maps.identities)
 
-            target_schemas = [s for s in self.schemas if s.maps is self]
+            target_schemas = [s for s in self._schemas if s.maps is self]
 
             self.global_maps.load_globals(target_schemas)
             initial_staged = self.staged_globals
@@ -1055,7 +1053,7 @@ class XsdGlobals(XsdValidator):
                         elem=schema.root
                     )
                 else:
-                    schema.default_attributes = cast(XsdAttributeGroup, attributes)
+                    schema.default_attributes = attributes
 
             self.types.build()
             self.elements.build()
@@ -1126,10 +1124,10 @@ class XsdGlobals(XsdValidator):
         :raise: XMLSchemaParseError
         """
         self.check_validator()
-        if schemas is None:
-            _schemas = [s for s in self._schemas if s.maps is self]
-        else:
+        if schemas is not None:
             _schemas = schemas
+        else:
+            _schemas = [s for s in self._schemas if s.maps is self]
 
         # Checks substitution groups circularity
         for qname in self.substitution_groups:

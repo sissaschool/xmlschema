@@ -7,13 +7,9 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-"""
-This module contains mapping classes for managing namespaces.
-"""
 import os
 import logging
 import warnings
-from collections import Counter
 from collections.abc import Iterable, Iterator, MutableMapping, Sequence
 from operator import attrgetter
 from typing import Any, Optional, TypeVar, TYPE_CHECKING, Union
@@ -23,7 +19,6 @@ from xmlschema.aliases import ElementType, SchemaType, SchemaSourceType, Locatio
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError, \
     XMLResourceBlocked, XMLResourceForbidden
 from xmlschema.translation import gettext as _
-from xmlschema.utils.qnames import local_name
 from xmlschema.utils.urls import is_url, normalize_url, normalize_locations
 import xmlschema.names as nm
 
@@ -31,7 +26,7 @@ from xmlschema.validators import XMLSchemaParseError, \
     XMLSchemaIncludeWarning, XMLSchemaImportWarning
 
 if TYPE_CHECKING:
-    from xmlschema.validators.global_maps import GlobalMaps, XsdGlobals
+    from xmlschema.validators.global_maps import XsdGlobals
 
 logger = logging.getLogger('xmlschema')
 base_url_attribute = attrgetter('name')
@@ -226,8 +221,7 @@ class SchemaLoader:
 
         logger.debug("Inclusions and imports of schema %r processed", schema)
 
-    def _load_inclusions(self, elem: ElementType,
-                                     schema: SchemaType, location: str) -> None:
+    def _load_inclusions(self, elem: ElementType, schema: SchemaType, location: str) -> None:
         """A valid xs:include/xs:redefine/xs:override element."""
         operation = elem.tag.split('}')[-1]
         logger.info("Process xs:%s schema from %s", operation, location)

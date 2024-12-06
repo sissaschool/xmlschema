@@ -10,7 +10,7 @@
 #
 import unittest
 
-from xmlschema import XMLSchema10, XMLSchema11, XsdComponent
+from xmlschema import XMLSchema10, XMLSchema11
 from xmlschema.validators.exceptions import XMLSchemaParseError
 from xmlschema.validators.global_maps import NamespaceView
 import xmlschema.names as nm

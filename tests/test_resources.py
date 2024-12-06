@@ -35,7 +35,7 @@ from xmlschema.utils.etree import is_etree_element, is_lxml_element
 from xmlschema.testing import SKIP_REMOTE_TESTS
 from xmlschema.utils.urls import normalize_url
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError, \
-    XMLResourceForbidden, XMLResourceBlocked, XMLResourceOSError, XMLResourceParseError
+    XMLResourceForbidden, XMLResourceBlocked, XMLResourceOSError
 from xmlschema.resources.sax import defuse_xml
 
 TEST_CASES_DIR = str(pathlib.Path(__file__).absolute().parent.joinpath('test_cases'))
