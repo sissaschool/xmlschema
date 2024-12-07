@@ -10,9 +10,9 @@
 import os
 import logging
 import warnings
-from collections.abc import Iterable, Iterator, MutableMapping, Sequence
+from collections.abc import Iterable, Iterator, MutableMapping
 from operator import attrgetter
-from typing import Any, Optional, TypeVar, TYPE_CHECKING, Union
+from typing import Any, Optional, TypeVar, TYPE_CHECKING
 from xml.etree.ElementTree import ParseError
 
 from xmlschema.aliases import ElementType, SchemaType, SchemaSourceType, LocationsType
@@ -46,8 +46,7 @@ class NamespaceResourcesMap(MutableMapping[str, list[T]]):
     """
     __slots__ = ('_store',)
 
-    def __init__(self, *args: Union[MutableMapping[str, T], Sequence[tuple[str, T]]],
-                 **kwargs: T):
+    def __init__(self, *args: Any, **kwargs: Any):
         self._store: dict[str, list[T]] = {}
         for item in args:
             self.update(item)
@@ -146,7 +145,7 @@ class SchemaLoader:
             self.fallback_locations = {}
 
         # Save other validator init options, used for creating new schemas.
-        self._init_options = {
+        self._init_options: dict[str, Any] = {
             'validation': validator.validation,
             'converter': validator.converter,
             'allow': validator.source.allow,
@@ -172,7 +171,7 @@ class SchemaLoader:
             locations.append(self.fallback_locations[namespace])
         return locations
 
-    def load_declared_schemas(self, schema) -> None:
+    def load_declared_schemas(self, schema: SchemaType) -> None:
         """
         Processes xs:include, xs:redefine, xs:override and xs:import statements,
         loading the schemas and/or the namespaced referred into declarations.

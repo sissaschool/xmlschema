@@ -70,8 +70,8 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
 
     python_type: Type[Any]
     instance_types: PythonTypeClasses
-    to_python: Union[Type[Any], Callable[[Any], Any]]
-    from_python: Union[Type[str], Callable[[Any], Any]]
+    to_python: Union[Type[Any], Callable[[Union[str, bytes]], DecodedValueType]]
+    from_python: Union[Type[str], Callable[[Any], str]]
 
     # Unicode string as default datatype for XSD simple types
     python_type = instance_types = to_python = from_python = str
@@ -91,10 +91,10 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
         return self._facets
 
     @facets.setter
-    def facets(self, value: dict[Optional[str], FacetsValueType]) -> None:
-        self._facets = value
+    def facets(self, facets: dict[Optional[str], FacetsValueType]) -> None:
+        self._facets = facets
         if not isinstance(self, XsdAtomicBuiltin):
-            self._parse_facets(value)
+            self._parse_facets(facets)
 
         if self.min_length:
             self.allow_empty = False
@@ -112,7 +112,7 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
         patterns = self.get_facet(XSD_PATTERN)
         if isinstance(patterns, XsdPatternFacets):
             self.patterns = patterns
-            if all(p.match('') is None for p in patterns.patterns):
+            if patterns.re_match('') is None:
                 self.allow_empty = False
 
         enumeration = self.get_facet(XSD_ENUMERATION)
@@ -120,16 +120,17 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
                 and '' not in enumeration.enumeration:
             self.allow_empty = False
 
-        if value:
+        if facets:
             validators: list[Union[XsdFacet, Callable[[Any], None]]]
-            if None in value:
-                validators = [value[None]]  # Use only the validator function!
+
+            if callable(func := facets.get(None)):
+                validators = [func]  # a validation function
             else:
-                validators = [v for k, v in value.items()
+                validators = [cast(XsdFacet, v) for k, v in facets.items()
                               if k not in {XSD_WHITE_SPACE, XSD_PATTERN, XSD_ASSERTION}]
-            if XSD_ASSERTION in value:
-                assertions: Union[XsdAssertionFacet, list[XsdAssertionFacet]]
-                assertions = value[XSD_ASSERTION]
+
+            if XSD_ASSERTION in facets:
+                assertions = facets[XSD_ASSERTION]
                 if isinstance(assertions, list):
                     validators.extend(assertions)
                 else:
@@ -528,6 +529,7 @@ class XsdAtomic(XsdSimpleType):
     """
     _special_types = {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE}
     _ADMITTED_TAGS = {XSD_RESTRICTION, XSD_SIMPLE_TYPE}
+    primitive_type: Union['XsdAtomic', 'XsdList', 'XsdUnion']
 
     def __init__(self, elem: ElementType,
                  schema: SchemaType,
@@ -552,11 +554,8 @@ class XsdAtomic(XsdSimpleType):
 
     def _set_base_type(self, base_type: BaseXsdType) -> None:
         self.base_type = base_type
-        if not hasattr(self, 'white_space'):
-            try:
-                self.white_space = base_type.white_space
-            except AttributeError:
-                pass
+        if not hasattr(self, 'white_space') and hasattr(base_type, 'white_space'):
+            self.white_space = base_type.white_space
 
         if hasattr(base_type, 'primitive_type'):
             self.primitive_type = base_type.primitive_type
@@ -564,7 +563,7 @@ class XsdAtomic(XsdSimpleType):
                 hasattr(base_type.content, 'primitive_type'):
             self.primitive_type = base_type.content.primitive_type
         else:
-            self.primitive_type = base_type  # xs:union or xs:list
+            self.primitive_type = base_type  # xs:union, xs:list or xs:anySimpleType
 
     @property
     def variety(self) -> Optional[str]:
@@ -610,8 +609,8 @@ class XsdAtomicBuiltin(XsdAtomic):
                  base_type: Optional['XsdAtomicBuiltin'] = None,
                  admitted_facets: Optional[set[str]] = None,
                  facets: Optional[dict[Optional[str], FacetsValueType]] = None,
-                 to_python: Optional[Callable[[Any], Any]] = None,
-                 from_python: Optional[Callable[[Any], Any]] = None) -> None:
+                 to_python: Optional[Callable[[Any], DecodedValueType]] = None,
+                 from_python: Optional[Callable[[Any], str]] = None) -> None:
         """
         :param name: the XSD type's qualified name.
         :param python_type: the correspondent Python's type. If a tuple of types \
@@ -1323,7 +1322,7 @@ class XsdAtomicRestriction(XsdAtomic):
         elif base_type.final == '#all' or 'restriction' in base_type.final:
             msg = _("'final' value of the baseType %r forbids derivation by restriction")
             self.parse_error(msg % base_type)
-        if base_type is self.any_atomic_type:
+        if base_type.name == XSD_ANY_ATOMIC_TYPE:
             msg = _("cannot use xs:anyAtomicType as base type of a user-defined type")
             self.parse_error(msg)
 

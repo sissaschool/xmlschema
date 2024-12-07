@@ -403,7 +403,7 @@ class XsdAttributeGroup(
                     self.schema.default_attributes = self
 
         any_attribute = None
-        attribute_group_refs = []
+        attribute_group_refs: list[str] = []
         attributes: dict[Optional[str], Union[XsdAttribute, XsdAnyAttribute]] = {}
 
         for child in self.elem:
@@ -502,7 +502,7 @@ class XsdAttributeGroup(
 
         # Check and copy base attributes
         if self.base_attributes is not None:
-            wildcard: XsdAnyAttribute = self.base_attributes.get(None)
+            wildcard = cast(XsdAnyAttribute, self.base_attributes.get(None))
             for name, attr in attributes.items():
                 if name not in self.base_attributes:
                     if self.derivation != 'restriction':
@@ -593,7 +593,7 @@ class XsdAttributeGroup(
         self._attribute_group.update(attributes)
         if None in self._attribute_group and None not in attributes \
                 and self.derivation == 'restriction':
-            wildcard = _copy(self._attribute_group[None])
+            wildcard = _copy(cast(XsdAnyAttribute, self._attribute_group[None]))
             wildcard.namespace = wildcard.not_namespace = wildcard.not_qname = ()
             self._attribute_group[None] = wildcard
 

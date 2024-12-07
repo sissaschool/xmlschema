@@ -24,6 +24,7 @@ from xmlschema.utils.qnames import get_prefixed_qname, local_name
 
 if TYPE_CHECKING:
     from .xsdbase import XsdValidator
+    from .wildcards import XsdAnyElement
     from .groups import XsdGroup
 
 ValidatorType = Union['XsdValidator', Callable[[Any], None]]
@@ -404,13 +405,14 @@ class XMLSchemaChildrenValidationError(XMLSchemaValidationError):
         self.occurs = occurs
         self.expected = expected
 
+        namespaces = getattr(validator, 'namespaces', {})
         if index >= len(elem):
             self.invalid_tag = None
-            tag = get_prefixed_qname(elem.tag, validator.namespaces, use_empty=False)
+            tag = get_prefixed_qname(elem.tag, namespaces, use_empty=False)
             reason = _("The content of element %r is not complete.") % tag
         else:
             self.invalid_tag = elem[index].tag
-            tag = get_prefixed_qname(self.invalid_tag, validator.namespaces, use_empty=False)
+            tag = get_prefixed_qname(self.invalid_tag, namespaces, use_empty=False)
             reason = _("Unexpected child with tag %r at position %d.") % (tag, index + 1)
 
         if occurs and particle.min_occurs > occurs:
@@ -430,10 +432,14 @@ class XMLSchemaChildrenValidationError(XMLSchemaValidationError):
                 name = xsd_element.display_name
                 if name is not None:
                     expected_tags.append(name)
-                elif getattr(xsd_element, 'process_contents', '') == 'strict':
-                    expected_tags.append(
-                        'from %r namespace/s' % xsd_element.namespace  # type: ignore[union-attr]
-                    )
+                elif hasattr(xsd_element, 'process_contents'):
+                    wildcard = cast('XsdAnyElement', xsd_element)
+                    if wildcard.process_contents == 'strict':
+                        tmpl = 'from {!r} namespace/s'
+                        if len(wildcard.namespace) == 1:
+                            expected_tags.append(tmpl.format(wildcard.namespace[0]))
+                        else:
+                            expected_tags.append(tmpl.format(wildcard.namespace))
 
             if not expected_tags:
                 pass

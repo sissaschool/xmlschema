@@ -469,7 +469,7 @@ class FieldValueSelector:
         :param element_node: a no Element
         :param namespaces: is an optional mapping from namespace prefix to URI.
         """
-        value: Union[AtomicValueType, list[AtomicValueType], None] = None
+        value: Union[AtomicValueType, list[Optional[AtomicValueType]], None] = None
         context = XPathContext(element_node, namespaces=namespaces)
 
         empty = True

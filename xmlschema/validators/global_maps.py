@@ -23,7 +23,8 @@ from typing import Any, cast, NamedTuple, Optional, Union, Type, TypeVar
 from xml.etree.ElementTree import Element
 
 from xmlschema.aliases import ClassInfoType, ElementType, SchemaSourceType, \
-    SchemaType, BaseXsdType, SchemaGlobalType, NsmapType, StagedItemType
+    SchemaType, BaseXsdType, SchemaGlobalType, NsmapType, LoadedItemType, \
+    StagedItemType
 from xmlschema.exceptions import XMLSchemaKeyError, XMLSchemaTypeError, \
     XMLSchemaValueError, XMLSchemaWarning, XMLSchemaNamespaceError, \
     XMLSchemaAttributeError
@@ -49,6 +50,26 @@ GLOBAL_TAGS = frozenset((
     nm.XSD_ATTRIBUTE, nm.XSD_ATTRIBUTE_GROUP, nm.XSD_GROUP, nm.XSD_ELEMENT
 ))
 
+GLOBAL_GETTERS = MappingProxyType({
+    nm.XSD_SIMPLE_TYPE: itemgetter(0),
+    nm.XSD_COMPLEX_TYPE: itemgetter(0),
+    nm.XSD_NOTATION: itemgetter(1),
+    nm.XSD_ATTRIBUTE: itemgetter(2),
+    nm.XSD_ATTRIBUTE_GROUP: itemgetter(3),
+    nm.XSD_ELEMENT: itemgetter(4),
+    nm.XSD_GROUP: itemgetter(5),
+})
+
+BUILDER_GETTERS = MappingProxyType({
+    nm.XSD_SIMPLE_TYPE: attrgetter('simple_type'),
+    nm.XSD_COMPLEX_TYPE: attrgetter('complex_type'),
+    nm.XSD_NOTATION: attrgetter('notation'),
+    nm.XSD_ATTRIBUTE: attrgetter('attribute'),
+    nm.XSD_ATTRIBUTE_GROUP: attrgetter('attribute_group'),
+    nm.XSD_ELEMENT: attrgetter('element'),
+    nm.XSD_GROUP: attrgetter('group'),
+})
+
 CT = TypeVar('CT', bound=XsdComponent)
 
 BuilderType = Callable[[ElementType, SchemaType], CT]
@@ -64,18 +85,8 @@ class XsdBuilders:
     group: BuilderType[XsdGroup]
     element: BuilderType[XsdElement]
 
-    _builder_getters = MappingProxyType({
-        nm.XSD_SIMPLE_TYPE: attrgetter('simple_type'),
-        nm.XSD_COMPLEX_TYPE: attrgetter('complex_type'),
-        nm.XSD_NOTATION: attrgetter('notation'),
-        nm.XSD_ATTRIBUTE: attrgetter('attribute'),
-        nm.XSD_ATTRIBUTE_GROUP: attrgetter('attribute_group'),
-        nm.XSD_ELEMENT: attrgetter('element'),
-        nm.XSD_GROUP: attrgetter('group'),
-    })
-
     def __getitem__(self, tag: str) -> BuilderType[XsdComponent]:
-        return self._builder_getters[tag](self)
+        return BUILDER_GETTERS[tag](self)
 
 
 class StagedMap(Mapping[str, CT]):
@@ -98,7 +109,7 @@ class StagedMap(Mapping[str, CT]):
             msg = _('global {} {!r} not found').format(self.label, qname)
             raise XMLSchemaKeyError(msg) from None
 
-    def __iter__(self) -> Iterator[CT]:
+    def __iter__(self) -> Iterator[str]:
         yield from self._store
 
     def __len__(self) -> int:
@@ -107,7 +118,7 @@ class StagedMap(Mapping[str, CT]):
     def __repr__(self) -> str:
         return repr(self._store)
 
-    def copy(self):
+    def copy(self) -> 'StagedMap[CT]':
         obj: StagedMap[CT] = object.__new__(self.__class__)
         obj.__dict__.update(self.__dict__)
         obj._staging = self._staging.copy()
@@ -145,7 +156,7 @@ class StagedMap(Mapping[str, CT]):
     def staged_values(self) -> ValuesView[StagedItemType]:
         return self._staging.values()
 
-    def load(self, qname, elem: ElementType, schema: SchemaType) -> None:
+    def load(self, qname: str, elem: ElementType, schema: SchemaType) -> None:
         if qname in self._store:
             comp = self._store[qname]
             if comp.schema is schema:
@@ -159,10 +170,10 @@ class StagedMap(Mapping[str, CT]):
                 return
 
         elif qname in self._staging:
-
             obj = self._staging[qname]
-            if len(obj) == 2:
-                _elem, _schema = obj
+
+            if len(obj) == 2 and isinstance(obj, tuple):
+                _elem, _schema = obj  # type:ignore[misc]
                 if _elem is elem and _schema is schema:
                     return  # ignored: it's the same component
                 elif schema is _schema.override:
@@ -188,7 +199,7 @@ class StagedMap(Mapping[str, CT]):
             elem=elem
         )
 
-    def load_redefine(self, qname, elem: ElementType, schema: SchemaType) -> None:
+    def load_redefine(self, qname: str, elem: ElementType, schema: SchemaType) -> None:
         try:
             item = self._staging[qname]
         except KeyError:
@@ -197,9 +208,9 @@ class StagedMap(Mapping[str, CT]):
             if isinstance(item, list):
                 item.append((elem, schema))
             else:
-                self._staging[qname] = [item, (elem, schema)]
+                self._staging[qname] = [cast(LoadedItemType, item), (elem, schema)]
 
-    def load_override(self, qname, elem: ElementType, schema: SchemaType) -> None:
+    def load_override(self, qname: str, elem: ElementType, schema: SchemaType) -> None:
         if qname not in self._staging:
             # Overrides that match nothing in the target schema are ignored. See the
             # period starting with "Source declarations not present in the target set"
@@ -220,13 +231,13 @@ class StagedMap(Mapping[str, CT]):
                 self._build_global(name)
 
     def _build_global(self, qname: str) -> CT:
-        factory_or_class: Callable[[ElementType, SchemaType], Any]
+        factory_or_class: Callable[[ElementType, SchemaType], CT]
 
         obj = self._staging[qname]
         if isinstance(obj, tuple):
             # Not built XSD global component without redefinitions
             try:
-                elem, schema = obj
+                elem, schema = obj  # type: ignore[misc]
             except ValueError:
                 raise XMLSchemaCircularityError(qname, *obj[0])
 
@@ -236,10 +247,11 @@ class StagedMap(Mapping[str, CT]):
                 msg = _("wrong element {!r} for XSD {}s global map")
                 raise XMLSchemaKeyError(msg.format(elem, self.label))
 
-            self._staging[qname] = obj,  # Encapsulate into a tuple to catch circular builds
+            # Encapsulate into a tuple to catch circular builds
+            self._staging[qname] = obj,
+
             self._store[qname] = factory_or_class(elem, schema)
             self._staging.pop(qname)
-
             self._store_counter[schema] += 1
             self._staging_counter[schema] -= 1
 
@@ -285,14 +297,8 @@ class StagedMap(Mapping[str, CT]):
             raise XMLSchemaTypeError(msg.format(obj, self.label))
 
 
-class Notations(StagedMap[XsdNotation]):
-    pass
-
-
 class StagedTypesMap(StagedMap[BaseXsdType]):
-    @property
-    def label(self):
-        return 'type'
+    label = 'types'
 
     def build_builtins(self) -> None:
         if self._validator.meta_schema is not None and nm.XSD_ANY_TYPE in self._store:
@@ -343,7 +349,7 @@ class StagedTypesMap(StagedMap[BaseXsdType]):
                 # meta-schema XMLSchema.xsd of XSD 1.1, that not includes builtins declarations.
                 elem = Element(nm.XSD_SIMPLE_TYPE, name=name, id=name)
             else:
-                if isinstance(value, XsdAtomicBuiltin):
+                if not isinstance(value, tuple) or len(value) != 2:
                     continue
                 elem, schema = value
 
@@ -369,23 +375,16 @@ class StagedTypesMap(StagedMap[BaseXsdType]):
             self._store[name] = xsd_type
 
 
+MapUpdateType = tuple[StagedMap[XsdComponent], StagedMap[XsdComponent]]
+
+
 class GlobalMaps(NamedTuple):
-    types: StagedTypesMap
+    types: StagedMap[BaseXsdType]
     notations: StagedMap[XsdNotation]
     attributes: StagedMap[XsdAttribute]
     attribute_groups: StagedMap[XsdAttributeGroup]
     elements: StagedMap[XsdElement]
     groups: StagedMap[XsdGroup]
-
-    _map_getters = {
-        nm.XSD_SIMPLE_TYPE: itemgetter(0),
-        nm.XSD_COMPLEX_TYPE: itemgetter(0),
-        nm.XSD_NOTATION: itemgetter(1),
-        nm.XSD_ATTRIBUTE: itemgetter(2),
-        nm.XSD_ATTRIBUTE_GROUP: itemgetter(3),
-        nm.XSD_ELEMENT: itemgetter(4),
-        nm.XSD_GROUP: itemgetter(5),
-    }
 
     def clear(self) -> None:
         for item in self:
@@ -393,10 +392,17 @@ class GlobalMaps(NamedTuple):
 
     def update(self, other: 'GlobalMaps') -> None:
         for m1, m2 in zip(self, other):
-            m1.update(m2)
+            m1.update(m2)  # type: ignore[attr-defined]
 
     def copy(self) -> 'GlobalMaps':
-        return GlobalMaps(*[m.copy() for m in self])
+        return GlobalMaps(
+            self.types.copy(),
+            self.notations.copy(),
+            self.attributes.copy(),
+            self.attribute_groups.copy(),
+            self.elements.copy(),
+            self.groups.copy()
+        )
 
     def iter_globals(self) -> Iterator[SchemaGlobalType]:
         for item in self:
@@ -404,7 +410,7 @@ class GlobalMaps(NamedTuple):
 
     def iter_staged(self) -> Iterator[StagedItemType]:
         for item in self:
-            yield from item.staged_values()
+            yield from item.staged_values
 
     def load_globals(self, schemas: Iterable[SchemaType]) -> None:
         """Loads global XSD components for the given schemas."""
@@ -438,7 +444,7 @@ class GlobalMaps(NamedTuple):
                     except KeyError:
                         continue  # Invalid global: skip
 
-                    self._map_getters[tag](self).load(qname, elem, schema)
+                    GLOBAL_GETTERS[tag](self).load(qname, elem, schema)
 
         redefined_names = Counter(x[0] for x in redefinitions)
         for qname, elem, child, schema, redefined_schema in reversed(redefinitions):
@@ -473,9 +479,9 @@ class GlobalMaps(NamedTuple):
                                 break
 
             if elem.tag == nm.XSD_REDEFINE:
-                self._map_getters[child.tag](self).load_redefine(qname, child, schema)
+                GLOBAL_GETTERS[child.tag](self).load_redefine(qname, child, schema)
             else:
-                self._map_getters[child.tag](self).load_override(qname, child, schema)
+                GLOBAL_GETTERS[child.tag](self).load_override(qname, child, schema)
 
 
 T = TypeVar('T')
@@ -603,7 +609,7 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
         if parent is None:
             self._builders = validator.get_builders()
         else:
-            self._builders = self._parent.maps._builders
+            self._builders = parent.maps._builders
 
         self.types = StagedTypesMap(self.validator)
         self.notations = StagedMap(self.validator)

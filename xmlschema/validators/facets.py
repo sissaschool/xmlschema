@@ -759,6 +759,12 @@ class XsdPatternFacets(MutableSequence[ElementType], XsdFacet):
         except TypeError as err:
             raise XMLSchemaValidationError(self, text, str(err)) from None
 
+    def re_match(self, text: str) -> Optional[re.Match[str]]:
+        for pattern in self.patterns:
+            if match := pattern.match(text):
+                return match
+        return None
+
     @property
     def regexps(self) -> list[str]:
         return [e.attrib.get('value', '') for e in self._elements]

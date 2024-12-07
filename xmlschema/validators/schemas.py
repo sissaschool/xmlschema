@@ -928,7 +928,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         for ns, location in _base_schemas:
             if ns == nm.XSD_NAMESPACE:
                 meta_schema.include_schema(location=location)
-            elif ns not in global_maps:
+            elif ns not in global_maps.namespaces:
                 meta_schema.import_schema(namespace=ns, location=location)
 
         return meta_schema
@@ -1126,7 +1126,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
     def iter_staged(self) -> Iterator[StagedItemType]:
         """Iterates the unbuilt XSD global definitions/declarations of the schema."""
-        def schema_filter(x: Union[XsdComponent, tuple[Element, SchemaType]]) -> bool:
+        def schema_filter(x: StagedItemType) -> bool:
             return x[1] is self if len(x) == 2 else x[0][1] is self
 
         yield from filter(schema_filter, self.maps.iter_staged())
@@ -1172,7 +1172,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         `KeyError` if the requested namespace is not loaded.
         """
         try:
-            return cast(SchemaType, self.maps.namespaces[namespace][0])
+            return self.maps.namespaces[namespace][0]
         except KeyError:
             if not namespace:
                 return self
@@ -2049,7 +2049,7 @@ class XMLSchema10(XMLSchemaBase):
       attributeGroup) | element | attribute | notation), annotation*)*)
     </schema>
     """
-    META_SCHEMA = os.path.join(SCHEMAS_DIR, 'XSD_1.0/XMLSchema.xsd')  # type: ignore
+    META_SCHEMA = os.path.join(SCHEMAS_DIR, 'XSD_1.0/XMLSchema.xsd')
     BASE_SCHEMAS = {
         nm.XML_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XML/xml_minimal.xsd'),
         nm.XSI_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XSI/XMLSchema-instance_minimal.xsd'),
@@ -2093,7 +2093,7 @@ class XMLSchema11(XMLSchemaBase):
     """
     XSD_VERSION = '1.1'
 
-    META_SCHEMA = os.path.join(SCHEMAS_DIR, 'XSD_1.1/XMLSchema.xsd')  # type: ignore
+    META_SCHEMA = os.path.join(SCHEMAS_DIR, 'XSD_1.1/XMLSchema.xsd')
     BASE_SCHEMAS = {
         nm.XML_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XML/xml_minimal.xsd'),
         nm.XSI_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XSI/XMLSchema-instance_minimal.xsd'),

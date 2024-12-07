@@ -35,7 +35,7 @@ from . import elements
 
 class XsdWildcard(XsdComponent):
     names = ()
-    namespace: Union[tuple[str], list[str]] = ('##any',)
+    namespace: Union[tuple[()], tuple[str], list[str]] = ('##any',)
     not_namespace: Union[tuple[()], list[str]] = ()
     not_qname: Union[tuple[()], list[str]] = ()
     process_contents = 'strict'

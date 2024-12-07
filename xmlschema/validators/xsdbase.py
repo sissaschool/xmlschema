@@ -12,7 +12,7 @@ This module contains base functions and classes XML Schema components.
 """
 import logging
 import re
-from collections.abc import Iterator, MutableMapping
+from collections.abc import Callable, Iterator, MutableMapping
 from typing import TYPE_CHECKING, cast, Any, Optional, Union
 from xml.etree import ElementTree
 
@@ -267,11 +267,13 @@ class XsdComponent(XsdValidator):
 
     elem: ElementType
     schema: SchemaType
-    parent = None
+    parent: Optional['XsdComponent'] = None
     name: Optional[str] = None
-    ref: Optional['XsdComponent'] = None
     qualified = True
-    redefine = None
+    ref: Optional['XsdComponent'] = None
+    redefine: Optional['XsdComponent'] = None
+    copy: Callable[[], 'XsdComponent']
+
     _annotation = None
     _annotations: list['XsdAnnotation']
     _target_namespace: Optional[str]

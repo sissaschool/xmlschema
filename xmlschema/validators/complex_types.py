@@ -56,6 +56,7 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
         </complexType>
     """
     attributes: XsdAttributeGroup
+    redefine: Optional[BaseXsdType]
     copy: Callable[['XsdComplexType'], 'XsdComplexType']
     content: Union[XsdGroup, XsdSimpleType] = None  # type: ignore[assignment]
 

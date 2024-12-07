@@ -98,6 +98,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
     ref: Optional['XsdGroup']  # Not None if the instance is a ref to a global group
     content: list[ModelParticleType]  # Direct access to children also from a ref group
     restriction: Optional['XsdGroup'] = None
+    redefine: Optional['XsdGroup'] = None
 
     # For XSD 1.1 openContent processing
     open_content: Optional[XsdOpenContent] = None
@@ -1369,17 +1370,18 @@ class Xsd11Group(XsdGroup):
         # If the base includes more wildcard, calculates and appends a
         # wildcard union for validating wildcard unions in restriction
         wildcards: list[XsdAnyElement] = []
+        extended: list[XsdAnyElement] = []
         for w1 in base_items:
             if isinstance(w1, XsdAnyElement):
                 for w2 in wildcards:
                     if w1.process_contents == w2.process_contents and w1.occurs == w2.occurs:
                         w2.union(w1)
-                        w2.extended = True
+                        extended.append(w2)
                         break
                 else:
                     wildcards.append(_copy(w1))
 
-        base_items.extend(w for w in wildcards if hasattr(w, 'extended'))
+        base_items.extend(extended)
 
         if self.model != 'choice':
             restriction_wildcards = [e for e in restriction_items if isinstance(e, XsdAnyElement)]
