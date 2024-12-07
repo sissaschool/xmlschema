@@ -182,7 +182,7 @@ class XsdLengthFacet(XsdFacet):
             self.parse_error(msg.format(self.base_value))
 
         primitive_type = getattr(self.base_type, 'primitive_type', None)
-        if primitive_type is None or primitive_type.name not in {XSD_QNAME, XSD_NOTATION_TYPE}:
+        if primitive_type is None or primitive_type.name not in (XSD_QNAME, XSD_NOTATION_TYPE):
             # See: https://www.w3.org/Bugs/Public/show_bug.cgi?id=4009
             self._validator = self.length_validator
 
@@ -216,7 +216,7 @@ class XsdMinLengthFacet(XsdFacet):
             self.parse_error(msg.format(self.base_value))
 
         primitive_type = getattr(self.base_type, 'primitive_type', None)
-        if primitive_type is None or primitive_type.name not in {XSD_QNAME, XSD_NOTATION_TYPE}:
+        if primitive_type is None or primitive_type.name not in (XSD_QNAME, XSD_NOTATION_TYPE):
             # See: https://www.w3.org/Bugs/Public/show_bug.cgi?id=4009
             self._validator = self.min_length_validator
 
@@ -250,7 +250,7 @@ class XsdMaxLengthFacet(XsdFacet):
             self.parse_error(msg.format(self.base_value))
 
         primitive_type = getattr(self.base_type, 'primitive_type', None)
-        if primitive_type is None or primitive_type.name not in {XSD_QNAME, XSD_NOTATION_TYPE}:
+        if primitive_type is None or primitive_type.name not in (XSD_QNAME, XSD_NOTATION_TYPE):
             # See: https://www.w3.org/Bugs/Public/show_bug.cgi?id=4009
             self._validator = self.max_length_validator
 
@@ -571,7 +571,7 @@ class XsdEnumerationFacets(MutableSequence[ElementType], XsdFacet):
         </enumeration>
     """
     base_type: BaseXsdType
-    _ADMITTED_TAGS = {XSD_ENUMERATION}
+    _ADMITTED_TAGS = XSD_ENUMERATION,
 
     def __init__(self, elem: ElementType,
                  schema: SchemaType,
@@ -685,7 +685,7 @@ class XsdPatternFacets(MutableSequence[ElementType], XsdFacet):
           Content: (annotation?)
         </pattern>
     """
-    _ADMITTED_TAGS = {XSD_PATTERN}
+    _ADMITTED_TAGS = XSD_PATTERN,
     patterns: list[re.Pattern[str]]
 
     def __init__(self, elem: ElementType,
@@ -794,7 +794,7 @@ class XsdAssertionFacet(XsdFacet):
           Content: (annotation?)
         </assertion>
     """
-    _ADMITTED_TAGS = {XSD_ASSERTION}
+    _ADMITTED_TAGS = XSD_ASSERTION,
     _root = ElementNode(elem=Element('root'))
 
     def __repr__(self) -> str:

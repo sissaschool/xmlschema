@@ -56,7 +56,7 @@ class XsdAttribute(XsdComponent, ValidationMixin[str, DecodedValueType]):
           Content: (annotation?, simpleType?)
         </attribute>
     """
-    _ADMITTED_TAGS = {XSD_ATTRIBUTE}
+    _ADMITTED_TAGS = XSD_ATTRIBUTE,
 
     name: str
     local_name: str

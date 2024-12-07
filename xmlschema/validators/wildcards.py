@@ -403,7 +403,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
           Content: (annotation?)
         </any>
     """
-    _ADMITTED_TAGS = {XSD_ANY}
+    _ADMITTED_TAGS = XSD_ANY,
     precedences: dict[ModelGroupType, list[ModelParticleType]]
     copy: Callable[['XsdAnyElement'], 'XsdAnyElement']
 
@@ -625,7 +625,7 @@ class XsdAnyAttribute(XsdWildcard, ValidationMixin[tuple[str, str], DecodedValue
         </anyAttribute>
     """
     copy: Callable[['XsdAnyAttribute'], 'XsdAnyAttribute']
-    _ADMITTED_TAGS = {XSD_ANY_ATTRIBUTE}
+    _ADMITTED_TAGS = XSD_ANY_ATTRIBUTE,
 
     # Added for compatibility with protocol of XSD attributes
     use = None
@@ -847,7 +847,7 @@ class XsdOpenContent(XsdComponent):
           Content: (annotation?), (any?)
         </openContent>
     """
-    _ADMITTED_TAGS = {XSD_OPEN_CONTENT}
+    _ADMITTED_TAGS = XSD_OPEN_CONTENT,
     mode = 'interleave'
     any_element = None  # type: Xsd11AnyElement
 
@@ -904,7 +904,7 @@ class XsdDefaultOpenContent(XsdOpenContent):
           Content: (annotation?, any)
         </defaultOpenContent>
     """
-    _ADMITTED_TAGS = {XSD_DEFAULT_OPEN_CONTENT}
+    _ADMITTED_TAGS = XSD_DEFAULT_OPEN_CONTENT,
     applies_to_empty = False
 
     def __init__(self, elem: ElementType, schema: SchemaType) -> None:

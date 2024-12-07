@@ -110,7 +110,7 @@ class XsdElement(XsdComponent, ParticleMixin,
     alternatives: Union[tuple[()], list['XsdAlternative']] = ()
     inheritable: Union[tuple[()], dict[str, XsdAttribute]] = ()
 
-    _ADMITTED_TAGS = {XSD_ELEMENT}
+    _ADMITTED_TAGS = XSD_ELEMENT,
     _block: Optional[str] = None
     _final: Optional[str] = None
     _head_type = None
@@ -1465,7 +1465,7 @@ class XsdAlternative(XsdComponent):
     type: BaseXsdType
     path: Optional[str] = None
     token: Optional[XPathToken] = None
-    _ADMITTED_TAGS = {XSD_ALTERNATIVE}
+    _ADMITTED_TAGS = XSD_ALTERNATIVE,
 
     def __init__(self, elem: ElementType, schema: SchemaType, parent: XsdElement) -> None:
         super().__init__(elem, schema, parent)

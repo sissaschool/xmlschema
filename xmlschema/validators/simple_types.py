@@ -57,7 +57,7 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
         </simpleType>
     """
     _special_types = {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE}
-    _ADMITTED_TAGS = {XSD_SIMPLE_TYPE}
+    _ADMITTED_TAGS: tuple[str, ...] = XSD_SIMPLE_TYPE,
     copy: Callable[['XsdSimpleType'], 'XsdSimpleType']
 
     block: str = ''
@@ -127,7 +127,7 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
                 validators = [func]  # a validation function
             else:
                 validators = [cast(XsdFacet, v) for k, v in facets.items()
-                              if k not in {XSD_WHITE_SPACE, XSD_PATTERN, XSD_ASSERTION}]
+                              if k not in (XSD_WHITE_SPACE, XSD_PATTERN, XSD_ASSERTION)]
 
             if XSD_ASSERTION in facets:
                 assertions = facets[XSD_ASSERTION]
@@ -355,6 +355,9 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
     def is_complex() -> bool:
         return False
 
+    def is_primitive(self) -> bool:
+        return isinstance(self, XsdAtomicBuiltin) and self.base_type is None
+
     @property
     def content_type_label(self) -> str:
         return 'empty' if self.max_length == 0 else 'simple'
@@ -432,7 +435,7 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
             return self.base_type.is_derived(other, derivation)
 
     def is_dynamic_consistent(self, other: BaseXsdType) -> bool:
-        return other.name in {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE} or self.is_derived(other) or \
+        return other.name in (XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE) or self.is_derived(other) or \
             isinstance(other, XsdUnion) and any(self.is_derived(mt) for mt in other.member_types)
 
     def normalize(self, text: Union[str, bytes]) -> str:
@@ -523,13 +526,14 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
 # simpleType's derived classes:
 class XsdAtomic(XsdSimpleType):
     """
-    Class for atomic simpleType definitions. An atomic definition has
-    a base_type attribute that refers to primitive or derived atomic
-    built-in type or another derived simpleType.
+    Class for atomic simpleType definitions. An atomic definition has a base_type
+    attribute that refers to primitive or derived atomic built-in type or another
+    derived simpleType. The primitive_type here is an extension of XSD definition
+    of primitive type, useful for validation.
     """
     _special_types = {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE}
-    _ADMITTED_TAGS = {XSD_RESTRICTION, XSD_SIMPLE_TYPE}
-    primitive_type: Union['XsdAtomic', 'XsdList', 'XsdUnion']
+    _ADMITTED_TAGS = (XSD_RESTRICTION, XSD_SIMPLE_TYPE)
+    primitive_type: XsdSimpleType
 
     def __init__(self, elem: ElementType,
                  schema: SchemaType,
@@ -559,11 +563,13 @@ class XsdAtomic(XsdSimpleType):
 
         if hasattr(base_type, 'primitive_type'):
             self.primitive_type = base_type.primitive_type
-        elif not isinstance(base_type, XsdSimpleType) and \
-                hasattr(base_type.content, 'primitive_type'):
+        elif isinstance(base_type, XsdSimpleType):
+            self.primitive_type = base_type  # xs:union, xs:list or a special type
+        elif hasattr(base_type.content, 'primitive_type'):
             self.primitive_type = base_type.content.primitive_type
         else:
-            self.primitive_type = base_type  # xs:union, xs:list or xs:anySimpleType
+            assert isinstance(base_type.content, XsdSimpleType)
+            self.primitive_type = base_type.content
 
     @property
     def variety(self) -> Optional[str]:
@@ -811,7 +817,7 @@ class XsdList(XsdSimpleType):
         </list>
     """
     item_type: XsdSimpleType
-    _ADMITTED_TAGS = {XSD_LIST}
+    _ADMITTED_TAGS = XSD_LIST,
     _white_space_elem = ElementTree.Element(
         XSD_WHITE_SPACE, attrib={'value': 'collapse', 'fixed': 'true'}
     )
@@ -971,7 +977,7 @@ class XsdUnion(XsdSimpleType):
     """
     member_types: list[XsdSimpleType]
     _ADMITTED_TYPES: Any = XsdSimpleType
-    _ADMITTED_TAGS = {XSD_UNION}
+    _ADMITTED_TAGS = XSD_UNION,
 
     def __init__(self, elem: ElementType,
                  schema: SchemaType,
@@ -1070,7 +1076,7 @@ class XsdUnion(XsdSimpleType):
         return True
 
     def is_dynamic_consistent(self, other: Any) -> bool:
-        return other.name in {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE} or \
+        return other.name in (XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE) or \
             other.is_derived(self) or isinstance(other, self.__class__) and \
             any(mt1.is_derived(mt2) for mt1 in other.member_types for mt2 in self.member_types)
 

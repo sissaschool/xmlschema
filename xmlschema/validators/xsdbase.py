@@ -689,7 +689,7 @@ class XsdAnnotation(XsdComponent):
           Content: ({any})*
         </documentation>
     """
-    _ADMITTED_TAGS = {XSD_ANNOTATION}
+    _ADMITTED_TAGS = XSD_ANNOTATION,
 
     annotation = None
 
@@ -791,6 +791,10 @@ class XsdType(XsdComponent):
 
     def is_atomic(self) -> bool:
         """Returns `True` if the instance is an atomic simpleType, `False` otherwise."""
+        return False
+
+    def is_primitive(self) -> bool:
+        """Returns `True` if the type is an XSD primitive builtin type, `False` otherwise."""
         return False
 
     def is_list(self) -> bool:

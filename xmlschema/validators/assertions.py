@@ -48,7 +48,7 @@ class XsdAssert(XsdComponent, ElementPathMixin[Union['XsdAssert', SchemaElementT
         </assert>
     """
     parent: 'XsdComplexType'
-    _ADMITTED_TAGS = {XSD_ASSERT}
+    _ADMITTED_TAGS = XSD_ASSERT,
     token = None
     parser = None
     path = 'true()'

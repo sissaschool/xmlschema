@@ -66,7 +66,7 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
     open_content: Optional[XsdOpenContent] = None
     _block: Optional[str] = None
 
-    _ADMITTED_TAGS = {XSD_COMPLEX_TYPE, XSD_RESTRICTION}
+    _ADMITTED_TAGS = (XSD_COMPLEX_TYPE, XSD_RESTRICTION)
     _CONTENT_TAIL_TAGS = {XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ANY_ATTRIBUTE}
 
     @staticmethod
@@ -151,7 +151,7 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
                     (self.mixed or self.content or default_open_content.applies_to_empty):
                 self.open_content = default_open_content
 
-        elif content_elem.tag in {XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE}:
+        elif content_elem.tag in (XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE):
             self.content = self.schema.xsd_group_class(content_elem, self.schema, self)
             default_open_content = self.default_open_content
             if default_open_content is not None and \
@@ -219,7 +219,8 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
                 for index, child in enumerate(self.elem):
                     if content_elem is not child:
                         continue
-                    elif self.elem[index + 1].tag in {XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE}:
+                    elif (self.elem[index + 1].tag in
+                          (XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE)):
                         self.content = self.schema.xsd_group_class(
                             self.elem[index + 1], self.schema, self
                         )
@@ -252,7 +253,7 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
 
     def _parse_derivation_elem(self, elem: ElementType) -> Optional[ElementType]:
         derivation_elem = self._parse_child_component(elem)
-        if derivation_elem is None or derivation_elem.tag not in {XSD_RESTRICTION, XSD_EXTENSION}:
+        if derivation_elem is None or derivation_elem.tag not in (XSD_RESTRICTION, XSD_EXTENSION):
             msg = _("restriction or extension tag expected")
             self.parse_error(msg, derivation_elem)
             self.content = self.schema.create_any_content_group(self)

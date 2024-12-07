@@ -68,7 +68,7 @@ FieldDecoderType = Union[SchemaElementType, SchemaAttributeType]
 
 class XsdSelector(XsdComponent):
     """Class for defining an XPath selector for an XSD identity constraint."""
-    _ADMITTED_TAGS = {XSD_SELECTOR}
+    _ADMITTED_TAGS = XSD_SELECTOR,
     _REGEXP = (
         r"(\.//)?(((child::)?((\i\c*:)?(\i\c*|\*)))|\.)(/(((child::)?"
         r"((\i\c*:)?(\i\c*|\*)))|\.))*(\|(\.//)?(((child::)?((\i\c*:)?"
@@ -133,7 +133,7 @@ class XsdSelector(XsdComponent):
 
 class XsdFieldSelector(XsdSelector):
     """Class for defining an XPath field selector for an XSD identity constraint."""
-    _ADMITTED_TAGS = {XSD_FIELD}
+    _ADMITTED_TAGS = XSD_FIELD,
     _REGEXP = (
         r"(\.//)?((((child::)?((\i\c*:)?(\i\c*|\*)))|\.)/)*((((child::)?"
         r"((\i\c*:)?(\i\c*|\*)))|\.)|((attribute::|@)((\i\c*:)?(\i\c*|\*))))"
@@ -255,11 +255,11 @@ class XsdIdentity(XsdComponent):
 
 
 class XsdUnique(XsdIdentity):
-    _ADMITTED_TAGS = {XSD_UNIQUE}
+    _ADMITTED_TAGS = XSD_UNIQUE,
 
 
 class XsdKey(XsdIdentity):
-    _ADMITTED_TAGS = {XSD_KEY}
+    _ADMITTED_TAGS = XSD_KEY,
 
 
 class XsdKeyref(XsdIdentity):
@@ -269,7 +269,7 @@ class XsdKeyref(XsdIdentity):
     :ivar refer: reference to a *xs:key* declaration that must be in the same element \
     or in a descendant element.
     """
-    _ADMITTED_TAGS = {XSD_KEYREF}
+    _ADMITTED_TAGS = XSD_KEYREF,
     refer: Optional[Union[str, XsdKey]] = None
     refer_path = '.'
 

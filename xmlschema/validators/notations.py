@@ -29,7 +29,7 @@ class XsdNotation(XsdComponent):
           Content: (annotation?)
         </notation>
     """
-    _ADMITTED_TAGS = {XSD_NOTATION}
+    _ADMITTED_TAGS = XSD_NOTATION,
 
     @property
     def built(self) -> bool:
