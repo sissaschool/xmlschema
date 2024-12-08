@@ -38,7 +38,7 @@ from .exceptions import XMLSchemaValidationError, XMLSchemaDecodeError
 from .xsdbase import XsdComponent, XsdAnnotation
 
 if TYPE_CHECKING:
-    from .simple_types import XsdList, XsdAtomicRestriction
+    from .simple_types import XsdAtomicBuiltin, XsdList, XsdUnion, XsdAtomicRestriction
 
 LaxDecodeType = tuple[Any, list[XMLSchemaValidationError]]
 
@@ -54,7 +54,7 @@ class XsdFacet(XsdComponent):
 
     def __init__(self, elem: ElementType,
                  schema: SchemaType,
-                 parent: Union['XsdList', 'XsdAtomicRestriction'],
+                 parent: Union['XsdAtomicBuiltin', 'XsdList', 'XsdUnion', 'XsdAtomicRestriction'],
                  base_type: Optional[BaseXsdType]) -> None:
         self.base_type = base_type
         self._validator = self._skip_validation

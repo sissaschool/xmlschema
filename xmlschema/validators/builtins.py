@@ -433,3 +433,8 @@ XSD_11_BUILTIN_TYPES: tuple[dict[str, Any], ...] = XSD_COMMON_BUILTIN_TYPES + (
         'facets': [error_type_validator],
     },  # xs:error has no value space and no lexical space
 )
+
+BUILTIN_TYPES = {
+    '1.0': XSD_10_BUILTIN_TYPES,
+    '1.1': XSD_11_BUILTIN_TYPES
+}

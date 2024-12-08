@@ -9,7 +9,6 @@
 #
 import threading
 import warnings
-from copy import copy as _copy
 from collections import Counter
 from collections.abc import Callable, Collection, Iterator, Iterable, Mapping
 from itertools import dropwhile
@@ -35,7 +34,7 @@ from .models import check_model
 from . import XsdAttribute, XsdSimpleType, XsdComplexType, XsdElement, \
     XsdAttributeGroup, XsdGroup, XsdNotation, XsdIdentity, XsdAssert, \
     XsdUnion, XsdAtomicRestriction
-from .builders import StagedMap, TypesMap, NotationsMap, AttributesMap, \
+from .builders import TypesMap, NotationsMap, AttributesMap, \
     AttributeGroupsMap, ElementsMap, GroupsMap
 
 GLOBAL_TAGS = frozenset((
@@ -153,7 +152,7 @@ class GlobalMaps(NamedTuple):
                 _GLOBAL_GETTERS[child.tag](self).load_override(qname, child, schema)
 
 
-T = TypeVar('T')
+T = TypeVar('T', bound=Union[XsdComponent, set[XsdElement]])
 
 
 class NamespaceView(Mapping[str, T]):
@@ -562,6 +561,7 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
 
         namespace = schema.target_namespace
 
+        """
         schema.notations = NamespaceView(self.notations, namespace)
         schema.types = NamespaceView(self.types, namespace)
         schema.attributes = NamespaceView(self.attributes, namespace)
@@ -572,6 +572,7 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
         schema.identities = NamespaceView(self.identities, namespace)
 
         schema.loader = self.loader
+        """
 
         self._schemas.add(schema)
 

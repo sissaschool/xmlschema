@@ -10,7 +10,6 @@
 from abc import abstractmethod
 from collections import Counter
 from collections.abc import Callable, ItemsView, Iterator, Mapping, ValuesView
-
 from typing import Any, cast, Optional, overload, Union, Type, TypeVar
 from xml.etree.ElementTree import Element
 
@@ -25,8 +24,7 @@ from xmlschema.utils.qnames import local_name, get_qname
 from .helpers import get_xsd_derivation_attribute
 from .exceptions import XMLSchemaCircularityError
 from .xsdbase import XsdComponent, XsdAnnotation
-from .facets import XSD_11_FACETS_BUILDERS, XSD_10_FACETS_BUILDERS
-from .builtins import XSD_11_BUILTIN_TYPES, XSD_10_BUILTIN_TYPES
+from .builtins import BUILTIN_TYPES
 from .facets import XsdFacet, FACETS_BUILDERS
 from .identities import XsdIdentity, IDENTITY_BUILDERS
 from .simple_types import XsdSimpleType, XsdAtomicBuiltin, SIMPLE_BUILDERS
@@ -47,6 +45,7 @@ class XsdBuilders:
     facets: dict[str, Type[XsdFacet]]
     identities: dict[str, Type[XsdIdentity]]
     simple_types: dict[str, Type[XsdSimpleType]]
+    builtins: tuple[dict[str, Any], ...]
 
     __slots__ = ('facets', 'identities', 'simple_types', '__dict__')
 
@@ -58,6 +57,7 @@ class XsdBuilders:
             self.facets = FACETS_BUILDERS[cls.XSD_VERSION]
             self.identities = IDENTITY_BUILDERS[cls.XSD_VERSION]
             self.simple_types = SIMPLE_BUILDERS[cls.XSD_VERSION]
+            self.builtins = BUILTIN_TYPES[cls.XSD_VERSION]
         except KeyError as err:
             raise XMLSchemaValueError("wrong or unsupported XSD version {}".format(err))
 
@@ -150,6 +150,8 @@ class StagedMap(Mapping[str, CT]):
         obj._staging_counter = self._staging_counter.copy()
         return obj
 
+    __copy__ = copy
+
     def clear(self) -> None:
         self._store.clear()
         self._staging.clear()
@@ -157,8 +159,6 @@ class StagedMap(Mapping[str, CT]):
         self._staging_counter.clear()
 
     def update(self, other: 'StagedMap[CT]') -> None:
-        if not isinstance(other, self.__class__):
-            raise XMLSchemaTypeError(_("argument global map must be of the same type"))
         self._store.update(other._store)
 
     def get_total(self, schema: Optional[SchemaType] = None) -> int:
@@ -254,8 +254,6 @@ class StagedMap(Mapping[str, CT]):
                 self._build_global(name)
 
     def _build_global(self, qname: str) -> CT:
-        factory_or_class: Callable[[ElementType, SchemaType], XsdComponent]
-
         obj = self._staging[qname]
         if isinstance(obj, tuple):
             # Not built XSD global component without redefinitions
@@ -286,7 +284,6 @@ class StagedMap(Mapping[str, CT]):
             self._staging[qname] = obj[0],  # To catch circular builds
             self._store[qname] = component = self._factory_or_class(elem, schema)
             self._staging.pop(qname)
-
             self._store_counter[schema] += 1
             self._staging_counter[schema] -= 1
 
@@ -313,7 +310,8 @@ class TypesMap(StagedMap[BaseXsdType]):
     def __init__(self, validator: SchemaType):
         super().__init__(validator)
         self._complex_type_class = validator.builders.complex_type_class
-        self._simple_types = self._builders.simple_types
+        self._simple_types = validator.builders.simple_types
+        self._facets_builders = validator.builders.facets
 
     def get_builder(self) -> Callable[[ElementType, SchemaType], BaseXsdType]:
         return self._build_global_type
@@ -330,13 +328,6 @@ class TypesMap(StagedMap[BaseXsdType]):
             self._store[nm.XSD_ANY_TYPE] = self._validator.create_any_type()
             return
 
-        if self._validator.XSD_VERSION == '1.1':
-            builtin_types = XSD_11_BUILTIN_TYPES
-            facets_map = XSD_11_FACETS_BUILDERS
-        else:
-            builtin_types = XSD_10_BUILTIN_TYPES
-            facets_map = XSD_10_FACETS_BUILDERS
-
         #
         # Special builtin types.
         #
@@ -346,7 +337,7 @@ class TypesMap(StagedMap[BaseXsdType]):
 
         # xs:anySimpleType
         # Ref: https://www.w3.org/TR/xmlschema11-2/#builtin-stds
-        xsd_any_simple_type = self._store[nm.XSD_ANY_SIMPLE_TYPE] = XsdSimpleType(
+        any_simple_type = self._store[nm.XSD_ANY_SIMPLE_TYPE] = XsdSimpleType(
             elem=Element(nm.XSD_SIMPLE_TYPE, name=nm.XSD_ANY_SIMPLE_TYPE),
             schema=self._validator,
             parent=None,
@@ -355,15 +346,16 @@ class TypesMap(StagedMap[BaseXsdType]):
 
         # xs:anyAtomicType
         # Ref: https://www.w3.org/TR/xmlschema11-2/#builtin-stds
-        self._store[nm.XSD_ANY_ATOMIC_TYPE] = self._validator.xsd_atomic_restriction_class(
-            elem=Element(nm.XSD_SIMPLE_TYPE, name=nm.XSD_ANY_ATOMIC_TYPE),
-            schema=self._validator,
-            parent=None,
-            name=nm.XSD_ANY_ATOMIC_TYPE,
-            base_type=xsd_any_simple_type,
-        )
+        self._store[nm.XSD_ANY_ATOMIC_TYPE] = \
+            self._validator.xsd_atomic_restriction_class(
+                elem=Element(nm.XSD_SIMPLE_TYPE, name=nm.XSD_ANY_ATOMIC_TYPE),
+                schema=self._validator,
+                parent=None,
+                name=nm.XSD_ANY_ATOMIC_TYPE,
+                base_type=any_simple_type,
+            )
 
-        for item in builtin_types:
+        for item in self._builders.builtins:
             item = item.copy()
             name: str = item['name']
             try:
@@ -389,7 +381,7 @@ class TypesMap(StagedMap[BaseXsdType]):
                 built_facets = xsd_type.facets
                 for e in facets:
                     try:
-                        cls: Any = facets_map[e.tag]
+                        cls = self._facets_builders[e.tag]
                     except AttributeError:
                         built_facets[None] = e
                     else:
@@ -477,4 +469,3 @@ class ElementsMap(StagedMap[XsdElement]):
 class GroupsMap(StagedMap[XsdGroup]):
     def get_builder(self) -> Callable[[ElementType, SchemaType], XsdGroup]:
         return self._builders.group_class
-

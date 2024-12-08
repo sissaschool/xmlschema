@@ -14,10 +14,11 @@ from dataclasses import dataclass
 from itertools import chain
 from pathlib import Path
 from collections.abc import Iterable
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import Any, Optional, Union
 from urllib.parse import unquote, urlsplit
 from xml.etree import ElementTree
 
+from xmlschema.aliases import SchemaType
 from xmlschema.exceptions import XMLSchemaValueError, XMLResourceOSError
 from xmlschema.names import XSD_SCHEMA, XSD_IMPORT, XSD_INCLUDE, XSD_REDEFINE, XSD_OVERRIDE
 from xmlschema.utils.logger import logged
@@ -25,9 +26,6 @@ from xmlschema.utils.paths import LocationPath
 from xmlschema.utils.urls import is_remote_url, normalize_url, match_location
 from xmlschema.translation import gettext as _
 from xmlschema.resources import XMLResource
-
-if TYPE_CHECKING:
-    from xmlschema.validators import XMLSchemaBase
 
 logger = logging.getLogger('xmlschema')
 
@@ -72,7 +70,7 @@ class XsdSource:
         self.modified = True
 
     def get_location_path(self, location: str,
-                          ref: Union['XMLSchemaBase', XMLResource],
+                          ref: Union[SchemaType, XMLResource],
                           modify: bool = True) -> LocationPath:
         """
         Return a relative location path for the referred XSD schema, replacing
@@ -210,7 +208,7 @@ def save_sources(target: Union[str, Path],
 
 
 @logged
-def export_schema(schema: 'XMLSchemaBase',
+def export_schema(schema: SchemaType,
                   target: Union[str, Path],
                   save_remote: bool = False,
                   remove_residuals: bool = True,
