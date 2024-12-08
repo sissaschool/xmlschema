@@ -14,7 +14,7 @@ Two schema classes are created at the end of this module, XMLSchema10 for XSD 1.
 XMLSchema11 for XSD 1.1. The latter class parses also XSD 1.0 schemas, as prescribed by
 the standard.
 """
-from abc import ABCMeta
+from abc import ABCMeta, abstractmethod
 import os
 import logging
 import threading
@@ -70,7 +70,8 @@ from .groups import XsdGroup, Xsd11Group
 from .elements import XsdElement, Xsd11Element
 from .wildcards import XsdAnyElement, XsdAnyAttribute, Xsd11AnyElement, \
     Xsd11AnyAttribute, XsdDefaultOpenContent
-from .global_maps import GLOBAL_TAGS, XsdBuilders, NamespaceView, XsdGlobals
+from .builders import XsdBuilders
+from .global_maps import GLOBAL_TAGS, NamespaceView, XsdGlobals
 
 logger = logging.getLogger('xmlschema')
 
@@ -254,6 +255,10 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     :ivar elements: `xsd:element` global declarations.
     :vartype elements: NamespaceView
     """
+    @property
+    @abstractmethod
+    def builders(self) -> XsdBuilders:
+        ...
 
     XSD_VERSION: str = '1.0'
     BASE_SCHEMAS: dict[str, str] = {}
@@ -867,17 +872,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         """Returns a list containing the global complex types."""
         return [x for x in self.types.values() if isinstance(x, XsdComplexType)]
 
-    def get_builders(self) -> XsdBuilders:
-        return XsdBuilders(
-            self.xsd_notation_class,
-            self.xsd_attribute_class,
-            self.xsd_attribute_group_class,
-            self.simple_type_factory,
-            self.xsd_complex_type_class,
-            self.xsd_group_class,
-            self.xsd_element_class,
-        )
-
     @classmethod
     def create_meta_schema(cls, source: Optional[str] = None,
                            base_schemas: Union[None, dict[str, str],
@@ -960,13 +954,9 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                     return cast(XsdSimpleType, self.maps.types[nm.XSD_ANY_SIMPLE_TYPE])
 
         xsd_type: XsdSimpleType
-        if child.tag == nm.XSD_RESTRICTION:
-            xsd_type = self.xsd_atomic_restriction_class(child, schema, parent)
-        elif child.tag == nm.XSD_LIST:
-            xsd_type = self.xsd_list_class(child, schema, parent)
-        elif child.tag == nm.XSD_UNION:
-            xsd_type = self.xsd_union_class(child, schema, parent)
-        else:
+        try:
+            xsd_type = self.builders.simple_types[child.tag](child, schema, parent)
+        except KeyError:
             msg = _("(restriction | list | union) expected")
             schema.parse_error(msg, elem)
             return cast(XsdSimpleType, self.maps.types[nm.XSD_ANY_SIMPLE_TYPE])
@@ -2054,6 +2044,7 @@ class XMLSchema10(XMLSchemaBase):
         nm.XML_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XML/xml_minimal.xsd'),
         nm.XSI_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XSI/XMLSchema-instance_minimal.xsd'),
     }
+    builders = XsdBuilders()
 
 
 class XMLSchema11(XMLSchemaBase):
@@ -2092,6 +2083,7 @@ class XMLSchema11(XMLSchemaBase):
     </schema>
     """
     XSD_VERSION = '1.1'
+    builders = XsdBuilders()
 
     META_SCHEMA = os.path.join(SCHEMAS_DIR, 'XSD_1.1/XMLSchema.xsd')
     BASE_SCHEMAS = {

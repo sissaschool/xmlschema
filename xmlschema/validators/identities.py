@@ -538,3 +538,9 @@ class FieldValueSelector:
             return 'nan', float
         else:
             return value, float
+
+
+IDENTITY_BUILDERS = {
+    '1.0': {XSD_UNIQUE: XsdUnique, XSD_KEY: XsdKey, XSD_KEYREF: XsdKeyref},
+    '1.1': {XSD_UNIQUE: Xsd11Unique, XSD_KEY: Xsd11Key, XSD_KEYREF: Xsd11Keyref}
+}

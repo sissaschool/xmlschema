@@ -1474,3 +1474,9 @@ class Xsd11AtomicRestriction(XsdAtomicRestriction):
     """
     _FACETS_BUILDERS = XSD_11_FACETS_BUILDERS
     _CONTENT_TAIL_TAGS = {XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ANY_ATTRIBUTE, XSD_ASSERT}
+
+
+SIMPLE_BUILDERS = {
+    '1.0': {XSD_RESTRICTION: XsdAtomicRestriction, XSD_LIST: XsdList, XSD_UNION: XsdUnion},
+    '1.1': {XSD_RESTRICTION: Xsd11AtomicRestriction, XSD_LIST: XsdList, XSD_UNION: XsdUnion},
+}

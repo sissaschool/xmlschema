@@ -7,27 +7,20 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-"""
-This module contains functions and classes for namespaces XSD declarations/definitions.
-"""
-import dataclasses
 import threading
 import warnings
+from copy import copy as _copy
 from collections import Counter
-from collections.abc import Callable, Collection, ItemsView, Iterator, Iterable, \
-    Mapping, ValuesView
+from collections.abc import Callable, Collection, Iterator, Iterable, Mapping
 from itertools import dropwhile
-from operator import attrgetter, itemgetter
+from operator import itemgetter
 from types import MappingProxyType
 from typing import Any, cast, NamedTuple, Optional, Union, Type, TypeVar
-from xml.etree.ElementTree import Element
 
-from xmlschema.aliases import ClassInfoType, ElementType, SchemaSourceType, \
-    SchemaType, BaseXsdType, SchemaGlobalType, NsmapType, LoadedItemType, \
-    StagedItemType
-from xmlschema.exceptions import XMLSchemaKeyError, XMLSchemaTypeError, \
-    XMLSchemaValueError, XMLSchemaWarning, XMLSchemaNamespaceError, \
-    XMLSchemaAttributeError
+from xmlschema.aliases import ClassInfoType, SchemaSourceType, \
+    SchemaType, BaseXsdType, SchemaGlobalType, NsmapType, StagedItemType
+from xmlschema.exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, \
+    XMLSchemaValueError, XMLSchemaWarning, XMLSchemaNamespaceError
 from xmlschema.translation import gettext as _
 from xmlschema.utils.qnames import local_name, get_extended_qname
 from xmlschema.utils.urls import get_url, normalize_url
@@ -36,21 +29,21 @@ from xmlschema.resources import XMLResource
 import xmlschema.names as nm
 
 from .exceptions import XMLSchemaNotBuiltError, XMLSchemaModelError, \
-    XMLSchemaModelDepthError, XMLSchemaParseError, XMLSchemaCircularityError
+    XMLSchemaModelDepthError, XMLSchemaParseError
 from .xsdbase import XsdValidator, XsdComponent
-from .facets import XSD_11_FACETS_BUILDERS, XSD_10_FACETS_BUILDERS
-from .builtins import XSD_11_BUILTIN_TYPES, XSD_10_BUILTIN_TYPES
 from .models import check_model
-from . import XsdAttribute, XsdSimpleType, XsdComplexType, XsdElement, XsdAttributeGroup, \
-    XsdGroup, XsdNotation, XsdIdentity, XsdAssert, XsdUnion, XsdAtomicRestriction, \
-    XsdAtomicBuiltin
+from . import XsdAttribute, XsdSimpleType, XsdComplexType, XsdElement, \
+    XsdAttributeGroup, XsdGroup, XsdNotation, XsdIdentity, XsdAssert, \
+    XsdUnion, XsdAtomicRestriction
+from .builders import StagedMap, TypesMap, NotationsMap, AttributesMap, \
+    AttributeGroupsMap, ElementsMap, GroupsMap
 
 GLOBAL_TAGS = frozenset((
     nm.XSD_NOTATION, nm.XSD_SIMPLE_TYPE, nm.XSD_COMPLEX_TYPE,
     nm.XSD_ATTRIBUTE, nm.XSD_ATTRIBUTE_GROUP, nm.XSD_GROUP, nm.XSD_ELEMENT
 ))
 
-GLOBAL_GETTERS = MappingProxyType({
+_GLOBAL_GETTERS = MappingProxyType({
     nm.XSD_SIMPLE_TYPE: itemgetter(0),
     nm.XSD_COMPLEX_TYPE: itemgetter(0),
     nm.XSD_NOTATION: itemgetter(1),
@@ -60,331 +53,14 @@ GLOBAL_GETTERS = MappingProxyType({
     nm.XSD_GROUP: itemgetter(5),
 })
 
-BUILDER_GETTERS = MappingProxyType({
-    nm.XSD_SIMPLE_TYPE: attrgetter('simple_type'),
-    nm.XSD_COMPLEX_TYPE: attrgetter('complex_type'),
-    nm.XSD_NOTATION: attrgetter('notation'),
-    nm.XSD_ATTRIBUTE: attrgetter('attribute'),
-    nm.XSD_ATTRIBUTE_GROUP: attrgetter('attribute_group'),
-    nm.XSD_ELEMENT: attrgetter('element'),
-    nm.XSD_GROUP: attrgetter('group'),
-})
-
-CT = TypeVar('CT', bound=XsdComponent)
-
-BuilderType = Callable[[ElementType, SchemaType], CT]
-
-
-@dataclasses.dataclass(frozen=True)
-class XsdBuilders:
-    notation: BuilderType[XsdNotation]
-    attribute: BuilderType[XsdAttribute]
-    attribute_group: BuilderType[XsdAttributeGroup]
-    simple_type: BuilderType[XsdSimpleType]
-    complex_type: BuilderType[XsdComplexType]
-    group: BuilderType[XsdGroup]
-    element: BuilderType[XsdElement]
-
-    def __getitem__(self, tag: str) -> BuilderType[XsdComponent]:
-        return BUILDER_GETTERS[tag](self)
-
-
-class StagedMap(Mapping[str, CT]):
-    label = 'component'
-
-    def __init__(self, validator: SchemaType):
-        self._store: dict[str, CT] = {}
-        self._staging: dict[str, StagedItemType] = {}
-        self._validator = validator
-        self._builders: XsdBuilders = validator.get_builders()
-
-        # Schema counters for built and staged component
-        self._store_counter: Counter[SchemaType] = Counter()
-        self._staging_counter: Counter[SchemaType] = Counter()
-
-    def __getitem__(self, qname: str) -> CT:
-        try:
-            return self._store[qname]
-        except KeyError:
-            msg = _('global {} {!r} not found').format(self.label, qname)
-            raise XMLSchemaKeyError(msg) from None
-
-    def __iter__(self) -> Iterator[str]:
-        yield from self._store
-
-    def __len__(self) -> int:
-        return len(self._store)
-
-    def __repr__(self) -> str:
-        return repr(self._store)
-
-    def copy(self) -> 'StagedMap[CT]':
-        obj: StagedMap[CT] = object.__new__(self.__class__)
-        obj.__dict__.update(self.__dict__)
-        obj._staging = self._staging.copy()
-        obj._store = self._store.copy()
-        obj._store_counter = self._store_counter.copy()
-        obj._staging_counter = self._staging_counter.copy()
-        return obj
-
-    def clear(self) -> None:
-        self._store.clear()
-        self._staging.clear()
-        self._store_counter.clear()
-        self._staging_counter.clear()
-
-    def update(self, other: 'StagedMap[CT]') -> None:
-        if not isinstance(other, self.__class__):
-            raise XMLSchemaTypeError(_("argument global map must be of the same type"))
-        self._store.update(other._store)
-
-    def get_total(self, schema: Optional[SchemaType] = None) -> int:
-        return len(self._store) if schema is None else self._store_counter[schema]
-
-    def get_total_staged(self, schema: Optional[SchemaType] = None) -> int:
-        return len(self._staging) if schema is None else self._staging_counter[schema]
-
-    @property
-    def staged(self) -> list[str]:
-        return list(self._staging)
-
-    @property
-    def staged_items(self) -> ItemsView[str, StagedItemType]:
-        return self._staging.items()
-
-    @property
-    def staged_values(self) -> ValuesView[StagedItemType]:
-        return self._staging.values()
-
-    def load(self, qname: str, elem: ElementType, schema: SchemaType) -> None:
-        if qname in self._store:
-            comp = self._store[qname]
-            if comp.schema is schema:
-                msg = _("global xs:{} with name={!r} is already built")
-            elif comp.schema.maps is schema.maps or comp.schema.meta_schema is None:
-                msg = _("global xs:{} with name={!r} is already defined")
-            else:
-                # Allows rebuilding of parent maps components for descendant maps
-                # but not allows substitution of meta-schema components.
-                self._staging[qname] = elem, schema
-                return
-
-        elif qname in self._staging:
-            obj = self._staging[qname]
-
-            if len(obj) == 2 and isinstance(obj, tuple):
-                _elem, _schema = obj  # type:ignore[misc]
-                if _elem is elem and _schema is schema:
-                    return  # ignored: it's the same component
-                elif schema is _schema.override:
-                    return  # ignored: the loaded component is overridden
-                elif schema.override is _schema:
-                    # replaced: the loaded component is an override
-                    self._staging[qname] = (elem, schema)
-                    return
-                elif schema.meta_schema is None and _schema.meta_schema is not None:
-                    return  # ignore merged meta-schema components
-                elif _schema.meta_schema is None and schema.meta_schema is not None:
-                    # Override merged meta-schema component
-                    self._staging[qname] = (elem, schema)
-                    return
-
-            msg = _("global xs:{} with name={!r} is already loaded")
-        else:
-            self._staging[qname] = elem, schema
-            return
-
-        schema.parse_error(
-            error=msg.format(local_name(elem.tag), qname),
-            elem=elem
-        )
-
-    def load_redefine(self, qname: str, elem: ElementType, schema: SchemaType) -> None:
-        try:
-            item = self._staging[qname]
-        except KeyError:
-            schema.parse_error(_("not a redefinition!"), elem)
-        else:
-            if isinstance(item, list):
-                item.append((elem, schema))
-            else:
-                self._staging[qname] = [cast(LoadedItemType, item), (elem, schema)]
-
-    def load_override(self, qname: str, elem: ElementType, schema: SchemaType) -> None:
-        if qname not in self._staging:
-            # Overrides that match nothing in the target schema are ignored. See the
-            # period starting with "Source declarations not present in the target set"
-            # of the paragraph https://www.w3.org/TR/xmlschema11-1/#override-schema.
-            return
-
-        self._staging[qname] = elem, schema
-
-    def lookup(self, qname: str) -> CT:
-        if qname not in self._staging:
-            return self.__getitem__(qname)
-        else:
-            return self._build_global(qname)
-
-    def build(self) -> None:
-        for name in [x for x in self._staging]:
-            if name in self._staging:
-                self._build_global(name)
-
-    def _build_global(self, qname: str) -> CT:
-        factory_or_class: Callable[[ElementType, SchemaType], CT]
-
-        obj = self._staging[qname]
-        if isinstance(obj, tuple):
-            # Not built XSD global component without redefinitions
-            try:
-                elem, schema = obj  # type: ignore[misc]
-            except ValueError:
-                raise XMLSchemaCircularityError(qname, *obj[0])
-
-            try:
-                factory_or_class = self._builders[elem.tag]
-            except KeyError:
-                msg = _("wrong element {!r} for XSD {}s global map")
-                raise XMLSchemaKeyError(msg.format(elem, self.label))
-
-            # Encapsulate into a tuple to catch circular builds
-            self._staging[qname] = obj,
-
-            self._store[qname] = factory_or_class(elem, schema)
-            self._staging.pop(qname)
-            self._store_counter[schema] += 1
-            self._staging_counter[schema] -= 1
-
-            return self._store[qname]
-
-        elif isinstance(obj, list):
-            # Not built XSD global component with redefinitions
-            try:
-                elem, schema = obj[0]
-            except ValueError:
-                if not isinstance(obj, tuple):
-                    raise
-                raise XMLSchemaCircularityError(qname, *obj[0][0])
-
-            try:
-                factory_or_class = self._builders[elem.tag]
-            except KeyError:
-                msg = _("wrong element {!r} for XSD {}s global map")
-                raise XMLSchemaKeyError(msg.format(elem, self.label))
-
-            self._staging[qname] = obj[0],  # To catch circular builds
-            self._store[qname] = component = factory_or_class(elem, schema)
-            self._staging.pop(qname)
-
-            self._store_counter[schema] += 1
-            self._staging_counter[schema] -= 1
-
-            # Apply redefinitions (changing elem involve reparse of the component)
-            for elem, schema in obj[1:]:
-                if component.schema.target_namespace != schema.target_namespace:
-                    msg = _("redefined schema {!r} has a different targetNamespace")
-                    raise XMLSchemaValueError(msg.format(schema))
-
-                component.redefine = component.copy()
-                component.redefine.parent = component
-                component.schema = schema
-                component.parse(elem)
-
-            return self._store[qname]
-
-        else:
-            msg = _("unexpected instance {!r} in XSD {} global map")
-            raise XMLSchemaTypeError(msg.format(obj, self.label))
-
-
-class StagedTypesMap(StagedMap[BaseXsdType]):
-    label = 'types'
-
-    def build_builtins(self) -> None:
-        if self._validator.meta_schema is not None and nm.XSD_ANY_TYPE in self._store:
-            # builtin types already provided, rebuild only xs:anyType for wildcards
-            self._store[nm.XSD_ANY_TYPE] = self._validator.create_any_type()
-            return
-
-        if self._validator.XSD_VERSION == '1.1':
-            builtin_types = XSD_11_BUILTIN_TYPES
-            facets_map = XSD_11_FACETS_BUILDERS
-        else:
-            builtin_types = XSD_10_BUILTIN_TYPES
-            facets_map = XSD_10_FACETS_BUILDERS
-
-        #
-        # Special builtin types.
-        #
-        # xs:anyType
-        # Ref: https://www.w3.org/TR/xmlschema11-1/#builtin-ctd
-        self._store[nm.XSD_ANY_TYPE] = self._validator.create_any_type()
-
-        # xs:anySimpleType
-        # Ref: https://www.w3.org/TR/xmlschema11-2/#builtin-stds
-        xsd_any_simple_type = self._store[nm.XSD_ANY_SIMPLE_TYPE] = XsdSimpleType(
-            elem=Element(nm.XSD_SIMPLE_TYPE, name=nm.XSD_ANY_SIMPLE_TYPE),
-            schema=self._validator,
-            parent=None,
-            name=nm.XSD_ANY_SIMPLE_TYPE
-        )
-
-        # xs:anyAtomicType
-        # Ref: https://www.w3.org/TR/xmlschema11-2/#builtin-stds
-        self._store[nm.XSD_ANY_ATOMIC_TYPE] = self._validator.xsd_atomic_restriction_class(
-            elem=Element(nm.XSD_SIMPLE_TYPE, name=nm.XSD_ANY_ATOMIC_TYPE),
-            schema=self._validator,
-            parent=None,
-            name=nm.XSD_ANY_ATOMIC_TYPE,
-            base_type=xsd_any_simple_type,
-        )
-
-        for item in builtin_types:
-            item = item.copy()
-            name: str = item['name']
-            try:
-                value = self._staging.pop(name)
-            except KeyError:
-                # If builtin type element is missing create a dummy element. Necessary for the
-                # meta-schema XMLSchema.xsd of XSD 1.1, that not includes builtins declarations.
-                elem = Element(nm.XSD_SIMPLE_TYPE, name=name, id=name)
-            else:
-                if not isinstance(value, tuple) or len(value) != 2:
-                    continue
-                elem, schema = value
-
-            base_type: Union[None, BaseXsdType, tuple[ElementType, SchemaType]]
-            if 'base_type' in item:
-                base_type = item['base_type'] = self._store[item['base_type']]
-            else:
-                base_type = None
-
-            facets = item.pop('facets', None)
-            xsd_type = XsdAtomicBuiltin(elem, self._validator, **item)
-            if facets:
-                built_facets = xsd_type.facets
-                for e in facets:
-                    try:
-                        cls: Any = facets_map[e.tag]
-                    except AttributeError:
-                        built_facets[None] = e
-                    else:
-                        built_facets[e.tag] = cls(e, self._validator, xsd_type, base_type)
-                xsd_type.facets = built_facets
-
-            self._store[name] = xsd_type
-
-
-MapUpdateType = tuple[StagedMap[XsdComponent], StagedMap[XsdComponent]]
-
 
 class GlobalMaps(NamedTuple):
-    types: StagedMap[BaseXsdType]
-    notations: StagedMap[XsdNotation]
-    attributes: StagedMap[XsdAttribute]
-    attribute_groups: StagedMap[XsdAttributeGroup]
-    elements: StagedMap[XsdElement]
-    groups: StagedMap[XsdGroup]
+    types: TypesMap
+    notations: NotationsMap
+    attributes: AttributesMap
+    attribute_groups: AttributeGroupsMap
+    elements: ElementsMap
+    groups: GroupsMap
 
     def clear(self) -> None:
         for item in self:
@@ -395,14 +71,7 @@ class GlobalMaps(NamedTuple):
             m1.update(m2)  # type: ignore[attr-defined]
 
     def copy(self) -> 'GlobalMaps':
-        return GlobalMaps(
-            self.types.copy(),
-            self.notations.copy(),
-            self.attributes.copy(),
-            self.attribute_groups.copy(),
-            self.elements.copy(),
-            self.groups.copy()
-        )
+        return GlobalMaps(*[m.copy() for m in self])  # type: ignore[arg-type]
 
     def iter_globals(self) -> Iterator[SchemaGlobalType]:
         for item in self:
@@ -444,7 +113,7 @@ class GlobalMaps(NamedTuple):
                     except KeyError:
                         continue  # Invalid global: skip
 
-                    GLOBAL_GETTERS[tag](self).load(qname, elem, schema)
+                    _GLOBAL_GETTERS[tag](self).load(qname, elem, schema)
 
         redefined_names = Counter(x[0] for x in redefinitions)
         for qname, elem, child, schema, redefined_schema in reversed(redefinitions):
@@ -479,9 +148,9 @@ class GlobalMaps(NamedTuple):
                                 break
 
             if elem.tag == nm.XSD_REDEFINE:
-                GLOBAL_GETTERS[child.tag](self).load_redefine(qname, child, schema)
+                _GLOBAL_GETTERS[child.tag](self).load_redefine(qname, child, schema)
             else:
-                GLOBAL_GETTERS[child.tag](self).load_override(qname, child, schema)
+                _GLOBAL_GETTERS[child.tag](self).load_override(qname, child, schema)
 
 
 T = TypeVar('T')
@@ -559,12 +228,6 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
     namespaces: NamespaceResourcesMap[SchemaType]
     loader: SchemaLoader
 
-    types: StagedTypesMap
-    notations: StagedMap[XsdNotation]
-    attributes: StagedMap[XsdAttribute]
-    attribute_groups: StagedMap[XsdAttributeGroup]
-    elements: StagedMap[XsdElement]
-    groups: StagedMap[XsdGroup]
     substitution_groups: dict[str, set[XsdElement]]
     identities: dict[str, XsdIdentity]
 
@@ -606,17 +269,13 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
         self._parent = parent
 
         self.namespaces = NamespaceResourcesMap()  # Registered schemas by namespace URI
-        if parent is None:
-            self._builders = validator.get_builders()
-        else:
-            self._builders = parent.maps._builders
 
-        self.types = StagedTypesMap(self.validator)
-        self.notations = StagedMap(self.validator)
-        self.attributes = StagedMap(self.validator)
-        self.attribute_groups = StagedMap(self.validator)
-        self.elements = StagedMap(self.validator)
-        self.groups = StagedMap(self.validator)
+        self.types = TypesMap(self.validator)
+        self.notations = NotationsMap(self.validator)
+        self.attributes = AttributesMap(self.validator)
+        self.attribute_groups = AttributeGroupsMap(self.validator)
+        self.elements = ElementsMap(self.validator)
+        self.groups = GroupsMap(self.validator)
         self.global_maps = GlobalMaps(*(getattr(self, n) for n in GlobalMaps._fields))
 
         self.substitution_groups = {}
@@ -873,9 +532,10 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
 
         if isinstance(source, XMLResource):
             url = source.url
-            source = source.source
+            _source = source.source
         else:
             url = get_url(source)
+            _source = source
 
         if url is not None:
             url = normalize_url(url, base_url)
@@ -884,7 +544,7 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
                     return schema
 
         for schema in self._schemas:
-            if source is schema.source.source:
+            if _source is schema.source.source:
                 return schema
 
         return None

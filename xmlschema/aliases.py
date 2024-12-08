@@ -31,7 +31,7 @@ from .utils.protocols import IOProtocol
 __all__ = ['ElementType', 'ElementTreeType', 'XMLSourceType', 'NsmapType',
            'NormalizedLocationsType', 'LocationsType', 'NsmapType', 'XmlnsType',
            'ParentMapType', 'SchemaType', 'BaseXsdType', 'SchemaElementType',
-           'SchemaAttributeType', 'SchemaGlobalType', 'GlobalMapType', 'ModelGroupType',
+           'SchemaAttributeType', 'SchemaGlobalType', 'ModelGroupType',
            'ModelParticleType', 'XPathElementType', 'AtomicValueType', 'NumericValueType',
            'DateTimeType', 'SchemaSourceType', 'ComponentClassType',
            'LoadedItemType', 'StagedItemType', 'ExtraValidatorType',
@@ -100,7 +100,6 @@ ComponentClassType = Union[None, Type['XsdComponent'], tuple[Type['XsdComponent'
 XPathElementType = Union['XsdElement', 'XsdAnyElement', 'XsdAssert']
 
 C = TypeVar('C')
-GlobalMapType = dict[str, Union[C, tuple[Element, SchemaType]]]
 ClassInfoType = Union[Type[C], tuple[Type[C], ...]]
 
 LoadedItemType = tuple[ElementType, SchemaType]

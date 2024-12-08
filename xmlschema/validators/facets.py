@@ -451,7 +451,8 @@ class XsdTotalDigitsFacet(XsdFacet):
 
     def __call__(self, value: Any) -> None:
         try:
-            if operator.add(*count_digits(value)) <= self.value:
+            a, b = count_digits(value)
+            if operator.add(a, b) <= self.value:
                 return
         except (TypeError, ValueError, ArithmeticError) as err:
             raise XMLSchemaValidationError(self, value, str(err)) from None
@@ -870,6 +871,11 @@ XSD_11_FACETS_BUILDERS.update({
     XSD_EXPLICIT_TIMEZONE: XsdExplicitTimezoneFacet
 })
 
+FACETS_BUILDERS = {
+    '1.0': XSD_10_FACETS_BUILDERS,
+    '1.1': XSD_11_FACETS_BUILDERS,
+}
+
 XSD_10_FACETS = set(XSD_10_FACETS_BUILDERS)
 XSD_11_FACETS = set(XSD_11_FACETS_BUILDERS)
 
@@ -879,9 +885,3 @@ XSD_11_LIST_FACETS = XSD_10_LIST_FACETS | {XSD_ASSERTION}
 
 XSD_10_UNION_FACETS = {XSD_PATTERN, XSD_ENUMERATION}
 XSD_11_UNION_FACETS = MULTIPLE_FACETS = {XSD_PATTERN, XSD_ENUMERATION, XSD_ASSERTION}
-
-
-XsdFacetType = Union[XsdLengthFacet, XsdMinLengthFacet, XsdMaxLengthFacet,
-                     XsdMinInclusiveFacet, XsdMinExclusiveFacet, XsdMaxInclusiveFacet,
-                     XsdMaxExclusiveFacet, XsdTotalDigitsFacet, XsdFractionDigitsFacet,
-                     XsdEnumerationFacets, XsdPatternFacets]
