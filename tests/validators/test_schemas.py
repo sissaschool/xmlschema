@@ -26,6 +26,7 @@ from xmlschema.validators import XMLSchemaBase, XMLSchema10, XMLSchema11, \
     XsdGlobals, XsdComponent
 from xmlschema.testing import SKIP_REMOTE_TESTS, XsdValidatorTestCase
 from xmlschema.validators.schemas import logger
+from xmlschema.validators.builders import XsdBuilders
 
 
 class CustomXMLSchema(XMLSchema10):
@@ -894,11 +895,12 @@ class TestXMLSchemaMeta(unittest.TestCase):
         with self.assertRaises(ValueError) as ctx:
             class XMLSchema12(XMLSchemaBase):
                 XSD_VERSION = '1.2'
+                builders = XsdBuilders()
                 meta_schema = os.path.join(SCHEMAS_DIR, 'XSD_1.1/XMLSchema.xsd')
 
             assert issubclass(XMLSchema12, XMLSchemaBase)
 
-        self.assertEqual(str(ctx.exception), "XSD_VERSION must be '1.0' or '1.1'")
+        self.assertEqual(str(ctx.exception), "wrong or unsupported XSD version '1.2'")
 
     def test_from_schema_class(self):
         class XMLSchema11Bis(XMLSchema11):
@@ -909,6 +911,7 @@ class TestXMLSchemaMeta(unittest.TestCase):
     def test_dummy_validator_class(self):
 
         class DummySchema(XMLSchemaBase):
+            builders = XsdBuilders()
             XSD_VERSION = '1.1'
             meta_schema = os.path.join(SCHEMAS_DIR, 'XSD_1.1/XMLSchema.xsd')
 
@@ -929,7 +932,8 @@ class TestXMLSchemaMeta(unittest.TestCase):
     def test_subclass_and_replace_meta_schema(self):
 
         class CustomXMLSchema10(XMLSchema10):
-            meta_schema = os.path.join(SCHEMAS_DIR, 'XSD_1.0/XMLSchema.xsd')
+            META_SCHEMA = os.path.join(SCHEMAS_DIR, 'XSD_1.0/XMLSchema.xsd')
+            builders = XsdBuilders()
 
         self.assertIsInstance(CustomXMLSchema10.meta_schema, XMLSchemaBase)
         self.assertIsNot(CustomXMLSchema10.meta_schema, XMLSchema10.meta_schema)
@@ -944,7 +948,8 @@ class TestXMLSchemaMeta(unittest.TestCase):
     def test_subclass_and_create_base_meta_schema(self):
 
         class CustomXMLSchema10(XMLSchemaBase):
-            meta_schema = os.path.join(SCHEMAS_DIR, 'XSD_1.0/XMLSchema.xsd')
+            builders = XsdBuilders()
+            META_SCHEMA = os.path.join(SCHEMAS_DIR, 'XSD_1.0/XMLSchema.xsd')
 
         self.assertIsInstance(CustomXMLSchema10.meta_schema, XMLSchemaBase)
         self.assertIsNot(CustomXMLSchema10.meta_schema, XMLSchema10.meta_schema)

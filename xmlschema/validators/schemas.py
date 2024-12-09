@@ -123,7 +123,7 @@ class XMLSchemaMeta(ABCMeta):
             meta_schema_class_name = 'Meta' + name
 
             meta_schema: Optional[SchemaType]
-            meta_schema = getattr(base_class, '_meta_schema', None)
+            meta_schema = getattr(base_class, 'meta_schema', None)
             if meta_schema is None:
                 meta_bases = bases
             else:
@@ -132,7 +132,6 @@ class XMLSchemaMeta(ABCMeta):
                 if len(bases) > 1:
                     meta_bases += bases[1:]
 
-            dict_['meta_schema'] = mcs.meta_schema
             meta_schema_class = cast(
                 SchemaType,
                 super().__new__(mcs, meta_schema_class_name, meta_bases, dict_)
@@ -557,7 +556,19 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             self.identities = NamespaceView(value.identities, namespace)
             self.loader = value.loader
         else:
-            if name == 'validation':
+            if name == 'meta_schema':
+                msg = _("can't set the meta_schema instance of a schema")
+                raise XMLSchemaAttributeError(msg)
+            
+            elif name == 'target_namespace':
+                if name in self.__dict__:
+                    if value == self.__dict__[name]:
+                        return
+                    elif value:
+                        msg = _("can't change the target_namespace of a schema")
+                        raise XMLSchemaAttributeError(msg)
+
+            elif name == 'validation':
                 check_validation_mode(value)
             elif name == 'converter':
                 check_converter_argument(value)
@@ -575,8 +586,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
     def __getstate__(self) -> dict[str, Any]:
         state = self.__dict__.copy()
-        for attr_name in ('lock', 'xpath_tokens'):
-            state.pop(attr_name, None)
+        state.pop('lock', None)
+        state.pop('xpath_tokens', None)
         return state
 
     def __setstate__(self, state: dict[str, Any]) -> None:
