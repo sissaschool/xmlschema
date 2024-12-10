@@ -167,7 +167,8 @@ class XsdValidator:
 
     def parse_error(self, error: Union[str, Exception],
                     elem: Optional[ElementType] = None,
-                    validation: Optional[str] = None) -> None:
+                    validation: Optional[str] = None,
+                    namespaces: Optional[NsmapType] = None) -> None:
         """
         Helper method for registering parse errors. Does nothing if validation mode is 'skip'.
         Il validation mode is 'lax' collects the error, otherwise raise the error.
@@ -176,6 +177,8 @@ class XsdValidator:
         :param elem: the Element instance related to the error, for default uses the 'elem' \
         attribute of the validator, if it's present.
         :param validation: overrides the default validation mode of the validator.
+        :param namespaces: overrides the namespaces of the validator, or provides a mapping \
+        if the validator hasn't a namespaces attribute.
         """
         if validation is not None:
             check_validation_mode(validation)
@@ -190,9 +193,12 @@ class XsdValidator:
             msg = "the argument 'elem' must be an Element instance, not {!r}."
             raise XMLSchemaTypeError(msg.format(elem))
 
+        if namespaces is None:
+            namespaces = getattr(self, 'namespaces', None)
+
         if isinstance(error, XMLSchemaParseError):
             if error.namespaces is None:
-                error.namespaces = getattr(self, 'namespaces', None)
+                error.namespaces = namespaces
             if error.elem is None:
                 error.elem = elem
             if error.source is None:
@@ -201,9 +207,9 @@ class XsdValidator:
             message = str(error).strip()
             if message[0] in '\'"' and message[0] == message[-1]:
                 message = message.strip('\'"')
-            error = XMLSchemaParseError(self, message, elem)
+            error = XMLSchemaParseError(self, message, elem, namespaces=namespaces)
         elif isinstance(error, str):
-            error = XMLSchemaParseError(self, error, elem)
+            error = XMLSchemaParseError(self, error, elem, namespaces=namespaces)
         else:
             msg = "'error' argument must be an exception or a string, not {!r}."
             raise XMLSchemaTypeError(msg.format(error))

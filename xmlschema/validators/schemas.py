@@ -383,27 +383,31 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         root = self.source.root
 
         # Initialize schema's namespaces, the XML namespace is implicitly declared.
-        self.namespaces = self.source.get_namespaces({'xml': nm.XML_NAMESPACE})
+        namespaces = self.source.get_namespaces({'xml': nm.XML_NAMESPACE})
 
         if 'targetNamespace' in root.attrib:
             self.target_namespace = root.attrib['targetNamespace'].strip()
             if not self.target_namespace:
                 # https://www.w3.org/TR/2004/REC-xmlschema-1-20041028/structures.html#element-schema
                 msg = _("the attribute 'targetNamespace' cannot be an empty string")
-                self.parse_error(msg, root)
+                self.parse_error(msg, root, namespaces=namespaces)
             elif namespace is not None and self.target_namespace != namespace:
                 msg = _("wrong namespace ({0!r} instead of {1!r}) for XSD resource {2}")
-                self.parse_error(msg.format(self.target_namespace, namespace, self.url), root)
+                self.parse_error(
+                    error=msg.format(self.target_namespace, namespace, self.url),
+                    elem=root,
+                    namespaces=namespaces,
+                )
 
-        if not self.target_namespace and namespace is not None:
+        elif namespace is not None:
             # Chameleon schema case
             self.target_namespace = namespace
             if '' not in self.namespaces:
-                self.namespaces[''] = namespace
+                namespaces[''] = namespace
 
-        elif '' not in self.namespaces:
+        if '' not in namespaces:
             # If not declared map the default namespace to no namespace
-            self.namespaces[''] = ''
+            namespaces[''] = ''
 
         if self.target_namespace == nm.XMLNS_NAMESPACE:
             # https://www.w3.org/TR/xmlschema11-1/#sec-nss-special
@@ -411,7 +415,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             raise XMLSchemaValueError(msg)
 
         logger.debug("Schema targetNamespace is %r", self.target_namespace)
-        logger.debug("Schema namespaces: %r", self.namespaces)
+        logger.debug("Schema namespaces: %r", namespaces)
 
         # Parses the schema defaults
         if 'attributeFormDefault' in root.attrib:
@@ -429,19 +433,20 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                         root, 'blockDefault', XSD_ELEMENT_DERIVATIONS
                     )
                 except ValueError as err:
-                    self.parse_error(err, root)
+                    self.parse_error(err, root, namespaces=namespaces)
 
         if 'finalDefault' in root.attrib:
             try:
                 self.final_default = get_xsd_derivation_attribute(root, 'finalDefault')
             except ValueError as err:
-                self.parse_error(err, root)
+                self.parse_error(err, root, namespaces=namespaces)
 
         # Meta-schema maps creation (MetaXMLSchema10/11 classes)
         if self.meta_schema is None:
+            self.namespaces = namespaces
             self.maps = XsdGlobals(self) if global_maps is None else global_maps
 
-            if self.name == 'xsd11-extra.xsd':
+            if self.source.name == 'xsd11-extra.xsd':
                 # Process the patch schema for XSD 1.1 meta-schema
                 for child in self.source.root:
                     if child.tag == nm.XSD_OVERRIDE:
@@ -470,7 +475,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
         # Complete the namespace map with internal declarations, remapping
         # identical prefixes that refer to different namespaces.
-        self.namespaces = self.source.get_namespaces(self.namespaces, root_only=False)
+        self.namespaces = self.source.get_namespaces(namespaces, root_only=False)
 
         if any(ns == nm.VC_NAMESPACE for ns in self.namespaces.values()):
             # Apply versioning filter to schema tree. See the paragraph
@@ -522,11 +527,9 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 logger.setLevel(logging.WARNING)  # Restore default logging
 
     def __repr__(self) -> str:
-        if self.url:
-            return '%s(name=%r, namespace=%r)' % (
-                self.__class__.__name__, self.name, self.target_namespace
-            )
-        return '%s(namespace=%r)' % (self.__class__.__name__, self.target_namespace)
+        if (name := self.name) is None:
+            return f'{self.__class__.__name__}(namespace={self.target_namespace!r})'
+        return f'{self.__class__.__name__}(name={name!r}, namespace={self.target_namespace!r})'
 
     def __setattr__(self, name: str, value: Any) -> None:
         if name == 'maps':
@@ -546,32 +549,31 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             super().__setattr__(name, value)
 
             namespace = self.target_namespace
-            self.types = NamespaceView(value.types, namespace)
-            self.attributes = NamespaceView(value.attributes, namespace)
-            self.attribute_groups = NamespaceView(value.attribute_groups, namespace)
-            self.groups = NamespaceView(value.groups, namespace)
-            self.elements = NamespaceView(value.elements, namespace)
-            self.notations = NamespaceView(value.notations, namespace)
-            self.substitution_groups = NamespaceView(value.substitution_groups, namespace)
-            self.identities = NamespaceView(value.identities, namespace)
-            self.loader = value.loader
+            self.__dict__['types'] = NamespaceView(value.types, namespace)
+            self.__dict__['attributes'] = NamespaceView(value.attributes, namespace)
+            self.__dict__['attribute_groups'] = NamespaceView(value.attribute_groups, namespace)
+            self.__dict__['groups'] = NamespaceView(value.groups, namespace)
+            self.__dict__['elements'] = NamespaceView(value.elements, namespace)
+            self.__dict__['notations'] = NamespaceView(value.notations, namespace)
+            self.__dict__['substitution_groups'] = NamespaceView(value.substitution_groups, namespace)
+            self.__dict__['identities'] = NamespaceView(value.identities, namespace)
+            self.__dict__['loader'] = value.loader
         else:
             if name == 'meta_schema':
                 msg = _("can't set the meta_schema instance of a schema")
                 raise XMLSchemaAttributeError(msg)
-            
-            elif name == 'target_namespace':
-                if name in self.__dict__:
-                    if value == self.__dict__[name]:
-                        return
-                    elif value:
-                        msg = _("can't change the target_namespace of a schema")
-                        raise XMLSchemaAttributeError(msg)
-
             elif name == 'validation':
                 check_validation_mode(value)
             elif name == 'converter':
                 check_converter_argument(value)
+            elif name == 'default_attributes':
+                if value is not None and not isinstance(value, (str, XsdAttributeGroup)):
+                    msg = _("can't change the {!r} attribute of a schema").format(name)
+                    raise XMLSchemaAttributeError(msg)
+            elif name in self.__dict__ and name[:1] != '_':
+                # (: Don't protect a protected attribute :)
+                msg = _("can't change the {!r} attribute of a schema").format(name)
+                raise XMLSchemaAttributeError(msg)
 
             super().__setattr__(name, value)
 
@@ -620,12 +622,10 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         of the original.
         """
         schema: SchemaType = object.__new__(self.__class__)
-        schema.__dict__.update(self.__dict__)
-        schema.errors = self.errors[:]
-        schema.warnings = self.warnings[:]
-        schema.namespaces = {k: v for k, v in self.namespaces.items()}
-        schema.imports = self.imports.copy()
-        schema.includes = self.includes.copy()
+        schema.__dict__.update(
+            (k, v.copy() if isinstance(v, (list, dict)) else v)
+            for k, v in self.__dict__.items()
+        )
         return schema
 
     __copy__ = copy
@@ -646,7 +646,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         """Compatibility property that returns the class attribute XSD_VERSION."""
         return self.XSD_VERSION
 
-    # XML resource attributes access
     @property
     def root(self) -> Element:
         """Root element of the schema."""

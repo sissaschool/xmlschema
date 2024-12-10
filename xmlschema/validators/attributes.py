@@ -16,13 +16,13 @@ from decimal import Decimal
 from elementpath.datatypes import AbstractDateTime, Duration, AbstractBinary
 from typing import cast, Any, Optional, Union
 
+from xmlschema.aliases import ComponentClassType, ElementType, \
+    AtomicValueType, SchemaType, DecodedValueType, NsmapType
 from xmlschema.exceptions import XMLSchemaValueError
 from xmlschema.names import XSI_NAMESPACE, XSD_ANY_SIMPLE_TYPE, XSD_SIMPLE_TYPE, \
     XSD_ATTRIBUTE_GROUP, XSD_COMPLEX_TYPE, XSD_RESTRICTION, XSD_EXTENSION, \
     XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ATTRIBUTE, XSD_ANY_ATTRIBUTE, \
     XSD_ASSERT, XSD_NOTATION_TYPE, XSD_ANNOTATION
-from xmlschema.aliases import ComponentClassType, ElementType, \
-    AtomicValueType, SchemaType, DecodedValueType
 from xmlschema.translation import gettext as _
 from xmlschema.utils.decoding import EmptyType
 from xmlschema.utils.qnames import get_namespace, get_qname
@@ -622,11 +622,12 @@ class XsdAttributeGroup(
 
     def parse_error(self, error: Union[str, Exception],
                     elem: Optional[ElementType] = None,
-                    validation: Optional[str] = None) -> None:
+                    validation: Optional[str] = None,
+                    namespaces: Optional[NsmapType]= None) -> None:
         if self.parent is None:
-            super().parse_error(error, elem, validation)
+            super().parse_error(error, elem, validation, namespaces)
         else:
-            self.parent.parse_error(error, elem, validation)
+            self.parent.parse_error(error, elem, validation, namespaces)
 
     def iter_required(self) -> Iterator[str]:
         for k, v in self._attribute_group.items():

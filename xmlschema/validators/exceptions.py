@@ -186,14 +186,19 @@ class XMLSchemaNotBuiltError(XMLSchemaValidatorError, RuntimeError):
 
     :param validator: the XSD validator.
     :param message: the error message.
+    :param namespaces: is an optional mapping from namespace prefix to URI.
     """
-    def __init__(self, validator: 'XsdValidator', message: str) -> None:
+    def __init__(self, validator: 'XsdValidator',
+                 message: str,
+                 namespaces: Optional[NsmapType] = None) -> None:
+        if namespaces is None:
+            namespaces = getattr(validator, 'namespaces', None)
         super().__init__(
             validator=validator,
             message=message,
             elem=getattr(validator, 'elem', None),
             source=getattr(validator, 'source', None),
-            namespaces=getattr(validator, 'namespaces', None)
+            namespaces=namespaces
         )
 
 
@@ -204,15 +209,20 @@ class XMLSchemaParseError(XMLSchemaValidatorError, SyntaxError):  # type: ignore
     :param validator: the XSD validator.
     :param message: the error message.
     :param elem: the element that contains the error.
+    :param namespaces: is an optional mapping from namespace prefix to URI.
     """
     def __init__(self, validator: 'XsdValidator', message: str,
-                 elem: Optional[ElementType] = None) -> None:
+                 elem: Optional[ElementType] = None,
+                 namespaces: Optional[NsmapType] = None) -> None:
+        if namespaces is None:
+            namespaces = getattr(validator, 'namespaces', None)
+
         super().__init__(
             validator=validator,
             message=message,
             elem=elem if elem is not None else getattr(validator, 'elem', None),
             source=getattr(validator, 'source', None),
-            namespaces=getattr(validator, 'namespaces', None),
+            namespaces=namespaces
         )
 
 
