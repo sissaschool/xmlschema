@@ -10,9 +10,9 @@
 import threading
 import warnings
 from collections.abc import Iterator
-from typing import TYPE_CHECKING, Any, Union, Type
+from typing import TYPE_CHECKING, Any, Optional, Union, Type
 
-from elementpath import ElementPathError, XPath2Parser, XPathContext, \
+from elementpath import ElementPathError, XPath2Parser, XPathContext, XPathToken, \
     LazyElementNode, SchemaElementNode, build_schema_node_tree
 
 from xmlschema.names import XSD_ASSERT
@@ -49,15 +49,18 @@ class XsdAssert(XsdComponent, ElementPathMixin[Union['XsdAssert', SchemaElementT
     """
     parent: 'XsdComplexType'
     _ADMITTED_TAGS = XSD_ASSERT,
-    token = None
-    parser = None
-    path = 'true()'
+
+    __slots__ = (
+        'token', 'parser', 'path', 'base_type', '_xpath_lock', 'xpath_default_namespace'
+    )
 
     def __init__(self, elem: ElementType,
                  schema: SchemaType,
                  parent: 'XsdComplexType',
                  base_type: 'XsdComplexType') -> None:
 
+        self.token: Optional[XPathToken] = None
+        self.parser: Optional[XPath2Parser] = None
         self._xpath_lock = threading.Lock()
         self.base_type = base_type
         super().__init__(elem, schema, parent)
@@ -70,22 +73,33 @@ class XsdAssert(XsdComponent, ElementPathMixin[Union['XsdAssert', SchemaElementT
 
     def __getstate__(self) -> dict[str, Any]:
         state = self.__dict__.copy()
+        for cls in self.__class__.__mro__:
+            for attr in getattr(cls, '__slots__', ()):
+                state[attr] = getattr(self, attr)
         state.pop('_xpath_lock', None)
         return state
 
     def __setstate__(self, state: Any) -> None:
-        self.__dict__.update(state)
+        slots = [s for cls in self.__class__.__mro__
+                 for s in getattr(cls, '__slots__', ()) if s != '_xpath_lock']
+        for k, v in state.items():
+            if k in slots:
+                object.__setattr__(self, k, v)
+            else:
+                self.__dict__[k] = v
         self._xpath_lock = threading.Lock()
 
     def _parse(self) -> None:
         if self.base_type.is_simple():
             msg = _("base_type={!r} is not a complexType definition")
             self.parse_error(msg.format(self.base_type))
+            self.path = 'true()'
         else:
             try:
                 self.path = self.elem.attrib['test'].strip()
             except KeyError as err:
                 self.parse_error(err)
+                self.path = 'true()'
 
         if 'xpathDefaultNamespace' in self.elem.attrib:
             self.xpath_default_namespace = self._parse_xpath_default_namespace(self.elem)

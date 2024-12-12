@@ -73,6 +73,8 @@ class XsdAttribute(XsdComponent, ValidationMixin[str, DecodedValueType]):
     use: str = 'optional'
     inheritable: bool = False  # For XSD 1.1 attributes, always False for XSD 1.0 attributes.
 
+    __slots__ = ('type',)
+
     def _parse(self) -> None:
         attrib = self.elem.attrib
 
@@ -345,6 +347,8 @@ class XsdAttributeGroup(
         XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ATTRIBUTE, XSD_ANY_ATTRIBUTE
     }
     copy: Callable[['XsdAttributeGroup'], 'XsdAttributeGroup']
+
+    __slots__ = ('_attribute_group', 'derivation', 'base_attributes')
 
     def __init__(self, elem: ElementType,
                  schema: SchemaType,
@@ -623,7 +627,7 @@ class XsdAttributeGroup(
     def parse_error(self, error: Union[str, Exception],
                     elem: Optional[ElementType] = None,
                     validation: Optional[str] = None,
-                    namespaces: Optional[NsmapType]= None) -> None:
+                    namespaces: Optional[NsmapType] = None) -> None:
         if self.parent is None:
             super().parse_error(error, elem, validation, namespaces)
         else:

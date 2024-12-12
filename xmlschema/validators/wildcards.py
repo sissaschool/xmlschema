@@ -35,15 +35,17 @@ from . import elements
 
 class XsdWildcard(XsdComponent):
     names = ()
-    namespace: Union[tuple[()], tuple[str], list[str]] = ('##any',)
     not_namespace: Union[tuple[()], list[str]] = ()
     not_qname: Union[tuple[()], list[str]] = ()
-    process_contents = 'strict'
+    process_contents: str
+    namespace: Union[tuple[()], tuple[str], list[str]]
 
     # For compatibility with protocol of XSD elements/attributes
     type = None
     default = None
     fixed = None
+
+    __slots__ = ('process_contents', 'namespace')
 
     def __repr__(self) -> str:
         if self.not_namespace:
@@ -59,7 +61,7 @@ class XsdWildcard(XsdComponent):
         # Parse namespace and processContents
         namespace = self.elem.attrib.get('namespace', '##any').strip()
         if namespace == '##any':
-            pass
+            self.namespace = ('##any',)
         elif not namespace:
             self.namespace = []  # an empty value means no namespace allowed!
         elif namespace == '##other':
@@ -81,14 +83,11 @@ class XsdWildcard(XsdComponent):
                 else:
                     self.namespace.append(ns)
 
-        process_contents = self.elem.attrib.get('processContents', 'strict')
-        if process_contents == 'strict':
-            pass
-        elif process_contents not in ('lax', 'skip'):
+        self.process_contents = self.elem.attrib.get('processContents', 'strict')
+        if self.process_contents not in ('strict', 'lax', 'skip'):
             msg = _("wrong value %r for 'processContents' attribute")
             self.parse_error(msg % self.process_contents)
-        else:
-            self.process_contents = process_contents
+            self.process_contents = 'strict'
 
     def _parse_not_constraints(self) -> None:
         if 'notNamespace' not in self.elem.attrib:
@@ -393,7 +392,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
     """
     Class for XSD 1.0 *any* wildcards.
 
-    ..  <any
+        <any
           id = ID
           maxOccurs = (nonNegativeInteger | unbounded) : 1
           minOccurs = nonNegativeInteger : 1
@@ -407,7 +406,11 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
     precedences: dict[ModelGroupType, list[ModelParticleType]]
     copy: Callable[['XsdAnyElement'], 'XsdAnyElement']
 
+    __slots__ = ('min_occurs', 'max_occurs', 'skip', 'precedences')
+
     def __init__(self, elem: ElementType, schema: SchemaType, parent: XsdComponent) -> None:
+        self.min_occurs = self.max_occurs = 1
+        self.skip = False
         self.precedences = {}
         super().__init__(elem, schema, parent)
 
@@ -616,7 +619,7 @@ class XsdAnyAttribute(XsdWildcard, ValidationMixin[tuple[str, str], DecodedValue
     """
     Class for XSD 1.0 *anyAttribute* wildcards.
 
-    ..  <anyAttribute
+        <anyAttribute
           id = ID
           namespace = ((##any | ##other) | List of (anyURI | (##targetNamespace | ##local)) )
           processContents = (lax | skip | strict) : strict
@@ -719,7 +722,7 @@ class Xsd11AnyElement(XsdAnyElement):
     """
     Class for XSD 1.1 *any* declarations.
 
-    ..  <any
+        <any
           id = ID
           maxOccurs = (nonNegativeInteger | unbounded)  : 1
           minOccurs = nonNegativeInteger : 1
@@ -798,7 +801,7 @@ class Xsd11AnyAttribute(XsdAnyAttribute):
     """
     Class for XSD 1.1 *anyAttribute* declarations.
 
-    ..  <anyAttribute
+        <anyAttribute
           id = ID
           namespace = ((##any | ##other) | List of (anyURI | (##targetNamespace | ##local)) )
           notNamespace = List of (anyURI | (##targetNamespace | ##local))
@@ -840,7 +843,7 @@ class XsdOpenContent(XsdComponent):
     """
     Class for XSD 1.1 *openContent* model definitions.
 
-    ..  <openContent
+        <openContent
           id = ID
           mode = (none | interleave | suffix) : interleave
           {any attributes with non-schema namespace . . .}>
@@ -896,7 +899,7 @@ class XsdDefaultOpenContent(XsdOpenContent):
     """
     Class for XSD 1.1 *defaultOpenContent* model definitions.
 
-    ..  <defaultOpenContent
+        <defaultOpenContent
           appliesToEmpty = boolean : false
           id = ID
           mode = (interleave | suffix) : interleave

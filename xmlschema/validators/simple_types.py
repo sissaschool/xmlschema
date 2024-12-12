@@ -10,6 +10,7 @@
 """
 This module contains classes for XML Schema simple data types.
 """
+import re
 from copy import copy as _copy
 from decimal import DecimalException
 from collections.abc import Callable, Iterator
@@ -58,15 +59,17 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
     """
     _special_types = {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE}
     _ADMITTED_TAGS: tuple[str, ...] = XSD_SIMPLE_TYPE,
+    _REGEX_SPACE = re.compile(r'\s')
+    _REGEX_SPACES = re.compile(r'\s+')
     copy: Callable[['XsdSimpleType'], 'XsdSimpleType']
 
     block: str = ''
-    min_length: Optional[int] = None
-    max_length: Optional[int] = None
-    white_space: Optional[str] = None
-    patterns = None
-    validators: Union[tuple[()], list[Union[XsdFacet, Callable[[Any], None]]]] = ()
-    allow_empty = True
+    min_length: Optional[int]
+    max_length: Optional[int]
+    white_space: Optional[str]
+    patterns: Optional[XsdPatternFacets]
+    validators: Union[tuple[()], list[Union[XsdFacet, Callable[[Any], None]]]]
+    allow_empty: bool
 
     python_type: Type[Any]
     instance_types: PythonTypeClasses
@@ -76,14 +79,15 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
     # Unicode string as default datatype for XSD simple types
     python_type = instance_types = to_python = from_python = str
 
+    __slots__ = ('_facets', 'min_length', 'max_length', 'white_space', 'patterns', 'validators')
+
     def __init__(self, elem: ElementType,
                  schema: SchemaType,
                  parent: Optional[XsdComponent] = None,
                  name: Optional[str] = None,
                  facets: Optional[dict[Optional[str], FacetsValueType]] = None) -> None:
-
         super().__init__(elem, schema, parent, name)
-        if not hasattr(self, 'facets'):
+        if not hasattr(self, '_facets'):
             self.facets = facets if facets is not None else {}
 
     @property
@@ -93,11 +97,17 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
     @facets.setter
     def facets(self, facets: dict[Optional[str], FacetsValueType]) -> None:
         self._facets = facets
+        self.min_length = self.max_length = None
+        self.patterns = None
+        self.validators = ()
+
         if not isinstance(self, XsdAtomicBuiltin):
             self._parse_facets(facets)
 
         if self.min_length:
             self.allow_empty = False
+        else:
+            self.allow_empty = True
 
         white_space = getattr(self.get_facet(XSD_WHITE_SPACE), 'value', None)
         if isinstance(self, XsdUnion):
@@ -106,7 +116,7 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
                 raise XMLSchemaValueError(msg % white_space)
             self.white_space = 'collapse'
 
-        elif white_space is not None:
+        else:
             self.white_space = white_space
 
         patterns = self.get_facet(XSD_PATTERN)
@@ -535,6 +545,8 @@ class XsdAtomic(XsdSimpleType):
     _ADMITTED_TAGS = (XSD_RESTRICTION, XSD_SIMPLE_TYPE)
     primitive_type: XsdSimpleType
 
+    __slots__ = ('primitive_type', 'base_type')
+
     def __init__(self, elem: ElementType,
                  schema: SchemaType,
                  parent: Optional[XsdComponent] = None,
@@ -544,6 +556,7 @@ class XsdAtomic(XsdSimpleType):
 
         if base_type is None:
             self.primitive_type = self
+            self.base_type = None
         else:
             self._set_base_type(base_type)
         super().__init__(elem, schema, parent, name, facets)
@@ -608,6 +621,8 @@ class XsdAtomicBuiltin(XsdAtomic):
       - to_python(value): Decoding from XML
       - from_python(value): Encoding to XML
     """
+    __slots__ = ('instance_type', 'python_type', 'to_python', 'from_python')
+
     def __init__(self, elem: ElementType,
                  schema: SchemaType,
                  name: str,
@@ -822,6 +837,8 @@ class XsdList(XsdSimpleType):
         XSD_WHITE_SPACE, attrib={'value': 'collapse', 'fixed': 'true'}
     )
 
+    __slots__ = ('item_type',)
+
     def __init__(self, elem: ElementType,
                  schema: SchemaType,
                  parent: Optional[XsdComponent],
@@ -830,6 +847,9 @@ class XsdList(XsdSimpleType):
             XSD_WHITE_SPACE: XsdWhiteSpaceFacet(self._white_space_elem, schema, self, self)
         }
         super().__init__(elem, schema, parent, name, facets)
+
+        if not self.item_type.allow_empty and self.min_length:
+            self.allow_empty = False
 
     def __repr__(self) -> str:
         if self.name is None:
@@ -895,8 +915,6 @@ class XsdList(XsdSimpleType):
 
         if item_type.is_atomic():
             self.item_type = item_type
-            if not item_type.allow_empty and self.min_length != 0:
-                self.allow_empty = False
         else:
             self.parse_error(_("%r: a list must be based on atomic data types") % item_type)
             self.item_type = self.any_atomic_type
@@ -978,6 +996,8 @@ class XsdUnion(XsdSimpleType):
     member_types: list[XsdSimpleType]
     _ADMITTED_TYPES: Any = XsdSimpleType
     _ADMITTED_TAGS = XSD_UNION,
+
+    __slots__ = ('member_types',)
 
     def __init__(self, elem: ElementType,
                  schema: SchemaType,

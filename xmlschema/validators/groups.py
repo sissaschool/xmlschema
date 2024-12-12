@@ -105,6 +105,8 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
 
     _ADMITTED_TAGS = {XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE}
 
+    __slots__ = ('_group', 'content', 'oid', 'model', 'min_occurs', 'max_occurs')
+
     def __init__(self, elem: ElementType,
                  schema: SchemaType,
                  parent: Optional[Union['XsdComplexType', 'XsdGroup']] = None) -> None:
@@ -112,8 +114,10 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         self._group: list[ModelParticleType] = []
         self.content = self._group
         self.oid = (self,)
+        self.min_occurs = self.max_occurs = 1
         if parent is not None and parent.mixed:
             self.mixed = parent.mixed
+
         super().__init__(elem, schema, parent)
 
     def __repr__(self) -> str:
@@ -459,6 +463,12 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
     def copy(self) -> 'XsdGroup':
         group: XsdGroup = object.__new__(self.__class__)
         group.__dict__.update(self.__dict__)
+
+        for cls in self.__class__.__mro__:
+            if hasattr(cls, '__slots__'):
+                for attr in cls.__slots__:
+                    object.__setattr__(group, attr, getattr(self, attr))
+
         group.errors = self.errors[:]
         group._group = self._group[:]
         if self.ref is None:
@@ -466,6 +476,12 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         return group
 
     __copy__ = copy
+
+    def _any_content_group_fallback(self) -> None:
+        self.model = 'sequence'
+        self.mixed = True
+        self._group.clear()
+        self._group.append(self.schema.xsd_any_class(ANY_ELEMENT, self.schema, self))
 
     def _parse(self) -> None:
         self.clear()
@@ -484,13 +500,11 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                 xsd_group = self.maps.lookup_group(self.name)
             except KeyError:
                 self.parse_error(_("missing group %r") % self.prefixed_name)
-                xsd_group = self.schema.create_any_content_group(parent=self)
+                self._any_content_group_fallback()
             except XMLSchemaCircularityError as err:
                 # Circular definition, substituted with any content group.
                 self.parse_error(err, err.elem)
-                self.model = 'sequence'
-                self.mixed = True
-                self._group.append(self.schema.xsd_any_class(ANY_ELEMENT, self.schema, self))
+                self._any_content_group_fallback()
             else:
                 self.model = xsd_group.model
                 if self.model == 'all':
@@ -540,6 +554,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                     else:
                         msg = _('unexpected tag %r')
                         self.parse_error(msg % content_model.tag, content_model)
+                        self._any_content_group_fallback()
 
     def _parse_content_model(self, content_model: ElementType) -> None:
         self.model = local_name(content_model.tag)
@@ -582,15 +597,16 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                         self.parse_error(msg)
                     else:
                         self._group.append(xsd_group)
-                elif self.redefine is None:
-                    msg = _("Circular definition detected for group %r")
-                    self.parse_error(msg % self.name)
-                else:
-                    if child.get('minOccurs', '1') != '1' or child.get('maxOccurs', '1') != '1':
-                        msg = _("Redefined group reference cannot have "
+                elif self.redefine is not None:
+                    self._group.append(self.redefine)
+                    if child.get('minOccurs', '1') != '1' \
+                            or child.get('maxOccurs', '1') != '1':
+                        msg = _("Redefined group reference can't have "
                                 "minOccurs/maxOccurs other than 1")
                         self.parse_error(msg)
-                    self._group.append(self.redefine)
+                else:
+                    msg = _("Circular definition detected for group %r")
+                    self.parse_error(msg % self.name)
 
     def build(self) -> None:
         for item in self._group:

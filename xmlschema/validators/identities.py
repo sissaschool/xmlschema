@@ -157,11 +157,13 @@ class XsdIdentity(XsdComponent):
     parent: 'XsdElement'
     ref: Optional['XsdIdentity']
 
-    selector: Optional[XsdSelector] = None
+    selector: Optional[XsdSelector]
     fields: list[XsdFieldSelector]
 
     # XSD elements bound by selector (for speed-up and for lazy mode)
     elements: dict['XsdElement', list['FieldValueSelector']]
+
+    __slots__ = ('selector', 'fields', 'elements')
 
     def __init__(self, elem: ElementType, schema: SchemaType,
                  parent: Optional['XsdElement']) -> None:
@@ -180,6 +182,7 @@ class XsdIdentity(XsdComponent):
                 break
         else:
             self.parse_error(_("missing 'selector' declaration"))
+            self.selector = None
 
         self.fields = []
         for child in self.elem:
@@ -248,7 +251,7 @@ class XsdIdentity(XsdComponent):
 
     @property
     def built(self) -> bool:
-        return 'elements' in self.__dict__
+        return hasattr(self, 'elements')
 
     def get_counter(self, elem: ElementType) -> 'IdentityCounter':
         return IdentityCounter(self, elem)
@@ -371,6 +374,8 @@ class Xsd11Keyref(XsdKeyref):
 class IdentityCounter:
     elements: Optional[set[Any]]  # don't need to check, should be only etree elements anyway
 
+    __slots__ = ('elements', 'counter', 'identity', 'elem', 'enabled')
+
     def __init__(self, identity: XsdIdentity, elem: ElementType) -> None:
         self.counter: Counter[IdentityCounterType] = Counter[IdentityCounterType]()
         self.identity = identity
@@ -425,13 +430,16 @@ class KeyrefCounter(IdentityCounter):
 
 class FieldValueSelector:
 
-    skip_wildcard = False
+    __slots__ = (
+        'field', 'xsd_element', 'value_constraints', 'token', 'decoders', 'skip_wildcard'
+    )
 
     def __init__(self, field: XsdFieldSelector, xsd_element: 'XsdElement') -> None:
         if field.token is None:
             msg = f"identity field {field} is not built"
             raise XMLSchemaNotBuiltError(field, msg)
 
+        self.skip_wildcard = False
         self.field = field
         self.xsd_element = xsd_element
         self.value_constraints = {}

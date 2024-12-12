@@ -11,10 +11,8 @@
 This module contains base functions and classes XML Schema components.
 """
 import logging
-import re
-from collections.abc import Callable, Iterator, MutableMapping
+from collections.abc import Iterator, MutableMapping
 from typing import TYPE_CHECKING, cast, Any, Optional, Union
-from xml.etree import ElementTree
 
 from elementpath import select
 from elementpath.etree import etree_tostring
@@ -63,13 +61,9 @@ class XsdValidator:
     :ivar errors: XSD validator building errors.
     :vartype errors: list
     """
-    elem: ElementTree.Element
-
-    errors: list[XMLSchemaParseError]
-
     def __init__(self, validation: str = 'strict') -> None:
         self.validation = validation
-        self.errors = []
+        self.errors: list[XMLSchemaParseError] = []
 
     @property
     def built(self) -> bool:
@@ -267,22 +261,18 @@ class XsdComponent(XsdValidator):
     for elements and attributes.
     :vartype qualified: bool
     """
-    _REGEX_SPACE = re.compile(r'\s')
-    _REGEX_SPACES = re.compile(r'\s+')
     _ADMITTED_TAGS: Union[set[str], tuple[str, ...], tuple[()]] = ()
 
     elem: ElementType
-    schema: SchemaType
-    parent: Optional['XsdComponent'] = None
-    name: Optional[str] = None
     qualified = True
     ref: Optional['XsdComponent'] = None
     redefine: Optional['XsdComponent'] = None
-    copy: Callable[[], 'XsdComponent']
 
     _annotation = None
     _annotations: list['XsdAnnotation']
     _target_namespace: Optional[str]
+
+    __slots__ = ('name', 'parent', 'schema', 'maps', 'elem')
 
     def __init__(self, elem: ElementType,
                  schema: SchemaType,
@@ -290,10 +280,8 @@ class XsdComponent(XsdValidator):
                  name: Optional[str] = None) -> None:
 
         super().__init__(schema.validation)
-        if name:
-            self.name = name
-        if parent is not None:
-            self.parent = parent
+        self.name = name
+        self.parent = parent
         self.schema = schema
         self.maps: XsdGlobals = schema.maps
         self.parse(elem)
@@ -303,6 +291,20 @@ class XsdComponent(XsdValidator):
             return '%s(ref=%r)' % (self.__class__.__name__, self.prefixed_name)
         else:
             return '%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
+
+    def copy(self) -> 'XsdComponent':
+        comp: XsdComponent = object.__new__(self.__class__)
+        comp.__dict__.update(self.__dict__)
+
+        for cls in self.__class__.__mro__:
+            if hasattr(cls, '__slots__'):
+                for attr in cls.__slots__:
+                    object.__setattr__(comp, attr, getattr(self, attr))
+
+        comp.errors = self.errors[:]  # shallow copy duplicates errors list
+        return comp
+
+    __copy__ = copy
 
     @property
     def xsd_version(self) -> str:

@@ -58,7 +58,7 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
     attributes: XsdAttributeGroup
     redefine: Optional[BaseXsdType]
     copy: Callable[['XsdComplexType'], 'XsdComplexType']
-    content: Union[XsdGroup, XsdSimpleType] = None  # type: ignore[assignment]
+    content: Union[XsdGroup, XsdSimpleType]
 
     abstract: bool = False
     mixed: bool = False
@@ -72,6 +72,8 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
     @staticmethod
     def normalize(text: Union[str, bytes]) -> str:
         return text.decode('utf-8') if isinstance(text, bytes) else text
+
+    __slots__ = ('content', 'attributes')
 
     def __init__(self, elem: ElementType,
                  schema: SchemaType,
@@ -91,7 +93,7 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
             if 'final' in kwargs:
                 self._final = kwargs['final']
         super().__init__(elem, schema, parent, name)
-        assert self.content is not None
+        assert hasattr(self, 'attributes')
 
     def __repr__(self) -> str:
         if self.name is not None:

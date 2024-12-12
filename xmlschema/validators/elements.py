@@ -114,17 +114,19 @@ class XsdElement(XsdComponent, ParticleMixin,
     _block: Optional[str] = None
     _final: Optional[str] = None
     _head_type = None
-    _build = True
 
     binding: Optional[DataBindingType] = None
+
+    __slots__ = ('type', 'selected_by', 'identities', 'content', 'attributes',
+                 'min_occurs', 'max_occurs', '_build')
 
     def __init__(self, elem: ElementType,
                  schema: SchemaType,
                  parent: Optional[XsdComponent] = None,
                  build: bool = True) -> None:
 
-        if not build:
-            self._build = False
+        self.min_occurs = self.max_occurs = 1
+        self._build = build
         self.selected_by = set()
         super().__init__(elem, schema, parent)
 
@@ -1463,9 +1465,11 @@ class XsdAlternative(XsdComponent):
     """
     parent: XsdElement
     type: BaseXsdType
-    path: Optional[str] = None
-    token: Optional[XPathToken] = None
+    path: Optional[str]
+    token: Optional[XPathToken]
     _ADMITTED_TAGS = XSD_ALTERNATIVE,
+
+    __slots__ = ('xpath_default_namespace', 'path', 'token', 'type')
 
     def __init__(self, elem: ElementType, schema: SchemaType, parent: XsdElement) -> None:
         super().__init__(elem, schema, parent)
@@ -1492,6 +1496,7 @@ class XsdAlternative(XsdComponent):
             self.xpath_default_namespace = self._parse_xpath_default_namespace(self.elem)
         else:
             self.xpath_default_namespace = self.schema.xpath_default_namespace
+
         parser = XPath2Parser(
             namespaces=self.namespaces,
             strict=False,
@@ -1501,7 +1506,8 @@ class XsdAlternative(XsdComponent):
         try:
             self.path = attrib['test']
         except KeyError:
-            pass  # an absent test is not an error, it should be the default type
+            # an absent test is not an error, it should be the default type
+            self.path = self.token = None
         else:
             try:
                 self.token = parser.parse(self.path)

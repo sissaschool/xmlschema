@@ -49,13 +49,16 @@ class XsdFacet(XsdComponent):
     """
     value: Optional[AtomicValueType]
     base_type: Optional[BaseXsdType]
-    base_value: Optional[AtomicValueType]
+    base_value: Optional[AtomicValueType] = None
     fixed = False
+
+    __slots__ = ('base_type', 'value', '_validator')
 
     def __init__(self, elem: ElementType,
                  schema: SchemaType,
                  parent: Union['XsdAtomicBuiltin', 'XsdList', 'XsdUnion', 'XsdAtomicRestriction'],
                  base_type: Optional[BaseXsdType]) -> None:
+        self.value = None
         self.base_type = base_type
         self._validator = self._skip_validation
         super().__init__(elem, schema, parent)
@@ -77,12 +80,12 @@ class XsdFacet(XsdComponent):
         if 'fixed' in self.elem.attrib and self.elem.attrib['fixed'] in ('true', '1'):
             self.fixed = True
         base_facet = self.base_facet
-        self.base_value = None if base_facet is None else base_facet.value
+        if base_facet is not None:
+            self.base_value = base_facet.value
 
         try:
             self._parse_value(self.elem)
         except (KeyError, TypeError, ValueError) as err:
-            self.value = None
             self.parse_error(err)
         else:
             if base_facet is not None and base_facet.fixed and \
