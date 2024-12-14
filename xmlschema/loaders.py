@@ -129,32 +129,20 @@ class SchemaLoader:
         nm.XSLT_NAMESPACE: 'http://www.w3.org/2007/schema-for-xslt20.xsd',
     }
 
-    missing_locations: set[str]
     locations: NamespaceResourcesMap[str]
+    missing_locations: set[str]  # Missing or failing resource locations
 
     def __init__(self, maps: 'XsdGlobals'):
         self.maps = maps
-        self.missing_locations = set()  # Missing or failing resource locations
+        self.schema_class = maps.config.schema_class
+        self.base_url = maps.validator.source.base_url
+        self.locations = get_locations(maps.validator.locations)
+        self.missing_locations = set()
 
-        # Set locations from validator init options
-        validator = maps.validator
-        self.schema_class = type(validator)
-        self.base_url = validator.source.base_url
-        self.locations = get_locations(validator.locations)
-        if not validator.use_fallback:
+        if not maps.validator.use_fallback:
             self.fallback_locations = {}
 
-        # Save other validator init options, used for creating new schemas.
-        self._init_options: dict[str, Any] = {
-            'validation': validator.validation,
-            'converter': validator.converter,
-            'allow': validator.source.allow,
-            'defuse': validator.source.defuse,
-            'timeout': validator.source.timeout,
-            'uri_mapper': validator.source.uri_mapper,
-            'opener': validator.source.opener,
-            'use_xpath3': validator.use_xpath3,
-        }
+        self._schema_options = maps.config.schema_options.copy()
 
     def is_missing(self, namespace: str,
                    location: Optional[str] = None,
@@ -379,7 +367,7 @@ class SchemaLoader:
             base_url=base_url,
             global_maps=self.maps,
             build=build,
-            **self._init_options,
+            **self._schema_options,
         )
 
     def load_namespace(self, namespace: str) -> bool:

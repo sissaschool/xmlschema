@@ -7,11 +7,14 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+import importlib
 from abc import abstractmethod
 from collections import Counter
 from collections.abc import Callable, ItemsView, Iterator, Mapping, ValuesView
 from typing import Any, cast, Optional, overload, Union, Type, TypeVar
 from xml.etree.ElementTree import Element
+
+from elementpath import XPath2Parser
 
 from xmlschema.aliases import BaseXsdType, ElementType, LoadedItemType, \
     SchemaType, StagedItemType
@@ -20,6 +23,7 @@ from xmlschema.exceptions import XMLSchemaAttributeError, XMLSchemaKeyError, \
 from xmlschema.translation import gettext as _
 import xmlschema.names as nm
 from xmlschema.utils.qnames import local_name, get_qname
+from xmlschema.xpath.assertion_parser import XsdAssertionXPathParser
 
 from .helpers import get_xsd_derivation_attribute
 from .exceptions import XMLSchemaCircularityError
@@ -99,6 +103,36 @@ class XsdBuilders:
     @property
     def xsd_version(self) -> str:
         return self._schema_class.XSD_VERSION
+
+
+class SchemaConfig:
+    """Store a schema instance configuration."""
+    xpath_parser_class: Type[XPath2Parser]
+    assertion_parser_class: Type[XsdAssertionXPathParser]
+
+    def __init__(self, schema: SchemaType):
+        self.schema_class = type(schema)
+        self.builders = schema.builders
+
+        # Save other validator init options, used for creating new schemas.
+        self.schema_options: dict[str, Any] = {
+            'validation': schema.validation,
+            'converter': schema.converter,
+            'allow': schema.source.allow,
+            'defuse': schema.source.defuse,
+            'timeout': schema.source.timeout,
+            'uri_mapper': schema.source.uri_mapper,
+            'opener': schema.source.opener,
+            'use_xpath3': schema.use_xpath3,
+        }
+
+        if not schema.use_xpath3:
+            self.xpath_parser_class = XPath2Parser
+            self.assertion_parser_class = XsdAssertionXPathParser
+        else:
+            module = importlib.import_module('xmlschema.xpath.xpath3')
+            self.xpath_parser_class = module.XPath3Parser
+            self.assertion_parser_class = module.XsdAssertionXPath3Parser
 
 
 CT = TypeVar('CT', bound=XsdComponent)

@@ -315,10 +315,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     default_attributes: Optional[Union[str, XsdAttributeGroup]] = None
     default_open_content: Optional[XsdDefaultOpenContent] = None
     override: Optional[SchemaType] = None
-    use_xpath3: bool = False
-
-    # Store XPath constructors tokens (for schema and its assertions)
-    xpath_tokens: Optional[dict[str, Type[XPathToken]]] = None
+    use_xpath3: bool
 
     def __init__(self, source: Union[SchemaSourceType, list[SchemaSourceType]],
                  namespace: Optional[str] = None,
@@ -340,7 +337,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                  build: bool = True) -> None:
 
         super().__init__(validation)
-        self.lock = threading.Lock()  # Lock for build operations
+        self._xpath_lock = threading.Lock()  # Lock for build operations
 
         if loglevel is not None:
             set_logging_level(loglevel)
@@ -402,7 +399,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         elif namespace is not None:
             # Chameleon schema case
             self.target_namespace = namespace
-            if '' not in self.namespaces:
+            if '' not in namespaces:
                 namespaces[''] = namespace
 
         if '' not in namespaces:
@@ -533,8 +530,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
     def __setattr__(self, name: str, value: Any) -> None:
         if name == 'maps':
-            if 'maps' in self.__dict__:
-                if value is self.__dict__[name]:
+            if hasattr(self, 'maps'):
+                if value is getattr(self, name):
                     return
                 elif self.is_meta():
                     msg = _("can't change the global maps instance of a class meta-schema")
@@ -548,15 +545,9 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             value.register(self)
             super().__setattr__(name, value)
 
-            namespace = self.target_namespace
-            self.__dict__['types'] = NamespaceView(value.types, namespace)
-            self.__dict__['attributes'] = NamespaceView(value.attributes, namespace)
-            self.__dict__['attribute_groups'] = NamespaceView(value.attribute_groups, namespace)
-            self.__dict__['groups'] = NamespaceView(value.groups, namespace)
-            self.__dict__['elements'] = NamespaceView(value.elements, namespace)
-            self.__dict__['notations'] = NamespaceView(value.notations, namespace)
-            self.__dict__['substitution_groups'] = NamespaceView(value.substitution_groups, namespace)
-            self.__dict__['identities'] = NamespaceView(value.identities, namespace)
+            for attr in ('types', 'attributes', 'attribute_groups', 'groups', 'elements',
+                         'notations', 'substitution_groups', 'identities'):
+                self.__dict__[attr] = NamespaceView(getattr(value, attr), self.target_namespace)
             self.__dict__['loader'] = value.loader
         else:
             if name == 'meta_schema':
@@ -588,13 +579,12 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
     def __getstate__(self) -> dict[str, Any]:
         state = self.__dict__.copy()
-        state.pop('lock', None)
-        state.pop('xpath_tokens', None)
+        state.pop('_xpath_lock', None)
         return state
 
     def __setstate__(self, state: dict[str, Any]) -> None:
         self.__dict__.update(state)
-        self.lock = threading.Lock()
+        self._xpath_lock = threading.Lock()
 
     def use_resource(self, source: SchemaSourceType) -> bool:
         """Returns `True` if the schema is built using the provided XML resource."""
@@ -638,8 +628,14 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     def xpath_node(self) -> SchemaElementNode:
         """Returns an XPath node for processing an XPath expression on the schema instance."""
         if self._xpath_node is None:
-            self._xpath_node = build_schema_node_tree(root=self, uri=self.source.url)
+            with self._xpath_lock:
+                self._xpath_node = build_schema_node_tree(root=self, uri=self.source.url)
         return self._xpath_node
+
+    @property
+    def xpath_tokens(self) -> dict[str, Type[XPathToken]]:
+        """Returns the XPath constructors tokens."""
+        return self.maps.xpath_constructors
 
     @property
     def xsd_version(self) -> str:
@@ -2025,7 +2021,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
             return (data[0], errors) if validation == 'lax' else data[0]
         else:
-            print(data)
             return (data, errors) if validation == 'lax' else data
 
     to_etree = encode

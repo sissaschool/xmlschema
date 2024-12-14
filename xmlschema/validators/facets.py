@@ -32,7 +32,6 @@ from xmlschema.aliases import ElementType, SchemaType, AtomicValueType, BaseXsdT
 from xmlschema.translation import gettext as _
 from xmlschema.utils.decoding import count_digits
 from xmlschema.utils.qnames import local_name
-from xmlschema.xpath import XsdAssertionXPathParser
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaDecodeError
 from .xsdbase import XsdComponent, XsdAnnotation
@@ -821,16 +820,7 @@ class XsdAssertionFacet(XsdFacet):
         else:
             self.xpath_default_namespace = self.schema.xpath_default_namespace
 
-        if self.schema.use_xpath3:
-            from xmlschema.xpath.xpath3 import XsdAssertionXPath3Parser
-
-            parser_class: Union[
-                Type[XsdAssertionXPathParser], Type[XsdAssertionXPath3Parser]
-            ] = XsdAssertionXPath3Parser
-        else:
-            parser_class = XsdAssertionXPathParser
-
-        self.parser = parser_class(
+        self.parser = self.maps.config.assertion_parser_class(
             namespaces=self.namespaces,
             strict=False,
             variable_types={'value': value},

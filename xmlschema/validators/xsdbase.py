@@ -272,7 +272,7 @@ class XsdComponent(XsdValidator):
     _annotations: list['XsdAnnotation']
     _target_namespace: Optional[str]
 
-    __slots__ = ('name', 'parent', 'schema', 'maps', 'elem')
+    __slots__ = ('name', 'parent', 'schema', 'maps', 'elem', 'errors', 'validation')
 
     def __init__(self, elem: ElementType,
                  schema: SchemaType,
