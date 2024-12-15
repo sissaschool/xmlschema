@@ -481,7 +481,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         self.model = 'sequence'
         self.mixed = True
         self._group.clear()
-        self._group.append(self.schema.xsd_any_class(ANY_ELEMENT, self.schema, self))
+        self._group.append(self.schema.builders.any_element_class(ANY_ELEMENT, self.schema, self))
 
     def _parse(self) -> None:
         self.clear()
@@ -572,7 +572,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                 continue
             elif child.tag == XSD_ELEMENT:
                 # Builds inner elements later, for avoid circularity.
-                self.append(self.schema.xsd_element_class(child, self.schema, self, False))
+                self.append(self.schema.builders.element_class(child, self.schema, self, False))
             elif content_model.tag == XSD_ALL:
                 self.parse_error(_("'all' model can contain only elements"))
             elif child.tag == XSD_ANY:
@@ -1251,7 +1251,7 @@ class Xsd11Group(XsdGroup):
         for child in content_model:
             if child.tag == XSD_ELEMENT:
                 # Builds inner elements later, for avoid circularity.
-                self.append(self.schema.xsd_element_class(child, self.schema, self, False))
+                self.append(self.schema.builders.element_class(child, self.schema, self, False))
             elif child.tag == XSD_ANY:
                 self._group.append(Xsd11AnyElement(child, self.schema, self))
             elif child.tag in (XSD_SEQUENCE, XSD_CHOICE, XSD_ALL):

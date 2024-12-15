@@ -59,17 +59,14 @@ from .validation import check_validation_mode, DecodeContext, EncodeContext
 from .helpers import get_xsd_derivation_attribute, get_xsd_annotation_child
 from .xsdbase import XSD_ELEMENT_DERIVATIONS, XsdValidator, XsdComponent, XsdAnnotation
 from .notations import XsdNotation
-from .identities import XsdIdentity, XsdKey, XsdKeyref, XsdUnique, \
-    Xsd11Key, Xsd11Unique, Xsd11Keyref, KeyrefCounter
+from .identities import XsdIdentity, XsdKeyref, KeyrefCounter
 from .facets import XSD_10_FACETS, XSD_11_FACETS
-from .simple_types import XsdSimpleType, XsdList, XsdUnion, XsdAtomicRestriction, \
-    Xsd11AtomicRestriction, Xsd11Union
-from .attributes import XsdAttribute, XsdAttributeGroup, Xsd11Attribute
-from .complex_types import XsdComplexType, Xsd11ComplexType
-from .groups import XsdGroup, Xsd11Group
-from .elements import XsdElement, Xsd11Element
-from .wildcards import XsdAnyElement, XsdAnyAttribute, Xsd11AnyElement, \
-    Xsd11AnyAttribute, XsdDefaultOpenContent
+from .simple_types import XsdSimpleType
+from .attributes import XsdAttribute, XsdAttributeGroup
+from .complex_types import XsdComplexType
+from .groups import XsdGroup
+from .elements import XsdElement
+from .wildcards import XsdAnyElement, XsdDefaultOpenContent
 from .builders import XsdBuilders
 from .global_maps import GLOBAL_TAGS, NamespaceView, XsdGlobals
 
@@ -216,9 +213,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     :cvar final_default: the schema's *finalDefault* attribute. Default is ''.
     :cvar default_attributes: the XSD 1.1 schema's *defaultAttributes* attribute. \
     Default is ``None``.
-    :cvar xpath_tokens: symbol table for schema bound XPath 2.0 parsers. Initially set to \
-    ``None`` it's redefined at instance level with a dictionary at first use of the XPath \
-    selector. The parser symbol table is extended with schema types constructors.
 
     :ivar target_namespace: is the *targetNamespace* of the schema, the namespace to which \
     belong the declarations/definitions of the schema. If it's empty no namespace is associated \
@@ -286,22 +280,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     _root_elements: Optional[set[str]] = None
     _xpath_node: Optional[SchemaElementNode]
     _validation_context: Optional[DecodeContext] = None
-
-    # XSD components classes
-    xsd_notation_class = XsdNotation
-    xsd_complex_type_class = XsdComplexType
-    xsd_attribute_class = XsdAttribute
-    xsd_any_attribute_class = XsdAnyAttribute
-    xsd_attribute_group_class = XsdAttributeGroup
-    xsd_group_class = XsdGroup
-    xsd_element_class = XsdElement
-    xsd_any_class = XsdAnyElement
-    xsd_atomic_restriction_class = XsdAtomicRestriction
-    xsd_list_class = XsdList
-    xsd_union_class = XsdUnion
-    xsd_key_class = XsdKey
-    xsd_keyref_class = XsdKeyref
-    xsd_unique_class = XsdUnique
 
     # Schema defaults
     target_namespace = ''
@@ -1001,7 +979,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         When provided it's copied, linked to the group and the minOccurs/maxOccurs \
         are set to 0 and 'unbounded'.
         """
-        group: XsdGroup = self.xsd_group_class(SEQUENCE_ELEMENT, self, parent)
+        group: XsdGroup = self.builders.group_class(SEQUENCE_ELEMENT, self, parent)
 
         if isinstance(any_element, XsdAnyElement):
             particle = shallow_copy(any_element)
@@ -1010,7 +988,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             particle.parent = group
             group.append(particle)
         else:
-            group.append(self.xsd_any_class(ANY_ELEMENT, self, group))
+            group.append(self.builders.any_element_class(ANY_ELEMENT, self, group))
 
         return group
 
@@ -1027,7 +1005,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             raise XMLSchemaValueError(msg)
 
         group_elem.text = '\n    '
-        return self.xsd_group_class(group_elem, self, parent)
+        return self.builders.group_class(group_elem, self, parent)
 
     def create_any_attribute_group(self, parent: Union[XsdComplexType, XsdElement]) \
             -> XsdAttributeGroup:
@@ -1036,10 +1014,10 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
         :param parent: the parent component to set for the attribute group.
         """
-        attribute_group = self.xsd_attribute_group_class(
+        attribute_group = self.builders.attribute_group_class(
             ATTRIBUTE_GROUP_ELEMENT, self, parent
         )
-        attribute_group[None] = self.xsd_any_attribute_class(
+        attribute_group[None] = self.builders.any_attribute_class(
             ANY_ATTRIBUTE_ELEMENT, self, attribute_group
         )
         return attribute_group
@@ -1051,7 +1029,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
         :param parent: the parent component to set for the attribute group.
         """
-        return self.xsd_attribute_group_class(ATTRIBUTE_GROUP_ELEMENT, self, parent)
+        return self.builders.attribute_group_class(ATTRIBUTE_GROUP_ELEMENT, self, parent)
 
     def create_any_type(self) -> XsdComplexType:
         """
@@ -1060,15 +1038,15 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         correct namespace lookup during wildcards validation.
         """
         schema = self.meta_schema or self
-        any_type = self.xsd_complex_type_class(
+        any_type = self.builders.complex_type_class(
             elem=Element(nm.XSD_COMPLEX_TYPE, name=nm.XSD_ANY_TYPE),
             schema=schema, parent=None, mixed=True, block='', final=''
         )
         assert isinstance(any_type.content, XsdGroup)
-        any_type.content.append(self.xsd_any_class(
+        any_type.content.append(self.builders.any_element_class(
             ANY_ELEMENT, schema, any_type.content
         ))
-        any_type.attributes[None] = self.xsd_any_attribute_class(
+        any_type.attributes[None] = self.builders.any_attribute_class(
             ANY_ATTRIBUTE_ELEMENT, schema, any_type.attributes
         )
         any_type.maps = any_type.content.maps = any_type.content[0].maps = \
@@ -1085,7 +1063,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         elem = Element(nm.XSD_ELEMENT, name=name, **attrib)
         if text is not None:
             elem.text = text
-        return self.xsd_element_class(elem=elem, schema=self, parent=parent)
+        return self.builders.element_class(elem=elem, schema=self, parent=parent)
 
     def build(self) -> None:
         """Builds the schema's XSD global maps."""
@@ -2097,18 +2075,6 @@ class XMLSchema11(XMLSchemaBase):
         nm.XSD_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XSD_1.1/xsd11-extra.xsd'),
         nm.VC_NAMESPACE: os.path.join(SCHEMAS_DIR, 'VC/XMLSchema-versioning.xsd'),
     }
-
-    xsd_complex_type_class = Xsd11ComplexType
-    xsd_attribute_class = Xsd11Attribute
-    xsd_any_attribute_class = Xsd11AnyAttribute
-    xsd_group_class = Xsd11Group
-    xsd_element_class = Xsd11Element
-    xsd_any_class = Xsd11AnyElement
-    xsd_atomic_restriction_class = Xsd11AtomicRestriction
-    xsd_union_class = Xsd11Union
-    xsd_key_class = Xsd11Key
-    xsd_keyref_class = Xsd11Keyref
-    xsd_unique_class = Xsd11Unique
 
 
 XMLSchema = XMLSchema10

@@ -1307,7 +1307,7 @@ class XsdAtomicRestriction(XsdAtomic):
                         base_type = self.any_simple_type
                 elif base_type.is_complex():
                     if base_type.admit_simple_restriction():
-                        base_type = self.schema.xsd_complex_type_class(
+                        base_type = self.schema.builders.complex_type_class(
                             elem=elem,
                             schema=self.schema,
                             parent=self,

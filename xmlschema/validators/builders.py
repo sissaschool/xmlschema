@@ -31,7 +31,7 @@ from .xsdbase import XsdComponent, XsdAnnotation
 from .builtins import BUILTIN_TYPES
 from .facets import XsdFacet, FACETS_BUILDERS
 from .identities import XsdIdentity, IDENTITY_BUILDERS
-from .simple_types import XsdSimpleType, XsdAtomicBuiltin, SIMPLE_BUILDERS
+from .simple_types import XsdSimpleType, XsdAtomicBuiltin, XsdAtomicRestriction, SIMPLE_BUILDERS
 from .notations import XsdNotation
 from .attributes import XsdAttribute, Xsd11Attribute, XsdAttributeGroup
 from .complex_types import XsdComplexType, Xsd11ComplexType
@@ -76,6 +76,7 @@ class XsdBuilders:
             self.element_class = XsdElement
             self.any_element_class = XsdAnyElement
             self.any_attribute_class = XsdAnyAttribute
+            self.atomic_restriction_class = XsdAtomicRestriction
         else:
             self.complex_type_class = Xsd11ComplexType
             self.attribute_class = Xsd11Attribute
@@ -83,6 +84,7 @@ class XsdBuilders:
             self.element_class = Xsd11Element
             self.any_element_class = Xsd11AnyElement
             self.any_attribute_class = Xsd11AnyAttribute
+            self.atomic_restriction_class = XsdAtomicRestriction
 
     @overload
     def __get__(self, schema: None, cls: Type[SchemaType]) -> 'XsdBuilders': ...
@@ -381,7 +383,7 @@ class TypesMap(StagedMap[BaseXsdType]):
         # xs:anyAtomicType
         # Ref: https://www.w3.org/TR/xmlschema11-2/#builtin-stds
         self._store[nm.XSD_ANY_ATOMIC_TYPE] = \
-            self._validator.xsd_atomic_restriction_class(
+            self._validator.builders.atomic_restriction_class(
                 elem=Element(nm.XSD_SIMPLE_TYPE, name=nm.XSD_ANY_ATOMIC_TYPE),
                 schema=self._validator,
                 parent=None,

@@ -422,7 +422,7 @@ class XsdAttributeGroup(
                     self.parse_error(msg)
 
             elif child.tag == XSD_ANY_ATTRIBUTE:
-                any_attribute = self.schema.xsd_any_attribute_class(child, self.schema, self)
+                any_attribute = self.schema.builders.any_attribute_class(child, self.schema, self)
                 if None in attributes:
                     attributes[None] = attr = _copy(attributes[None])
                     assert isinstance(attr, XsdAnyAttribute)
@@ -431,7 +431,7 @@ class XsdAttributeGroup(
                     attributes[None] = any_attribute
 
             elif child.tag == XSD_ATTRIBUTE:
-                attribute = self.schema.xsd_attribute_class(child, self.schema, self)
+                attribute = self.schema.builders.attribute_class(child, self.schema, self)
                 if attribute.name in attributes:
                     msg = _("multiple declaration for attribute {!r}")
                     self.parse_error(msg.format(attribute.name))

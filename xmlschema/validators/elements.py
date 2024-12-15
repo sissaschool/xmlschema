@@ -24,8 +24,8 @@ from elementpath.datatypes import AbstractDateTime, Duration, AbstractBinary
 
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from xmlschema.names import XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE, XSD_ALTERNATIVE, \
-    XSD_ELEMENT, XSD_ANY_TYPE, XSD_UNIQUE, XSD_KEY, XSD_KEYREF, XSI_NIL, \
-    XSI_TYPE, XSD_ERROR, XSD_NOTATION_TYPE
+    XSD_ELEMENT, XSD_ANY_TYPE, XSI_NIL, XSI_TYPE, XSD_ERROR, XSD_NOTATION_TYPE, \
+    XSD_ANNOTATION
 from xmlschema.aliases import ElementType, SchemaType, BaseXsdType, SchemaElementType, \
     ModelParticleType, ComponentClassType, DecodeType, DecodedValueType
 from xmlschema.translation import gettext as _
@@ -45,8 +45,7 @@ from .validation import XSD_VALIDATION_MODES, DecodeContext, \
 from .helpers import get_xsd_derivation_attribute
 from .xsdbase import XSD_TYPE_DERIVATIONS, XSD_ELEMENT_DERIVATIONS, XsdComponent
 from .particles import ParticleMixin, OccursCalculator
-from .identities import XsdIdentity, XsdKey, XsdUnique, \
-    XsdKeyref, KeyrefCounter, FieldValueSelector
+from .identities import XsdIdentity, XsdKeyref, KeyrefCounter, FieldValueSelector
 from .simple_types import XsdSimpleType
 from .attributes import XsdAttribute
 from .wildcards import XsdAnyElement
@@ -280,7 +279,7 @@ class XsdElement(XsdComponent, ParticleMixin,
             if child is None:
                 self._set_type(self.any_type)
             elif child.tag == XSD_COMPLEX_TYPE:
-                self._set_type(self.schema.xsd_complex_type_class(child, self.schema, self))
+                self._set_type(self.schema.builders.complex_type_class(child, self.schema, self))
             elif child.tag == XSD_SIMPLE_TYPE:
                 self._set_type(self.schema.simple_type_factory(child, self.schema, self))
             else:
@@ -314,34 +313,32 @@ class XsdElement(XsdComponent, ParticleMixin,
 
         # Identity constraints
         self.identities = []
-        constraint: Union[XsdKey, XsdUnique, XsdKeyref]
         for child in self.elem:
-            if child.tag == XSD_UNIQUE:
-                constraint = self.schema.xsd_unique_class(child, self.schema, self)
-            elif child.tag == XSD_KEY:
-                constraint = self.schema.xsd_key_class(child, self.schema, self)
-            elif child.tag == XSD_KEYREF:
-                constraint = self.schema.xsd_keyref_class(child, self.schema, self)
-            else:
-                # Invalid tags already caught by validation against the meta-schema
-                continue
-
-            if constraint.ref:
-                if any(constraint.name == x.name for x in self.identities):
-                    msg = _("duplicated identity constraint %r:")
-                    self.parse_error(msg % constraint.name, child)
-
-                self.identities.append(constraint)
+            if child.tag in (XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE, XSD_ANNOTATION):
                 continue
 
             try:
-                if child != self.maps.identities[constraint.name].elem:
-                    msg = _("duplicated identity constraint %r:")
-                    self.parse_error(msg % constraint.name, child)
+                identity = self.schema.builders.identities[child.tag](child, self.schema, self)
             except KeyError:
-                self.maps.identities[constraint.name] = constraint
+                # Invalid tags already caught by validation against the meta-schema
+                continue
+
+            if identity.ref:
+                if any(identity.name == x.name for x in self.identities):
+                    msg = _("duplicated identity constraint %r:")
+                    self.parse_error(msg % identity.name, child)
+
+                self.identities.append(identity)
+                continue
+
+            try:
+                if child != self.maps.identities[identity.name].elem:
+                    msg = _("duplicated identity constraint %r:")
+                    self.parse_error(msg % identity.name, child)
+            except KeyError:
+                self.maps.identities[identity.name] = identity
             finally:
-                self.identities.append(constraint)
+                self.identities.append(identity)
 
     def _parse_substitution_group(self, substitution_group: str) -> None:
         try:
@@ -1528,7 +1525,7 @@ class XsdAlternative(XsdComponent):
                     self.parse_error(_("missing 'type' attribute"))
                     self.type = self.any_type
                 elif child.tag == XSD_COMPLEX_TYPE:
-                    self.type = self.schema.xsd_complex_type_class(child, self.schema, self)
+                    self.type = self.schema.builders.complex_type_class(child, self.schema, self)
                 else:
                     self.type = self.schema.simple_type_factory(child, self.schema, self)
 
