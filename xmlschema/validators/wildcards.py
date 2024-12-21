@@ -469,10 +469,10 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
 
         try:
             if name[0] != '{' and default_namespace:
-                return self.maps.lookup_element(f'{{{default_namespace}}}{name}')
+                return self.maps.elements[f'{{{default_namespace}}}{name}']
             else:
-                return self.maps.lookup_element(name)
-        except LookupError:
+                return self.maps.elements[name]
+        except KeyError:
             return None
 
     def __iter__(self) -> Iterator[Any]:
@@ -506,8 +506,8 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
             reason = _("unavailable namespace {!r}").format(namespace)
         else:
             try:
-                xsd_element = self.maps.lookup_element(obj.tag)
-            except LookupError:
+                xsd_element = self.maps.elements[obj.tag]
+            except KeyError:
                 reason = f"element {obj.tag!r} not found"
             else:
                 return xsd_element.raw_decode(obj, validation, context)
@@ -547,8 +547,8 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
             reason = _("unavailable namespace {!r}").format(namespace)
         else:
             try:
-                xsd_element = self.maps.lookup_element(name)
-            except LookupError:
+                xsd_element = self.maps.elements[name]
+            except KeyError:
                 reason = f"element {name!r} not found"
             else:
                 return xsd_element.raw_encode(value, validation, context)
@@ -654,10 +654,10 @@ class XsdAnyAttribute(XsdWildcard, ValidationMixin[tuple[str, str], DecodedValue
 
         try:
             if name[0] != '{' and default_namespace:
-                return self.maps.lookup_attribute(f'{{{default_namespace}}}{name}')
+                return self.maps.attributes[f'{{{default_namespace}}}{name}']
             else:
-                return self.maps.lookup_attribute(name)
-        except LookupError:
+                return self.maps.attributes[name]
+        except KeyError:
             return None
 
     def raw_decode(self, obj: tuple[str, str], validation: str,
@@ -674,8 +674,8 @@ class XsdAnyAttribute(XsdWildcard, ValidationMixin[tuple[str, str], DecodedValue
         namespace = get_namespace(name)
         if self.maps.load_namespace(namespace):
             try:
-                xsd_attribute = self.maps.lookup_attribute(name)
-            except LookupError:
+                xsd_attribute = self.maps.attributes[name]
+            except KeyError:
                 if validation != 'skip' and self.process_contents == 'strict':
                     reason = _("attribute %r not found") % name
                     context.validation_error(validation, self, reason, obj)
@@ -703,8 +703,8 @@ class XsdAnyAttribute(XsdWildcard, ValidationMixin[tuple[str, str], DecodedValue
 
         if self.maps.load_namespace(namespace):
             try:
-                xsd_attribute = self.maps.lookup_attribute(name)
-            except LookupError:
+                xsd_attribute = self.maps.attributes[name]
+            except KeyError:
                 if validation != 'skip' and self.process_contents == 'strict':
                     reason = _("attribute %r not found") % name
                     context.validation_error(validation, self, reason, obj)

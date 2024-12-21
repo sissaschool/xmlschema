@@ -287,7 +287,7 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
             return self.any_type
 
         try:
-            base_type = self.maps.lookup_type(base_qname)
+            base_type = self.maps.types[base_qname]
         except KeyError:
             msg = _("missing base type %r")
             self.parse_error(msg % base_qname, elem)

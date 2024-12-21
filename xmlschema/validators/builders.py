@@ -31,7 +31,8 @@ from .xsdbase import XsdComponent, XsdAnnotation
 from .builtins import BUILTIN_TYPES
 from .facets import XsdFacet, FACETS_BUILDERS
 from .identities import XsdIdentity, IDENTITY_BUILDERS
-from .simple_types import XsdSimpleType, XsdAtomicBuiltin, XsdAtomicRestriction, SIMPLE_BUILDERS
+from .simple_types import XsdSimpleType, XsdAtomicBuiltin, XsdAtomicRestriction, \
+    Xsd11AtomicRestriction, SIMPLE_BUILDERS
 from .notations import XsdNotation
 from .attributes import XsdAttribute, Xsd11Attribute, XsdAttributeGroup
 from .complex_types import XsdComplexType, Xsd11ComplexType
@@ -84,7 +85,7 @@ class XsdBuilders:
             self.element_class = Xsd11Element
             self.any_element_class = Xsd11AnyElement
             self.any_attribute_class = Xsd11AnyAttribute
-            self.atomic_restriction_class = XsdAtomicRestriction
+            self.atomic_restriction_class = Xsd11AtomicRestriction
 
     @overload
     def __get__(self, schema: None, cls: Type[SchemaType]) -> 'XsdBuilders': ...
@@ -165,6 +166,9 @@ class StagedMap(Mapping[str, CT]):
         try:
             return self._store[qname]
         except KeyError:
+            if qname in self._staging:
+                return self._build_global(qname)
+
             msg = _('global {} {!r} not found').format(self.label, qname)
             raise XMLSchemaKeyError(msg) from None
 
@@ -277,12 +281,6 @@ class StagedMap(Mapping[str, CT]):
             return
 
         self._staging[qname] = elem, schema
-
-    def lookup(self, qname: str) -> CT:
-        if qname not in self._staging:
-            return self.__getitem__(qname)
-        else:
-            return self._build_global(qname)
 
     def build(self) -> None:
         for name in [x for x in self._staging]:

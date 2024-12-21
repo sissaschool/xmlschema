@@ -10,7 +10,7 @@
 import threading
 import warnings
 from collections import Counter
-from collections.abc import Callable, Collection, Iterator, Iterable, Mapping
+from collections.abc import Collection, Iterator, Iterable, Mapping
 from itertools import dropwhile
 from operator import itemgetter
 from types import MappingProxyType
@@ -34,8 +34,8 @@ from .exceptions import XMLSchemaNotBuiltError, XMLSchemaModelError, \
 from .xsdbase import XsdValidator, XsdComponent
 from .models import check_model
 from . import XsdAttribute, XsdSimpleType, XsdComplexType, XsdElement, \
-    XsdAttributeGroup, XsdGroup, XsdNotation, XsdIdentity, XsdAssert, \
-    XsdUnion, XsdAtomicRestriction, XsdAtomic, XsdAtomicBuiltin
+    XsdGroup, XsdIdentity, XsdAssert, XsdUnion, XsdAtomicRestriction, \
+    XsdAtomic, XsdAtomicBuiltin
 from .builders import SchemaConfig, TypesMap, NotationsMap, AttributesMap, \
     AttributeGroupsMap, ElementsMap, GroupsMap
 
@@ -246,13 +246,13 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
     _xpath_constructors: Optional[dict[str, Type[XPathToken]]] = None
 
     _resolvers = {
-        nm.XSD_SIMPLE_TYPE: 'lookup_type',
-        nm.XSD_COMPLEX_TYPE: 'lookup_type',
-        nm.XSD_ATTRIBUTE: 'lookup_attribute',
-        nm.XSD_ATTRIBUTE_GROUP: 'lookup_attribute_group',
-        nm.XSD_NOTATION: 'lookup_notation',
-        nm.XSD_ELEMENT: 'lookup_element',
-        nm.XSD_GROUP: 'lookup_group',
+        nm.XSD_SIMPLE_TYPE: 'types',
+        nm.XSD_COMPLEX_TYPE: 'types',
+        nm.XSD_ATTRIBUTE: 'attributes',
+        nm.XSD_ATTRIBUTE_GROUP: 'attribute_groups',
+        nm.XSD_NOTATION: 'notations',
+        nm.XSD_ELEMENT: 'elements',
+        nm.XSD_GROUP: 'groups',
     }
 
     def __init__(self, validator: SchemaType, validation: str = _strict,
@@ -362,32 +362,13 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
         :raises: an XMLSchemaValueError if the *tag* argument is not appropriate for a global \
         component, an XMLSchemaKeyError if the *qname* argument is not found in the global map.
         """
-        lookup_function: Callable[[str], SchemaGlobalType]
         try:
-            lookup_function = getattr(self, self._resolvers[tag])
+            global_map = getattr(self, self._resolvers[tag])
         except KeyError:
             msg = _("wrong tag {!r} for an XSD global definition/declaration")
             raise XMLSchemaValueError(msg.format(tag)) from None
         else:
-            return lookup_function(qname)
-
-    def lookup_type(self, qname: str) -> BaseXsdType:
-        return self.types.lookup(qname)
-
-    def lookup_notation(self, qname: str) -> XsdNotation:
-        return self.notations.lookup(qname)
-
-    def lookup_attribute(self, qname: str) -> XsdAttribute:
-        return self.attributes.lookup(qname)
-
-    def lookup_attribute_group(self, qname: str) -> XsdAttributeGroup:
-        return self.attribute_groups.lookup(qname)
-
-    def lookup_group(self, qname: str) -> XsdGroup:
-        return self.groups.lookup(qname)
-
-    def lookup_element(self, qname: str) -> XsdElement:
-        return self.elements.lookup(qname)
+            return global_map[qname]
 
     def get_instance_type(self, type_name: str, base_type: BaseXsdType,
                           namespaces: NsmapType) -> BaseXsdType:
@@ -403,7 +384,7 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
             xsd_attribute.validate(type_name)
 
         extended_name = get_extended_qname(type_name, namespaces)
-        xsi_type = self.lookup_type(extended_name)
+        xsi_type = self.types[extended_name]
         if xsi_type.is_derived(base_type):
             return xsi_type
         elif isinstance(base_type, XsdSimpleType) and \

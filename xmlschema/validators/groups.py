@@ -497,7 +497,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         elif self._parse_reference():
             assert self.name is not None
             try:
-                xsd_group = self.maps.lookup_group(self.name)
+                xsd_group = self.maps.groups[self.name]
             except KeyError:
                 self.parse_error(_("missing group %r") % self.prefixed_name)
                 self._any_content_group_fallback()
@@ -864,8 +864,8 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                 return
 
             try:
-                xsd_element = self.maps.lookup_element(elem.tag)
-            except LookupError:
+                xsd_element = self.maps.elements[elem.tag]
+            except KeyError:
                 if self.schema.meta_schema is None:
                     # Meta-schema groups ignore xsi:type (issue #350)
                     return

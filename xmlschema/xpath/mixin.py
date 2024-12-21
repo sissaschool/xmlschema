@@ -214,7 +214,7 @@ class XPathElement(ElementPathMixin['XPathElement']):
 
     @property
     def maps(self) -> 'XsdGlobals':
-        return self.type.maps
+        return self.schema.maps
 
     @property
     def xpath_proxy(self) -> XMLSchemaProxy:

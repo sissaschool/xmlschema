@@ -84,8 +84,8 @@ class XsdAttribute(XsdComponent, ValidationMixin[str, DecodedValueType]):
 
         if self._parse_reference():
             try:
-                xsd_attribute = self.maps.lookup_attribute(self.name)
-            except LookupError:
+                xsd_attribute = self.maps.attributes[self.name]
+            except KeyError:
                 self.type = self.any_simple_type
                 msg = _("unknown attribute {!r}")
                 self.parse_error(msg.format(self.name))
@@ -145,8 +145,8 @@ class XsdAttribute(XsdComponent, ValidationMixin[str, DecodedValueType]):
                     self.parse_error(err)
                 else:
                     try:
-                        self.type = cast(XsdSimpleType, self.maps.lookup_type(type_qname))
-                    except LookupError as err:
+                        self.type = cast(XsdSimpleType, self.maps.types[type_qname])
+                    except KeyError as err:
                         self.type = self.any_simple_type
                         self.parse_error(err)
 
@@ -479,8 +479,8 @@ class XsdAttributeGroup(
                     attribute_group_refs.append(attribute_group_qname)
 
                     try:
-                        ref_attributes = self.maps.lookup_attribute_group(attribute_group_qname)
-                    except LookupError:
+                        ref_attributes = self.maps.attribute_groups[attribute_group_qname]
+                    except KeyError:
                         msg = _("unknown attribute group {!r}")
                         self.parse_error(msg.format(child.attrib['ref']))
                     except XMLSchemaCircularityError as err:
@@ -692,8 +692,8 @@ class XsdAttributeGroup(
             except KeyError:
                 if get_namespace(name) == XSI_NAMESPACE:
                     try:
-                        xsd_attribute = self.maps.lookup_attribute(name)
-                    except LookupError:
+                        xsd_attribute = self.maps.attributes[name]
+                    except KeyError:
                         if None in self._attribute_group:
                             xsd_attribute = self._attribute_group[None]  # None == anyAttribute
                             value = (name, value)
@@ -755,8 +755,8 @@ class XsdAttributeGroup(
                 namespace = get_namespace(name) or self.target_namespace
                 if namespace == XSI_NAMESPACE:
                     try:
-                        xsd_attribute = self.maps.lookup_attribute(name)
-                    except LookupError:
+                        xsd_attribute = self.maps.attributes[name]
+                    except KeyError:
                         if None in self._attribute_group:
                             xsd_attribute = self._attribute_group[None]  # None == anyAttribute
                             value = (name, value)

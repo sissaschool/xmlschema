@@ -174,7 +174,7 @@ class XsdElement(XsdComponent, ParticleMixin,
         attrib = self.elem.attrib
         if self._parse_reference():
             try:
-                xsd_element: XsdElement = self.maps.lookup_element(self.name)
+                xsd_element: XsdElement = self.maps.elements[self.name]
             except KeyError:
                 self._set_type(self.any_type)
                 self.parse_error(_('unknown element %r') % self.name)
@@ -264,7 +264,7 @@ class XsdElement(XsdComponent, ParticleMixin,
                     self._set_type(self.any_type)
                 else:
                     try:
-                        self._set_type(self.maps.lookup_type(extended_name))
+                        self._set_type(self.maps.types[extended_name])
                     except KeyError:
                         self.parse_error(_('unknown type {!r}').format(type_name))
                         self._set_type(self.any_type)
@@ -353,7 +353,7 @@ class XsdElement(XsdComponent, ParticleMixin,
                 )
 
         try:
-            head_element = self.maps.lookup_element(substitution_group_qname)
+            head_element = self.maps.elements[substitution_group_qname]
         except KeyError:
             msg = _("unknown substitutionGroup %r")
             self.parse_error(msg % substitution_group)
@@ -1109,7 +1109,7 @@ class XsdElement(XsdComponent, ParticleMixin,
                 return matched_element
         else:
             if name in self.maps.elements and xsd_group.open_content_mode != 'none':
-                return self.maps.lookup_element(name)
+                return self.maps.elements[name]
             return None
 
     def is_restriction(self, other: ModelParticleType, check_occurs: bool = True) -> bool:
@@ -1534,7 +1534,7 @@ class XsdAlternative(XsdComponent):
                     self.parse_error(msg.format(self.parent.type))
         else:
             try:
-                self.type = self.maps.lookup_type(type_qname)
+                self.type = self.maps.types[type_qname]
             except KeyError:
                 self.parse_error(_("unknown type {!r}").format(attrib['type']))
                 self.type = self.any_type
