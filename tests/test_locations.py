@@ -160,9 +160,8 @@ class TestLocations(unittest.TestCase):
         else:
             default_class = LocationPosixPath
 
-        with self.assertRaises(ValueError) as ec:
-            LocationPath.from_uri('')
-        self.assertEqual(str(ec.exception), 'Empty URI provided!')
+        path = LocationPath.from_uri('')
+        self.assertEqual(str(path), '.')
 
         path = LocationPath.from_uri('https://example.com/names/?name=foo')
         self.assertIsInstance(path, LocationPosixPath)

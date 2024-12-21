@@ -106,11 +106,7 @@ class LocationPath(PurePath):
         paths, like a path with a drive, a UNC path or a path containing a backslash,
         a LocationWindowsPath is returned.
         """
-        uri = uri.strip()
-        if not uri:
-            raise XMLSchemaValueError("Empty URI provided!")
-
-        parts = urlsplit(uri)
+        parts = urlsplit(uri.strip())
         if not parts.scheme or parts.scheme == 'file':
             path = get_uri_path(authority=parts.netloc, path=parts.path)
 
