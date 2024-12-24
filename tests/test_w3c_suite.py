@@ -440,7 +440,7 @@ def create_w3c_test_group_case(args, filename, group_elem, group_num, xsd_versio
                                                           use_fallback=use_fallback, build=False)
                                     for other in item['sources'][1:]:
                                         for s in schema.maps.iter_schemas():
-                                            if s.use_resource(other):
+                                            if s.source.get_url(other) == s.url:
                                                 break
                                         else:
                                             schema_class(other, global_maps=schema.maps,

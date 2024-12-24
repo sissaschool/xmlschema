@@ -514,20 +514,20 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
 
         if XSI_TYPE in obj.attrib:
             if self.process_contents == 'strict':
-                xsd_element = self.maps.validator.create_element(
-                    obj.tag, parent=self, form='unqualified'
+                xsd_element = self.schema.builders.create_element(
+                    obj.tag, self.maps.validator, parent=self, form='unqualified'
                 )
             else:
-                xsd_element = self.maps.validator.create_element(
-                    obj.tag, parent=self, nillable='true', form='unqualified'
+                xsd_element = self.schema.builders.create_element(
+                    obj.tag, self.maps.validator, parent=self, nillable='true', form='unqualified'
                 )
             return xsd_element.raw_decode(obj, validation, context)
 
         if validation != 'skip' and self.process_contents == 'strict':
             context.validation_error(validation, self, reason, obj)
 
-        xsd_element = self.maps.validator.create_element(
-            obj.tag, parent=self, form='unqualified'
+        xsd_element = self.schema.builders.create_element(
+            obj.tag, self.maps.validator, parent=self, form='unqualified'
         )
         return xsd_element.raw_decode(obj, validation, context)
 
@@ -556,12 +556,12 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
         # Check if there is a xsi:type attribute, but it has to extract
         # attributes using the converter instance.
         if self.process_contents == 'strict':
-            xsd_element = self.maps.validator.create_element(
-                name, parent=self, form='unqualified'
+            xsd_element = self.schema.builders.create_element(
+                name, self.maps.validator, parent=self, form='unqualified'
             )
         else:
-            xsd_element = self.maps.validator.create_element(
-                name, parent=self, nillable='true', form='unqualified'
+            xsd_element = self.schema.builders.create_element(
+                name, self.maps.validator, parent=self, nillable='true', form='unqualified'
             )
 
         try:

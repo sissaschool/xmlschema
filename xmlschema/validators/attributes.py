@@ -156,7 +156,7 @@ class XsdAttribute(XsdComponent, ValidationMixin[str, DecodedValueType]):
 
             elif child is not None:
                 # No 'type' attribute in declaration, parse for child local simpleType
-                self.type = self.schema.simple_type_factory(child, self.schema, self)
+                self.type = self.maps.types.simple_type_factory(child, self.schema, self)
             else:
                 # Empty declaration means xsdAnySimpleType
                 self.type = self.any_simple_type

@@ -11,6 +11,7 @@ import importlib
 from abc import abstractmethod
 from collections import Counter
 from collections.abc import Callable, ItemsView, Iterator, Mapping, ValuesView
+from copy import copy as shallow_copy
 from typing import Any, cast, Optional, overload, Union, Type, TypeVar
 from xml.etree.ElementTree import Element
 
@@ -39,6 +40,22 @@ from .complex_types import XsdComplexType, Xsd11ComplexType
 from .wildcards import XsdAnyElement, Xsd11AnyElement, XsdAnyAttribute, Xsd11AnyAttribute
 from .groups import XsdGroup, Xsd11Group
 from .elements import XsdElement, Xsd11Element
+
+
+# Elements for building dummy groups
+ATTRIBUTE_GROUP_ELEMENT = Element(nm.XSD_ATTRIBUTE_GROUP)
+ANY_ATTRIBUTE_ELEMENT = Element(
+    nm.XSD_ANY_ATTRIBUTE, attrib={'namespace': '##any', 'processContents': 'lax'}
+)
+SEQUENCE_ELEMENT = Element(nm.XSD_SEQUENCE)
+ANY_ELEMENT = Element(
+    nm.XSD_ANY,
+    attrib={
+        'namespace': '##any',
+        'processContents': 'lax',
+        'minOccurs': '0',
+        'maxOccurs': 'unbounded'
+    })
 
 
 class XsdBuilders:
@@ -106,6 +123,111 @@ class XsdBuilders:
     @property
     def xsd_version(self) -> str:
         return self._schema_class.XSD_VERSION
+
+    def create_any_content_group(self, parent: Union[XsdComplexType, XsdGroup],
+                                 any_element: Optional[XsdAnyElement] = None) -> XsdGroup:
+        """
+        Creates a local child model group for a complex type or a group that accepts any content.
+
+        :param parent: the parent complex type or group for the content group.
+        :param any_element: an optional any element to use for the content group. \
+        When provided it's copied, linked to the group and the minOccurs/maxOccurs \
+        are set to 0 and 'unbounded'.
+        """
+        schema = parent.schema
+        group: XsdGroup = self.group_class(SEQUENCE_ELEMENT, schema, parent)
+
+        if isinstance(any_element, XsdAnyElement):
+            particle = shallow_copy(any_element)
+            particle.min_occurs = 0
+            particle.max_occurs = None
+            particle.parent = group
+            group.append(particle)
+        else:
+            group.append(self.any_element_class(ANY_ELEMENT, schema, group))
+
+        return group
+
+    def create_empty_content_group(self, parent: Union[XsdComplexType, XsdGroup],
+                                   model: str = 'sequence', **attrib: Any) -> XsdGroup:
+        """
+        Creates an empty local child content group for a complex type or a group.
+        """
+        if model == 'sequence':
+            group_elem = Element(nm.XSD_SEQUENCE, **attrib)
+        elif model == 'choice':
+            group_elem = Element(nm.XSD_CHOICE, **attrib)
+        elif model == 'all':
+            group_elem = Element(nm.XSD_ALL, **attrib)
+        else:
+            msg = _("'model' argument must be (sequence | choice | all)")
+            raise XMLSchemaValueError(msg)
+
+        group_elem.text = '\n    '
+        return self.group_class(group_elem, parent.schema, parent)
+
+    def create_any_attribute_group(self, parent: Union[XsdComplexType, XsdElement]) \
+            -> XsdAttributeGroup:
+        """
+        Creates a local child attribute group for a complex type or an element
+        that accepts any attribute.
+        """
+        attribute_group = self.attribute_group_class(
+            ATTRIBUTE_GROUP_ELEMENT, parent.schema, parent
+        )
+        attribute_group[None] = self.any_attribute_class(
+            ANY_ATTRIBUTE_ELEMENT, parent.schema, attribute_group
+        )
+        return attribute_group
+
+    def create_empty_attribute_group(self, parent: Union[XsdComplexType, XsdElement]) \
+            -> XsdAttributeGroup:
+        """
+        Creates an empty local child attribute group for a complex type or an element.
+        """
+        return self.attribute_group_class(ATTRIBUTE_GROUP_ELEMENT, parent.schema, parent)
+
+    def create_any_type(self, schema: SchemaType) -> XsdComplexType:
+        """
+        Creates a xs:anyType equivalent type related with the wildcards
+        connected to global maps of the schema instance in order to do a
+        correct namespace lookup during wildcards validation.
+        """
+        maps = schema.maps
+        if schema.meta_schema is not None and schema.target_namespace != nm.XSD_NAMESPACE:
+            schema = schema.meta_schema
+
+        any_type = self.complex_type_class(
+            elem=Element(nm.XSD_COMPLEX_TYPE, name=nm.XSD_ANY_TYPE),
+            schema=schema, parent=None, mixed=True, block='', final=''
+        )
+        assert isinstance(any_type.content, XsdGroup)
+        any_type.content.append(self.any_element_class(
+            ANY_ELEMENT, schema, any_type.content
+        ))
+        any_type.attributes[None] = self.any_attribute_class(
+            ANY_ATTRIBUTE_ELEMENT, schema, any_type.attributes
+        )
+
+        if maps is not schema.maps:
+            any_type.maps = any_type.content.maps = any_type.content[0].maps = \
+                any_type.attributes[None].maps = schema.maps
+
+        return any_type
+
+    def create_element(self, name: str,
+                       schema: SchemaType,
+                       parent: Optional[XsdComponent] = None,
+                       text: Optional[str] = None, **attrib: Any) -> XsdElement:
+        """
+        Creates a xs:element instance related to schema component.
+        Used as dummy element for validation/decoding/encoding
+        operations of wildcards and complex types.
+        """
+        elem = Element(nm.XSD_ELEMENT, name=name, **attrib)
+        if text is not None:
+            elem.text = text
+        return self.element_class(elem, schema, parent)
 
 
 class SchemaConfig:
@@ -359,7 +481,7 @@ class TypesMap(StagedMap[BaseXsdType]):
     def build_builtins(self) -> None:
         if self._validator.meta_schema is not None and nm.XSD_ANY_TYPE in self._store:
             # builtin types already provided, rebuild only xs:anyType for wildcards
-            self._store[nm.XSD_ANY_TYPE] = self._validator.create_any_type()
+            self._store[nm.XSD_ANY_TYPE] = self._builders.create_any_type(self._validator)
             return
 
         #
@@ -367,7 +489,7 @@ class TypesMap(StagedMap[BaseXsdType]):
         #
         # xs:anyType
         # Ref: https://www.w3.org/TR/xmlschema11-1/#builtin-ctd
-        self._store[nm.XSD_ANY_TYPE] = self._validator.create_any_type()
+        self._store[nm.XSD_ANY_TYPE] = self._builders.create_any_type(self._validator)
 
         # xs:anySimpleType
         # Ref: https://www.w3.org/TR/xmlschema11-2/#builtin-stds

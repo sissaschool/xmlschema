@@ -21,7 +21,8 @@ from xml.etree.ElementTree import Element
 import xmlschema
 from xmlschema import XMLSchemaParseError, XMLSchemaIncludeWarning, XMLSchemaImportWarning
 from xmlschema.names import XML_NAMESPACE, XSD_ELEMENT, XSI_TYPE
-from xmlschema.loaders import SCHEMAS_DIR, SchemaLoader
+from xmlschema.locations import SCHEMAS_DIR
+from xmlschema.loaders import SchemaLoader
 from xmlschema.validators import XMLSchemaBase, XMLSchema10, XMLSchema11, \
     XsdGlobals, XsdComponent
 from xmlschema.testing import SKIP_REMOTE_TESTS, XsdValidatorTestCase
@@ -289,7 +290,7 @@ class TestXMLSchema10(XsdValidatorTestCase):
         self.assertIs(annotations, schema.annotations)
 
     def test_base_schemas(self):
-        xsd_file = os.path.join(SCHEMAS_DIR, 'XML/xml_minimal.xsd')
+        xsd_file = os.path.join(SCHEMAS_DIR, 'XML/xml.xsd')
         schema = self.schema_class(xsd_file)
         self.assertEqual(schema.target_namespace, XML_NAMESPACE)
 

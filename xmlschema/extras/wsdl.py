@@ -16,7 +16,7 @@ from xmlschema.names import XSD_NAMESPACE, WSDL_NAMESPACE, SOAP_NAMESPACE, \
 from xmlschema.utils.qnames import get_qname, local_name, get_extended_qname, \
     get_prefixed_qname
 from xmlschema.utils.urls import normalize_url
-from xmlschema.loaders import SCHEMAS_DIR, get_locations
+from xmlschema.locations import SCHEMAS_DIR, get_locations
 from xmlschema.documents import SCHEMA_KWARGS, XmlDocument
 from xmlschema.validators import XMLSchemaBase, XMLSchema10
 

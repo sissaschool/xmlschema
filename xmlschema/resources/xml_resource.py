@@ -15,7 +15,7 @@ from io import StringIO, BytesIO
 from pathlib import Path
 from typing import cast, Any, Optional, IO, Union
 from urllib.request import urlopen, OpenerDirector
-from urllib.parse import urlsplit, unquote
+from urllib.parse import urlsplit, unquote, SplitResult
 from urllib.error import URLError
 from xml.etree import ElementTree
 
@@ -89,6 +89,7 @@ class XMLResource(_ResourceLoader):
     # Private attributes for arguments
     _source: XMLSourceType
     _base_url: Optional[str]
+    _url_parts: SplitResult = urlsplit('')
     _defuse: str
     _allow: str
     _timeout: int
@@ -226,13 +227,19 @@ class XMLResource(_ResourceLoader):
             or self._defuse == 'nonlocal' and not is_local_url(self.base_url) \
             or self._defuse == 'always'
 
-    def get_url(self, uri_or_path: Union[str, bytes, Path]) -> str:
-        if isinstance(uri_or_path, str):
-            uri = uri_or_path.strip()
-        elif isinstance(uri_or_path, bytes):
-            uri = uri_or_path.decode().strip()
+    def get_url(self, location: Union[str, bytes, Path]) -> str:
+        """
+        Get the resource URL from a location.
+
+        :param location: The location to get the resource URL from. \
+        Can be a URI or file Path object.
+        """
+        if isinstance(location, str):
+            uri = location.strip()
+        elif isinstance(location, bytes):
+            uri = location.decode().strip()
         else:
-            uri = str(uri_or_path)
+            uri = str(location)
 
         if isinstance(self._uri_mapper, MutableMapping):
             if uri in self._uri_mapper:
@@ -241,6 +248,14 @@ class XMLResource(_ResourceLoader):
             uri = self._uri_mapper(uri)
 
         return normalize_url(uri, self._base_url)
+
+    def match_location(self, location: str) -> bool:
+        """Match the normalized location with the URL the XML resource. URL schemes are compared """
+        if self.url is None:
+            return False
+
+        url = self.get_url(location)
+        return self.url == url or self._url_parts.scheme and self._url_parts[1:3] == urlsplit(url)[1:3]
 
     def access_control(self, url: Optional[str]) -> None:
         if self._allow == 'all' or url is None:

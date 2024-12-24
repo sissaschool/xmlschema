@@ -845,7 +845,7 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
 
                     if base_type.is_complex() and not base_type.open_content and \
                             xsd_type.open_content and xsd_type.open_content.mode != 'none':
-                        _group = xsd_type.schema.create_any_content_group(
+                        _group = xsd_type.builders.create_any_content_group(
                             parent=xsd_type,
                             any_element=xsd_type.open_content.any_element
                         )

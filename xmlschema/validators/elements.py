@@ -117,7 +117,7 @@ class XsdElement(XsdComponent, ParticleMixin,
     binding: Optional[DataBindingType] = None
 
     __slots__ = ('type', 'selected_by', 'identities', 'content', 'attributes',
-                 'min_occurs', 'max_occurs', '_build')
+                 'min_occurs', 'max_occurs', 'builders', '_build')
 
     def __init__(self, elem: ElementType,
                  schema: SchemaType,
@@ -127,6 +127,7 @@ class XsdElement(XsdComponent, ParticleMixin,
         self.min_occurs = self.max_occurs = 1
         self._build = build
         self.selected_by = set()
+        self.builders = schema.builders
         super().__init__(elem, schema, parent)
 
     def __repr__(self) -> str:
@@ -140,7 +141,7 @@ class XsdElement(XsdComponent, ParticleMixin,
     def _set_type(self, value: BaseXsdType) -> None:
         self.type = value
         if isinstance(value, XsdSimpleType):
-            self.attributes = self.schema.create_empty_attribute_group(self)
+            self.attributes = self.builders.create_empty_attribute_group(self)
             self.content = ()
         else:
             self.attributes = value.attributes
@@ -281,7 +282,7 @@ class XsdElement(XsdComponent, ParticleMixin,
             elif child.tag == XSD_COMPLEX_TYPE:
                 self._set_type(self.schema.builders.complex_type_class(child, self.schema, self))
             elif child.tag == XSD_SIMPLE_TYPE:
-                self._set_type(self.schema.simple_type_factory(child, self.schema, self))
+                self._set_type(self.maps.types.simple_type_factory(child, self.schema, self))
             else:
                 self._set_type(self.any_type)
 
@@ -492,7 +493,7 @@ class XsdElement(XsdComponent, ParticleMixin,
         elif xsd_type is self.type:
             return self.attributes
         else:
-            return self.schema.create_empty_attribute_group(self)
+            return self.builders.create_empty_attribute_group(self)
 
     def get_path(self, ancestor: Optional[XsdComponent] = None,
                  reverse: bool = False) -> Optional[str]:
@@ -1527,7 +1528,7 @@ class XsdAlternative(XsdComponent):
                 elif child.tag == XSD_COMPLEX_TYPE:
                     self.type = self.schema.builders.complex_type_class(child, self.schema, self)
                 else:
-                    self.type = self.schema.simple_type_factory(child, self.schema, self)
+                    self.type = self.maps.types.simple_type_factory(child, self.schema, self)
 
                 if not self.type.is_derived(self.parent.type):
                     msg = _("declared type is not derived from {!r}")

@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta name="viewport" content="width=device-width" /><title>https://www.w3.org/2001/xml.xsd</title><link rel="stylesheet" type="text/css" href="resource://content-accessible/viewsource.css" /></head><body id="viewsource" style="tab-size: 4"><pre id="line1"><span></span><span class="pi">&lt;?xml version='1.0'?&gt;</span><span>
+<span id="line2"></span></span><span class="pi">&lt;?xml-stylesheet href="../2008/09/xsd.xsl" type="text/xsl"?&gt;</span><span>
+<span id="line3"></span></span><span>&lt;<span class="start-tag">xs:schema</span> <span class="attribute-name">targetNamespace</span>="<a class="attribute-value">http://www.w3.org/XML/1998/namespace</a>" 
+<span id="line4"></span>  <span class="attribute-name">xmlns:xs</span>="<a class="attribute-value">http://www.w3.org/2001/XMLSchema</a>" 
+<span id="line5"></span>  <span class="attribute-name">xmlns</span>   ="<a class="attribute-value">http://www.w3.org/1999/xhtml</a>"
+<span id="line6"></span>  <span class="attribute-name">xml:lang</span>="<a class="attribute-value">en</a>"&gt;</span><span>
+<span id="line7"></span>
+<span id="line8"></span> </span><span>&lt;<span class="start-tag">xs:annotation</span>&gt;</span><span>
+<span id="line9"></span>  </span><span>&lt;<span class="start-tag">xs:documentation</span>&gt;</span><span>
+<span id="line10"></span>   </span><span>&lt;<span class="start-tag">div</span>&gt;</span><span>
+<span id="line11"></span>    </span><span>&lt;<span class="start-tag">h1</span>&gt;</span><span>About the XML namespace</span><span>&lt;/<span class="end-tag">h1</span>&gt;</span><span>
+<span id="line12"></span>
+<span id="line13"></span>    </span><span>&lt;<span class="start-tag">div</span> <span class="attribute-name">class</span>="<a class="attribute-value">bodytext</a>"&gt;</span><span>
+<span id="line14"></span>     </span><span>&lt;<span class="start-tag">p</span>&gt;</span><span>
+<span id="line15"></span>      This schema document describes the XML namespace, in a form
+<span id="line16"></span>      suitable for import by other schema documents.
+<span id="line17"></span>     </span><span>&lt;/<span class="end-tag">p</span>&gt;</span><span>
+<span id="line18"></span>     </span><span>&lt;<span class="start-tag">p</span>&gt;</span><span>
+<span id="line19"></span>      See </span><span>&lt;<span class="start-tag">a</span> <span class="attribute-name">href</span>="<a class="attribute-value" href="view-source:http://www.w3.org/XML/1998/namespace.html">http://www.w3.org/XML/1998/namespace.html</a>"&gt;</span><span>
+<span id="line20"></span>      http://www.w3.org/XML/1998/namespace.html</span><span>&lt;/<span class="end-tag">a</span>&gt;</span><span> and
+<span id="line21"></span>      </span><span>&lt;<span class="start-tag">a</span> <span class="attribute-name">href</span>="<a class="attribute-value" href="view-source:http://www.w3.org/TR/REC-xml">http://www.w3.org/TR/REC-xml</a>"&gt;</span><span>
+<span id="line22"></span>      http://www.w3.org/TR/REC-xml</span><span>&lt;/<span class="end-tag">a</span>&gt;</span><span> for information 
+<span id="line23"></span>      about this namespace.
+<span id="line24"></span>     </span><span>&lt;/<span class="end-tag">p</span>&gt;</span><span>
+<span id="line25"></span>     </span><span>&lt;<span class="start-tag">p</span>&gt;</span><span>
+<span id="line26"></span>      Note that local names in this namespace are intended to be
+<span id="line27"></span>      defined only by the World Wide Web Consortium or its subgroups.
+<span id="line28"></span>      The names currently defined in this namespace are listed below.
+<span id="line29"></span>      They should not be used with conflicting semantics by any Working
+<span id="line30"></span>      Group, specification, or document instance.
+<span id="line31"></span>     </span><span>&lt;/<span class="end-tag">p</span>&gt;</span><span>
+<span id="line32"></span>     </span><span>&lt;<span class="start-tag">p</span>&gt;</span><span>   
+<span id="line33"></span>      See further below in this document for more information about </span><span>&lt;<span class="start-tag">a</span>
+<span id="line34"></span>      <span class="attribute-name">href</span>="<a class="attribute-value" href="view-source:https://www.w3.org/2001/xml.xsd#usage">#usage</a>"&gt;</span><span>how to refer to this schema document from your own
+<span id="line35"></span>      XSD schema documents</span><span>&lt;/<span class="end-tag">a</span>&gt;</span><span> and about </span><span>&lt;<span class="start-tag">a</span> <span class="attribute-name">href</span>="<a class="attribute-value" href="view-source:https://www.w3.org/2001/xml.xsd#nsversioning">#nsversioning</a>"&gt;</span><span>the
+<span id="line36"></span>      namespace-versioning policy governing this schema document</span><span>&lt;/<span class="end-tag">a</span>&gt;</span><span>.
+<span id="line37"></span>     </span><span>&lt;/<span class="end-tag">p</span>&gt;</span><span>
+<span id="line38"></span>    </span><span>&lt;/<span class="end-tag">div</span>&gt;</span><span>
+<span id="line39"></span>   </span><span>&lt;/<span class="end-tag">div</span>&gt;</span><span>
+<span id="line40"></span>  </span><span>&lt;/<span class="end-tag">xs:documentation</span>&gt;</span><span>
+<span id="line41"></span> </span><span>&lt;/<span class="end-tag">xs:annotation</span>&gt;</span><span>
+<span id="line42"></span>
+<span id="line43"></span> </span><span>&lt;<span class="start-tag">xs:attribute</span> <span class="attribute-name">name</span>="<a class="attribute-value">lang</a>"&gt;</span><span>
+<span id="line44"></span>  </span><span>&lt;<span class="start-tag">xs:annotation</span>&gt;</span><span>
+<span id="line45"></span>   </span><span>&lt;<span class="start-tag">xs:documentation</span>&gt;</span><span>
+<span id="line46"></span>    </span><span>&lt;<span class="start-tag">div</span>&gt;</span><span>
+<span id="line47"></span>     
+<span id="line48"></span>      </span><span>&lt;<span class="start-tag">h3</span>&gt;</span><span>lang (as an attribute name)</span><span>&lt;/<span class="end-tag">h3</span>&gt;</span><span>
+<span id="line49"></span>      </span><span>&lt;<span class="start-tag">p</span>&gt;</span><span>
+<span id="line50"></span>       denotes an attribute whose value
+<span id="line51"></span>       is a language code for the natural language of the content of
+<span id="line52"></span>       any element; its value is inherited.  This name is reserved
+<span id="line53"></span>       by virtue of its definition in the XML specification.</span><span>&lt;/<span class="end-tag">p</span>&gt;</span><span>
+<span id="line54"></span>     
+<span id="line55"></span>    </span><span>&lt;/<span class="end-tag">div</span>&gt;</span><span>
+<span id="line56"></span>    </span><span>&lt;<span class="start-tag">div</span>&gt;</span><span>
+<span id="line57"></span>     </span><span>&lt;<span class="start-tag">h4</span>&gt;</span><span>Notes</span><span>&lt;/<span class="end-tag">h4</span>&gt;</span><span>
+<span id="line58"></span>     </span><span>&lt;<span class="start-tag">p</span>&gt;</span><span>
+<span id="line59"></span>      Attempting to install the relevant ISO 2- and 3-letter
+<span id="line60"></span>      codes as the enumerated possible values is probably never
+<span id="line61"></span>      going to be a realistic possibility.  
+<span id="line62"></span>     </span><span>&lt;/<span class="end-tag">p</span>&gt;</span><span>
+<span id="line63"></span>     </span><span>&lt;<span class="start-tag">p</span>&gt;</span><span>
+<span id="line64"></span>      See BCP 47 at </span><span>&lt;<span class="start-tag">a</span> <span class="attribute-name">href</span>="<a class="attribute-value" href="view-source:http://www.rfc-editor.org/rfc/bcp/bcp47.txt">http://www.rfc-editor.org/rfc/bcp/bcp47.txt</a>"&gt;</span><span>
+<span id="line65"></span>       http://www.rfc-editor.org/rfc/bcp/bcp47.txt</span><span>&lt;/<span class="end-tag">a</span>&gt;</span><span>
+<span id="line66"></span>      and the IANA language subtag registry at
+<span id="line67"></span>      </span><span>&lt;<span class="start-tag">a</span> <span class="attribute-name">href</span>="<a class="attribute-value" href="view-source:http://www.iana.org/assignments/language-subtag-registry">http://www.iana.org/assignments/language-subtag-registry</a>"&gt;</span><span>
+<span id="line68"></span>       http://www.iana.org/assignments/language-subtag-registry</span><span>&lt;/<span class="end-tag">a</span>&gt;</span><span>
+<span id="line69"></span>      for further information.
+<span id="line70"></span>     </span><span>&lt;/<span class="end-tag">p</span>&gt;</span><span>
+<span id="line71"></span>     </span><span>&lt;<span class="start-tag">p</span>&gt;</span><span>
+<span id="line72"></span>      The union allows for the 'un-declaration' of xml:lang with
+<span id="line73"></span>      the empty string.
+<span id="line74"></span>     </span><span>&lt;/<span class="end-tag">p</span>&gt;</span><span>
+<span id="line75"></span>    </span><span>&lt;/<span class="end-tag">div</span>&gt;</span><span>
+<span id="line76"></span>   </span><span>&lt;/<span class="end-tag">xs:documentation</span>&gt;</span><span>
+<span id="line77"></span>  </span><span>&lt;/<span class="end-tag">xs:annotation</span>&gt;</span><span>
+<span id="line78"></span>  </span><span>&lt;<span class="start-tag">xs:simpleType</span>&gt;</span><span>
+<span id="line79"></span>   </span><span>&lt;<span class="start-tag">xs:union</span> <span class="attribute-name">memberTypes</span>="<a class="attribute-value">xs:language</a>"&gt;</span><span>
+<span id="line80"></span>    </span><span>&lt;<span class="start-tag">xs:simpleType</span>&gt;</span><span>    
+<span id="line81"></span>     </span><span>&lt;<span class="start-tag">xs:restriction</span> <span class="attribute-name">base</span>="<a class="attribute-value">xs:string</a>"&gt;</span><span>
+<span id="line82"></span>      </span><span>&lt;<span class="start-tag">xs:enumeration</span> <span class="attribute-name">value</span>="<a class="attribute-value"></a>"<span>/</span>&gt;</span><span>
+<span id="line83"></span>     </span><span>&lt;/<span class="end-tag">xs:restriction</span>&gt;</span><span>
+<span id="line84"></span>    </span><span>&lt;/<span class="end-tag">xs:simpleType</span>&gt;</span><span>
+<span id="line85"></span>   </span><span>&lt;/<span class="end-tag">xs:union</span>&gt;</span><span>
+<span id="line86"></span>  </span><span>&lt;/<span class="end-tag">xs:simpleType</span>&gt;</span><span>
+<span id="line87"></span> </span><span>&lt;/<span class="end-tag">xs:attribute</span>&gt;</span><span>
+<span id="line88"></span>
+<span id="line89"></span> </span><span>&lt;<span class="start-tag">xs:attribute</span> <span class="attribute-name">name</span>="<a class="attribute-value">space</a>"&gt;</span><span>
+<span id="line90"></span>  </span><span>&lt;<span class="start-tag">xs:annotation</span>&gt;</span><span>
+<span id="line91"></span>   </span><span>&lt;<span class="start-tag">xs:documentation</span>&gt;</span><span>
+<span id="line92"></span>    </span><span>&lt;<span class="start-tag">div</span>&gt;</span><span>
+<span id="line93"></span>     
+<span id="line94"></span>      </span><span>&lt;<span class="start-tag">h3</span>&gt;</span><span>space (as an attribute name)</span><span>&lt;/<span class="end-tag">h3</span>&gt;</span><span>
+<span id="line95"></span>      </span><span>&lt;<span class="start-tag">p</span>&gt;</span><span>
+<span id="line96"></span>       denotes an attribute whose
+<span id="line97"></span>       value is a keyword indicating what whitespace processing
+<span id="line98"></span>       discipline is intended for the content of the element; its
+<span id="line99"></span>       value is inherited.  This name is reserved by virtue of its
+<span id="line100"></span>       definition in the XML specification.</span><span>&lt;/<span class="end-tag">p</span>&gt;</span><span>
+<span id="line101"></span>     
+<span id="line102"></span>    </span><span>&lt;/<span class="end-tag">div</span>&gt;</span><span>
+<span id="line103"></span>   </span><span>&lt;/<span class="end-tag">xs:documentation</span>&gt;</span><span>
+<span id="line104"></span>  </span><span>&lt;/<span class="end-tag">xs:annotation</span>&gt;</span><span>
+<span id="line105"></span>  </span><span>&lt;<span class="start-tag">xs:simpleType</span>&gt;</span><span>
+<span id="line106"></span>   </span><span>&lt;<span class="start-tag">xs:restriction</span> <span class="attribute-name">base</span>="<a class="attribute-value">xs:NCName</a>"&gt;</span><span>
+<span id="line107"></span>    </span><span>&lt;<span class="start-tag">xs:enumeration</span> <span class="attribute-name">value</span>="<a class="attribute-value">default</a>"<span>/</span>&gt;</span><span>
+<span id="line108"></span>    </span><span>&lt;<span class="start-tag">xs:enumeration</span> <span class="attribute-name">value</span>="<a class="attribute-value">preserve</a>"<span>/</span>&gt;</span><span>
+<span id="line109"></span>   </span><span>&lt;/<span class="end-tag">xs:restriction</span>&gt;</span><span>
+<span id="line110"></span>  </span><span>&lt;/<span class="end-tag">xs:simpleType</span>&gt;</span><span>
+<span id="line111"></span> </span><span>&lt;/<span class="end-tag">xs:attribute</span>&gt;</span><span>
+<span id="line112"></span> 
+<span id="line113"></span> </span><span>&lt;<span class="start-tag">xs:attribute</span> <span class="attribute-name">name</span>="<a class="attribute-value">base</a>" <span class="attribute-name">type</span>="<a class="attribute-value">xs:anyURI</a>"&gt;</span><span> </span><span>&lt;<span class="start-tag">xs:annotation</span>&gt;</span><span>
+<span id="line114"></span>   </span><span>&lt;<span class="start-tag">xs:documentation</span>&gt;</span><span>
+<span id="line115"></span>    </span><span>&lt;<span class="start-tag">div</span>&gt;</span><span>
+<span id="line116"></span>     
+<span id="line117"></span>      </span><span>&lt;<span class="start-tag">h3</span>&gt;</span><span>base (as an attribute name)</span><span>&lt;/<span class="end-tag">h3</span>&gt;</span><span>
+<span id="line118"></span>      </span><span>&lt;<span class="start-tag">p</span>&gt;</span><span>
+<span id="line119"></span>       denotes an attribute whose value
+<span id="line120"></span>       provides a URI to be used as the base for interpreting any
+<span id="line121"></span>       relative URIs in the scope of the element on which it
+<span id="line122"></span>       appears; its value is inherited.  This name is reserved
+<span id="line123"></span>       by virtue of its definition in the XML Base specification.</span><span>&lt;/<span class="end-tag">p</span>&gt;</span><span>
+<span id="line124"></span>     
+<span id="line125"></span>     </span><span>&lt;<span class="start-tag">p</span>&gt;</span><span>
+<span id="line126"></span>      See </span><span>&lt;<span class="start-tag">a</span>
+<span id="line127"></span>      <span class="attribute-name">href</span>="<a class="attribute-value" href="view-source:http://www.w3.org/TR/xmlbase/">http://www.w3.org/TR/xmlbase/</a>"&gt;</span><span>http://www.w3.org/TR/xmlbase/</span><span>&lt;/<span class="end-tag">a</span>&gt;</span><span>
+<span id="line128"></span>      for information about this attribute.
+<span id="line129"></span>     </span><span>&lt;/<span class="end-tag">p</span>&gt;</span><span>
+<span id="line130"></span>    </span><span>&lt;/<span class="end-tag">div</span>&gt;</span><span>
+<span id="line131"></span>   </span><span>&lt;/<span class="end-tag">xs:documentation</span>&gt;</span><span>
+<span id="line132"></span>  </span><span>&lt;/<span class="end-tag">xs:annotation</span>&gt;</span><span>
+<span id="line133"></span> </span><span>&lt;/<span class="end-tag">xs:attribute</span>&gt;</span><span>
+<span id="line134"></span> 
+<span id="line135"></span> </span><span>&lt;<span class="start-tag">xs:attribute</span> <span class="attribute-name">name</span>="<a class="attribute-value">id</a>" <span class="attribute-name">type</span>="<a class="attribute-value">xs:ID</a>"&gt;</span><span>
+<span id="line136"></span>  </span><span>&lt;<span class="start-tag">xs:annotation</span>&gt;</span><span>
+<span id="line137"></span>   </span><span>&lt;<span class="start-tag">xs:documentation</span>&gt;</span><span>
+<span id="line138"></span>    </span><span>&lt;<span class="start-tag">div</span>&gt;</span><span>
+<span id="line139"></span>     
+<span id="line140"></span>      </span><span>&lt;<span class="start-tag">h3</span>&gt;</span><span>id (as an attribute name)</span><span>&lt;/<span class="end-tag">h3</span>&gt;</span><span> 
+<span id="line141"></span>      </span><span>&lt;<span class="start-tag">p</span>&gt;</span><span>
+<span id="line142"></span>       denotes an attribute whose value
+<span id="line143"></span>       should be interpreted as if declared to be of type ID.
+<span id="line144"></span>       This name is reserved by virtue of its definition in the
+<span id="line145"></span>       xml:id specification.</span><span>&lt;/<span class="end-tag">p</span>&gt;</span><span>
+<span id="line146"></span>     
+<span id="line147"></span>     </span><span>&lt;<span class="start-tag">p</span>&gt;</span><span>
+<span id="line148"></span>      See </span><span>&lt;<span class="start-tag">a</span>
+<span id="line149"></span>      <span class="attribute-name">href</span>="<a class="attribute-value" href="view-source:http://www.w3.org/TR/xml-id/">http://www.w3.org/TR/xml-id/</a>"&gt;</span><span>http://www.w3.org/TR/xml-id/</span><span>&lt;/<span class="end-tag">a</span>&gt;</span><span>
+<span id="line150"></span>      for information about this attribute.
+<span id="line151"></span>     </span><span>&lt;/<span class="end-tag">p</span>&gt;</span><span>
+<span id="line152"></span>    </span><span>&lt;/<span class="end-tag">div</span>&gt;</span><span>
+<span id="line153"></span>   </span><span>&lt;/<span class="end-tag">xs:documentation</span>&gt;</span><span>
+<span id="line154"></span>  </span><span>&lt;/<span class="end-tag">xs:annotation</span>&gt;</span><span>
+<span id="line155"></span> </span><span>&lt;/<span class="end-tag">xs:attribute</span>&gt;</span><span>
+<span id="line156"></span>
+<span id="line157"></span> </span><span>&lt;<span class="start-tag">xs:attributeGroup</span> <span class="attribute-name">name</span>="<a class="attribute-value">specialAttrs</a>"&gt;</span><span>
+<span id="line158"></span>  </span><span>&lt;<span class="start-tag">xs:attribute</span> <span class="attribute-name">ref</span>="<a class="attribute-value">xml:base</a>"<span>/</span>&gt;</span><span>
+<span id="line159"></span>  </span><span>&lt;<span class="start-tag">xs:attribute</span> <span class="attribute-name">ref</span>="<a class="attribute-value">xml:lang</a>"<span>/</span>&gt;</span><span>
+<span id="line160"></span>  </span><span>&lt;<span class="start-tag">xs:attribute</span> <span class="attribute-name">ref</span>="<a class="attribute-value">xml:space</a>"<span>/</span>&gt;</span><span>
+<span id="line161"></span>  </span><span>&lt;<span class="start-tag">xs:attribute</span> <span class="attribute-name">ref</span>="<a class="attribute-value">xml:id</a>"<span>/</span>&gt;</span><span>
+<span id="line162"></span> </span><span>&lt;/<span class="end-tag">xs:attributeGroup</span>&gt;</span><span>
+<span id="line163"></span>
+<span id="line164"></span> </span><span>&lt;<span class="start-tag">xs:annotation</span>&gt;</span><span>
+<span id="line165"></span>  </span><span>&lt;<span class="start-tag">xs:documentation</span>&gt;</span><span>
+<span id="line166"></span>   </span><span>&lt;<span class="start-tag">div</span>&gt;</span><span>
+<span id="line167"></span>   
+<span id="line168"></span>    </span><span>&lt;<span class="start-tag">h3</span>&gt;</span><span>Father (in any context at all)</span><span>&lt;/<span class="end-tag">h3</span>&gt;</span><span> 
+<span id="line169"></span>
+<span id="line170"></span>    </span><span>&lt;<span class="start-tag">div</span> <span class="attribute-name">class</span>="<a class="attribute-value">bodytext</a>"&gt;</span><span>
+<span id="line171"></span>     </span><span>&lt;<span class="start-tag">p</span>&gt;</span><span>
+<span id="line172"></span>      denotes Jon Bosak, the chair of 
+<span id="line173"></span>      the original XML Working Group.  This name is reserved by 
+<span id="line174"></span>      the following decision of the W3C XML Plenary and 
+<span id="line175"></span>      XML Coordination groups:
+<span id="line176"></span>     </span><span>&lt;/<span class="end-tag">p</span>&gt;</span><span>
+<span id="line177"></span>     </span><span>&lt;<span class="start-tag">blockquote</span>&gt;</span><span>
+<span id="line178"></span>       </span><span>&lt;<span class="start-tag">p</span>&gt;</span><span>
+<span id="line179"></span>	In appreciation for his vision, leadership and
+<span id="line180"></span>	dedication the W3C XML Plenary on this 10th day of
+<span id="line181"></span>	February, 2000, reserves for Jon Bosak in perpetuity
+<span id="line182"></span>	the XML name "xml:Father".
+<span id="line183"></span>       </span><span>&lt;/<span class="end-tag">p</span>&gt;</span><span>
+<span id="line184"></span>     </span><span>&lt;/<span class="end-tag">blockquote</span>&gt;</span><span>
+<span id="line185"></span>    </span><span>&lt;/<span class="end-tag">div</span>&gt;</span><span>
+<span id="line186"></span>   </span><span>&lt;/<span class="end-tag">div</span>&gt;</span><span>
+<span id="line187"></span>  </span><span>&lt;/<span class="end-tag">xs:documentation</span>&gt;</span><span>
+<span id="line188"></span> </span><span>&lt;/<span class="end-tag">xs:annotation</span>&gt;</span><span>
+<span id="line189"></span>
+<span id="line190"></span> </span><span>&lt;<span class="start-tag">xs:annotation</span>&gt;</span><span>
+<span id="line191"></span>  </span><span>&lt;<span class="start-tag">xs:documentation</span>&gt;</span><span>
+<span id="line192"></span>   </span><span>&lt;<span class="start-tag">div</span> <span class="attribute-name">xml:id</span>="<a class="attribute-value">usage</a>" <span class="attribute-name">id</span>="<a class="attribute-value">usage</a>"&gt;</span><span>
+<span id="line193"></span>    </span><span>&lt;<span class="start-tag">h2</span>&gt;</span><span></span><span>&lt;<span class="start-tag">a</span> <span class="attribute-name">name</span>="<a class="attribute-value">usage</a>"&gt;</span><span>About this schema document</span><span>&lt;/<span class="end-tag">a</span>&gt;</span><span></span><span>&lt;/<span class="end-tag">h2</span>&gt;</span><span>
+<span id="line194"></span>
+<span id="line195"></span>    </span><span>&lt;<span class="start-tag">div</span> <span class="attribute-name">class</span>="<a class="attribute-value">bodytext</a>"&gt;</span><span>
+<span id="line196"></span>     </span><span>&lt;<span class="start-tag">p</span>&gt;</span><span>
+<span id="line197"></span>      This schema defines attributes and an attribute group suitable
+<span id="line198"></span>      for use by schemas wishing to allow </span><span>&lt;<span class="start-tag">code</span>&gt;</span><span>xml:base</span><span>&lt;/<span class="end-tag">code</span>&gt;</span><span>,
+<span id="line199"></span>      </span><span>&lt;<span class="start-tag">code</span>&gt;</span><span>xml:lang</span><span>&lt;/<span class="end-tag">code</span>&gt;</span><span>, </span><span>&lt;<span class="start-tag">code</span>&gt;</span><span>xml:space</span><span>&lt;/<span class="end-tag">code</span>&gt;</span><span> or
+<span id="line200"></span>      </span><span>&lt;<span class="start-tag">code</span>&gt;</span><span>xml:id</span><span>&lt;/<span class="end-tag">code</span>&gt;</span><span> attributes on elements they define.
+<span id="line201"></span>     </span><span>&lt;/<span class="end-tag">p</span>&gt;</span><span>
+<span id="line202"></span>     </span><span>&lt;<span class="start-tag">p</span>&gt;</span><span>
+<span id="line203"></span>      To enable this, such a schema must import this schema for
+<span id="line204"></span>      the XML namespace, e.g. as follows:
+<span id="line205"></span>     </span><span>&lt;/<span class="end-tag">p</span>&gt;</span><span>
+<span id="line206"></span>     </span><span>&lt;<span class="start-tag">pre</span>&gt;</span><span>
+<span id="line207"></span>          <span class="entity"><span>&amp;</span>lt;</span>schema . . .&gt;
+<span id="line208"></span>           . . .
+<span id="line209"></span>           <span class="entity"><span>&amp;</span>lt;</span>import namespace="http://www.w3.org/XML/1998/namespace"
+<span id="line210"></span>                      schemaLocation="http://www.w3.org/2001/xml.xsd"/&gt;
+<span id="line211"></span>     </span><span>&lt;/<span class="end-tag">pre</span>&gt;</span><span>
+<span id="line212"></span>     </span><span>&lt;<span class="start-tag">p</span>&gt;</span><span>
+<span id="line213"></span>      or
+<span id="line214"></span>     </span><span>&lt;/<span class="end-tag">p</span>&gt;</span><span>
+<span id="line215"></span>     </span><span>&lt;<span class="start-tag">pre</span>&gt;</span><span>
+<span id="line216"></span>           <span class="entity"><span>&amp;</span>lt;</span>import namespace="http://www.w3.org/XML/1998/namespace"
+<span id="line217"></span>                      schemaLocation="http://www.w3.org/2009/01/xml.xsd"/&gt;
+<span id="line218"></span>     </span><span>&lt;/<span class="end-tag">pre</span>&gt;</span><span>
+<span id="line219"></span>     </span><span>&lt;<span class="start-tag">p</span>&gt;</span><span>
+<span id="line220"></span>      Subsequently, qualified reference to any of the attributes or the
+<span id="line221"></span>      group defined below will have the desired effect, e.g.
+<span id="line222"></span>     </span><span>&lt;/<span class="end-tag">p</span>&gt;</span><span>
+<span id="line223"></span>     </span><span>&lt;<span class="start-tag">pre</span>&gt;</span><span>
+<span id="line224"></span>          <span class="entity"><span>&amp;</span>lt;</span>type . . .&gt;
+<span id="line225"></span>           . . .
+<span id="line226"></span>           <span class="entity"><span>&amp;</span>lt;</span>attributeGroup ref="xml:specialAttrs"/&gt;
+<span id="line227"></span>     </span><span>&lt;/<span class="end-tag">pre</span>&gt;</span><span>
+<span id="line228"></span>     </span><span>&lt;<span class="start-tag">p</span>&gt;</span><span>
+<span id="line229"></span>      will define a type which will schema-validate an instance element
+<span id="line230"></span>      with any of those attributes.
+<span id="line231"></span>     </span><span>&lt;/<span class="end-tag">p</span>&gt;</span><span>
+<span id="line232"></span>    </span><span>&lt;/<span class="end-tag">div</span>&gt;</span><span>
+<span id="line233"></span>   </span><span>&lt;/<span class="end-tag">div</span>&gt;</span><span>
+<span id="line234"></span>  </span><span>&lt;/<span class="end-tag">xs:documentation</span>&gt;</span><span>
+<span id="line235"></span> </span><span>&lt;/<span class="end-tag">xs:annotation</span>&gt;</span><span>
+<span id="line236"></span>
+<span id="line237"></span> </span><span>&lt;<span class="start-tag">xs:annotation</span>&gt;</span><span>
+<span id="line238"></span>  </span><span>&lt;<span class="start-tag">xs:documentation</span>&gt;</span><span>
+<span id="line239"></span>   </span><span>&lt;<span class="start-tag">div</span> <span class="attribute-name">id</span>="<a class="attribute-value">nsversioning</a>" <span class="attribute-name">xml:id</span>="<a class="attribute-value">nsversioning</a>"&gt;</span><span>
+<span id="line240"></span>    </span><span>&lt;<span class="start-tag">h2</span>&gt;</span><span></span><span>&lt;<span class="start-tag">a</span> <span class="attribute-name">name</span>="<a class="attribute-value">nsversioning</a>"&gt;</span><span>Versioning policy for this schema document</span><span>&lt;/<span class="end-tag">a</span>&gt;</span><span></span><span>&lt;/<span class="end-tag">h2</span>&gt;</span><span>
+<span id="line241"></span>    </span><span>&lt;<span class="start-tag">div</span> <span class="attribute-name">class</span>="<a class="attribute-value">bodytext</a>"&gt;</span><span>
+<span id="line242"></span>     </span><span>&lt;<span class="start-tag">p</span>&gt;</span><span>
+<span id="line243"></span>      In keeping with the XML Schema WG's standard versioning
+<span id="line244"></span>      policy, this schema document will persist at
+<span id="line245"></span>      </span><span>&lt;<span class="start-tag">a</span> <span class="attribute-name">href</span>="<a class="attribute-value" href="view-source:http://www.w3.org/2009/01/xml.xsd">http://www.w3.org/2009/01/xml.xsd</a>"&gt;</span><span>
+<span id="line246"></span>       http://www.w3.org/2009/01/xml.xsd</span><span>&lt;/<span class="end-tag">a</span>&gt;</span><span>.
+<span id="line247"></span>     </span><span>&lt;/<span class="end-tag">p</span>&gt;</span><span>
+<span id="line248"></span>     </span><span>&lt;<span class="start-tag">p</span>&gt;</span><span>
+<span id="line249"></span>      At the date of issue it can also be found at
+<span id="line250"></span>      </span><span>&lt;<span class="start-tag">a</span> <span class="attribute-name">href</span>="<a class="attribute-value" href="view-source:http://www.w3.org/2001/xml.xsd">http://www.w3.org/2001/xml.xsd</a>"&gt;</span><span>
+<span id="line251"></span>       http://www.w3.org/2001/xml.xsd</span><span>&lt;/<span class="end-tag">a</span>&gt;</span><span>.
+<span id="line252"></span>     </span><span>&lt;/<span class="end-tag">p</span>&gt;</span><span>
+<span id="line253"></span>     </span><span>&lt;<span class="start-tag">p</span>&gt;</span><span>
+<span id="line254"></span>      The schema document at that URI may however change in the future,
+<span id="line255"></span>      in order to remain compatible with the latest version of XML
+<span id="line256"></span>      Schema itself, or with the XML namespace itself.  In other words,
+<span id="line257"></span>      if the XML Schema or XML namespaces change, the version of this
+<span id="line258"></span>      document at </span><span>&lt;<span class="start-tag">a</span> <span class="attribute-name">href</span>="<a class="attribute-value" href="view-source:http://www.w3.org/2001/xml.xsd">http://www.w3.org/2001/xml.xsd</a>"&gt;</span><span>
+<span id="line259"></span>       http://www.w3.org/2001/xml.xsd 
+<span id="line260"></span>      </span><span>&lt;/<span class="end-tag">a</span>&gt;</span><span> 
+<span id="line261"></span>      will change accordingly; the version at 
+<span id="line262"></span>      </span><span>&lt;<span class="start-tag">a</span> <span class="attribute-name">href</span>="<a class="attribute-value" href="view-source:http://www.w3.org/2009/01/xml.xsd">http://www.w3.org/2009/01/xml.xsd</a>"&gt;</span><span>
+<span id="line263"></span>       http://www.w3.org/2009/01/xml.xsd 
+<span id="line264"></span>      </span><span>&lt;/<span class="end-tag">a</span>&gt;</span><span> 
+<span id="line265"></span>      will not change.
+<span id="line266"></span>     </span><span>&lt;/<span class="end-tag">p</span>&gt;</span><span>
+<span id="line267"></span>     </span><span>&lt;<span class="start-tag">p</span>&gt;</span><span>
+<span id="line268"></span>      Previous dated (and unchanging) versions of this schema 
+<span id="line269"></span>      document are at:
+<span id="line270"></span>     </span><span>&lt;/<span class="end-tag">p</span>&gt;</span><span>
+<span id="line271"></span>     </span><span>&lt;<span class="start-tag">ul</span>&gt;</span><span>
+<span id="line272"></span>      </span><span>&lt;<span class="start-tag">li</span>&gt;</span><span></span><span>&lt;<span class="start-tag">a</span> <span class="attribute-name">href</span>="<a class="attribute-value" href="view-source:http://www.w3.org/2009/01/xml.xsd">http://www.w3.org/2009/01/xml.xsd</a>"&gt;</span><span>
+<span id="line273"></span>	http://www.w3.org/2009/01/xml.xsd</span><span>&lt;/<span class="end-tag">a</span>&gt;</span><span></span><span>&lt;/<span class="end-tag">li</span>&gt;</span><span>
+<span id="line274"></span>      </span><span>&lt;<span class="start-tag">li</span>&gt;</span><span></span><span>&lt;<span class="start-tag">a</span> <span class="attribute-name">href</span>="<a class="attribute-value" href="view-source:http://www.w3.org/2007/08/xml.xsd">http://www.w3.org/2007/08/xml.xsd</a>"&gt;</span><span>
+<span id="line275"></span>	http://www.w3.org/2007/08/xml.xsd</span><span>&lt;/<span class="end-tag">a</span>&gt;</span><span></span><span>&lt;/<span class="end-tag">li</span>&gt;</span><span>
+<span id="line276"></span>      </span><span>&lt;<span class="start-tag">li</span>&gt;</span><span></span><span>&lt;<span class="start-tag">a</span> <span class="attribute-name">href</span>="<a class="attribute-value" href="view-source:http://www.w3.org/2004/10/xml.xsd">http://www.w3.org/2004/10/xml.xsd</a>"&gt;</span><span>
+<span id="line277"></span>	http://www.w3.org/2004/10/xml.xsd</span><span>&lt;/<span class="end-tag">a</span>&gt;</span><span></span><span>&lt;/<span class="end-tag">li</span>&gt;</span><span>
+<span id="line278"></span>      </span><span>&lt;<span class="start-tag">li</span>&gt;</span><span></span><span>&lt;<span class="start-tag">a</span> <span class="attribute-name">href</span>="<a class="attribute-value" href="view-source:http://www.w3.org/2001/03/xml.xsd">http://www.w3.org/2001/03/xml.xsd</a>"&gt;</span><span>
+<span id="line279"></span>	http://www.w3.org/2001/03/xml.xsd</span><span>&lt;/<span class="end-tag">a</span>&gt;</span><span></span><span>&lt;/<span class="end-tag">li</span>&gt;</span><span>
+<span id="line280"></span>     </span><span>&lt;/<span class="end-tag">ul</span>&gt;</span><span>
+<span id="line281"></span>    </span><span>&lt;/<span class="end-tag">div</span>&gt;</span><span>
+<span id="line282"></span>   </span><span>&lt;/<span class="end-tag">div</span>&gt;</span><span>
+<span id="line283"></span>  </span><span>&lt;/<span class="end-tag">xs:documentation</span>&gt;</span><span>
+<span id="line284"></span> </span><span>&lt;/<span class="end-tag">xs:annotation</span>&gt;</span><span>
+<span id="line285"></span>
+<span id="line286"></span></span><span>&lt;/<span class="end-tag">xs:schema</span>&gt;</span><span>
+<span id="line287"></span>
+<span id="line288"></span></span></pre></body></html>

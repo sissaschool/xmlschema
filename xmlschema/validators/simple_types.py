@@ -876,7 +876,7 @@ class XsdList(XsdSimpleType):
         if child is not None:
             # Case of a local simpleType declaration inside the list tag
             try:
-                item_type = self.schema.simple_type_factory(child, parent=self)
+                item_type = self.maps.types.simple_type_factory(child, self.schema, self)
             except XMLSchemaParseError as err:
                 self.parse_error(err)
                 item_type = self.any_atomic_type
@@ -1029,7 +1029,7 @@ class XsdUnion(XsdSimpleType):
 
         for child in self.elem:
             if child.tag != XSD_ANNOTATION and not callable(child.tag):
-                mt = self.schema.simple_type_factory(child, parent=self)
+                mt = self.maps.types.simple_type_factory(child, self.schema, self)
                 if isinstance(mt, XMLSchemaParseError):
                     self.parse_error(mt)
                 else:
@@ -1301,7 +1301,7 @@ class XsdAtomicRestriction(XsdAtomic):
 
                 if base_type is None:
                     try:
-                        base_type = self.schema.simple_type_factory(child, parent=self)
+                        base_type = self.maps.types.simple_type_factory(child, self.schema, self)
                     except XMLSchemaParseError as err:
                         self.parse_error(err, child)
                         base_type = self.any_simple_type
@@ -1311,7 +1311,7 @@ class XsdAtomicRestriction(XsdAtomic):
                             elem=elem,
                             schema=self.schema,
                             parent=self,
-                            content=self.schema.simple_type_factory(child, parent=self),
+                            content=self.maps.types.simple_type_factory(child, self.schema, self),
                             attributes=base_type.attributes,
                             mixed=base_type.mixed,
                             block=base_type.block,

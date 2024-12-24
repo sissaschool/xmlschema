@@ -131,8 +131,8 @@ class DataElement(MutableSequence['DataElement']):
             elif self.xsd_type is not None and self.xsd_type is not value:
                 raise XMLSchemaValueError("the instance is already bound to another XSD type")
             elif self.xsd_element is None or value is not self.xsd_element.type:
-                self._encoder = value.schema.create_element(
-                    self.tag, parent=value, form='unqualified'
+                self._encoder = value.schema.builders.create_element(
+                    self.tag, value.schema, parent=value, form='unqualified'
                 )
                 self._encoder.type = value
             else:

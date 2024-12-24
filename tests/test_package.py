@@ -103,9 +103,9 @@ class TestPackaging(unittest.TestCase):
             'XSD_1.1/XMLSchema.xsd',
             'XHTML/xhtml1-strict.xsd',
             'XLINK/xlink.xsd',
-            'XML/xml_minimal.xsd',
-            'HFP/XMLSchema-hasFacetAndProperty_minimal.xsd',
-            'XSI/XMLSchema-instance_minimal.xsd'
+            'XML/xml.xsd',
+            'HFP/XMLSchema-hasFacetAndProperty.xsd',
+            'XSI/XMLSchema-instance.xsd'
         ]
         for rel_path in base_schemas:
             filename = os.path.join(schemas_dir, rel_path)
