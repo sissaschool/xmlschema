@@ -406,9 +406,10 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
     precedences: dict[ModelGroupType, list[ModelParticleType]]
     copy: Callable[['XsdAnyElement'], 'XsdAnyElement']
 
-    __slots__ = ('min_occurs', 'max_occurs', 'skip', 'precedences')
+    __slots__ = ('_builders', 'min_occurs', 'max_occurs', 'skip', 'precedences')
 
     def __init__(self, elem: ElementType, schema: SchemaType, parent: XsdComponent) -> None:
+        self._builders = schema.builders
         self.min_occurs = self.max_occurs = 1
         self.skip = False
         self.precedences = {}
@@ -514,11 +515,11 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
 
         if XSI_TYPE in obj.attrib:
             if self.process_contents == 'strict':
-                xsd_element = self.schema.builders.create_element(
+                xsd_element = self._builders.create_element(
                     obj.tag, self.maps.validator, parent=self, form='unqualified'
                 )
             else:
-                xsd_element = self.schema.builders.create_element(
+                xsd_element = self._builders.create_element(
                     obj.tag, self.maps.validator, parent=self, nillable='true', form='unqualified'
                 )
             return xsd_element.raw_decode(obj, validation, context)
@@ -526,7 +527,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
         if validation != 'skip' and self.process_contents == 'strict':
             context.validation_error(validation, self, reason, obj)
 
-        xsd_element = self.schema.builders.create_element(
+        xsd_element = self._builders.create_element(
             obj.tag, self.maps.validator, parent=self, form='unqualified'
         )
         return xsd_element.raw_decode(obj, validation, context)
@@ -556,11 +557,11 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
         # Check if there is a xsi:type attribute, but it has to extract
         # attributes using the converter instance.
         if self.process_contents == 'strict':
-            xsd_element = self.schema.builders.create_element(
+            xsd_element = self._builders.create_element(
                 name, self.maps.validator, parent=self, form='unqualified'
             )
         else:
-            xsd_element = self.schema.builders.create_element(
+            xsd_element = self._builders.create_element(
                 name, self.maps.validator, parent=self, nillable='true', form='unqualified'
             )
 

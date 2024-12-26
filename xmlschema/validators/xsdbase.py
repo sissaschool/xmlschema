@@ -860,8 +860,7 @@ class XsdType(XsdComponent):
         """
         raise NotImplementedError()
 
-    def is_derived(self, other: Union[BaseXsdType, tuple[ElementType, SchemaType]],
-                   derivation: Optional[str] = None) -> bool:
+    def is_derived(self, other: BaseXsdType, derivation: Optional[str] = None) -> bool:
         """
         Returns `True` if the instance is derived from *other*, `False` otherwise.
         The optional argument derivation can be a string containing the words

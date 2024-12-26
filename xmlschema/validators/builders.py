@@ -68,14 +68,15 @@ class XsdBuilders:
     facets: dict[str, Type[XsdFacet]]
     identities: dict[str, Type[XsdIdentity]]
     simple_types: dict[str, Type[XsdSimpleType]]
+    local_types: dict[str, Type[BaseXsdType]]
     builtins: tuple[dict[str, Any], ...]
 
     __slots__ = ('_name', '_xsd_version', 'components', 'facets', 'identities',
-                 'simple_types', 'builtins', 'simple_type_class', 'notation_class',
-                 'attribute_group_class', 'list_class', 'complex_type_class',
+                 'simple_types', 'local_types', 'builtins', 'simple_type_class',
+                 'notation_class', 'attribute_group_class', 'complex_type_class',
                  'attribute_class', 'group_class', 'element_class', 'any_element_class',
-                 'any_attribute_class', 'atomic_restriction_class', 'union_class',
-                 'unique_class', 'key_class', 'keyref_class')
+                 'any_attribute_class', 'atomic_restriction_class', 'list_class',
+                 'union_class', 'unique_class', 'key_class', 'keyref_class')
 
     def __init__(self, xsd_version: Optional[str] = None,
                  *facets_classes: Type[XsdFacet],
@@ -146,6 +147,10 @@ class XsdBuilders:
             nm.XSD_RESTRICTION: self.atomic_restriction_class,
             nm.XSD_LIST: self.list_class,
             nm.XSD_UNION: self.union_class,
+        }
+        self.local_types = {
+            nm.XSD_COMPLEX_TYPE: self.complex_type_class,
+            nm.XSD_SIMPLE_TYPE: self.simple_type_factory,
         }
 
     def __setattr__(self, name: str, value: Any) -> None:
@@ -288,6 +293,61 @@ class XsdBuilders:
         if text is not None:
             elem.text = text
         return self.element_class(elem, schema, parent)
+
+    def simple_type_factory(self, elem: Element,
+                            schema: SchemaType,
+                            parent: Optional[XsdComponent] = None) -> XsdSimpleType:
+        """
+        Factory function for XSD simple types. Parses the xs:simpleType element and its
+        child component, that can be a restriction, a list or a union. Annotations are
+        linked to simple type instance, omitting the inner annotation if both are given.
+        """
+        annotation: Optional[XsdAnnotation] = None
+        try:
+            child = elem[0]
+        except IndexError:
+            return cast(XsdSimpleType, schema.maps.types[nm.XSD_ANY_SIMPLE_TYPE])
+        else:
+            if child.tag == nm.XSD_ANNOTATION:
+                annotation = XsdAnnotation(child, schema, parent)
+                try:
+                    child = elem[1]
+                except IndexError:
+                    msg = _("(restriction | list | union) expected")
+                    schema.parse_error(msg, elem)
+                    return cast(XsdSimpleType, schema.maps.types[nm.XSD_ANY_SIMPLE_TYPE])
+
+        xsd_type: XsdSimpleType
+        try:
+            xsd_type = self.simple_types[child.tag](child, schema, parent)
+        except KeyError:
+            msg = _("(restriction | list | union) expected")
+            schema.parse_error(msg, elem)
+            return cast(XsdSimpleType, schema.maps.types[nm.XSD_ANY_SIMPLE_TYPE])
+
+        if annotation is not None:
+            xsd_type._annotation = annotation
+
+        try:
+            xsd_type.name = get_qname(schema.target_namespace, elem.attrib['name'])
+        except KeyError:
+            if parent is None:
+                msg = _("missing attribute 'name' in a global simpleType")
+                schema.parse_error(msg, elem)
+                xsd_type.name = 'nameless_%s' % str(id(xsd_type))
+        else:
+            if parent is not None:
+                msg = _("attribute 'name' not allowed for a local simpleType")
+                schema.parse_error(msg, elem)
+                xsd_type.name = None
+
+        if 'final' in elem.attrib:
+            try:
+                xsd_type._final = get_xsd_derivation_attribute(elem, 'final')
+            except ValueError as err:
+                xsd_type.parse_error(err, elem)
+
+        return xsd_type
 
 
 CT = TypeVar('CT', bound=XsdComponent)
@@ -498,7 +558,7 @@ class TypesMap(StagedMap[BaseXsdType]):
         if elem.tag == nm.XSD_COMPLEX_TYPE:
             return self._builders.complex_type_class(elem, schema)
         else:
-            return self.simple_type_factory(elem, schema)
+            return self._builders.simple_type_factory(elem, schema)
 
     def build_builtins(self, schema: SchemaType) -> None:
         if schema.meta_schema is not None and nm.XSD_ANY_TYPE in self._store:
@@ -567,61 +627,6 @@ class TypesMap(StagedMap[BaseXsdType]):
                 xsd_type.facets = built_facets
 
             self._store[name] = xsd_type
-
-    def simple_type_factory(self, elem: Element,
-                            schema: SchemaType,
-                            parent: Optional[XsdComponent] = None) -> XsdSimpleType:
-        """
-        Factory function for XSD simple types. Parses the xs:simpleType element and its
-        child component, that can be a restriction, a list or a union. Annotations are
-        linked to simple type instance, omitting the inner annotation if both are given.
-        """
-        annotation: Optional[XsdAnnotation] = None
-        try:
-            child = elem[0]
-        except IndexError:
-            return cast(XsdSimpleType, self._store[nm.XSD_ANY_SIMPLE_TYPE])
-        else:
-            if child.tag == nm.XSD_ANNOTATION:
-                annotation = XsdAnnotation(child, schema, parent)
-                try:
-                    child = elem[1]
-                except IndexError:
-                    msg = _("(restriction | list | union) expected")
-                    schema.parse_error(msg, elem)
-                    return cast(XsdSimpleType, self._store[nm.XSD_ANY_SIMPLE_TYPE])
-
-        xsd_type: XsdSimpleType
-        try:
-            xsd_type = self._builders.simple_types[child.tag](child, schema, parent)
-        except KeyError:
-            msg = _("(restriction | list | union) expected")
-            schema.parse_error(msg, elem)
-            return cast(XsdSimpleType, self._store[nm.XSD_ANY_SIMPLE_TYPE])
-
-        if annotation is not None:
-            xsd_type._annotation = annotation
-
-        try:
-            xsd_type.name = get_qname(schema.target_namespace, elem.attrib['name'])
-        except KeyError:
-            if parent is None:
-                msg = _("missing attribute 'name' in a global simpleType")
-                schema.parse_error(msg, elem)
-                xsd_type.name = 'nameless_%s' % str(id(xsd_type))
-        else:
-            if parent is not None:
-                msg = _("attribute 'name' not allowed for a local simpleType")
-                schema.parse_error(msg, elem)
-                xsd_type.name = None
-
-        if 'final' in elem.attrib:
-            try:
-                xsd_type._final = get_xsd_derivation_attribute(elem, 'final')
-            except ValueError as err:
-                xsd_type.parse_error(err, elem)
-
-        return xsd_type
 
 
 class NotationsMap(StagedMap[XsdNotation]):

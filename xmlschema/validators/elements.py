@@ -117,7 +117,7 @@ class XsdElement(XsdComponent, ParticleMixin,
     binding: Optional[DataBindingType] = None
 
     __slots__ = ('type', 'selected_by', 'identities', 'content', 'attributes',
-                 'min_occurs', 'max_occurs', 'builders', '_build')
+                 'min_occurs', 'max_occurs', '_build')
 
     def __init__(self, elem: ElementType,
                  schema: SchemaType,
@@ -127,7 +127,6 @@ class XsdElement(XsdComponent, ParticleMixin,
         self.min_occurs = self.max_occurs = 1
         self._build = build
         self.selected_by = set()
-        self.builders = schema.builders
         super().__init__(elem, schema, parent)
 
     def __repr__(self) -> str:
@@ -141,7 +140,7 @@ class XsdElement(XsdComponent, ParticleMixin,
     def _set_type(self, value: BaseXsdType) -> None:
         self.type = value
         if isinstance(value, XsdSimpleType):
-            self.attributes = self.builders.create_empty_attribute_group(self)
+            self.attributes = self.schema.builders.create_empty_attribute_group(self)
             self.content = ()
         else:
             self.attributes = value.attributes
@@ -275,15 +274,12 @@ class XsdElement(XsdComponent, ParticleMixin,
                     msg = _("the attribute 'type' and a xs:{} local "
                             "declaration are mutually exclusive")
                     self.parse_error(msg.format(child.tag.split('}')[-1]))
+        elif (child := self._parse_child_component(self.elem, strict=False)) is None:
+            self._set_type(self.any_type)
         else:
-            child = self._parse_child_component(self.elem, strict=False)
-            if child is None:
-                self._set_type(self.any_type)
-            elif child.tag == XSD_COMPLEX_TYPE:
-                self._set_type(self.schema.builders.complex_type_class(child, self.schema, self))
-            elif child.tag == XSD_SIMPLE_TYPE:
-                self._set_type(self.maps.types.simple_type_factory(child, self.schema, self))
-            else:
+            try:
+                self._set_type(self.schema.builders.local_types[child.tag](child, self.schema, self))
+            except KeyError:
                 self._set_type(self.any_type)
 
     def _parse_constraints(self) -> None:
@@ -493,7 +489,7 @@ class XsdElement(XsdComponent, ParticleMixin,
         elif xsd_type is self.type:
             return self.attributes
         else:
-            return self.builders.create_empty_attribute_group(self)
+            return self.schema.builders.create_empty_attribute_group(self)
 
     def get_path(self, ancestor: Optional[XsdComponent] = None,
                  reverse: bool = False) -> Optional[str]:
@@ -1469,9 +1465,6 @@ class XsdAlternative(XsdComponent):
 
     __slots__ = ('xpath_default_namespace', 'path', 'token', 'type')
 
-    def __init__(self, elem: ElementType, schema: SchemaType, parent: XsdElement) -> None:
-        super().__init__(elem, schema, parent)
-
     def __repr__(self) -> str:
         return '%s(type=%r, test=%r)' % (
             self.__class__.__name__, self.elem.get('type'), self.elem.get('test')
@@ -1520,19 +1513,19 @@ class XsdAlternative(XsdComponent):
             if 'type' in attrib:
                 self.parse_error(err)
                 self.type = self.any_type
+            elif (child := self._parse_child_component(self.elem, strict=False)) is None:
+                self.parse_error(_("missing 'type' attribute"))
+                self.type = self.any_type
             else:
-                child = self._parse_child_component(self.elem, strict=False)
-                if child is None or child.tag not in (XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE):
+                try:
+                    self.type = self.schema.builders.local_types[child.tag](child, self.schema, self)
+                except KeyError:
                     self.parse_error(_("missing 'type' attribute"))
                     self.type = self.any_type
-                elif child.tag == XSD_COMPLEX_TYPE:
-                    self.type = self.schema.builders.complex_type_class(child, self.schema, self)
                 else:
-                    self.type = self.maps.types.simple_type_factory(child, self.schema, self)
-
-                if not self.type.is_derived(self.parent.type):
-                    msg = _("declared type is not derived from {!r}")
-                    self.parse_error(msg.format(self.parent.type))
+                    if not self.type.is_derived(self.parent.type):
+                        msg = _("declared type is not derived from {!r}")
+                        self.parse_error(msg.format(self.parent.type))
         else:
             try:
                 self.type = self.maps.types[type_qname]

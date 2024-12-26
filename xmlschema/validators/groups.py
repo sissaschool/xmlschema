@@ -33,7 +33,7 @@ from .validation import DecodeContext, EncodeContext, ValidationMixin
 from .xsdbase import XsdComponent, XsdType
 from .particles import ParticleMixin, OccursCalculator
 from .elements import XsdElement, XsdAlternative
-from .wildcards import XsdAnyElement, Xsd11AnyElement, XsdOpenContent
+from .wildcards import XsdAnyElement, XsdOpenContent
 from .models import ModelVisitor, InterleavedModelVisitor, SuffixedModelVisitor, \
     iter_unordered_content, iter_collapsed_content
 
@@ -576,7 +576,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
             elif content_model.tag == XSD_ALL:
                 self.parse_error(_("'all' model can contain only elements"))
             elif child.tag == XSD_ANY:
-                self._group.append(XsdAnyElement(child, self.schema, self))
+                self._group.append(self.schema.builders.any_element_class(child, self.schema, self))
             elif child.tag in (XSD_SEQUENCE, XSD_CHOICE):
                 self._group.append(XsdGroup(child, self.schema, self))
             elif child.tag == XSD_GROUP:
@@ -1253,7 +1253,7 @@ class Xsd11Group(XsdGroup):
                 # Builds inner elements later, for avoid circularity.
                 self.append(self.schema.builders.element_class(child, self.schema, self, False))
             elif child.tag == XSD_ANY:
-                self._group.append(Xsd11AnyElement(child, self.schema, self))
+                self._group.append(self.schema.builders.any_element_class(child, self.schema, self))
             elif child.tag in (XSD_SEQUENCE, XSD_CHOICE, XSD_ALL):
                 self._group.append(Xsd11Group(child, self.schema, self))
             elif child.tag == XSD_GROUP:

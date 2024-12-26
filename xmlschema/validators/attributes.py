@@ -21,8 +21,7 @@ from xmlschema.aliases import ComponentClassType, ElementType, \
 from xmlschema.exceptions import XMLSchemaValueError
 from xmlschema.names import XSI_NAMESPACE, XSD_ANY_SIMPLE_TYPE, XSD_SIMPLE_TYPE, \
     XSD_ATTRIBUTE_GROUP, XSD_COMPLEX_TYPE, XSD_RESTRICTION, XSD_EXTENSION, \
-    XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ATTRIBUTE, XSD_ANY_ATTRIBUTE, \
-    XSD_ASSERT, XSD_NOTATION_TYPE, XSD_ANNOTATION
+    XSD_ATTRIBUTE, XSD_ANY_ATTRIBUTE, XSD_ASSERT, XSD_NOTATION_TYPE, XSD_ANNOTATION
 from xmlschema.translation import gettext as _
 from xmlschema.utils.decoding import EmptyType
 from xmlschema.utils.qnames import get_namespace, get_qname
@@ -156,7 +155,7 @@ class XsdAttribute(XsdComponent, ValidationMixin[str, DecodedValueType]):
 
             elif child is not None:
                 # No 'type' attribute in declaration, parse for child local simpleType
-                self.type = self.maps.types.simple_type_factory(child, self.schema, self)
+                self.type = self.schema.builders.simple_type_factory(child, self.schema, self)
             else:
                 # Empty declaration means xsdAnySimpleType
                 self.type = self.any_simple_type
