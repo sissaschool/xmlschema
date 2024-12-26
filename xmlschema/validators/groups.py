@@ -103,7 +103,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
     # For XSD 1.1 openContent processing
     open_content: Optional[XsdOpenContent] = None
 
-    _ADMITTED_TAGS = {XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE}
+    _ADMITTED_TAGS = (XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE)
 
     __slots__ = ('_group', 'content', 'oid', 'model', 'min_occurs', 'max_occurs')
 

@@ -843,7 +843,7 @@ class XsdAssertionFacet(XsdFacet):
             raise XMLSchemaValidationError(self, value, reason=str(err)) from None
 
 
-XSD_10_FACETS_BUILDERS: dict[str, Type[XsdFacet]] = {
+XSD_10_FACETS_CLASSES: dict[str, Type[XsdFacet]] = {
     XSD_WHITE_SPACE: XsdWhiteSpaceFacet,
     XSD_LENGTH: XsdLengthFacet,
     XSD_MIN_LENGTH: XsdMinLengthFacet,
@@ -858,19 +858,19 @@ XSD_10_FACETS_BUILDERS: dict[str, Type[XsdFacet]] = {
     XSD_PATTERN: XsdPatternFacets
 }
 
-XSD_11_FACETS_BUILDERS: dict[str, Type[XsdFacet]] = XSD_10_FACETS_BUILDERS.copy()
-XSD_11_FACETS_BUILDERS.update({
+XSD_11_FACETS_CLASSES: dict[str, Type[XsdFacet]] = XSD_10_FACETS_CLASSES.copy()
+XSD_11_FACETS_CLASSES.update({
     XSD_ASSERTION: XsdAssertionFacet,
     XSD_EXPLICIT_TIMEZONE: XsdExplicitTimezoneFacet
 })
 
-FACETS_BUILDERS = {
-    '1.0': XSD_10_FACETS_BUILDERS,
-    '1.1': XSD_11_FACETS_BUILDERS,
+FACETS_CLASSES = {
+    '1.0': XSD_10_FACETS_CLASSES,
+    '1.1': XSD_11_FACETS_CLASSES,
 }
 
-XSD_10_FACETS = set(XSD_10_FACETS_BUILDERS)
-XSD_11_FACETS = set(XSD_11_FACETS_BUILDERS)
+XSD_10_FACETS = set(XSD_10_FACETS_CLASSES)
+XSD_11_FACETS = set(XSD_11_FACETS_CLASSES)
 
 XSD_10_LIST_FACETS = {XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_PATTERN,
                       XSD_ENUMERATION, XSD_WHITE_SPACE}

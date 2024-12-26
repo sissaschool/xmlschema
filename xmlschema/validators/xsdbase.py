@@ -261,7 +261,14 @@ class XsdComponent(XsdValidator):
     for elements and attributes.
     :vartype qualified: bool
     """
-    _ADMITTED_TAGS: Union[set[str], tuple[str, ...], tuple[()]] = ()
+    @classmethod
+    def meta_tag(cls) -> str:
+        try:
+            return cls._ADMITTED_TAGS[0]
+        except IndexError:
+            raise NotImplementedError(f"not available for {cls!r}")
+
+    _ADMITTED_TAGS: Union[tuple[str, ...], tuple[()]] = ()
 
     elem: ElementType
     qualified = True

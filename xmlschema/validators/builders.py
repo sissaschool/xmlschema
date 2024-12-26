@@ -7,15 +7,12 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-import importlib
 from abc import abstractmethod
 from collections import Counter
 from collections.abc import Callable, ItemsView, Iterator, Mapping, ValuesView
 from copy import copy as shallow_copy
 from typing import Any, cast, Optional, overload, Union, Type, TypeVar
 from xml.etree.ElementTree import Element
-
-from elementpath import XPath2Parser
 
 from xmlschema.aliases import BaseXsdType, ElementType, LoadedItemType, \
     SchemaType, StagedItemType
@@ -24,16 +21,17 @@ from xmlschema.exceptions import XMLSchemaAttributeError, XMLSchemaKeyError, \
 from xmlschema.translation import gettext as _
 import xmlschema.names as nm
 from xmlschema.utils.qnames import local_name, get_qname
-from xmlschema.xpath.assertion_parser import XsdAssertionXPathParser
 
 from .helpers import get_xsd_derivation_attribute
 from .exceptions import XMLSchemaCircularityError
 from .xsdbase import XsdComponent, XsdAnnotation
 from .builtins import BUILTIN_TYPES
-from .facets import XsdFacet, FACETS_BUILDERS
-from .identities import XsdIdentity, IDENTITY_BUILDERS
+from .facets import XsdFacet, FACETS_CLASSES
+from .identities import XsdIdentity, XsdUnique, XsdKey, XsdKeyref, Xsd11Unique, \
+    Xsd11Key, Xsd11Keyref
 from .simple_types import XsdSimpleType, XsdAtomicBuiltin, XsdAtomicRestriction, \
-    Xsd11AtomicRestriction, SIMPLE_BUILDERS
+    Xsd11AtomicRestriction, XsdUnion, Xsd11Union, XsdList
+
 from .notations import XsdNotation
 from .attributes import XsdAttribute, Xsd11Attribute, XsdAttributeGroup
 from .complex_types import XsdComplexType, Xsd11ComplexType
@@ -63,31 +61,58 @@ class XsdBuilders:
     A descriptor dataclass for providing versioned builders for XSD components.
     It's instantiated on a schema class, and it configures itself looking the
     XSD_VERSION of the class.
+
+    :param classes: customize registered classes for builder.
     """
+    components: dict[str, Type[XsdComponent]]
     facets: dict[str, Type[XsdFacet]]
     identities: dict[str, Type[XsdIdentity]]
     simple_types: dict[str, Type[XsdSimpleType]]
     builtins: tuple[dict[str, Any], ...]
 
-    __slots__ = ('facets', 'identities', 'simple_types', '__dict__')
+    __slots__ = ('_name', '_xsd_version', 'components', 'facets', 'identities',
+                 'simple_types', 'builtins', 'simple_type_class', 'notation_class',
+                 'attribute_group_class', 'list_class', 'complex_type_class',
+                 'attribute_class', 'group_class', 'element_class', 'any_element_class',
+                 'any_attribute_class', 'atomic_restriction_class', 'union_class',
+                 'unique_class', 'key_class', 'keyref_class')
+
+    def __init__(self, xsd_version: Optional[str] = None,
+                 *facets_classes: Type[XsdFacet],
+                 **classes: Type[XsdComponent]) -> None:
+        if xsd_version is not None:
+            self._xsd_version = xsd_version
+
+        self.components = {}
+        self.facets = {}
+
+        if facets_classes:
+            for cls in facets_classes:
+                self.facets[cls.meta_tag()] = self.components[cls.meta_tag()] = cls
+
+        for k, v in classes.items():
+            if k.endswith('_class'):
+                setattr(self, k, v)
 
     def __set_name__(self, cls: Type[SchemaType], name: str) -> None:
         self._name = name
-        self._schema_class = cls
+        self._xsd_version = cls.XSD_VERSION
 
-        try:
-            self.facets = FACETS_BUILDERS[cls.XSD_VERSION]
-            self.identities = IDENTITY_BUILDERS[cls.XSD_VERSION]
-            self.simple_types = SIMPLE_BUILDERS[cls.XSD_VERSION]
-            self.builtins = BUILTIN_TYPES[cls.XSD_VERSION]
-        except KeyError as err:
-            raise XMLSchemaValueError("wrong or unsupported XSD version {}".format(err))
+        if not self.facets:
+            self.facets.update(FACETS_CLASSES[self._xsd_version])
+        else:
+            facets = FACETS_CLASSES[self._xsd_version].copy()
+            facets.update(self.facets)
+            self.facets = facets
+
+        self.builtins = BUILTIN_TYPES[self._xsd_version]
 
         self.simple_type_class = XsdSimpleType
         self.notation_class = XsdNotation
         self.attribute_group_class = XsdAttributeGroup
+        self.list_class = XsdList
 
-        if cls.XSD_VERSION == '1.0':
+        if self._xsd_version == '1.0':
             self.complex_type_class = XsdComplexType
             self.attribute_class = XsdAttribute
             self.group_class = XsdGroup
@@ -95,6 +120,10 @@ class XsdBuilders:
             self.any_element_class = XsdAnyElement
             self.any_attribute_class = XsdAnyAttribute
             self.atomic_restriction_class = XsdAtomicRestriction
+            self.union_class = XsdUnion
+            self.unique_class = XsdUnique
+            self.key_class = XsdKey
+            self.keyref_class = XsdKeyref
         else:
             self.complex_type_class = Xsd11ComplexType
             self.attribute_class = Xsd11Attribute
@@ -103,6 +132,37 @@ class XsdBuilders:
             self.any_element_class = Xsd11AnyElement
             self.any_attribute_class = Xsd11AnyAttribute
             self.atomic_restriction_class = Xsd11AtomicRestriction
+            self.union_class = Xsd11Union
+            self.unique_class = Xsd11Unique
+            self.key_class = Xsd11Key
+            self.keyref_class = Xsd11Keyref
+
+        self.identities = {
+            nm.XSD_UNIQUE: self.unique_class,
+            nm.XSD_KEY: self.key_class,
+            nm.XSD_KEYREF: self.keyref_class,
+        }
+        self.simple_types = {
+            nm.XSD_RESTRICTION: self.atomic_restriction_class,
+            nm.XSD_LIST: self.list_class,
+            nm.XSD_UNION: self.union_class,
+        }
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        if name == '_xsd_version':
+            if value not in ('1.0', '1.1'):
+                raise XMLSchemaValueError(f"wrong or unsupported XSD version {value!r}")
+            elif hasattr(self, '_xsd_version') and self._xsd_version != value:
+                raise XMLSchemaValueError("XSD version mismatch")
+
+        elif name.endswith('_class'):
+            if not isinstance(value, type) or not issubclass(value, XsdComponent):
+                raise XMLSchemaTypeError(f"{name} must be a subclass of XsdComponent")
+            if hasattr(self, name):
+                return  # Skip changing a component class already set at __init__
+            self.components[value.meta_tag()] = value
+
+        super().__setattr__(name, value)
 
     @overload
     def __get__(self, schema: None, cls: Type[SchemaType]) -> 'XsdBuilders': ...
@@ -122,7 +182,7 @@ class XsdBuilders:
 
     @property
     def xsd_version(self) -> str:
-        return self._schema_class.XSD_VERSION
+        return self._xsd_version
 
     def create_any_content_group(self, parent: Union[XsdComplexType, XsdGroup],
                                  any_element: Optional[XsdAnyElement] = None) -> XsdGroup:
@@ -230,36 +290,6 @@ class XsdBuilders:
         return self.element_class(elem, schema, parent)
 
 
-class SchemaConfig:
-    """Store a schema instance configuration."""
-    xpath_parser_class: Type[XPath2Parser]
-    assertion_parser_class: Type[XsdAssertionXPathParser]
-
-    def __init__(self, schema: SchemaType):
-        self.schema_class = type(schema)
-        self.builders = schema.builders
-
-        # Save other validator init options, used for creating new schemas.
-        self.schema_options: dict[str, Any] = {
-            'validation': schema.validation,
-            'converter': schema.converter,
-            'allow': schema.source.allow,
-            'defuse': schema.source.defuse,
-            'timeout': schema.source.timeout,
-            'uri_mapper': schema.source.uri_mapper,
-            'opener': schema.source.opener,
-            'use_xpath3': schema.use_xpath3,
-        }
-
-        if not schema.use_xpath3:
-            self.xpath_parser_class = XPath2Parser
-            self.assertion_parser_class = XsdAssertionXPathParser
-        else:
-            module = importlib.import_module('xmlschema.xpath.xpath3')
-            self.xpath_parser_class = module.XPath3Parser
-            self.assertion_parser_class = module.XsdAssertionXPath3Parser
-
-
 CT = TypeVar('CT', bound=XsdComponent)
 
 BuilderType = Callable[[ElementType, SchemaType], CT]
@@ -270,15 +300,16 @@ class StagedMap(Mapping[str, CT]):
     label = 'component'
 
     @abstractmethod
-    def get_builder(self) -> Callable[[ElementType, SchemaType], CT]:
+    def _factory_or_class(self, elem: ElementType, schema: SchemaType) -> CT:
         """Returns the builder class or method used to build the global map."""
 
-    def __init__(self, validator: SchemaType):
+    __slots__ = ('_store', '_staging', '_builders',
+                 '_store_counter', '_staging_counter')
+
+    def __init__(self, builders: XsdBuilders):
         self._store: dict[str, CT] = {}
         self._staging: dict[str, StagedItemType] = {}
-        self._validator = validator
-        self._builders = validator.builders
-        self._factory_or_class = self.get_builder()
+        self._builders = builders
 
         # Schema counters for built and staged component
         self._store_counter: Counter[SchemaType] = Counter()
@@ -305,7 +336,7 @@ class StagedMap(Mapping[str, CT]):
 
     def copy(self) -> 'StagedMap[CT]':
         obj = object.__new__(self.__class__)
-        obj.__dict__.update(self.__dict__)
+        obj._builders = self._builders
         obj._staging = self._staging.copy()
         obj._store = self._store.copy()
         obj._store_counter = self._store_counter.copy()
@@ -463,25 +494,16 @@ class StagedMap(Mapping[str, CT]):
 
 class TypesMap(StagedMap[BaseXsdType]):
 
-    def __init__(self, validator: SchemaType):
-        super().__init__(validator)
-        self._complex_type_class = validator.builders.complex_type_class
-        self._simple_types = validator.builders.simple_types
-        self._facets_builders = validator.builders.facets
-
-    def get_builder(self) -> Callable[[ElementType, SchemaType], BaseXsdType]:
-        return self._build_global_type
-
-    def _build_global_type(self, elem: ElementType, schema: SchemaType) -> BaseXsdType:
+    def _factory_or_class(self, elem: ElementType, schema: SchemaType) -> BaseXsdType:
         if elem.tag == nm.XSD_COMPLEX_TYPE:
-            return self._complex_type_class(elem, schema)
+            return self._builders.complex_type_class(elem, schema)
         else:
             return self.simple_type_factory(elem, schema)
 
-    def build_builtins(self) -> None:
-        if self._validator.meta_schema is not None and nm.XSD_ANY_TYPE in self._store:
+    def build_builtins(self, schema: SchemaType) -> None:
+        if schema.meta_schema is not None and nm.XSD_ANY_TYPE in self._store:
             # builtin types already provided, rebuild only xs:anyType for wildcards
-            self._store[nm.XSD_ANY_TYPE] = self._builders.create_any_type(self._validator)
+            self._store[nm.XSD_ANY_TYPE] = self._builders.create_any_type(schema)
             return
 
         #
@@ -489,13 +511,13 @@ class TypesMap(StagedMap[BaseXsdType]):
         #
         # xs:anyType
         # Ref: https://www.w3.org/TR/xmlschema11-1/#builtin-ctd
-        self._store[nm.XSD_ANY_TYPE] = self._builders.create_any_type(self._validator)
+        self._store[nm.XSD_ANY_TYPE] = self._builders.create_any_type(schema)
 
         # xs:anySimpleType
         # Ref: https://www.w3.org/TR/xmlschema11-2/#builtin-stds
         any_simple_type = self._store[nm.XSD_ANY_SIMPLE_TYPE] = XsdSimpleType(
             elem=Element(nm.XSD_SIMPLE_TYPE, name=nm.XSD_ANY_SIMPLE_TYPE),
-            schema=self._validator,
+            schema=schema,
             parent=None,
             name=nm.XSD_ANY_SIMPLE_TYPE
         )
@@ -503,9 +525,9 @@ class TypesMap(StagedMap[BaseXsdType]):
         # xs:anyAtomicType
         # Ref: https://www.w3.org/TR/xmlschema11-2/#builtin-stds
         self._store[nm.XSD_ANY_ATOMIC_TYPE] = \
-            self._validator.builders.atomic_restriction_class(
+            self._builders.atomic_restriction_class(
                 elem=Element(nm.XSD_SIMPLE_TYPE, name=nm.XSD_ANY_ATOMIC_TYPE),
-                schema=self._validator,
+                schema=schema,
                 parent=None,
                 name=nm.XSD_ANY_ATOMIC_TYPE,
                 base_type=any_simple_type,
@@ -532,16 +554,16 @@ class TypesMap(StagedMap[BaseXsdType]):
                 base_type = None
 
             facets = item.pop('facets', None)
-            xsd_type = XsdAtomicBuiltin(elem, self._validator, **item)
+            xsd_type = XsdAtomicBuiltin(elem, schema, **item)
             if facets:
                 built_facets = xsd_type.facets
                 for e in facets:
                     try:
-                        cls = self._facets_builders[e.tag]
+                        cls = self._builders.facets[e.tag]
                     except AttributeError:
                         built_facets[None] = e
                     else:
-                        built_facets[e.tag] = cls(e, self._validator, xsd_type, base_type)
+                        built_facets[e.tag] = cls(e, schema, xsd_type, base_type)
                 xsd_type.facets = built_facets
 
             self._store[name] = xsd_type
@@ -571,7 +593,7 @@ class TypesMap(StagedMap[BaseXsdType]):
 
         xsd_type: XsdSimpleType
         try:
-            xsd_type = self._simple_types[child.tag](child, schema, parent)
+            xsd_type = self._builders.simple_types[child.tag](child, schema, parent)
         except KeyError:
             msg = _("(restriction | list | union) expected")
             schema.parse_error(msg, elem)
@@ -603,25 +625,35 @@ class TypesMap(StagedMap[BaseXsdType]):
 
 
 class NotationsMap(StagedMap[XsdNotation]):
-    def get_builder(self) -> Callable[[ElementType, SchemaType], XsdNotation]:
-        return self._builders.notation_class
+    label = 'notation'
+
+    def _factory_or_class(self, elem: ElementType, schema: SchemaType) -> XsdNotation:
+        return self._builders.notation_class(elem, schema)
 
 
 class AttributesMap(StagedMap[XsdAttribute]):
-    def get_builder(self) -> Callable[[ElementType, SchemaType], XsdAttribute]:
-        return self._builders.attribute_class
+    label = 'attribute'
+
+    def _factory_or_class(self, elem: ElementType, schema: SchemaType) -> XsdAttribute:
+        return self._builders.attribute_class(elem, schema)
 
 
 class AttributeGroupsMap(StagedMap[XsdAttributeGroup]):
-    def get_builder(self) -> Callable[[ElementType, SchemaType], XsdAttributeGroup]:
-        return self._builders.attribute_group_class
+    label = 'attribute group'
+
+    def _factory_or_class(self, elem: ElementType, schema: SchemaType) -> XsdAttributeGroup:
+        return self._builders.attribute_group_class(elem, schema)
 
 
 class ElementsMap(StagedMap[XsdElement]):
-    def get_builder(self) -> Callable[[ElementType, SchemaType], XsdElement]:
-        return self._builders.element_class
+    label = 'element'
+
+    def _factory_or_class(self, elem: ElementType, schema: SchemaType) -> XsdElement:
+        return self._builders.element_class(elem, schema)
 
 
 class GroupsMap(StagedMap[XsdGroup]):
-    def get_builder(self) -> Callable[[ElementType, SchemaType], XsdGroup]:
-        return self._builders.group_class
+    label = 'model group'
+
+    def _factory_or_class(self, elem: ElementType, schema: SchemaType) -> XsdGroup:
+        return self._builders.group_class(elem, schema)

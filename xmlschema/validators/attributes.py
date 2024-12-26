@@ -342,10 +342,7 @@ class XsdAttributeGroup(
           Content: (annotation?, ((attribute | attributeGroup)*, anyAttribute?))
         </attributeGroup>
     """
-    _ADMITTED_TAGS = {
-        XSD_ATTRIBUTE_GROUP, XSD_COMPLEX_TYPE, XSD_RESTRICTION, XSD_EXTENSION,
-        XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ATTRIBUTE, XSD_ANY_ATTRIBUTE
-    }
+    _ADMITTED_TAGS = (XSD_ATTRIBUTE_GROUP, XSD_COMPLEX_TYPE, XSD_RESTRICTION, XSD_EXTENSION)
     copy: Callable[['XsdAttributeGroup'], 'XsdAttributeGroup']
 
     __slots__ = ('_attribute_group', 'derivation', 'base_attributes')

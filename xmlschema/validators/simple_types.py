@@ -36,8 +36,8 @@ from .exceptions import XMLSchemaValidationError, XMLSchemaParseError, \
 from .validation import DecodeContext, EncodeContext, ValidationMixin
 from .xsdbase import XsdComponent, XsdType
 from .facets import XsdFacet, XsdWhiteSpaceFacet, XsdPatternFacets, \
-    XsdEnumerationFacets, XsdAssertionFacet, XSD_10_FACETS_BUILDERS, \
-    XSD_11_FACETS_BUILDERS, XSD_10_FACETS, XSD_11_FACETS, XSD_10_LIST_FACETS, \
+    XsdEnumerationFacets, XsdAssertionFacet, XSD_10_FACETS_CLASSES, \
+    XSD_11_FACETS_CLASSES, XSD_10_FACETS, XSD_11_FACETS, XSD_10_LIST_FACETS, \
     XSD_11_LIST_FACETS, XSD_10_UNION_FACETS, XSD_11_UNION_FACETS, MULTIPLE_FACETS
 
 FacetsValueType = Union[XsdFacet, Callable[[Any], None], list[XsdAssertionFacet]]
@@ -1206,7 +1206,7 @@ class XsdAtomicRestriction(XsdAtomic):
     parent: 'XsdSimpleType'
     base_type: BaseXsdType
     derivation = 'restriction'
-    _FACETS_BUILDERS = XSD_10_FACETS_BUILDERS
+    _FACETS_BUILDERS = XSD_10_FACETS_CLASSES
     _CONTENT_TAIL_TAGS = {XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ANY_ATTRIBUTE}
 
     def parse(self, elem: ElementType) -> None:
@@ -1492,11 +1492,5 @@ class Xsd11AtomicRestriction(XsdAtomicRestriction):
           {any with namespace: ##other})*))
         </restriction>
     """
-    _FACETS_BUILDERS = XSD_11_FACETS_BUILDERS
+    _FACETS_BUILDERS = XSD_11_FACETS_CLASSES
     _CONTENT_TAIL_TAGS = {XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ANY_ATTRIBUTE, XSD_ASSERT}
-
-
-SIMPLE_BUILDERS = {
-    '1.0': {XSD_RESTRICTION: XsdAtomicRestriction, XSD_LIST: XsdList, XSD_UNION: XsdUnion},
-    '1.1': {XSD_RESTRICTION: Xsd11AtomicRestriction, XSD_LIST: XsdList, XSD_UNION: XsdUnion},
-}

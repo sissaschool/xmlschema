@@ -7,6 +7,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+import importlib
 import threading
 import warnings
 from collections import Counter
@@ -27,6 +28,7 @@ from xmlschema.utils.qnames import local_name, get_extended_qname
 from xmlschema.utils.urls import get_url, normalize_url
 from xmlschema.loaders import NamespaceResourcesMap, SchemaLoader
 from xmlschema.resources import XMLResource
+from xmlschema.xpath.assertion_parser import XsdAssertionXPathParser
 import xmlschema.names as nm
 
 from .exceptions import XMLSchemaNotBuiltError, XMLSchemaModelError, \
@@ -36,7 +38,7 @@ from .models import check_model
 from . import XsdAttribute, XsdSimpleType, XsdComplexType, XsdElement, \
     XsdGroup, XsdIdentity, XsdAssert, XsdUnion, XsdAtomicRestriction, \
     XsdAtomic, XsdAtomicBuiltin
-from .builders import SchemaConfig, TypesMap, NotationsMap, AttributesMap, \
+from .builders import XsdBuilders, TypesMap, NotationsMap, AttributesMap, \
     AttributeGroupsMap, ElementsMap, GroupsMap
 
 GLOBAL_TAGS = frozenset((
@@ -55,6 +57,36 @@ _GLOBAL_GETTERS = MappingProxyType({
 })
 
 
+class SchemaConfig:
+    """Store a schema instance configuration."""
+    xpath_parser_class: Type[XPath2Parser]
+    assertion_parser_class: Type[XsdAssertionXPathParser]
+
+    def __init__(self, schema: SchemaType):
+        self.schema_class = type(schema)
+        self.builders = schema.builders
+
+        # Save other validator init options, used for creating new schemas.
+        self.schema_options: dict[str, Any] = {
+            'validation': schema.validation,
+            'converter': schema.converter,
+            'allow': schema.source.allow,
+            'defuse': schema.source.defuse,
+            'timeout': schema.source.timeout,
+            'uri_mapper': schema.source.uri_mapper,
+            'opener': schema.source.opener,
+            'use_xpath3': schema.use_xpath3,
+        }
+
+        if not schema.use_xpath3:
+            self.xpath_parser_class = XPath2Parser
+            self.assertion_parser_class = XsdAssertionXPathParser
+        else:
+            module = importlib.import_module('xmlschema.xpath.xpath3')
+            self.xpath_parser_class = module.XPath3Parser
+            self.assertion_parser_class = module.XsdAssertionXPath3Parser
+
+
 class GlobalMaps(NamedTuple):
     types: TypesMap
     notations: NotationsMap
@@ -64,14 +96,14 @@ class GlobalMaps(NamedTuple):
     groups: GroupsMap
 
     @classmethod
-    def empty_maps(cls, validator: SchemaType) -> 'GlobalMaps':
+    def empty_maps(cls, builders: XsdBuilders) -> 'GlobalMaps':
         return cls(
-            TypesMap(validator),
-            NotationsMap(validator),
-            AttributesMap(validator),
-            AttributeGroupsMap(validator),
-            ElementsMap(validator),
-            GroupsMap(validator)
+            TypesMap(builders),
+            NotationsMap(builders),
+            AttributesMap(builders),
+            AttributeGroupsMap(builders),
+            ElementsMap(builders),
+            GroupsMap(builders)
         )
 
     def clear(self) -> None:
@@ -271,18 +303,19 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
         self._validity = 'notKnown'
 
         self._schemas = set()
+
         self.validator = validator
         self._parent = parent
 
         self.config = SchemaConfig(validator)
         self.namespaces = NamespaceResourcesMap()  # Registered schemas by namespace URI
 
-        self.types = TypesMap(self.validator)
-        self.notations = NotationsMap(self.validator)
-        self.attributes = AttributesMap(self.validator)
-        self.attribute_groups = AttributeGroupsMap(self.validator)
-        self.elements = ElementsMap(self.validator)
-        self.groups = GroupsMap(self.validator)
+        self.types = TypesMap(validator.builders)
+        self.notations = NotationsMap(validator.builders)
+        self.attributes = AttributesMap(validator.builders)
+        self.attribute_groups = AttributeGroupsMap(validator.builders)
+        self.elements = ElementsMap(validator.builders)
+        self.groups = GroupsMap(validator.builders)
         self.global_maps = GlobalMaps(*(getattr(self, n) for n in GlobalMaps._fields))
 
         self.substitution_groups = {}
@@ -712,7 +745,7 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
             self.global_maps.load_globals(target_schemas)
             initial_staged = self.staged_globals
 
-            self.types.build_builtins()
+            self.types.build_builtins(self.validator)
             self.notations.build()
             self.attributes.build()
             self.attribute_groups.build()

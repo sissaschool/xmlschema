@@ -14,7 +14,6 @@ from textwrap import dedent
 
 from xmlschema import XMLSchemaDecodeError, XMLSchemaEncodeError, \
     XMLSchemaValidationError, XMLSchema10, XMLSchema11
-from xmlschema.names import XSD_STRING
 from xmlschema.utils.etree import is_etree_element
 from xmlschema.validators.builtins import XSD_10_BUILTIN_TYPES, XSD_11_BUILTIN_TYPES
 
@@ -50,7 +49,7 @@ class TestXsd10BuiltinTypes(unittest.TestCase):
 
         maps.clear()
         self.assertEqual(maps.total_globals, 0)
-        maps.types.build_builtins()
+        maps.types.build_builtins(schema)
         if self.schema_class.XSD_VERSION == '1.0':
             self.assertEqual(maps.total_globals, 44)
         else:
