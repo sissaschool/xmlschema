@@ -174,7 +174,7 @@ class XsdElement(XsdComponent, ParticleMixin,
         attrib = self.elem.attrib
         if self._parse_reference():
             try:
-                xsd_element: XsdElement = self.maps.elements[self.name]
+                xsd_element: XsdElement = self.schema.maps.elements[self.name]
             except KeyError:
                 self._set_type(self.any_type)
                 self.parse_error(_('unknown element %r') % self.name)
@@ -264,7 +264,7 @@ class XsdElement(XsdComponent, ParticleMixin,
                     self._set_type(self.any_type)
                 else:
                     try:
-                        self._set_type(self.maps.types[extended_name])
+                        self._set_type(self.schema.maps.types[extended_name])
                     except KeyError:
                         self.parse_error(_('unknown type {!r}').format(type_name))
                         self._set_type(self.any_type)
@@ -278,7 +278,9 @@ class XsdElement(XsdComponent, ParticleMixin,
             self._set_type(self.any_type)
         else:
             try:
-                self._set_type(self.schema.builders.local_types[child.tag](child, self.schema, self))
+                self._set_type(
+                    self.schema.builders.local_types[child.tag](child, self.schema, self)
+                )
             except KeyError:
                 self._set_type(self.any_type)
 
@@ -294,7 +296,7 @@ class XsdElement(XsdComponent, ParticleMixin,
                 msg = _("'default' value {!r} is not compatible with element's type")
                 self.parse_error(msg.format(self.default))
                 self.default = None
-            elif self.xsd_version == '1.0' and self.type.is_key():
+            elif self.schema.xsd_version == '1.0' and self.type.is_key():
                 msg = _("xs:ID or a type derived from xs:ID cannot have a default value")
                 self.parse_error(msg)
 
@@ -304,7 +306,7 @@ class XsdElement(XsdComponent, ParticleMixin,
                 msg = _("'fixed' value {!r} is not compatible with element's type")
                 self.parse_error(msg.format(self.fixed))
                 self.fixed = None
-            elif self.xsd_version == '1.0' and self.type.is_key():
+            elif self.schema.xsd_version == '1.0' and self.type.is_key():
                 msg = _("xs:ID or a type derived from xs:ID cannot have a fixed value")
                 self.parse_error(msg)
 
@@ -329,11 +331,11 @@ class XsdElement(XsdComponent, ParticleMixin,
                 continue
 
             try:
-                if child != self.maps.identities[identity.name].elem:
+                if child != self.schema.maps.identities[identity.name].elem:
                     msg = _("duplicated identity constraint %r:")
                     self.parse_error(msg % identity.name, child)
             except KeyError:
-                self.maps.identities[identity.name] = identity
+                self.schema.maps.identities[identity.name] = identity
             finally:
                 self.identities.append(identity)
 
@@ -350,7 +352,7 @@ class XsdElement(XsdComponent, ParticleMixin,
                 )
 
         try:
-            head_element = self.maps.elements[substitution_group_qname]
+            head_element = self.schema.maps.elements[substitution_group_qname]
         except KeyError:
             msg = _("unknown substitutionGroup %r")
             self.parse_error(msg % substitution_group)
@@ -389,9 +391,9 @@ class XsdElement(XsdComponent, ParticleMixin,
             self.parse_error(msg % head_element)
 
         try:
-            self.maps.substitution_groups[substitution_group_qname].add(self)
+            self.schema.maps.substitution_groups[substitution_group_qname].add(self)
         except KeyError:
-            self.maps.substitution_groups[substitution_group_qname] = {self}
+            self.schema.maps.substitution_groups[substitution_group_qname] = {self}
         finally:
             self.substitution_group = substitution_group_qname
 
@@ -532,7 +534,7 @@ class XsdElement(XsdComponent, ParticleMixin,
 
     def iter_substitutes(self) -> Iterator['XsdElement']:
         if self.parent is None or self.ref is not None:
-            for xsd_element in self.maps.substitution_groups.get(self.name, ()):
+            for xsd_element in self.schema.maps.substitution_groups.get(self.name, ()):
                 if not xsd_element.abstract:
                     yield xsd_element
                 for e in xsd_element.iter_substitutes():
@@ -556,7 +558,7 @@ class XsdElement(XsdComponent, ParticleMixin,
         for ns, url in etree_iter_location_hints(elem):
             base_url = context.source.base_url
             url = normalize_url(url, base_url)
-            if any(url == schema.url for schema in self.maps.iter_schemas()):
+            if any(url == schema.url for schema in self.schema.maps.iter_schemas()):
                 continue
 
             if ns in etree_iter_namespaces(context.source.root, elem):
@@ -564,8 +566,8 @@ class XsdElement(XsdComponent, ParticleMixin,
                 context.validation_error(validation, self, reason, elem)
 
             try:
-                if ns in self.maps.namespaces:
-                    schema = self.maps.namespaces[ns][0]
+                if ns in self.schema.maps.namespaces:
+                    schema = self.schema.maps.namespaces[ns][0]
                     schema.include_schema(url)
                     self.schema.clear()
                     self.schema.build()
@@ -595,7 +597,7 @@ class XsdElement(XsdComponent, ParticleMixin,
             if self.name == obj.tag:
                 reason = _("can't use an abstract element in an instance")
                 context.validation_error(validation, self, reason, obj)
-            elif self.name not in self.maps.substitution_groups:
+            elif self.name not in self.schema.maps.substitution_groups:
                 reason = _("can't use an abstract XSD element for validation "
                            "unless it's the head of a substitution group")
                 context.validation_error(validation, self, reason, obj)
@@ -644,7 +646,7 @@ class XsdElement(XsdComponent, ParticleMixin,
             type_name = obj.attrib[XSI_TYPE].strip()
             namespaces = converter.namespaces
             try:
-                xsd_type = self.maps.get_instance_type(type_name, xsd_type, namespaces)
+                xsd_type = self.schema.maps.get_instance_type(type_name, xsd_type, namespaces)
             except (KeyError, TypeError) as err:
                 context.validation_error(validation, self, err, obj)
             else:
@@ -670,7 +672,7 @@ class XsdElement(XsdComponent, ParticleMixin,
             breakpoint()
 
         id_list = context.id_list
-        if xsd_type.is_complex() and self.xsd_version == '1.1':
+        if xsd_type.is_complex() and self.schema.xsd_version == '1.1':
             # Track XSD 1.1 multiple xs:ID attributes/children
             context.id_list = []
 
@@ -936,7 +938,7 @@ class XsdElement(XsdComponent, ParticleMixin,
             if self.name == element_data.tag and context.converter.losslessly:
                 reason = _("can't use an abstract element in an instance")
                 context.validation_error(validation, self, reason, obj)
-            elif self.name not in self.maps.substitution_groups:
+            elif self.name not in self.schema.maps.substitution_groups:
                 reason = _("can't use an abstract XSD element for validation "
                            "unless it's the head of a substitution group")
                 context.validation_error(validation, self, reason, obj)
@@ -959,7 +961,9 @@ class XsdElement(XsdComponent, ParticleMixin,
         if XSI_TYPE in element_data.attributes and self.schema.meta_schema is not None:
             type_name = element_data.attributes[XSI_TYPE].strip()
             try:
-                xsd_type = self.maps.get_instance_type(type_name, xsd_type, context.converter)
+                xsd_type = self.schema.maps.get_instance_type(
+                    type_name, xsd_type, context.converter
+                )
             except (KeyError, TypeError) as err:
                 errors.append(err)
             else:
@@ -1105,8 +1109,8 @@ class XsdElement(XsdComponent, ParticleMixin,
             if isinstance(matched_element, XsdElement):
                 return matched_element
         else:
-            if name in self.maps.elements and xsd_group.open_content_mode != 'none':
-                return self.maps.elements[name]
+            if name in self.schema.maps.elements and xsd_group.open_content_mode != 'none':
+                return self.schema.maps.elements[name]
             return None
 
     def is_restriction(self, other: ModelParticleType, check_occurs: bool = True) -> bool:
@@ -1123,7 +1127,7 @@ class XsdElement(XsdComponent, ParticleMixin,
                 if other.name == self.substitution_group and \
                         other.min_occurs != other.max_occurs and \
                         self.max_occurs != 0 and not other.abstract \
-                        and self.xsd_version == '1.0':
+                        and self.schema.xsd_version == '1.0':
                     # A UPA violation case. Base is the head element, it's not
                     # abstract and has non-deterministic occurs: this is less
                     # restrictive than W3C test group (elemZ026), marked as
@@ -1160,7 +1164,7 @@ class XsdElement(XsdComponent, ParticleMixin,
             if other.is_empty() and self.max_occurs != 0:
                 return False
 
-            check_group_items_occurs = self.xsd_version == '1.0'
+            check_group_items_occurs = self.schema.xsd_version == '1.0'
             total_occurs = OccursCalculator()
             for e in other.iter_model():
                 if not isinstance(e, (XsdElement, XsdAnyElement)):
@@ -1194,7 +1198,7 @@ class XsdElement(XsdComponent, ParticleMixin,
         elif isinstance(other, XsdAnyElement):
             if other.is_matching(self.name, self.default_namespace):
                 return True
-            for e in self.maps.substitution_groups.get(self.name, ()):
+            for e in self.schema.maps.substitution_groups.get(self.name, ()):
                 if other.is_matching(e.name, self.default_namespace):
                     return True
         return False
@@ -1321,7 +1325,7 @@ class Xsd11Element(XsdElement):
 
     def iter_substitutes(self) -> Iterator[XsdElement]:
         if self.parent is None or self.ref is not None:
-            for xsd_element in self.maps.substitution_groups.get(self.name, ()):
+            for xsd_element in self.schema.maps.substitution_groups.get(self.name, ()):
                 yield xsd_element
                 yield from xsd_element.iter_substitutes()
 
@@ -1367,7 +1371,7 @@ class Xsd11Element(XsdElement):
         elif isinstance(other, XsdAnyElement):
             if other.is_matching(self.name, self.default_namespace):
                 return True
-            for e in self.maps.substitution_groups.get(self.name, ()):
+            for e in self.schema.maps.substitution_groups.get(self.name, ()):
                 if other.is_matching(e.name, self.default_namespace):
                     return True
         return False
@@ -1411,12 +1415,12 @@ class Xsd11Element(XsdElement):
         for ns, url in etree_iter_location_hints(elem):
             base_url = context.source.base_url
             url = normalize_url(url, base_url)
-            if any(url == schema.url for schema in self.maps.iter_schemas()):
+            if any(url == schema.url for schema in self.schema.maps.iter_schemas()):
                 continue
 
             try:
-                if ns in self.maps.namespaces:
-                    schema = self.maps.namespaces[ns][0]
+                if ns in self.schema.maps.namespaces:
+                    schema = self.schema.maps.namespaces[ns][0]
                     schema.include_schema(url)
                     schema.clear()
                     schema.build()
@@ -1518,7 +1522,9 @@ class XsdAlternative(XsdComponent):
                 self.type = self.any_type
             else:
                 try:
-                    self.type = self.schema.builders.local_types[child.tag](child, self.schema, self)
+                    self.type = self.schema.builders.local_types[child.tag](
+                        child, self.schema, self
+                    )
                 except KeyError:
                     self.parse_error(_("missing 'type' attribute"))
                     self.type = self.any_type
@@ -1528,7 +1534,7 @@ class XsdAlternative(XsdComponent):
                         self.parse_error(msg.format(self.parent.type))
         else:
             try:
-                self.type = self.maps.types[type_qname]
+                self.type = self.schema.maps.types[type_qname]
             except KeyError:
                 self.parse_error(_("unknown type {!r}").format(attrib['type']))
                 self.type = self.any_type

@@ -351,7 +351,7 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
 
     @property
     def admitted_facets(self) -> set[str]:
-        return XSD_10_FACETS if self.xsd_version == '1.0' else XSD_11_FACETS
+        return XSD_10_FACETS if self.schema.xsd_version == '1.0' else XSD_11_FACETS
 
     @property
     def built(self) -> bool:
@@ -587,7 +587,7 @@ class XsdAtomic(XsdSimpleType):
     @property
     def admitted_facets(self) -> set[str]:
         if self.primitive_type.is_complex():
-            return XSD_10_FACETS if self.xsd_version == '1.0' else XSD_11_FACETS
+            return XSD_10_FACETS if self.schema.xsd_version == '1.0' else XSD_11_FACETS
         return self.primitive_type.admitted_facets
 
     def is_datetime(self) -> bool:
@@ -745,12 +745,12 @@ class XsdAtomicBuiltin(XsdAtomic):
             elif not context.id_map[obj]:
                 context.id_map[obj] = 1
                 context.id_list.append(obj)
-                if len(context.id_list) > 1 and self.xsd_version == '1.0':
+                if len(context.id_list) > 1 and self.schema.xsd_version == '1.0':
                     reason = _("no more than one attribute of type ID should "
                                "be present in an element")
                     context.validation_error(validation, self, reason, obj)
 
-            elif obj not in context.id_list or self.xsd_version == '1.0':
+            elif obj not in context.id_list or self.schema.xsd_version == '1.0':
                 reason = _("duplicated xs:ID value {!r}").format(obj)
                 context.validation_error(validation, self, reason, obj)
 
@@ -892,7 +892,7 @@ class XsdList(XsdSimpleType):
                 item_type = self.any_atomic_type
             else:
                 try:
-                    item_type = self.maps.types[item_qname]
+                    item_type = self.schema.maps.types[item_qname]
                 except KeyError:
                     msg = _("unknown type {!r}")
                     self.parse_error(msg.format(self.elem.attrib['itemType']))
@@ -921,7 +921,7 @@ class XsdList(XsdSimpleType):
 
     @property
     def admitted_facets(self) -> set[str]:
-        return XSD_10_LIST_FACETS if self.xsd_version == '1.0' else XSD_11_LIST_FACETS
+        return XSD_10_LIST_FACETS if self.schema.xsd_version == '1.0' else XSD_11_LIST_FACETS
 
     @property
     def root_type(self) -> BaseXsdType:
@@ -1036,7 +1036,7 @@ class XsdUnion(XsdSimpleType):
                     continue
 
                 try:
-                    mt = self.maps.types[type_qname]
+                    mt = self.schema.maps.types[type_qname]
                 except KeyError:
                     self.parse_error(_("unknown type {!r}").format(type_qname))
                     mt = self.any_atomic_type
@@ -1073,7 +1073,7 @@ class XsdUnion(XsdSimpleType):
 
     @property
     def admitted_facets(self) -> set[str]:
-        return XSD_10_UNION_FACETS if self.xsd_version == '1.0' else XSD_11_UNION_FACETS
+        return XSD_10_UNION_FACETS if self.schema.xsd_version == '1.0' else XSD_11_UNION_FACETS
 
     def is_atomic(self) -> bool:
         return all(mt.is_atomic() for mt in self.member_types)
@@ -1245,7 +1245,7 @@ class XsdAtomicRestriction(XsdAtomic):
                         self.parse_error(msg)
 
                     try:
-                        base_type = self.maps.types[base_qname]
+                        base_type = self.schema.maps.types[base_qname]
                     except KeyError:
                         self.parse_error(_("unknown type {!r}").format(elem.attrib['base']))
                         base_type = self.any_atomic_type
@@ -1292,7 +1292,9 @@ class XsdAtomicRestriction(XsdAtomic):
 
                 if base_type is None:
                     try:
-                        base_type = self.schema.builders.simple_type_factory(child, self.schema, self)
+                        base_type = self.schema.builders.simple_type_factory(
+                            child, self.schema, self
+                        )
                     except XMLSchemaParseError as err:
                         self.parse_error(err, child)
                         base_type = self.any_simple_type
@@ -1302,7 +1304,9 @@ class XsdAtomicRestriction(XsdAtomic):
                             elem=elem,
                             schema=self.schema,
                             parent=self,
-                            content=self.schema.builders.simple_type_factory(child, self.schema, self),
+                            content=self.schema.builders.simple_type_factory(
+                                child, self.schema, self
+                            ),
                             attributes=base_type.attributes,
                             mixed=base_type.mixed,
                             block=base_type.block,

@@ -91,12 +91,18 @@ class XMLSchemaMeta(ABCMeta):
         assert bases, "a base class is mandatory"
         base_class = bases[0]
 
-        if 'META_SCHEMA' in dict_:
+        meta_schema_file: Optional[str]
+        if isinstance(dict_.get('META_SCHEMA'), str):
             meta_schema_file = dict_.pop('META_SCHEMA')
             if not isinstance(meta_schema_file, str):
                 raise XMLSchemaTypeError("META_SCHEMA must be a string defining the "
                                          "location of the XSD meta-schema file")
+        elif isinstance(dict_.get('meta_schema'), str):
+            meta_schema_file = dict_.pop('meta_schema')  # For backward compatibility
+        else:
+            meta_schema_file = None
 
+        if isinstance(meta_schema_file, str):
             try:
                 base_schemas = dict_.get('BASE_SCHEMAS', {})
             except KeyError as e:
@@ -237,11 +243,12 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     """
     @property
     @abstractmethod
-    def builders(self) -> XsdBuilders: ...
+    def xsd_builders(self) -> XsdBuilders: ...
 
     XSD_VERSION: str = '1.0'
     BASE_SCHEMAS: dict[str, str] = {}
     meta_schema: Optional[SchemaType] = None
+    builders: XsdBuilders
 
     # Instance attributes type annotations
     source: XMLResource
@@ -273,7 +280,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     _validation_context: Optional[DecodeContext] = None
 
     # Schema defaults
-    target_namespace = ''
     attribute_form_default = 'unqualified'
     element_form_default = 'unqualified'
     block_default = ''
@@ -284,7 +290,9 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     default_attributes: Optional[Union[str, XsdAttributeGroup]] = None
     default_open_content: Optional[XsdDefaultOpenContent] = None
     override: Optional[SchemaType] = None
-    use_xpath3: bool
+
+    __slots__ = ('maps', 'target_namespace', 'validation', 'source',
+                 'namespaces', 'xsd_version', 'builders',)
 
     def __init__(self, source: Union[SchemaSourceType, list[SchemaSourceType]],
                  namespace: Optional[str] = None,
@@ -335,6 +343,9 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
         logger.debug("Load schema from %r", self.source.url or self.source.source)
 
+        self.xsd_version = self.XSD_VERSION
+        self.builders = self.xsd_builders
+
         self.converter = converter
         self.locations = locations
         self.use_fallback = use_fallback
@@ -370,6 +381,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             self.target_namespace = namespace
             if '' not in namespaces:
                 namespaces[''] = namespace
+        else:
+            self.target_namespace = ''
 
         if '' not in namespaces:
             # If not declared map the default namespace to no namespace
@@ -412,6 +425,15 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             self.namespaces = namespaces
             self.maps = XsdGlobals(self) if global_maps is None else global_maps
 
+            # A validation context instance used internally for decoding schema simple values.
+            self.validation_context = DecodeContext(
+                source=self.source,
+                validation=self.validation,
+                validation_only=True,
+                namespaces=self.namespaces,
+                xmlns_processing='none'
+            )
+
             if self.source.name == 'xsd11-extra.xsd':
                 # Process the patch schema for XSD 1.1 meta-schema
                 for child in self.source.root:
@@ -442,6 +464,14 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         # Complete the namespace map with internal declarations, remapping
         # identical prefixes that refer to different namespaces.
         self.namespaces = self.source.get_namespaces(namespaces, root_only=False)
+        # A validation context instance used internally for decoding schema simple values.
+        self.validation_context = DecodeContext(
+            source=self.source,
+            validation=self.validation,
+            validation_only=True,
+            namespaces=self.namespaces,
+            xmlns_processing='none'
+        )
 
         if any(ns == nm.VC_NAMESPACE for ns in self.namespaces.values()):
             # Apply versioning filter to schema tree. See the paragraph
@@ -516,8 +546,10 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
             for attr in ('types', 'attributes', 'attribute_groups', 'groups', 'elements',
                          'notations', 'substitution_groups', 'identities'):
-                self.__dict__[attr] = NamespaceView(getattr(value, attr), self.target_namespace)
-            self.__dict__['loader'] = value.loader
+                object.__setattr__(
+                    self, attr, NamespaceView(getattr(value, attr), self.target_namespace)
+                )
+            object.__setattr__(self, 'loader', value.loader)
         else:
             if name == 'meta_schema':
                 msg = _("can't set the meta_schema instance of a schema")
@@ -548,10 +580,21 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
     def __getstate__(self) -> dict[str, Any]:
         state = self.__dict__.copy()
+        for cls in self.__class__.__mro__:
+            if hasattr(cls, '__slots__'):
+                for attr in cls.__slots__:
+                    if attr not in state:
+                        state[attr] = getattr(self, attr)
+
         state.pop('_xpath_lock', None)
         return state
 
     def __setstate__(self, state: dict[str, Any]) -> None:
+        for cls in self.__class__.__mro__:
+            if hasattr(cls, '__slots__'):
+                for attr in cls.__slots__:
+                    if attr in state:
+                        object.__setattr__(self, attr, state.pop(attr))
         self.__dict__.update(state)
         self._xpath_lock = threading.Lock()
 
@@ -565,6 +608,14 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             (k, v.copy() if isinstance(v, (list, dict)) else v)
             for k, v in self.__dict__.items()
         )
+        for cls in self.__class__.__mro__:
+            if hasattr(cls, '__slots__'):
+                for attr in cls.__slots__:
+                    value = getattr(self, attr)
+                    if isinstance(value, (list, dict)):
+                        object.__setattr__(schema, attr, value.copy())
+                    else:
+                        object.__setattr__(schema, attr, value)
         return schema
 
     __copy__ = copy
@@ -585,11 +636,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     def xpath_tokens(self) -> dict[str, Type[XPathToken]]:
         """Returns the XPath constructors tokens."""
         return self.maps.xpath_constructors
-
-    @property
-    def xsd_version(self) -> str:
-        """Compatibility property that returns the class attribute XSD_VERSION."""
-        return self.XSD_VERSION
 
     @property
     def root(self) -> Element:
@@ -801,21 +847,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
         assert self._root_elements is not None
         return [e for e in self.elements.values() if e.name in self._root_elements]
-
-    @property
-    def validation_context(self) -> DecodeContext:
-        """
-        A validation context instance used internally for decoding schema simple values.
-        """
-        if self._validation_context is None:
-            self._validation_context = DecodeContext(
-                source=self.source,
-                validation=self.validation,
-                validation_only=True,
-                namespaces=self.namespaces,
-                xmlns_processing='none'
-            )
-        return self._validation_context
 
     @property
     def simple_types(self) -> list[XsdSimpleType]:
@@ -1817,12 +1848,13 @@ class XMLSchema10(XMLSchemaBase):
       attributeGroup) | element | attribute | notation), annotation*)*)
     </schema>
     """
+    xsd_builders = XsdBuilders()
+
     META_SCHEMA = f'{SCHEMAS_DIR}XSD_1.0/XMLSchema.xsd'
     BASE_SCHEMAS = {
         nm.XML_NAMESPACE: f'{SCHEMAS_DIR}XML/xml.xsd',
         nm.XSI_NAMESPACE: f'{SCHEMAS_DIR}XSI/XMLSchema-instance.xsd',
     }
-    builders = XsdBuilders()
 
 
 class XMLSchema11(XMLSchemaBase):
@@ -1860,9 +1892,9 @@ class XMLSchema11(XMLSchemaBase):
       attributeGroup) | element | attribute | notation), annotation*)*)
     </schema>
     """
-    XSD_VERSION = '1.1'
-    builders = XsdBuilders()
+    xsd_builders = XsdBuilders()
 
+    XSD_VERSION = '1.1'
     META_SCHEMA = f'{SCHEMAS_DIR}XSD_1.1/XMLSchema.xsd'
     BASE_SCHEMAS = {
         nm.XML_NAMESPACE: f'{SCHEMAS_DIR}XML/xml.xsd',

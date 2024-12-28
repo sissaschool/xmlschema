@@ -39,7 +39,7 @@ class XsdNotation(XsdComponent):
         if self.parent is not None:
             self.parse_error(_("a notation declaration must be global"))
         try:
-            self.name = get_qname(self.target_namespace, self.elem.attrib['name'])
+            self.name = get_qname(self.schema.target_namespace, self.elem.attrib['name'])
         except KeyError:
             self.parse_error(_("a notation must have a 'name' attribute"))
 

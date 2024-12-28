@@ -287,6 +287,9 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
         nm.XSD_GROUP: 'groups',
     }
 
+    __slots__ = ('substitution_groups', 'types', 'global_maps',
+                 '_staged_globals', '_validation_attempted')
+
     def __init__(self, validator: SchemaType, validation: str = _strict,
                  loader: Optional[Type[SchemaLoader]] = None,
                  parent: Optional[SchemaType] = None) -> None:
@@ -357,6 +360,12 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
 
     def __getstate__(self) -> dict[str, Any]:
         state = self.__dict__.copy()
+        for cls in self.__class__.__mro__:
+            if hasattr(cls, '__slots__'):
+                for attr in cls.__slots__:
+                    if attr not in state:
+                        state[attr] = getattr(self, attr)
+
         state.pop('_build_lock', None)
         state.pop('_xpath_lock', None)
         state.pop('_xpath_parser', None)
@@ -364,6 +373,12 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
         return state
 
     def __setstate__(self, state: dict[str, Any]) -> None:
+        for cls in self.__class__.__mro__:
+            if hasattr(cls, '__slots__'):
+                for attr in cls.__slots__:
+                    if attr in state:
+                        object.__setattr__(self, attr, state.pop(attr))
+
         self.__dict__.update(state)
         self._build_lock = threading.Lock()
         self._xpath_lock = threading.Lock()
@@ -681,7 +696,7 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
                     k = self.namespaces[namespace].index(schema)
 
                     schema = schema.copy()
-                    schema.__dict__['maps'] = self
+                    object.__setattr__(schema, 'maps', self)
 
                     self._schemas.add(schema)
                     self.namespaces[namespace][k] = schema

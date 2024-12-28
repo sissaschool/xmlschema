@@ -279,7 +279,7 @@ class XsdComponent(XsdValidator):
     _annotations: list['XsdAnnotation']
     _target_namespace: Optional[str]
 
-    __slots__ = ('name', 'parent', 'schema', 'maps', 'elem', 'errors', 'validation')
+    __slots__ = ('name', 'parent', 'schema', 'elem', 'errors', 'validation')
 
     def __init__(self, elem: ElementType,
                  schema: SchemaType,
@@ -290,7 +290,6 @@ class XsdComponent(XsdValidator):
         self.name = name
         self.parent = parent
         self.schema = schema
-        self.maps: XsdGlobals = schema.maps
         self.parse(elem)
 
     def __repr__(self) -> str:
@@ -342,7 +341,10 @@ class XsdComponent(XsdValidator):
     @property
     def target_namespace(self) -> str:
         """Property that references to schema's targetNamespace."""
-        return self.schema.target_namespace if self.ref is None else self.ref.target_namespace
+        if self.ref is None:
+            return self.schema.target_namespace
+        else:
+            return self.ref.schema.target_namespace
 
     @property
     def default_namespace(self) -> Optional[str]:
@@ -357,17 +359,17 @@ class XsdComponent(XsdValidator):
     @property
     def any_type(self) -> 'XsdComplexType':
         """Property that references to the xs:anyType instance of the global maps."""
-        return cast('XsdComplexType', self.maps.types[XSD_ANY_TYPE])
+        return cast('XsdComplexType', self.schema.maps.types[XSD_ANY_TYPE])
 
     @property
     def any_simple_type(self) -> 'XsdSimpleType':
         """Property that references to the xs:anySimpleType instance of the global maps."""
-        return cast('XsdSimpleType', self.maps.types[XSD_ANY_SIMPLE_TYPE])
+        return cast('XsdSimpleType', self.schema.maps.types[XSD_ANY_SIMPLE_TYPE])
 
     @property
     def any_atomic_type(self) -> 'XsdSimpleType':
         """Property that references to the xs:anyAtomicType instance of the global maps."""
-        return cast('XsdSimpleType', self.maps.types[XSD_ANY_ATOMIC_TYPE])
+        return cast('XsdSimpleType', self.schema.maps.types[XSD_ANY_ATOMIC_TYPE])
 
     @property
     def annotation(self) -> Optional['XsdAnnotation']:
@@ -893,20 +895,20 @@ class XsdType(XsdComponent):
         raise NotImplementedError()
 
     def is_key(self) -> bool:
-        return self.name == XSD_ID or self.is_derived(self.maps.types[XSD_ID])
+        return self.name == XSD_ID or self.is_derived(self.schema.maps.types[XSD_ID])
 
     def is_qname(self) -> bool:
-        return self.name == XSD_QNAME or self.is_derived(self.maps.types[XSD_QNAME])
+        return self.name == XSD_QNAME or self.is_derived(self.schema.maps.types[XSD_QNAME])
 
     def is_notation(self) -> bool:
         return self.name == XSD_NOTATION_TYPE or \
-            self.is_derived(self.maps.types[XSD_NOTATION_TYPE])
+            self.is_derived(self.schema.maps.types[XSD_NOTATION_TYPE])
 
     def is_decimal(self) -> bool:
-        return self.name == XSD_DECIMAL or self.is_derived(self.maps.types[XSD_DECIMAL])
+        return self.name == XSD_DECIMAL or self.is_derived(self.schema.maps.types[XSD_DECIMAL])
 
     def is_boolean(self) -> bool:
-        return self.name == XSD_BOOLEAN or self.is_derived(self.maps.types[XSD_BOOLEAN])
+        return self.name == XSD_BOOLEAN or self.is_derived(self.schema.maps.types[XSD_BOOLEAN])
 
     def text_decode(self, text: str, validation: str = 'skip',
                     context: Optional[DecodeContext] = None) -> DecodedValueType:

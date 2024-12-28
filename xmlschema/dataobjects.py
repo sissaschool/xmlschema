@@ -173,7 +173,7 @@ class DataElement(MutableSequence['DataElement']):
 
     @property
     def xsd_version(self) -> str:
-        return '1.0' if self.xsd_element is None else self.xsd_element.xsd_version
+        return '1.0' if self.xsd_element is None else self.xsd_element.schema.xsd_version
 
     @property
     def namespace(self) -> str:

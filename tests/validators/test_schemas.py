@@ -912,7 +912,7 @@ class TestXMLSchemaMeta(unittest.TestCase):
     def test_dummy_validator_class(self):
 
         class DummySchema(XMLSchemaBase):
-            builders = XsdBuilders()
+            xsd_builders = XsdBuilders()
             XSD_VERSION = '1.1'
             meta_schema = os.path.join(SCHEMAS_DIR, 'XSD_1.1/XMLSchema.xsd')
 
@@ -921,7 +921,7 @@ class TestXMLSchemaMeta(unittest.TestCase):
     def test_subclass_but_no_replace_meta_schema(self):
 
         class CustomXMLSchema10(XMLSchema10):
-            pass
+            xsd_builders = XsdBuilders()
 
         self.assertIsInstance(CustomXMLSchema10.meta_schema, XMLSchemaBase)
         self.assertIs(CustomXMLSchema10.meta_schema, XMLSchema10.meta_schema)
@@ -933,8 +933,8 @@ class TestXMLSchemaMeta(unittest.TestCase):
     def test_subclass_and_replace_meta_schema(self):
 
         class CustomXMLSchema10(XMLSchema10):
+            xsd_builders = XsdBuilders()
             META_SCHEMA = os.path.join(SCHEMAS_DIR, 'XSD_1.0/XMLSchema.xsd')
-            builders = XsdBuilders()
 
         self.assertIsInstance(CustomXMLSchema10.meta_schema, XMLSchemaBase)
         self.assertIsNot(CustomXMLSchema10.meta_schema, XMLSchema10.meta_schema)
@@ -949,7 +949,7 @@ class TestXMLSchemaMeta(unittest.TestCase):
     def test_subclass_and_create_base_meta_schema(self):
 
         class CustomXMLSchema10(XMLSchemaBase):
-            builders = XsdBuilders()
+            xsd_builders = XsdBuilders()
             META_SCHEMA = os.path.join(SCHEMAS_DIR, 'XSD_1.0/XMLSchema.xsd')
 
         self.assertIsInstance(CustomXMLSchema10.meta_schema, XMLSchemaBase)

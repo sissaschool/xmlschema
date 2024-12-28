@@ -486,7 +486,7 @@ class XsdFractionDigitsFacet(XsdFacet):
                  base_type: BaseXsdType) -> None:
 
         super().__init__(elem, schema, parent, base_type)
-        if not base_type.is_derived(self.maps.types[XSD_DECIMAL]):
+        if not base_type.is_derived(self.schema.maps.types[XSD_DECIMAL]):
             msg = _("fractionDigits facet can be applied only to types derived from xs:decimal")
             self.parse_error(msg)
 
@@ -500,7 +500,7 @@ class XsdFractionDigitsFacet(XsdFacet):
         else:
             if self.value < 0:
                 self.value = 9999
-            elif self.value > 0 and self.base_type.is_derived(self.maps.types[XSD_INTEGER]):
+            elif self.value > 0 and self.base_type.is_derived(self.schema.maps.types[XSD_INTEGER]):
                 msg = _("fractionDigits facet value must be 0 for types derived from xs:integer")
                 raise ValueError(msg)
 
@@ -602,7 +602,7 @@ class XsdEnumerationFacets(MutableSequence[ElementType], XsdFacet):
                 except (KeyError, ValueError, RuntimeError) as err:
                     self.parse_error(err, elem)
                 else:
-                    if notation_qname not in self.maps.notations:
+                    if notation_qname not in self.schema.maps.notations:
                         msg = _("value {!r} must match a notation declaration")
                         self.parse_error(msg.format(value), elem)
             return cast(AtomicValueType, value)
@@ -705,7 +705,7 @@ class XsdPatternFacets(MutableSequence[ElementType], XsdFacet):
         try:
             python_pattern = translate_pattern(
                 pattern=elem.attrib['value'],
-                xsd_version=self.xsd_version,
+                xsd_version=self.schema.xsd_version,
                 back_references=False,
                 lazy_quantifiers=False,
                 anchors=False
@@ -820,7 +820,7 @@ class XsdAssertionFacet(XsdFacet):
         else:
             self.xpath_default_namespace = self.schema.xpath_default_namespace
 
-        self.parser = self.maps.config.assertion_parser_class(
+        self.parser = self.schema.maps.config.assertion_parser_class(
             namespaces=self.namespaces,
             strict=False,
             variable_types={'value': value},
