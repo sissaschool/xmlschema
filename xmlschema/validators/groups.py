@@ -452,7 +452,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
 
         return expected
 
-    def copy(self) -> 'XsdGroup':
+    def __copy__(self) -> 'XsdGroup':
         group: XsdGroup = object.__new__(self.__class__)
         group.__dict__.update(self.__dict__)
 
@@ -466,8 +466,6 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         if self.ref is None:
             group.content = group._group
         return group
-
-    __copy__ = copy
 
     def _any_content_group_fallback(self) -> None:
         self.model = 'sequence'

@@ -7,6 +7,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+import copy
 import importlib
 import threading
 import warnings
@@ -384,20 +385,20 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
         self._build_lock = threading.Lock()
         self._xpath_lock = threading.Lock()
 
-    def copy(self) -> 'XsdGlobals':
+    def __copy__(self) -> 'XsdGlobals':
         obj = type(self)(
-            validator=self.validator.copy(),
+            validator=copy.copy(self.validator),
             loader=self.loader.__class__,
             parent=self._parent
         )
         for schema in self._schemas:
             if schema.maps is self and schema is not self.validator:
-                schema.copy().maps = obj
+                copy.copy(schema).maps = obj
 
         obj.clear()
         return obj
 
-    __copy__ = copy
+    copy = __copy__
 
     def lookup(self, tag: str, qname: str) -> SchemaGlobalType:
         """
@@ -696,7 +697,7 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
                     self._schemas.remove(schema)
                     k = self.namespaces[namespace].index(schema)
 
-                    schema = schema.copy()
+                    schema = copy.copy(schema)
                     object.__setattr__(schema, 'maps', self)
 
                     self._schemas.add(schema)

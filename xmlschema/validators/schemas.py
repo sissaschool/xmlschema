@@ -598,11 +598,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         self.__dict__.update(state)
         self._xpath_lock = threading.Lock()
 
-    def copy(self) -> SchemaType:
-        """
-        Makes a copy of the schema instance. The copy has the same global maps
-        of the original.
-        """
+    def __copy__(self) -> SchemaType:
         schema: SchemaType = object.__new__(self.__class__)
         schema.__dict__.update(
             (k, v.copy() if isinstance(v, (list, dict)) else v)
@@ -618,7 +614,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                         object.__setattr__(schema, attr, value)
         return schema
 
-    __copy__ = copy
+    copy = __copy__
 
     @property
     def xpath_proxy(self) -> XMLSchemaProxy:

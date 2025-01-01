@@ -153,7 +153,7 @@ class XsdValidator:
     def total_errors(self) -> int:
         return sum(len(comp.errors) for comp in self.iter_components())
 
-    def copy(self) -> 'XsdValidator':
+    def __copy__(self) -> 'XsdValidator':
         validator: 'XsdValidator' = object.__new__(self.__class__)
         if hasattr(self, '__dict__'):
             validator.__dict__.update(self.__dict__)
@@ -166,8 +166,6 @@ class XsdValidator:
 
         validator.errors = self.errors[:]  # shallow copy duplicates errors list
         return validator
-
-    __copy__ = copy
 
     def parse_error(self, error: Union[str, Exception],
                     elem: Optional[ElementType] = None,

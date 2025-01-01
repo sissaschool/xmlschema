@@ -7,6 +7,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+import copy
 from abc import abstractmethod
 from collections import Counter
 from collections.abc import Callable, ItemsView, Iterator, Mapping, ValuesView
@@ -534,7 +535,7 @@ class StagedMap(Mapping[str, CT]):
                     msg = _("redefined schema {!r} has a different targetNamespace")
                     raise XMLSchemaValueError(msg.format(schema))
 
-                component.redefine = component.copy()
+                component.redefine = copy.copy(component)
                 component.redefine.parent = component
                 component.schema = schema
                 component.parse(elem)
