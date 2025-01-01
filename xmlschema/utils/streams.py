@@ -9,7 +9,7 @@
 #
 from io import BufferedIOBase
 from threading import Lock
-from typing import Optional, Union
+from typing import Any, Optional, Union
 
 
 DEFAULT_BUFFER_SIZE = 8 * 1024
@@ -46,6 +46,15 @@ class DefusableReader(BufferedIOBase):
         self._fp = fp
         self._pos = 0
         self._fp_lock = Lock()
+
+    def __getstate__(self) -> dict[str, Any]:
+        state = self.__dict__.copy()
+        state.pop('_fp_lock', None)
+        return state
+
+    def __setstate__(self, state: dict[str, Any]) -> None:
+        self.__dict__.update(state)
+        self._xpath_lock = Lock()
 
     def readable(self) -> bool:
         return self._fp.readable()
