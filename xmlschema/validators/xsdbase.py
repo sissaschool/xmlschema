@@ -311,6 +311,10 @@ class XsdComponent(XsdValidator):
     def xsd_version(self) -> str:
         return self.schema.XSD_VERSION
 
+    @property
+    def maps(self) -> 'XsdGlobals':
+        return self.schema.maps
+
     def is_global(self) -> bool:
         """Returns `True` if the instance is a global component, `False` if it's local."""
         return self.parent is None

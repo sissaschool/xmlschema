@@ -12,7 +12,7 @@ from abc import abstractmethod
 from collections import Counter
 from collections.abc import Callable, ItemsView, Iterator, Mapping, ValuesView
 from copy import copy as shallow_copy
-from typing import Any, cast, Optional, overload, Union, Type, TypeVar
+from typing import Any, cast, Optional, Union, Type, TypeVar
 from xml.etree.ElementTree import Element
 
 from xmlschema.aliases import BaseXsdType, ElementType, LoadedItemType, \
@@ -40,6 +40,9 @@ from .wildcards import XsdAnyElement, Xsd11AnyElement, XsdAnyAttribute, Xsd11Any
 from .groups import XsdGroup, Xsd11Group
 from .elements import XsdElement, Xsd11Element
 
+CT = TypeVar('CT', bound=XsdComponent)
+
+BuilderType = Callable[[ElementType, SchemaType, Optional[XsdComponent]], CT]
 
 # Elements for building dummy groups
 ATTRIBUTE_GROUP_ELEMENT = Element(nm.XSD_ATTRIBUTE_GROUP)
@@ -69,7 +72,7 @@ class XsdBuilders:
     facets: dict[str, Type[XsdFacet]]
     identities: dict[str, Type[XsdIdentity]]
     simple_types: dict[str, Type[XsdSimpleType]]
-    local_types: dict[str, Type[BaseXsdType]]
+    local_types: dict[str, Union[Type[BaseXsdType], BuilderType[XsdSimpleType]]]
     builtins: tuple[dict[str, Any], ...]
 
     __slots__ = ('_name', '_xsd_version', 'components', 'facets', 'identities',
@@ -98,7 +101,7 @@ class XsdBuilders:
 
     def __set_name__(self, cls: Type[SchemaType], name: str) -> None:
         self._name = name
-        self._xsd_version = cls.XSD_VERSION
+        self._xsd_version = getattr(cls, 'XSD_VERSION', '1.0')
 
         if not self.facets:
             self.facets.update(FACETS_CLASSES[self._xsd_version])
@@ -170,14 +173,7 @@ class XsdBuilders:
 
         super().__setattr__(name, value)
 
-    @overload
-    def __get__(self, schema: None, cls: Type[SchemaType]) -> 'XsdBuilders': ...
-
-    @overload
-    def __get__(self, schema: SchemaType, cls: Type[SchemaType]) -> 'XsdBuilders': ...
-
-    def __get__(self, schema: Optional[SchemaType], cls: Type[SchemaType]) \
-            -> 'XsdBuilders':
+    def __get__(self, instance: Optional[Any], cls: type[Any]) -> 'XsdBuilders':
         return self
 
     def __set__(self, instance: Any, value: Any) -> None:
@@ -343,12 +339,6 @@ class XsdBuilders:
                 xsd_type.parse_error(err, elem)
 
         return xsd_type
-
-
-CT = TypeVar('CT', bound=XsdComponent)
-
-BuilderType = Callable[[ElementType, SchemaType], CT]
-LocalBuilderType = Callable[[str], Callable[[ElementType, SchemaType, Optional[XsdComponent]], CT]]
 
 
 class StagedMap(Mapping[str, CT]):

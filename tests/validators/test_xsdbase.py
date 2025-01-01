@@ -8,6 +8,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+import copy
 import unittest
 import os
 import platform
@@ -84,7 +85,7 @@ class TestXsdValidator(unittest.TestCase):
         validator = XsdValidator(validation='lax')
         validator.parse_error(ValueError("test error"))
         self.assertEqual(len(validator.errors), 1)
-        self.assertListEqual(validator.copy().errors, validator.errors)
+        self.assertListEqual(copy.copy(validator).errors, validator.errors)
 
     def test_valid_schema(self):
         xsd_file = os.path.join(CASES_DIR, 'examples/vehicles/vehicles.xsd')
