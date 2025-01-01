@@ -26,7 +26,8 @@ from xmlschema.exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, \
 from xmlschema.translation import gettext as _
 from xmlschema.utils.qnames import local_name, get_extended_qname
 from xmlschema.utils.urls import get_url, normalize_url
-from xmlschema.loaders import NamespaceResourcesMap, SchemaLoader
+from xmlschema.locations import NamespaceResourcesMap
+from xmlschema.loaders import SchemaLoader
 from xmlschema.resources import XMLResource
 from xmlschema.xpath.assertion_parser import XsdAssertionXPathParser
 import xmlschema.names as nm
@@ -287,8 +288,8 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
         nm.XSD_GROUP: 'groups',
     }
 
-    __slots__ = ('substitution_groups', 'types', 'global_maps',
-                 '_staged_globals', '_validation_attempted')
+    __slots__ = ('substitution_groups', 'types', 'global_maps', '_build_lock', '_xpath_lock',
+                 '_staged_globals', '_validation_attempted', '_validity', '__dict__')
 
     def __init__(self, validator: SchemaType, validation: str = _strict,
                  loader: Optional[Type[SchemaLoader]] = None,
@@ -363,7 +364,7 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
         for cls in self.__class__.__mro__:
             if hasattr(cls, '__slots__'):
                 for attr in cls.__slots__:
-                    if attr not in state:
+                    if attr not in state and attr != '__dict__':
                         state[attr] = getattr(self, attr)
 
         state.pop('_build_lock', None)
@@ -416,7 +417,7 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
             msg = _("wrong tag {!r} for an XSD global definition/declaration")
             raise XMLSchemaValueError(msg.format(tag)) from None
         else:
-            return global_map[qname]
+            return cast(SchemaGlobalType, global_map[qname])
 
     def get_instance_type(self, type_name: str, base_type: BaseXsdType,
                           namespaces: NsmapType) -> BaseXsdType:
@@ -858,7 +859,6 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
         # Checks substitution groups circularity
         for qname in self.substitution_groups:
             xsd_element = self.elements[qname]
-            assert isinstance(xsd_element, XsdElement), _("global element not built!")
             if any(e is xsd_element for e in xsd_element.iter_substitutes()):
                 msg = _("circularity found for substitution group with head element {}")
                 xsd_element.parse_error(msg.format(xsd_element))

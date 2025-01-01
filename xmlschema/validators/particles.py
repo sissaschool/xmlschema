@@ -167,6 +167,9 @@ class ParticleMixin:
                     self.parse_error(msg)
                     self.max_occurs = None
 
+    def is_substitute(self, other: ModelParticleType) -> bool:
+        return False
+
 
 class OccursCalculator:
     """

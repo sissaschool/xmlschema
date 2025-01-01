@@ -254,8 +254,8 @@ class XMLResource(_ResourceLoader):
         if self.url is None:
             return False
 
-        url = self.get_url(location)
-        return self.url == url or self._url_parts.scheme and self._url_parts[1:3] == urlsplit(url)[1:3]
+        return (url := self.get_url(location)) == self.url or \
+            self._url_parts.scheme != '' and self._url_parts[1:3] == urlsplit(url)[1:3]
 
     def access_control(self, url: Optional[str]) -> None:
         if self._allow == 'all' or url is None:

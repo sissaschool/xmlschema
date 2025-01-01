@@ -304,8 +304,6 @@ class Xsd11Attribute(XsdAttribute):
           Content: (annotation?, simpleType?)
         </attribute>
     """
-    _target_namespace: Optional[str] = None
-
     @property
     def target_namespace(self) -> str:
         if self._target_namespace is not None:

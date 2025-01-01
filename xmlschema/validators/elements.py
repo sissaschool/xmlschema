@@ -112,12 +112,12 @@ class XsdElement(XsdComponent, ParticleMixin,
     _ADMITTED_TAGS = XSD_ELEMENT,
     _block: Optional[str] = None
     _final: Optional[str] = None
-    _head_type = None
+    _head_type: Optional[BaseXsdType] = None
 
     binding: Optional[DataBindingType] = None
 
-    __slots__ = ('type', 'selected_by', 'identities', 'content', 'attributes',
-                 'min_occurs', 'max_occurs', '_build')
+    __slots__ = ('type', 'selected_by', 'identities', 'content',
+                 'attributes', 'min_occurs', 'max_occurs', '_build')
 
     def __init__(self, elem: ElementType,
                  schema: SchemaType,
@@ -534,12 +534,13 @@ class XsdElement(XsdComponent, ParticleMixin,
 
     def iter_substitutes(self) -> Iterator['XsdElement']:
         if self.parent is None or self.ref is not None:
-            for xsd_element in self.schema.maps.substitution_groups.get(self.name, ()):
-                if not xsd_element.abstract:
-                    yield xsd_element
-                for e in xsd_element.iter_substitutes():
-                    if not e.abstract:
-                        yield e
+            if substitutes := self.schema.maps.substitution_groups.get(self.name):
+                for xsd_element in substitutes:
+                    if not xsd_element.abstract:
+                        yield xsd_element
+                    for e in xsd_element.iter_substitutes():
+                        if not e.abstract:
+                            yield e
 
     def data_value(self, elem: ElementType) -> DecodedValueType:
         """Returns the decoded data value of the provided element as XPath fn:data()."""
@@ -1223,6 +1224,10 @@ class XsdElement(XsdComponent, ParticleMixin,
         else:
             return self.parent.model != 'choice' and len(self.parent) > 1
 
+    def is_substitute(self, other: ModelParticleType) -> bool:
+        return not self.abstract and isinstance(other, XsdElement) \
+            and self.substitution_group == other.name
+
 
 class Xsd11Element(XsdElement):
     """
@@ -1325,9 +1330,10 @@ class Xsd11Element(XsdElement):
 
     def iter_substitutes(self) -> Iterator[XsdElement]:
         if self.parent is None or self.ref is not None:
-            for xsd_element in self.schema.maps.substitution_groups.get(self.name, ()):
-                yield xsd_element
-                yield from xsd_element.iter_substitutes()
+            if substitutes := self.schema.maps.substitution_groups.get(self.name):
+                for xsd_element in substitutes:
+                    yield xsd_element
+                    yield from xsd_element.iter_substitutes()
 
     def get_type(self, elem: Union[ElementType, ElementData],
                  inherited: Optional[dict[str, Any]] = None) -> BaseXsdType:

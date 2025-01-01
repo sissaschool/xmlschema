@@ -291,8 +291,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     default_open_content: Optional[XsdDefaultOpenContent] = None
     override: Optional[SchemaType] = None
 
-    __slots__ = ('maps', 'target_namespace', 'validation', 'source',
-                 'namespaces', 'xsd_version', 'builders',)
+    __slots__ = ('maps', 'target_namespace', 'source',
+                 'namespaces', 'xsd_version', 'builders')
 
     def __init__(self, source: Union[SchemaSourceType, list[SchemaSourceType]],
                  namespace: Optional[str] = None,
@@ -583,7 +583,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         for cls in self.__class__.__mro__:
             if hasattr(cls, '__slots__'):
                 for attr in cls.__slots__:
-                    if attr not in state:
+                    if attr not in state and attr != '__dict__':
                         state[attr] = getattr(self, attr)
 
         state.pop('_xpath_lock', None)
@@ -872,10 +872,10 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         for k in list(uri_mapper.keys()):
             uri_mapper['http' + k[5:]] = uri_mapper[k]
 
-        meta_schema: SchemaType
+        schema: SchemaType
         meta_schema_class = cls if cls.meta_schema is None else cls.meta_schema.__class__
 
-        meta_schema = meta_schema_class(
+        schema = meta_schema_class(
             source="https://www.w3.org/2001/XMLSchema.xsd",
             namespace=nm.XSD_NAMESPACE,
             defuse='never',
@@ -885,11 +885,11 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
         for ns, location in base_schemas.items():
             if ns == nm.XSD_NAMESPACE:
-                meta_schema.include_schema(location=location)
+                schema.include_schema(location=location)
             else:
-                meta_schema.import_schema(namespace=ns, location=location)
+                schema.import_schema(namespace=ns, location=location)
 
-        return meta_schema
+        return schema
 
     def build(self) -> None:
         """Builds the schema's XSD global maps."""

@@ -617,7 +617,7 @@ class XsdAtomicBuiltin(XsdAtomic):
       - to_python(value): Decoding from XML
       - from_python(value): Encoding to XML
     """
-    __slots__ = ('instance_type', 'python_type', 'to_python', 'from_python')
+    __slots__ = ('instance_types', 'python_type', 'to_python', 'from_python')
 
     def __init__(self, elem: ElementType,
                  schema: SchemaType,

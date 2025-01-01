@@ -11,7 +11,7 @@
 This module contains base functions and classes XML Schema components.
 """
 import logging
-from collections.abc import Iterator, MutableMapping
+from collections.abc import Callable, Iterator, MutableMapping
 from typing import TYPE_CHECKING, cast, Any, Optional, Union
 
 from elementpath import select
@@ -61,6 +61,8 @@ class XsdValidator:
     :ivar errors: XSD validator building errors.
     :vartype errors: list
     """
+    __slots__ = ('validation', 'errors')
+
     def __init__(self, validation: str = 'strict') -> None:
         self.validation = validation
         self.errors: list[XMLSchemaParseError] = []
@@ -153,7 +155,15 @@ class XsdValidator:
 
     def copy(self) -> 'XsdValidator':
         validator: 'XsdValidator' = object.__new__(self.__class__)
-        validator.__dict__.update(self.__dict__)
+        if hasattr(self, '__dict__'):
+            validator.__dict__.update(self.__dict__)
+
+        for cls in self.__class__.__mro__:
+            if hasattr(cls, '__slots__'):
+                for attr in cls.__slots__:
+                    if attr != '__dict__':
+                        object.__setattr__(validator, attr, getattr(self, attr))
+
         validator.errors = self.errors[:]  # shallow copy duplicates errors list
         return validator
 
@@ -275,11 +285,12 @@ class XsdComponent(XsdValidator):
     ref: Optional['XsdComponent'] = None
     redefine: Optional['XsdComponent'] = None
 
-    _annotation = None
+    _annotation: Optional['XsdAnnotation'] = None
     _annotations: list['XsdAnnotation']
-    _target_namespace: Optional[str]
+    _target_namespace: Optional[str] = None
+    copy: Callable[['XsdComponent'], 'XsdComponent']
 
-    __slots__ = ('name', 'parent', 'schema', 'elem', 'errors', 'validation')
+    __slots__ = ('name', 'parent', 'schema', 'elem', '__dict__')
 
     def __init__(self, elem: ElementType,
                  schema: SchemaType,
@@ -297,20 +308,6 @@ class XsdComponent(XsdValidator):
             return '%s(ref=%r)' % (self.__class__.__name__, self.prefixed_name)
         else:
             return '%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
-
-    def copy(self) -> 'XsdComponent':
-        comp: XsdComponent = object.__new__(self.__class__)
-        comp.__dict__.update(self.__dict__)
-
-        for cls in self.__class__.__mro__:
-            if hasattr(cls, '__slots__'):
-                for attr in cls.__slots__:
-                    object.__setattr__(comp, attr, getattr(self, attr))
-
-        comp.errors = self.errors[:]  # shallow copy duplicates errors list
-        return comp
-
-    __copy__ = copy
 
     @property
     def xsd_version(self) -> str:
@@ -745,6 +742,8 @@ class XsdAnnotation(XsdComponent):
 
 class XsdType(XsdComponent):
     """Common base class for XSD types."""
+
+    __slots__ = ()
 
     abstract = False
     base_type: Optional[BaseXsdType] = None

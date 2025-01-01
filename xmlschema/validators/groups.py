@@ -444,20 +444,12 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
 
         if self.is_over(occurs):
             return expected
-        elif self.model == 'choice':
-            items = self
-        else:
-            items = (p for p in self._group if p.min_occurs > occurs[p])
 
-        for p in items:
-            if isinstance(p, XsdGroup):
-                expected.extend(
-                    e for e in p.iter_elements() if e.min_occurs > occurs[e]
-                )
-            else:
-                expected.append(p)
-                if p.name in p.schema.maps.substitution_groups:
-                    expected.extend(p.schema.maps.substitution_groups[p.name])
+        for e in self.iter_elements():
+            if e not in expected and isinstance(e, XsdElement) and e.min_occurs > occurs[e]:
+                expected.append(e)
+                expected.extend(s for s in e.iter_substitutes())
+
         return expected
 
     def copy(self) -> 'XsdGroup':
@@ -705,14 +697,12 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
 
     def is_element_restriction(self, other: ModelParticleType) -> bool:
         if self.schema.xsd_version == '1.0' and isinstance(other, XsdElement) and \
-                not other.ref and other.name not in self.schema.substitution_groups:
+                not other.ref and other.name not in self.schema.maps.substitution_groups:
             return False
         elif not self.has_occurs_restriction(other):
             return False
         elif self.model == 'choice':
-            if other.name in self.schema.maps.substitution_groups and \
-                    all(isinstance(e, XsdElement) and e.substitution_group == other.name
-                        for e in self):
+            if all(e.is_substitute(other) for e in self):
                 return True
             return any(e.is_restriction(other, False) for e in self)
         else:

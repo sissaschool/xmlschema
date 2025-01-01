@@ -44,7 +44,7 @@ __all__ = ['ElementType', 'ElementTreeType', 'XMLSourceType', 'NsmapType',
 
 if TYPE_CHECKING:
     from xmlschema.resources import XMLResource
-    from xmlschema.loaders import NamespaceResourcesMap
+    from xmlschema.locations import NamespaceResourcesMap
     from xmlschema.converters import ElementData  # noqa
     from xmlschema.validators import XMLSchemaValidationError, XsdComponent, \
         XsdComplexType, XsdSimpleType, XsdElement, XsdAnyElement, XsdAttribute, \
