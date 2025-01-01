@@ -28,14 +28,13 @@ except ImportError:
 else:
     lxml_etree_element = lxml_etree.Element
 
-from elementpath.etree import PyElementTree, etree_tostring
-
 import xmlschema
 from xmlschema import XMLSchemaBase, XMLSchema11, XMLSchemaValidationError, \
     XMLSchemaParseError, UnorderedConverter, ParkerConverter, BadgerFishConverter, \
     AbderaConverter, JsonMLConverter, ColumnarConverter, GDataConverter
 from xmlschema.names import XSD_IMPORT
 from xmlschema.utils.qnames import local_name
+from xmlschema.utils.etree import etree_tostring
 from xmlschema.resources import fetch_namespaces
 from xmlschema.validators import XsdType, Xsd11ComplexType
 from xmlschema.dataobjects import DataElementConverter, DataBindingConverter, DataElement
@@ -109,21 +108,10 @@ def make_schema_test_class(test_file, test_args, test_num, schema_class, check_w
 
             # Pickling test (skip inspected schema classes test)
             if not inspect and not no_pickle:
-                try:
-                    obj = pickle.dumps(schema)
-                    deserialized_schema = pickle.loads(obj)
-                except pickle.PicklingError:
-                    # Don't raise if some schema parts (eg. a schema loaded from remote)
-                    # are built with the SafeXMLParser that uses pure Python elements.
-                    for e in schema.maps.iter_components():
-                        elem = getattr(e, 'elem', getattr(e, 'root', None))
-                        if isinstance(elem, PyElementTree.Element):
-                            break
-                    else:
-                        raise
-                else:
-                    self.assertTrue(isinstance(deserialized_schema, XMLSchemaBase), msg=xsd_file)
-                    self.assertEqual(schema.built, deserialized_schema.built, msg=xsd_file)
+                obj = pickle.dumps(schema)
+                deserialized_schema = pickle.loads(obj)
+                self.assertTrue(isinstance(deserialized_schema, XMLSchemaBase), msg=xsd_file)
+                self.assertEqual(schema.built, deserialized_schema.built, msg=xsd_file)
 
             # XPath node tree tests
             if not inspect and not self.errors:
