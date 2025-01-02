@@ -35,6 +35,7 @@ from .models import ModelVisitor
 from .groups import XsdGroup, Xsd11Group
 from .elements import XsdElement, Xsd11Element, XsdAlternative
 
+from .builders import XsdBuilders, StagedMap
 from .global_maps import XsdGlobals
 from .schemas import XMLSchemaMeta, XMLSchemaBase, XMLSchema, XMLSchema10, XMLSchema11
 
@@ -59,6 +60,7 @@ __all__ = [
     'XsdAttribute', 'Xsd11Attribute', 'XsdAttributeGroup', 'XsdSimpleType', 'XsdAtomic',
     'XsdAtomicBuiltin', 'XsdAtomicRestriction', 'Xsd11AtomicRestriction', 'XsdList',
     'XsdUnion', 'Xsd11Union', 'XsdComplexType', 'Xsd11ComplexType', 'ModelVisitor',
-    'XsdGroup', 'Xsd11Group', 'XsdElement', 'Xsd11Element', 'XsdAlternative', 'XsdGlobals',
+    'XsdGroup', 'Xsd11Group', 'XsdElement', 'Xsd11Element', 'XsdAlternative',
+    'XsdBuilders', 'StagedMap', 'XsdGlobals',
     'XMLSchemaMeta', 'XMLSchemaBase', 'XMLSchema', 'XMLSchema10', 'XMLSchema11',
 ]

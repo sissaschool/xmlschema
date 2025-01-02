@@ -12,10 +12,11 @@
 Observers for testing XMLSchema classes.
 """
 from functools import wraps
+from itertools import chain
 
-from ..names import XSD_NAMESPACE, XSD_ANY_TYPE
-from ..validators import XMLSchema10, XMLSchema11, XsdGroup, \
-    XsdAttributeGroup, XsdComplexType, XsdComponent
+from xmlschema.names import XSD_NAMESPACE, XSD_ANY_TYPE
+from xmlschema.validators import XMLSchema10, XMLSchema11, XsdGroup, \
+    XsdAttributeGroup, XsdComplexType, XsdComponent, XsdBuilders
 
 
 class SchemaObserver:
@@ -77,12 +78,23 @@ class SchemaObserver:
         return False
 
 
-observed_builder = SchemaObserver.observed_builder
+class ObservedBuilders(XsdBuilders):
+
+    def __set_name__(self, cls, name):
+        super().__set_name__(cls, name)
+
+        for attr in chain(self.__dict__, self.__slots__):
+            value = getattr(self, attr)
+            if isinstance(value, dict):
+                for k, v in value.items():
+                    value[k] = SchemaObserver.observed_builder(v)
+            elif isinstance(value, type):
+                object.__setattr__(self, attr, SchemaObserver.observed_builder(value))
 
 
 class ObservedXMLSchema10(XMLSchema10):
-    pass
+    xsd_builders = ObservedBuilders()
 
 
 class ObservedXMLSchema11(XMLSchema11):
-    pass
+    xsd_builders = ObservedBuilders()
