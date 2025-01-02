@@ -95,8 +95,8 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
     parent: Optional[Union['XsdComplexType', 'XsdGroup']]
     model: str
     mixed: bool = False
-    ref: Optional['XsdGroup']  # Not None if the instance is a ref to a global group
-    content: list[ModelParticleType]  # Direct access to children also from a ref group
+    ref: Optional['XsdGroup']
+    content: list[ModelParticleType]  # The effective content model for validate
     restriction: Optional['XsdGroup'] = None
     redefine: Optional['XsdGroup'] = None
 
@@ -440,7 +440,6 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         reached the maximum number of occurrences.
         """
         expected: list[SchemaElementType] = []
-        items: Union['XsdGroup', Iterator[ModelParticleType]]
 
         if self.is_over(occurs):
             return expected
@@ -461,8 +460,8 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                 for attr in cls.__slots__:
                     object.__setattr__(group, attr, getattr(self, attr))
 
-        group.errors = self.errors[:]
-        group._group = self._group[:]
+        group.errors = self.errors.copy()
+        group._group = self._group.copy()
         if self.ref is None:
             group.content = group._group
         return group
@@ -509,7 +508,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                         self.parse_error(msg)
                 self._group.append(xsd_group)
                 self.ref = xsd_group
-                self.content = xsd_group._group
+                self.content = xsd_group.content
 
         else:
             attrib = self.elem.attrib

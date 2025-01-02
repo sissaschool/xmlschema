@@ -291,7 +291,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     default_open_content: Optional[XsdDefaultOpenContent] = None
     override: Optional[SchemaType] = None
 
-    __slots__ = ('maps', 'target_namespace', 'source',
+    __slots__ = ('validation', 'errors', 'maps', 'target_namespace', 'source',
                  'namespaces', 'xsd_version', 'builders')
 
     def __init__(self, source: Union[SchemaSourceType, list[SchemaSourceType]],
@@ -583,7 +583,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         for cls in self.__class__.__mro__:
             if hasattr(cls, '__slots__'):
                 for attr in cls.__slots__:
-                    if attr not in state and attr != '__dict__':
+                    if attr not in state:
                         state[attr] = getattr(self, attr)
 
         state.pop('_xpath_lock', None)
@@ -595,6 +595,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 for attr in cls.__slots__:
                     if attr in state:
                         object.__setattr__(self, attr, state.pop(attr))
+
         self.__dict__.update(state)
         self._xpath_lock = threading.Lock()
 

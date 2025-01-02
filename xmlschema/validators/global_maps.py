@@ -289,8 +289,8 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
         nm.XSD_GROUP: 'groups',
     }
 
-    __slots__ = ('substitution_groups', 'types', 'global_maps', '_build_lock', '_xpath_lock',
-                 '_staged_globals', '_validation_attempted', '_validity', '__dict__')
+    __slots__ = ('validation', 'substitution_groups', 'types', 'global_maps', '_build_lock',
+                 '_xpath_lock', '_staged_globals', '_validation_attempted', '_validity')
 
     def __init__(self, validator: SchemaType, validation: str = _strict,
                  loader: Optional[Type[SchemaLoader]] = None,
@@ -365,7 +365,7 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
         for cls in self.__class__.__mro__:
             if hasattr(cls, '__slots__'):
                 for attr in cls.__slots__:
-                    if attr not in state and attr != '__dict__':
+                    if attr not in state:
                         state[attr] = getattr(self, attr)
 
         state.pop('_build_lock', None)
