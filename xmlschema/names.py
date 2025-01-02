@@ -71,7 +71,7 @@ SCHEMAS_DIR = os.path.join(os.path.dirname(__file__), 'schemas/')
 LOCATION_HINTS = {
     # Locally saved schemas
     HFP_NAMESPACE: os.path.join(SCHEMAS_DIR, 'HFP/XMLSchema-hasFacetAndProperty_minimal.xsd'),
-    VC_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XSI/XMLSchema-versioning.xsd'),
+    VC_NAMESPACE: os.path.join(SCHEMAS_DIR, 'VC/XMLSchema-versioning.xsd'),
     XLINK_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XLINK/xlink.xsd'),
     XHTML_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XHTML/xhtml1-strict.xsd'),
     WSDL_NAMESPACE: os.path.join(SCHEMAS_DIR, 'WSDL/wsdl.xsd'),
@@ -82,6 +82,7 @@ LOCATION_HINTS = {
     DSIG11_NAMESPACE: os.path.join(SCHEMAS_DIR, 'DSIG/xmldsig11-schema.xsd'),
     XENC_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XENC/xenc-schema.xsd'),
     XENC11_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XENC/xenc-schema-11.xsd'),
+    XSI_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XSI/XMLSchema-instance_minimal.xsd'),
 
     # Remote locations: contributors can propose additional official locations
     # for other namespaces for extending this list.
