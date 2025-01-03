@@ -192,7 +192,7 @@ class XsdIdentity(XsdComponent):
     def build(self) -> None:
         if self.ref is True:  # type: ignore[comparison-overlap]
             try:
-                ref = self.schema.maps.identities[self.name]
+                ref = self.maps.identities[self.name]
             except KeyError:
                 msg = _("unknown identity constraint {!r}")
                 self.parse_error(msg.format(self.name))
@@ -237,7 +237,7 @@ class XsdIdentity(XsdComponent):
 
             qname: Any
             for qname in self.selector.token.iter_leaf_elements():
-                e1 = self.schema.maps.elements.get(
+                e1 = self.maps.elements.get(
                     get_extended_qname(qname, self.namespaces)
                 )
                 if e1 is not None and not isinstance(e1, tuple) and e1 not in elements:
@@ -308,7 +308,7 @@ class XsdKeyref(XsdIdentity):
                 self.refer = refer  # type: ignore[assignment]
             else:
                 try:
-                    self.refer = self.schema.maps.identities[self.refer]  # type: ignore[assignment]
+                    self.refer = self.maps.identities[self.refer]  # type: ignore[assignment]
                 except KeyError:
                     msg = _("key/unique identity constraint %r is missing")
                     self.parse_error(msg % self.refer)

@@ -425,15 +425,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             self.namespaces = namespaces
             self.maps = XsdGlobals(self) if global_maps is None else global_maps
 
-            # A validation context instance used internally for decoding schema simple values.
-            self.validation_context = DecodeContext(
-                source=self.source,
-                validation=self.validation,
-                validation_only=True,
-                namespaces=self.namespaces,
-                xmlns_processing='none'
-            )
-
             if self.source.name == 'xsd11-extra.xsd':
                 # Process the patch schema for XSD 1.1 meta-schema
                 for child in self.source.root:
@@ -464,14 +455,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         # Complete the namespace map with internal declarations, remapping
         # identical prefixes that refer to different namespaces.
         self.namespaces = self.source.get_namespaces(namespaces, root_only=False)
-        # A validation context instance used internally for decoding schema simple values.
-        self.validation_context = DecodeContext(
-            source=self.source,
-            validation=self.validation,
-            validation_only=True,
-            namespaces=self.namespaces,
-            xmlns_processing='none'
-        )
 
         if any(ns == nm.VC_NAMESPACE for ns in self.namespaces.values()):
             # Apply versioning filter to schema tree. See the paragraph
@@ -616,6 +599,19 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         return schema
 
     copy = __copy__
+
+    @property
+    def validation_context(self) -> DecodeContext:
+        """A validation context instance used internally for decoding schema simple values."""
+        if self._validation_context is None:
+            self._validation_context = DecodeContext(
+                source=self.source,
+                validation=self.validation,
+                validation_only=True,
+                namespaces=self.namespaces,
+                xmlns_processing='none'
+            )
+        return self._validation_context
 
     @property
     def xpath_proxy(self) -> XMLSchemaProxy:

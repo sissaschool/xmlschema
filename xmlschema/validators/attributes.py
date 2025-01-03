@@ -83,7 +83,7 @@ class XsdAttribute(XsdComponent, ValidationMixin[str, DecodedValueType]):
 
         if self._parse_reference():
             try:
-                xsd_attribute = self.schema.maps.attributes[self.name]
+                xsd_attribute = self.maps.attributes[self.name]
             except KeyError:
                 self.type = self.any_simple_type
                 msg = _("unknown attribute {!r}")
@@ -144,7 +144,7 @@ class XsdAttribute(XsdComponent, ValidationMixin[str, DecodedValueType]):
                     self.parse_error(err)
                 else:
                     try:
-                        self.type = cast(XsdSimpleType, self.schema.maps.types[type_qname])
+                        self.type = cast(XsdSimpleType, self.maps.types[type_qname])
                     except KeyError as err:
                         self.type = self.any_simple_type
                         self.parse_error(err)
@@ -473,7 +473,7 @@ class XsdAttributeGroup(
                     attribute_group_refs.append(attribute_group_qname)
 
                     try:
-                        ref_attributes = self.schema.maps.attribute_groups[attribute_group_qname]
+                        ref_attributes = self.maps.attribute_groups[attribute_group_qname]
                     except KeyError:
                         msg = _("unknown attribute group {!r}")
                         self.parse_error(msg.format(child.attrib['ref']))
@@ -686,7 +686,7 @@ class XsdAttributeGroup(
             except KeyError:
                 if get_namespace(name) == XSI_NAMESPACE:
                     try:
-                        xsd_attribute = self.schema.maps.attributes[name]
+                        xsd_attribute = self.maps.attributes[name]
                     except KeyError:
                         if None in self._attribute_group:
                             xsd_attribute = self._attribute_group[None]  # None == anyAttribute
@@ -749,7 +749,7 @@ class XsdAttributeGroup(
                 namespace = get_namespace(name) or self.schema.target_namespace
                 if namespace == XSI_NAMESPACE:
                     try:
-                        xsd_attribute = self.schema.maps.attributes[name]
+                        xsd_attribute = self.maps.attributes[name]
                     except KeyError:
                         if None in self._attribute_group:
                             xsd_attribute = self._attribute_group[None]  # None == anyAttribute

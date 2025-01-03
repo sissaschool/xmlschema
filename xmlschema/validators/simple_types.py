@@ -892,7 +892,7 @@ class XsdList(XsdSimpleType):
                 item_type = self.any_atomic_type
             else:
                 try:
-                    item_type = self.schema.maps.types[item_qname]
+                    item_type = self.maps.types[item_qname]
                 except KeyError:
                     msg = _("unknown type {!r}")
                     self.parse_error(msg.format(self.elem.attrib['itemType']))
@@ -1036,7 +1036,7 @@ class XsdUnion(XsdSimpleType):
                     continue
 
                 try:
-                    mt = self.schema.maps.types[type_qname]
+                    mt = self.maps.types[type_qname]
                 except KeyError:
                     self.parse_error(_("unknown type {!r}").format(type_qname))
                     mt = self.any_atomic_type
@@ -1245,7 +1245,7 @@ class XsdAtomicRestriction(XsdAtomic):
                         self.parse_error(msg)
 
                     try:
-                        base_type = self.schema.maps.types[base_qname]
+                        base_type = self.maps.types[base_qname]
                     except KeyError:
                         self.parse_error(_("unknown type {!r}").format(elem.attrib['base']))
                         base_type = self.any_atomic_type

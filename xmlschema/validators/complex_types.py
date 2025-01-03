@@ -285,7 +285,7 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
             return self.any_type
 
         try:
-            base_type = self.schema.maps.types[base_qname]
+            base_type = self.maps.types[base_qname]
         except KeyError:
             msg = _("missing base type %r")
             self.parse_error(msg % base_qname, elem)
@@ -549,7 +549,7 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
     @property
     def root_type(self) -> BaseXsdType:
         if self.attributes or self.base_type is None:
-            return cast('XsdComplexType', self.schema.maps.types[XSD_ANY_TYPE])
+            return cast('XsdComplexType', self.maps.types[XSD_ANY_TYPE])
         else:
             return self.base_type.root_type
 

@@ -486,7 +486,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         elif self._parse_reference():
             assert self.name is not None
             try:
-                xsd_group = self.schema.maps.groups[self.name]
+                xsd_group = self.maps.groups[self.name]
             except KeyError:
                 self.parse_error(_("missing group %r") % self.prefixed_name)
                 self._any_content_group_fallback()
@@ -694,7 +694,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
 
     def is_element_restriction(self, other: ModelParticleType) -> bool:
         if self.schema.xsd_version == '1.0' and isinstance(other, XsdElement) and \
-                not other.ref and other.name not in self.schema.maps.substitution_groups:
+                not other.ref and other.name not in self.maps.substitution_groups:
             return False
         elif not self.has_occurs_restriction(other):
             return False
@@ -851,7 +851,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                 return
 
             try:
-                xsd_element = self.schema.maps.elements[elem.tag]
+                xsd_element = self.maps.elements[elem.tag]
             except KeyError:
                 if self.schema.meta_schema is None:
                     # Meta-schema groups ignore xsi:type (issue #350)
@@ -862,7 +862,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                 except KeyError:
                     return
                 else:
-                    xsd_type = self.schema.maps.get_instance_type(
+                    xsd_type = self.maps.get_instance_type(
                         type_name, self.any_type, namespaces
                     )
             else:
@@ -872,7 +872,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                 except KeyError:
                     xsd_type = xsd_element.type
                 else:
-                    xsd_type = self.schema.maps.get_instance_type(
+                    xsd_type = self.maps.get_instance_type(
                         type_name, xsd_element.type, namespaces
                     )
 
@@ -886,7 +886,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                 except KeyError:
                     xsd_type = xsd_element.type
                 else:
-                    xsd_type = self.schema.maps.get_instance_type(
+                    xsd_type = self.maps.get_instance_type(
                         type_name, xsd_element.type, namespaces
                     )
 

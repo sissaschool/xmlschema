@@ -255,6 +255,7 @@ class XsdBuilders:
         connected to global maps of the schema instance in order to do a
         correct namespace lookup during wildcards validation.
         """
+        maps = schema.maps
         if schema.meta_schema is not None and schema.target_namespace != nm.XSD_NAMESPACE:
             schema = schema.meta_schema
 
@@ -269,6 +270,8 @@ class XsdBuilders:
         any_type.attributes[None] = self.any_attribute_class(
             ANY_ATTRIBUTE_ELEMENT, schema, any_type.attributes
         )
+        any_type.maps = any_type.content.maps = any_type.content[0].maps = \
+            any_type.attributes[None].maps = maps
         return any_type
 
     def create_element(self, name: str,
