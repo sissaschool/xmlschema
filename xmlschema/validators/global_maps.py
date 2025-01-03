@@ -66,7 +66,6 @@ class SchemaConfig:
 
     def __init__(self, schema: SchemaType):
         self.schema_class = type(schema)
-        self.builders = schema.builders
 
         # Save other validator init options, used for creating new schemas.
         self.schema_options: dict[str, Any] = {
@@ -315,13 +314,9 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
         self.config = SchemaConfig(validator)
         self.namespaces = NamespaceResourcesMap()  # Registered schemas by namespace URI
 
-        self.types = TypesMap(validator.builders)
-        self.notations = NotationsMap(validator.builders)
-        self.attributes = AttributesMap(validator.builders)
-        self.attribute_groups = AttributeGroupsMap(validator.builders)
-        self.elements = ElementsMap(validator.builders)
-        self.groups = GroupsMap(validator.builders)
-        self.global_maps = GlobalMaps(*(getattr(self, n) for n in GlobalMaps._fields))
+        self.global_maps = GlobalMaps.empty_maps(validator.builders)
+        (self.types, self.notations, self.attributes,
+         self.attribute_groups, self.elements, self.groups) = self.global_maps
 
         self.substitution_groups = {}
         self.identities = {}
