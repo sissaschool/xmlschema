@@ -93,7 +93,7 @@ class ObservedBuilders(XsdBuilders):
 
 
 class ObservedXMLSchema10(XMLSchema10):
-    xsd_builders = ObservedBuilders()
+    builders = ObservedBuilders()
 
 
 class ObservedXMLSchema11(XMLSchema11):

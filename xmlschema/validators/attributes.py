@@ -13,8 +13,9 @@ This module contains classes for XML Schema attributes and attribute groups.
 from collections.abc import Callable, Iterator, MutableMapping
 from copy import copy as _copy
 from decimal import Decimal
-from elementpath.datatypes import AbstractDateTime, Duration, AbstractBinary
 from typing import cast, Any, Optional, Union
+
+from elementpath.datatypes import AbstractDateTime, Duration, AbstractBinary
 
 from xmlschema.aliases import ComponentClassType, ElementType, \
     AtomicValueType, SchemaType, DecodedValueType, NsmapType
@@ -90,6 +91,7 @@ class XsdAttribute(XsdComponent, ValidationMixin[str, DecodedValueType]):
                 self.parse_error(msg.format(self.name))
             else:
                 self.ref = xsd_attribute
+                self.target_namespace = xsd_attribute.target_namespace
                 self.type = xsd_attribute.type
                 self.qualified = xsd_attribute.qualified
                 self.form = xsd_attribute.form
@@ -180,7 +182,7 @@ class XsdAttribute(XsdComponent, ValidationMixin[str, DecodedValueType]):
             if not self.type.text_is_valid(self.default):
                 msg = _("default value {!r} is not compatible with attribute's type")
                 self.parse_error(msg.format(self.default))
-            elif self.type.is_key() and self.schema.xsd_version == '1.0':
+            elif self.type.is_key() and self.xsd_version == '1.0':
                 msg = _("xs:ID key attributes cannot have a default value")
                 self.parse_error(msg)
 
@@ -189,7 +191,7 @@ class XsdAttribute(XsdComponent, ValidationMixin[str, DecodedValueType]):
             if not self.type.text_is_valid(self.fixed):
                 msg = _("fixed value {!r} is not compatible with attribute's type")
                 self.parse_error(msg.format(self.fixed))
-            elif self.type.is_key() and self.schema.xsd_version == '1.0':
+            elif self.type.is_key() and self.xsd_version == '1.0':
                 msg = _("xs:ID key attributes cannot have a fixed value")
                 self.parse_error(msg)
 
@@ -304,15 +306,6 @@ class Xsd11Attribute(XsdAttribute):
           Content: (annotation?, simpleType?)
         </attribute>
     """
-    @property
-    def target_namespace(self) -> str:
-        if self._target_namespace is not None:
-            return self._target_namespace
-        elif self.ref is not None:
-            return self.ref.target_namespace
-        else:
-            return self.schema.target_namespace
-
     def _parse(self) -> None:
         super()._parse()
         if self.use == 'prohibited' and 'fixed' in self.elem.attrib:
@@ -393,11 +386,11 @@ class XsdAttributeGroup(
             if self.parent is not None:
                 return  # Skip parsing dummy instances
             try:
-                self.name = get_qname(self.schema.target_namespace, self.elem.attrib['name'])
+                self.name = get_qname(self.target_namespace, self.elem.attrib['name'])
             except KeyError:
                 return
             else:
-                if self.schema.default_attributes == self.name and self.schema.xsd_version > '1.0':
+                if self.schema.default_attributes == self.name and self.xsd_version > '1.0':
                     self.schema.default_attributes = self
 
         any_attribute = None
@@ -466,7 +459,7 @@ class XsdAttributeGroup(
                                 msg = _("attributeGroup ref={!r} is not in the redefined group")
                                 self.parse_error(msg.format(ref))
 
-                    elif attribute_group_qname == self.name and self.schema.xsd_version == '1.0':
+                    elif attribute_group_qname == self.name and self.xsd_version == '1.0':
                         msg = _("Circular attribute groups not allowed in XSD 1.0")
                         self.parse_error(msg)
 
@@ -478,7 +471,7 @@ class XsdAttributeGroup(
                         msg = _("unknown attribute group {!r}")
                         self.parse_error(msg.format(child.attrib['ref']))
                     except XMLSchemaCircularityError as err:
-                        if self.schema.xsd_version == '1.0':
+                        if self.xsd_version == '1.0':
                             self.parse_error(err, err.elem)
                     else:
                         for name, base_attr in ref_attributes.items():
@@ -595,7 +588,7 @@ class XsdAttributeGroup(
             wildcard.namespace = wildcard.not_namespace = wildcard.not_qname = ()
             self._attribute_group[None] = wildcard
 
-        if self.schema.xsd_version == '1.0':
+        if self.xsd_version == '1.0':
             has_key = False
             for attr in self._attribute_group.values():
                 if attr.type is not None and attr.type.is_key():
@@ -673,7 +666,7 @@ class XsdAttributeGroup(
             obj.update(additional_attrs)
 
         id_list = context.id_list
-        if self.schema.xsd_version == '1.0':
+        if self.xsd_version == '1.0':
             context.id_list = []
 
         result: AttributeGroupDecodeType
@@ -746,7 +739,7 @@ class XsdAttributeGroup(
             try:
                 xsd_attribute = self._attribute_group[name]
             except KeyError:
-                namespace = get_namespace(name) or self.schema.target_namespace
+                namespace = get_namespace(name) or self.target_namespace
                 if namespace == XSI_NAMESPACE:
                     try:
                         xsd_attribute = self.maps.attributes[name]

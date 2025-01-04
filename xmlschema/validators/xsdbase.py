@@ -12,7 +12,6 @@ This module contains base functions and classes XML Schema components.
 """
 import logging
 from collections.abc import Iterator, MutableMapping
-from operator import attrgetter
 from typing import TYPE_CHECKING, cast, Any, Optional, Union
 
 from elementpath import select
@@ -45,8 +44,6 @@ logger = logging.getLogger('xmlschema')
 
 XSD_TYPE_DERIVATIONS = {'extension', 'restriction'}
 XSD_ELEMENT_DERIVATIONS = {'extension', 'restriction', 'substitution'}
-
-schema_attrs = attrgetter('maps', 'builders')
 
 
 class XsdValidator:
@@ -271,6 +268,7 @@ class XsdComponent(XsdValidator):
 
     _ADMITTED_TAGS: Union[tuple[str, ...], tuple[()]] = ()
 
+    maps: 'XsdGlobals'
     elem: ElementType
     qualified = True
     ref: Optional['XsdComponent'] = None
@@ -278,9 +276,9 @@ class XsdComponent(XsdValidator):
 
     _annotation: Optional['XsdAnnotation'] = None
     _annotations: list['XsdAnnotation']
-    _target_namespace: Optional[str] = None
 
-    __slots__ = ('name', 'parent', 'schema', 'maps', 'builders', 'elem', 'validation', 'errors')
+    __slots__ = ('name', 'parent', 'schema', 'xsd_version', 'target_namespace',
+                 'maps', 'builders', 'elem', 'validation', 'errors')
 
     def __init__(self, elem: ElementType,
                  schema: SchemaType,
@@ -291,7 +289,10 @@ class XsdComponent(XsdValidator):
         self.name = name
         self.parent = parent
         self.schema = schema
-        self.maps, self.builders = schema_attrs(schema)
+        self.xsd_version = schema.XSD_VERSION
+        self.target_namespace = schema.target_namespace
+        self.maps = schema.maps
+        self.builders = schema.builders
         self.parse(elem)
 
     def __repr__(self) -> str:
@@ -311,10 +312,6 @@ class XsdComponent(XsdValidator):
 
         component.errors = self.errors.copy()
         return component
-
-    @property
-    def xsd_version(self) -> str:
-        return self.schema.XSD_VERSION
 
     def is_global(self) -> bool:
         """Returns `True` if the instance is a global component, `False` if it's local."""
@@ -337,14 +334,6 @@ class XsdComponent(XsdValidator):
         return self.schema.source
 
     source = resource
-
-    @property
-    def target_namespace(self) -> str:
-        """Property that references to schema's targetNamespace."""
-        if self.ref is None:
-            return self.schema.target_namespace
-        else:
-            return self.ref.schema.target_namespace
 
     @property
     def default_namespace(self) -> Optional[str]:
@@ -481,8 +470,8 @@ class XsdComponent(XsdValidator):
         if 'targetNamespace' not in self.elem.attrib:
             return
 
-        self._target_namespace = self.elem.attrib['targetNamespace'].strip()
-        if self._target_namespace == XMLNS_NAMESPACE:
+        target_namespace = self.elem.attrib['targetNamespace'].strip()
+        if target_namespace == XMLNS_NAMESPACE:
             # https://www.w3.org/TR/xmlschema11-1/#sec-nss-special
             msg = _(f"The namespace {XMLNS_NAMESPACE} cannot be used as 'targetNamespace'")
             raise XMLSchemaValueError(msg)
@@ -495,7 +484,7 @@ class XsdComponent(XsdValidator):
             msg = _("attribute 'form' must be absent when "
                     "'targetNamespace' attribute is provided")
             self.parse_error(msg)
-        if self._target_namespace != self.schema.target_namespace:
+        if target_namespace != self.target_namespace:
             if self.parent is None:
                 msg = _("a global %s must have the same namespace as its parent schema")
                 self.parse_error(msg % self.__class__.__name__)
@@ -509,12 +498,13 @@ class XsdComponent(XsdValidator):
                         "must have the same namespace as its parent schema")
                 self.parse_error(msg)
 
+        self.target_namespace = target_namespace
         if self.name is None:
             pass  # pragma: no cover
-        elif not self._target_namespace:
+        elif not target_namespace:
             self.name = local_name(self.name)
         else:
-            self.name = f'{{{self._target_namespace}}}{local_name(self.name)}'
+            self.name = f'{{{target_namespace}}}{local_name(self.name)}'
 
     @property
     def local_name(self) -> Optional[str]:
@@ -604,7 +594,7 @@ class XsdComponent(XsdValidator):
 
         for k in filter(lambda x: x.endswith(suffix), mapping):
             prefix = k.split(':')[0]
-            if self.namespaces.get(prefix) == target_namespace:
+            if self.schema.namespaces.get(prefix) == target_namespace:
                 return mapping[k]
 
             # Match namespace declaration within value

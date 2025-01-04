@@ -705,7 +705,7 @@ class XsdPatternFacets(MutableSequence[ElementType], XsdFacet):
         try:
             python_pattern = translate_pattern(
                 pattern=elem.attrib['value'],
-                xsd_version=self.schema.xsd_version,
+                xsd_version=self.xsd_version,
                 back_references=False,
                 lazy_quantifiers=False,
                 anchors=False
@@ -821,7 +821,7 @@ class XsdAssertionFacet(XsdFacet):
             self.xpath_default_namespace = self.schema.xpath_default_namespace
 
         self.parser = self.maps.config.assertion_parser_class(
-            namespaces=self.namespaces,
+            namespaces=self.schema.namespaces,
             strict=False,
             variable_types={'value': value},
             default_namespace=self.xpath_default_namespace

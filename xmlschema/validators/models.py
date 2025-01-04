@@ -15,7 +15,6 @@ import warnings
 from collections import defaultdict, deque, Counter
 from collections.abc import Iterable, Iterator, MutableMapping, MutableSequence
 from copy import copy
-from operator import attrgetter
 from typing import Any, Optional, Union
 
 from xmlschema.aliases import ModelGroupType, ModelParticleType, SchemaElementType, \
@@ -32,9 +31,6 @@ AdvanceYieldedType = tuple[ModelParticleType, int, list[SchemaElementType]]
 ContentItemType = tuple[Union[int, str], Any]
 EncodedContentType = Union[MutableMapping[Union[int, str], Any], Iterable[ContentItemType]]
 StepType = Union[str, SchemaElementType, tuple[Union[str, SchemaElementType], int]]
-
-get_occurs = attrgetter('min_occurs', 'max_occurs')
-get_element_and_occurs = attrgetter('element', 'occurs')
 
 
 def distinguishable_paths(path1: list[ModelParticleType], path2: list[ModelParticleType]) -> bool:
@@ -304,7 +300,8 @@ class ModelVisitor:
                     return False
 
                 high_occurs = occurs[item.oid] or item_occurs
-                min_occurs, max_occurs = get_occurs(item)
+                min_occurs = item.min_occurs
+                max_occurs = item.max_occurs
 
                 if max_occurs is None:
                     occurs[self.group] += 1
@@ -318,7 +315,7 @@ class ModelVisitor:
                 occurs[item] = occurs[item.oid] = 0
                 self.items = self.iter_group()
                 self.match = False
-                return min_occurs > high_occurs  # type: ignore[no-any-return]
+                return min_occurs > high_occurs
 
             elif self.group.model == 'all':
                 return False  # 'all' models can only be checked at the end
@@ -369,7 +366,8 @@ class ModelVisitor:
         if self.element is None:
             raise XMLSchemaValueError(f"can't advance, {self!r} is ended!")
 
-        item, occurs = get_element_and_occurs(self)
+        item = self.element
+        occurs = self.occurs
         item_occurs = occurs[item]
 
         if match:

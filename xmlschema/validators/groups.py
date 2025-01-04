@@ -43,6 +43,7 @@ if TYPE_CHECKING:
 
 get_occurs = attrgetter('min_occurs', 'max_occurs')
 
+
 ANY_ELEMENT = ElementTree.Element(
     XSD_ANY,
     attrib={
@@ -506,17 +507,18 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                     if self.min_occurs not in (0, 1):
                         msg = _("minOccurs must be (0 | 1) for 'all' model groups")
                         self.parse_error(msg)
-                    if self.schema.xsd_version == '1.0' and isinstance(self.parent, XsdGroup):
+                    if self.xsd_version == '1.0' and isinstance(self.parent, XsdGroup):
                         msg = _("in XSD 1.0 an 'all' model group cannot be nested")
                         self.parse_error(msg)
                 self._group.append(xsd_group)
                 self.ref = xsd_group
+                self.target_namespace = xsd_group.target_namespace
                 self.content = xsd_group.content
 
         else:
             attrib = self.elem.attrib
             try:
-                self.name = get_qname(self.schema.target_namespace, attrib['name'])
+                self.name = get_qname(self.target_namespace, attrib['name'])
             except KeyError:
                 pass
             else:
@@ -696,7 +698,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
             return self.is_choice_restriction(other)
 
     def is_element_restriction(self, other: ModelParticleType) -> bool:
-        if self.schema.xsd_version == '1.0' and isinstance(other, XsdElement) and \
+        if self.xsd_version == '1.0' and isinstance(other, XsdElement) and \
                 not other.ref and other.name not in self.maps.substitution_groups:
             return False
         elif not self.has_occurs_restriction(other):
@@ -1417,7 +1419,7 @@ class Xsd11Group(XsdGroup):
                                 and other_item.type.name != XSD_ANY_TYPE:
 
                             for w in restriction_wildcards:
-                                if w.is_matching(other_item.name, self.schema.target_namespace):
+                                if w.is_matching(other_item.name, self.target_namespace):
                                     return False
 
                 if min_occurs < other_item.min_occurs:

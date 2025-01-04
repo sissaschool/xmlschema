@@ -181,6 +181,7 @@ class XsdElement(XsdComponent, ParticleMixin,
             else:
                 self.ref = xsd_element
                 self._set_type(xsd_element.type)
+                self.target_namespace = xsd_element.target_namespace
                 self.abstract = xsd_element.abstract
                 self.nillable = xsd_element.nillable
                 self.qualified = xsd_element.qualified
@@ -296,7 +297,7 @@ class XsdElement(XsdComponent, ParticleMixin,
                 msg = _("'default' value {!r} is not compatible with element's type")
                 self.parse_error(msg.format(self.default))
                 self.default = None
-            elif self.schema.xsd_version == '1.0' and self.type.is_key():
+            elif self.xsd_version == '1.0' and self.type.is_key():
                 msg = _("xs:ID or a type derived from xs:ID cannot have a default value")
                 self.parse_error(msg)
 
@@ -306,7 +307,7 @@ class XsdElement(XsdComponent, ParticleMixin,
                 msg = _("'fixed' value {!r} is not compatible with element's type")
                 self.parse_error(msg.format(self.fixed))
                 self.fixed = None
-            elif self.schema.xsd_version == '1.0' and self.type.is_key():
+            elif self.xsd_version == '1.0' and self.type.is_key():
                 msg = _("xs:ID or a type derived from xs:ID cannot have a fixed value")
                 self.parse_error(msg)
 
@@ -673,7 +674,7 @@ class XsdElement(XsdComponent, ParticleMixin,
             breakpoint()
 
         id_list = context.id_list
-        if xsd_type.is_complex() and self.schema.xsd_version == '1.1':
+        if xsd_type.is_complex() and self.xsd_version == '1.1':
             # Track XSD 1.1 multiple xs:ID attributes/children
             context.id_list = []
 
@@ -1128,7 +1129,7 @@ class XsdElement(XsdComponent, ParticleMixin,
                 if other.name == self.substitution_group and \
                         other.min_occurs != other.max_occurs and \
                         self.max_occurs != 0 and not other.abstract \
-                        and self.schema.xsd_version == '1.0':
+                        and self.xsd_version == '1.0':
                     # A UPA violation case. Base is the head element, it's not
                     # abstract and has non-deterministic occurs: this is less
                     # restrictive than W3C test group (elemZ026), marked as
@@ -1165,7 +1166,7 @@ class XsdElement(XsdComponent, ParticleMixin,
             if other.is_empty() and self.max_occurs != 0:
                 return False
 
-            check_group_items_occurs = self.schema.xsd_version == '1.0'
+            check_group_items_occurs = self.xsd_version == '1.0'
             total_occurs = OccursCalculator()
             for e in other.iter_model():
                 if not isinstance(e, (XsdElement, XsdAnyElement)):
@@ -1254,8 +1255,6 @@ class Xsd11Element(XsdElement):
           (unique | key | keyref)*))
         </element>
     """
-    _target_namespace: Optional[str] = None
-
     def _parse(self) -> None:
         if not self._build:
             return
@@ -1300,15 +1299,6 @@ class Xsd11Element(XsdElement):
         return (self.type.parent is None or self.type.built) and \
             all(c.built for c in self.identities) and \
             all(a.built for a in self.alternatives)
-
-    @property
-    def target_namespace(self) -> str:
-        if self._target_namespace is not None:
-            return self._target_namespace
-        elif self.ref is not None:
-            return self.ref.target_namespace
-        else:
-            return self.schema.target_namespace
 
     def iter_components(self, xsd_classes: ComponentClassType = None) -> Iterator[XsdComponent]:
         if xsd_classes is None:
@@ -1499,7 +1489,7 @@ class XsdAlternative(XsdComponent):
             self.xpath_default_namespace = self.schema.xpath_default_namespace
 
         parser = XPath2Parser(
-            namespaces=self.namespaces,
+            namespaces=self.schema.namespaces,
             strict=False,
             default_namespace=self.xpath_default_namespace
         )

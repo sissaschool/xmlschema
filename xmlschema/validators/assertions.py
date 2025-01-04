@@ -96,7 +96,7 @@ class XsdAssert(XsdComponent, ElementPathMixin[Union['XsdAssert', SchemaElementT
         # Assert requires a schema bound parser because select
         # is on XML elements and with XSD type decoded values
         self.parser = self.maps.config.xpath_parser_class(
-            namespaces=self.namespaces,
+            namespaces=self.schema.namespaces,
             variable_types={'value': self.base_type.sequence_type},
             strict=False,
             default_namespace=self.xpath_default_namespace,

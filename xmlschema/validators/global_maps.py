@@ -621,7 +621,6 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
         if schema in self._schemas:
             return
 
-
         if (other_schema := self.get_schema(schema.url or schema.source)) is not None:
             if other_schema.maps is self:
                 ref_chunk = schema.url or "the same source"
@@ -696,6 +695,9 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
 
                     schema = copy.copy(schema)
                     object.__setattr__(schema, 'maps', self)
+                    for attr in ('notations', 'attributes', 'attribute_groups',
+                                 'types', 'elements', 'groups'):
+                        object.__setattr__(schema, attr, getattr(self, attr))
 
                     self._schemas.add(schema)
                     self.namespaces[namespace][k] = schema

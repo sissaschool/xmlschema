@@ -131,7 +131,7 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
                 self.mixed = True
 
         try:
-            self.name = get_qname(self.schema.target_namespace, self.elem.attrib['name'])
+            self.name = get_qname(self.target_namespace, self.elem.attrib['name'])
         except KeyError:
             self.name = None
             if self.parent is None:
@@ -188,7 +188,7 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
                 mixed = content_elem.attrib['mixed'] in ('true', '1')
                 if mixed is not self.mixed:
                     self.mixed = mixed
-                    if 'mixed' in self.elem.attrib and self.schema.xsd_version == '1.1':
+                    if 'mixed' in self.elem.attrib and self.xsd_version == '1.1':
                         msg = _("value of 'mixed' attribute in complexType "
                                 "and complexContent must be the same")
                         self.parse_error(msg)
@@ -212,7 +212,7 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
                 msg = _("unexpected tag %r after complexContent declaration")
                 self.parse_error(msg % self.elem[k].tag)
 
-        elif content_elem.tag == XSD_OPEN_CONTENT and self.schema.xsd_version > '1.0':
+        elif content_elem.tag == XSD_OPEN_CONTENT and self.xsd_version > '1.0':
             self.open_content = XsdOpenContent(content_elem, self.schema, self)
 
             if content_elem is self.elem[-1]:
@@ -378,7 +378,7 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
 
         # complexContent restriction: the base type must be a complexType with a complex content.
         for child in elem:
-            if child.tag == XSD_OPEN_CONTENT and self.schema.xsd_version > '1.0':
+            if child.tag == XSD_OPEN_CONTENT and self.xsd_version > '1.0':
                 self.open_content = XsdOpenContent(child, self.schema, self)
                 continue
             elif child.tag in XSD_MODEL_GROUP_TAGS:

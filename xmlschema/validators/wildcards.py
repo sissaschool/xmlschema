@@ -69,14 +69,14 @@ class XsdWildcard(XsdComponent):
         elif namespace == '##local':
             self.namespace = ['']
         elif namespace == '##targetNamespace':
-            self.namespace = [self.schema.target_namespace]
+            self.namespace = [self.target_namespace]
         else:
             self.namespace = []
             for ns in namespace.split():
                 if ns == '##local':
                     self.namespace.append('')
                 elif ns == '##targetNamespace':
-                    self.namespace.append(self.schema.target_namespace)
+                    self.namespace.append(self.target_namespace)
                 elif ns.startswith('##'):
                     msg = _("wrong value %r in 'namespace' attribute")
                     self.parse_error(msg % ns)
@@ -102,7 +102,7 @@ class XsdWildcard(XsdComponent):
                 if ns == '##local':
                     self.not_namespace.append('')
                 elif ns == '##targetNamespace':
-                    self.not_namespace.append(self.schema.target_namespace)
+                    self.not_namespace.append(self.target_namespace)
                 elif ns.startswith('##'):
                     msg = _("wrong value %r in 'notNamespace' attribute")
                     self.parse_error(msg % ns)
@@ -176,7 +176,7 @@ class XsdWildcard(XsdComponent):
         elif '##other' in self.namespace:
             if not namespace:
                 return False
-            return namespace != self.schema.target_namespace
+            return namespace != self.target_namespace
         else:
             return namespace in self.namespace
 
@@ -186,7 +186,7 @@ class XsdWildcard(XsdComponent):
         elif '##any' in self.namespace:
             return False
         elif '##other' in self.namespace:
-            return all(x == self.schema.target_namespace for x in namespaces)
+            return all(x == self.target_namespace for x in namespaces)
         else:
             return all(x not in self.namespace for x in namespaces)
 
@@ -197,7 +197,7 @@ class XsdWildcard(XsdComponent):
         elif '##any' in self.namespace:
             return all(x in self.not_qname for x in names)
         elif '##other' in self.namespace:
-            return all(x in self.not_qname or get_namespace(x) == self.schema.target_namespace
+            return all(x in self.not_qname or get_namespace(x) == self.target_namespace
                        for x in names)
         else:
             return all(x in self.not_qname or get_namespace(x) not in self.namespace
@@ -293,7 +293,7 @@ class XsdWildcard(XsdComponent):
             if '##any' in self.namespace:
                 return
             elif '##other' in self.namespace:
-                not_namespace = ('', self.schema.target_namespace)
+                not_namespace = ('', self.target_namespace)
                 self.not_namespace = [ns for ns in other.not_namespace if ns in not_namespace]
             else:
                 self.not_namespace = [ns for ns in other.not_namespace if ns not in self.namespace]
@@ -321,7 +321,7 @@ class XsdWildcard(XsdComponent):
             self.namespace = ['##any']
         elif '' not in w2.namespace and w1.target_namespace == w2.target_namespace:
             self.namespace = ['##other']
-        elif self.schema.xsd_version == '1.0':
+        elif self.xsd_version == '1.0':
             msg = _("not expressible wildcard namespace union: {0!r} V {1!r}:")
             raise XMLSchemaValueError(msg.format(other.namespace, self.namespace))
         else:
@@ -361,8 +361,8 @@ class XsdWildcard(XsdComponent):
                 self.namespace = [ns for ns in self.namespace if ns not in other.not_namespace]
             else:
                 self.not_namespace = [ns for ns in other.not_namespace]
-                if self.schema.target_namespace not in self.not_namespace:
-                    self.not_namespace.append(self.schema.target_namespace)
+                if self.target_namespace not in self.not_namespace:
+                    self.not_namespace.append(self.target_namespace)
                 if '' not in self.not_namespace:
                     self.not_namespace.append('')
                 self.namespace = []
@@ -376,7 +376,7 @@ class XsdWildcard(XsdComponent):
             self.namespace = other.namespace[:]
         elif '##other' in self.namespace:
             self.namespace = [
-                ns for ns in other.namespace if ns not in ('', self.schema.target_namespace)
+                ns for ns in other.namespace if ns not in ('', self.target_namespace)
             ]
         elif '##other' not in other.namespace:
             self.namespace = [ns for ns in self.namespace if ns in other.namespace]
@@ -608,7 +608,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
         elif '##any' in self.namespace or '##any' in other.namespace:
             return True
         elif '##other' in self.namespace:
-            return any(ns and ns != self.schema.target_namespace for ns in other.namespace)
+            return any(ns and ns != self.target_namespace for ns in other.namespace)
         elif '##other' in other.namespace:
             return any(ns and ns != other.target_namespace for ns in self.namespace)
         else:

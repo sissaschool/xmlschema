@@ -111,7 +111,7 @@ class XsdSelector(XsdComponent):
                 self.xpath_default_namespace = self.schema.xpath_default_namespace
 
         self.parser = IdentityXPathParser(
-            namespaces=self.namespaces,
+            namespaces=self.schema.namespaces,
             strict=False,
             compatibility_mode=True,
             default_namespace=self.xpath_default_namespace,
@@ -171,7 +171,7 @@ class XsdIdentity(XsdComponent):
 
     def _parse(self) -> None:
         try:
-            self.name = get_qname(self.schema.target_namespace, self.elem.attrib['name'])
+            self.name = get_qname(self.target_namespace, self.elem.attrib['name'])
         except KeyError:
             self.parse_error(_("missing required attribute 'name'"))
             self.name = ''
@@ -238,7 +238,7 @@ class XsdIdentity(XsdComponent):
             qname: Any
             for qname in self.selector.token.iter_leaf_elements():
                 e1 = self.maps.elements.get(
-                    get_extended_qname(qname, self.namespaces)
+                    get_extended_qname(qname, self.schema.namespaces)
                 )
                 if e1 is not None and not isinstance(e1, tuple) and e1 not in elements:
                     if e1.ref is not None:

@@ -243,12 +243,11 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     """
     @property
     @abstractmethod
-    def xsd_builders(self) -> XsdBuilders: ...
+    def builders(self) -> XsdBuilders: ...
 
     XSD_VERSION: str = '1.0'
     BASE_SCHEMAS: dict[str, str] = {}
     meta_schema: Optional[SchemaType] = None
-    builders: XsdBuilders
 
     # Instance attributes type annotations
     source: XMLResource
@@ -291,8 +290,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     default_open_content: Optional[XsdDefaultOpenContent] = None
     override: Optional[SchemaType] = None
 
-    __slots__ = ('validation', 'errors', 'maps', 'target_namespace', 'source',
-                 'namespaces', 'xsd_version', 'builders')
+    __slots__ = ('validation', 'errors', 'maps', 'target_namespace', 'source', 'namespaces')
 
     def __init__(self, source: Union[SchemaSourceType, list[SchemaSourceType]],
                  namespace: Optional[str] = None,
@@ -342,9 +340,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             )
 
         logger.debug("Load schema from %r", self.source.url or self.source.source)
-
-        self.xsd_version = self.XSD_VERSION
-        self.builders = self.xsd_builders
 
         self.converter = converter
         self.locations = locations
@@ -599,6 +594,11 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         return schema
 
     copy = __copy__
+
+    @property
+    def xsd_version(self) -> str:
+        """Compatibility property that returns the class attribute XSD_VERSION."""
+        return self.XSD_VERSION
 
     @property
     def validation_context(self) -> DecodeContext:
@@ -1829,7 +1829,7 @@ class XMLSchema10(XMLSchemaBase):
       attributeGroup) | element | attribute | notation), annotation*)*)
     </schema>
     """
-    xsd_builders = XsdBuilders()
+    builders = XsdBuilders()
 
     META_SCHEMA = f'{SCHEMAS_DIR}XSD_1.0/XMLSchema.xsd'
     BASE_SCHEMAS = {
@@ -1873,7 +1873,7 @@ class XMLSchema11(XMLSchemaBase):
       attributeGroup) | element | attribute | notation), annotation*)*)
     </schema>
     """
-    xsd_builders = XsdBuilders()
+    builders = XsdBuilders()
 
     XSD_VERSION = '1.1'
     META_SCHEMA = f'{SCHEMAS_DIR}XSD_1.1/XMLSchema.xsd'

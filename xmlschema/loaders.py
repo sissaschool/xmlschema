@@ -54,17 +54,17 @@ class SchemaLoader:
     def is_missing(self, namespace: str,
                    location: Optional[str] = None,
                    base_url: Optional[str] = None) -> bool:
-        return namespace not in self.maps.namespaces \
-            or not any(s.maps is self.maps for s in self.maps.namespaces[namespace])
+        return namespace not in self.maps.namespaces or \
+            not any(s.maps is self.maps for s in self.maps.namespaces[namespace])
 
     def is_missing2(self, namespace: str,
-                   location: Optional[str] = None,
-                   base_url: Optional[str] = None) -> bool:
-        if namespace not in self.maps.namespaces \
-            or not any(s.maps is self.maps for s in self.maps.namespaces[namespace]):
+                    location: Optional[str] = None,
+                    base_url: Optional[str] = None) -> bool:
+        if namespace not in self.maps.namespaces or \
+                not any(s.maps is self.maps for s in self.maps.namespaces[namespace]):
             return True
 
-        if self.maps.get_schema(location, base_url) is None:
+        if not location or self.maps.get_schema(location, base_url) is None:
             return True
         else:
             return False
