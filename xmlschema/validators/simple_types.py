@@ -872,7 +872,7 @@ class XsdList(XsdSimpleType):
         if child is not None:
             # Case of a local simpleType declaration inside the list tag
             try:
-                item_type = self.schema.builders.simple_type_factory(child, self.schema, self)
+                item_type = self.builders.simple_type_factory(child, self.schema, self)
             except XMLSchemaParseError as err:
                 self.parse_error(err)
                 item_type = self.any_atomic_type
@@ -1021,7 +1021,7 @@ class XsdUnion(XsdSimpleType):
 
         for child in self.elem:
             if child.tag != XSD_ANNOTATION and not callable(child.tag):
-                mt = self.schema.builders.simple_type_factory(child, self.schema, self)
+                mt = self.builders.simple_type_factory(child, self.schema, self)
                 if isinstance(mt, XMLSchemaParseError):
                     self.parse_error(mt)
                 else:
@@ -1292,7 +1292,7 @@ class XsdAtomicRestriction(XsdAtomic):
 
                 if base_type is None:
                     try:
-                        base_type = self.schema.builders.simple_type_factory(
+                        base_type = self.builders.simple_type_factory(
                             child, self.schema, self
                         )
                     except XMLSchemaParseError as err:
@@ -1300,11 +1300,11 @@ class XsdAtomicRestriction(XsdAtomic):
                         base_type = self.any_simple_type
                 elif base_type.is_complex():
                     if base_type.admit_simple_restriction():
-                        base_type = self.schema.builders.complex_type_class(
+                        base_type = self.builders.complex_type_class(
                             elem=elem,
                             schema=self.schema,
                             parent=self,
-                            content=self.schema.builders.simple_type_factory(
+                            content=self.builders.simple_type_factory(
                                 child, self.schema, self
                             ),
                             attributes=base_type.attributes,
@@ -1319,7 +1319,7 @@ class XsdAtomicRestriction(XsdAtomic):
                 has_simple_type_child = True
             else:
                 try:
-                    facet_class = self.schema.builders.facets[child.tag]
+                    facet_class = self.builders.facets[child.tag]
                 except KeyError:
                     self.parse_error(_("unexpected tag %r in restriction") % child.tag)
                     continue

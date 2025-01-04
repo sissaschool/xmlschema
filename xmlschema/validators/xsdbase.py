@@ -12,6 +12,7 @@ This module contains base functions and classes XML Schema components.
 """
 import logging
 from collections.abc import Iterator, MutableMapping
+from operator import attrgetter
 from typing import TYPE_CHECKING, cast, Any, Optional, Union
 
 from elementpath import select
@@ -44,6 +45,8 @@ logger = logging.getLogger('xmlschema')
 
 XSD_TYPE_DERIVATIONS = {'extension', 'restriction'}
 XSD_ELEMENT_DERIVATIONS = {'extension', 'restriction', 'substitution'}
+
+schema_attrs = attrgetter('maps', 'builders')
 
 
 class XsdValidator:
@@ -277,7 +280,7 @@ class XsdComponent(XsdValidator):
     _annotations: list['XsdAnnotation']
     _target_namespace: Optional[str] = None
 
-    __slots__ = ('name', 'parent', 'schema', 'maps', 'elem', 'validation', 'errors')
+    __slots__ = ('name', 'parent', 'schema', 'maps', 'builders', 'elem', 'validation', 'errors')
 
     def __init__(self, elem: ElementType,
                  schema: SchemaType,
@@ -288,7 +291,7 @@ class XsdComponent(XsdValidator):
         self.name = name
         self.parent = parent
         self.schema = schema
-        self.maps = schema.maps
+        self.maps, self.builders = schema_attrs(schema)
         self.parse(elem)
 
     def __repr__(self) -> str:

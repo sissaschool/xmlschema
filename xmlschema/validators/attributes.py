@@ -155,7 +155,7 @@ class XsdAttribute(XsdComponent, ValidationMixin[str, DecodedValueType]):
 
             elif child is not None:
                 # No 'type' attribute in declaration, parse for child local simpleType
-                self.type = self.schema.builders.simple_type_factory(child, self.schema, self)
+                self.type = self.builders.simple_type_factory(child, self.schema, self)
             else:
                 # Empty declaration means xsdAnySimpleType
                 self.type = self.any_simple_type
@@ -416,7 +416,7 @@ class XsdAttributeGroup(
                     self.parse_error(msg)
 
             elif child.tag == XSD_ANY_ATTRIBUTE:
-                any_attribute = self.schema.builders.any_attribute_class(child, self.schema, self)
+                any_attribute = self.builders.any_attribute_class(child, self.schema, self)
                 if None in attributes:
                     attributes[None] = attr = _copy(attributes[None])
                     assert isinstance(attr, XsdAnyAttribute)
@@ -425,7 +425,7 @@ class XsdAttributeGroup(
                     attributes[None] = any_attribute
 
             elif child.tag == XSD_ATTRIBUTE:
-                attribute = self.schema.builders.attribute_class(child, self.schema, self)
+                attribute = self.builders.attribute_class(child, self.schema, self)
                 if attribute.name in attributes:
                     msg = _("multiple declaration for attribute {!r}")
                     self.parse_error(msg.format(attribute.name))

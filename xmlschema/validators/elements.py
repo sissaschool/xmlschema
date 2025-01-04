@@ -140,7 +140,7 @@ class XsdElement(XsdComponent, ParticleMixin,
     def _set_type(self, value: BaseXsdType) -> None:
         self.type = value
         if isinstance(value, XsdSimpleType):
-            self.attributes = self.schema.builders.create_empty_attribute_group(self)
+            self.attributes = self.builders.create_empty_attribute_group(self)
             self.content = ()
         else:
             self.attributes = value.attributes
@@ -279,7 +279,7 @@ class XsdElement(XsdComponent, ParticleMixin,
         else:
             try:
                 self._set_type(
-                    self.schema.builders.local_types[child.tag](child, self.schema, self)
+                    self.builders.local_types[child.tag](child, self.schema, self)
                 )
             except KeyError:
                 self._set_type(self.any_type)
@@ -317,7 +317,7 @@ class XsdElement(XsdComponent, ParticleMixin,
                 continue
 
             try:
-                identity = self.schema.builders.identities[child.tag](child, self.schema, self)
+                identity = self.builders.identities[child.tag](child, self.schema, self)
             except KeyError:
                 # Invalid tags already caught by validation against the meta-schema
                 continue
@@ -491,7 +491,7 @@ class XsdElement(XsdComponent, ParticleMixin,
         elif xsd_type is self.type:
             return self.attributes
         else:
-            return self.schema.builders.create_empty_attribute_group(self)
+            return self.builders.create_empty_attribute_group(self)
 
     def get_path(self, ancestor: Optional[XsdComponent] = None,
                  reverse: bool = False) -> Optional[str]:
@@ -1528,7 +1528,7 @@ class XsdAlternative(XsdComponent):
                 self.type = self.any_type
             else:
                 try:
-                    self.type = self.schema.builders.local_types[child.tag](
+                    self.type = self.builders.local_types[child.tag](
                         child, self.schema, self
                     )
                 except KeyError:

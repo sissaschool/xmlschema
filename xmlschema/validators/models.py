@@ -34,6 +34,7 @@ EncodedContentType = Union[MutableMapping[Union[int, str], Any], Iterable[Conten
 StepType = Union[str, SchemaElementType, tuple[Union[str, SchemaElementType], int]]
 
 get_occurs = attrgetter('min_occurs', 'max_occurs')
+get_element_and_occurs = attrgetter('element', 'occurs')
 
 
 def distinguishable_paths(path1: list[ModelParticleType], path2: list[ModelParticleType]) -> bool:
@@ -368,8 +369,7 @@ class ModelVisitor:
         if self.element is None:
             raise XMLSchemaValueError(f"can't advance, {self!r} is ended!")
 
-        item = self.element
-        occurs = self.occurs
+        item, occurs = get_element_and_occurs(self)
         item_occurs = occurs[item]
 
         if match:

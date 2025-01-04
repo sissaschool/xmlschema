@@ -621,10 +621,12 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
         if schema in self._schemas:
             return
 
+
         if (other_schema := self.get_schema(schema.url or schema.source)) is not None:
             if other_schema.maps is self:
+                ref_chunk = schema.url or "the same source"
                 raise XMLSchemaValueError(
-                    f"another schema loaded from {schema.source} is already registered"
+                    f"another schema loaded from {ref_chunk} is already registered"
                 )
 
         namespace = schema.target_namespace

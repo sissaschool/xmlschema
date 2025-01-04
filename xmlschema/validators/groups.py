@@ -13,6 +13,7 @@ This module contains classes for XML Schema model groups.
 import warnings
 from collections.abc import Iterable, Iterator, MutableMapping, MutableSequence
 from copy import copy as _copy
+from operator import attrgetter
 from typing import TYPE_CHECKING, cast, overload, Any, Optional, Union
 from xml.etree import ElementTree
 
@@ -39,6 +40,8 @@ from .models import ModelVisitor, InterleavedModelVisitor, SuffixedModelVisitor,
 
 if TYPE_CHECKING:
     from .complex_types import XsdComplexType
+
+get_occurs = attrgetter('min_occurs', 'max_occurs')
 
 ANY_ELEMENT = ElementTree.Element(
     XSD_ANY,
@@ -470,7 +473,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         self.model = 'sequence'
         self.mixed = True
         self._group.clear()
-        self._group.append(self.schema.builders.any_element_class(ANY_ELEMENT, self.schema, self))
+        self._group.append(self.builders.any_element_class(ANY_ELEMENT, self.schema, self))
 
     def _parse(self) -> None:
         self.clear()
@@ -561,11 +564,11 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                 continue
             elif child.tag == XSD_ELEMENT:
                 # Builds inner elements later, for avoid circularity.
-                self.append(self.schema.builders.element_class(child, self.schema, self, False))
+                self.append(self.builders.element_class(child, self.schema, self, False))
             elif content_model.tag == XSD_ALL:
                 self.parse_error(_("'all' model can contain only elements"))
             elif child.tag == XSD_ANY:
-                self._group.append(self.schema.builders.any_element_class(child, self.schema, self))
+                self._group.append(self.builders.any_element_class(child, self.schema, self))
             elif child.tag in (XSD_SEQUENCE, XSD_CHOICE):
                 self._group.append(XsdGroup(child, self.schema, self))
             elif child.tag == XSD_GROUP:
@@ -1238,9 +1241,9 @@ class Xsd11Group(XsdGroup):
         for child in content_model:
             if child.tag == XSD_ELEMENT:
                 # Builds inner elements later, for avoid circularity.
-                self.append(self.schema.builders.element_class(child, self.schema, self, False))
+                self.append(self.builders.element_class(child, self.schema, self, False))
             elif child.tag == XSD_ANY:
-                self._group.append(self.schema.builders.any_element_class(child, self.schema, self))
+                self._group.append(self.builders.any_element_class(child, self.schema, self))
             elif child.tag in (XSD_SEQUENCE, XSD_CHOICE, XSD_ALL):
                 self._group.append(Xsd11Group(child, self.schema, self))
             elif child.tag == XSD_GROUP:
@@ -1377,7 +1380,8 @@ class Xsd11Group(XsdGroup):
         for w1 in base_items:
             if isinstance(w1, XsdAnyElement):
                 for w2 in wildcards:
-                    if w1.process_contents == w2.process_contents and w1.occurs == w2.occurs:
+                    if w1.process_contents == w2.process_contents and \
+                            get_occurs(w1) == get_occurs(w2):
                         w2.union(w1)
                         extended.append(w2)
                         break
