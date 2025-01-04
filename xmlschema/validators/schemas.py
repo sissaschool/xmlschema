@@ -1048,19 +1048,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         :param build: defines when to build the imported schema, the default is to not build.
         :return: the added :class:`XMLSchema` instance.
         """
-        if namespace is not None:
-            return self.loader.load_schema(source, namespace, base_url, build)
-        elif isinstance(source, XMLResource):
-            resource: XMLResource = source
-            base_url = base_url or source.base_url
-        else:
-            resource = XMLResource(source, base_url, self.allow, self.defuse, self.timeout)
-
-        if not resource.root.get('targetNamespace') and self.target_namespace:
-            # Adding a chameleon schema: set the namespace with targetNamespace
-            return self.loader.load_schema(resource, self.target_namespace, base_url, build)
-        else:
-            return self.loader.load_schema(resource, base_url=base_url, build=build)
+        return self.loader.load_schema(source, namespace, base_url, build)
 
     def load_namespace(self, namespace: str, build: bool = True) -> bool:
         """

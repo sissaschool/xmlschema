@@ -16,6 +16,7 @@ import argparse
 import os.path
 import warnings
 from pathlib import Path
+from typing import Optional
 from xml.etree import ElementTree
 
 try:
@@ -81,7 +82,7 @@ SKIPPED_TESTS = {
     '../msData/datatypes/Facets/anyURI/anyURI_a004.xml',
 
     ##
-    # Signed ad invalid, but valid because depends by implementation choices or platform.
+    # Signed ad invalid, but valid because it depends on implementation choices or platform.
     #   https://www.w3.org/Bugs/Public/show_bug.cgi?id=4133
     '../msData/schema/schG3.xml',
     '../msData/schema/schG6_a.xsd',  # Valid because the ns import is done once, validation fails.
@@ -370,7 +371,7 @@ def create_w3c_test_group_case(args, filename, group_elem, group_num, xsd_versio
         elem = group_elem
 
         @classmethod
-        def get_add_info(cls, error=None, *files):
+        def get_add_info(cls, error: Optional[XMLSchemaException] = None, *files):
             if len(args.numbers) != 1:
                 return str(error) if error is not None else ''
 
@@ -393,6 +394,16 @@ def create_w3c_test_group_case(args, filename, group_elem, group_num, xsd_versio
 
         @unittest.skipIf(group_tests[0]['source'].endswith('.xml'), 'No schema test')
         def test_xsd_schema(self):
+
+            def create_schema_instance():
+                with warnings.catch_warnings():
+                    warnings.simplefilter('ignore')
+                    return schema_class(
+                        source=item['sources'] or source,
+                        use_meta=use_meta,
+                        use_fallback=use_fallback,
+                    )
+
             for item in filter(lambda x: x['source'].endswith('.xsd'), group_tests):
                 source = item['source']
                 rel_path = os.path.relpath(source)
@@ -416,36 +427,10 @@ def create_w3c_test_group_case(args, filename, group_elem, group_num, xsd_versio
                                   f"{version} {self.get_add_info(None, rel_path)}"
 
                         with self.assertRaises(XMLSchemaException, msg=message):
-                            with warnings.catch_warnings():
-                                warnings.simplefilter('ignore')
-                                if len(item['sources']) <= 1:
-                                    schema_class(source, use_meta=use_meta,
-                                                 use_fallback=use_fallback)
-                                else:
-                                    schema = schema_class(source, use_meta=use_meta,
-                                                          use_fallback=use_fallback, build=False)
-                                    for other in item['sources'][1:]:
-                                        schema_class(other, global_maps=schema.maps,
-                                                     use_fallback=use_fallback, build=False)
-                                    schema.build()
+                            create_schema_instance()
                     else:
                         try:
-                            with warnings.catch_warnings():
-                                warnings.simplefilter('ignore')
-                                if len(item['sources']) <= 1:
-                                    schema = schema_class(source, use_meta=use_meta,
-                                                          use_fallback=use_fallback)
-                                else:
-                                    schema = schema_class(source, use_meta=use_meta,
-                                                          use_fallback=use_fallback, build=False)
-                                    for other in item['sources'][1:]:
-                                        for s in schema.maps.iter_schemas():
-                                            if s.source.get_url(other) == s.url:
-                                                break
-                                        else:
-                                            schema_class(other, global_maps=schema.maps,
-                                                         use_fallback=use_fallback, build=False)
-                                    schema.build()
+                            schema = create_schema_instance()
                         except XMLSchemaException as err:
                             schema = None
                             message = \
@@ -467,6 +452,19 @@ def create_w3c_test_group_case(args, filename, group_elem, group_num, xsd_versio
                 schema = None
                 schemas = []
 
+            def validate_xml_instance():
+                with warnings.catch_warnings():
+                    warnings.simplefilter('ignore')
+                    if not schemas:
+                        validate(source, schema=schema, cls=schema_class)
+                    else:
+                        schema_instance = schema_class(
+                            source=schemas,
+                            use_meta=use_meta,
+                            use_fallback=use_fallback
+                        )
+                        schema_instance.validate(source)
+
             for item in filter(lambda x: not x['source'].endswith('.xsd'), group_tests):
                 source = item['source']
                 rel_path = os.path.relpath(source)
@@ -477,42 +475,16 @@ def create_w3c_test_group_case(args, filename, group_elem, group_num, xsd_versio
                         message = f"instance {rel_path} should be invalid with XSD {version}:" \
                                   f"{self.get_add_info(None, *schemas, rel_path)}"
 
-                        with self.assertRaises((XMLSchemaException, ElementTree.ParseError),
-                                               msg=message):
-                            with warnings.catch_warnings():
-                                warnings.simplefilter('ignore')
-                                if not schemas:
-                                    validate(source, schema=schema, cls=schema_class)
-                                else:
-                                    xs = schema_class(schemas[0], use_meta=use_meta,
-                                                      use_fallback=use_fallback, build=False)
-                                    for other in schemas[1:]:
-                                        schema_class(other, global_maps=xs.maps,
-                                                     use_fallback=use_fallback, build=False)
-                                    xs.build()
-                                    xs.validate(source)
+                        with self.assertRaises(XMLSchemaException, msg=message):
+                            validate_xml_instance()
                     else:
                         try:
-                            with warnings.catch_warnings():
-                                warnings.simplefilter('ignore')
-                                if len(schemas) <= 1 and use_meta and use_fallback:
-                                    validate(source, schema=schema, cls=schema_class)
-                                else:
-                                    xs = schema_class(schemas[0], use_meta=use_meta,
-                                                      use_fallback=use_fallback, build=False)
-                                    for other in schemas[1:]:
-                                        schema_class(other, global_maps=xs.maps, build=False)
-                                    xs.build()
-                                    xs.validate(source)
-
-                        except (XMLSchemaException, ElementTree.ParseError) as err:
+                            self.assertIsNone(validate_xml_instance())
+                        except XMLSchemaException as err:
                             error = f"instance {rel_path} should be valid with XSD " \
                                     f"{version} but an {err.__class__.__name__} is raised"
                             msg = self.get_add_info(err, *schemas, rel_path)
-                        else:
-                            error, msg = None, ''
-
-                        self.assertIsNone(error, msg)
+                            self.assertIsNone(error, msg=msg)
 
     if not any(g['source'].endswith('.xsd') for g in group_tests):
         del TestGroupCase.test_xsd_schema
