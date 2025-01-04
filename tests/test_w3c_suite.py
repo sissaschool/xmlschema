@@ -455,8 +455,9 @@ def create_w3c_test_group_case(args, filename, group_elem, group_num, xsd_versio
             def validate_xml_instance():
                 with warnings.catch_warnings():
                     warnings.simplefilter('ignore')
-                    if not schemas:
-                        validate(source, schema=schema, cls=schema_class)
+                    if len(schemas) <= 1:
+                        validate(source, schema=schema, cls=schema_class,
+                                 use_meta=use_meta, use_fallback=use_fallback)
                     else:
                         schema_instance = schema_class(
                             source=schemas,
@@ -471,6 +472,7 @@ def create_w3c_test_group_case(args, filename, group_elem, group_num, xsd_versio
 
                 for version, expected in sorted(filter(lambda x: x[0] != 'source', item.items())):
                     schema_class = XMLSchema11 if version == '1.1' else XMLSchema10
+
                     if expected == 'invalid':
                         message = f"instance {rel_path} should be invalid with XSD {version}:" \
                                   f"{self.get_add_info(None, *schemas, rel_path)}"

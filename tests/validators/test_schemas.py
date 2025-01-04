@@ -640,11 +640,10 @@ class TestXMLSchema10(XsdValidatorTestCase):
             </xs:schema>""")
 
         schema = self.schema_class([source1, source2])
-        self.assertEqual(len(schema.elements), 2)
-        self.assertEqual(len(schema.maps.namespaces['http://xmlschema.test/ns']), 2)
+        self.assertEqual(len(schema.elements), 1)
+        self.assertEqual(len(schema.maps.namespaces['http://xmlschema.test/ns']), 1)
         self.assertIs(schema.elements['elem1'].schema, schema)
-        self.assertIs(schema.elements['elem2'].schema,
-                      schema.maps.namespaces['http://xmlschema.test/ns'][1])
+        self.assertIs(schema.maps.elements['elem2'].schema, schema.maps.namespaces[''][0])
 
     def test_add_schema(self):
         source1 = dedent("""\

@@ -26,8 +26,9 @@ from xmlschema.validators import check_validation_mode, XMLSchema10, XMLSchemaBa
     XMLSchemaValidationError
 
 # Allowed keyword arguments for building schema and resource instances, if necessary.
-SCHEMA_KWARGS = frozenset(('base_url', 'allow', 'defuse', 'timeout', 'uri_mapper', 'opener'))
-RESOURCE_KWARGS = SCHEMA_KWARGS.union(('lazy', 'thin_lazy', 'iterparse'))
+COMMON_KWARGS = frozenset(('base_url', 'allow', 'defuse', 'timeout', 'uri_mapper', 'opener'))
+RESOURCE_KWARGS = COMMON_KWARGS.union(('lazy', 'thin_lazy', 'iterparse'))
+SCHEMA_KWARGS = COMMON_KWARGS.union(('use_meta', 'use_fallback', 'use_xpath3'))
 
 
 def get_context(xml_document: Union[XMLSourceType, XMLResource],
