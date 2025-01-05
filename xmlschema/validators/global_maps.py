@@ -327,6 +327,11 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
             self._schemas.update(ancestor.maps.schemas)
             self.namespaces.update(ancestor.maps.namespaces)
 
+            ancestor.maps.build()
+            self.global_maps.update(ancestor.maps.global_maps)
+            self.substitution_groups.update(ancestor.maps.substitution_groups)
+            self.identities.update(ancestor.maps.identities)
+
         self.validator.maps = self
 
     @property
@@ -658,8 +663,8 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
         """
         if namespace in self.namespaces:
             return True
-        elif not self.built or self.validator.meta_schema is None:
-            return False  # Do not load additional namespaces for meta-schema (XHTML)
+        elif self.validator.meta_schema is None:
+            return False  # Do not load additional namespaces for meta-schema
 
         if not build:
             return self.validator.loader.load_namespace(namespace)
@@ -694,13 +699,9 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
                     k = self.namespaces[namespace].index(schema)
 
                     schema = copy.copy(schema)
-                    object.__setattr__(schema, 'maps', self)
-                    for attr in ('notations', 'attributes', 'attribute_groups',
-                                 'types', 'elements', 'groups'):
-                        object.__setattr__(schema, attr, getattr(self, attr))
-
                     self._schemas.add(schema)
                     self.namespaces[namespace][k] = schema
+                    schema.maps = self
 
         self._parent = ancestor.maps._parent
 
@@ -747,6 +748,7 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
             if self.built:
                 return
 
+
             self.check_schemas()
             self.clear()
 
@@ -756,7 +758,8 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
                 self.substitution_groups.update(ancestor.maps.substitution_groups)
                 self.identities.update(ancestor.maps.identities)
 
-            target_schemas = [s for s in self._schemas if s.maps is self]
+            target_schemas = [s for ns_schemas in self.namespaces.values()
+                              for s in ns_schemas if s.maps is self]
 
             self.global_maps.load_globals(target_schemas)
             initial_staged = self.staged_globals
@@ -824,7 +827,10 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
             raise XMLSchemaValueError(_('global maps main validator is not registered'))
 
         if nm.XML_NAMESPACE not in self.namespaces:
-            self.load_namespace(nm.XML_NAMESPACE)
+            self.load_namespace(nm.XML_NAMESPACE, build=False)
+
+        if nm.XSI_NAMESPACE not in self.namespaces:
+            self.load_namespace(nm.XSI_NAMESPACE, build=False)
 
         registered_schemas = set()
         for namespace, schemas in self.namespaces.items():

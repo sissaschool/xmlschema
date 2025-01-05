@@ -56,7 +56,7 @@ import xmlschema.names as nm
 from .exceptions import XMLSchemaValidationError, XMLSchemaEncodeError, \
     XMLSchemaStopValidation
 from .validation import check_validation_mode, DecodeContext, EncodeContext
-from .helpers import get_xsd_derivation_attribute, get_xsd_annotation_child
+from .helpers import get_xsd_derivation_attribute, get_xsd_annotation_child, qname_validator
 from .xsdbase import XSD_ELEMENT_DERIVATIONS, XsdValidator, XsdComponent, XsdAnnotation
 from .notations import XsdNotation
 from .identities import XsdIdentity, XsdKeyref, KeyrefCounter
@@ -521,7 +521,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
             value.register(self)
             super().__setattr__(name, value)
-
             for attr in ('types', 'attributes', 'attribute_groups', 'groups', 'elements',
                          'notations', 'substitution_groups', 'identities'):
                 object.__setattr__(
@@ -1197,20 +1196,17 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             except ValueError:
                 msg = _("{!r} is not a valid value for xs:QName")
                 raise XMLSchemaValueError(msg.format(qname))
-        elif ':' in qname:
-            try:
+        else:
+            qname_validator(qname)
+            if ':' in qname:
                 prefix, local_name = qname.split(':')
-            except ValueError:
-                msg = _("{!r} is not a valid value for xs:QName")
-                raise XMLSchemaValueError(msg.format(qname))
-            else:
                 try:
                     namespace = self.namespaces[prefix]
                 except KeyError:
                     msg = _("prefix {!r} not found in namespace map")
                     raise XMLSchemaKeyError(msg.format(prefix))
-        else:
-            namespace, local_name = self.namespaces.get('', ''), qname
+            else:
+                namespace, local_name = self.namespaces.get('', ''), qname
 
         if not namespace:
             if namespace_imported and self.target_namespace \

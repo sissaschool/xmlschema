@@ -669,10 +669,6 @@ class XsdElement(XsdComponent, ParticleMixin,
             reason = _("%r is abstract") % xsd_type
             context.validation_error(validation, self, reason, obj)
 
-        if context.source.url is not None and \
-                context.source.url.endswith("idConstrDefs00301m2_n.xml_"):
-            breakpoint()
-
         id_list = context.id_list
         if xsd_type.is_complex() and self.xsd_version == '1.1':
             # Track XSD 1.1 multiple xs:ID attributes/children
