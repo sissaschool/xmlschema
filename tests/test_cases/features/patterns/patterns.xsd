@@ -13,6 +13,8 @@
                 <xs:element name="Digits" type="DigitsType" minOccurs="0" maxOccurs="unbounded"/>
                 <xs:element name="Word" type="Word5Type" minOccurs="0" maxOccurs="unbounded"/>
                 <xs:element name="NoWord" type="NotWord5Type" minOccurs="0" maxOccurs="unbounded"/>
+                <xs:element name="CRS" type="crsCodeType" minOccurs="0" maxOccurs="unbounded"/>
+                <xs:element name="CRSw" type="crsCodeTypeWrong" minOccurs="0" maxOccurs="unbounded"/>
             </xs:sequence>
         </xs:complexType>
     </xs:element>
@@ -82,6 +84,19 @@
     <xs:simpleType name="NotWord5Type">
         <xs:restriction base="xs:string">
             <xs:pattern value='[\W]{0,5}'/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <!-- Issue 429 -->
+    <xs:simpleType name="crsCodeType">
+        <xs:restriction base="xs:string">
+            <xs:pattern value="|.{3}"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="crsCodeTypeWrong">
+        <xs:restriction base="xs:string">
+            <xs:pattern value="^$|.{3}"/>
         </xs:restriction>
     </xs:simpleType>
 

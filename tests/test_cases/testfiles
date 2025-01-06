@@ -90,7 +90,7 @@ features/namespaces/included8-redefine.xsd
 features/namespaces/dynamic-case1-override.xsd --version=1.1
 
 features/patterns/patterns.xsd
-features/patterns/patterns.xml --errors=6
+features/patterns/patterns.xml --errors=7
 
 # Cases from resolved issues
 issues/issue_008/issue_008.xsd

@@ -43,7 +43,7 @@ class SchemaLoader:
         self.maps = maps
         self.schema_class = maps.config.schema_class
         self.base_url = maps.validator.source.base_url
-        self.locations = get_locations(maps.validator.locations)
+        self.locations = get_locations(maps.validator.locations, self.base_url)
         self.missing_locations = set()
 
         if not maps.validator.use_fallback:
