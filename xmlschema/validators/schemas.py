@@ -47,7 +47,7 @@ from xmlschema.resources import XMLResource
 from xmlschema.converters import XMLSchemaConverter, ConverterType, \
     check_converter_argument, get_converter
 from xmlschema.xpath import XMLSchemaProxy, ElementPathMixin
-from xmlschema.locations import SCHEMAS_DIR, STANDARD_LOCATIONS
+from xmlschema.locations import SCHEMAS_DIR, UriMapper
 from xmlschema.loaders import SchemaLoader
 from xmlschema.exports import export_schema
 from xmlschema import dataobjects
@@ -859,10 +859,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         :param base_schemas: a dictionary that contains namespace URIs and locations \
         of base schemas.
         """
-        uri_mapper = {STANDARD_LOCATIONS[k]: v for k, v in base_schemas.items()}
-        uri_mapper[STANDARD_LOCATIONS[nm.XSD_NAMESPACE]] = meta_schema
-        for k in list(uri_mapper.keys()):
-            uri_mapper['http' + k[5:]] = uri_mapper[k]
+        uri_mapper = UriMapper(locations={nm.XSD_NAMESPACE: meta_schema, **base_schemas})
 
         schema: SchemaType
         meta_schema_class = cls if cls.meta_schema is None else cls.meta_schema.__class__

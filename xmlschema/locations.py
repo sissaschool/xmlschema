@@ -126,3 +126,31 @@ STANDARD_LOCATIONS = {
     nm.XENC_NAMESPACE: "https://www.w3.org/TR/xmlenc-core/xenc-schema.xsd",
     nm.XENC11_NAMESPACE: "https://www.w3.org/TR/xmlenc-core1/xenc-schema-11.xsd",
 }
+
+
+class UriMapper:
+    """
+    Returns a URI mapper callable objects that extends lookup to SSL protocol variants.
+
+    :param uri_map: optional URI mapper dictionary.
+    :param locations: optional locations for standard namespaces.
+    """
+    def __init__(self, uri_map: Optional[dict[str, str]] = None,
+                 locations: Optional[dict[str, str]] = None):
+        self.uri_map = {} if uri_map is None else uri_map.copy()
+        if locations is not None:
+            self.uri_map.update((STANDARD_LOCATIONS[k], v) for k, v in locations.items())
+
+    def __call__(self, uri: str) -> str:
+        if uri in self.uri_map:
+            return self.uri_map[uri]
+        elif not uri.startswith(('http:', 'https:', 'ftp:', 'sftp:')):
+            return uri
+        elif uri.startswith('http:'):
+            return self.uri_map.get(uri.replace('http:', 'https:', 1), uri)
+        elif uri.startswith('https:'):
+            return self.uri_map.get(uri.replace('https:', 'http:', 1), uri)
+        elif uri.startswith('sftp:'):
+            return self.uri_map.get(uri.replace('sftp:', 'ftp:', 1), uri)
+        else:
+            return self.uri_map.get(uri.replace('ftp:', 'sftp:', 1), uri)
