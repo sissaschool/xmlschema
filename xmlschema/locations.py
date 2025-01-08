@@ -11,7 +11,7 @@ import os
 from collections.abc import Iterable, Iterator, MutableMapping
 from typing import Any, Optional, TypeVar
 
-from xmlschema.aliases import LocationsType
+from xmlschema.aliases import LocationsType, UriMapperType
 from xmlschema.exceptions import XMLSchemaTypeError
 from xmlschema.translation import gettext as _
 from xmlschema.utils.urls import normalize_locations
@@ -89,6 +89,26 @@ def get_locations(locations: Optional[LocationsType], base_url: Optional[str] = 
         return NamespaceResourcesMap(normalize_locations(locations, base_url))
 
 
+# Standard locations: contributors are invited to propose additional official
+# locations for other well-known namespaces.
+LOCATIONS = {
+    nm.XSD_NAMESPACE: "https://www.w3.org/2001/XMLSchema.xsd",
+    nm.XML_NAMESPACE: "https://www.w3.org/2001/xml.xsd",
+    nm.XSI_NAMESPACE: "https://www.w3.org/2001/XMLSchema-instance",
+    nm.XSLT_NAMESPACE: "https://www.w3.org/2007/schema-for-xslt20.xsd",
+    nm.HFP_NAMESPACE: "https://www.w3.org/2001/XMLSchema-hasFacetAndProperty",
+    nm.VC_NAMESPACE: "https://www.w3.org/2007/XMLSchema-versioning/XMLSchema-versioning.xsd",
+    nm.XLINK_NAMESPACE: "https://www.w3.org/1999/xlink.xsd",
+    nm.WSDL_NAMESPACE: "https://schemas.xmlsoap.org/wsdl/",
+    nm.SOAP_NAMESPACE: "https://schemas.xmlsoap.org/wsdl/soap/",
+    nm.SOAP_ENVELOPE_NAMESPACE: "https://schemas.xmlsoap.org/soap/envelope/",
+    nm.SOAP_ENCODING_NAMESPACE: "https://schemas.xmlsoap.org/soap/encoding/",
+    nm.DSIG_NAMESPACE: "https://www.w3.org/2000/09/xmldsig#",
+    nm.DSIG11_NAMESPACE: "https://www.w3.org/2009/xmldsig11#",
+    nm.XENC_NAMESPACE: "https://www.w3.org/TR/xmlenc-core/xenc-schema.xsd",
+    nm.XENC11_NAMESPACE: "https://www.w3.org/TR/xmlenc-core1/xenc-schema-11.xsd",
+}
+
 # Fallback locations for well-known
 FALLBACK_LOCATIONS = {
     nm.XML_NAMESPACE: f'{SCHEMAS_DIR}XML/xml.xsd',
@@ -107,24 +127,9 @@ FALLBACK_LOCATIONS = {
     nm.XENC11_NAMESPACE: f'{SCHEMAS_DIR}XENC/xenc-schema-11.xsd',
 }
 
-# Standard locations: contributors are invited to propose additional official
-# locations for other well-known namespaces.
-STANDARD_LOCATIONS = {
-    nm.XSD_NAMESPACE: "https://www.w3.org/2001/XMLSchema.xsd",
-    nm.XML_NAMESPACE: "https://www.w3.org/2001/xml.xsd",
-    nm.XSI_NAMESPACE: "https://www.w3.org/2001/XMLSchema-instance",
-    nm.XSLT_NAMESPACE: "https://www.w3.org/2007/schema-for-xslt20.xsd",
-    nm.HFP_NAMESPACE: "https://www.w3.org/2001/XMLSchema-hasFacetAndProperty",
-    nm.VC_NAMESPACE: "https://www.w3.org/2007/XMLSchema-versioning/XMLSchema-versioning.xsd",
-    nm.XLINK_NAMESPACE: "https://www.w3.org/1999/xlink.xsd",
-    nm.WSDL_NAMESPACE: "https://schemas.xmlsoap.org/wsdl/",
-    nm.SOAP_NAMESPACE: "https://schemas.xmlsoap.org/wsdl/soap/",
-    nm.SOAP_ENVELOPE_NAMESPACE: "https://schemas.xmlsoap.org/soap/envelope/",
-    nm.SOAP_ENCODING_NAMESPACE: "https://schemas.xmlsoap.org/soap/encoding/",
-    nm.DSIG_NAMESPACE: "https://www.w3.org/2000/09/xmldsig#",
-    nm.DSIG11_NAMESPACE: "https://www.w3.org/2009/xmldsig11#",
-    nm.XENC_NAMESPACE: "https://www.w3.org/TR/xmlenc-core/xenc-schema.xsd",
-    nm.XENC11_NAMESPACE: "https://www.w3.org/TR/xmlenc-core1/xenc-schema-11.xsd",
+FALLBACK_MAP = {
+    LOCATIONS[k]: FALLBACK_LOCATIONS[k]
+    for k, v in LOCATIONS.items() if k in FALLBACK_LOCATIONS
 }
 
 
@@ -132,25 +137,31 @@ class UriMapper:
     """
     Returns a URI mapper callable objects that extends lookup to SSL protocol variants.
 
-    :param uri_map: optional URI mapper dictionary.
-    :param locations: optional locations for standard namespaces.
+    :param uri_mapper: optional URI mapper to wrap.
+    :param fallback_map: optional fallback map for standard namespaces.
     """
-    def __init__(self, uri_map: Optional[dict[str, str]] = None,
-                 locations: Optional[dict[str, str]] = None):
-        self.uri_map = {} if uri_map is None else uri_map.copy()
-        if locations is not None:
-            self.uri_map.update((STANDARD_LOCATIONS[k], v) for k, v in locations.items())
+    def __init__(self, uri_mapper: Optional[UriMapperType] = None,
+                 fallback_map: Optional[dict[str, str]] = None) -> None:
+        self._uri_mapper = uri_mapper
+        self.fallback_map = {} if fallback_map is None else fallback_map
+
+    def map_uri(self, uri: str) -> str:
+        if isinstance(self._uri_mapper, MutableMapping):
+            uri = self._uri_mapper.get(uri, uri)
+        elif callable(self._uri_mapper):
+            uri = self._uri_mapper(uri)
+        return self.fallback_map.get(uri, uri)
 
     def __call__(self, uri: str) -> str:
-        if uri in self.uri_map:
-            return self.uri_map[uri]
-        elif not uri.startswith(('http:', 'https:', 'ftp:', 'sftp:')):
-            return uri
+        if not uri.startswith(('http:', 'https:', 'ftp:', 'sftp:')):
+            return self.map_uri(uri)
+        elif (url := self.map_uri(uri)) != uri:
+            return url
         elif uri.startswith('http:'):
-            return self.uri_map.get(uri.replace('http:', 'https:', 1), uri)
+            return self.map_uri(uri.replace('http:', 'https:', 1))
         elif uri.startswith('https:'):
-            return self.uri_map.get(uri.replace('https:', 'http:', 1), uri)
+            return self.map_uri(uri.replace('https:', 'http:', 1))
         elif uri.startswith('sftp:'):
-            return self.uri_map.get(uri.replace('sftp:', 'ftp:', 1), uri)
+            return self.map_uri(uri.replace('sftp:', 'ftp:', 1))
         else:
-            return self.uri_map.get(uri.replace('ftp:', 'sftp:', 1), uri)
+            return self.map_uri(uri.replace('ftp:', 'sftp:', 1))

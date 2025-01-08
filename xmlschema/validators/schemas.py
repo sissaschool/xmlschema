@@ -47,7 +47,7 @@ from xmlschema.resources import XMLResource
 from xmlschema.converters import XMLSchemaConverter, ConverterType, \
     check_converter_argument, get_converter
 from xmlschema.xpath import XMLSchemaProxy, ElementPathMixin
-from xmlschema.locations import SCHEMAS_DIR, UriMapper
+from xmlschema.locations import SCHEMAS_DIR, LOCATIONS, FALLBACK_MAP, UriMapper
 from xmlschema.loaders import SchemaLoader
 from xmlschema.exports import export_schema
 from xmlschema import dataobjects
@@ -112,6 +112,12 @@ class XMLSchemaMeta(ABCMeta):
             else:
                 if not isinstance(base_schemas, dict):
                     raise XMLSchemaTypeError("BASE_SCHEMAS must be a dictionary")
+
+            # Build the fallback locations map for creating an UriMapper for checking URLs
+            fallback_map = FALLBACK_MAP.copy()
+            fallback_map.update((LOCATIONS[k], v) for k, v in base_schemas.items())
+            fallback_map[LOCATIONS[nm.XSD_NAMESPACE]] = meta_schema_file
+            dict_['FALLBACK_MAP'] = fallback_map
 
             # Build the meta-schema class and register it into module's globals
             meta_schema_class_name = 'Meta' + name
@@ -246,7 +252,10 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     def builders(self) -> XsdBuilders: ...
 
     XSD_VERSION: str = '1.0'
+    META_SCHEMA: str
     BASE_SCHEMAS: dict[str, str] = {}
+    FALLBACK_MAP: dict[str, str]
+
     meta_schema: Optional[SchemaType] = None
 
     # Instance attributes type annotations
@@ -364,9 +373,10 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 msg = _("the attribute 'targetNamespace' cannot be an empty string")
                 self.parse_error(msg, root, namespaces=namespaces)
             elif namespace is not None and self.target_namespace != namespace:
-                msg = _("wrong namespace ({0!r} instead of {1!r}) for XSD resource {2}")
+                msg = _("targetNamespace of XSD resource {} differs from what expected "
+                        "(found {!r} instead of {!r})")
                 self.parse_error(
-                    error=msg.format(self.target_namespace, namespace, self.url),
+                    error=msg.format(self.url, self.target_namespace, namespace),
                     elem=root,
                     namespaces=namespaces,
                 )
@@ -859,8 +869,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         :param base_schemas: a dictionary that contains namespace URIs and locations \
         of base schemas.
         """
-        uri_mapper = UriMapper(locations={nm.XSD_NAMESPACE: meta_schema, **base_schemas})
-
         schema: SchemaType
         meta_schema_class = cls if cls.meta_schema is None else cls.meta_schema.__class__
 
@@ -868,7 +876,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             source="https://www.w3.org/2001/XMLSchema.xsd",
             namespace=nm.XSD_NAMESPACE,
             defuse='never',
-            uri_mapper=uri_mapper,
+            uri_mapper=UriMapper(fallback_map=cls.FALLBACK_MAP),
             build=False
         )
 

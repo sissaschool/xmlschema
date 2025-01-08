@@ -27,7 +27,7 @@ from xmlschema.exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, \
 from xmlschema.translation import gettext as _
 from xmlschema.utils.qnames import local_name, get_extended_qname
 from xmlschema.utils.urls import get_url, normalize_url
-from xmlschema.locations import NamespaceResourcesMap
+from xmlschema.locations import NamespaceResourcesMap, UriMapper
 from xmlschema.loaders import SchemaLoader
 from xmlschema.resources import XMLResource
 from xmlschema.xpath.assertion_parser import XsdAssertionXPathParser
@@ -310,6 +310,11 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
 
         self.validator = validator
         self._parent = parent
+
+        if validator.use_fallback:
+            self._uri_mapper = UriMapper(validator.uri_mapper, validator.FALLBACK_MAP)
+        else:
+            self._uri_mapper = UriMapper(validator.uri_mapper)
 
         self.config = SchemaConfig(validator)
         self.namespaces = NamespaceResourcesMap()  # Registered schemas by namespace URI
@@ -610,6 +615,7 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
             _source = source
 
         if url is not None:
+            url = self._uri_mapper(url)
             url = normalize_url(url, base_url)
             for schema in self._schemas:
                 if url == schema.url:
@@ -747,7 +753,6 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
         with self._build_lock:
             if self.built:
                 return
-
 
             self.check_schemas()
             self.clear()

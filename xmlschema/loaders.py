@@ -17,9 +17,9 @@ from xmlschema.aliases import ElementType, SchemaType, SchemaSourceType
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError, \
     XMLResourceBlocked, XMLResourceForbidden
 from xmlschema.locations import NamespaceResourcesMap, get_locations, \
-    FALLBACK_LOCATIONS, STANDARD_LOCATIONS
+    FALLBACK_LOCATIONS, LOCATIONS
 from xmlschema.translation import gettext as _
-from xmlschema.utils.urls import is_url, normalize_url
+from xmlschema.utils.urls import is_url, is_local_url, normalize_url
 import xmlschema.names as nm
 
 from xmlschema.validators import XMLSchemaParseError, \
@@ -34,7 +34,7 @@ base_url_attribute = attrgetter('name')
 
 class SchemaLoader:
 
-    fallback_locations = {**STANDARD_LOCATIONS, **FALLBACK_LOCATIONS}
+    fallback_locations = {**LOCATIONS, **FALLBACK_LOCATIONS}
 
     locations: NamespaceResourcesMap[str]
     missing_locations: set[str]  # Missing or failing resource locations
@@ -178,6 +178,11 @@ class SchemaLoader:
     def import_namespace(self, schema: SchemaType,
                          namespace: str, location_hints: list[str]) -> None:
         import_error: Optional[Exception] = None
+
+        local_hints = [url for url in location_hints if is_local_url(url)]
+        if local_hints:
+            location_hints = local_hints + [x for x in location_hints if x not in local_hints]
+
         for location in location_hints:
             try:
                 logger.info("Import namespace %r from %r", namespace, location)
@@ -192,9 +197,10 @@ class SchemaLoader:
                     import_error = err
             except (XMLSchemaParseError, XMLSchemaTypeError, ParseError) as err:
                 if namespace:
-                    msg = _("cannot import namespace {0!r}: {1}").format(namespace, err)
+                    msg = _("import of namespace {!r} failed: {}").format(namespace, err)
                 else:
-                    msg = _("cannot import chameleon schema: %s") % err
+                    msg = _("import of chameleon schema failed: {}").format(err)
+
                 if isinstance(err, (XMLSchemaParseError, ParseError)):
                     schema.parse_error(msg)
                 else:
@@ -228,18 +234,17 @@ class SchemaLoader:
         :return: the imported :class:`XMLSchema` instance.
         """
         if location in target_schema.imports:
-            return target_schema.imports[location]
+            schema = target_schema.imports[location]
+            if schema is not None and schema.target_namespace != namespace:
+                msg = _('imported schema {!r} has an unmatched namespace {!r}')
+                raise XMLSchemaValueError(msg.format(location, namespace))
 
-        logger.debug("Load schema from %r", location)
-        schema = self.load_schema(location, base_url=base_url, build=build)
-        if schema.target_namespace != namespace:
-            msg = _('imported schema {!r} has an unmatched namespace {!r}')
-            raise XMLSchemaValueError(msg.format(location, namespace))
-
+        schema = self.load_schema(location, namespace, base_url, build)
         if target_schema is schema:
             return schema
         elif location not in target_schema.imports:
             target_schema.imports[location] = schema
+
         return schema
 
     def include_schema(self, target_schema: SchemaType,

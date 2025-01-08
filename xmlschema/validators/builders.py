@@ -10,7 +10,7 @@
 import copy
 from abc import abstractmethod
 from collections import Counter
-from collections.abc import Callable, ItemsView, Iterator, Mapping, ValuesView
+from collections.abc import Callable, ItemsView, Iterator, Mapping, ValuesView, Iterable
 from copy import copy as shallow_copy
 from typing import Any, cast, Optional, Union, Type, TypeVar
 from xml.etree.ElementTree import Element
@@ -603,7 +603,7 @@ class TypesMap(StagedMap[BaseXsdType]):
 
             facets = item.pop('facets', None)
             xsd_type = XsdAtomicBuiltin(elem, schema, **item)
-            if facets:
+            if isinstance(facets, Iterable):
                 built_facets = xsd_type.facets
                 for e in facets:
                     try:

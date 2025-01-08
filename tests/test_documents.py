@@ -252,7 +252,8 @@ class TestXmlDocuments(unittest.TestCase):
         xml_file = casepath('issues/issue_324/issue_324-invalid.xml')
         with self.assertRaises(XMLSchemaParseError) as ctx:
             validate(xml_file)
-        self.assertIn('unmatched namespace', str(ctx.exception))
+        self.assertIn("import of namespace 'http://xmlschema.test/wrong-ns' failed",
+                      str(ctx.exception))
 
         with self.assertRaises(XMLSchemaValidationError) as ctx:
             validate(xml_file, schema=schema)
