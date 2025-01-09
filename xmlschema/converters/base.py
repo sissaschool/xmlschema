@@ -184,7 +184,7 @@ class NamespaceMapper(MutableMapping[str, str]):
         xmlns: XmlnsType
         namespaces = get_namespace_map(namespaces)
         for obj, level in iter_decoded_data(self.source):
-            if level and root_only:
+            if root_only and level > 1:  # root xmlns declarations are usually at level 0 or 1
                 break
             xmlns = self.get_xmlns_from_data(obj)
             if xmlns:
