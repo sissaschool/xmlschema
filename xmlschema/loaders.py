@@ -75,7 +75,12 @@ class SchemaLoader:
         if namespace in self.locations:
             locations.extend(x for x in self.locations[namespace])
         if namespace in self.fallback_locations:
-            locations.append(self.fallback_locations[namespace])
+            values = self.fallback_locations[namespace]
+            if isinstance(values, list):
+                locations.extend(values)
+            else:
+                locations.append(values)
+
         return locations
 
     def load_declared_schemas(self, schema: SchemaType) -> None:

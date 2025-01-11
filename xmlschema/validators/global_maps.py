@@ -312,9 +312,9 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
         self._parent = parent
 
         if validator.use_fallback:
-            self._uri_mapper = UriMapper(validator.uri_mapper, validator.FALLBACK_MAP)
-        else:
             self._uri_mapper = UriMapper(validator.uri_mapper)
+        else:
+            self._uri_mapper = UriMapper(validator.uri_mapper, fallback_map={})
 
         self.config = SchemaConfig(validator)
         self.namespaces = NamespaceResourcesMap()  # Registered schemas by namespace URI

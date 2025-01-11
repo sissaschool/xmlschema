@@ -9,9 +9,10 @@
 #
 import os
 from collections.abc import Iterable, Iterator, MutableMapping
+from itertools import dropwhile
 from typing import Any, Optional, TypeVar
 
-from xmlschema.aliases import LocationsType, UriMapperType
+from xmlschema.aliases import LocationsMapType, LocationsType, UriMapperType
 from xmlschema.exceptions import XMLSchemaTypeError
 from xmlschema.translation import gettext as _
 from xmlschema.utils.urls import normalize_locations
@@ -89,10 +90,31 @@ def get_locations(locations: Optional[LocationsType], base_url: Optional[str] = 
         return NamespaceResourcesMap(normalize_locations(locations, base_url))
 
 
-# Standard locations: contributors are invited to propose additional official
-# locations for other well-known namespaces.
+def get_fallback_map(locations: LocationsMapType, fallbacks: LocationsMapType) -> dict[str, str]:
+    fallback_map: dict[str, str] = {}
+
+    for ns, urls in locations.items():
+        if ns in fallbacks:
+            fallback_urls = fallbacks[ns]
+            if isinstance(urls, str) and isinstance(fallback_urls, str):
+                fallback_map[urls] = fallback_urls
+            elif isinstance(urls, list) and isinstance(fallback_urls, list):
+                fallback_map.update(zip(urls, fallback_urls))
+            elif isinstance(urls, str) and isinstance(fallback_urls, list):
+                fallback_map.update(zip([urls], fallback_urls))
+            elif isinstance(urls, list) and isinstance(fallback_urls, str):
+                fallback_map.update(zip(urls, [fallback_urls]))
+
+    return fallback_map
+
+
+# Standard locations for well-known namespaces
 LOCATIONS = {
-    nm.XSD_NAMESPACE: "https://www.w3.org/2001/XMLSchema.xsd",
+    nm.XSD_NAMESPACE: [
+        "https://www.w3.org/2001/XMLSchema.xsd",  # XSD 1.0
+        "https://www.w3.org/2009/XMLSchema/XMLSchema.xsd",  # Mutable XSD 1.1
+        "https://www.w3.org/2012/04/XMLSchema.xsd"
+    ],
     nm.XML_NAMESPACE: "https://www.w3.org/2001/xml.xsd",
     nm.XSI_NAMESPACE: "https://www.w3.org/2001/XMLSchema-instance",
     nm.XSLT_NAMESPACE: "https://www.w3.org/2007/schema-for-xslt20.xsd",
@@ -109,8 +131,13 @@ LOCATIONS = {
     nm.XENC11_NAMESPACE: "https://www.w3.org/TR/xmlenc-core1/xenc-schema-11.xsd",
 }
 
-# Fallback locations for well-known
+# Fallback locations for well-known namespaces
 FALLBACK_LOCATIONS = {
+    nm.XSD_NAMESPACE: [
+        f'{SCHEMAS_DIR}XSD_1.0/XMLSchema.xsd',
+        f'{SCHEMAS_DIR}XSD_1.1/XMLSchema.xsd',
+        f'{SCHEMAS_DIR}XSD_1.1/XMLSchema.xsd',
+    ],
     nm.XML_NAMESPACE: f'{SCHEMAS_DIR}XML/xml.xsd',
     nm.XSI_NAMESPACE: f'{SCHEMAS_DIR}XSI/XMLSchema-instance.xsd',
     nm.HFP_NAMESPACE: f'{SCHEMAS_DIR}HFP/XMLSchema-hasFacetAndProperty.xsd',
@@ -127,10 +154,7 @@ FALLBACK_LOCATIONS = {
     nm.XENC11_NAMESPACE: f'{SCHEMAS_DIR}XENC/xenc-schema-11.xsd',
 }
 
-FALLBACK_MAP = {
-    LOCATIONS[k]: FALLBACK_LOCATIONS[k]
-    for k, v in LOCATIONS.items() if k in FALLBACK_LOCATIONS
-}
+FALLBACK_MAP = get_fallback_map(LOCATIONS, FALLBACK_LOCATIONS)
 
 
 class UriMapper:
@@ -138,12 +162,13 @@ class UriMapper:
     Returns a URI mapper callable objects that extends lookup to SSL protocol variants.
 
     :param uri_mapper: optional URI mapper to wrap.
-    :param fallback_map: optional fallback map for standard namespaces.
+    :param fallback_map: optional fallback map, for default uses the default fallback. \
+    Provide an empty dict to disable fallbacks.
     """
     def __init__(self, uri_mapper: Optional[UriMapperType] = None,
                  fallback_map: Optional[dict[str, str]] = None) -> None:
         self._uri_mapper = uri_mapper
-        self.fallback_map = {} if fallback_map is None else fallback_map
+        self.fallback_map = FALLBACK_MAP if fallback_map is None else fallback_map
 
     def map_uri(self, uri: str) -> str:
         if isinstance(self._uri_mapper, MutableMapping):

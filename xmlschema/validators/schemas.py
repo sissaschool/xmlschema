@@ -47,7 +47,7 @@ from xmlschema.resources import XMLResource
 from xmlschema.converters import XMLSchemaConverter, ConverterType, \
     check_converter_argument, get_converter
 from xmlschema.xpath import XMLSchemaProxy, ElementPathMixin
-from xmlschema.locations import SCHEMAS_DIR, LOCATIONS, FALLBACK_MAP, UriMapper
+from xmlschema.locations import SCHEMAS_DIR
 from xmlschema.loaders import SchemaLoader
 from xmlschema.exports import export_schema
 from xmlschema import dataobjects
@@ -112,12 +112,6 @@ class XMLSchemaMeta(ABCMeta):
             else:
                 if not isinstance(base_schemas, dict):
                     raise XMLSchemaTypeError("BASE_SCHEMAS must be a dictionary")
-
-            # Build the fallback locations map for creating an UriMapper for checking URLs
-            fallback_map = FALLBACK_MAP.copy()
-            fallback_map.update((LOCATIONS[k], v) for k, v in base_schemas.items())
-            fallback_map[LOCATIONS[nm.XSD_NAMESPACE]] = meta_schema_file
-            dict_['FALLBACK_MAP'] = fallback_map
 
             # Build the meta-schema class and register it into module's globals
             meta_schema_class_name = 'Meta' + name
@@ -254,7 +248,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     XSD_VERSION: str = '1.0'
     META_SCHEMA: str
     BASE_SCHEMAS: dict[str, str] = {}
-    FALLBACK_MAP: dict[str, str]
 
     meta_schema: Optional[SchemaType] = None
 
@@ -873,10 +866,9 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         meta_schema_class = cls if cls.meta_schema is None else cls.meta_schema.__class__
 
         schema = meta_schema_class(
-            source="https://www.w3.org/2001/XMLSchema.xsd",
+            source=meta_schema,
             namespace=nm.XSD_NAMESPACE,
             defuse='never',
-            uri_mapper=UriMapper(fallback_map=cls.FALLBACK_MAP),
             build=False
         )
 

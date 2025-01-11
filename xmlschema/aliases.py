@@ -28,7 +28,7 @@ from elementpath import ElementNode, LazyElementNode, DocumentNode
 
 from .utils.protocols import IOProtocol
 
-__all__ = ['ElementType', 'ElementTreeType', 'XMLSourceType', 'NsmapType',
+__all__ = ['ElementType', 'ElementTreeType', 'XMLSourceType', 'NsmapType', 'LocationsMapType',
            'NormalizedLocationsType', 'LocationsType', 'NsmapType', 'XmlnsType',
            'ParentMapType', 'SchemaType', 'BaseXsdType', 'SchemaElementType',
            'SchemaAttributeType', 'SchemaGlobalType', 'ModelGroupType',
@@ -59,6 +59,7 @@ ElementTreeType = ElementTree
 ##
 # Type aliases for namespaces
 NsmapType = MutableMapping[str, str]
+LocationsMapType = dict[str, Union[str, list[str]]]
 NormalizedLocationsType = list[tuple[str, str]]
 LocationsType = Union[tuple[tuple[str, str], ...], dict[str, str],
                       NormalizedLocationsType, 'NamespaceResourcesMap[str]']
