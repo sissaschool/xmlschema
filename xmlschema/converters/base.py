@@ -73,9 +73,9 @@ class NamespaceMapper(MutableMapping[str, str]):
     :param source: the origin of XML data. Con be an `XMLResource` instance, an XML \
     decoded data or `None`.
     """
-    __slots__ = '_namespaces', '_reverse', '_contexts', \
-        'process_namespaces', 'strip_namespaces', '_use_namespaces', \
-        'xmlns_processing', 'source', '_xmlns_getter', '__dict__'
+    __slots__ = ('_namespaces', '_reverse', '_contexts', 'process_namespaces',
+                 'strip_namespaces', '_use_namespaces', 'xmlns_processing',
+                 '_xmlns_getter', 'source')
 
     _namespaces: NsmapType
     _contexts: list[NamespaceMapperContext]
@@ -152,7 +152,11 @@ class NamespaceMapper(MutableMapping[str, str]):
         for cls in self.__class__.__mro__:
             if hasattr(cls, '__slots__'):
                 for attr in cls.__slots__:
-                    setattr(mapper, attr, copy.copy(getattr(self, attr)))
+                    value = getattr(self, attr)
+                    if isinstance(value, (dict, list)):
+                        setattr(mapper, attr, value.copy())
+                    else:
+                        setattr(mapper, attr, value)
 
         return mapper
 
