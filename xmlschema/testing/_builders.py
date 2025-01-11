@@ -264,6 +264,8 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
             losslessly = converter is JsonMLConverter
             unordered = converter not in (AbderaConverter, JsonMLConverter) or \
                 kwargs.get('unordered', False)
+            if self.schema.validity != 'valid' and 'validation' not in kwargs:
+                kwargs['validation'] = 'lax'
 
             decoded_data1 = self.schema.decode(root, converter=converter, **kwargs)
             if isinstance(decoded_data1, tuple):
@@ -350,6 +352,9 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
             lossy = converter in (ParkerConverter, AbderaConverter, ColumnarConverter)
             unordered = converter not in (AbderaConverter, JsonMLConverter) or \
                 kwargs.get('unordered', False)
+
+            if self.schema.validity != 'valid' and 'validation' not in kwargs:
+                kwargs['validation'] = 'lax'
 
             # Use str instead of float in order to preserve original data
             kwargs['decimal_type'] = str
@@ -478,7 +483,13 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
             self.schema.maps.clear_bindings()
 
         def check_decode_to_objects(self, root, with_bindings=False):
-            data_element = self.schema.to_objects(xml_file, with_bindings)
+            validation = 'lax' if self.schema.validity != 'valid' else 'strict'
+
+            data_element = self.schema.to_objects(xml_file, with_bindings, validation=validation)
+            if validation == 'lax':
+                self.assertIsInstance(data_element, tuple)
+                data_element = data_element[0]
+
             self.assertIsInstance(data_element, DataElement)
             self.assertEqual(data_element.tag, root.tag)
 
