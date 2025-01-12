@@ -10,7 +10,6 @@
 """
 This module contains the base definitions for xmlschema's converters.
 """
-import copy
 import re
 from collections import namedtuple
 from collections.abc import Callable, Container, Iterator, MutableMapping

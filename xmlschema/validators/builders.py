@@ -8,20 +8,29 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import copy
+import importlib
 from abc import abstractmethod
 from collections import Counter
 from collections.abc import Callable, ItemsView, Iterator, Mapping, ValuesView, Iterable
 from copy import copy as shallow_copy
+from dataclasses import dataclass
 from typing import Any, cast, Optional, Union, Type, TypeVar
+from urllib.request import OpenerDirector
 from xml.etree.ElementTree import Element
 
-from xmlschema.aliases import BaseXsdType, ElementType, LoadedItemType, \
-    SchemaType, StagedItemType
+from elementpath import XPath2Parser
+
+import xmlschema.names as nm
+from xmlschema.aliases import BaseXsdType, ElementType, LoadedItemType, SchemaType, \
+    SchemaSourceType, XMLSourceType, StagedItemType, LocationsType, UriMapperType
 from xmlschema.exceptions import XMLSchemaAttributeError, XMLSchemaKeyError, \
     XMLSchemaTypeError, XMLSchemaValueError
 from xmlschema.translation import gettext as _
-import xmlschema.names as nm
 from xmlschema.utils.qnames import local_name, get_qname
+from xmlschema.converters import ConverterType
+from xmlschema.resources import XMLResource
+from xmlschema.locations import UrlResolver
+from xmlschema.xpath.assertion_parser import XsdAssertionXPathParser
 
 from .helpers import get_xsd_derivation_attribute
 from .exceptions import XMLSchemaCircularityError
@@ -62,11 +71,8 @@ ANY_ELEMENT = Element(
 
 class XsdBuilders:
     """
-    A descriptor dataclass for providing versioned builders for XSD components.
-    It's instantiated on a schema class, and it configures itself looking the
-    XSD_VERSION of the class.
-
-    :param classes: customize registered classes for builder.
+    A descriptor that is bound to a schema class for providing versioned builders
+    for XSD components.
     """
     components: dict[str, Type[XsdComponent]]
     facets: dict[str, Type[XsdFacet]]
@@ -342,6 +348,80 @@ class XsdBuilders:
                 xsd_type.parse_error(err, elem)
 
         return xsd_type
+
+
+@dataclass(frozen=True)
+class SchemaConfig:
+    """
+    Store a schema instance configuration options that can be used also
+    for creating new schema and XML resource instances.
+    """
+    schema_class: Type[SchemaType]
+    xpath_parser_class: Type[XPath2Parser]
+    assertion_parser_class: Type[XsdAssertionXPathParser]
+    url_resolver: UrlResolver
+
+    validation: str = 'strict'
+    converter: Optional[ConverterType] = None
+    locations: Optional[LocationsType] = None
+    use_fallback: bool = True
+    use_xpath3: bool = False
+
+    # XML Resource common args
+    base_url: Optional[str] = None
+    allow: str = 'all'
+    defuse: str = 'remote'
+    timeout: int = 300
+    uri_mapper: Optional[UriMapperType] = None
+    opener: Optional[OpenerDirector] = None
+
+    @classmethod
+    def from_schema(cls, schema: SchemaType) -> 'SchemaConfig':
+        if not schema.use_xpath3:
+            xpath_parser_class = XPath2Parser
+            assertion_parser_class = XsdAssertionXPathParser
+        else:
+            module = importlib.import_module('xmlschema.xpath.xpath3')
+            xpath_parser_class = module.XPath3Parser
+            assertion_parser_class = module.XsdAssertionXPath3Parser
+
+        if schema.use_fallback:
+            url_resolver = UrlResolver(schema.uri_mapper)
+        else:
+            url_resolver = UrlResolver(schema.uri_mapper, fallback_map={})
+
+        return cls(
+            type(schema),
+            xpath_parser_class,
+            assertion_parser_class,
+            url_resolver,
+            schema.validation,
+            schema.converter,
+            schema.locations,
+            schema.use_fallback,
+            schema.use_xpath3,
+            schema.source.base_url,
+            schema.source.allow,
+            schema.source.defuse,
+            schema.source.timeout,
+            schema.source.uri_mapper,
+            schema.source.opener,
+        )
+
+    def create_schema(self, source: SchemaSourceType, **kwargs: Any) -> SchemaType:
+        for attr in ('validation', 'converter', 'locations', 'use_fallback', 'use_xpath3',
+                     'base_url', 'allow', 'defuse', 'timeout', 'uri_mapper', 'opener'):
+            if attr not in kwargs:
+                kwargs[attr] = getattr(self, attr)
+
+        return self.schema_class(source, **kwargs)
+
+    def create_resource(self, source: XMLSourceType, **kwargs: Any) -> XMLResource:
+        for attr in ('base_url', 'allow', 'defuse', 'timeout', 'uri_mapper', 'opener'):
+            if attr not in kwargs:
+                kwargs[attr] = getattr(self, attr)
+
+        return XMLResource(source, **kwargs)
 
 
 class StagedMap(Mapping[str, CT]):

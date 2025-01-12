@@ -19,7 +19,7 @@ from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError, \
 from xmlschema.locations import NamespaceResourcesMap, get_locations, \
     FALLBACK_LOCATIONS, LOCATIONS
 from xmlschema.translation import gettext as _
-from xmlschema.utils.urls import is_url, is_local_url, normalize_url
+from xmlschema.utils.urls import is_local_url, normalize_url
 import xmlschema.names as nm
 
 from xmlschema.validators import XMLSchemaParseError, \
@@ -39,32 +39,32 @@ class SchemaLoader:
     locations: NamespaceResourcesMap[str]
     missing_locations: set[str]  # Missing or failing resource locations
 
+    __slots__ = ('maps', 'namespaces', 'config', 'locations', 'missing_locations', '__dict__')
+
     def __init__(self, maps: 'XsdGlobals'):
         self.maps = maps
-        self.schema_class = maps.config.schema_class
-        self.base_url = maps.validator.source.base_url
-        self.locations = get_locations(maps.validator.locations, self.base_url)
+        self.namespaces = maps.namespaces
+        self.config = maps.config
+        self.locations = get_locations(self.config.locations, self.config.base_url)
         self.missing_locations = set()
 
         if not maps.validator.use_fallback:
             self.fallback_locations = {}
 
-        self._schema_options = maps.config.schema_options.copy()
-
     def is_missing(self, namespace: str,
                    location: Optional[str] = None,
                    base_url: Optional[str] = None) -> bool:
-        return namespace not in self.maps.namespaces or \
-            not any(s.maps is self.maps for s in self.maps.namespaces[namespace])
+        return namespace not in self.namespaces or \
+            not any(s.maps is self.maps for s in self.namespaces[namespace])
 
     def is_missing2(self, namespace: str,
                     location: Optional[str] = None,
                     base_url: Optional[str] = None) -> bool:
-        if namespace not in self.maps.namespaces or \
-                not any(s.maps is self.maps for s in self.maps.namespaces[namespace]):
+        if namespace not in self.namespaces or \
+                not any(s.maps is self.maps for s in self.namespaces[namespace]):
             return True
 
-        if not location or self.maps.get_schema(location, base_url) is None:
+        if not location or self.maps.get_schema(location, namespace, base_url) is None:
             return True
         else:
             return False
@@ -76,10 +76,11 @@ class SchemaLoader:
             locations.extend(x for x in self.locations[namespace])
         if namespace in self.fallback_locations:
             values = self.fallback_locations[namespace]
-            if isinstance(values, list):
-                locations.extend(values)
-            else:
+
+            if isinstance(values, str):
                 locations.append(values)
+            else:
+                locations.extend(values)
 
         return locations
 
@@ -244,6 +245,11 @@ class SchemaLoader:
                 msg = _('imported schema {!r} has an unmatched namespace {!r}')
                 raise XMLSchemaValueError(msg.format(location, namespace))
 
+        if namespace in self.namespaces:
+            logger.debug("Import schema in namespace %r from %r", namespace, location)
+        else:
+            logger.debug("Import namespace %r from %r", namespace, location)
+
         schema = self.load_schema(location, namespace, base_url, build)
         if target_schema is schema:
             return schema
@@ -259,7 +265,9 @@ class SchemaLoader:
         if location in target_schema.includes:
             return target_schema.includes[location]
 
-        schema = self.load_schema(location, target_schema.target_namespace, base_url, build)
+        namespace = target_schema.target_namespace
+        logger.debug("Include schema in namespace %r from %r", namespace, location)
+        schema = self.load_schema(location, namespace, base_url, build)
 
         if target_schema is not schema:
             target_schema.includes[location] = schema
@@ -280,31 +288,26 @@ class SchemaLoader:
         :param build: defines when to build the loaded schema, the default is to not build.
         :return: the loaded schema or the schema that matches the URL if it's already loaded.
         """
-        schema = self.maps.get_schema(source, base_url)
+
+        schema = self.maps.get_schema(source, namespace, base_url)
         if schema is not None:
             logger.info("Resource %r is already loaded", schema.source)
             return schema
 
-        if is_url(source):
-            logger.debug("Load schema from URL %r", source)
-        else:
-            logger.debug("Load schema from %r", type(source))
-
-        return self.schema_class(
+        return self.config.create_schema(
             source=source,
             namespace=namespace,
             base_url=base_url,
-            global_maps=self.maps,
             build=build,
-            **self._schema_options,
+            global_maps=self.maps
         )
 
     def load_namespace(self, namespace: str) -> bool:
-        if namespace in self.maps.namespaces:
+        if namespace in self.namespaces:
             return True
 
         for location in self.get_locations(namespace):
-            url = normalize_url(location, self.base_url)
+            url = normalize_url(location, self.config.base_url)
             if not self.is_missing(namespace, url):
                 break
             elif url in self.missing_locations:
@@ -315,7 +318,7 @@ class SchemaLoader:
             except OSError:
                 self.missing_locations.add(url)
 
-        return namespace in self.maps.namespaces
+        return namespace in self.namespaces
 
 
 class UrlSchemaLoader(SchemaLoader):
@@ -324,7 +327,7 @@ class UrlSchemaLoader(SchemaLoader):
     def is_missing(self, namespace: str,
                    location: Optional[str] = None,
                    base_url: Optional[str] = None) -> bool:
-        return namespace not in self.maps.namespaces or location is None \
+        return namespace not in self.namespaces or location is None \
             or normalize_url(location, base_url) not in self.urls
 
 
@@ -337,7 +340,7 @@ class SafeSchemaLoader(SchemaLoader):
                     build: bool = False) -> SchemaType:
         schema = super().load_schema(source, namespace, base_url)
 
-        other_schemas = self.maps.namespaces[schema.target_namespace]
+        other_schemas = self.namespaces[schema.target_namespace]
         for child in schema.root:
             if (name := child.get('name')) is not None:
                 pass

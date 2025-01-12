@@ -149,7 +149,9 @@ class ValidationContext:
     def __copy__(self: Self) -> Self:
         context = object.__new__(self.__class__)
         for attr in ValidationContext.__slots__:
-            setattr(context, attr, copy.copy(getattr(self, attr)))
+            if attr != 'source':
+                setattr(context, attr, copy.copy(getattr(self, attr)))
+        context.source = self.source
         return context
 
     def clean_copy(self: Self) -> Self:

@@ -505,7 +505,7 @@ class Wsdl11Document(XmlDocument):
             xsd_filepath = os.path.join(SCHEMAS_DIR, 'WSDL/wsdl.xsd')
 
             if global_maps is None or \
-                    (schema := global_maps.get_schema(xsd_filepath)) is None:
+                    (schema := global_maps.get_schema(xsd_filepath, WSDL_NAMESPACE)) is None:
                 self.schema = cls(
                     source=xsd_filepath,
                     global_maps=global_maps,

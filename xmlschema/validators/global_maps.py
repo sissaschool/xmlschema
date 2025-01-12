@@ -8,7 +8,6 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import copy
-import importlib
 import threading
 import warnings
 from collections import Counter
@@ -27,10 +26,9 @@ from xmlschema.exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, \
 from xmlschema.translation import gettext as _
 from xmlschema.utils.qnames import local_name, get_extended_qname
 from xmlschema.utils.urls import get_url, normalize_url
-from xmlschema.locations import NamespaceResourcesMap, UriMapper
+from xmlschema.locations import NamespaceResourcesMap
 from xmlschema.loaders import SchemaLoader
 from xmlschema.resources import XMLResource
-from xmlschema.xpath.assertion_parser import XsdAssertionXPathParser
 import xmlschema.names as nm
 
 from .exceptions import XMLSchemaNotBuiltError, XMLSchemaModelError, \
@@ -40,8 +38,8 @@ from .models import check_model
 from . import XsdAttribute, XsdSimpleType, XsdComplexType, XsdElement, \
     XsdGroup, XsdIdentity, XsdAssert, XsdUnion, XsdAtomicRestriction, \
     XsdAtomic, XsdAtomicBuiltin
-from .builders import XsdBuilders, TypesMap, NotationsMap, AttributesMap, \
-    AttributeGroupsMap, ElementsMap, GroupsMap
+from .builders import XsdBuilders, SchemaConfig, TypesMap, NotationsMap, \
+    AttributesMap, AttributeGroupsMap, ElementsMap, GroupsMap
 
 GLOBAL_TAGS = frozenset((
     nm.XSD_NOTATION, nm.XSD_SIMPLE_TYPE, nm.XSD_COMPLEX_TYPE,
@@ -57,35 +55,6 @@ _GLOBAL_GETTERS = MappingProxyType({
     nm.XSD_ELEMENT: itemgetter(4),
     nm.XSD_GROUP: itemgetter(5),
 })
-
-
-class SchemaConfig:
-    """Store a schema instance configuration."""
-    xpath_parser_class: Type[XPath2Parser]
-    assertion_parser_class: Type[XsdAssertionXPathParser]
-
-    def __init__(self, schema: SchemaType):
-        self.schema_class = type(schema)
-
-        # Save other validator init options, used for creating new schemas.
-        self.schema_options: dict[str, Any] = {
-            'validation': schema.validation,
-            'converter': schema.converter,
-            'allow': schema.source.allow,
-            'defuse': schema.source.defuse,
-            'timeout': schema.source.timeout,
-            'uri_mapper': schema.source.uri_mapper,
-            'opener': schema.source.opener,
-            'use_xpath3': schema.use_xpath3,
-        }
-
-        if not schema.use_xpath3:
-            self.xpath_parser_class = XPath2Parser
-            self.assertion_parser_class = XsdAssertionXPathParser
-        else:
-            module = importlib.import_module('xmlschema.xpath.xpath3')
-            self.xpath_parser_class = module.XPath3Parser
-            self.assertion_parser_class = module.XsdAssertionXPath3Parser
 
 
 class GlobalMaps(NamedTuple):
@@ -293,7 +262,8 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
 
     def __init__(self, validator: SchemaType, validation: str = _strict,
                  loader: Optional[Type[SchemaLoader]] = None,
-                 parent: Optional[SchemaType] = None) -> None:
+                 parent: Optional[SchemaType] = None,
+                 config: Optional[SchemaConfig] = None) -> None:
 
         if not isinstance(validation, _strict.__class__):
             msg = "argument 'validation' is not used and will be removed in v5.0"
@@ -311,12 +281,7 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
         self.validator = validator
         self._parent = parent
 
-        if validator.use_fallback:
-            self._uri_mapper = UriMapper(validator.uri_mapper)
-        else:
-            self._uri_mapper = UriMapper(validator.uri_mapper, fallback_map={})
-
-        self.config = SchemaConfig(validator)
+        self.config = SchemaConfig.from_schema(validator) if config is None else config
         self.namespaces = NamespaceResourcesMap()  # Registered schemas by namespace URI
 
         self.global_maps = GlobalMaps.empty_maps(validator.builders)
@@ -394,7 +359,8 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
         obj = type(self)(
             validator=copy.copy(self.validator),
             loader=self.loader.__class__,
-            parent=self._parent
+            parent=self._parent,
+            config=self.config,
         )
         for schema in self._schemas:
             if schema.maps is self and schema is not self.validator:
@@ -604,26 +570,36 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
 
         yield from reversed(ancestors)
 
-    def get_schema(self, source: SchemaSourceType, base_url: Optional[str] = None) \
-            -> Optional[SchemaType]:
+    def get_schema(self, source: SchemaSourceType,
+                   namespace: Optional[str] = None,
+                   base_url: Optional[str] = None) -> Optional[SchemaType]:
 
-        if isinstance(source, XMLResource):
-            url = source.url
-            _source = source.source
-        else:
-            url = get_url(source)
-            _source = source
+        if namespace is None:
+            if isinstance(source, XMLResource):
+                namespace = source.root.get('targetNamespace', '')
+            else:
+                resource = self.config.create_resource(
+                    source, base_url=base_url, timeout=30, lazy=True
+                )
+                namespace = resource.root.get('targetNamespace', '')
 
-        if url is not None:
-            url = self._uri_mapper(url)
-            url = normalize_url(url, base_url)
-            for schema in self._schemas:
-                if url == schema.url:
-                    return schema
+        ns_schemas = self.namespaces.get(namespace)
+        if ns_schemas is not None:
+            if (url := get_url(source)) is not None:
+                url = self.config.url_resolver(url)
+                url = normalize_url(url, base_url)
+                for schema in ns_schemas:
+                    if url == schema.url:
+                        return schema
 
-        for schema in self._schemas:
-            if _source is schema.source.source:
-                return schema
+            elif isinstance(source, XMLResource):
+                for schema in ns_schemas:
+                    if schema.source.source is source.source:
+                        return schema
+            else:
+                for schema in ns_schemas:
+                    if schema.source.source is source:
+                        return schema
 
         return None
 
@@ -632,14 +608,15 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
         if schema in self._schemas:
             return
 
-        if (other_schema := self.get_schema(schema.url or schema.source)) is not None:
+        namespace = schema.target_namespace
+
+        if (other_schema := self.get_schema(schema.url or schema.source, namespace)) is not None:
             if other_schema.maps is self:
                 ref_chunk = schema.url or "the same source"
                 raise XMLSchemaValueError(
                     f"another schema loaded from {ref_chunk} is already registered"
                 )
 
-        namespace = schema.target_namespace
         self._schemas.add(schema)
 
         if namespace not in self.namespaces:

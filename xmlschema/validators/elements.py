@@ -157,9 +157,6 @@ class XsdElement(XsdComponent, ParticleMixin,
         if not self._build:
             return
 
-        if self.elem.attrib.get('name') == 'annotated':
-            breakpoint()
-
         self._parse_particle(self.elem)
         self._parse_attributes()
 

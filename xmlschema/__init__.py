@@ -10,7 +10,7 @@
 from . import limits
 from . import translation
 from .exceptions import XMLSchemaException, XMLResourceError
-from .locations import UriMapper
+from .locations import UrlResolver
 from .resources import fetch_resource, fetch_namespaces, fetch_schema_locations, \
     fetch_schema, XMLResource
 from .xpath import ElementPathMixin
@@ -42,7 +42,7 @@ __status__ = "Production/Stable"
 
 __all__ = [
     'limits', 'translation', 'XMLSchemaException', 'XMLResourceError',
-    'UriMapper', 'etree_tostring', 'normalize_url', 'normalize_locations',
+    'UrlResolver', 'etree_tostring', 'normalize_url', 'normalize_locations',
     'fetch_resource', 'fetch_namespaces', 'fetch_schema_locations', 'fetch_schema',
     'XMLResource', 'ElementPathMixin', 'ElementData', 'XMLSchemaConverter',
     'UnorderedConverter', 'ParkerConverter', 'BadgerFishConverter', 'GDataConverter',

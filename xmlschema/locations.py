@@ -9,7 +9,6 @@
 #
 import os
 from collections.abc import Iterable, Iterator, MutableMapping
-from itertools import dropwhile
 from typing import Any, Optional, TypeVar
 
 from xmlschema.aliases import LocationsMapType, LocationsType, UriMapperType
@@ -109,7 +108,7 @@ def get_fallback_map(locations: LocationsMapType, fallbacks: LocationsMapType) -
 
 
 # Standard locations for well-known namespaces
-LOCATIONS = {
+LOCATIONS: LocationsMapType = {
     nm.XSD_NAMESPACE: [
         "https://www.w3.org/2001/XMLSchema.xsd",  # XSD 1.0
         "https://www.w3.org/2009/XMLSchema/XMLSchema.xsd",  # Mutable XSD 1.1
@@ -132,7 +131,7 @@ LOCATIONS = {
 }
 
 # Fallback locations for well-known namespaces
-FALLBACK_LOCATIONS = {
+FALLBACK_LOCATIONS: LocationsMapType = {
     nm.XSD_NAMESPACE: [
         f'{SCHEMAS_DIR}XSD_1.0/XMLSchema.xsd',
         f'{SCHEMAS_DIR}XSD_1.1/XMLSchema.xsd',
@@ -157,9 +156,11 @@ FALLBACK_LOCATIONS = {
 FALLBACK_MAP = get_fallback_map(LOCATIONS, FALLBACK_LOCATIONS)
 
 
-class UriMapper:
+class UrlResolver:
     """
-    Returns a URI mapper callable objects that extends lookup to SSL protocol variants.
+    Returns a URL resolver callable objects that extends lookup to SSL protocol variants.
+    An instance of this class is included in the schema configuration to resolve URLs
+    for checking if a schema resource is already loaded.
 
     :param uri_mapper: optional URI mapper to wrap.
     :param fallback_map: optional fallback map, for default uses the default fallback. \

@@ -367,7 +367,7 @@ class TestXMLSchema10(XsdValidatorTestCase):
             self.schema_class(self.vh_xsd_file, loglevel=logging.DEBUG)
 
         self.assertEqual(logger.level, logging.WARNING)
-        self.assertEqual(len(ctx.output), 43)
+        self.assertEqual(len(ctx.output), 45)
         self.assertIn("DEBUG:xmlschema:Schema targetNamespace is "
                       "'http://example.com/vehicles'", ctx.output)
 
