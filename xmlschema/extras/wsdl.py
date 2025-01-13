@@ -8,7 +8,6 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 # mypy: ignore-errors
-import os
 
 from xmlschema.exceptions import XMLSchemaException, XMLSchemaValueError
 from xmlschema.names import XSD_NAMESPACE, WSDL_NAMESPACE, SOAP_NAMESPACE, \
@@ -19,7 +18,6 @@ from xmlschema.utils.urls import normalize_url
 from xmlschema.locations import SCHEMAS_DIR, get_locations
 from xmlschema.documents import SCHEMA_KWARGS, XmlDocument
 from xmlschema.validators import XMLSchemaBase, XMLSchema10
-
 
 # WSDL 1.1 global declarations
 WSDL_IMPORT = '{%s}import' % WSDL_NAMESPACE
@@ -494,27 +492,18 @@ class Wsdl11Document(XmlDocument):
             if cls is None:
                 cls = XMLSchema10
 
+            xsd_filepath = f'{SCHEMAS_DIR}WSDL/wsdl.xsd'
             if isinstance(schema, XMLSchemaBase):
-                cls = schema.__class__
-                global_maps = schema.maps
-            elif schema is not None:
-                global_maps = cls(schema).maps
+                self.schema = schema
             else:
-                global_maps = None
-
-            xsd_filepath = os.path.join(SCHEMAS_DIR, 'WSDL/wsdl.xsd')
-
-            if global_maps is None or \
-                    (schema := global_maps.get_schema(xsd_filepath, WSDL_NAMESPACE)) is None:
                 self.schema = cls(
-                    source=xsd_filepath,
-                    global_maps=global_maps,
+                    source=schema or xsd_filepath,
+                    base_url=base_url,
                     locations=locations,
                     **{k: v for k, v in kwargs.items() if k in SCHEMA_KWARGS}
                 )
-            else:
-                self.schema = schema
 
+            self.schema.add_schema(xsd_filepath, WSDL_NAMESPACE, base_url, True)
             self.maps = Wsdl11Maps(self)
 
         super().__init__(
@@ -529,7 +518,8 @@ class Wsdl11Document(XmlDocument):
         self.soap_binding = SOAP_NAMESPACE in self.namespaces.values()
         self.locations = get_locations(locations, base_url)
 
-        if self.namespace == XSD_NAMESPACE and self.schema.maps.get_schema(self.url) is None:
+        if self.namespace == XSD_NAMESPACE and \
+                self.schema.loader.get_schema(source=self.url) is None:
             self.schema.__class__(
                 source=self,
                 global_maps=self.schema.maps,

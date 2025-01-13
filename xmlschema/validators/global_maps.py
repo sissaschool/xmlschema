@@ -19,16 +19,14 @@ from typing import Any, cast, NamedTuple, Optional, Union, Type, TypeVar
 
 from elementpath import XPathToken, XPath2Parser
 
-from xmlschema.aliases import ClassInfoType, SchemaSourceType, \
-    SchemaType, BaseXsdType, SchemaGlobalType, NsmapType, StagedItemType
+from xmlschema.aliases import ClassInfoType, SchemaType, BaseXsdType, \
+    SchemaGlobalType, NsmapType, StagedItemType
 from xmlschema.exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, \
     XMLSchemaValueError, XMLSchemaWarning, XMLSchemaNamespaceError
 from xmlschema.translation import gettext as _
 from xmlschema.utils.qnames import local_name, get_extended_qname
-from xmlschema.utils.urls import get_url, normalize_url
 from xmlschema.locations import NamespaceResourcesMap
-from xmlschema.loaders import SchemaLoader
-from xmlschema.resources import XMLResource
+from xmlschema.loaders import SchemaLoader, LocationSchemaLoader, SafeSchemaLoader
 import xmlschema.names as nm
 
 from .exceptions import XMLSchemaNotBuiltError, XMLSchemaModelError, \
@@ -233,10 +231,10 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
     add its declarations to the global maps.
 
     :param validator: the origin schema class/instance used for creating the global maps.
-    :param loader: an optional subclass of :class:`SchemaLoader` to use for creating \
-    the loader instance.
     :param parent: an optional parent schema, that is required to be built and with \
     no use of the target namespace of the validator.
+    :param loader_class: an optional subclass of :class:`SchemaLoader` to use for creating \
+    the loader instance.
     """
     _schemas: set[SchemaType]
     namespaces: NamespaceResourcesMap[SchemaType]
@@ -261,7 +259,6 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
                  '_xpath_lock', '_staged_globals', '_validation_attempted', '_validity')
 
     def __init__(self, validator: SchemaType, validation: str = _strict,
-                 loader: Optional[Type[SchemaLoader]] = None,
                  parent: Optional[SchemaType] = None,
                  config: Optional[SchemaConfig] = None) -> None:
 
@@ -281,7 +278,7 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
         self.validator = validator
         self._parent = parent
 
-        self.config = SchemaConfig.from_schema(validator) if config is None else config
+        self.config = SchemaConfig.from_args(validator) if config is None else config
         self.namespaces = NamespaceResourcesMap()  # Registered schemas by namespace URI
 
         self.global_maps = GlobalMaps.empty_maps(validator.builders)
@@ -291,7 +288,7 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
         self.substitution_groups = {}
         self.identities = {}
 
-        self.loader = (loader or SchemaLoader)(self)
+        self.loader = (self.config.loader_class or LocationSchemaLoader)(self)
 
         for ancestor in self.iter_ancestors():
             self._schemas.update(ancestor.maps.schemas)
@@ -358,7 +355,6 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
     def __copy__(self) -> 'XsdGlobals':
         obj = type(self)(
             validator=copy.copy(self.validator),
-            loader=self.loader.__class__,
             parent=self._parent,
             config=self.config,
         )
@@ -570,63 +566,31 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
 
         yield from reversed(ancestors)
 
-    def get_schema(self, source: SchemaSourceType,
-                   namespace: Optional[str] = None,
-                   base_url: Optional[str] = None) -> Optional[SchemaType]:
-
-        if namespace is None:
-            if isinstance(source, XMLResource):
-                namespace = source.root.get('targetNamespace', '')
-            else:
-                resource = self.config.create_resource(
-                    source, base_url=base_url, timeout=30, lazy=True
-                )
-                namespace = resource.root.get('targetNamespace', '')
-
-        ns_schemas = self.namespaces.get(namespace)
-        if ns_schemas is not None:
-            if (url := get_url(source)) is not None:
-                url = self.config.url_resolver(url)
-                url = normalize_url(url, base_url)
-                for schema in ns_schemas:
-                    if url == schema.url:
-                        return schema
-
-            elif isinstance(source, XMLResource):
-                for schema in ns_schemas:
-                    if schema.source.source is source.source:
-                        return schema
-            else:
-                for schema in ns_schemas:
-                    if schema.source.source is source:
-                        return schema
-
-        return None
-
     def register(self, schema: SchemaType) -> None:
         """Registers an XMLSchema instance."""
         if schema in self._schemas:
             return
 
         namespace = schema.target_namespace
+        source = schema.source.url or schema.source
 
-        if (other_schema := self.get_schema(schema.url or schema.source, namespace)) is not None:
-            if other_schema.maps is self:
-                ref_chunk = schema.url or "the same source"
-                raise XMLSchemaValueError(
-                    f"another schema loaded from {ref_chunk} is already registered"
-                )
-
-        self._schemas.add(schema)
-
-        if namespace not in self.namespaces:
+        ns_schemas = self.namespaces.get(namespace)
+        if ns_schemas is None:
             self.namespaces[namespace] = [schema]
-        elif (ns_schemas := self.namespaces[namespace])[0].maps is self:
-            ns_schemas.append(schema)
-        else:
+            self._schemas.add(schema)
+        elif ns_schemas[0].maps is not self:
+            self._schemas.add(schema)
             ns_schemas.append(schema)
             schema.maps = self
             self.merge(ancestor=ns_schemas[0].maps.validator)
+        elif self.loader.get_schema(namespace, source) is None:
+            self._schemas.add(schema)
+            ns_schemas.append(schema)
+        else:
+            source_ref = schema.source.url or type(schema.source)
+            raise XMLSchemaValueError(
+                f"another schema loaded from {source_ref!r} is already registered"
+            )
 
         if self._validation_attempted == 'full':
             self._validation_attempted = 'partial'

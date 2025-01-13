@@ -30,6 +30,7 @@ from xmlschema.utils.qnames import local_name, get_qname
 from xmlschema.converters import ConverterType
 from xmlschema.resources import XMLResource
 from xmlschema.locations import UrlResolver
+from xmlschema.loaders import SchemaLoader
 from xmlschema.xpath.assertion_parser import XsdAssertionXPathParser
 
 from .helpers import get_xsd_derivation_attribute
@@ -357,6 +358,7 @@ class SchemaConfig:
     for creating new schema and XML resource instances.
     """
     schema_class: Type[SchemaType]
+    loader_class: Type[SchemaLoader]
     xpath_parser_class: Type[XPath2Parser]
     assertion_parser_class: Type[XsdAssertionXPathParser]
     url_resolver: UrlResolver
@@ -376,8 +378,14 @@ class SchemaConfig:
     opener: Optional[OpenerDirector] = None
 
     @classmethod
-    def from_schema(cls, schema: SchemaType) -> 'SchemaConfig':
-        if not schema.use_xpath3:
+    def from_args(cls, schema: SchemaType,
+                  loader_class: Optional[Type[SchemaLoader]] = None,
+                  converter: Optional[ConverterType] = None,
+                  locations: Optional[LocationsType] = None,
+                  use_fallback: bool = True,
+                  use_xpath3: bool = False) -> 'SchemaConfig':
+
+        if not use_xpath3:
             xpath_parser_class = XPath2Parser
             assertion_parser_class = XsdAssertionXPathParser
         else:
@@ -385,21 +393,25 @@ class SchemaConfig:
             xpath_parser_class = module.XPath3Parser
             assertion_parser_class = module.XsdAssertionXPath3Parser
 
-        if schema.use_fallback:
+        if use_fallback:
             url_resolver = UrlResolver(schema.uri_mapper)
         else:
             url_resolver = UrlResolver(schema.uri_mapper, fallback_map={})
 
+        if loader_class is None:
+            loader_class = SchemaLoader
+
         return cls(
             type(schema),
+            loader_class,
             xpath_parser_class,
             assertion_parser_class,
             url_resolver,
             schema.validation,
-            schema.converter,
-            schema.locations,
-            schema.use_fallback,
-            schema.use_xpath3,
+            converter,
+            locations,
+            use_fallback,
+            use_xpath3,
             schema.source.base_url,
             schema.source.allow,
             schema.source.defuse,

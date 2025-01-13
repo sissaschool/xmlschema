@@ -29,6 +29,7 @@ from xml.etree.ElementTree import Element
 
 from elementpath import XPathToken, SchemaElementNode, build_schema_node_tree
 
+import xmlschema.names as nm
 from xmlschema.aliases import XMLSourceType, NsmapType, LocationsType, UriMapperType, \
     SchemaType, SchemaSourceType, ComponentClassType, DecodeType, EncodeType, \
     BaseXsdType, ExtraValidatorType, ValidationHookType, SchemaGlobalType, \
@@ -51,7 +52,6 @@ from xmlschema.locations import SCHEMAS_DIR
 from xmlschema.loaders import SchemaLoader
 from xmlschema.exports import export_schema
 from xmlschema import dataobjects
-import xmlschema.names as nm
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaEncodeError, \
     XMLSchemaStopValidation
@@ -67,7 +67,7 @@ from .complex_types import XsdComplexType
 from .groups import XsdGroup
 from .elements import XsdElement
 from .wildcards import XsdAnyElement, XsdDefaultOpenContent
-from .builders import XsdBuilders
+from .builders import XsdBuilders, SchemaConfig
 from .global_maps import GLOBAL_TAGS, NamespaceView, XsdGlobals
 
 logger = logging.getLogger('xmlschema')
@@ -162,6 +162,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     :param global_maps: is an optional argument containing an :class:`XsdGlobals` \
     instance, a mediator object for sharing declaration data between dependents \
     schema instances.
+    :param loader_class: an optional subclass of :class:`SchemaLoader` to use for creating \
+    the loader instance.
     :param converter: is an optional argument that can be an :class:`XMLSchemaConverter` \
     subclass or instance, used for defining the default XML data converter for XML Schema instance.
     :param locations: schema extra location hints, that can include custom resource locations \
@@ -185,8 +187,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     a URL, or the argument if there is no mapping for it.
     :param opener: an optional :class:`OpenerDirector` instance to use for open the \
     resource. For default use the opener installed globally for *urlopen*.
-    :param loader: an optional subclass of :class:`SchemaLoader` to use for creating \
-    the loader instance.
     :param use_fallback: if `True` the schema processor uses the validator fallback \
     location hints to load well-known namespaces (e.g. xhtml).
     :param use_xpath3: if `True` an XSD 1.1 schema instance uses the XPath 3 processor \
@@ -218,7 +218,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     :ivar maps: XSD global declarations/definitions maps. This is an instance of \
     :class:`XsdGlobals`, that stores the *global_maps* argument or a new object \
     when this argument is not provided.
-    :ivar converter: the default converter used for XML data decoding/encoding.
     :ivar namespaces: a dictionary that maps from the prefixes used by the schema \
     into namespace URI.
     :ivar imports: a dictionary of namespace imports of the schema, that maps namespace \
@@ -298,6 +297,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                  namespace: Optional[str] = None,
                  validation: str = 'strict',
                  global_maps: Optional[XsdGlobals] = None,
+                 loader_class: Optional[Type[SchemaLoader]] = None,
                  converter: Optional[ConverterType] = None,
                  locations: Optional[LocationsType] = None,
                  base_url: Optional[str] = None,
@@ -306,7 +306,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                  timeout: int = 300,
                  uri_mapper: Optional[UriMapperType] = None,
                  opener: Optional[OpenerDirector] = None,
-                 loader: Optional[Type[SchemaLoader]] = None,
                  use_fallback: bool = True,
                  use_xpath3: bool = False,
                  use_meta: bool = True,
@@ -342,11 +341,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             )
 
         logger.debug("Load schema from %r", self.source.url or self.source.source)
-
-        self.converter = converter
-        self.locations = locations
-        self.use_fallback = use_fallback
-        self.use_xpath3 = use_xpath3
 
         self.imports = {}
         self.imported_namespaces = []
@@ -421,7 +415,13 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         # Meta-schema maps creation (MetaXMLSchema10/11 classes)
         if self.meta_schema is None:
             self.namespaces = namespaces
-            self.maps = XsdGlobals(self) if global_maps is None else global_maps
+
+            if global_maps is None:
+                self.config = SchemaConfig.from_args(self)
+                self.maps = XsdGlobals(self, config=self.config)
+            else:
+                self.config = global_maps.config
+                self.maps = global_maps
 
             if self.source.name == 'xsd11-extra.xsd':
                 # Process the patch schema for XSD 1.1 meta-schema
@@ -433,6 +433,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
         # Create or set the XSD global maps instance
         if isinstance(global_maps, XsdGlobals):
+            self.config = global_maps.config
             try:
                 self.maps = global_maps
             except XMLSchemaValueError:
@@ -440,10 +441,13 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 # this makes this schema unusable.
                 raise
         elif global_maps is None:
+            self.config = SchemaConfig.from_args(
+                self, loader_class, converter, locations, use_fallback, use_xpath3
+            )
             self.maps = XsdGlobals(
                 validator=self,
-                loader=loader,
-                parent=self.meta_schema if use_meta else None
+                parent=self.meta_schema if use_meta else None,
+                config=self.config,
             )
         else:
             raise XMLSchemaTypeError(
@@ -682,6 +686,26 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     def opener(self) -> Optional[OpenerDirector]:
         """The optional OpenerDirector argument opening addressed resources."""
         return self.source.opener
+
+    @property
+    def converter(self) -> Optional[ConverterType]:
+        """The default converter class or instance used for XML data decoding/encoding."""
+        return self.config.converter
+
+    @property
+    def locations(self) -> Optional[LocationsType]:
+        """Schema extra location hints also provided by document schema location hints."""
+        return self.config.locations
+
+    @property
+    def use_fallback(self) -> bool:
+        """If the schema processor uses the validator fallback location hints."""
+        return self.config.use_fallback
+
+    @property
+    def use_xpath3(self) -> bool:
+        """If XSD 1.1 schema instance uses the XPath 3 processor for assertions."""
+        return self.config.use_xpath3
 
     @property
     def use_meta(self) -> bool:
@@ -948,7 +972,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         :return: a converter instance.
         """
         if converter is None:
-            converter = self.converter
+            converter = self.config.converter
         return get_converter(converter, **kwargs)
 
     def get_locations(self, namespace: str) -> list[str]:
@@ -1560,7 +1584,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             resource = XMLResource(source, defuse=self.defuse, timeout=self.timeout)
 
         if converter is None:
-            converter = self.converter
+            converter = self.config.converter
 
         kwargs.update(
             process_namespaces=process_namespaces,
@@ -1719,7 +1743,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             raise XMLSchemaValueError(msg)
 
         if converter is None:
-            converter = self.converter
+            converter = self.config.converter
 
         kwargs.update(
             namespaces=namespaces,
