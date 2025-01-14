@@ -354,8 +354,8 @@ class XsdBuilders:
 @dataclass(frozen=True)
 class SchemaConfig:
     """
-    Store a schema instance configuration options that can be used also
-    for creating new schema and XML resource instances.
+    Store a schema configuration options that can be used also for creating new
+    schema or XML resource instances.
     """
     schema_class: Type[SchemaType]
     loader_class: Type[SchemaLoader]
@@ -428,12 +428,14 @@ class SchemaConfig:
 
         return self.schema_class(source, **kwargs)
 
-    def create_resource(self, source: XMLSourceType, **kwargs: Any) -> XMLResource:
+    def create_resource(self, source: XMLSourceType,
+                        cls: Optional[Type[XMLResource]] = None,
+                        **kwargs: Any) -> XMLResource:
         for attr in ('base_url', 'allow', 'defuse', 'timeout', 'uri_mapper', 'opener'):
             if attr not in kwargs:
                 kwargs[attr] = getattr(self, attr)
 
-        return XMLResource(source, **kwargs)
+        return (cls or XMLResource)(source, **kwargs)
 
 
 class StagedMap(Mapping[str, CT]):

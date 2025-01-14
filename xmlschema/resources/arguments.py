@@ -21,7 +21,7 @@ from xmlschema.translation import gettext as _
 from xmlschema.utils.etree import is_etree_element, is_etree_document
 from xmlschema.utils.streams import is_file_object
 from xmlschema.utils.urls import is_url
-from xmlschema.utils.arguments import Argument, ChoiceArgument, ValueArgument
+from xmlschema.utils.descriptors import Argument, ChoiceArgument, ValueArgument
 
 if TYPE_CHECKING:
     from .xml_resource import XMLResource

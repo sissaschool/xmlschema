@@ -26,7 +26,7 @@ from xmlschema.exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, \
 from xmlschema.translation import gettext as _
 from xmlschema.utils.qnames import local_name, get_extended_qname
 from xmlschema.locations import NamespaceResourcesMap
-from xmlschema.loaders import SchemaLoader, LocationSchemaLoader, SafeSchemaLoader
+from xmlschema.loaders import SchemaResource, SchemaLoader
 import xmlschema.names as nm
 
 from .exceptions import XMLSchemaNotBuiltError, XMLSchemaModelError, \
@@ -93,7 +93,7 @@ class GlobalMaps(NamedTuple):
         for item in self:
             yield from item.staged_values
 
-    def load_globals(self, schemas: Iterable[SchemaType]) -> None:
+    def load_globals(self, schemas: Iterable[Union[SchemaType, SchemaResource]]) -> None:
         """Loads global XSD components for the given schemas."""
         redefinitions = []
 
@@ -233,8 +233,8 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
     :param validator: the origin schema class/instance used for creating the global maps.
     :param parent: an optional parent schema, that is required to be built and with \
     no use of the target namespace of the validator.
-    :param loader_class: an optional subclass of :class:`SchemaLoader` to use for creating \
-    the loader instance.
+    :param config: a schema configuration object. If not provided, a default \
+    configuration is used.
     """
     _schemas: set[SchemaType]
     namespaces: NamespaceResourcesMap[SchemaType]
@@ -288,7 +288,7 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
         self.substitution_groups = {}
         self.identities = {}
 
-        self.loader = (self.config.loader_class or LocationSchemaLoader)(self)
+        self.loader = self.config.loader_class(self)
 
         for ancestor in self.iter_ancestors():
             self._schemas.update(ancestor.maps.schemas)

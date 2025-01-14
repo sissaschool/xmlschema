@@ -13,6 +13,7 @@ import io
 import unittest
 import os
 import contextlib
+import copy
 import pathlib
 import platform
 import warnings
@@ -1467,9 +1468,21 @@ class TestResources(unittest.TestCase):
 
         self.assertEqual(k, 6)
 
+    def test_xml_resource_copy(self):
+        path = Path(self.vh_xml_file)
+
+        resource = XMLResource(path, lazy=True)
+
+        other = copy.copy(resource)
+
+        self.assertIsNot(other, resource)
+        self.assertIs(other.root, resource.root)
+        self.assertIsNot(other._nsmaps, resource._nsmaps)
+        self.assertIsNot(other._xmlns, resource._xmlns)
+
 
 if __name__ == '__main__':
-    header_template = "Test xmlschema's XML resources with Python {} on platform {}"
+    header_template = "Test xmlschema XML resources with Python {} on platform {}"
     header = header_template.format(platform.python_version(), platform.platform())
     print('{0}\n{1}\n{0}'.format("*" * len(header), header))
 

@@ -23,7 +23,7 @@ from xmlschema.utils.qnames import get_namespace
 from .arguments import LazyArgument, ThinLazyArgument, IterparseArgument
 
 
-class _ResourceLoader:
+class XMLResourceLoader:
     """
     A proxy for XML data loading that can handle full or lazy loads of XML trees.
     """
@@ -85,6 +85,22 @@ class _ResourceLoader:
         if not hasattr(self, 'root'):
             return '<%s object at %#x>' % (self.__class__.__name__, id(self))
         return '%s(root=%r)' % (self.__class__.__name__, self.root)
+
+    def __copy__(self) -> 'XMLResourceLoader':
+        obj: 'XMLResourceLoader' = object.__new__(self.__class__)
+        obj.__dict__.update(self.__dict__)
+
+        for cls in self.__class__.__mro__:
+            if hasattr(cls, '__slots__'):
+                for attr in cls.__slots__:
+                    if attr != '__dict__':
+                        object.__setattr__(obj, attr, getattr(self, attr))
+
+        obj._nsmaps = self._nsmaps.copy()
+        obj._xmlns = self._xmlns.copy()
+        obj._xpath_root = None
+        obj._parent_map = None
+        return obj
 
     @property
     def namespace(self) -> str:

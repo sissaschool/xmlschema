@@ -10,7 +10,7 @@
 import logging
 import warnings
 from operator import attrgetter
-from typing import Optional, TYPE_CHECKING
+from typing import Any, Optional, TYPE_CHECKING
 from xml.etree.ElementTree import ParseError
 
 from xmlschema.aliases import ElementType, SchemaType, SchemaSourceType
@@ -34,13 +34,28 @@ base_url_attribute = attrgetter('name')
 
 
 class SchemaResource(XMLResource):
-    """An XMLResource used by SafeSchemaLoader for loading XSD globals declarations."""
+    """
+    A naive XSD schema resource used by SafeSchemaLoader for checking XSD globals declarations.
+    """
+    includes: dict[str, str]
     override = None
     meta_schema = None
+
+    def parse_error(self, error: str, *args: Any, **kwargs: Any) -> None:
+        raise XMLSchemaValueError(error)
 
     @property
     def target_namespace(self) -> str:
         return self.root.get('targetNamespace', '')
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.includes = {}
+        for elem in self.root:
+            if elem.tag in (nm.XSD_REDEFINE, nm.XSD_OVERRIDE):
+                location = elem.get('schemaLocation')
+                if location is not None:
+                    self.includes[location] = self.get_url(location)
 
 
 class SchemaLoader:
@@ -384,6 +399,8 @@ class SafeSchemaLoader(SchemaLoader):
         schema = self.get_schema(namespace, location, base_url)
         if schema is not None and schema.maps is self.maps:
             return False
+        if location is None:
+            return True
 
         try:
             xml_resource = self.config.create_resource(
@@ -392,7 +409,7 @@ class SafeSchemaLoader(SchemaLoader):
         except XMLResourceError:
             return False  # The resource is not accessible
 
-        other_schemas = self.namespaces[namespace].copy()
+        other_schemas: list[Any] = self.namespaces[namespace].copy()
         self.global_maps.clear()
         self.global_maps.load_globals(other_schemas + [xml_resource])
         return True

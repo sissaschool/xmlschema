@@ -8,6 +8,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import io
+import copy
 import os.path
 from collections import deque
 from collections.abc import Iterator, MutableMapping
@@ -32,15 +33,15 @@ from xmlschema.utils.streams import is_file_object
 from xmlschema.utils.qnames import update_namespaces, get_namespace_map
 from xmlschema.utils.urls import is_url, is_remote_url, is_local_url, normalize_url, \
     normalize_locations
-from xmlschema.utils.arguments import Argument
+from xmlschema.utils.descriptors import Argument
 
 from .sax import defuse_xml
 from .arguments import SourceArgument, BaseUrlArgument, AllowArgument, \
     DefuseArgument, TimeoutArgument, UriMapperArgument, OpenerArgument
-from .loader import _ResourceLoader
+from .xml_loader import XMLResourceLoader
 
 
-class XMLResource(_ResourceLoader):
+class XMLResource(XMLResourceLoader):
     """
     XML resource manager based on ElementTree and urllib.
 
