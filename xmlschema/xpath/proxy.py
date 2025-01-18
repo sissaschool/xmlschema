@@ -62,7 +62,6 @@ class XMLSchemaProxy(AbstractSchemaProxy):
         return XPathSchemaContext(self._schema.xpath_node, self._schema.namespaces)
 
     def is_instance(self, obj: Any, type_qname: str) -> bool:
-        # FIXME: use elementpath.datatypes for checking atomic datatypes
         xsd_type = self._schema.maps.types[type_qname]
         try:
             xsd_type.encode(obj)

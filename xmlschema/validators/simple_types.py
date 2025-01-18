@@ -17,6 +17,8 @@ from collections.abc import Callable, Iterator
 from typing import cast, Any, Optional, Union, Type
 from xml.etree import ElementTree
 
+from elementpath.datatypes import AnyAtomicType, AbstractDateTime
+
 from xmlschema.aliases import ElementType, AtomicValueType, ComponentClassType, \
     BaseXsdType, SchemaType, DecodedValueType
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError
@@ -78,6 +80,7 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
 
     # Unicode string as default datatype for XSD simple types
     python_type = instance_types = to_python = from_python = str
+    decode_string_values = False
 
     __slots__ = ('_facets', 'min_length', 'max_length', 'white_space', 'patterns', 'validators')
 
@@ -591,7 +594,7 @@ class XsdAtomic(XsdSimpleType):
         return self.primitive_type.admitted_facets
 
     def is_datetime(self) -> bool:
-        return self.primitive_type.to_python.__name__ == 'fromstring'
+        return issubclass(self.primitive_type.python_type, AbstractDateTime)
 
     def get_facet(self, tag: str) -> Optional[FacetsValueType]:
         facet = self.facets.get(tag)
@@ -617,11 +620,12 @@ class XsdAtomicBuiltin(XsdAtomic):
       - to_python(value): Decoding from XML
       - from_python(value): Encoding to XML
     """
-    __slots__ = ('instance_types', 'python_type', 'to_python', 'from_python')
+    __slots__ = ('datatype', 'instance_types', 'python_type', 'to_python', 'from_python')
 
     def __init__(self, elem: ElementType,
                  schema: SchemaType,
                  name: str,
+                 datatype: Type[AnyAtomicType],
                  python_type: PythonTypeClasses,
                  base_type: Optional['XsdAtomicBuiltin'] = None,
                  admitted_facets: Optional[set[str]] = None,
@@ -630,6 +634,7 @@ class XsdAtomicBuiltin(XsdAtomic):
                  from_python: Optional[Callable[[Any], str]] = None) -> None:
         """
         :param name: the XSD type's qualified name.
+        :param datatype: the XSD datatype.
         :param python_type: the correspondent Python's type. If a tuple of types \
         is provided uses the first and consider the others as compatible types.
         :param base_type: the reference base type, None if it's a primitive type.
@@ -643,6 +648,9 @@ class XsdAtomicBuiltin(XsdAtomic):
         else:
             self.instance_types = python_type
 
+        if not isinstance(datatype, type):
+            raise XMLSchemaTypeError(f"{datatype!r} object is not a type")
+
         if not isinstance(python_type, type):
             raise XMLSchemaTypeError(f"{python_type!r} object is not a type")
 
@@ -652,9 +660,12 @@ class XsdAtomicBuiltin(XsdAtomic):
         self._admitted_facets = admitted_facets
 
         super().__init__(elem, schema, None, name, facets, base_type)
+        self.datatype = datatype
         self.python_type = python_type
         self.to_python = to_python if to_python is not None else python_type
         self.from_python = from_python if from_python is not None else str
+        self.decode_string_values = not issubclass(self.datatype, str) and \
+            isinstance('', self.instance_types)
 
     def __repr__(self) -> str:
         return '%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
@@ -797,7 +808,7 @@ class XsdAtomicBuiltin(XsdAtomic):
 
         for validator in self.validators:
             try:
-                validator(obj)
+                validator(self.python_type(obj))
             except XMLSchemaValidationError as err:
                 context.validation_error(validation, self, err)
 
@@ -1437,16 +1448,13 @@ class XsdAtomicRestriction(XsdAtomic):
 
         result = base_type.raw_encode(obj, validation, context)
 
-        if self.validators and obj is not None:
-            if isinstance(obj, (str, bytes)) and \
-                    self.primitive_type.to_python is not str and \
-                    isinstance(obj, self.primitive_type.instance_types):
+        if self.validators:
+            if isinstance(obj, (str, bytes)) and self.primitive_type.decode_string_values:
                 try:
                     obj = self.primitive_type.to_python(obj)
                 except (ValueError, DecimalException, TypeError):
                     pass
 
-        if self.validators:
             if self.root_type.name in (XSD_QNAME, XSD_NOTATION):
                 value = get_extended_qname(obj, context.namespaces)
             else:
