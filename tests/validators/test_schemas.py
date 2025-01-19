@@ -196,9 +196,7 @@ class TestXMLSchema10(XsdValidatorTestCase):
                 <xs:annotation />
             </xs:element>""")
         xsd_element = schema.elements['foo']
-        self.assertIsNone(xsd_element._annotation)  # lazy annotation
         self.assertIsNotNone(xsd_element.annotation)
-        self.assertIs(xsd_element.annotation, xsd_element._annotation)
 
         self.check_schema("""
         <xs:simpleType name='Magic'>
@@ -220,7 +218,6 @@ class TestXMLSchema10(XsdValidatorTestCase):
         </xs:simpleType>""")
 
         xsd_type = schema.types["Magic"]
-        self.assertIsNotNone(xsd_type._annotation)  # xs:simpleType annotations are not lazy parsed
         self.assertEqual(str(xsd_type.annotation), ' stuff ')
 
     def test_components(self):
@@ -262,7 +259,7 @@ class TestXMLSchema10(XsdValidatorTestCase):
                 <xs:element name="root"/>
             </xs:schema>"""))
 
-        self.assertIsNone(schema._annotations)
+        self.assertListEqual(schema.annotations, [])
         annotations = schema.annotations
         self.assertListEqual(annotations, [])
         self.assertIs(annotations, schema.annotations)
@@ -281,7 +278,7 @@ class TestXMLSchema10(XsdValidatorTestCase):
                 </xs:annotation>
             </xs:schema>"""))
 
-        self.assertIsNone(schema._annotations)
+        schema.clear()
         annotations = schema.annotations
         self.assertEqual(len(annotations), 3)
         self.assertEqual(repr(annotations[0]), "XsdAnnotation('First annotation')")

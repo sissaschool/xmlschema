@@ -327,7 +327,7 @@ class XsdBuilders:
             return cast(XsdSimpleType, schema.maps.types[nm.XSD_ANY_SIMPLE_TYPE])
 
         if annotation is not None:
-            xsd_type._annotation = annotation
+            setattr(xsd_type, 'annotation', annotation)
 
         try:
             xsd_type.name = get_qname(schema.target_namespace, elem.attrib['name'])
@@ -689,7 +689,7 @@ class TypesMap(StagedMap[BaseXsdType]):
                     continue
                 elem, schema = value
 
-            base_type: Union[None, BaseXsdType, tuple[ElementType, SchemaType]]
+            base_type: Optional[BaseXsdType]
             if 'base_type' in item:
                 base_type = item['base_type'] = self._store[item['base_type']]
             else:

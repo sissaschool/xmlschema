@@ -329,11 +329,9 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
 
     def __getstate__(self) -> dict[str, Any]:
         state = self.__dict__.copy()
-        for cls in self.__class__.__mro__:
-            if hasattr(cls, '__slots__'):
-                for attr in cls.__slots__:
-                    if attr not in state:
-                        state[attr] = getattr(self, attr)
+        for attr in self._mro_slots():
+            if attr not in state:
+                state[attr] = getattr(self, attr)
 
         state.pop('_build_lock', None)
         state.pop('_xpath_lock', None)
@@ -342,11 +340,9 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
         return state
 
     def __setstate__(self, state: dict[str, Any]) -> None:
-        for cls in self.__class__.__mro__:
-            if hasattr(cls, '__slots__'):
-                for attr in cls.__slots__:
-                    if attr in state:
-                        object.__setattr__(self, attr, state.pop(attr))
+        for attr in self._mro_slots():
+            if attr in state:
+                object.__setattr__(self, attr, state.pop(attr))
 
         self.__dict__.update(state)
         self._build_lock = threading.Lock()

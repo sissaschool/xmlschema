@@ -522,10 +522,10 @@ class TestXsdComponent(unittest.TestCase):
 
         # Lazy XSD annotation build (errors not counted in schema.all_errors)
         xsd_element = schema.elements['root']
-        self.assertNotIn('_annotation', xsd_element.__dict__)
+        self.assertNotIn('annotation', xsd_element.__dict__)
         annotation = xsd_element.annotation
         self.assertIsInstance(annotation, XsdAnnotation)
-        self.assertIn('_annotation', xsd_element.__dict__)
+        self.assertIn('annotation', xsd_element.__dict__)
         self.assertEqual(len(schema.all_errors), 3)
         self.assertEqual(len(annotation.errors), 0)  # see issue 287
         self.assertIsNone(annotation.annotation)

@@ -10,9 +10,10 @@
 """
 This module contains classes for XML Schema attributes and attribute groups.
 """
-from collections.abc import Callable, Iterator, MutableMapping
+from collections.abc import Iterator, MutableMapping
 from copy import copy as _copy
 from decimal import Decimal
+from functools import cached_property
 from typing import cast, Any, Optional, Union
 
 from elementpath.datatypes import AbstractDateTime, Duration, AbstractBinary
@@ -64,8 +65,6 @@ class XsdAttribute(XsdComponent, ValidationMixin[str, DecodedValueType]):
     prefixed_name: str
 
     type: XsdSimpleType
-    copy: Callable[['XsdAttribute'], 'XsdAttribute']
-
     qualified: bool = False
     default: Optional[str] = None
     fixed: Optional[str] = None
@@ -333,7 +332,6 @@ class XsdAttributeGroup(
         </attributeGroup>
     """
     _ADMITTED_TAGS = (XSD_ATTRIBUTE_GROUP, XSD_COMPLEX_TYPE, XSD_RESTRICTION, XSD_EXTENSION)
-    copy: Callable[['XsdAttributeGroup'], 'XsdAttributeGroup']
 
     __slots__ = ('_attribute_group', 'derivation', 'base_attributes')
 
@@ -605,11 +603,9 @@ class XsdAttributeGroup(
     def built(self) -> bool:
         return True
 
-    @property
+    @cached_property
     def annotation(self) -> Optional['XsdAnnotation']:
-        if self.parent is not None and '_annotation' not in self.__dict__:
-            self._annotation = None
-        return super().annotation
+        return super().annotation if self.parent is None else None
 
     def parse_error(self, error: Union[str, Exception],
                     elem: Optional[ElementType] = None,

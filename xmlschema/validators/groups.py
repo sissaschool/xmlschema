@@ -102,7 +102,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
     ref: Optional['XsdGroup']
     content: list[ModelParticleType]  # The effective content model for validate
     restriction: Optional['XsdGroup'] = None
-    redefine: Optional['XsdGroup'] = None
+    redefine: Optional['XsdGroup']
 
     # For XSD 1.1 openContent processing
     open_content: Optional[XsdOpenContent] = None
@@ -119,9 +119,6 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         self.content = self._group
         self.oid = (self,)
         self.min_occurs = self.max_occurs = 1
-        if parent is not None and parent.mixed:
-            self.mixed = parent.mixed
-
         super().__init__(elem, schema, parent)
 
     def __repr__(self) -> str:
@@ -160,9 +157,6 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
 
     def insert(self, i: int, item: ModelParticleType) -> None:
         self._group.insert(i, item)
-
-    def clear(self) -> None:
-        del self._group[:]
 
     def is_emptiable(self) -> bool:
         if self.model == 'choice':
@@ -459,10 +453,8 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         group: XsdGroup = object.__new__(self.__class__)
         group.__dict__.update(self.__dict__)
 
-        for cls in self.__class__.__mro__:
-            if hasattr(cls, '__slots__'):
-                for attr in cls.__slots__:
-                    object.__setattr__(group, attr, getattr(self, attr))
+        for attr in self._mro_slots():
+            object.__setattr__(group, attr, getattr(self, attr))
 
         group.errors = self.errors.copy()
         group._group = self._group.copy()
@@ -477,8 +469,11 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         self._group.append(self.builders.any_element_class(ANY_ELEMENT, self.schema, self))
 
     def _parse(self) -> None:
-        self.clear()
+        self._group.clear()
         self._parse_particle(self.elem)
+
+        if self.parent is not None and self.parent.mixed:
+            self.mixed = self.parent.mixed
 
         if self.elem.tag != XSD_GROUP:
             # Local group (sequence|all|choice)

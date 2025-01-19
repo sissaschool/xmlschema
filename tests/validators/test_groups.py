@@ -27,6 +27,7 @@ class ModelGroup(XsdGroup):
         self._group: List[Union[ParticleMixin, 'ModelGroup']] = []
         self.content = self._group
         self.model: str = model
+        self.ref = None
 
     def __repr__(self) -> str:
         return '%s(model=%r, occurs=%r)' % (self.__class__.__name__, self.model, self.occurs)

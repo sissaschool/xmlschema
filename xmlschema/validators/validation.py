@@ -10,11 +10,12 @@
 import copy
 import logging
 from abc import abstractmethod
+from collections import Counter
 from collections.abc import Iterable, Iterator
 from typing import Any, Generic, Optional, Type, TYPE_CHECKING, TypeVar, Union
 from xml.etree.ElementTree import Element
 
-from collections import Counter
+import elementpath.datatypes as datatypes
 
 from xmlschema.exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from xmlschema.aliases import DecodeType, DepthFillerType, ElementType, \

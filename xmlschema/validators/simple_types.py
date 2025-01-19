@@ -14,6 +14,7 @@ import re
 from copy import copy as _copy
 from decimal import DecimalException
 from collections.abc import Callable, Iterator
+from functools import cached_property
 from typing import cast, Any, Optional, Union, Type
 from xml.etree import ElementTree
 
@@ -63,9 +64,10 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
     _ADMITTED_TAGS: tuple[str, ...] = XSD_SIMPLE_TYPE,
     _REGEX_SPACE = re.compile(r'\s')
     _REGEX_SPACES = re.compile(r'\s+')
-    copy: Callable[['XsdSimpleType'], 'XsdSimpleType']
 
+    abstract: bool = False
     block: str = ''
+
     min_length: Optional[int]
     max_length: Optional[int]
     white_space: Optional[str]
@@ -82,7 +84,8 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
     python_type = instance_types = to_python = from_python = str
     decode_string_values = False
 
-    __slots__ = ('_facets', 'min_length', 'max_length', 'white_space', 'patterns', 'validators')
+    __slots__ = ('_facets', 'min_length', 'max_length', 'white_space', 'patterns',
+                 'validators', 'allow_empty')
 
     def __init__(self, elem: ElementType,
                  schema: SchemaType,
@@ -301,7 +304,7 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
     def simple_type(self) -> 'XsdSimpleType':
         return self
 
-    @property
+    @cached_property
     def min_value(self) -> Optional[AtomicValueType]:
         min_exclusive: Optional['AtomicValueType']
         min_inclusive: Optional['AtomicValueType']
@@ -323,7 +326,7 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
         else:
             return min_inclusive
 
-    @property
+    @cached_property
     def max_value(self) -> Optional[AtomicValueType]:
         max_exclusive: Optional['AtomicValueType']
         max_inclusive: Optional['AtomicValueType']
@@ -345,7 +348,7 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
         else:
             return max_inclusive
 
-    @property
+    @cached_property
     def enumeration(self) -> Optional[list[Optional[AtomicValueType]]]:
         enumeration = self.get_facet(XSD_ENUMERATION)
         if isinstance(enumeration, XsdEnumerationFacets):
@@ -369,13 +372,13 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
         return False
 
     def is_primitive(self) -> bool:
-        return isinstance(self, XsdAtomicBuiltin) and self.base_type is None
+        return False
 
     @property
     def content_type_label(self) -> str:
         return 'empty' if self.max_length == 0 else 'simple'
 
-    @property
+    @cached_property
     def root_type(self) -> BaseXsdType:
         if self.base_type is None:
             return self
@@ -384,7 +387,7 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
         else:
             return self.base_type.root_type
 
-    @property
+    @cached_property
     def sequence_type(self) -> str:
         if self.is_empty():
             return 'empty-sequence()'
@@ -608,6 +611,9 @@ class XsdAtomic(XsdSimpleType):
     def is_atomic(self) -> bool:
         return True
 
+    def is_primitive(self) -> bool:
+        return self.base_type is None
+
 
 class XsdAtomicBuiltin(XsdAtomic):
     """
@@ -620,7 +626,8 @@ class XsdAtomicBuiltin(XsdAtomic):
       - to_python(value): Decoding from XML
       - from_python(value): Encoding to XML
     """
-    __slots__ = ('datatype', 'instance_types', 'python_type', 'to_python', 'from_python')
+    __slots__ = ('datatype', 'instance_types', 'python_type', 'to_python', 'from_python',
+                 '_admitted_facets')
 
     def __init__(self, elem: ElementType,
                  schema: SchemaType,
@@ -934,7 +941,7 @@ class XsdList(XsdSimpleType):
     def admitted_facets(self) -> set[str]:
         return XSD_10_LIST_FACETS if self.xsd_version == '1.0' else XSD_11_LIST_FACETS
 
-    @property
+    @cached_property
     def root_type(self) -> BaseXsdType:
         return self.item_type.root_type
 

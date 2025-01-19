@@ -7,7 +7,8 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from collections.abc import Callable, Iterator
+from collections.abc import Iterator
+from functools import cached_property
 from typing import cast, Any, Optional, Union
 
 from elementpath.datatypes import AnyAtomicType
@@ -43,21 +44,20 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
     :var content: the content of the complexType can be a model group or a simple type.
     :var mixed: if `True` the complex type has mixed content.
 
-    ..  <complexType
-          abstract = boolean : false
-          block = (#all | List of (extension | restriction))
-          final = (#all | List of (extension | restriction))
-          id = ID
-          mixed = boolean : false
-          name = NCName
-          {any attributes with non-schema namespace . . .}>
-          Content: (annotation?, (simpleContent | complexContent |
-          ((group | all | choice | sequence)?, ((attribute | attributeGroup)*, anyAttribute?))))
-        </complexType>
+      <complexType
+        abstract = boolean : false
+        block = (#all | List of (extension | restriction))
+        final = (#all | List of (extension | restriction))
+        id = ID
+        mixed = boolean : false
+        name = NCName
+        {any attributes with non-schema namespace . . .}>
+        Content: (annotation?, (simpleContent | complexContent |
+        ((group | all | choice | sequence)?, ((attribute | attributeGroup)*, anyAttribute?))))
+      </complexType>
     """
     attributes: XsdAttributeGroup
     redefine: Optional[BaseXsdType]
-    copy: Callable[['XsdComplexType'], 'XsdComplexType']
     content: Union[XsdGroup, XsdSimpleType]
 
     abstract: bool = False
@@ -93,7 +93,6 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
             if 'final' in kwargs:
                 self._final = kwargs['final']
         super().__init__(elem, schema, parent, name)
-        assert hasattr(self, 'attributes')
 
     def __repr__(self) -> str:
         if self.name is not None:
@@ -546,7 +545,7 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
         else:
             return 'element-only'
 
-    @property
+    @cached_property
     def root_type(self) -> BaseXsdType:
         if self.attributes or self.base_type is None:
             return cast('XsdComplexType', self.maps.types[XSD_ANY_TYPE])

@@ -12,6 +12,7 @@ This module contains base functions and classes XML Schema components.
 """
 import logging
 from collections.abc import Iterator, MutableMapping
+from functools import cached_property
 from typing import TYPE_CHECKING, cast, Any, Optional, Union
 
 from elementpath import select
@@ -64,6 +65,12 @@ class XsdValidator:
     def __init__(self, validation: str = 'strict') -> None:
         self.validation = validation
         self.errors: list[XMLSchemaParseError] = []
+
+    @classmethod
+    def _mro_slots(cls) -> Iterator[str]:
+        for c in cls.__mro__:
+            if hasattr(c, '__slots__'):
+                yield from c.__slots__
 
     @property
     def built(self) -> bool:
@@ -271,14 +278,11 @@ class XsdComponent(XsdValidator):
     maps: 'XsdGlobals'
     elem: ElementType
     qualified = True
-    ref: Optional['XsdComponent'] = None
-    redefine: Optional['XsdComponent'] = None
+    ref: Optional['XsdComponent']
+    redefine: Optional['XsdComponent']
 
-    _annotation: Optional['XsdAnnotation'] = None
-    _annotations: list['XsdAnnotation']
-
-    __slots__ = ('name', 'parent', 'schema', 'xsd_version', 'target_namespace',
-                 'maps', 'builders', 'elem', 'validation', 'errors')
+    __slots__ = ('name', 'parent', 'schema', 'xsd_version', 'target_namespace', 'maps',
+                 'builders', 'elem', 'validation', 'errors', 'ref', 'redefine')
 
     def __init__(self, elem: ElementType,
                  schema: SchemaType,
@@ -286,6 +290,7 @@ class XsdComponent(XsdValidator):
                  name: Optional[str] = None) -> None:
 
         super().__init__(schema.validation)
+        self.ref = self.redefine = None
         self.name = name
         self.parent = parent
         self.schema = schema
@@ -306,9 +311,8 @@ class XsdComponent(XsdValidator):
         component.__dict__.update(self.__dict__)
 
         for cls in self.__class__.__mro__:
-            if hasattr(cls, '__slots__'):
-                for attr in cls.__slots__:
-                    object.__setattr__(component, attr, getattr(self, attr))
+            for attr in getattr(cls, '__slots__', ()):
+                object.__setattr__(component, attr, getattr(self, attr))
 
         component.errors = self.errors.copy()
         return component
@@ -329,11 +333,9 @@ class XsdComponent(XsdValidator):
         return self.elem
 
     @property
-    def resource(self) -> XMLResource:
+    def source(self) -> XMLResource:
         """Property that references to schema source."""
         return self.schema.source
-
-    source = resource
 
     @property
     def default_namespace(self) -> Optional[str]:
@@ -360,41 +362,37 @@ class XsdComponent(XsdValidator):
         """Property that references to the xs:anyAtomicType instance of the global maps."""
         return cast('XsdSimpleType', self.maps.types[XSD_ANY_ATOMIC_TYPE])
 
-    @property
+    @cached_property
     def annotation(self) -> Optional['XsdAnnotation']:
         """
         The primary annotation of the XSD component, if any. This is the annotation
         defined in the first child of the element where the component is defined.
         """
-        if '_annotation' not in self.__dict__:
-            child = get_xsd_annotation_child(self.elem)
-            if child is not None:
-                self._annotation = XsdAnnotation(child, self.schema, self)
-            else:
-                self._annotation = None
+        child = get_xsd_annotation_child(self.elem)
+        if child is not None:
+            return XsdAnnotation(child, self.schema, self)
+        else:
+            return None
 
-        return self._annotation
-
-    @property
-    def annotations(self) -> list['XsdAnnotation']:
+    @cached_property
+    def annotations(self) -> Union[tuple[()], list['XsdAnnotation']]:
         """A list containing all the annotations of the XSD component."""
-        if '_annotations' not in self.__dict__:
-            self._annotations = []
-            components = self.schema.components
-            parent_map = self.schema.source.parent_map
+        annotations = []
+        components = self.schema.components
+        parent_map = self.schema.source.parent_map
 
-            for elem in self.elem.iter():
-                if elem is self.elem:
-                    annotation = self.annotation
-                    if annotation is not None:
-                        self._annotations.append(annotation)
-                elif elem in components:
-                    break
-                elif elem.tag == XSD_ANNOTATION:
-                    parent_elem = parent_map[elem]
-                    self._annotations.append(XsdAnnotation(elem, self.schema, self, parent_elem))
+        for elem in self.elem.iter():
+            if elem is self.elem:
+                annotation = self.annotation
+                if annotation is not None:
+                    annotations.append(annotation)
+            elif elem in components:
+                break
+            elif elem.tag == XSD_ANNOTATION:
+                parent_elem = parent_map[elem]
+                annotations.append(XsdAnnotation(elem, self.schema, self, parent_elem))
 
-        return self._annotations
+        return annotations
 
     def parse(self, elem: ElementType) -> None:
         """Set and parse the component Element."""
@@ -403,6 +401,13 @@ class XsdComponent(XsdValidator):
             raise XMLSchemaValueError(
                 msg.format(elem.tag, self.__class__, self._ADMITTED_TAGS)
             )
+
+        if hasattr(self, 'elem'):
+            # Redefinition of a global component
+            if self.parent is not None:
+                raise XMLSchemaValueError(f'{self!r} is not a global component')
+            self.__dict__.clear()
+
         self.elem = elem
         if self.errors:
             self.errors.clear()
@@ -506,22 +511,22 @@ class XsdComponent(XsdValidator):
         else:
             self.name = f'{{{target_namespace}}}{local_name(self.name)}'
 
-    @property
+    @cached_property
     def local_name(self) -> Optional[str]:
         """The local part of the name of the component, or `None` if the name is `None`."""
         return None if self.name is None else local_name(self.name)
 
-    @property
+    @cached_property
     def qualified_name(self) -> Optional[str]:
         """The name of the component in extended format, or `None` if the name is `None`."""
         return None if self.name is None else get_qname(self.target_namespace, self.name)
 
-    @property
+    @cached_property
     def prefixed_name(self) -> Optional[str]:
         """The name of the component in prefixed format, or `None` if the name is `None`."""
         return None if self.name is None else get_prefixed_qname(self.name, self.namespaces)
 
-    @property
+    @cached_property
     def display_name(self) -> Optional[str]:
         """
         The name of the component to display when you have to refer to it with a
@@ -677,28 +682,29 @@ class XsdAnnotation(XsdComponent):
     :ivar appinfo: a list containing the xs:appinfo children.
     :ivar documentation: a list containing the xs:documentation children.
 
-    ..  <annotation
-          id = ID
-          {any attributes with non-schema namespace . . .}>
-          Content: (appinfo | documentation)*
-        </annotation>
+      <annotation
+        id = ID
+        {any attributes with non-schema namespace . . .}>
+        Content: (appinfo | documentation)*
+      </annotation>
 
-    ..  <appinfo
-          source = anyURI
-          {any attributes with non-schema namespace . . .}>
-          Content: ({any})*
-        </appinfo>
+      <appinfo
+        source = anyURI
+        {any attributes with non-schema namespace . . .}>
+        Content: ({any})*
+      </appinfo>
 
-    ..  <documentation
-          source = anyURI
-          xml:lang = language
-          {any attributes with non-schema namespace . . .}>
-          Content: ({any})*
-        </documentation>
+      <documentation
+        source = anyURI
+        xml:lang = language
+        {any attributes with non-schema namespace . . .}>
+        Content: ({any})*
+      </documentation>
     """
     _ADMITTED_TAGS = XSD_ANNOTATION,
 
     annotation = None
+    annotations = ()
 
     def __init__(self, elem: ElementType,
                  schema: SchemaType,
@@ -738,7 +744,6 @@ class XsdType(XsdComponent):
 
     __slots__ = ()
 
-    abstract = False
     base_type: Optional[BaseXsdType] = None
     derivation: Optional[str] = None
     _final: Optional[str] = None
@@ -887,20 +892,19 @@ class XsdType(XsdComponent):
         raise NotImplementedError()
 
     def is_key(self) -> bool:
-        return self.name == XSD_ID or self.is_derived(self.maps.types[XSD_ID])
+        return self.is_derived(self.maps.types[XSD_ID])
 
     def is_qname(self) -> bool:
-        return self.name == XSD_QNAME or self.is_derived(self.maps.types[XSD_QNAME])
+        return self.is_derived(self.maps.types[XSD_QNAME])
 
     def is_notation(self) -> bool:
-        return self.name == XSD_NOTATION_TYPE or \
-            self.is_derived(self.maps.types[XSD_NOTATION_TYPE])
+        return self.is_derived(self.maps.types[XSD_NOTATION_TYPE])
 
     def is_decimal(self) -> bool:
-        return self.name == XSD_DECIMAL or self.is_derived(self.maps.types[XSD_DECIMAL])
+        return self.is_derived(self.maps.types[XSD_DECIMAL])
 
     def is_boolean(self) -> bool:
-        return self.name == XSD_BOOLEAN or self.is_derived(self.maps.types[XSD_BOOLEAN])
+        return self.is_derived(self.maps.types[XSD_BOOLEAN])
 
     def text_decode(self, text: str, validation: str = 'skip',
                     context: Optional[DecodeContext] = None) -> DecodedValueType:

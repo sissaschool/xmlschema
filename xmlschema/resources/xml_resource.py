@@ -8,7 +8,6 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import io
-import copy
 import os.path
 from collections import deque
 from collections.abc import Iterator, MutableMapping

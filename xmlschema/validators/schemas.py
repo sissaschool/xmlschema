@@ -14,13 +14,14 @@ Two schema classes are created at the end of this module, XMLSchema10 for XSD 1.
 XMLSchema11 for XSD 1.1. The latter class parses also XSD 1.0 schemas, as prescribed by
 the standard.
 """
-from abc import ABCMeta, abstractmethod
+from abc import ABCMeta
 import os
 import logging
 import threading
 import re
 import sys
 from collections.abc import Callable, Iterator
+from functools import cached_property
 from operator import attrgetter
 from pathlib import Path
 from typing import Any, cast, Optional, Union, Type
@@ -68,7 +69,7 @@ from .groups import XsdGroup
 from .elements import XsdElement
 from .wildcards import XsdAnyElement, XsdDefaultOpenContent
 from .builders import XsdBuilders, SchemaConfig
-from .global_maps import GLOBAL_TAGS, NamespaceView, XsdGlobals
+from .global_maps import NamespaceView, XsdGlobals
 
 logger = logging.getLogger('xmlschema')
 
@@ -240,14 +241,11 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     :ivar elements: `xsd:element` global declarations.
     :vartype elements: NamespaceView
     """
-    @property
-    @abstractmethod
-    def builders(self) -> XsdBuilders: ...
-
     XSD_VERSION: str = '1.0'
     META_SCHEMA: str
     BASE_SCHEMAS: dict[str, str] = {}
 
+    builders: XsdBuilders
     meta_schema: Optional[SchemaType] = None
 
     # Instance attributes type annotations
@@ -269,15 +267,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     elements: NamespaceView[XsdElement]
     substitution_groups: NamespaceView[set[XsdElement]]
     identities: NamespaceView[XsdIdentity]
-
-    _annotations: Optional[list[XsdAnnotation]] = None
-    _components: Optional[dict[ElementType, XsdComponent]] = None
-    _expected_globals: Optional[int] = None
-    _expected_redefinitions: Optional[int] = None
-    _expected_overrides: Optional[int] = None
-    _root_elements: Optional[set[str]] = None
-    _xpath_node: Optional[SchemaElementNode]
-    _validation_context: Optional[DecodeContext] = None
 
     # Schema defaults
     attribute_form_default = 'unqualified'
@@ -564,21 +553,17 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
     def __getstate__(self) -> dict[str, Any]:
         state = self.__dict__.copy()
-        for cls in self.__class__.__mro__:
-            if hasattr(cls, '__slots__'):
-                for attr in cls.__slots__:
-                    if attr not in state:
-                        state[attr] = getattr(self, attr)
+        for attr in self._mro_slots():
+            if attr not in state:
+                state[attr] = getattr(self, attr)
 
         state.pop('_xpath_lock', None)
         return state
 
     def __setstate__(self, state: dict[str, Any]) -> None:
-        for cls in self.__class__.__mro__:
-            if hasattr(cls, '__slots__'):
-                for attr in cls.__slots__:
-                    if attr in state:
-                        object.__setattr__(self, attr, state.pop(attr))
+        for attr in self._mro_slots():
+            if attr in state:
+                object.__setattr__(self, attr, state.pop(attr))
 
         self.__dict__.update(state)
         self._xpath_lock = threading.Lock()
@@ -589,14 +574,12 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             (k, v.copy() if isinstance(v, (list, dict)) else v)
             for k, v in self.__dict__.items()
         )
-        for cls in self.__class__.__mro__:
-            if hasattr(cls, '__slots__'):
-                for attr in cls.__slots__:
-                    value = getattr(self, attr)
-                    if isinstance(value, (list, dict)):
-                        object.__setattr__(schema, attr, value.copy())
-                    else:
-                        object.__setattr__(schema, attr, value)
+        for attr in self._mro_slots():
+            value = getattr(self, attr)
+            if isinstance(value, (list, dict)):
+                object.__setattr__(schema, attr, value.copy())
+            else:
+                object.__setattr__(schema, attr, value)
         return schema
 
     copy = __copy__
@@ -606,30 +589,26 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         """Compatibility property that returns the class attribute XSD_VERSION."""
         return self.XSD_VERSION
 
-    @property
+    @cached_property
     def validation_context(self) -> DecodeContext:
         """A validation context instance used internally for decoding schema simple values."""
-        if self._validation_context is None:
-            self._validation_context = DecodeContext(
-                source=self.source,
-                validation=self.validation,
-                validation_only=True,
-                namespaces=self.namespaces,
-                xmlns_processing='none'
-            )
-        return self._validation_context
+        return DecodeContext(
+            source=self.source,
+            validation=self.validation,
+            validation_only=True,
+            namespaces=self.namespaces,
+            xmlns_processing='none'
+        )
 
     @property
     def xpath_proxy(self) -> XMLSchemaProxy:
         return XMLSchemaProxy(self)
 
-    @property
+    @cached_property
     def xpath_node(self) -> SchemaElementNode:
         """Returns an XPath node for processing an XPath expression on the schema instance."""
-        if self._xpath_node is None:
-            with self._xpath_lock:
-                self._xpath_node = build_schema_node_tree(root=self, uri=self.source.url)
-        return self._xpath_node
+        with self._xpath_lock:
+            return build_schema_node_tree(root=self, uri=self.source.url)
 
     @property
     def xpath_tokens(self) -> dict[str, Type[XPathToken]]:
@@ -735,14 +714,14 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         """The schema's *version* attribute, defaults to ``None``."""
         return self.source.root.get('version')
 
-    @property
+    @cached_property
     def schema_location(self) -> list[tuple[str, str]]:
         """
         A list of location hints extracted from the *xsi:schemaLocation* attribute of the schema.
         """
         return [(k, v) for k, v in self.source.iter_location_hints() if k]
 
-    @property
+    @cached_property
     def no_namespace_schema_location(self) -> Optional[str]:
         """
         A location hint extracted from the *xsi:noNamespaceSchemaLocation* attribute of the schema.
@@ -757,7 +736,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         """The namespace associated to the empty prefix ''."""
         return self.namespaces.get('')
 
-    @property
+    @cached_property
     def target_prefix(self) -> str:
         """The prefix associated to the *targetNamespace*."""
         for prefix, namespace in self.namespaces.items():
@@ -774,73 +753,38 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         cls.meta_schema.maps.build()
         return cls.meta_schema.types
 
-    @property
+    @cached_property
     def annotations(self) -> list[XsdAnnotation]:
         """
         Annotations related to schema object. This list includes the annotations
         of xs:include, xs:import, xs:redefine and xs:override elements.
         """
-        if self._annotations is None:
-            self._annotations = []
-            for elem in self.source.root:
-                if elem.tag == nm.XSD_ANNOTATION:
-                    self._annotations.append(XsdAnnotation(elem, self))
-                elif elem.tag in (nm.XSD_IMPORT, nm.XSD_INCLUDE, nm.XSD_DEFAULT_OPEN_CONTENT):
-                    child = get_xsd_annotation_child(elem)
-                    if child is not None:
+        annotations = []
+        for elem in self.source.root:
+            if elem.tag == nm.XSD_ANNOTATION:
+                annotations.append(XsdAnnotation(elem, self))
+            elif elem.tag in (nm.XSD_IMPORT, nm.XSD_INCLUDE, nm.XSD_DEFAULT_OPEN_CONTENT):
+                child = get_xsd_annotation_child(elem)
+                if child is not None:
+                    annotation = XsdAnnotation(child, self, parent_elem=elem)
+                    annotations.append(annotation)
+            elif elem.tag in (nm.XSD_REDEFINE, nm.XSD_OVERRIDE):
+                for child in elem:
+                    if child.tag == nm.XSD_ANNOTATION:
                         annotation = XsdAnnotation(child, self, parent_elem=elem)
-                        self._annotations.append(annotation)
-                elif elem.tag in (nm.XSD_REDEFINE, nm.XSD_OVERRIDE):
-                    for child in elem:
-                        if child.tag == nm.XSD_ANNOTATION:
-                            annotation = XsdAnnotation(child, self, parent_elem=elem)
-                            self._annotations.append(annotation)
+                        annotations.append(annotation)
 
-        return self._annotations
+        return annotations
 
-    @property
+    @cached_property
     def components(self) -> dict[ElementType, XsdComponent]:
         """A map from XSD ElementTree elements to their schema components."""
-        if self._components is None:
-            self.check_validator(self.validation)
-            self._components = {
-                c.elem: c for c in self.iter_components() if isinstance(c, XsdComponent)
-            }
-        return self._components
+        self.check_validator(self.validation)
+        return {
+            c.elem: c for c in self.iter_components() if isinstance(c, XsdComponent)
+        }
 
-    @property
-    def expected_globals(self) -> int:
-        """An estimation of total XSD globals for the schema."""
-        if self._expected_globals is None:
-            self._expected_globals = sum(c.tag in GLOBAL_TAGS for c in self.root)
-            self._expected_globals += self.expected_redefinitions + self.expected_overrides
-
-            if self.redefine is not None:
-                self._expected_globals -= self.redefine.expected_redefinitions
-            if self.override is not None:
-                self._expected_globals -= self.override.expected_overrides
-
-        return self._expected_globals
-
-    @property
-    def expected_redefinitions(self) -> int:
-        """An estimation of total XSD globals redefinitions for the schema."""
-        if self._expected_redefinitions is None:
-            self._expected_redefinitions = 0
-            for elem in self.root.iterfind(nm.XSD_REDEFINE):
-                self._expected_redefinitions += sum(c.tag in GLOBAL_TAGS for c in elem)
-        return self._expected_redefinitions
-
-    @property
-    def expected_overrides(self) -> int:
-        """An estimation of total XSD globals overrides for the schema."""
-        if self._expected_overrides is None:
-            self._expected_overrides = 0
-            for elem in self.root.iterfind(nm.XSD_OVERRIDE):
-                self._expected_overrides += sum(c.tag in GLOBAL_TAGS for c in elem)
-        return self._expected_overrides
-
-    @property
+    @cached_property
     def root_elements(self) -> list[XsdElement]:
         """
         The list of global elements that are not used by reference in any model of the schema.
@@ -851,28 +795,26 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             return []
         elif len(self.elements) == 1:
             return list(self.elements.values())
-        elif self._root_elements is None:
-            names = {e.name for e in self.elements.values()}
-            for xsd_element in self.elements.values():
-                for e in xsd_element.iter():
-                    if e is xsd_element or isinstance(e, XsdAnyElement):
-                        continue
-                    elif e.ref or e.parent is None:
-                        if e.name in names:
-                            names.discard(e.name)
-                            if not names:
-                                break
-            self._root_elements = set(names)
 
-        assert self._root_elements is not None
-        return [e for e in self.elements.values() if e.name in self._root_elements]
+        names = {e.name for e in self.elements.values()}
+        for xsd_element in self.elements.values():
+            for e in xsd_element.iter():
+                if e is xsd_element or isinstance(e, XsdAnyElement):
+                    continue
+                elif e.ref or e.parent is None:
+                    if e.name in names:
+                        names.discard(e.name)
+                        if not names:
+                            break
 
-    @property
+        return [e for e in self.elements.values() if e.name in set(names)]
+
+    @cached_property
     def simple_types(self) -> list[XsdSimpleType]:
         """Returns a list containing the global simple types."""
         return [x for x in self.types.values() if isinstance(x, XsdSimpleType)]
 
-    @property
+    @cached_property
     def complex_types(self) -> list[XsdComplexType]:
         """Returns a list containing the global complex types."""
         return [x for x in self.types.values() if isinstance(x, XsdComplexType)]
@@ -910,10 +852,13 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
     def clear(self) -> None:
         """Clears the schema cache."""
-        self._xpath_node = None
-        self._annotations = None
-        self._components = None
-        self._root_elements = None
+        self.__dict__.pop('xpath_node', None)
+        self.__dict__.pop('annotations', None)
+        self.__dict__.pop('components', None)
+        self.__dict__.pop('root_elements', None)
+        self.__dict__.pop('simple_types', None)
+        self.__dict__.pop('complex_types', None)
+        self.__dict__.pop('target_prefix', None)
 
     @property
     def built(self) -> bool:
