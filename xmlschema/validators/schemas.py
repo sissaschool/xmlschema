@@ -43,7 +43,7 @@ from xmlschema.translation import gettext as _
 from xmlschema.utils.decoding import Empty
 from xmlschema.utils.logger import set_logging_level
 from xmlschema.utils.etree import prune_etree, is_etree_element
-from xmlschema.utils.qnames import get_namespace
+from xmlschema.utils.qnames import get_namespace_ext
 from xmlschema.utils.urls import is_local_url, normalize_url
 from xmlschema.resources import XMLResource
 from xmlschema.converters import XMLSchemaConverter, ConverterType, \
@@ -1705,7 +1705,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         if path is not None:
             match = re.search(r'[{\w]', path)
             if match:
-                namespace = get_namespace(path[match.start():], context.namespaces)
+                namespace = get_namespace_ext(path[match.start():], context.namespaces)
                 schema = self.get_schema(namespace)
                 xsd_element = schema.find(path, context.namespaces)
 
@@ -1719,7 +1719,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 for key in obj:
                     match = re.search(r'[{\w]', key)
                     if match:
-                        namespace = get_namespace(key[match.start():], context.namespaces)
+                        namespace = get_namespace_ext(key[match.start():], context.namespaces)
                         schema = self.get_schema(namespace)
                         xsd_element = schema.find(key, context.namespaces)
 

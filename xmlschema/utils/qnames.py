@@ -16,10 +16,26 @@ from xmlschema.exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from xmlschema.names import XML_NAMESPACE
 from xmlschema.aliases import NsmapType
 
-NAMESPACE_PATTERN = re.compile(r'{([^}]*)}')
+
+def get_namespace(qname: str) -> str:
+    """
+    Returns the namespace URI associated with a QName in extended form or a local name.
+    If the argument is not conformant to QName format returns the empty string, which
+    means no namespace.
+    """
+    try:
+        if qname[0] != '{':
+            return ''
+        namespace, _ = qname[1:].split('}')
+    except (IndexError, ValueError):
+        return ''
+    except TypeError:
+        raise XMLSchemaTypeError("the argument must be a string-like object")
+    else:
+        return namespace
 
 
-def get_namespace(qname: str, namespaces: Optional[NsmapType] = None) -> str:
+def get_namespace_ext(qname: str, namespaces: Optional[NsmapType] = None) -> str:
     """
     Returns the namespace URI associated with a QName. If a namespace map is
     provided tries to resolve a prefixed QName and then to extract the namespace.
@@ -27,17 +43,10 @@ def get_namespace(qname: str, namespaces: Optional[NsmapType] = None) -> str:
     :param qname: an extended QName or a local name or a prefixed QName.
     :param namespaces: optional mapping from prefixes to namespace URIs.
     """
-    if not qname:
-        return ''
-    elif qname[0] != '{':
-        if namespaces is None:
-            return ''
-        qname = get_extended_qname(qname, namespaces)
-
-    try:
-        return NAMESPACE_PATTERN.match(qname).group(1)  # type: ignore[union-attr]
-    except (AttributeError, TypeError):
-        return ''
+    if not namespaces:
+        return get_namespace(qname)
+    else:
+        return get_namespace(get_extended_qname(qname, namespaces))
 
 
 def get_qname(uri: Optional[str], name: str) -> str:
@@ -49,8 +58,13 @@ def get_qname(uri: Optional[str], name: str) -> str:
     :param name: local or qualified name
     :return: string or the name argument
     """
-    if not uri or not name or name[0] in '{./[':
-        return name
+    try:
+        if name[0] in '{./[' or not uri:
+            return name
+    except IndexError:
+        return ''
+    except TypeError:
+        raise XMLSchemaTypeError("the 2nd argument must be a string-like object")
     else:
         return f'{{{uri}}}{name}'
 

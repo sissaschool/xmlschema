@@ -72,7 +72,11 @@ class WsdlComponent:
     def __init__(self, elem, wsdl_document):
         self.elem = elem
         self.wsdl_document = wsdl_document
-        self.name = get_qname(wsdl_document.target_namespace, elem.get('name'))
+
+        try:
+            self.name = get_qname(wsdl_document.target_namespace, elem.attrib['name'])
+        except KeyError:
+            self.name = None
 
     def __repr__(self):
         return '%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
