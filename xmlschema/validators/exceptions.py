@@ -446,10 +446,11 @@ class XMLSchemaChildrenValidationError(XMLSchemaValidationError):
                     wildcard = cast('XsdAnyElement', xsd_element)
                     if wildcard.process_contents == 'strict':
                         tmpl = 'from {!r} namespace/s'
+                        items = tuple(wildcard.namespace)
                         if len(wildcard.namespace) == 1:
-                            expected_tags.append(tmpl.format(wildcard.namespace[0]))
+                            expected_tags.append(tmpl.format(items[0]))
                         else:
-                            expected_tags.append(tmpl.format(wildcard.namespace))
+                            expected_tags.append(tmpl.format(items))
 
             if not expected_tags:
                 pass

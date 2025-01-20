@@ -10,8 +10,8 @@
 """
 This module contains classes for XML Schema attributes and attribute groups.
 """
-from collections.abc import Iterator, MutableMapping
-from copy import copy as _copy
+from collections.abc import     Iterator, MutableMapping
+from copy import copy
 from decimal import Decimal
 from functools import cached_property
 from typing import cast, Any, Optional, Union
@@ -409,9 +409,10 @@ class XsdAttributeGroup(
             elif child.tag == XSD_ANY_ATTRIBUTE:
                 any_attribute = self.builders.any_attribute_class(child, self.schema, self)
                 if None in attributes:
-                    attributes[None] = attr = _copy(attributes[None])
+                    attributes[None] = attr = copy(attributes[None])
                     assert isinstance(attr, XsdAnyAttribute)
                     attr.intersection(any_attribute)
+                    attr.parent = self
                 else:
                     attributes[None] = any_attribute
 
@@ -481,9 +482,10 @@ class XsdAttributeGroup(
                                     self.parse_error(msg.format(name))
                             else:
                                 assert isinstance(base_attr, XsdAnyAttribute)
-                                attributes[None] = attr = _copy(attributes[None])
+                                attributes[None] = attr = copy(attributes[None])
                                 assert isinstance(attr, XsdAnyAttribute)
                                 attr.intersection(base_attr)
+                                attr.parent = self
 
             elif self.name is not None:
                 msg = _("(attribute | attributeGroup) expected, found {!r}.")
@@ -582,8 +584,9 @@ class XsdAttributeGroup(
         self._attribute_group.update(attributes)
         if None in self._attribute_group and None not in attributes \
                 and self.derivation == 'restriction':
-            wildcard = _copy(cast(XsdAnyAttribute, self._attribute_group[None]))
-            wildcard.namespace = wildcard.not_namespace = wildcard.not_qname = ()
+            wildcard = copy(cast(XsdAnyAttribute, self._attribute_group[None]))
+            wildcard.namespace = set()
+            wildcard.not_namespace = wildcard.not_qname = ()
             self._attribute_group[None] = wildcard
 
         if self.xsd_version == '1.0':

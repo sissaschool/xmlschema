@@ -552,7 +552,7 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
         else:
             return self.base_type.root_type
 
-    @property
+    @cached_property
     def sequence_type(self) -> str:
         if self.is_empty():
             return 'empty-sequence()'
