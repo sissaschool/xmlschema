@@ -415,7 +415,9 @@ class XMLSchemaChildrenValidationError(XMLSchemaValidationError):
         self.occurs = occurs
         self.expected = expected
 
-        namespaces = getattr(validator, 'namespaces', {})
+        if namespaces is None:
+            namespaces = getattr(validator, 'namespaces', {})
+
         if index >= len(elem):
             self.invalid_tag = None
             tag = get_prefixed_qname(elem.tag, namespaces, use_empty=False)
@@ -434,34 +436,40 @@ class XMLSchemaChildrenValidationError(XMLSchemaValidationError):
                 particle, occurs, particle.max_occurs
             )
 
-        if expected is None:
-            pass
-        else:
-            expected_tags = []
-            for xsd_element in expected:
-                name = xsd_element.display_name
-                if name is not None:
-                    expected_tags.append(name)
-                elif hasattr(xsd_element, 'process_contents'):
-                    wildcard = cast('XsdAnyElement', xsd_element)
-                    if wildcard.process_contents == 'strict':
-                        tmpl = 'from {!r} namespace/s'
-                        items = tuple(wildcard.namespace)
-                        if len(wildcard.namespace) == 1:
-                            expected_tags.append(tmpl.format(items[0]))
-                        else:
-                            expected_tags.append(tmpl.format(items))
+        expected_tags = self.expected_tags
 
-            if not expected_tags:
-                pass
-            elif len(expected_tags) > 1:
-                reason += _(" Tag (%s) expected.") % ' | '.join(repr(tag) for tag in expected_tags)
-            elif expected_tags[0].startswith('from '):
-                reason += _(" Tag %s expected.") % expected_tags[0]
-            else:
-                reason += _(" Tag %r expected.") % expected_tags[0]
+        if not expected_tags:
+            pass
+        elif len(expected_tags) > 1:
+            reason += _(" Tag (%s) expected.") % ' | '.join(repr(tag) for tag in expected_tags)
+        elif expected_tags[0].startswith('from '):
+            reason += _(" Tag %s expected.") % expected_tags[0]
+        else:
+            reason += _(" Tag %r expected.") % expected_tags[0]
 
         super().__init__(validator, elem, reason, source, namespaces)
+
+    @property
+    def expected_tags(self) -> list[str]:
+        expected_tags: list[str] = []
+        if not self.expected:
+            return expected_tags
+
+        for xsd_element in self.expected:
+            name = xsd_element.display_name
+            if name is not None:
+                expected_tags.append(name)
+            elif hasattr(xsd_element, 'process_contents'):
+                wildcard = cast('XsdAnyElement', xsd_element)
+                if wildcard.process_contents == 'strict':
+                    tmpl = 'from {!r} namespace/s'
+                    items = tuple(wildcard.namespace)
+                    if len(wildcard.namespace) == 1:
+                        expected_tags.append(tmpl.format(items[0]))
+                    else:
+                        expected_tags.append(tmpl.format(items))
+
+        return expected_tags
 
     @property
     def invalid_child(self) -> Optional[ElementType]:
