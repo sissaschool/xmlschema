@@ -14,7 +14,6 @@ import re
 from copy import copy as _copy
 from decimal import DecimalException
 from collections.abc import Callable, Iterator
-from functools import cached_property
 from typing import cast, Any, Optional, Union, Type
 from xml.etree import ElementTree
 
@@ -31,6 +30,7 @@ from xmlschema.names import XSD_NAMESPACE, XSD_ANY_TYPE, XSD_SIMPLE_TYPE, XSD_PA
     XSD_ASSERTION, XSD_ID, XSD_IDREF, XSD_FRACTION_DIGITS, XSD_TOTAL_DIGITS, \
     XSD_EXPLICIT_TIMEZONE, XSD_ERROR, XSD_ASSERT, XSD_QNAME, XSD_NOTATION
 from xmlschema.translation import gettext as _
+from xmlschema.utils.descriptors import cached_property
 from xmlschema.utils.qnames import local_name, get_extended_qname
 from xmlschema.resources import XMLResource
 

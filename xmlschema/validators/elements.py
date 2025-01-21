@@ -776,20 +776,22 @@ class XsdElement(XsdComponent, ParticleMixin,
 
             if context.value_hook is not None:
                 value = context.value_hook(value, xsd_type)
-            elif isinstance(value, (int, float, list)) or value is None:
+
+            elif isinstance(value, list):
+                if any(not isinstance(v, context.keep_datatypes) for v in value):
+                    print(value)
+            elif isinstance(value, context.keep_datatypes) or value is None:
                 pass
             elif isinstance(value, str):
-                if value.startswith('{') and xsd_type.is_qname():
+                if value[:1] == '{' and xsd_type.is_qname():
                     value = text
             elif isinstance(value, Decimal):
                 if context.decimal_type is not None:
                     value = context.decimal_type(value)
             elif isinstance(value, (AbstractDateTime, Duration)):
-                if not context.datetime_types:
-                    value = str(value) if text is None else text.strip()
-            elif isinstance(value, AbstractBinary):
-                if not context.binary_types:
-                    value = str(value)
+                value = str(value) if text is None else text.strip()
+            else:
+                value = str(value)
 
         context.id_list = id_list
         xmlns = converter.set_context(obj, context.level)  # Purge existing sub-contexts

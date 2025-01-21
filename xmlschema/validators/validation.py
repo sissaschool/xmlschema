@@ -8,6 +8,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import copy
+import decimal
 import logging
 from abc import abstractmethod
 from collections import Counter
@@ -15,10 +16,10 @@ from collections.abc import Iterable, Iterator
 from typing import Any, Generic, Optional, Type, TYPE_CHECKING, TypeVar, Union
 from xml.etree.ElementTree import Element
 
-import elementpath.datatypes as datatypes
+from elementpath.datatypes import AbstractDateTime, AbstractBinary, Duration
 
 from xmlschema.exceptions import XMLSchemaValueError, XMLSchemaTypeError
-from xmlschema.aliases import DecodeType, DepthFillerType, ElementType, \
+from xmlschema.aliases import DecodeType, DepthFillerType, ElementType, BaseXsdType, \
     ElementHookType, EncodeType, ExtraValidatorType, FillerType, IterDecodeType, \
     IterEncodeType, ModelParticleType, NsmapType, SerializerType, SchemaElementType, \
     SchemaType, ValidationHookType, ValueHookType, IOType, ErrorsType
@@ -287,6 +288,7 @@ class DecodeContext(ValidationContext):
                  depth_filler: Optional[DepthFillerType] = None,
                  value_hook: Optional[ValueHookType] = None,
                  element_hook: Optional[ElementHookType] = None,
+
                  **kwargs: Any) -> None:
 
         self.validation_only = validation_only
@@ -310,6 +312,16 @@ class DecodeContext(ValidationContext):
         self.value_hook = value_hook
         self.element_hook = element_hook
 
+        keep_datatypes = [int, float, list]
+        if decimal_type is None:
+            keep_datatypes.append(decimal.Decimal)
+        if datetime_types:
+            keep_datatypes.append(AbstractDateTime)
+            keep_datatypes.append(Duration)
+        if binary_types:
+            keep_datatypes.append(AbstractBinary)
+        self.keep_datatypes = tuple(keep_datatypes)
+
     def decode_error(self,
                      validation: str,
                      validator: 'XsdValidator',
@@ -325,6 +337,28 @@ class DecodeContext(ValidationContext):
             namespaces=self.namespaces,
         )
         return self.raise_or_collect(validation, error)
+
+    def get_value(self, value: Any, text, xsd_type) -> Any:
+        if self.value_hook is not None:
+            return self.value_hook(value, xsd_type)
+        elif isinstance(value, list):
+            if any(not isinstance(v, self.keep_datatypes) for v in value):
+                values = []
+                for k, t in text.split():
+                    values.append(self.get_value(value[k], t, xsd_type))
+                return values
+        elif isinstance(value, self.keep_datatypes) or value is None:
+            pass
+        elif isinstance(value, str):
+            if value[:1] == '{' and xsd_type.is_qname():
+                return text
+        elif isinstance(value, decimal.Decimal):
+            if self.decimal_type is not None:
+                return self.decimal_type(value)
+        elif isinstance(value, (AbstractDateTime, Duration)):
+            return str(value) if text is None else text.strip()
+        else:
+            return str(value)
 
 
 class EncodeContext(ValidationContext):

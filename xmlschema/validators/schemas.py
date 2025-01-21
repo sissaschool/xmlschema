@@ -21,7 +21,6 @@ import threading
 import re
 import sys
 from collections.abc import Callable, Iterator
-from functools import cached_property
 from operator import attrgetter
 from pathlib import Path
 from typing import Any, cast, Optional, Union, Type
@@ -41,6 +40,7 @@ from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaKeyError, \
     XMLSchemaAttributeError
 from xmlschema.translation import gettext as _
 from xmlschema.utils.decoding import Empty
+from xmlschema.utils.descriptors import cached_property
 from xmlschema.utils.logger import set_logging_level
 from xmlschema.utils.etree import prune_etree, is_etree_element
 from xmlschema.utils.qnames import get_namespace_ext

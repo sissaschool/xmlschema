@@ -7,18 +7,51 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+import sys
 from collections.abc import Callable, Iterable
-from typing import Any, cast, Generic, Optional, overload, Type, TypeVar, Union
+from typing import Any, cast, Generic, Optional, overload, TypeVar, Union
 
+from xmlschema.aliases import ClassInfoType
 from xmlschema.exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, XMLSchemaValueError
 from xmlschema.translation import gettext as _
 
-ClassInfoType = Union[Type[Any], tuple[Type[Any], ...]]
+__all__ = ['cached_property', 'Argument', 'ChoiceArgument', 'ValueArgument']
 
-AT = TypeVar('AT')
+T = TypeVar('T')
+
+if sys.version_info >= (3, 12):
+    from functools import cached_property
+else:
+
+    class cached_property(Generic[T]):
+
+        __slots__ = ('func', '_name', '__doc__')
+
+        def __init__(self, func: Callable[[Any], T]) -> None:
+            self.func = func
+            self.__doc__ = func.__doc__
+            # self.__module__ = func.__module__
+
+        def __set_name__(self, owner: type[Any], name: str) -> None:
+            self._name = name
+
+        @overload
+        def __get__(self, instance: None, owner: type[Any]) -> 'cached_property[T]': ...
+
+        @overload
+        def __get__(self, instance: Any, owner: type[Any]) -> T: ...
+
+        def __get__(self, instance: Optional[Any], owner: type[Any]) \
+                -> Union['cached_property[T]', T]:
+            if instance is None:
+                return self
+
+            if self._name not in instance.__dict__:
+                instance.__dict__[self._name] = self.func(instance)
+            return cast(T, instance.__dict__[self._name])
 
 
-class Argument(Generic[AT]):
+class Argument(Generic[T]):
     """
     A validated initialization argument, with a private attribute that
     can set only if it's not defined yet.
@@ -30,25 +63,25 @@ class Argument(Generic[AT]):
     :param nillable: defines when a `None` value is accepted.
     """
 
-    def __init__(self, types: Optional[ClassInfoType] = None,
+    def __init__(self, types: Optional[ClassInfoType[Any]] = None,
                  validators: Iterable[Callable[[Any], bool]] = (),
                  nillable: bool = True) -> None:
         self.types = types
         self.validators = validators
         self.nillable = nillable
 
-    def __set_name__(self, owner: Type[Any], name: str) -> None:
+    def __set_name__(self, owner: type[Any], name: str) -> None:
         self._name = name
         self._private_name = f'_{name}'
 
     @overload
-    def __get__(self, instance: None, owner: Type[Any]) -> 'Argument[AT]': ...
+    def __get__(self, instance: None, owner: type[Any]) -> 'Argument[T]': ...
 
     @overload
-    def __get__(self, instance: Any, owner: Type[Any]) -> AT: ...
+    def __get__(self, instance: Any, owner: type[Any]) -> T: ...
 
-    def __get__(self, instance: Optional[Any], owner: Type[Any]) \
-            -> Union['Argument[AT]', AT]:
+    def __get__(self, instance: Optional[Any], owner: type[Any]) \
+            -> Union['Argument[T]', T]:
         if instance is None:
             return self
         return self.validated_value(getattr(instance, self._private_name))
@@ -61,42 +94,42 @@ class Argument(Generic[AT]):
     def __delete__(self, instance: Any) -> None:
         raise XMLSchemaAttributeError(_("Can't delete attribute {}").format(self._name))
 
-    def validated_value(self, value: Any) -> AT:
+    def validated_value(self, value: Any) -> T:
         if value is None and self.nillable or \
                 self.types and isinstance(value, self.types) or \
                 any(func(value) for func in self.validators):
-            return cast(AT, value)
+            return cast(T, value)
         else:
             msg = _("invalid type {!r} for argument {!r}")
             raise XMLSchemaTypeError(msg.format(type(value), self._name))
 
 
-class ChoiceArgument(Argument[AT]):
+class ChoiceArgument(Argument[T]):
     """A string-type argument restricted by a set of choices."""
 
-    def __init__(self, types: ClassInfoType, choices: Iterable[AT]) -> None:
+    def __init__(self, types: ClassInfoType[Any], choices: Iterable[T]) -> None:
         super().__init__(types, nillable=False)
         self.choices = choices
 
-    def validated_value(self, value: Any) -> AT:
+    def validated_value(self, value: Any) -> T:
         value = super().validated_value(value)
         if value not in self.choices:
             msg = _("invalid value {!r} for argument {!r}: must be one of {}")
             raise XMLSchemaValueError(msg.format(value, self._name, tuple(self.choices)))
-        return cast(AT, value)
+        return cast(T, value)
 
 
-class ValueArgument(Argument[AT]):
+class ValueArgument(Argument[T]):
     """A typed argument with optional min and max values."""
 
-    def __init__(self, types: ClassInfoType,
-                 min_value: Optional[AT] = None,
-                 max_value: Optional[AT] = None) -> None:
+    def __init__(self, types: ClassInfoType[Any],
+                 min_value: Optional[T] = None,
+                 max_value: Optional[T] = None) -> None:
         super().__init__(types, nillable=False)
         self.min_value = min_value
         self.max_value = max_value
 
-    def validated_value(self, value: Any) -> AT:
+    def validated_value(self, value: Any) -> T:
         value = super().validated_value(value)
         if self.min_value is not None and value < self.min_value:
             msg = _("the argument {!r} must be greater or equal than {}")
@@ -104,4 +137,4 @@ class ValueArgument(Argument[AT]):
         elif self.max_value is not None and value > self.max_value:
             msg = _("the argument {!r} must be lesser or equal than {}")
             raise XMLSchemaValueError(msg.format(self._name, self.max_value))
-        return cast(AT, value)
+        return cast(T, value)

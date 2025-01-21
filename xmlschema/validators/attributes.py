@@ -13,7 +13,6 @@ This module contains classes for XML Schema attributes and attribute groups.
 from collections.abc import     Iterator, MutableMapping
 from copy import copy
 from decimal import Decimal
-from functools import cached_property
 from typing import cast, Any, Optional, Union
 
 from elementpath.datatypes import AbstractDateTime, Duration, AbstractBinary
@@ -26,6 +25,7 @@ from xmlschema.names import XSI_NAMESPACE, XSD_ANY_SIMPLE_TYPE, XSD_SIMPLE_TYPE,
     XSD_ATTRIBUTE, XSD_ANY_ATTRIBUTE, XSD_ASSERT, XSD_NOTATION_TYPE, XSD_ANNOTATION
 from xmlschema.translation import gettext as _
 from xmlschema.utils.decoding import EmptyType
+from xmlschema.utils.descriptors import cached_property
 from xmlschema.utils.qnames import get_namespace, get_qname
 
 from .exceptions import XMLSchemaCircularityError
@@ -259,14 +259,14 @@ class XsdAttribute(XsdComponent, ValidationMixin[str, DecodedValueType]):
 
         if context.value_hook is not None:
             return context.value_hook(value, self.type)  # type:ignore[arg-type]
-        elif isinstance(value, (int, float, list)):
+        elif isinstance(value, context.keep_datatypes):
             return value
         elif value is None:
             if context.filler is not None:
                 return context.filler(self)
             return value
         elif isinstance(value, str):
-            if value.startswith('{') and self.type.is_qname():
+            if value[:1] == '{' and self.type.is_qname():
                 return obj
             else:
                 return value
@@ -276,7 +276,7 @@ class XsdAttribute(XsdComponent, ValidationMixin[str, DecodedValueType]):
             else:
                 return context.decimal_type(value)
         elif isinstance(value, (AbstractDateTime, Duration)):
-            return value if context.datetime_types else obj.strip()
+            return obj.strip()
         elif isinstance(value, AbstractBinary) and not context.binary_types:
             return str(value)
         else:
