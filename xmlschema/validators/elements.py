@@ -20,7 +20,7 @@ from xml.etree.ElementTree import Element, ParseError
 
 from elementpath import XPath2Parser, ElementPathError, XPathContext, XPathToken, \
     ElementNode, LazyElementNode, SchemaElementNode, build_schema_node_tree
-from elementpath.datatypes import AbstractDateTime, Duration, AbstractBinary
+from elementpath.datatypes import AbstractDateTime, Duration
 
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from xmlschema.names import XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE, XSD_ALTERNATIVE, \
@@ -776,10 +776,6 @@ class XsdElement(XsdComponent, ParticleMixin,
 
             if context.value_hook is not None:
                 value = context.value_hook(value, xsd_type)
-
-            elif isinstance(value, list):
-                if any(not isinstance(v, context.keep_datatypes) for v in value):
-                    print(value)
             elif isinstance(value, context.keep_datatypes) or value is None:
                 pass
             elif isinstance(value, str):

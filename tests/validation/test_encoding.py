@@ -151,8 +151,7 @@ class TestEncoding(XsdValidatorTestCase):
     def test_double_builtin_type(self):
         self.check_encode(self.xsd_types['double'], -4531.7, '-4531.7')
 
-    def test_integer_builtin_type(self):
-
+    def test_positive_integer_builtin_type(self):
         self.check_encode(self.xsd_types['positiveInteger'], -1, XMLSchemaValidationError)
         self.check_encode(self.xsd_types['positiveInteger'], 0, XMLSchemaValidationError)
 

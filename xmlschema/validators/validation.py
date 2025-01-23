@@ -13,16 +13,17 @@ import logging
 from abc import abstractmethod
 from collections import Counter
 from collections.abc import Iterable, Iterator
-from typing import Any, Generic, Optional, Type, TYPE_CHECKING, TypeVar, Union
+from typing import Any, cast, Generic, Optional, Type, TYPE_CHECKING, TypeVar, Union
 from xml.etree.ElementTree import Element
 
-from elementpath.datatypes import AbstractDateTime, AbstractBinary, Duration
+from elementpath.datatypes import AnyAtomicType, AbstractDateTime, AbstractBinary, Duration
 
 from xmlschema.exceptions import XMLSchemaValueError, XMLSchemaTypeError
-from xmlschema.aliases import DecodeType, DepthFillerType, ElementType, BaseXsdType, \
+from xmlschema.aliases import DecodeType, DepthFillerType, ElementType, \
     ElementHookType, EncodeType, ExtraValidatorType, FillerType, IterDecodeType, \
-    IterEncodeType, ModelParticleType, NsmapType, SerializerType, SchemaElementType, \
-    SchemaType, ValidationHookType, ValueHookType, IOType, ErrorsType
+    IterEncodeType, ModelParticleType, NsmapType, SchemaElementType, \
+    SchemaType, ValidationHookType, ValueHookType, ErrorsType, ClassInfoType, \
+    DecodedValueType
 from xmlschema.translation import gettext as _
 from xmlschema.utils.decoding import EmptyType, raw_encode_value
 from xmlschema.utils.etree import is_etree_element, is_etree_document
@@ -56,9 +57,6 @@ def check_validation_mode(validation: str) -> None:
                                     "'lax' or 'skip': %r") % validation)
 
 
-Self = TypeVar('Self', bound='ValidationContext')
-
-
 class ValidationContext:
     """
     A context class for handling validated decoding process. It stores together
@@ -66,16 +64,10 @@ class ValidationContext:
     and parameters, as specific values or functions. Parameters can be provided
     as keyword-only arguments.
     """
-    # Context base settings
-    validation: str
-
-    collect_results: bool = True
-    validation_only: bool = False
-    fp: Optional[IOType] = None
-    serializer: Optional[SerializerType[str]] = None
+    validation_only: bool = True
 
     # Common status: set once, updated by validators.
-    errors: list[XMLSchemaValidationError]
+    errors: ErrorsType
     converter: Union[XMLSchemaConverter, NamespaceMapper]
     id_map: Counter[str]
     identities: dict['XsdIdentity', 'IdentityCounter']
@@ -85,11 +77,11 @@ class ValidationContext:
     elem: Optional[ElementType]
     attribute: Optional[str]
     id_list: Optional[list[Any]]
-    inherited: Optional[dict[str, str]]
+    inherited: dict[str, str]
     patterns: Optional['XsdPatternFacets']
     level: int
 
-    __slots__ = ('errors', 'converter', 'id_map', 'identities', 'source', 'elem',
+    __slots__ = ('errors', 'converter', 'id_map', 'identities', 'elem', 'namespaces',
                  'attribute', 'id_list', 'inherited', 'level', 'max_depth', '__dict__')
 
     def __init__(self,
@@ -98,90 +90,70 @@ class ValidationContext:
                  converter: Optional[ConverterType] = None,
                  level: int = 0,
                  elem: Optional[ElementType] = None,
-                 *,
                  check_identities: bool = False,
                  use_defaults: bool = True,
                  process_skipped: bool = False,
                  max_depth: Optional[int] = None,
+                 errors: Optional[ErrorsType] = None,
                  **kwargs: Any) -> None:
 
         check_validation_mode(validation)
+        self.source = source
         self.validation = validation
-
-        errors: Optional[ErrorsType] = kwargs.pop('errors', None)
-        if errors is None:
-            self.errors = []
-        else:
-            self.errors = errors
-
+        self.errors = [] if errors is None else errors
         self.id_map = Counter[str]()
         self.identities = {}
         self.inherited = {}
-
         self.level = level
         self.elem = elem
         self.attribute = None
         self.id_list = None
         self.patterns = None
-
-        if isinstance(source, XMLResource):
-            self.source = source
-        elif self.__class__ is EncodeContext:
-            self.source = source
-        elif is_etree_element(source) or is_etree_document(source):
-            self.source = XMLResource(source)
-        else:
-            self.source = source
-
-        if self.validation_only:
-            self.converter = NamespaceMapper(
-                namespaces=kwargs.get('namespaces'),
-                source=self.source,
-            )
-        else:
-            self.converter = get_converter(converter, source=self.source, **kwargs)
-
         self.check_identities = check_identities
         self.use_defaults = use_defaults
         self.process_skipped = process_skipped
         self.max_depth = max_depth
 
-        self.collect_results = self.fp is None and not self.validation_only
+        if self.validation_only:
+            self.converter = NamespaceMapper(
+                kwargs.get('namespaces'), source=self.source
+            )
+        else:
+            self.converter = get_converter(converter, source=source, **kwargs)
+        self.namespaces = self.converter.namespaces
 
-    def __copy__(self: Self) -> Self:
-        context = object.__new__(self.__class__)
-        for attr in ValidationContext.__slots__:
-            if attr != 'source':
-                setattr(context, attr, copy.copy(getattr(self, attr)))
-        context.source = self.source
-        return context
-
-    def clean_copy(self: Self) -> Self:
+    def __copy__(self) -> 'ValidationContext':
         context = object.__new__(self.__class__)
         context.__dict__.update(self.__dict__)
 
-        context.source = self.source
-        context.errors = []
-        context.id_map = Counter[str]()
-        context.identities = {}
-        context.inherited = {}
-        context.level = 0
-        context.elem = None
-        context.attribute = None
-        context.id_list = None
-        context.patterns = None
+        context.errors = self.errors.copy()
+        context.id_map = self.id_map.copy()
+        context.identities = self.identities.copy()
+        context.inherited = self.inherited.copy()
+        context.id_list = self.id_list if self.id_list is None else self.id_list.copy()
+        context.elem = self.elem
+        context.attribute = self.attribute
+        context.level = self.level
         context.max_depth = self.max_depth
 
         if self.converter.xmlns_processing == 'none':
             context.converter = self.converter
+            context.namespaces = self.namespaces
         else:
             context.converter = copy.copy(self.converter)
-
+            context.namespaces = context.converter.namespaces
         return context
 
-    @property
-    def namespaces(self) -> NsmapType:
-        return self.converter.namespaces
+    def clear(self) -> None:
+        self.errors.clear()
+        self.id_map.clear()
+        self.identities.clear()
+        self.inherited.clear()
+        self.level = 0
+        self.elem = None
+        self.attribute = None
+        self.id_list = None
+        self.patterns = None
 
     @property
     def root_namespace(self) -> Optional[str]:
@@ -288,22 +260,33 @@ class DecodeContext(ValidationContext):
                  depth_filler: Optional[DepthFillerType] = None,
                  value_hook: Optional[ValueHookType] = None,
                  element_hook: Optional[ElementHookType] = None,
-
+                 errors: Optional[list[XMLSchemaValidationError]] = None,
                  **kwargs: Any) -> None:
 
+        if not isinstance(source, XMLResource):
+            # source is not a XMLResource, then create a new resource from
+            # source element or a dummy document from data.
+            if is_etree_element(source) or is_etree_document(source):
+                source = XMLResource(source)
+            elif elem is not None:
+                source = XMLResource(elem)
+            elif isinstance(source, dict):
+                root = Element('root', attrib=source)
+                source = XMLResource(root)
+            elif source is None or isinstance(source, (AnyAtomicType, bytes)):
+                root = Element('root')
+                root.text = raw_encode_value(cast(DecodedValueType, source))
+                source = XMLResource(root)
+            else:
+                raise XMLSchemaTypeError(
+                    "incompatible type {!r} for source argument".format(type(source))
+                )
+
         self.validation_only = validation_only
-        super().__init__(source, validation, converter, level, elem,
-                         check_identities=check_identities,
-                         use_defaults=use_defaults,
-                         process_skipped=process_skipped,
-                         max_depth=max_depth,
-                         **kwargs)
         self.extra_validator = extra_validator
         self.validation_hook = validation_hook
         self.use_location_hints = use_location_hints
         self.decimal_type = decimal_type
-        self.datetime_types = datetime_types
-        self.binary_types = binary_types
         self.filler = filler
         self.fill_missing = fill_missing
         self.keep_empty = keep_empty
@@ -312,7 +295,7 @@ class DecodeContext(ValidationContext):
         self.value_hook = value_hook
         self.element_hook = element_hook
 
-        keep_datatypes = [int, float, list]
+        keep_datatypes: list[type[DecodedValueType]] = [int, float, list]
         if decimal_type is None:
             keep_datatypes.append(decimal.Decimal)
         if datetime_types:
@@ -320,7 +303,11 @@ class DecodeContext(ValidationContext):
             keep_datatypes.append(Duration)
         if binary_types:
             keep_datatypes.append(AbstractBinary)
-        self.keep_datatypes = tuple(keep_datatypes)
+        self.keep_datatypes: ClassInfoType[DecodedValueType] = tuple(keep_datatypes)
+
+        super().__init__(source, validation, converter, level, elem,
+                         check_identities, use_defaults, process_skipped,
+                         max_depth, errors, **kwargs)
 
     def decode_error(self,
                      validation: str,
@@ -338,33 +325,12 @@ class DecodeContext(ValidationContext):
         )
         return self.raise_or_collect(validation, error)
 
-    def get_value(self, value: Any, text, xsd_type) -> Any:
-        if self.value_hook is not None:
-            return self.value_hook(value, xsd_type)
-        elif isinstance(value, list):
-            if any(not isinstance(v, self.keep_datatypes) for v in value):
-                values = []
-                for k, t in text.split():
-                    values.append(self.get_value(value[k], t, xsd_type))
-                return values
-        elif isinstance(value, self.keep_datatypes) or value is None:
-            pass
-        elif isinstance(value, str):
-            if value[:1] == '{' and xsd_type.is_qname():
-                return text
-        elif isinstance(value, decimal.Decimal):
-            if self.decimal_type is not None:
-                return self.decimal_type(value)
-        elif isinstance(value, (AbstractDateTime, Duration)):
-            return str(value) if text is None else text.strip()
-        else:
-            return str(value)
-
 
 class EncodeContext(ValidationContext):
     """A context for handling validated encoding processes."""
-    converter: XMLSchemaConverter
     source: Any
+    converter: XMLSchemaConverter
+    validation_only = False
 
     def __init__(self,
                  source: Any,
@@ -378,15 +344,13 @@ class EncodeContext(ValidationContext):
                  unordered: bool = False,
                  process_skipped: bool = False,
                  max_depth: Optional[int] = None,
+                 errors: Optional[list[XMLSchemaValidationError]] = None,
                  **kwargs: Any) -> None:
 
-        super().__init__(source, validation, converter, level, elem,
-                         check_identities=check_identities,
-                         use_defaults=use_defaults,
-                         process_skipped=process_skipped,
-                         max_depth=max_depth,
-                         **kwargs)
         self.unordered = unordered
+        super().__init__(source, validation, converter, level, elem,
+                         check_identities, use_defaults, process_skipped,
+                         max_depth, errors, **kwargs)
 
     def encode_error(self,
                      validation: str,

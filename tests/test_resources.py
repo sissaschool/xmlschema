@@ -1444,7 +1444,7 @@ class TestResources(unittest.TestCase):
         def iterparse(fp, events):
             # Ignore deprecation warning of 'strip_cdata' option of HTMLParser(),
             # no way to provide a parser instance or other parameters.
-            with warnings.catch_warnings(category=DeprecationWarning):
+            with warnings.catch_warnings():
                 warnings.simplefilter('ignore')
                 return lxml_etree.iterparse(fp, events=events, html=True)
 

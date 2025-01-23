@@ -11,7 +11,7 @@
 This module contains classes for XML Schema simple data types.
 """
 import re
-from copy import copy as _copy
+from copy import copy
 from decimal import DecimalException
 from collections.abc import Callable, Iterator
 from typing import cast, Any, Optional, Union, Type
@@ -472,14 +472,15 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
     def text_decode(self, text: str, validation: str = 'skip',
                     context: Optional[DecodeContext] = None) -> DecodedValueType:
         if context is None:
-            context = self.schema.validation_context
+            self.schema.validation_context.clear()
+            return self.raw_decode(text, validation, self.schema.validation_context)
         return self.raw_decode(text, validation, context)
 
     def text_is_valid(self, text: str, context: Optional[DecodeContext] = None) -> bool:
         if context is None:
-            context = self.schema.validation_context.clean_copy()
-            self.raw_decode(text, 'lax', context)
-            return not context.errors
+            self.schema.validation_context.clear()
+            self.raw_decode(text, 'lax', self.schema.validation_context)
+            return not self.schema.validation_context.errors
         else:
             try:
                 self.raw_decode(text, 'strict', context)
@@ -1124,7 +1125,7 @@ class XsdUnion(XsdSimpleType):
 
         xsd_type = None
         for mt in self.member_types:
-            temp_context = _copy(context)
+            temp_context = copy(context)
             temp_context.errors.clear()
 
             result = mt.raw_decode(obj, 'lax', temp_context)
@@ -1163,7 +1164,7 @@ class XsdUnion(XsdSimpleType):
 
         xsd_type = None
         for mt in self.member_types:
-            temp_context = _copy(context)
+            temp_context = copy(context)
             temp_context.errors.clear()
 
             result = mt.raw_encode(obj, 'lax', temp_context)

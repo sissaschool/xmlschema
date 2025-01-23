@@ -10,12 +10,12 @@
 """
 This module contains classes for XML Schema attributes and attribute groups.
 """
-from collections.abc import     Iterator, MutableMapping
+from collections.abc import Iterator, MutableMapping
 from copy import copy
 from decimal import Decimal
 from typing import cast, Any, Optional, Union
 
-from elementpath.datatypes import AbstractDateTime, Duration, AbstractBinary
+from elementpath.datatypes import AbstractDateTime, Duration
 
 from xmlschema.aliases import ComponentClassType, ElementType, \
     AtomicValueType, SchemaType, DecodedValueType, NsmapType
@@ -277,10 +277,8 @@ class XsdAttribute(XsdComponent, ValidationMixin[str, DecodedValueType]):
                 return context.decimal_type(value)
         elif isinstance(value, (AbstractDateTime, Duration)):
             return obj.strip()
-        elif isinstance(value, AbstractBinary) and not context.binary_types:
-            return str(value)
         else:
-            return value
+            return str(value)
 
     def raw_encode(self, obj: Any, validation: str, context: EncodeContext) -> Optional[str]:
         return self.type.raw_encode(obj, validation, context)
@@ -671,7 +669,7 @@ class XsdAttributeGroup(
         result: AttributeGroupDecodeType
         value: Any
 
-        result = [] if context.collect_results else None
+        result = None if context.validation_only else []
         for name, value in obj.items():
             try:
                 xsd_attribute = self._attribute_group[name]
@@ -733,7 +731,7 @@ class XsdAttributeGroup(
             context.validation_error(validation, self, reason, obj)
 
         result: AttributeGroupEncodeType
-        result = [] if context.collect_results else None
+        result = None if context.validation_only else []
         for name, value in obj.items():
             try:
                 xsd_attribute = self._attribute_group[name]

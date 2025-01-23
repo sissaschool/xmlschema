@@ -21,8 +21,7 @@ from typing import Any, AnyStr, IO, Optional, Type, TYPE_CHECKING, TypeVar, Unio
 from xml.etree.ElementTree import Element, ElementTree
 
 from elementpath.datatypes import NormalizedString, QName, Float10, Integer, \
-    Time, Base64Binary, HexBinary, AnyURI, Duration
-from elementpath.datatypes.datetime import OrderedDateTime
+    AnyURI, Duration, AbstractDateTime, AbstractBinary
 from elementpath.protocols import ElementProtocol, DocumentProtocol
 from elementpath import ElementNode, LazyElementNode, DocumentNode
 
@@ -32,8 +31,8 @@ __all__ = ['ElementType', 'ElementTreeType', 'XMLSourceType', 'NsmapType', 'Loca
            'NormalizedLocationsType', 'LocationsType', 'NsmapType', 'XmlnsType',
            'ParentMapType', 'SchemaType', 'BaseXsdType', 'SchemaElementType',
            'SchemaAttributeType', 'SchemaGlobalType', 'ModelGroupType',
-           'ModelParticleType', 'XPathElementType', 'AtomicValueType', 'NumericValueType',
-           'DateTimeType', 'SchemaSourceType', 'ComponentClassType',
+           'ModelParticleType', 'XPathElementType', 'AtomicValueType',
+           'NumericValueType', 'SchemaSourceType', 'ComponentClassType',
            'LoadedItemType', 'StagedItemType', 'ExtraValidatorType',
            'ValidationHookType', 'DecodeType', 'IterDecodeType',
            'JsonDecodeType', 'EncodeType', 'IterEncodeType', 'DecodedValueType',
@@ -109,10 +108,9 @@ StagedItemType = Union[LoadedItemType, list[LoadedItemType], tuple[LoadedItemTyp
 ##
 # Type aliases for datatypes
 AtomicValueType = Union[str, bytes, int, float, Decimal, bool, Integer,
-                        Float10, NormalizedString, AnyURI, HexBinary,
-                        Base64Binary, QName, Duration, OrderedDateTime, Time]
+                        Float10, NormalizedString, AnyURI, QName, Duration,
+                        AbstractDateTime, AbstractBinary]
 NumericValueType = Union[str, bytes, int, float, Decimal]
-DateTimeType = Union[OrderedDateTime, Time]
 
 ##
 # Type aliases for validation/decoding/encoding

@@ -950,7 +950,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         :param context: the encoding context.
         :return: a list of 3-tuples (key, decoded data, decoder).
         """
-        result: GroupDecodeType = [] if context.collect_results else None
+        result: GroupDecodeType = None if context.validation_only else []
         cdata_index = 1  # keys for CDATA sections are positive integers
         index = 0
 
@@ -1092,7 +1092,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
 
         errors = []
         text = raw_encode_value(obj.text)
-        children = [] if context.collect_results else None
+        children = None if context.validation_only else []
 
         converter = context.converter
         padding = context.padding
