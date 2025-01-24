@@ -7,48 +7,58 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-import sys
 from collections.abc import Callable, Iterable
-from typing import Any, cast, Generic, Optional, overload, TypeVar, Union
+from threading import Lock
+from typing import Any, cast, Generic, Optional, overload, TypeVar, TYPE_CHECKING, Union
 
 from xmlschema.aliases import ClassInfoType
 from xmlschema.exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, XMLSchemaValueError
 from xmlschema.translation import gettext as _
 
-__all__ = ['cached_property', 'Argument', 'ChoiceArgument', 'ValueArgument']
+if TYPE_CHECKING:
+    from xmlschema.validators.xsdbase import XsdComponent
+
+__all__ = ['component_property', 'Argument', 'ChoiceArgument', 'ValueArgument']
+
+CT = TypeVar('CT', bound='XsdComponent')
+
+
+# noinspection PyPep8Naming
+class component_property(Generic[CT]):
+
+    __slots__ = ('func', 'lock', '_name', '__doc__')
+
+    def __init__(self, func: Callable[[Any], CT]) -> None:
+        self.func = func
+        self.lock = Lock()
+        self.__doc__ = func.__doc__
+
+    def __set_name__(self, owner: type[Any], name: str) -> None:
+        self._name = name
+
+    @overload
+    def __get__(self, instance: None, owner: type[Any]) -> 'component_property[CT]': ...
+
+    @overload
+    def __get__(self, instance: Any, owner: type[Any]) -> CT: ...
+
+    def __get__(self, instance: Optional[Any], owner: type[Any]) \
+            -> Union['component_property[CT]', CT]:
+        if instance is None:
+            return self
+
+        if self._name not in instance.__dict__:
+            value = self.func(instance)
+            if not instance.built:
+                return value
+            with self.lock:
+                if self._name not in instance.__dict__:
+                    instance.__dict__[self._name] = value
+
+        return cast(CT, instance.__dict__[self._name])
+
 
 T = TypeVar('T')
-
-if sys.version_info >= (3, 12):
-    from functools import cached_property
-else:
-
-    class cached_property(Generic[T]):
-
-        __slots__ = ('func', '_name', '__doc__')
-
-        def __init__(self, func: Callable[[Any], T]) -> None:
-            self.func = func
-            self.__doc__ = func.__doc__
-            # self.__module__ = func.__module__
-
-        def __set_name__(self, owner: type[Any], name: str) -> None:
-            self._name = name
-
-        @overload
-        def __get__(self, instance: None, owner: type[Any]) -> 'cached_property[T]': ...
-
-        @overload
-        def __get__(self, instance: Any, owner: type[Any]) -> T: ...
-
-        def __get__(self, instance: Optional[Any], owner: type[Any]) \
-                -> Union['cached_property[T]', T]:
-            if instance is None:
-                return self
-
-            if self._name not in instance.__dict__:
-                instance.__dict__[self._name] = self.func(instance)
-            return cast(T, instance.__dict__[self._name])
 
 
 class Argument(Generic[T]):

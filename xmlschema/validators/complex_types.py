@@ -8,6 +8,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from collections.abc import Iterator
+from functools import cached_property
 from typing import cast, Any, Optional, Union
 
 from elementpath.datatypes import AnyAtomicType
@@ -21,7 +22,6 @@ from xmlschema.aliases import ElementType, NsmapType, SchemaType, ComponentClass
     DecodeType, BaseXsdType, DecodedValueType, ExtraValidatorType, ValidationHookType
 from xmlschema.translation import gettext as _
 from xmlschema.utils.qnames import get_qname, local_name
-from xmlschema.utils.descriptors import cached_property
 
 from .exceptions import XMLSchemaCircularityError, XMLSchemaDecodeError
 from .validation import DecodeContext, EncodeContext, ValidationMixin

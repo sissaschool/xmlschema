@@ -12,6 +12,7 @@ This module contains base functions and classes XML Schema components.
 """
 import logging
 from collections.abc import Iterator, MutableMapping
+from functools import cached_property
 from typing import TYPE_CHECKING, cast, Any, Optional, Union
 
 from elementpath import select
@@ -24,7 +25,6 @@ from xmlschema.names import XSD_ANNOTATION, XSD_APPINFO, XSD_DOCUMENTATION, \
 from xmlschema.aliases import ElementType, NsmapType, SchemaType, BaseXsdType, \
     ComponentClassType, DecodedValueType
 from xmlschema.translation import gettext as _
-from xmlschema.utils.descriptors import cached_property
 from xmlschema.utils.qnames import get_qname, local_name, get_prefixed_qname
 from xmlschema.utils.etree import is_etree_element
 from xmlschema.utils.logger import format_xmlschema_stack

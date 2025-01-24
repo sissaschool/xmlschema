@@ -11,9 +11,10 @@
 This module contains classes for XML Schema simple data types.
 """
 import re
+from collections.abc import Callable, Iterator
 from copy import copy
 from decimal import DecimalException
-from collections.abc import Callable, Iterator
+from functools import cached_property
 from typing import cast, Any, Optional, Union, Type
 from xml.etree import ElementTree
 
@@ -30,7 +31,6 @@ from xmlschema.names import XSD_NAMESPACE, XSD_ANY_TYPE, XSD_SIMPLE_TYPE, XSD_PA
     XSD_ASSERTION, XSD_ID, XSD_IDREF, XSD_FRACTION_DIGITS, XSD_TOTAL_DIGITS, \
     XSD_EXPLICIT_TIMEZONE, XSD_ERROR, XSD_ASSERT, XSD_QNAME, XSD_NOTATION
 from xmlschema.translation import gettext as _
-from xmlschema.utils.descriptors import cached_property
 from xmlschema.utils.qnames import local_name, get_extended_qname
 from xmlschema.resources import XMLResource
 
@@ -378,7 +378,7 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
     def content_type_label(self) -> str:
         return 'empty' if self.max_length == 0 else 'simple'
 
-    @cached_property
+    @property
     def root_type(self) -> BaseXsdType:
         if self.base_type is None:
             return self
@@ -387,7 +387,7 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
         else:
             return self.base_type.root_type
 
-    @cached_property
+    @property
     def sequence_type(self) -> str:
         if self.is_empty():
             return 'empty-sequence()'
@@ -942,7 +942,7 @@ class XsdList(XsdSimpleType):
     def admitted_facets(self) -> set[str]:
         return XSD_10_LIST_FACETS if self.xsd_version == '1.0' else XSD_11_LIST_FACETS
 
-    @cached_property
+    @property
     def root_type(self) -> BaseXsdType:
         return self.item_type.root_type
 

@@ -17,10 +17,10 @@ the standard.
 from abc import ABCMeta
 import os
 import logging
-import threading
 import re
 import sys
 from collections.abc import Callable, Iterator
+from functools import cached_property
 from operator import attrgetter
 from pathlib import Path
 from typing import Any, cast, Optional, Union, Type
@@ -40,7 +40,6 @@ from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaKeyError, \
     XMLSchemaAttributeError
 from xmlschema.translation import gettext as _
 from xmlschema.utils.decoding import Empty
-from xmlschema.utils.descriptors import cached_property
 from xmlschema.utils.logger import set_logging_level
 from xmlschema.utils.etree import prune_etree, is_etree_element
 from xmlschema.utils.qnames import get_namespace_ext
@@ -302,7 +301,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                  build: bool = True) -> None:
 
         super().__init__(validation)
-        self._xpath_lock = threading.Lock()  # Lock for build operations
 
         if loglevel is not None:
             set_logging_level(loglevel)
@@ -558,8 +556,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         for attr in self._mro_slots():
             if attr not in state:
                 state[attr] = getattr(self, attr)
-
-        state.pop('_xpath_lock', None)
         return state
 
     def __setstate__(self, state: dict[str, Any]) -> None:
@@ -568,7 +564,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 object.__setattr__(self, attr, state.pop(attr))
 
         self.__dict__.update(state)
-        self._xpath_lock = threading.Lock()
 
     def __copy__(self) -> SchemaType:
         schema: SchemaType = object.__new__(self.__class__)
@@ -598,8 +593,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     @cached_property
     def xpath_node(self) -> SchemaElementNode:
         """Returns an XPath node for processing an XPath expression on the schema instance."""
-        with self._xpath_lock:
-            return build_schema_node_tree(root=self, uri=self.source.url)
+        return build_schema_node_tree(root=self, uri=self.source.url)
 
     @property
     def xpath_tokens(self) -> dict[str, Type[XPathToken]]:
