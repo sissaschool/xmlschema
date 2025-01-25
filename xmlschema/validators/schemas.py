@@ -1654,6 +1654,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                     unordered: bool = False,
                     process_skipped: bool = False,
                     max_depth: Optional[int] = None,
+                    untyped_data: bool = False,
                     **kwargs: Any) -> Iterator[Union[Element, XMLSchemaValidationError]]:
         """
         Creates an iterator for encoding a data structure to an ElementTree's Element.
@@ -1673,6 +1674,9 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         :param process_skipped: process XML decoded data that match a wildcard with \
         `processContents='skip'`.
         :param max_depth: maximum level of encoding, for default there is no limit.
+        :param untyped_data: for default xs:untypedAtomic datatype is not accepted as \
+        a decoded value, set to true to extend the compatibility of with string and \
+        untyped values to all builtin datatypes.
         :param kwargs: keyword arguments with other options for building the \
         converter instance.
         :return: yields an Element instance/s or validation/encoding errors.
@@ -1692,7 +1696,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             converter=converter,
             unordered=unordered,
             process_skipped=process_skipped,
-            max_depth=max_depth
+            max_depth=max_depth,
+            untyped_data=untyped_data,
         )
         context = EncodeContext(obj, validation, **kwargs)
 

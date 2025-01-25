@@ -345,10 +345,12 @@ class EncodeContext(ValidationContext):
                  unordered: bool = False,
                  process_skipped: bool = False,
                  max_depth: Optional[int] = None,
+                 untyped_data: bool = False,
                  errors: Optional[list[XMLSchemaValidationError]] = None,
                  **kwargs: Any) -> None:
 
         self.unordered = unordered
+        self.untyped_data = untyped_data
         super().__init__(source, validation, converter, level, elem,
                          check_identities, use_defaults, process_skipped,
                          max_depth, errors, **kwargs)

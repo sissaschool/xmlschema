@@ -133,14 +133,14 @@ class TestEncoding(XsdValidatorTestCase):
 
     def test_integer_builtin_type(self):
         self.check_encode(self.xsd_types['integer'], 1000, '1000')
-        self.check_encode(self.xsd_types['integer'], ' 1000', '1000')
+        self.check_encode(self.xsd_types['integer'], ' 1000', '1000', untyped_data=True)
         self.check_encode(self.xsd_types['integer'], datatypes.Integer(1000), '1000')
         self.check_encode(self.xsd_types['integer'], 100.0, XMLSchemaEncodeError)
         self.check_encode(self.xsd_types['integer'], 100.0, '100', validation='lax')
 
     def test_short_builtin_type(self):
         self.check_encode(self.xsd_types['short'], 1999, '1999')
-        self.check_encode(self.xsd_types['short'], ' 1999 ', '1999')
+        self.check_encode(self.xsd_types['short'], ' 1999 ', '1999', untyped_data=True)
         self.check_encode(self.xsd_types['short'], datatypes.Short(1999), '1999')
         self.check_encode(self.xsd_types['short'], 10000000, XMLSchemaValidationError)
 

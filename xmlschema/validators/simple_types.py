@@ -18,7 +18,7 @@ from functools import cached_property
 from typing import cast, Any, Optional, Union, Type
 from xml.etree import ElementTree
 
-from elementpath.datatypes import AnyAtomicType, AbstractDateTime, Duration
+from elementpath.datatypes import AnyAtomicType, AbstractDateTime, Duration, UntypedAtomic
 
 from xmlschema.aliases import ElementType, AtomicValueType, ComponentClassType, \
     BaseXsdType, SchemaType, DecodedValueType
@@ -778,20 +778,21 @@ class XsdAtomicBuiltin(XsdAtomic):
                 return str(obj)
 
         elif isinstance(obj, bool):
-            types_: Any = self.instance_types
-            if types_ is not bool or (isinstance(types_, tuple) and bool in types_):
+            if self.instance_types is not bool or isinstance(self.instance_types, tuple) \
+                    and bool in self.instance_types:
                 msg = _("boolean value {0!r} requires a {1!r} decoder").format(obj, bool)
                 context.encode_error(validation, self, obj, self.from_python, msg)
                 obj = self.python_type(obj)
 
         elif not isinstance(obj, self.instance_types):
-            msg = _("{0!r} is not an instance of {1!r}").format(obj, self.instance_types)
-            context.encode_error(validation, self, obj, self.from_python,  msg)
+            if not context.untyped_data or not isinstance(obj, (str, UntypedAtomic)):
+                msg = _("{0!r} is not an instance of {1!r}").format(obj, self.instance_types)
+                context.encode_error(validation, self, obj, self.from_python,  msg)
 
             try:
                 value = self.python_type(obj)
                 if value != obj and not isinstance(value, str) \
-                        and not isinstance(obj, (str, bytes)):
+                        and not isinstance(obj, (str, bytes, UntypedAtomic)):
                     raise ValueError()
                 obj = value
             except (ValueError, TypeError) as err:
@@ -967,10 +968,11 @@ class XsdList(XsdSimpleType):
         items = []
         for chunk in self.normalize(obj).split():
             result = self.item_type.raw_decode(chunk, validation, context)
-            assert not isinstance(result, list)
 
             if isinstance(result, context.keep_datatypes) or result is None:
-                pass
+                if isinstance(result, list):
+                    reason = _("unexpected nested list item {!r}").format(obj)
+                    context.validation_error(validation, self, reason, obj)
             elif isinstance(result, str):
                 if result[:1] == '{' and self.is_qname():
                     result = chunk
