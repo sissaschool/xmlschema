@@ -20,7 +20,7 @@ from xml.etree.ElementTree import Element, ParseError
 
 from elementpath import XPath2Parser, ElementPathError, XPathContext, XPathToken, \
     ElementNode, LazyElementNode, SchemaElementNode, build_schema_node_tree
-from elementpath.datatypes import AbstractDateTime, Duration
+from elementpath.datatypes import AbstractDateTime, Duration, QName
 
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from xmlschema.names import XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE, XSD_ALTERNATIVE, \

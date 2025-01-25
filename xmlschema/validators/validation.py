@@ -12,7 +12,7 @@ import decimal
 import logging
 from abc import abstractmethod
 from collections import Counter
-from collections.abc import Iterable, Iterator
+from collections.abc import Iterable, Iterator, MutableMapping
 from typing import Any, cast, Generic, Optional, Type, TYPE_CHECKING, TypeVar, Union
 from xml.etree.ElementTree import Element
 
@@ -80,6 +80,7 @@ class ValidationContext:
     inherited: dict[str, str]
     patterns: Optional['XsdPatternFacets']
     level: int
+    namespaces: MutableMapping[str, str]
 
     __slots__ = ('errors', 'converter', 'id_map', 'identities', 'elem', 'namespaces',
                  'attribute', 'id_list', 'inherited', 'level', 'max_depth', '__dict__')

@@ -13,12 +13,12 @@ This module contains classes for XML Schema simple data types.
 import re
 from collections.abc import Callable, Iterator
 from copy import copy
-from decimal import DecimalException
+from decimal import DecimalException, Decimal
 from functools import cached_property
 from typing import cast, Any, Optional, Union, Type
 from xml.etree import ElementTree
 
-from elementpath.datatypes import AnyAtomicType, AbstractDateTime
+from elementpath.datatypes import AnyAtomicType, AbstractDateTime, Duration
 
 from xmlschema.aliases import ElementType, AtomicValueType, ComponentClassType, \
     BaseXsdType, SchemaType, DecodedValueType
@@ -32,7 +32,6 @@ from xmlschema.names import XSD_NAMESPACE, XSD_ANY_TYPE, XSD_SIMPLE_TYPE, XSD_PA
     XSD_EXPLICIT_TIMEZONE, XSD_ERROR, XSD_ASSERT, XSD_QNAME, XSD_NOTATION
 from xmlschema.translation import gettext as _
 from xmlschema.utils.qnames import local_name, get_extended_qname
-from xmlschema.resources import XMLResource
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaParseError, \
     XMLSchemaCircularityError
@@ -628,7 +627,7 @@ class XsdAtomicBuiltin(XsdAtomic):
       - from_python(value): Encoding to XML
     """
     __slots__ = ('datatype', 'instance_types', 'python_type', 'to_python', 'from_python',
-                 '_admitted_facets')
+                 'post_decode', '_admitted_facets')
 
     def __init__(self, elem: ElementType,
                  schema: SchemaType,
@@ -672,6 +671,8 @@ class XsdAtomicBuiltin(XsdAtomic):
         self.python_type = python_type
         self.to_python = to_python if to_python is not None else python_type
         self.from_python = from_python if from_python is not None else str
+
+        self.post_decode = name in (XSD_QNAME, XSD_NOTATION, XSD_ID, XSD_IDREF)
         self.decode_string_values = not issubclass(self.datatype, str) and \
             isinstance('', self.instance_types)
 
@@ -719,59 +720,49 @@ class XsdAtomicBuiltin(XsdAtomic):
             except XMLSchemaValidationError as err:
                 context.validation_error(validation, self, err)
 
-        if self.name not in (XSD_QNAME, XSD_IDREF, XSD_ID):
-            pass
-        elif self.name == XSD_QNAME:
-            if ':' in obj:
-                try:
-                    prefix, name = obj.split(':')
-                except ValueError:
-                    pass
+        if self.post_decode:
+            if self.name == XSD_QNAME:
+                if ':' not in obj:
+                    default_namespace = context.namespaces.get('')
+                    if default_namespace:
+                        result = f"{{{default_namespace}}}{obj}"
                 else:
                     try:
-                        result = f"{{{context.namespaces[prefix]}}}{name}"
-                    except (TypeError, KeyError):
-                        if not isinstance(context.source, XMLResource) \
-                                and not context.namespaces:
-                            pass  # TODO: workaround, need a fix in elementpath (typed_value)
-                        elif context.root_namespace == XSD_NAMESPACE:
-                            pass  # Already found by meta-schema validation
-                        else:
-                            reason = _("unmapped prefix %r in a QName") % prefix
-                            context.validation_error(validation, self, reason, obj)
-            else:
-                try:
-                    default_namespace = context.namespaces['']
-                except (TypeError, KeyError):
-                    pass
-                else:
-                    if default_namespace:
-                        result = f'{{{default_namespace}}}{obj}'
+                        prefix, name = obj.split(':')
+                    except ValueError:
+                        pass
+                    else:
+                        try:
+                            result = f"{{{context.namespaces[prefix]}}}{name}"
+                        except (TypeError, KeyError):
+                            if context.root_namespace != XSD_NAMESPACE:
+                                # For a schema is already found by meta-schema validation
+                                reason = _("unmapped prefix %r in a QName") % prefix
+                                context.validation_error(validation, self, reason, obj)
 
-        elif not context.check_identities:
-            pass  # context created from a component
-        elif self.name == XSD_IDREF:
-            if obj not in context.id_map:
-                context.id_map[obj] = 0
-
-        elif context.level:
-            if context.id_list is None:
-                if not context.id_map[obj]:
+            elif not context.check_identities:
+                pass  # context created from a component
+            elif self.name == XSD_IDREF:
+                if obj not in context.id_map:
+                        context.id_map[obj] = 0
+            elif context.level:
+                if context.id_list is None:
+                    if not context.id_map[obj]:
+                        context.id_map[obj] = 1
+                    else:
+                        reason = _("duplicated xs:ID value {!r}").format(obj)
+                        context.validation_error(validation, self, reason, obj)
+                elif not context.id_map[obj]:
                     context.id_map[obj] = 1
-                else:
+                    context.id_list.append(obj)
+                    if len(context.id_list) > 1 and self.xsd_version == '1.0':
+                        reason = _("no more than one attribute of type ID should "
+                                   "be present in an element")
+                        context.validation_error(validation, self, reason, obj)
+
+                elif obj not in context.id_list or self.xsd_version == '1.0':
                     reason = _("duplicated xs:ID value {!r}").format(obj)
                     context.validation_error(validation, self, reason, obj)
-            elif not context.id_map[obj]:
-                context.id_map[obj] = 1
-                context.id_list.append(obj)
-                if len(context.id_list) > 1 and self.xsd_version == '1.0':
-                    reason = _("no more than one attribute of type ID should "
-                               "be present in an element")
-                    context.validation_error(validation, self, reason, obj)
-
-            elif obj not in context.id_list or self.xsd_version == '1.0':
-                reason = _("duplicated xs:ID value {!r}").format(obj)
-                context.validation_error(validation, self, reason, obj)
 
         return result
 
@@ -977,6 +968,20 @@ class XsdList(XsdSimpleType):
         for chunk in self.normalize(obj).split():
             result = self.item_type.raw_decode(chunk, validation, context)
             assert not isinstance(result, list)
+
+            if isinstance(result, context.keep_datatypes) or result is None:
+                pass
+            elif isinstance(result, str):
+                if result[:1] == '{' and self.is_qname():
+                    result = chunk
+            elif isinstance(result, Decimal):
+                if context.decimal_type is not None:
+                    result = context.decimal_type(result)
+            elif isinstance(result, (AbstractDateTime, Duration)):
+                result = chunk.strip()
+            else:
+                result = str(result)
+
             items.append(result)
         else:
             return items
