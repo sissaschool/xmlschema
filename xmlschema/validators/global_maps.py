@@ -25,6 +25,7 @@ from xmlschema.exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, \
     XMLSchemaValueError, XMLSchemaWarning, XMLSchemaNamespaceError
 from xmlschema.translation import gettext as _
 from xmlschema.utils.qnames import local_name, get_extended_qname
+from xmlschema.utils.descriptors import validator_property
 from xmlschema.locations import NamespaceResourcesMap
 from xmlschema.loaders import SchemaResource, SchemaLoader
 import xmlschema.names as nm
@@ -243,7 +244,6 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
     substitution_groups: dict[str, set[XsdElement]]
     identities: dict[str, XsdIdentity]
     _xpath_parser: Optional[XPath2Parser] = None
-    _xpath_constructors: Optional[dict[str, Type[XPathToken]]] = None
 
     _resolvers = {
         nm.XSD_SIMPLE_TYPE: 'types',
@@ -256,7 +256,7 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
     }
 
     __slots__ = ('validation', 'substitution_groups', 'types', 'global_maps', '_build_lock',
-                 '_xpath_lock', '_staged_globals', '_validation_attempted', '_validity')
+                 '_staged_globals', '_validation_attempted', '_validity')
 
     def __init__(self, validator: SchemaType, validation: str = _strict,
                  parent: Optional[SchemaType] = None,
@@ -268,7 +268,6 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
 
         super().__init__(validator.validation)
         self._build_lock = threading.Lock()
-        self._xpath_lock = threading.Lock()
         self._staged_globals = 0
         self._validation_attempted = 'none'
         self._validity = 'notKnown'
@@ -334,9 +333,8 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
                 state[attr] = getattr(self, attr)
 
         state.pop('_build_lock', None)
-        state.pop('_xpath_lock', None)
         state.pop('_xpath_parser', None)
-        state.pop('_xpath_constructors', None)
+        state.pop('xpath_constructors', None)
         return state
 
     def __setstate__(self, state: dict[str, Any]) -> None:
@@ -346,7 +344,6 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
 
         self.__dict__.update(state)
         self._build_lock = threading.Lock()
-        self._xpath_lock = threading.Lock()
 
     def __copy__(self) -> 'XsdGlobals':
         obj = type(self)(
@@ -458,26 +455,21 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
         else:
             return 'notKnown'
 
-    @property
+    @validator_property
     def xpath_constructors(self) -> dict[str, Type[XPathToken]]:
         if not self.built:
             return {}
-        elif self._xpath_constructors is not None:
-            return self._xpath_constructors
 
-        if self._xpath_parser is None:
-            self._xpath_parser = self.config.xpath_parser_class()
-            self._xpath_parser.schema = self.validator.xpath_proxy
+        self._xpath_parser = self.config.xpath_parser_class()
+        self._xpath_parser.schema = self.validator.xpath_proxy
 
-        with self._xpath_lock:
-            constructors: dict[str, Type[XPathToken]] = {}
-            for name, xsd_type in self.types.items():
-                if isinstance(xsd_type, XsdAtomic) and \
-                        not isinstance(xsd_type, XsdAtomicBuiltin) and \
-                        name not in (nm.XSD_ANY_ATOMIC_TYPE, nm.XSD_NOTATION):
-                    constructors[name] = self._xpath_parser.schema_constructor(name)
-            self._xpath_constructors = constructors
-            return constructors
+        constructors: dict[str, Type[XPathToken]] = {}
+        for name, xsd_type in self.types.items():
+            if isinstance(xsd_type, XsdAtomic) and \
+                    not isinstance(xsd_type, XsdAtomicBuiltin) and \
+                    name not in (nm.XSD_ANY_ATOMIC_TYPE, nm.XSD_NOTATION):
+                constructors[name] = self._xpath_parser.schema_constructor(name)
+        return constructors
 
     @property
     def use_meta(self) -> bool:
@@ -659,8 +651,8 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
         self.global_maps.clear()
         self.substitution_groups.clear()
         self.identities.clear()
-        self._xpath_parser = None
-        self._xpath_constructors = None
+        self.__dict__.pop('_xpath_parser', None)
+        self.__dict__.pop('xpath_constructors', None)
 
         for schema in self._schemas:
             if schema.maps is self:

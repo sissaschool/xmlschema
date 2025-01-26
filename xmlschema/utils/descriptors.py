@@ -16,46 +16,57 @@ from xmlschema.exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, XM
 from xmlschema.translation import gettext as _
 
 if TYPE_CHECKING:
-    from xmlschema.validators.xsdbase import XsdComponent
+    from xmlschema.validators.xsdbase import XsdValidator
 
-__all__ = ['component_property', 'Argument', 'ChoiceArgument', 'ValueArgument']
+__all__ = ['validator_property', 'Argument', 'ChoiceArgument', 'ValueArgument']
 
-CT = TypeVar('CT', bound='XsdComponent')
+
+VT = TypeVar('VT', bound='XsdValidator')
+RT = TypeVar('RT')
 
 
 # noinspection PyPep8Naming
-class component_property(Generic[CT]):
+class validator_property(Generic[VT, RT]):
+    """A property that caches the value only if the XSD validator is built."""
 
-    __slots__ = ('func', 'lock', '_name', '__doc__')
+    __slots__ = ('func', 'lock', '_name', '__dict__')
 
-    def __init__(self, func: Callable[[Any], CT]) -> None:
+    def __init__(self, func: Callable[[VT], RT]) -> None:
         self.func = func
         self.lock = Lock()
         self.__doc__ = func.__doc__
+        if hasattr(func, '__module__'):
+            self.__module__ = func.__module__
 
-    def __set_name__(self, owner: type[Any], name: str) -> None:
+    def __set_name__(self, owner: type[VT], name: str) -> None:
+        if not hasattr(owner, 'built'):
+            raise XMLSchemaTypeError("{!r} is not an XSD validator".format(owner))
+        if name == 'built':
+            raise XMLSchemaAttributeError("can't apply to 'built' property")
         self._name = name
 
     @overload
-    def __get__(self, instance: None, owner: type[Any]) -> 'component_property[CT]': ...
+    def __get__(self, instance: None, owner: type[VT]) -> 'validator_property[VT, RT]': ...
 
     @overload
-    def __get__(self, instance: Any, owner: type[Any]) -> CT: ...
+    def __get__(self, instance: VT, owner: type[VT]) -> RT: ...
 
-    def __get__(self, instance: Optional[Any], owner: type[Any]) \
-            -> Union['component_property[CT]', CT]:
+    def __get__(self, instance: Optional[VT], owner: type[VT]) \
+            -> Union['validator_property[VT, RT]', RT]:
         if instance is None:
             return self
 
         if self._name not in instance.__dict__:
             value = self.func(instance)
             if not instance.built:
+                # Can't cache the property if the validator is not built
                 return value
+
             with self.lock:
                 if self._name not in instance.__dict__:
                     instance.__dict__[self._name] = value
 
-        return cast(CT, instance.__dict__[self._name])
+        return cast(RT, instance.__dict__[self._name])
 
 
 T = TypeVar('T')
