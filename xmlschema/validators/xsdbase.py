@@ -280,6 +280,7 @@ class XsdComponent(XsdValidator):
     qualified = True
     ref: Optional['XsdComponent']
     redefine: Optional['XsdComponent']
+    _built: bool = False
 
     __slots__ = ('name', 'parent', 'schema', 'xsd_version', 'target_namespace', 'maps',
                  'builders', 'elem', 'validation', 'errors', 'ref', 'redefine')
@@ -412,6 +413,9 @@ class XsdComponent(XsdValidator):
         if self.errors:
             self.errors.clear()
         self._parse()
+
+        if self.__class__.build is XsdComponent.build:
+            self._built = True
 
     def _parse(self) -> None:
         return
@@ -554,7 +558,7 @@ class XsdComponent(XsdValidator):
 
     @property
     def built(self) -> bool:
-        raise NotImplementedError()
+        return self._built
 
     def is_matching(self, name: Optional[str], default_namespace: Optional[str] = None,
                     **kwargs: Any) -> bool:
@@ -725,10 +729,6 @@ class XsdAnnotation(XsdComponent):
     def __str__(self) -> str:
         return '\n'.join(select(self.elem, '*/fn:string()'))
 
-    @property
-    def built(self) -> bool:
-        return True
-
     def _parse(self) -> None:
         self.appinfo = []
         self.documentation = []
@@ -751,10 +751,6 @@ class XsdType(XsdComponent):
     @property
     def final(self) -> str:
         return self.schema.final_default if self._final is None else self._final
-
-    @property
-    def built(self) -> bool:
-        raise NotImplementedError()
 
     @property
     def content_type_label(self) -> str:

@@ -20,7 +20,7 @@ from xml.etree.ElementTree import Element, ParseError
 
 from elementpath import XPath2Parser, ElementPathError, XPathContext, XPathToken, \
     ElementNode, LazyElementNode, SchemaElementNode, build_schema_node_tree
-from elementpath.datatypes import AbstractDateTime, Duration, QName
+from elementpath.datatypes import AbstractDateTime, Duration
 
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from xmlschema.names import XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE, XSD_ALTERNATIVE, \
@@ -413,15 +413,14 @@ class XsdElement(XsdComponent, ParticleMixin,
         )
 
     def build(self) -> None:
-        if self._build:
-            return None
-        self._build = True
-        self._parse()
+        if not self._built:
+            self._build = True
+            self._parse()
+            self._built = True
 
     @property
     def built(self) -> bool:
-        return hasattr(self, 'type') and \
-            (self.type.parent is None or self.type.built) and \
+        return self._built and (self.type.parent is None or self.type.built) and \
             all(c.built for c in self.identities)
 
     @property
@@ -1287,7 +1286,7 @@ class Xsd11Element(XsdElement):
 
     @property
     def built(self) -> bool:
-        return (self.type.parent is None or self.type.built) and \
+        return self._built and (self.type.parent is None or self.type.built) and \
             all(c.built for c in self.identities) and \
             all(a.built for a in self.alternatives)
 

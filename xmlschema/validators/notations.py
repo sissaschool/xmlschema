@@ -31,10 +31,6 @@ class XsdNotation(XsdComponent):
     """
     _ADMITTED_TAGS = XSD_NOTATION,
 
-    @property
-    def built(self) -> bool:
-        return True
-
     def _parse(self) -> None:
         if self.parent is not None:
             self.parse_error(_("a notation declaration must be global"))

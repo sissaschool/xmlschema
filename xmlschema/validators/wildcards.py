@@ -163,10 +163,6 @@ class XsdWildcard(XsdComponent):
         self.not_qname = names
 
     @property
-    def built(self) -> bool:
-        return True
-
-    @property
     def value_constraint(self) -> Optional[str]:
         return None
 
@@ -876,7 +872,6 @@ class XsdOpenContent(XsdComponent):
         return '%s(mode=%r)' % (self.__class__.__name__, self.mode)
 
     def _parse(self) -> None:
-        super()._parse()
         try:
             self.mode = self.elem.attrib['mode']
         except KeyError:
@@ -896,10 +891,6 @@ class XsdOpenContent(XsdComponent):
             self.parse_error(_("an <xs:any> child declaration is required"))
         else:
             self.any_element = Xsd11AnyElement(child, self.schema, self)
-
-    @property
-    def built(self) -> bool:
-        return True
 
     def is_restriction(self, other: 'XsdOpenContent') -> bool:
         if other is None or other.mode == 'none':

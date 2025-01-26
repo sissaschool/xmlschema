@@ -195,10 +195,6 @@ class XsdAttribute(XsdComponent, ValidationMixin[str, DecodedValueType]):
                 self.parse_error(msg)
 
     @property
-    def built(self) -> bool:
-        return True
-
-    @property
     def validation_attempted(self) -> str:
         return 'full'
 
@@ -599,10 +595,6 @@ class XsdAttributeGroup(
 
         elif self.parent is None and self.schema.default_attributes == self.name:
             self.schema.default_attributes = self
-
-    @property
-    def built(self) -> bool:
-        return True
 
     @cached_property
     def annotation(self) -> Optional['XsdAnnotation']:

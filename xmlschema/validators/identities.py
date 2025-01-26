@@ -126,10 +126,6 @@ class XsdSelector(XsdComponent):
     def __repr__(self) -> str:
         return '%s(path=%r)' % (self.__class__.__name__, self.path)
 
-    @property
-    def built(self) -> bool:
-        return True
-
 
 class XsdFieldSelector(XsdSelector):
     """Class for defining an XPath field selector for an XSD identity constraint."""
@@ -190,6 +186,10 @@ class XsdIdentity(XsdComponent):
                 self.fields.append(XsdFieldSelector(child, self.schema, self))
 
     def build(self) -> None:
+        if self._built:
+            return
+        self._built = True
+
         if self.ref is True:  # type: ignore[comparison-overlap]
             try:
                 ref = self.maps.identities[self.name]
@@ -251,7 +251,7 @@ class XsdIdentity(XsdComponent):
 
     @property
     def built(self) -> bool:
-        return hasattr(self, 'elements')
+        return self._built and hasattr(self, 'elements')
 
     def get_counter(self, elem: ElementType) -> 'IdentityCounter':
         return IdentityCounter(self, elem)
@@ -287,6 +287,8 @@ class XsdKeyref(XsdIdentity):
                 self.parse_error(err)
 
     def build(self) -> None:
+        if self._built:
+            return
         super().build()
 
         if isinstance(self.refer, (XsdKey, XsdUnique)):
@@ -341,7 +343,7 @@ class XsdKeyref(XsdIdentity):
 
     @property
     def built(self) -> bool:
-        return not isinstance(self.elements, tuple) and isinstance(self.refer, XsdIdentity)
+        return self._built and hasattr(self, 'elements') and isinstance(self.refer, XsdIdentity)
 
     def get_counter(self, elem: ElementType) -> 'KeyrefCounter':
         return KeyrefCounter(self, elem)

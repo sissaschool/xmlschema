@@ -598,6 +598,9 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                     self.parse_error(msg % self.name)
 
     def build(self) -> None:
+        if self._built:
+            return
+
         for item in self._group:
             if isinstance(item, XsdElement):
                 item.build()
@@ -606,8 +609,13 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
             for group in self.redefine.iter_components(XsdGroup):
                 group.build()
 
+        self._built = True
+
     @property
     def built(self) -> bool:
+        if not self._built:
+            return False
+
         for item in self:
             if isinstance(item, XsdElement):
                 if not item.built:

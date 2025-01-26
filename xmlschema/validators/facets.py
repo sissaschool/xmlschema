@@ -96,10 +96,6 @@ class XsdFacet(XsdComponent):
         raise XMLSchemaValidationError(self, value, reason) from None
 
     @property
-    def built(self) -> bool:
-        return True  # pragma: no cover
-
-    @property
     def base_facet(self) -> Optional['XsdFacet']:
         """
         An object of the same type if the instance has a base facet, `None` otherwise.

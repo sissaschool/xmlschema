@@ -88,13 +88,12 @@ class XsdAssert(XsdComponent, ElementPathMixin[Union['XsdAssert', SchemaElementT
         else:
             self.xpath_default_namespace = self.schema.xpath_default_namespace
 
-    @property
-    def built(self) -> bool:
-        return self.parser is not None and self.token is not None
-
     def build(self) -> None:
         # Assert requires a schema bound parser because select
         # is on XML elements and with XSD type decoded values
+        if self._built:
+            return
+
         self.parser = self.maps.config.xpath_parser_class(
             namespaces=self.schema.namespaces,
             variable_types={'value': self.base_type.sequence_type},
@@ -116,6 +115,7 @@ class XsdAssert(XsdComponent, ElementPathMixin[Union['XsdAssert', SchemaElementT
                     f"ent so these operators will return empty sequences."
                 )
                 warnings.warn(msg, category=XMLSchemaAssertPathWarning, stacklevel=4)
+            self._built = True
         finally:
             if self.parser.variable_types:
                 self.parser.variable_types.clear()

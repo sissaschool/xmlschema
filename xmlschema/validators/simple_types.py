@@ -744,7 +744,7 @@ class XsdAtomicBuiltin(XsdAtomic):
                 pass  # context created from a component
             elif self.name == XSD_IDREF:
                 if obj not in context.id_map:
-                        context.id_map[obj] = 0
+                    context.id_map[obj] = 0
             elif context.level:
                 if context.id_list is None:
                     if not context.id_map[obj]:
@@ -969,10 +969,13 @@ class XsdList(XsdSimpleType):
         for chunk in self.normalize(obj).split():
             result = self.item_type.raw_decode(chunk, validation, context)
 
-            if isinstance(result, context.keep_datatypes) or result is None:
-                if isinstance(result, list):
-                    reason = _("unexpected nested list item {!r}").format(obj)
-                    context.validation_error(validation, self, reason, obj)
+            if isinstance(result, list):
+                reason = _("unexpected nested list item {!r}").format(obj)
+                context.validation_error(validation, self, reason, obj)
+                items.extend(result)
+                continue
+            elif isinstance(result, context.keep_datatypes) or result is None:
+                pass
             elif isinstance(result, str):
                 if result[:1] == '{' and self.is_qname():
                     result = chunk
