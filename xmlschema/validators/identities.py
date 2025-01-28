@@ -456,7 +456,7 @@ class FieldValueSelector:
                     "xs:field path must select only attributes and elements"
                 )
 
-            comp = cast(FieldDecoderType, node.value)
+            comp = cast(FieldDecoderType, node.obj)
             self.decoders.append(comp)
             if isinstance(comp, XsdWildcard):
                 if comp.process_contents == 'skip':
@@ -529,7 +529,7 @@ class FieldValueSelector:
 
         if value is None:
             if not isinstance(self.field.parent, XsdKey) or \
-                    'ref' in element_node.elem.attrib and \
+                    'ref' in element_node.obj.attrib and \
                     self.field.schema.meta_schema is None and \
                     self.field.schema.XSD_VERSION != '1.0':
                 return None

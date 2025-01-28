@@ -9,12 +9,19 @@
 #
 import warnings
 from functools import wraps
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from typing import cast, Any, TypeVar
 
 from xmlschema.exceptions import XMLSchemaException, XMLSchemaValueError, \
     XMLSchemaTypeError, XMLSchemaAttributeError, XMLSchemaKeyError, \
     XMLSchemaRuntimeError
+
+
+def iter_class_slots(obj: Any) -> Iterator[str]:
+    """Iterates slots defined for a class and its bases."""
+    for cls in obj.__class__.__mro__:
+        if hasattr(cls, '__slots__'):
+            yield from cls.__slots__
 
 
 FT = TypeVar('FT', bound=Callable[..., Any])

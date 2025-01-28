@@ -8,6 +8,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+import sys
 import unittest
 import logging
 import warnings
@@ -889,7 +890,15 @@ class TestXMLSchema11(TestXMLSchema10):
 class TestXMLSchemaMeta(unittest.TestCase):
 
     def test_wrong_version(self):
-        with self.assertRaises(ValueError) as ctx:
+        if sys.version_info < (3, 12):
+            error_class = RuntimeError
+            error_message = ("Error calling __set_name__ on 'XsdBuilders' "
+                             "instance 'builders' in 'MetaXMLSchema12'")
+        else:
+            error_class = ValueError
+            error_message = "wrong or unsupported XSD version '1.2'"
+
+        with self.assertRaises(error_class) as ctx:
             class XMLSchema12(XMLSchemaBase):
                 XSD_VERSION = '1.2'
                 builders = XsdBuilders()
@@ -897,7 +906,7 @@ class TestXMLSchemaMeta(unittest.TestCase):
 
             assert issubclass(XMLSchema12, XMLSchemaBase)
 
-        self.assertEqual(str(ctx.exception), "wrong or unsupported XSD version '1.2'")
+        self.assertEqual(str(ctx.exception), error_message)
 
     def test_from_schema_class(self):
         class XMLSchema11Bis(XMLSchema11):

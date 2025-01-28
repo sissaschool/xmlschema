@@ -846,7 +846,35 @@ class TestXsd11ComplexType(TestXsdComplexType):
         self.assertTrue(xsd_type.is_valid(Element('a', attrib={'min': '10', 'max': '19'})))
         self.assertTrue(xsd_type.is_valid(Element('a', attrib={'min': '19', 'max': '19'})))
         self.assertFalse(xsd_type.is_valid(Element('a', attrib={'min': '25', 'max': '19'})))
+
+        # doesn't set a type if it's based on a dummy element
         self.assertTrue(xsd_type.is_valid(Element('a', attrib={'min': '25', 'max': '100'})))
+
+        schema = self.schema_class(dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+              <xs:complexType name="intRange">
+                <xs:attribute name="min" type="xs:int"/>
+                <xs:attribute name="max" type="xs:int"/>
+                <xs:assert test="@min le @max"/>
+              </xs:complexType>
+              <xs:element name="a" type="intRange"/>
+            </xs:schema>"""))
+
+        xsd_type = schema.types['intRange']
+        xsd_type.decode(Element('a', attrib={'min': '10', 'max': '19'}))
+        self.assertTrue(xsd_type.is_valid(Element('a', attrib={'min': '10', 'max': '19'})))
+        self.assertTrue(xsd_type.is_valid(Element('a', attrib={'min': '19', 'max': '19'})))
+        self.assertFalse(xsd_type.is_valid(Element('a', attrib={'min': '25', 'max': '19'})))
+
+        # doesn't set a type if it's based on a dummy element (TODO: add dummy element to maps?
+        self.assertTrue(xsd_type.is_valid(Element('a', attrib={'min': '25', 'max': '100'})))
+
+        xsd_element = schema.elements['a']
+        xsd_element.decode(Element('a', attrib={'min': '10', 'max': '19'}))
+        self.assertTrue(xsd_element.is_valid(Element('a', attrib={'min': '10', 'max': '19'})))
+        self.assertTrue(xsd_element.is_valid(Element('a', attrib={'min': '19', 'max': '19'})))
+        self.assertFalse(xsd_element.is_valid(Element('a', attrib={'min': '25', 'max': '19'})))
+        self.assertTrue(xsd_element.is_valid(Element('a', attrib={'min': '25', 'max': '100'})))
 
     def test_rooted_expression_in_assertion__issue_386(self):
         # absolute expression in assertion

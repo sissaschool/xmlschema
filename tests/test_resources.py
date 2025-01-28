@@ -403,10 +403,15 @@ class TestResources(unittest.TestCase):
         self.assertIsNone(resource.url)
         self.assertTrue(resource.text.startswith('<xs:schema'))
 
-    def test_xml_resource_from_bytes_io(self):
-
+    def test_xml_resource_from_bytes(self):
         source = '<?xml version="1.0" encoding="iso-8859-1"?>\n<a>ç</a>'
+        resource = XMLResource(source.encode('iso-8859-1'))
+        self.assertIsNone(resource.text)
+        resource.load()
+        self.assertEqual(resource.text, source)
 
+    def test_xml_resource_from_bytes_io(self):
+        source = '<?xml version="1.0" encoding="iso-8859-1"?>\n<a>ç</a>'
         resource = XMLResource(BytesIO(source.encode('iso-8859-1')))
         self.assertIsNone(resource.text)
         resource.load()

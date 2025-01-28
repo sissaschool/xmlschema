@@ -9,14 +9,26 @@
 #
 import importlib
 import re
-from collections.abc import Callable, Iterator
-from itertools import pairwise
+import sys
+from collections.abc import Callable, Iterable, Iterator
 from typing import Any, Optional, Union
 from xml.etree import ElementTree
 
 from xmlschema.names import XSI_SCHEMA_LOCATION, XSI_NONS_SCHEMA_LOCATION
 from xmlschema.aliases import ElementType, NsmapType
 from xmlschema.utils.qnames import get_namespace, get_prefixed_qname
+
+if sys.version_info >= (3, 10):
+    from itertools import pairwise
+else:
+
+    def pairwise(iterable: Iterable[Any]) -> Iterator[Any]:
+        iterator = iter(iterable)
+        a = next(iterator, None)
+
+        for b in iterator:
+            yield a, b
+            a = b
 
 
 def is_etree_element(obj: object) -> bool:

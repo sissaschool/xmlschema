@@ -31,7 +31,7 @@ from xmlschema.utils.qnames import get_namespace, get_qname, local_name, \
 from xmlschema.utils.logger import set_logging_level, logged
 from xmlschema.utils.decoding import raw_encode_value, raw_encode_attributes, \
     count_digits, strictly_equal
-from xmlschema.utils.decorators import deprecated, will_change
+from xmlschema.utils.misc import deprecated, will_change
 
 from xmlschema.testing import iter_nested_items, etree_elements_assert_equal
 from xmlschema.validators.exceptions import XMLSchemaValidationError

@@ -9,11 +9,13 @@
 #
 import io
 import os.path
+import threading
 from collections import deque
 from collections.abc import Iterator, MutableMapping
 from io import StringIO, BytesIO
 from pathlib import Path
-from typing import cast, Any, Optional, IO, Union
+from types import TracebackType
+from typing import cast, Any, Optional, Union
 from urllib.request import urlopen, OpenerDirector
 from urllib.parse import urlsplit, unquote, SplitResult
 from urllib.error import URLError
@@ -28,6 +30,7 @@ from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError, \
     XMLResourceError, XMLResourceOSError, XMLResourceBlocked
 from xmlschema.utils.paths import LocationPath
 from xmlschema.utils.etree import is_etree_element, etree_tostring, etree_iter_location_hints
+from xmlschema.utils.misc import iter_class_slots
 from xmlschema.utils.streams import is_file_object
 from xmlschema.utils.qnames import update_namespaces, get_namespace_map
 from xmlschema.utils.urls import is_url, is_remote_url, is_local_url, normalize_url, \
@@ -38,6 +41,22 @@ from .sax import defuse_xml
 from .arguments import SourceArgument, BaseUrlArgument, AllowArgument, \
     DefuseArgument, TimeoutArgument, UriMapperArgument, OpenerArgument
 from .xml_loader import XMLResourceLoader
+
+
+class XMLResourceManager:
+    """A context manager for XML resources."""
+    def __init__(self, resource: 'XMLResource'):
+        self.resource = resource
+
+    def __enter__(self) -> 'XMLResourceManager':
+        self.fp = self.resource.open()
+        return self
+
+    def __exit__(self, exc_type: Optional[type[BaseException]],
+                 exc_value: Optional[BaseException],
+                 exc_tb: Optional[TracebackType]) -> None:
+        if self.resource.fp is None or not self.resource.fp.seekable():
+            self.fp.close()
 
 
 class XMLResource(XMLResourceLoader):
@@ -61,10 +80,9 @@ class XMLResource(XMLResourceLoader):
     it defuses unparsed data except local files. With 'never' no XML data source is defused.
     :param timeout: the timeout in seconds for the connection attempt in case of remote data.
     :param lazy: if a value `False` or 0 is provided the XML data is fully loaded into and \
-    processed from memory. For default only the root element of the source is loaded, \
-    except in case the *source* argument is an Element or an ElementTree instance. A \
-    positive integer also defines the depth at which the lazy resource can be better \
-    iterated (`True` means 1).
+    processed from memory. When a resource is lazy only the root element of the source is \
+    loaded. A positive integer also defines the depth at which the lazy resource can be \
+    better iterated (`True` means 1).
     :param thin_lazy: for default, in order to reduce the memory usage, during the \
     iteration of a lazy resource at *lazy_depth* level, deletes also the preceding \
     elements after the use.
@@ -106,6 +124,7 @@ class XMLResource(XMLResourceLoader):
     """An file-like object if the source is a file-like object."""
 
     _context_fp: Optional[IOType] = None
+    _context_lock: threading.Lock = threading.Lock()
 
     def __init__(self, source: XMLSourceType,
                  base_url: Union[None, str, Path, bytes] = None,
@@ -138,13 +157,10 @@ class XMLResource(XMLResourceLoader):
 
         elif isinstance(source, str):
             self.text = source
-        elif isinstance(source, bytes):
-            self.text = source.decode()
         elif isinstance(source, StringIO):
-            self.fp = cast(IO[str], source)
             self.text = source.getvalue()
-        elif isinstance(source, BytesIO):
-            self.fp = cast(IO[bytes], source)
+        elif isinstance(source, (bytes, BytesIO)):
+            pass
         elif is_file_object(source):
             # source is a file-like object (remote resource or local file)
             self.fp = cast(IOType, source)
@@ -153,22 +169,8 @@ class XMLResource(XMLResourceLoader):
             super().__init__(cast(EtreeType, source), lazy, thin_lazy, iterparse)
             return
 
-        with self as fp:
-            super().__init__(fp, lazy, thin_lazy, iterparse)
-
-    def __enter__(self) -> IOType:
-        if self._context_fp is not None:
-            raise XMLResourceError(f"resource {self!r} is already used in a context")
-
-        self._context_fp = self.open()
-        return self._context_fp
-
-    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
-        if self._context_fp is not None:
-            # Don't close a seekable file-like obj if it's the source of the instance.
-            if self._context_fp is not self.fp or not self._context_fp.seekable():
-                self._context_fp.close()
-            self._context_fp = None
+        with XMLResourceManager(self) as cm:
+            super().__init__(cm.fp, lazy, thin_lazy, iterparse)
 
     @property
     def name(self) -> Optional[str]:
@@ -272,11 +274,12 @@ class XMLResource(XMLResourceLoader):
                 raise XMLResourceBlocked(f"block access to out of sandbox file {url}")
 
     def parse(self, source: XMLSourceType, lazy: LazyType = False) -> None:
+        """Parse another XML resource and load it into the instance."""
         kwargs = self.get_arguments()
         kwargs['source'] = source
         kwargs['lazy'] = lazy
         other = self.__class__(**kwargs)
-        for name in self.__slots__:
+        for name in iter_class_slots(self):
             setattr(self, name, getattr(other, name))
         del other
 
@@ -369,7 +372,7 @@ class XMLResource(XMLResourceLoader):
 
         return resource
 
-    def open(self) -> IOType:
+    def open(self, use_loaded: bool = False) -> IOType:
         """
         Returns an opened resource reader object for the instance URL. If the
         source attribute is a seekable file-like object rewind the source and
@@ -384,7 +387,9 @@ class XMLResource(XMLResourceLoader):
             except URLError as err:
                 raise XMLResourceOSError(f"can't access to resource {url!r}: {err.reason}")
 
-        if self.fp is not None:
+        if use_loaded and self.text is not None:
+            fp: IOType = StringIO(self.text)
+        elif self.fp is not None:
             if self.fp.closed:
                 msg = f"can't open {self!r}: its file-like object has been closed"
                 raise XMLResourceOSError(msg)
@@ -400,6 +405,10 @@ class XMLResource(XMLResourceLoader):
             fp = StringIO(self._source)
         elif isinstance(self._source, bytes):
             fp = BytesIO(self._source)
+        elif isinstance(self._source, StringIO):
+            fp = StringIO(self._source.getvalue())
+        elif isinstance(self._source, BytesIO):
+            fp = BytesIO(self._source.getvalue())
         else:
             msg = f"can't open {self!r}: its source is an ElementTree structure"
             raise XMLResourceError(msg)
@@ -447,13 +456,14 @@ class XMLResource(XMLResourceLoader):
         Loads the XML text from the data source. If the data source is an Element
         the source XML text can't be retrieved.
         """
-        if self.url is None and not hasattr(self._source, 'read'):
+        if self.url is None and not hasattr(self._source, 'read') and \
+                not isinstance(self._source, bytes):
             return  # Created from Element or text source --> already loaded
         elif self._lazy:
             raise XMLResourceError("can't load a lazy XML resource")
 
-        with self as fp:
-            data = fp.read()
+        with XMLResourceManager(self) as cm:
+            data = cm.fp.read()
 
         if isinstance(data, bytes):
             try:
@@ -482,8 +492,8 @@ class XMLResource(XMLResourceLoader):
         ancestors = []
         level = 0
 
-        with self as fp:
-            for event, node in self._lazy_iterparse(fp):
+        with XMLResourceManager(self) as cm:
+            for event, node in self._lazy_iterparse(cm.fp):
                 if event == "start":
                     if level < lazy_depth:
                         if level:
@@ -557,8 +567,8 @@ class XMLResource(XMLResourceLoader):
         depth_level_elements = mode != 3
         thin_lazy = mode <= 2
 
-        with self as fp:
-            for event, elem in self._lazy_iterparse(fp):
+        with XMLResourceManager(self) as cm:
+            for event, elem in self._lazy_iterparse(cm.fp):
                 if event == "start":
                     if not level:
                         if incomplete_root:
@@ -597,20 +607,20 @@ class XMLResource(XMLResourceLoader):
                 raise XMLSchemaTypeError(msg)
 
             if ancestors is not None:
-                if item.elem is self.root:
+                if item.obj is self.root:
                     ancestors.clear()
                 else:
                     _ancestors: Any = []
                     parent = item.parent
                     while parent is not None:
-                        _ancestors.append(parent.value)
+                        _ancestors.append(parent.obj)
                         parent = parent.parent
 
                     if _ancestors:
                         ancestors.clear()
                         ancestors.extend(reversed(_ancestors))
 
-            yield cast(ElementType, item.elem)
+            yield cast(ElementType, item.obj)
 
     def iterfind(self, path: str,
                  namespaces: Optional[NsmapType] = None,
@@ -654,8 +664,8 @@ class XMLResource(XMLResourceLoader):
         elif self._thin_lazy:
             ancestors = []
 
-        with self as fp:
-            for event, node in self._lazy_iterparse(fp):
+        with XMLResourceManager(self) as cm:
+            for event, node in self._lazy_iterparse(cm.fp):
                 if event == "start":
                     if ancestors is not None and level < path_depth:
                         ancestors.append(node)
@@ -702,7 +712,6 @@ class XMLResource(XMLResourceLoader):
         :return: a dictionary for mapping namespace prefixes to full URI.
         """
         namespaces = get_namespace_map(namespaces)
-
         try:
             for elem in self.iter():
                 if elem in self._xmlns:

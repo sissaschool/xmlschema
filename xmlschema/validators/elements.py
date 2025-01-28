@@ -1129,11 +1129,14 @@ class XsdElement(XsdComponent, ParticleMixin,
 
                 for e in other.iter_substitutes():
                     if e.name == self.name:
+                        other = e
                         break
                 else:
                     return False
 
-            if check_occurs and not self.has_occurs_restriction(other):
+            if self is other or self.ref is other:
+                return True
+            elif check_occurs and not self.has_occurs_restriction(other):
                 return False
             elif self.max_occurs == 0 and check_occurs:
                 return True  # type is not effective if the element can't have occurrences

@@ -7,8 +7,10 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+import platform
 from itertools import zip_longest
 from collections.abc import Iterator
+from threading import Lock, RLock
 from typing import cast, Any, Optional, Union
 
 from elementpath import ElementNode, LazyElementNode, DocumentNode, \
@@ -18,9 +20,12 @@ from elementpath.protocols import LxmlElementProtocol
 from xmlschema.aliases import ElementType, ElementTreeType, \
     EtreeType, IOType, IterparseType, ParentMapType
 from xmlschema.exceptions import XMLResourceError, XMLResourceParseError
+from xmlschema.utils.misc import iter_class_slots
 from xmlschema.utils.qnames import get_namespace
 
 from .arguments import LazyArgument, ThinLazyArgument, IterparseArgument
+
+LazyLockType = RLock if platform.python_implementation() == 'PyPy' else Lock
 
 
 class XMLResourceLoader:
@@ -61,6 +66,7 @@ class XMLResourceLoader:
         self._xmlns = {}
         self._xpath_root = None
         self._parent_map = None
+        self._lazy_lock = LazyLockType()
 
         if hasattr(source, 'read'):
             fp = cast(IOType, source)
@@ -86,20 +92,36 @@ class XMLResourceLoader:
             return '<%s object at %#x>' % (self.__class__.__name__, id(self))
         return '%s(root=%r)' % (self.__class__.__name__, self.root)
 
+    def __getstate__(self) -> dict[str, Any]:
+        state = self.__dict__.copy()
+        for attr in iter_class_slots(self):
+            if attr not in state and attr != '__dict__':
+                state[attr] = getattr(self, attr)
+
+        state.pop('_lazy_lock', None)
+        return state
+
+    def __setstate__(self, state: dict[str, Any]) -> None:
+        for attr in iter_class_slots(self):
+            if attr in state and attr != '__dict__':
+                object.__setattr__(self, attr, state.pop(attr))
+
+        self.__dict__.update(state)
+        self._lazy_lock = LazyLockType()
+
     def __copy__(self) -> 'XMLResourceLoader':
         obj: 'XMLResourceLoader' = object.__new__(self.__class__)
         obj.__dict__.update(self.__dict__)
 
-        for cls in self.__class__.__mro__:
-            if hasattr(cls, '__slots__'):
-                for attr in cls.__slots__:
-                    if attr != '__dict__':
-                        object.__setattr__(obj, attr, getattr(self, attr))
+        for attr in iter_class_slots(self):
+            if attr != '__dict__':
+                object.__setattr__(obj, attr, getattr(self, attr))
 
         obj._nsmaps = self._nsmaps.copy()
         obj._xmlns = self._xmlns.copy()
         obj._xpath_root = None
         obj._parent_map = None
+        obj._lazy_lock = LazyLockType()
         return obj
 
     @property
@@ -136,7 +158,7 @@ class XMLResourceLoader:
                     # Update namespace maps
                     for node in node_tree.iter_descendants(with_self=False):
                         if isinstance(node, ElementNode):
-                            nsmap = self._nsmaps[cast(ElementType, node.elem)]
+                            nsmap = self._nsmaps[cast(ElementType, node.obj)]
                             node.nsmap = {k or '': v for k, v in nsmap.items()}
 
                     self._xpath_root = node_tree
@@ -206,6 +228,10 @@ class XMLResourceLoader:
         self._nsmaps.clear()
         self._xmlns.clear()
 
+        acquired = self._lazy_lock.acquire(blocking=False)
+        if not acquired:
+            raise XMLResourceError(f"lazy resource {self!r} is already under iteration")
+
         try:
             for event, node in self._iterparse(fp, events):
                 if event == 'start':
@@ -242,6 +268,8 @@ class XMLResourceLoader:
                     end_ns = True
         except SyntaxError as err:
             raise XMLResourceParseError(str(err)) from err
+        finally:
+            self._lazy_lock.release()
 
     def _parse(self, fp: IOType) -> None:
         root_started = False
