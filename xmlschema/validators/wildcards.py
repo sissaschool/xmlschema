@@ -315,7 +315,7 @@ class XsdWildcard(XsdComponent):
 
         w1: XsdWildcard
         w2: XsdWildcard
-        if '##any' in self.namespace or self.namespace == other.namespace:
+        if not other.namespace or '##any' in self.namespace or self.namespace == other.namespace:
             return
         elif '##any' in other.namespace:
             self.namespace.clear()
@@ -440,6 +440,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
     def xpath_proxy(self) -> XMLSchemaProxy:
         return XMLSchemaProxy(self.schema, self)
 
+    # noinspection PyTypeChecker
     @property
     def xpath_node(self) -> SchemaElementNode:
         schema_node = self.schema.xpath_node

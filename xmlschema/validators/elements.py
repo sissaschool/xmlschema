@@ -399,6 +399,7 @@ class XsdElement(XsdComponent, ParticleMixin,
     def xpath_proxy(self) -> XMLSchemaProxy:
         return XMLSchemaProxy(self.schema, self)
 
+    # noinspection PyTypeChecker
     @property
     def xpath_node(self) -> SchemaElementNode:
         schema_node = self.schema.xpath_node
@@ -875,6 +876,7 @@ class XsdElement(XsdComponent, ParticleMixin,
             if xsd_element in identity.elements:
                 selectors = identity.elements[xsd_element]
             else:
+                # noinspection PyTypeChecker
                 selectors = [FieldValueSelector(f, xsd_element) for f in identity.fields]
 
             try:
@@ -1129,14 +1131,11 @@ class XsdElement(XsdComponent, ParticleMixin,
 
                 for e in other.iter_substitutes():
                     if e.name == self.name:
-                        other = e
                         break
                 else:
                     return False
 
-            if self is other or self.ref is other:
-                return True
-            elif check_occurs and not self.has_occurs_restriction(other):
+            if check_occurs and not self.has_occurs_restriction(other):
                 return False
             elif self.max_occurs == 0 and check_occurs:
                 return True  # type is not effective if the element can't have occurrences

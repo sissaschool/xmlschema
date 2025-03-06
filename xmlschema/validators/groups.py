@@ -1271,15 +1271,15 @@ class Xsd11Group(XsdGroup):
                         self.parse_error(msg)
                         self.pop()
 
-                elif self.redefine is None:
-                    msg = _("Circular definition detected for group %r")
-                    self.parse_error(msg % self.name)
-                else:
+                elif self.redefine is not None:
                     if child.get('minOccurs', '1') != '1' or child.get('maxOccurs', '1') != '1':
                         msg = _("Redefined group reference cannot have "
                                 "minOccurs/maxOccurs other than 1")
                         self.parse_error(msg)
                     self._group.append(self.redefine)
+                else:
+                    msg = _("Circular definition detected for group %r")
+                    self.parse_error(msg % self.name)
 
     def admits_restriction(self, model: str) -> bool:
         if self.model == model or self.model == 'all':

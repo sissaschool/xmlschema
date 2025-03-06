@@ -593,6 +593,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     @cached_property
     def xpath_node(self) -> SchemaElementNode:
         """Returns an XPath node for processing an XPath expression on the schema instance."""
+        # noinspection PyTypeChecker
         return build_schema_node_tree(root=self, uri=self.source.url)
 
     @property
