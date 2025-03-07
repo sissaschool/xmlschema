@@ -50,7 +50,7 @@ dev = [
     "memory_profiler",
     "mypy",
     "tox",
-    "xmlschema[codegen,docs]",
+    "xmlschema[docs]",
 ]
 docs = [
     "jinja2",
@@ -68,3 +68,20 @@ Homepage = "https://github.com/sissaschool/xmlschema"
 
 [tool.setuptools]
 packages = ["xmlschema"]
+
+[tool.mypy]
+show_error_code_links = true
+
+[tool.coverage.run]
+branch = true
+source = ["xmlschema"]
+omit = ["xmlschema/testing/*"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError()",
+    'in self._etree_iterparse\(',
+    'in PyElementTree.iterparse\(',
+]
