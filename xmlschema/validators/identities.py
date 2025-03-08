@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, cast, Any, Optional, Union
 from elementpath import ElementPathError, XPathContext, XPathToken, \
     ElementNode, translate_pattern, AttributeNode
 from elementpath.datatypes import UntypedAtomic
+from elementpath.xpath_nodes import EtreeElementNode
 
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from xmlschema.names import XSD_UNIQUE, XSD_KEY, XSD_KEYREF, XSD_SELECTOR, XSD_FIELD
@@ -27,7 +28,7 @@ from xmlschema.translation import gettext as _
 from xmlschema.utils.qnames import get_qname, get_extended_qname
 from xmlschema.aliases import ElementType, SchemaType, NsmapType, AtomicValueType, \
     BaseXsdType, SchemaElementType, SchemaAttributeType
-from ..xpath import IdentityXPathParser, XPathElement
+from ..xpath import IdentityXPathParser, XPathElement, XMLSchemaProxy
 
 from .exceptions import XMLSchemaNotBuiltError
 from .xsdbase import XsdComponent
@@ -432,9 +433,8 @@ class KeyrefCounter(IdentityCounter):
 
 class FieldValueSelector:
 
-    __slots__ = (
-        'field', 'xsd_element', 'value_constraints', 'token', 'decoders', 'skip_wildcard'
-    )
+    __slots__ = ('field', 'xsd_element', 'xpath_proxy', 'value_constraints',
+                 'token', 'decoders', 'skip_wildcard')
 
     def __init__(self, field: XsdFieldSelector, xsd_element: 'XsdElement') -> None:
         if field.token is None:
@@ -446,11 +446,11 @@ class FieldValueSelector:
         self.xsd_element = xsd_element
         self.value_constraints = {}
 
+        self.xpath_proxy = XMLSchemaProxy(xsd_element.schema, xsd_element)
         self.token = copy.deepcopy(field.token)
-        schema_context = xsd_element.xpath_proxy.get_context()
         self.decoders = []
 
-        for node in self.token.select(schema_context):
+        for node in self.token.select(self.xpath_proxy.get_context()):
             if not isinstance(node, (AttributeNode, ElementNode)):
                 raise XMLSchemaTypeError(
                     "xs:field path must select only attributes and elements"
@@ -471,7 +471,7 @@ class FieldValueSelector:
         if len(self.decoders) > 1 and None in self.value_constraints:
             self.value_constraints.pop(None)
 
-    def get_value(self, element_node: ElementNode,
+    def get_value(self, element_node: EtreeElementNode,
                   namespaces: Optional[NsmapType] = None) -> IdentityFieldItemType:
         """
         Get field value from an element node for a schema or instance context element.
@@ -480,7 +480,12 @@ class FieldValueSelector:
         :param namespaces: is an optional mapping from namespace prefix to URI.
         """
         value: Union[AtomicValueType, list[Optional[AtomicValueType]], None] = None
-        context = XPathContext(element_node, namespaces=namespaces)
+        element_node.schema = None
+        context = XPathContext(
+            element_node,
+            namespaces=namespaces,
+            schema=self.xpath_proxy,
+        )
 
         empty = True
         for node in cast(Iterator[IdentityNodeType], self.token.select(context)):

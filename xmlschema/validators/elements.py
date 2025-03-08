@@ -19,8 +19,9 @@ from typing import TYPE_CHECKING, cast, Any, Optional, Type, Union
 from xml.etree.ElementTree import Element, ParseError
 
 from elementpath import XPath2Parser, ElementPathError, XPathContext, XPathToken, \
-    ElementNode, LazyElementNode, SchemaElementNode, build_schema_node_tree
+    LazyElementNode, SchemaElementNode, build_schema_node_tree
 from elementpath.datatypes import AbstractDateTime, Duration
+from elementpath.xpath_nodes import EtreeElementNode
 
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from xmlschema.names import XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE, XSD_ALTERNATIVE, \
@@ -418,6 +419,7 @@ class XsdElement(XsdComponent, ParticleMixin,
             self._build = True
             self._parse()
             self._built = True
+            self.__dict__.pop('xpath_proxy', None)
 
     @property
     def built(self) -> bool:
@@ -842,8 +844,8 @@ class XsdElement(XsdComponent, ParticleMixin,
     def collect_key_fields(self, obj: ElementType, xsd_type: BaseXsdType,
                            validation: str, nilled: bool, context: DecodeContext) -> None:
 
-        element_node: Union[ElementNode, LazyElementNode]
-        element_node = context.source.get_xpath_node(obj)
+        element_node: Union[EtreeElementNode, LazyElementNode]
+        element_node = cast(EtreeElementNode, context.source.get_xpath_node(obj))
         namespaces = context.namespaces
 
         xsd_element = self if self.ref is None else self.ref

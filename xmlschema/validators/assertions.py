@@ -139,6 +139,7 @@ class XsdAssert(XsdComponent, ElementPathMixin[Union['XsdAssert', SchemaElementT
             'uri': context.source.url,
             'fragment': True,
             'variables': {'value': value},
+            'schema': self.parser.schema,
         }
 
         if context.source is not None:
@@ -171,6 +172,7 @@ class XsdAssert(XsdComponent, ElementPathMixin[Union['XsdAssert', SchemaElementT
     def xpath_proxy(self) -> 'XMLSchemaProxy':
         return XMLSchemaProxy(self.schema, self)
 
+    # noinspection PyTypeChecker
     @property
     def xpath_node(self) -> SchemaElementNode:
         schema_node = self.schema.xpath_node

@@ -10,7 +10,6 @@
 from abc import abstractmethod
 from collections.abc import Iterator, Sequence
 from typing import cast, overload, Any, Optional, TypeVar, Union, TYPE_CHECKING
-import re
 
 from elementpath import XPath2Parser, XPathSchemaContext, LazyElementNode, SchemaElementNode
 from elementpath.protocols import XsdElementProtocol
@@ -21,8 +20,6 @@ from .proxy import XMLSchemaProxy
 
 if TYPE_CHECKING:
     from ..validators import XsdGlobals
-
-_REGEX_TAG_POSITION = re.compile(r'\b\[\d+]')
 
 E_co = TypeVar('E_co', covariant=True, bound='ElementPathMixin[Any]')
 
@@ -117,11 +114,9 @@ class ElementPathMixin(Sequence[E_co]):
         :param namespaces: an optional mapping from namespace prefix to namespace URI.
         :return: the first matching XSD subelement or ``None`` if there is no match.
         """
-        path = _REGEX_TAG_POSITION.sub('', path.strip())  # Strips tags positions from path
         namespaces = self._get_xpath_namespaces(namespaces)
         parser = XPath2Parser(namespaces, strict=False)
         context = XPathSchemaContext(self.xpath_node)
-
         return cast(Optional[E_co], next(parser.parse(path).select_results(context), None))
 
     def findall(self, path: str, namespaces: Optional[NsmapType] = None) -> list[E_co]:
@@ -133,7 +128,6 @@ class ElementPathMixin(Sequence[E_co]):
         :return: a list containing all matching XSD subelements in document order, an empty \
         list is returned if there is no match.
         """
-        path = _REGEX_TAG_POSITION.sub('', path.strip())  # Strip tags positions from path
         namespaces = self._get_xpath_namespaces(namespaces)
         parser = XPath2Parser(namespaces, strict=False)
         context = XPathSchemaContext(self.xpath_node)
@@ -148,7 +142,6 @@ class ElementPathMixin(Sequence[E_co]):
         :param namespaces: is an optional mapping from namespace prefix to full name.
         :return: an iterable yielding all matching XSD subelements in document order.
         """
-        path = _REGEX_TAG_POSITION.sub('', path.strip())  # Strip tags positions from path
         namespaces = self._get_xpath_namespaces(namespaces)
         parser = XPath2Parser(namespaces, strict=False)
         context = XPathSchemaContext(self.xpath_node)
