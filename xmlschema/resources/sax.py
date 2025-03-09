@@ -9,8 +9,9 @@
 #
 import io
 from xml.sax import SAXParseException
-from xml.sax import expatreader  # type: ignore[attr-defined]
+from xml.sax import expatreader  # type: ignore[attr-defined, unused-ignore]
 from xml.dom import pulldom
+from pyexpat import XMLParserType
 
 from xmlschema.aliases import IOType
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError, \
@@ -18,7 +19,8 @@ from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError, \
 from xmlschema.utils.streams import DefusableReader
 
 
-class SafeExpatParser(expatreader.ExpatParser):  # type: ignore[misc]
+class SafeExpatParser(expatreader.ExpatParser):  # type: ignore[misc, unused-ignore]
+    _parser: XMLParserType
 
     def forbid_entity_declaration(self, name, is_parameter_entity,  # type: ignore
                                   value, base, sysid, pubid, notation_name):
