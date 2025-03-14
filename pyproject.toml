@@ -67,6 +67,7 @@ xmlschema-xml2json = "xmlschema.cli:xml2json"
 Homepage = "https://github.com/sissaschool/xmlschema"
 
 [tool.setuptools]
+license-files = [ "LICENSE" ]
 packages = ["xmlschema"]
 
 [tool.mypy]
