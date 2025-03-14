@@ -41,7 +41,6 @@ if __name__ == '__main__':
         h: None = None
         j: None = None
 
-
     class Params:
         def __init__(self, **kwargs):
             self.__dict__.update(kwargs)
@@ -54,7 +53,6 @@ if __name__ == '__main__':
             self.errors = []
             self.source = 'data'
             self.namespaces = {}
-
 
     ParamTup = namedtuple('ParamTup', ('converter', 'errors', 'source', 'namespaces'))
     tuple_params = ParamTup(None, [], 'data', {})

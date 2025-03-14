@@ -17,41 +17,8 @@ from textwrap import dedent
 from xmlschema import XMLResource, XMLSchemaConverter
 from xmlschema.names import XSD_NAMESPACE, XSI_NAMESPACE
 from xmlschema.converters import NamespaceMapper
-from xmlschema.loaders import NamespaceResourcesMap
 
 CASES_DIR = os.path.join(os.path.dirname(__file__), '../test_cases')
-
-
-class TestNamespaceResourcesMap(unittest.TestCase):
-
-    def test_init(self):
-        nsmap = [('tns0', 'schema1.xsd')]
-        self.assertEqual(NamespaceResourcesMap(), {})
-        self.assertEqual(NamespaceResourcesMap(nsmap), {'tns0': ['schema1.xsd']})
-        nsmap.append(('tns0', 'schema2.xsd'))
-        self.assertEqual(NamespaceResourcesMap(nsmap), {'tns0': ['schema1.xsd', 'schema2.xsd']})
-
-    def test_repr(self):
-        namespaces = NamespaceResourcesMap()
-        namespaces['tns0'] = 'schema1.xsd'
-        namespaces['tns1'] = 'schema2.xsd'
-        self.assertEqual(repr(namespaces), "{'tns0': ['schema1.xsd'], 'tns1': ['schema2.xsd']}")
-
-    def test_dictionary_methods(self):
-        namespaces = NamespaceResourcesMap()
-        namespaces['tns0'] = 'schema1.xsd'
-        namespaces['tns1'] = 'schema2.xsd'
-        self.assertEqual(namespaces, {'tns0': ['schema1.xsd'], 'tns1': ['schema2.xsd']})
-
-        self.assertEqual(len(namespaces), 2)
-        self.assertEqual({x for x in namespaces}, {'tns0', 'tns1'})
-
-        del namespaces['tns0']
-        self.assertEqual(namespaces, {'tns1': ['schema2.xsd']})
-        self.assertEqual(len(namespaces), 1)
-
-        namespaces.clear()
-        self.assertEqual(namespaces, {})
 
 
 class TestNamespaceMapper(unittest.TestCase):

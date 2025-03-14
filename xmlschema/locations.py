@@ -99,10 +99,6 @@ def get_fallback_map(locations: LocationsMapType, fallbacks: LocationsMapType) -
                 fallback_map[urls] = fallback_urls
             elif isinstance(urls, list) and isinstance(fallback_urls, list):
                 fallback_map.update(zip(urls, fallback_urls))
-            elif isinstance(urls, str) and isinstance(fallback_urls, list):
-                fallback_map.update(zip([urls], fallback_urls))
-            elif isinstance(urls, list) and isinstance(fallback_urls, str):
-                fallback_map.update(zip(urls, [fallback_urls]))
 
     return fallback_map
 
@@ -153,8 +149,6 @@ FALLBACK_LOCATIONS: LocationsMapType = {
     nm.XENC11_NAMESPACE: f'{SCHEMAS_DIR}XENC/xenc-schema-11.xsd',
 }
 
-FALLBACK_MAP = get_fallback_map(LOCATIONS, FALLBACK_LOCATIONS)
-
 
 class UrlResolver:
     """
@@ -163,13 +157,15 @@ class UrlResolver:
     for checking if a schema resource is already loaded.
 
     :param uri_mapper: optional URI mapper to wrap.
-    :param fallback_map: optional fallback map, for default uses the default fallback. \
-    Provide an empty dict to disable fallbacks.
+    :param use_fallback: whether to use fallback locations.
     """
+    fallback_map = get_fallback_map(LOCATIONS, FALLBACK_LOCATIONS)
+
     def __init__(self, uri_mapper: Optional[UriMapperType] = None,
-                 fallback_map: Optional[dict[str, str]] = None) -> None:
+                 use_fallback: bool = True) -> None:
         self._uri_mapper = uri_mapper
-        self.fallback_map = FALLBACK_MAP if fallback_map is None else fallback_map
+        if not use_fallback:
+            self.fallback_map = {}
 
     def map_uri(self, uri: str) -> str:
         if isinstance(self._uri_mapper, MutableMapping):

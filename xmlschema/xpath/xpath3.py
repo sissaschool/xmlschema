@@ -31,7 +31,7 @@ XsdAssertionXPath3Parser.unregister('position')
     XsdAssertionXPath3Parser.function('last', nargs=0)
 )
 def evaluate_last(self: XPathToken, context: Optional[XPathContext] = None) -> None:
-    raise self.missing_context("context item size is undefined")
+    raise self.missing_context("context item size is undefined")  # pragma: no cover
 
 
 # noinspection PyUnusedLocal
@@ -39,4 +39,4 @@ def evaluate_last(self: XPathToken, context: Optional[XPathContext] = None) -> N
     XsdAssertionXPath3Parser.function('position', nargs=0)
 )
 def evaluate_position(self: XPathToken, context: Optional[XPathContext] = None) -> None:
-    raise self.missing_context("context item position is undefined")
+    raise self.missing_context("context item position is undefined")  # pragma: no cover

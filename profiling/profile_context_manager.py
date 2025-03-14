@@ -9,9 +9,6 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from timeit import timeit
-from pathlib import Path
-
-import xmlschema
 
 
 def run_timeit(stmt='pass', setup='pass', number=1000):
@@ -30,17 +27,17 @@ if __name__ == '__main__':
     def func():
         pass
 
-    def inner1(): yield 1
+    def inner1():
+        yield 1
 
     def value_from_generator():
         value, = inner1()
         return value
 
-
     # inner should not be created again and again
     @contextmanager
-    def inner2(): yield 1
-
+    def inner2():
+        yield 1
 
     def value_from_with():
         with inner2() as value:

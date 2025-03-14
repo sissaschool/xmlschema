@@ -393,11 +393,7 @@ class SchemaConfig:
             xpath_parser_class = module.XPath3Parser
             assertion_parser_class = module.XsdAssertionXPath3Parser
 
-        if use_fallback:
-            url_resolver = UrlResolver(schema.uri_mapper)
-        else:
-            url_resolver = UrlResolver(schema.uri_mapper, fallback_map={})
-
+        url_resolver = UrlResolver(schema.uri_mapper, use_fallback)
         if loader_class is None:
             loader_class = SchemaLoader
 

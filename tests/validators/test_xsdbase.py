@@ -22,7 +22,7 @@ except ImportError:
     lxml_etree = None
 
 from xmlschema.validators import XsdValidator, XsdComponent, XMLSchema10, XMLSchema11, \
-    XMLSchemaParseError, XsdAnnotation, XsdGroup, XsdSimpleType
+    XMLSchemaParseError, XsdAnnotation, XsdGroup, XsdSimpleType, XMLSchemaNotBuiltError
 from xmlschema.validators.xsdbase import check_validation_mode
 from xmlschema.names import XSD_NAMESPACE, XSD_ELEMENT, XSD_ANNOTATION, XSD_ANY_TYPE
 
@@ -55,6 +55,33 @@ class TestXsdValidator(unittest.TestCase):
         if platform.python_implementation() == 'PyPy' or platform.system() == 'Windows':
             string_repr = re.sub(r'0x[0]+', '0x', string_repr, 1)
         self.assertEqual(string_repr.lower(), tmpl.format(hex(id(validator))).lower())
+
+    def test_check_validator(self):
+        xsd_file = os.path.join(CASES_DIR, 'examples/vehicles/vehicles.xsd')
+        schema = XMLSchema10(xsd_file, build=False)
+        self.assertIsNone(schema.check_validator())
+        self.assertEqual(schema.validity, 'notKnown')
+        self.assertEqual(schema.validation_attempted, 'none')
+
+        with self.assertRaises(XMLSchemaNotBuiltError):
+            schema.check_validator('strict')
+        with self.assertRaises(XMLSchemaNotBuiltError):
+            schema.check_validator('lax')
+        self.assertIsNone(schema.check_validator('skip'))
+
+        schema.build()
+        self.assertEqual(schema.validity, 'valid')
+        self.assertEqual(schema.validation_attempted, 'full')
+        self.assertIsNone(schema.check_validator())
+        self.assertIsNone(schema.check_validator('strict'))
+
+        xsd_file = os.path.join(CASES_DIR, 'examples/vehicles/invalid.xsd')
+        schema = XMLSchema10(xsd_file, validation='lax')
+
+        with self.assertRaises(XMLSchemaNotBuiltError):
+            schema.check_validator('strict')
+        self.assertIsNone(schema.check_validator('lax'))
+        self.assertIsNone(schema.check_validator('skip'))
 
     def test_parse_error(self):
         xsd_file = os.path.join(CASES_DIR, 'examples/vehicles/vehicles.xsd')
@@ -507,6 +534,10 @@ class TestXsdComponent(unittest.TestCase):
                      </xs:element>
                  </xs:schema>""")
         self.assertEqual(len(schema.all_errors), 0)
+        self.assertEqual(len(schema.annotations), 0)
+        annotations = schema.elements['root'].annotations
+        self.assertEqual(len(annotations), 1)
+        self.assertIs(annotations[0], schema.elements['root'].annotation)
 
         # XSD annotation errors found with meta-schema validation
         schema = XMLSchema10("""<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">

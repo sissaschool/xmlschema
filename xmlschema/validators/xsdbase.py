@@ -121,7 +121,7 @@ class XsdValidator:
             # Check called before validation
             check_validation_mode(validation)
 
-        if self.validation_attempted == 'none':
+        if self.validation_attempted == 'none' and validation !='skip':
             msg = _("%r is not built") % self
             raise XMLSchemaNotBuiltError(self, msg)
 
@@ -268,6 +268,7 @@ class XsdComponent(XsdValidator):
     """
     @classmethod
     def meta_tag(cls) -> str:
+        """The reference tag for the component type."""
         try:
             return cls._ADMITTED_TAGS[0]
         except IndexError:
@@ -384,14 +385,14 @@ class XsdComponent(XsdValidator):
 
         for elem in self.elem.iter():
             if elem is self.elem:
-                annotation = self.annotation
-                if annotation is not None:
-                    annotations.append(annotation)
+                if self.annotation is not None:
+                    annotations.append(self.annotation)
             elif elem in components:
                 break
             elif elem.tag == XSD_ANNOTATION:
                 parent_elem = parent_map[elem]
-                annotations.append(XsdAnnotation(elem, self.schema, self, parent_elem))
+                if parent_elem is not self.elem:
+                    annotations.append(XsdAnnotation(elem, self.schema, self, parent_elem))
 
         return annotations
 
