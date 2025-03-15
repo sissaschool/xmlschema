@@ -29,7 +29,8 @@ from xmlschema.utils.decoding import EmptyType, raw_encode_value
 from xmlschema.utils.etree import is_etree_element, is_etree_document
 from xmlschema.utils.logger import format_xmlschema_stack
 from xmlschema.utils.qnames import get_prefixed_qname
-from xmlschema.converters import NamespaceMapper, XMLSchemaConverter, ConverterType, get_converter
+from xmlschema.namespaces import NamespaceMapper
+from xmlschema.converters import XMLSchemaConverter, ConverterType, get_converter
 from xmlschema.resources import XMLResource
 
 from .exceptions import XMLSchemaValidationError, \

@@ -121,7 +121,7 @@ class XsdValidator:
             # Check called before validation
             check_validation_mode(validation)
 
-        if self.validation_attempted == 'none' and validation !='skip':
+        if self.validation_attempted == 'none' and validation != 'skip':
             msg = _("%r is not built") % self
             raise XMLSchemaNotBuiltError(self, msg)
 
@@ -687,24 +687,24 @@ class XsdAnnotation(XsdComponent):
     :ivar appinfo: a list containing the xs:appinfo children.
     :ivar documentation: a list containing the xs:documentation children.
 
-      <annotation
-        id = ID
-        {any attributes with non-schema namespace . . .}>
-        Content: (appinfo | documentation)*
-      </annotation>
+    ..  <annotation
+          id = ID
+          {any attributes with non-schema namespace . . .}>
+          Content: (appinfo | documentation)*
+        </annotation>
 
-      <appinfo
-        source = anyURI
-        {any attributes with non-schema namespace . . .}>
-        Content: ({any})*
-      </appinfo>
+    ..  <appinfo
+          source = anyURI
+          {any attributes with non-schema namespace . . .}>
+          Content: ({any})*
+        </appinfo>
 
-      <documentation
-        source = anyURI
-        xml:lang = language
-        {any attributes with non-schema namespace . . .}>
-        Content: ({any})*
-      </documentation>
+    ..  <documentation
+          source = anyURI
+          xml:lang = language
+          {any attributes with non-schema namespace . . .}>
+          Content: ({any})*
+        </documentation>
     """
     _ADMITTED_TAGS = XSD_ANNOTATION,
 

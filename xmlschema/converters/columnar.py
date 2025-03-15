@@ -14,8 +14,7 @@ from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from xmlschema.aliases import NsmapType, BaseXsdType
 from xmlschema.resources import XMLResource
 
-from .base import ElementData
-from .default import XMLSchemaConverter
+from .base import ElementData, XMLSchemaConverter
 
 if TYPE_CHECKING:
     from xmlschema.validators import XsdElement

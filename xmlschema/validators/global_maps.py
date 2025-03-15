@@ -11,22 +11,23 @@ import copy
 import threading
 import warnings
 from collections import Counter
-from collections.abc import Collection, Iterator, Iterable, Mapping
+from collections.abc import Collection, Iterator, Iterable
 from itertools import dropwhile
 from operator import itemgetter
 from types import MappingProxyType
-from typing import Any, cast, NamedTuple, Optional, Union, Type, TypeVar
+from typing import Any, cast, NamedTuple, Optional, Union, Type
 
 from elementpath import XPathToken, XPath2Parser
 
-from xmlschema.aliases import ClassInfoType, SchemaType, BaseXsdType, \
-    SchemaGlobalType, NsmapType, StagedItemType
+from xmlschema.aliases import SchemaType, BaseXsdType, \
+    SchemaGlobalType, NsmapType, StagedItemType, ComponentClassType
 from xmlschema.exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, \
     XMLSchemaValueError, XMLSchemaWarning, XMLSchemaNamespaceError
 from xmlschema.translation import gettext as _
+from xmlschema.utils.misc import deprecated
 from xmlschema.utils.qnames import local_name, get_extended_qname
 from xmlschema.utils.descriptors import validator_property
-from xmlschema.locations import NamespaceResourcesMap
+from xmlschema.namespaces import NamespaceResourcesMap
 from xmlschema.loaders import SchemaResource, SchemaLoader
 import xmlschema.names as nm
 
@@ -36,7 +37,7 @@ from .xsdbase import XsdValidator, XsdComponent
 from .models import check_model
 from . import XsdAttribute, XsdSimpleType, XsdComplexType, XsdElement, \
     XsdGroup, XsdIdentity, XsdAssert, XsdUnion, XsdAtomicRestriction, \
-    XsdAtomic, XsdAtomicBuiltin
+    XsdAtomic, XsdAtomicBuiltin, XsdNotation, XsdAttributeGroup
 from .builders import XsdBuilders, SchemaConfig, TypesMap, NotationsMap, \
     AttributesMap, AttributeGroupsMap, ElementsMap, GroupsMap
 
@@ -164,61 +165,6 @@ class GlobalMaps(NamedTuple):
                 _GLOBAL_GETTERS[child.tag](self).load_redefine(qname, child, schema)
             else:
                 _GLOBAL_GETTERS[child.tag](self).load_override(qname, child, schema)
-
-
-T = TypeVar('T', bound=Union[XsdComponent, set[XsdElement]])
-
-
-class NamespaceView(Mapping[str, T]):
-    """
-    A mapping for filtered access to a dictionary that stores objects by FQDN.
-    """
-    __slots__ = '_target_dict', '_namespace', '_prefix', '_prefix_len'
-
-    def __init__(self, target_dict: Mapping[str, T], namespace: str):
-        self._target_dict = target_dict
-        self._namespace = namespace
-        self._prefix = f'{{{namespace}}}' if namespace else ''
-        self._prefix_len = len(self._prefix)
-
-    def __getitem__(self, key: str) -> T:
-        try:
-            return self._target_dict[self._prefix + key]
-        except KeyError:
-            raise KeyError(key) from None
-
-    def __len__(self) -> int:
-        if not self._namespace:
-            return sum(1 for k in self._target_dict if k[:1] != '{')
-        return sum(1 for k in self._target_dict if self._prefix == k[:self._prefix_len])
-
-    def __iter__(self) -> Iterator[str]:
-        if not self._namespace:
-            for k in self._target_dict:
-                if k[:1] != '{':
-                    yield k
-        else:
-            for k in self._target_dict:
-                if self._prefix == k[:self._prefix_len]:
-                    yield k[self._prefix_len:]
-
-    def __repr__(self) -> str:
-        return '%s(%s)' % (self.__class__.__name__, str(self.as_dict()))
-
-    def __contains__(self, key: object) -> bool:
-        return isinstance(key, str) and (self._prefix + key) in self._target_dict
-
-    def __eq__(self, other: Any) -> Any:
-        return self.as_dict() == other
-
-    def as_dict(self) -> dict[str, T]:
-        if not self._namespace:
-            return {k: v for k, v in self._target_dict.items() if k[:1] != '{'}
-        else:
-            return {
-                k[self._prefix_len:]: v for k, v in self._target_dict.items()
-                if self._prefix == k[:self._prefix_len]
-            }
 
 
 # Default placeholder for deprecation of argument 'validation' in XsdGlobals
@@ -380,6 +326,30 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
         else:
             return cast(SchemaGlobalType, global_map[qname])
 
+    @deprecated('5.0', alt='use item lookup on notations instead')
+    def lookup_notation(self, qname: str) -> XsdNotation:
+        return self.notations[qname]
+
+    @deprecated('5.0', alt='use item lookup on types instead')
+    def lookup_type(self, qname: str) -> BaseXsdType:
+        return self.types[qname]
+
+    @deprecated('5.0', alt='use item lookup on attributes instead')
+    def lookup_attribute(self, qname: str) -> XsdAttribute:
+        return self.attributes[qname]
+
+    @deprecated('5.0', alt='use item lookup on attribute_groups instead')
+    def lookup_attribute_group(self, qname: str) -> XsdAttributeGroup:
+        return self.attribute_groups[qname]
+
+    @deprecated('5.0', alt='use item lookup on groups instead')
+    def lookup_group(self, qname: str) -> XsdGroup:
+        return self.groups[qname]
+
+    @deprecated('5.0', alt='use item lookup on elements instead')
+    def lookup_element(self, qname: str) -> XsdElement:
+        return self.elements[qname]
+
     def get_instance_type(self, type_name: str, base_type: BaseXsdType,
                           namespaces: NsmapType) -> BaseXsdType:
         """
@@ -525,7 +495,7 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
             assert isinstance(xsd_element, XsdElement)
             xsd_element.binding = None
 
-    def iter_components(self, xsd_classes: Optional[ClassInfoType[XsdComponent]] = None) \
+    def iter_components(self, xsd_classes: Optional[ComponentClassType] = None) \
             -> Iterator[Union['XsdGlobals', XsdComponent]]:
         """Creates an iterator for the XSD components of built schemas."""
         if xsd_classes is None or isinstance(self, xsd_classes):
@@ -683,7 +653,7 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
             if self.built:
                 return
 
-            self.check_schemas()
+            self.check_loaded_schemas()
             self.clear()
 
             for ancestor in self.iter_ancestors():
@@ -734,7 +704,7 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
                     obj.build()
 
             if self.validator.meta_schema is not None:
-                self.check_components(target_schemas)
+                self.check(target_schemas)
 
             # Save totals for a fast integrity check on globals maps
             self._staged_globals = self.staged_globals
@@ -755,7 +725,7 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
 
             self.check_validator()
 
-    def check_schemas(self) -> None:
+    def check_loaded_schemas(self) -> None:
         """Checks the coherence of schema registrations."""
         if self.validator not in self._schemas:
             raise XMLSchemaValueError(_('global maps main validator is not registered'))
@@ -782,10 +752,10 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
         if self._schemas != registered_schemas:
             raise XMLSchemaValueError(_('registered schemas do not match namespace mapped schemas'))
 
-    def check_components(self, schemas: Optional[Iterable[SchemaType]] = None) -> None:
+    def check(self, schemas: Optional[Iterable[SchemaType]] = None) -> None:
         """
-        Checks the components of the global maps. For default checks all schemas
-        and raises an exception at first error.
+        Checks the components of provided schemas. Used after the build of the global maps.
+        For default checks all schemas and raises an exception at first error.
 
         :param schemas: optional argument with the set of the schemas to check.
         :raise: XMLSchemaParseError

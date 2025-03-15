@@ -820,6 +820,31 @@ class TestXMLSchema10(XsdValidatorTestCase):
         with self.assertRaises(xmlschema.XMLSchemaException):
             self.schema_class(malformed_xsd)
 
+    def test_deprecated_api(self):
+        schema = self.schema_class(dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:element name="root"/>
+            </xs:schema>"""))
+        xsd_element = schema.elements['root']
+
+        with warnings.catch_warnings(record=True) as ctx:
+            warnings.simplefilter("always")
+
+            schema.create_any_type()
+            self.assertEqual(len(ctx), 1)
+            self.assertEqual(ctx[0].category, DeprecationWarning)
+            self.assertIn('will be removed in v5.0', ctx[0].message.args[0])
+
+            schema.create_any_content_group(xsd_element.type)
+            self.assertEqual(len(ctx), 2)
+            self.assertEqual(ctx[1].category, DeprecationWarning)
+            self.assertIn('will be removed in v5.0', ctx[1].message.args[0])
+
+            schema.create_any_attribute_group(xsd_element)
+            self.assertEqual(len(ctx), 3)
+            self.assertEqual(ctx[2].category, DeprecationWarning)
+            self.assertIn('will be removed in v5.0', ctx[2].message.args[0])
+
 
 class TestXMLSchema11(TestXMLSchema10):
 

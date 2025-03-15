@@ -7,9 +7,6 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-"""
-This module contains classes for XML Schema wildcards.
-"""
 from collections.abc import Callable, Iterator, Iterable
 from copy import copy
 from typing import Any, Optional, Union
@@ -271,9 +268,7 @@ class XsdWildcard(XsdComponent):
             return all(ns in other.namespace for ns in self.namespace)
 
     def union(self, other: Union['XsdAnyElement', 'XsdAnyAttribute']) -> None:
-        """
-        Update an XSD wildcard with the union of itself and another XSD wildcard.
-        """
+        """Update an XSD wildcard with the union of itself and another XSD wildcard."""
         if not self.not_qname:
             self.not_qname = copy(other.not_qname)
         else:
@@ -343,9 +338,7 @@ class XsdWildcard(XsdComponent):
             self.not_namespace = {'', w1.target_namespace}
 
     def intersection(self, other: Union['XsdAnyElement', 'XsdAnyAttribute']) -> None:
-        """
-        Update an XSD wildcard with the intersection of itself and another XSD wildcard.
-        """
+        """Update an XSD wildcard with the intersection of itself and another XSD wildcard."""
         if self.not_qname:
             self.not_qname.update(other.not_qname)
         else:
@@ -402,7 +395,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
     """
     Class for XSD 1.0 *any* wildcards.
 
-        <any
+    ..  <any
           id = ID
           maxOccurs = (nonNegativeInteger | unbounded) : 1
           minOccurs = nonNegativeInteger : 1
@@ -631,7 +624,7 @@ class XsdAnyAttribute(XsdWildcard, ValidationMixin[tuple[str, str], DecodedValue
     """
     Class for XSD 1.0 *anyAttribute* wildcards.
 
-        <anyAttribute
+    ..  <anyAttribute
           id = ID
           namespace = ((##any | ##other) | List of (anyURI | (##targetNamespace | ##local)) )
           processContents = (lax | skip | strict) : strict
@@ -734,7 +727,7 @@ class Xsd11AnyElement(XsdAnyElement):
     """
     Class for XSD 1.1 *any* declarations.
 
-        <any
+    ..  <any
           id = ID
           maxOccurs = (nonNegativeInteger | unbounded)  : 1
           minOccurs = nonNegativeInteger : 1
@@ -813,7 +806,7 @@ class Xsd11AnyAttribute(XsdAnyAttribute):
     """
     Class for XSD 1.1 *anyAttribute* declarations.
 
-        <anyAttribute
+    ..  <anyAttribute
           id = ID
           namespace = ((##any | ##other) | List of (anyURI | (##targetNamespace | ##local)) )
           notNamespace = List of (anyURI | (##targetNamespace | ##local))
@@ -855,7 +848,7 @@ class XsdOpenContent(XsdComponent):
     """
     Class for XSD 1.1 *openContent* model definitions.
 
-        <openContent
+    ..  <openContent
           id = ID
           mode = (none | interleave | suffix) : interleave
           {any attributes with non-schema namespace . . .}>
@@ -906,7 +899,7 @@ class XsdDefaultOpenContent(XsdOpenContent):
     """
     Class for XSD 1.1 *defaultOpenContent* model definitions.
 
-        <defaultOpenContent
+    ..  <defaultOpenContent
           appliesToEmpty = boolean : false
           id = ID
           mode = (interleave | suffix) : interleave

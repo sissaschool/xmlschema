@@ -12,8 +12,7 @@ from typing import TYPE_CHECKING, Any, Union
 
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError
 
-from .base import ElementData
-from .default import stackable, XMLSchemaConverter
+from .base import ElementData, stackable, XMLSchemaConverter
 
 if TYPE_CHECKING:
     from xmlschema.validators import XsdElement

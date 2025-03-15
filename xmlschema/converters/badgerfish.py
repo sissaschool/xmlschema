@@ -15,8 +15,7 @@ from xmlschema.exceptions import XMLSchemaTypeError
 from xmlschema.names import XSD_ANY_TYPE
 from xmlschema.utils.qnames import local_name
 
-from .base import ElementData
-from .default import stackable, XMLSchemaConverter
+from .base import ElementData, stackable, XMLSchemaConverter
 
 if TYPE_CHECKING:
     from xmlschema.validators import XsdElement

@@ -9,7 +9,7 @@
 #
 from . import limits
 from . import translation
-from .exceptions import XMLSchemaException, XMLResourceError
+from .exceptions import XMLSchemaException, XMLResourceError, XMLSchemaNamespaceError
 from .locations import UrlResolver
 from .resources import fetch_resource, fetch_namespaces, fetch_schema_locations, \
     fetch_schema, XMLResource
@@ -33,7 +33,7 @@ from .validators import (
     XMLSchema, XMLSchema10, XMLSchema11, XsdComponent, XsdType, XsdElement, XsdAttribute
 )
 
-__version__ = '4.0.0a1'
+__version__ = '4.0.0'
 __author__ = "Davide Brunato"
 __contact__ = "brunato@sissa.it"
 __copyright__ = "Copyright 2016-2025, SISSA"
@@ -42,8 +42,9 @@ __status__ = "Production/Stable"
 
 __all__ = [
     'limits', 'translation', 'XMLSchemaException', 'XMLResourceError',
-    'UrlResolver', 'etree_tostring', 'normalize_url', 'normalize_locations',
-    'fetch_resource', 'fetch_namespaces', 'fetch_schema_locations', 'fetch_schema',
+    'XMLSchemaNamespaceError', 'UrlResolver', 'etree_tostring', 'normalize_url',
+    'normalize_locations', 'fetch_resource', 'fetch_namespaces',
+    'fetch_schema_locations', 'fetch_schema',
     'XMLResource', 'ElementPathMixin', 'ElementData', 'XMLSchemaConverter',
     'UnorderedConverter', 'ParkerConverter', 'BadgerFishConverter', 'GDataConverter',
     'AbderaConverter', 'JsonMLConverter', 'ColumnarConverter', 'DataElement',

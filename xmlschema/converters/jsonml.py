@@ -13,8 +13,7 @@ from typing import TYPE_CHECKING, Any, Optional, Type
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from xmlschema.aliases import NsmapType, BaseXsdType
 
-from .base import ElementData
-from .default import stackable, XMLSchemaConverter
+from .base import ElementData, stackable, XMLSchemaConverter
 
 if TYPE_CHECKING:
     from xmlschema.validators import XsdElement

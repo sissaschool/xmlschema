@@ -18,7 +18,8 @@ from urllib.parse import urlsplit
 from pathlib import Path, PurePath, PureWindowsPath, PurePosixPath
 from unittest.mock import patch, MagicMock
 
-from xmlschema.locations import NamespaceResourcesMap, get_locations
+from xmlschema.locations import get_locations
+from xmlschema.namespaces import NamespaceResourcesMap
 from xmlschema.utils.paths import DRIVE_LETTERS, get_uri, get_uri_path, is_unc_path, \
     is_drive_path, LocationPath, LocationPosixPath, LocationWindowsPath
 from xmlschema.utils.urls import is_url, is_local_url, is_remote_url, is_encoded_url, \

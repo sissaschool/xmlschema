@@ -17,7 +17,7 @@ from decimal import Decimal
 from pathlib import Path
 from collections import Counter
 from collections.abc import Callable, Iterator, MutableMapping, Sequence
-from typing import Any, AnyStr, IO, Optional, Type, TYPE_CHECKING, TypeVar, Union
+from typing import Any, AnyStr, IO, Optional, TYPE_CHECKING, TypeVar, Union
 from xml.etree.ElementTree import Element, ElementTree
 
 from elementpath.datatypes import NormalizedString, QName, Float10, Integer, \
@@ -43,8 +43,8 @@ __all__ = ['ElementType', 'ElementTreeType', 'XMLSourceType', 'NsmapType', 'Loca
 
 if TYPE_CHECKING:
     from xmlschema.resources import XMLResource
-    from xmlschema.locations import NamespaceResourcesMap
-    from xmlschema.converters import ElementData  # noqa
+    from xmlschema.namespaces import NamespaceResourcesMap
+    from xmlschema.converters import ElementData  # noqa: F401
     from xmlschema.validators import XMLSchemaValidationError, XsdComponent, \
         XsdComplexType, XsdSimpleType, XsdElement, XsdAnyElement, XsdAttribute, \
         XsdAnyAttribute, XsdAssert, XsdGroup, XsdAttributeGroup, XsdNotation, \
@@ -96,11 +96,11 @@ ModelParticleType = Union['XsdElement', 'XsdAnyElement', 'XsdGroup']
 OccursCounterType = Counter[
     Union['ParticleMixin', ModelParticleType, tuple[ModelGroupType], None]
 ]
-ComponentClassType = Union[None, Type['XsdComponent'], tuple[Type['XsdComponent'], ...]]
+ComponentClassType = Union[None, type['XsdComponent'], tuple[type['XsdComponent'], ...]]
 XPathElementType = Union['XsdElement', 'XsdAnyElement', 'XsdAssert']
 
 C = TypeVar('C')
-ClassInfoType = Union[Type[C], tuple[Type[C], ...]]
+ClassInfoType = Union[type[C], tuple[type[C], ...]]
 
 LoadedItemType = tuple[ElementType, SchemaType]
 StagedItemType = Union[LoadedItemType, list[LoadedItemType], tuple[LoadedItemType]]

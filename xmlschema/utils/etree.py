@@ -9,26 +9,13 @@
 #
 import importlib
 import re
-import sys
-from collections.abc import Callable, Iterable, Iterator
+from collections.abc import Callable, Iterator
 from typing import Any, Optional, Union
 from xml.etree import ElementTree
 
 from xmlschema.names import XSI_SCHEMA_LOCATION, XSI_NONS_SCHEMA_LOCATION
 from xmlschema.aliases import ElementType, NsmapType
 from xmlschema.utils.qnames import get_namespace, get_prefixed_qname
-
-if sys.version_info >= (3, 10):
-    from itertools import pairwise
-else:
-
-    def pairwise(iterable: Iterable[Any]) -> Iterator[Any]:
-        iterator = iter(iterable)
-        a = next(iterator, None)
-
-        for b in iterator:
-            yield a, b
-            a = b
 
 
 def is_etree_element(obj: object) -> bool:
@@ -116,7 +103,8 @@ def etree_getpath(elem: ElementType,
     else:
         parts = ['', root.tag]
 
-    for parent, child in pairwise(ancestors):
+    for k in range(len(ancestors) - 1):
+        parent, child = ancestors[k:k+2]
         name = get_prefixed_qname(child.tag, namespaces) if namespaces else child.tag
         if add_position:
             position = siblings = 1

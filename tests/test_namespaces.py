@@ -16,7 +16,7 @@ from textwrap import dedent
 
 from xmlschema import XMLResource, XMLSchemaConverter
 from xmlschema.names import XSD_NAMESPACE, XSI_NAMESPACE
-from xmlschema.converters import NamespaceMapper
+from xmlschema.namespaces import NamespaceMapper
 
 CASES_DIR = os.path.join(os.path.dirname(__file__), '../test_cases')
 

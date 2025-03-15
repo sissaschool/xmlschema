@@ -1,5 +1,5 @@
 #
-# Copyright (c), 2016-2024, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2021, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -7,21 +7,19 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-"""
-This module contains the base definitions for xmlschema's converters.
-"""
-import re
 from collections import namedtuple
-from collections.abc import Callable, Container, Iterator, MutableMapping
-from typing import Any, NamedTuple, Optional, Union
+from collections.abc import Callable, Iterator, Iterable, MutableMapping, MutableSequence
+from typing import TYPE_CHECKING, Any, Optional, Type, TypeVar, Union
+from xml.etree.ElementTree import Element
 
-from xmlschema.aliases import NsmapType, ElementType, XmlnsType
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError
-from xmlschema.utils.decoding import iter_decoded_data
-from xmlschema.utils.qnames import get_namespace_map, update_namespaces, local_name
+from xmlschema.aliases import NsmapType, BaseXsdType, XmlnsType
 from xmlschema.resources import XMLResource
+from xmlschema.utils.qnames import get_namespace
+from xmlschema.namespaces import NamespaceMapper
 
-XMLNS_PROCESSING_MODES = frozenset(('stacked', 'collapsed', 'root-only', 'none'))
+if TYPE_CHECKING:
+    from xmlschema.validators import XsdElement
 
 
 ElementData = namedtuple('ElementData',
@@ -38,322 +36,475 @@ attributes, *xmlns* can be `None` or a list of couples containing namespace
 declarations.
 """
 
-
-class NamespaceMapperContext(NamedTuple):
-    obj: Union[ElementType, Any]
-    level: int
-    xmlns: XmlnsType
-    namespaces: NsmapType
-    reverse: NsmapType
+T = TypeVar('T')
 
 
-class NamespaceMapper(MutableMapping[str, str]):
+def stackable(method: Callable[..., T]) -> Callable[..., T]:
+    """Mark if a converter object method supports 'stacked' xmlns processing mode."""
+    method.stackable = True  # type: ignore[attr-defined]
+    return method
+
+
+class XMLSchemaConverter(NamespaceMapper):
     """
-    A class to map/unmap namespace prefixes to URIs. An internal reverse mapping
-    from URI to prefix is also maintained for keep name mapping consistent within
-    updates.
+    Generic XML Schema based converter class. A converter is used to compose
+    decoded XML data for an Element into a data structure and to build an Element
+    from encoded data structure. There are two methods for interfacing the
+    converter with the decoding/encoding process. The method *element_decode*
+    accepts an ElementData tuple, containing the element parts, and returns
+    a data structure. The method *element_encode* accepts a data structure and
+    returns an ElementData tuple. For default character data parts are ignored.
+    Prefixes and text key can be changed also using alphanumeric values but
+    ambiguities with schema elements could affect XML data re-encoding.
 
-    :param namespaces: initial data with mapping of namespace prefixes to URIs.
+    :param namespaces: map from namespace prefixes to URI.
+    :param dict_class: dictionary class to use for decoded data. Default is `dict`.
+    :param list_class: list class to use for decoded data. Default is `list`.
+    :param etree_element_class: the class that has to be used to create new XML elements, \
+    if not provided uses the ElementTree's Element class.
+    :param text_key: is the key to apply to element's decoded text data.
+    :param attr_prefix: controls the mapping of XML attributes, to the same name or \
+    with a prefix. If `None` the converter ignores attributes.
+    :param cdata_prefix: is used for including and prefixing the character data parts \
+    of a mixed content, that are labeled with an integer instead of a string. \
+    Character data parts are ignored if this argument is `None`.
+    :param indent: number of spaces for XML indentation (default is 4).
     :param process_namespaces: whether to use namespace information in name mapping \
     methods. If set to `False` then the name mapping methods simply return the \
     provided name.
-    :param strip_namespaces: if set to `True` then the name mapping methods return \
-    the local part of the provided name.
+    :param strip_namespaces: if set to `True` removes namespace declarations from data and \
+    namespace information from names, during decoding or encoding. Defaults to `False`.
     :param xmlns_processing: defines the processing mode of XML namespace declarations. \
-    The preferred mode is 'stacked', the mode that processes the namespace declarations \
-    using a stack of contexts related with elements and levels. \
-    This is the processing mode that always matches the XML namespace declarations \
-    defined in the XML document. Provide 'collapsed' for loading all namespace \
-    declarations of the XML source in a single map, renaming colliding prefixes. \
-    Provide 'root-only' to use only the namespace declarations of the XML document root. \
-    Provide 'none' to not use any namespace declaration of the XML document. \
-    For default the xmlns processing mode is 'stacked' if the XML source is an \
-    `XMLResource` instance, otherwise is 'none'.
-    :param source: the origin of XML data. Con be an `XMLResource` instance, an XML \
-    decoded data or `None`.
-    """
-    __slots__ = ('_namespaces', '_reverse', '_contexts', 'process_namespaces',
-                 'strip_namespaces', '_use_namespaces', 'xmlns_processing',
-                 '_xmlns_getter', 'source')
+    Can be 'stacked', 'collapsed', 'root-only' or 'none', with the meaning defined for \
+    the `NamespaceMapper` base class. For default the xmlns processing mode is chosen \
+    between 'stacked', 'collapsed' and 'none', depending on the provided XML source \
+    and the capabilities and the settings of the converter instance.
+    :param source: the origin of XML data. Con be an `XMLResource` instance or `None`.
+    :param preserve_root: if set to `True` the root element is preserved, wrapped into a \
+    single-item dictionary. Applicable only to default converter, to \
+    :class:`UnorderedConverter` and to :class:`ParkerConverter`.
+    :param force_dict: if set to `True` complex elements with simple content are decoded \
+    with a dictionary also if there are no decoded attributes. Applicable only to default \
+    converter and to :class:`UnorderedConverter`. Defaults to `False`.
+    :param force_list: if set to `True` child elements are decoded within a list in any case. \
+    Applicable only to default converter and to :class:`UnorderedConverter`. Defaults to `False`.
 
-    _namespaces: NsmapType
-    _contexts: list[NamespaceMapperContext]
-    _xmlns_getter: Optional[Callable[[ElementType], XmlnsType]]
+    :ivar dict: dictionary class to use for decoded data.
+    :ivar list: list class to use for decoded data.
+    :ivar etree_element_class: Element class to use
+    :ivar text_key: key for decoded Element text
+    :ivar attr_prefix: prefix for attribute names
+    :ivar cdata_prefix: prefix for character data parts
+    :ivar indent: indentation to use for rebuilding XML trees
+    :ivar preserve_root: preserve the root element on decoding
+    :ivar force_dict: force dictionary for complex elements with simple content
+    :ivar force_list: force list for child elements
+    """
+    ns_prefix: str
+    etree_element_class: Type[Element]
+
+    __slots__ = ('dict', 'list', 'etree_element_class',
+                 'text_key', 'ns_prefix', 'attr_prefix', 'cdata_prefix',
+                 'indent', 'preserve_root', 'force_dict', 'force_list')
 
     def __init__(self, namespaces: Optional[NsmapType] = None,
+                 dict_class: Optional[Type[dict[str, Any]]] = None,
+                 list_class: Optional[Type[list[Any]]] = None,
+                 etree_element_class: Optional[Type[Element]] = None,
+                 text_key: Optional[str] = '$',
+                 attr_prefix: Optional[str] = '@',
+                 cdata_prefix: Optional[str] = None,
+                 indent: int = 4,
                  process_namespaces: bool = True,
                  strip_namespaces: bool = False,
                  xmlns_processing: Optional[str] = None,
-                 source: Optional[Any] = None) -> None:
+                 source: Optional[XMLResource] = None,
+                 preserve_root: bool = False,
+                 force_dict: bool = False,
+                 force_list: bool = False,
+                 **kwargs: Any) -> None:
 
-        self.process_namespaces = process_namespaces
-        self.strip_namespaces = strip_namespaces
-        self._use_namespaces = bool(process_namespaces and not strip_namespaces)
-        self.source = source
+        self.dict: Type[dict[str, Any]]
+        self.list: Type[list[Any]]
 
-        if xmlns_processing is None:
-            xmlns_processing = self.xmlns_processing_default
-        elif not isinstance(xmlns_processing, str):
-            raise XMLSchemaTypeError("invalid type for argument 'xmlns_processing'")
-
-        if xmlns_processing not in XMLNS_PROCESSING_MODES:
-            raise XMLSchemaValueError("invalid value for argument 'xmlns_processing'")
-        self.xmlns_processing = xmlns_processing
-
-        if xmlns_processing == 'none':
-            self._xmlns_getter = None
-        elif isinstance(source, XMLResource):
-            self._xmlns_getter = source.get_xmlns
+        if dict_class is not None:
+            self.dict = dict_class
         else:
-            self._xmlns_getter = self.get_xmlns_from_data
+            self.dict = dict
 
-        self._namespaces = self.get_namespaces(namespaces)
-        self._reverse = {v: k for k, v in reversed(list(self._namespaces.items()))}
-        self._contexts = []
+        if list_class is not None:
+            self.list = list_class
+        else:
+            self.list = list
 
-    def __getitem__(self, prefix: str) -> str:
-        return self._namespaces[prefix]
+        if etree_element_class is not None:
+            self.etree_element_class = etree_element_class
+        else:
+            self.etree_element_class = Element
 
-    def __setitem__(self, prefix: str, uri: str) -> None:
-        self._namespaces[prefix] = uri
-        self._reverse[uri] = prefix
+        self.text_key = text_key
+        self.attr_prefix = attr_prefix
+        self.cdata_prefix = cdata_prefix
+        self.ns_prefix = 'xmlns' if attr_prefix is None else f'{attr_prefix}xmlns'
 
-    def __delitem__(self, prefix: str) -> None:
-        uri = self._namespaces.pop(prefix)
-        del self._reverse[uri]
+        self.indent = indent
+        self.preserve_root = preserve_root
+        self.force_dict = force_dict
+        self.force_list = force_list
 
-        for k in reversed(list(self._namespaces)):
-            if self._namespaces[k] == uri:
-                self._reverse[uri] = k
-                break
+        super().__init__(
+            namespaces, process_namespaces, strip_namespaces, xmlns_processing, source
+        )
 
-    def __iter__(self) -> Iterator[str]:
-        return iter(self._namespaces)
+    def __setattr__(self, name: str, value: Any) -> None:
+        if name in {'attr_prefix', 'text_key', 'cdata_prefix'}:
+            if value is not None and not isinstance(value, str):
+                msg = "%(name)r must be a <class 'str'> instance or None, not %(type)r"
+                raise XMLSchemaTypeError(msg % {'name': name, 'type': type(value)})
 
-    def __len__(self) -> int:
-        return len(self._namespaces)
+        elif name in {'strip_namespaces', 'preserve_root', 'force_dict', 'force_list'}:
+            if not isinstance(value, bool):
+                msg = "%(name)r must be a <class 'bool'> instance, not %(type)r"
+                raise XMLSchemaTypeError(msg % {'name': name, 'type': type(value)})
 
-    @property
-    def namespaces(self) -> NsmapType:
-        return self._namespaces
+        elif name == 'indent':
+            if isinstance(value, bool) or not isinstance(value, int):
+                msg = "%(name)r must be a <class 'int'> instance, not %(type)r"
+                raise XMLSchemaTypeError(msg % {'name': name, 'type': type(value)})
 
-    @property
-    def default_namespace(self) -> Optional[str]:
-        return self._namespaces.get('')
+        elif name == 'dict':
+            if not issubclass(value, MutableMapping):
+                msg = "%(name)r must be a MutableMapping object, not %(type)r"
+                raise XMLSchemaTypeError(msg % {'name': 'dict_class', 'type': type(value)})
+
+        elif name == 'list':
+            if not issubclass(value, MutableSequence):
+                msg = "%(name)r must be a MutableSequence object, not %(type)r"
+                raise XMLSchemaTypeError(msg % {'name': 'list_class', 'type': type(value)})
+
+        super().__setattr__(name, value)
 
     @property
     def xmlns_processing_default(self) -> str:
-        return 'stacked' if isinstance(self.source, XMLResource) else 'none'
-
-    def __copy__(self) -> 'NamespaceMapper':
-        mapper: 'NamespaceMapper' = object.__new__(self.__class__)
-
-        for cls in self.__class__.__mro__:
-            if hasattr(cls, '__slots__'):
-                for attr in cls.__slots__:
-                    value = getattr(self, attr)
-                    if isinstance(value, (dict, list)):
-                        setattr(mapper, attr, value.copy())
-                    else:
-                        setattr(mapper, attr, value)
-
-        return mapper
-
-    def clear(self) -> None:
-        self._namespaces.clear()
-        self._reverse.clear()
-        self._contexts.clear()
-
-    def get_xmlns_from_data(self, obj: Any) -> XmlnsType:
-        """Returns the XML declarations from decoded element data."""
-        return None
-
-    def get_namespaces(self, namespaces: Optional[NsmapType] = None,
-                       root_only: bool = True) -> NsmapType:
         """
-        Extracts namespaces with related prefixes from the XML source. It the XML
-        source is an `XMLResource` instance delegates the extraction to it.
-        With XML decoded data iterates the source try to extract xmlns information
-        using the implementation of *get_xmlns_from_data()*. If xmlns processing
-        mode is 'none', no namespace declaration is retrieved from the XML source.
-        Arguments and return type are identical to the ones defined for the method
-        *get_namespaces()* of `XMLResource` class.
+        Returns the default of the xmlns processing mode, used if `None` is provided.
         """
-        if self._xmlns_getter is None:
-            return get_namespace_map(namespaces)
-        elif isinstance(self.source, XMLResource):
-            return self.source.get_namespaces(namespaces, root_only)
+        if isinstance(self.source, XMLResource):
+            if getattr(self.element_decode, 'stackable', False):
+                return 'stacked'
+            else:
+                return 'collapsed'
+        elif getattr(self.element_encode, 'stackable', False):
+            return 'stacked'
+        else:
+            return 'collapsed'
 
-        xmlns: XmlnsType
-        namespaces = get_namespace_map(namespaces)
-        for obj, level in iter_decoded_data(self.source):
-            if root_only and level > 1:  # root xmlns declarations are usually at level 0 or 1
-                break
-            xmlns = self.get_xmlns_from_data(obj)
-            if xmlns:
-                update_namespaces(namespaces, xmlns, not level)
+    @property
+    def lossy(self) -> bool:
+        """The converter ignores some kind of XML data during decoding/encoding."""
+        return self.cdata_prefix is None or self.text_key is None or self.attr_prefix is None
 
-        return namespaces
-
-    def set_context(self, obj: Any, level: int) -> XmlnsType:
+    @property
+    def losslessly(self) -> bool:
         """
-        set the right context for the XML data and its level, updating the namespace
-        map if necessary. Returns the xmlns declarations of the provided XML data.
+        The XML data is decoded without loss of quality, neither on data nor on data model
+        shape. Only losslessly converters can be always used to encode to an XML data that
+        is strictly conformant to the schema.
         """
-        xmlns = None
+        return False
 
-        if self._contexts:
-            # Remove contexts of sibling or descendant elements
-            namespaces = reverse = None
+    @property
+    def loss_xmlns(self) -> bool:
+        """The converter ignores XML namespace information during decoding/encoding."""
+        return not self._use_namespaces
 
-            while self._contexts:  # pragma: no cover
-                context = self._contexts[-1]
-                if level > context.level:
-                    break
-                elif level == context.level and context.obj is obj:
-                    # The context for (obj, level) already exists
-                    xmlns = context.xmlns
-                    break
+    def copy(self, keep_namespaces: bool = True, **kwargs: Any) -> 'XMLSchemaConverter':
+        """
+        Creates a new converter instance from the existing, replacing options provided
+        with keyword arguments.
 
-                namespaces, reverse = self._contexts.pop()[-2:]
+        :param keep_namespaces: whether to keep the namespaces of the converter \
+        if they are not replaced by a keyword argument.
+        """
+        namespaces = kwargs.get('namespaces', self._namespaces if keep_namespaces else None)
+        xmlns_processing = None if 'source' in kwargs else self.xmlns_processing
 
-            if namespaces is not None and reverse is not None:
-                self._namespaces.clear()
-                self._namespaces.update(namespaces)
-                self._reverse.clear()
-                self._reverse.update(reverse)
+        return type(self)(
+            namespaces=namespaces,
+            dict_class=kwargs.get('dict_class', self.dict),
+            list_class=kwargs.get('list_class', self.list),
+            etree_element_class=kwargs.get('etree_element_class', self.etree_element_class),
+            text_key=kwargs.get('text_key', self.text_key),
+            attr_prefix=kwargs.get('attr_prefix', self.attr_prefix),
+            cdata_prefix=kwargs.get('cdata_prefix', self.cdata_prefix),
+            indent=kwargs.get('indent', self.indent),
+            process_namespaces=kwargs.get('process_namespaces', self.process_namespaces),
+            strip_namespaces=kwargs.get('strip_namespaces', self.strip_namespaces),
+            xmlns_processing=kwargs.get('xmlns_processing', xmlns_processing),
+            source=kwargs.get('source', self.source),
+            preserve_root=kwargs.get('preserve_root', self.preserve_root),
+            force_dict=kwargs.get('force_dict', self.force_dict),
+            force_list=kwargs.get('force_list', self.force_list),
+        )
 
-        if xmlns or not self._xmlns_getter:
+    def map_attributes(self, attributes: Iterable[tuple[str, Any]]) \
+            -> Iterator[tuple[str, Any]]:
+        """
+        Creates an iterator for converting decoded attributes to a data structure with
+        appropriate prefixes.
+
+        :param attributes: A sequence or an iterator of couples with the name of \
+        the attribute and the decoded value. Default is `None` (for `simpleType` \
+        elements, that don't have attributes).
+        """
+        if self.attr_prefix is not None and attributes:
+            for name, value in attributes:
+                yield self.attr_prefix + self.map_qname(name), value
+
+    def map_content(self, content: Iterable[tuple[str, Any, Any]]) \
+            -> Iterator[tuple[str, Any, Any]]:
+        """
+        A generator function for converting the decoded content to a data structure.
+
+        :param content: A sequence or an iterator of tuples with the name of the \
+        element, the decoded value and the `XsdElement` instance associated.
+        """
+        if content:
+            for name, value, xsd_child in content:
+                if isinstance(name, int):
+                    if self.cdata_prefix is not None:
+                        yield f'{self.cdata_prefix}{name}', value, xsd_child
+                elif name[0] == '{':
+                    yield self.map_qname(name), value, xsd_child
+                else:
+                    yield name, value, xsd_child
+
+    def etree_element(self, tag: str,
+                      text: Optional[str] = None,
+                      children: Optional[list[Element]] = None,
+                      attrib: Optional[Union[dict[str, str], Iterable[tuple[str, str]]]] = None,
+                      level: int = 0) -> Element:
+        """
+        Builds an ElementTree's Element using arguments and the element class and
+        the indent spacing stored in the converter instance.
+
+        :param tag: the Element tag string.
+        :param text: the Element text.
+        :param children: the list of Element children/subelements.
+        :param attrib: a dictionary with Element attributes.
+        :param level: the level related to the encoding process (0 means the root).
+        :return: an instance of the Element class is set for the converter instance.
+        """
+        if type(self.etree_element_class) is type(Element):
+            elem = self.etree_element_class(tag)
+        else:
+            nsmap = {prefix if prefix else None: uri
+                     for prefix, uri in self._namespaces.items() if uri}
+            elem = self.etree_element_class(tag, nsmap=nsmap)  # type: ignore[arg-type]
+
+        if attrib is not None:
+            elem.attrib.update(attrib)
+
+        if children:
+            elem.extend(children)
+            elem.text = text or '\n' + ' ' * self.indent * (level + 1)
+            elem.tail = '\n' + ' ' * self.indent * level
+        else:
+            elem.text = text
+            elem.tail = '\n' + ' ' * self.indent * level
+
+        return elem
+
+    def is_xmlns(self, name: str) -> bool:
+        """Returns `True` if the name is a xmlns declaration."""
+        return name.startswith(self.ns_prefix) and \
+            (name == self.ns_prefix or name.startswith(f'{self.ns_prefix}:'))
+
+    def get_effective_xmlns(self, xmlns: XmlnsType, level: int,
+                            xsd_element: Optional['XsdElement'] = None) -> XmlnsType:
+        """
+        Returns the effective xmlns for element decoding/encoding, considering the
+        level and the matching XSD element. At level 0, that is the root of the
+        single decoding/encoding process, all the defined namespaces are returned
+        only if the XSD element is global, otherwise no namespace is returned.
+        """
+        if level:
             return xmlns
+        elif xsd_element is None or not xsd_element.is_global():
+            return None
+        else:
+            return [x for x in self._namespaces.items()]
 
-        xmlns = self._xmlns_getter(obj)
-        if xmlns:
-            if self.xmlns_processing == 'stacked':
-                context = NamespaceMapperContext(
-                    obj,
-                    level,
-                    xmlns,
-                    {k: v for k, v in self._namespaces.items()},
-                    {k: v for k, v in self._reverse.items()},
-                )
-                self._contexts.append(context)
-                self._namespaces.update(xmlns)
-                if level:
-                    self._reverse.update((v, k) for k, v in xmlns)
-                else:
-                    self._reverse.update((v, k) for k, v in reversed(xmlns)
-                                         if v not in self._reverse)
-                return xmlns
+    def get_xmlns_from_data(self, obj: Any) -> Optional[list[tuple[str, str]]]:
+        """Returns the XML declarations from decoded element data."""
+        if not self._use_namespaces or not isinstance(obj, MutableMapping):
+            return None
 
-            elif not level or self.xmlns_processing == 'collapsed':
-                for prefix, uri in xmlns:
-                    if not prefix:
-                        if not uri:
-                            continue
-                        elif '' not in self._namespaces:
-                            if not level:
-                                self._namespaces[''] = uri
-                                if uri not in self._reverse:
-                                    self._reverse[uri] = ''
-                                continue
-                        elif self._namespaces[''] == uri:
-                            continue
-                        prefix = 'default'
+        xmlns = []
+        for name, value in obj.items():
+            if name == self.ns_prefix:
+                xmlns.append(('', value))
+            elif name.startswith(f'{self.ns_prefix}:'):
+                xmlns.append((name[len(self.ns_prefix) + 1:], value))
 
-                    while prefix in self._namespaces:
-                        if self._namespaces[prefix] == uri:
-                            break
-                        match = re.search(r'(\d+)$', prefix)
-                        if match:
-                            index = int(match.group()) + 1
-                            prefix = prefix[:match.span()[0]] + str(index)
-                        else:
-                            prefix += '0'
+        return xmlns
+
+    @stackable
+    def element_decode(self, data: ElementData, xsd_element: 'XsdElement',
+                       xsd_type: Optional[BaseXsdType] = None, level: int = 0) -> Any:
+        """
+        Converts a decoded element data to a data structure.
+
+        :param data: ElementData instance decoded from an Element node.
+        :param xsd_element: the `XsdElement` associated to decode the data.
+        :param xsd_type: optional XSD type for supporting dynamic type through \
+        *xsi:type* or xs:alternative.
+        :param level: the level related to the decoding process (0 means the root).
+        :return: a data structure containing the decoded data.
+        """
+        _xsd_type = xsd_type or xsd_element.type
+        result_dict = self.dict()
+        xmlns = self.get_effective_xmlns(data.xmlns, level, xsd_element)
+
+        def keep_result_dict() -> bool:
+            """
+            Decide when to keep a result dict in case of an element with simple content.
+            """
+            if data.attributes or self.force_dict and _xsd_type.is_complex():
+                return True
+            elif not xmlns or not self._use_namespaces:
+                return False
+
+            namespace = get_namespace(data.tag)
+            if any(x[1] == namespace for x in xmlns):
+                return True
+
+            if _xsd_type.is_qname() and isinstance(data.text, str):
+                try:
+                    prefix = data.text.split(':')[0]
+                except IndexError:
+                    prefix = ''
+
+                if any(x[0] == prefix for x in xmlns):
+                    return True
+
+            return False
+
+        if self._use_namespaces and xmlns:
+            result_dict.update(
+                (f'{self.ns_prefix}:{k}' if k else self.ns_prefix, v) for k, v in xmlns
+            )
+
+        if data.attributes:
+            result_dict.update(self.map_attributes(data.attributes))
+
+        xsd_group = _xsd_type.model_group
+        if xsd_group is None or not data.content:
+            if keep_result_dict():
+                result_dict.update(self.map_attributes(data.attributes))
+                if data.text is not None and self.text_key is not None:
+                    result_dict[self.text_key] = data.text
+            elif not level and self.preserve_root:
+                return self.dict([(self.map_qname(data.tag), data.text)])
+            else:
+                return data.text
+        else:
+            if data.attributes:
+                result_dict.update(self.map_attributes(data.attributes))
+
+            has_single_group = xsd_group.is_single()
+            for name, value, xsd_child in self.map_content(data.content):
+                try:
+                    result = result_dict[name]
+                except KeyError:
+                    if xsd_child is None or has_single_group and xsd_child.is_single():
+                        result_dict[name] = self.list([value]) if self.force_list else value
                     else:
-                        self._namespaces[prefix] = uri
-                        if uri not in self._reverse:
-                            self._reverse[uri] = prefix
-        return None
-
-    def map_qname(self, qname: str) -> str:
-        """
-        Converts an extended QName to the prefixed format. Only registered
-        namespaces are mapped.
-
-        :param qname: a QName in extended format or a local name.
-        :return: a QName in prefixed format or a local name.
-        """
-        if not self._use_namespaces:
-            return local_name(qname) if self.strip_namespaces else qname
-
-        try:
-            if qname[0] != '{' or not self._namespaces:
-                return qname
-            namespace, local_part = qname[1:].split('}')
-        except IndexError:
-            return qname
-        except ValueError:
-            raise XMLSchemaValueError("the argument 'qname' has an invalid value %r" % qname)
-        except TypeError:
-            raise XMLSchemaTypeError("the argument 'qname' must be a string-like object")
-
-        try:
-            prefix = self._reverse[namespace]
-        except KeyError:
-            return qname
-        else:
-            return f'{prefix}:{local_part}' if prefix else local_part
-
-    def unmap_qname(self, qname: str,
-                    name_table: Optional[Container[Optional[str]]] = None,
-                    xmlns: Optional[list[tuple[str, str]]] = None) -> str:
-        """
-        Converts a QName in prefixed format or a local name to the extended QName format.
-        Local names are converted only if a default namespace is included in the instance.
-        If a *name_table* is provided a local name is mapped to the default namespace
-        only if not found in the name table.
-
-        :param qname: a QName in prefixed format or a local name
-        :param name_table: an optional lookup table for checking local names.
-        :param xmlns: an optional list of namespace declarations that integrate \
-        or override the namespace map.
-        :return: a QName in extended format or a local name.
-        """
-        namespaces: MutableMapping[str, str]
-
-        if not self._use_namespaces:
-            return local_name(qname) if self.strip_namespaces else qname
-
-        if xmlns:
-            namespaces = {k: v for k, v in self._namespaces.items()}
-            namespaces.update(xmlns)
-        else:
-            namespaces = self._namespaces
-
-        try:
-            if qname[0] == '{' or not namespaces:
-                return qname
-            elif ':' in qname:
-                prefix, name = qname.split(':')
-            else:
-                default_namespace = namespaces.get('')
-                if not default_namespace:
-                    return qname
-                elif name_table is None or qname not in name_table:
-                    return f'{{{default_namespace}}}{qname}'
+                        result_dict[name] = self.list([value])
                 else:
-                    return qname
+                    if not isinstance(result, MutableSequence) or not result:
+                        result_dict[name] = self.list([result, value])
+                    elif isinstance(result[0], MutableSequence) or \
+                            not isinstance(value, MutableSequence):
+                        result.append(value)
+                    else:
+                        result_dict[name] = self.list([result, value])
 
-        except IndexError:
-            return qname
-        except ValueError:
-            raise XMLSchemaValueError("the argument 'qname' has an invalid value %r" % qname)
-        except (TypeError, AttributeError):
-            raise XMLSchemaTypeError("the argument 'qname' must be a string-like object")
+        if not level and self.preserve_root:
+            return self.dict([(self.map_qname(data.tag), result_dict or None)])
+        return result_dict or None
+
+    @stackable
+    def element_encode(self, obj: Any, xsd_element: 'XsdElement', level: int = 0) -> ElementData:
+        """
+        Extracts XML decoded data from a data structure for encoding into an ElementTree.
+
+        :param obj: the decoded object.
+        :param xsd_element: the `XsdElement` associated to the decoded data structure.
+        :param level: the level related to the encoding process (0 means the root).
+        :return: an ElementData instance.
+        """
+        if level or not self.preserve_root:
+            element_name = None
+        elif not isinstance(obj, MutableMapping):
+            raise XMLSchemaTypeError(f"A dictionary expected, got {type(obj)} instead.")
+        elif len(obj) != 1:
+            raise XMLSchemaValueError("The dictionary must have exactly one element.")
         else:
-            try:
-                uri = namespaces[prefix]
-            except KeyError:
-                return qname
+            element_name, obj = next(iter(obj.items()))
+
+        if not isinstance(obj, MutableMapping):
+            if xsd_element.type.simple_type is not None:
+                return ElementData(xsd_element.name, obj, None, {}, None)
+            elif xsd_element.type.mixed and isinstance(obj, (str, bytes)):
+                return ElementData(xsd_element.name, None, [(1, obj)], {}, None)
             else:
-                return f'{{{uri}}}{name}' if uri else name
+                return ElementData(xsd_element.name, None, obj, {}, None)
+
+        text = None
+        content: list[tuple[Union[int, str], Any]] = []
+        attributes = {}
+
+        xmlns = self.set_context(obj, level)
+
+        if element_name is None:
+            tag = xsd_element.name
+        else:
+            tag = self.unmap_qname(element_name)
+            if not xsd_element.is_matching(tag, self.default_namespace):
+                raise XMLSchemaValueError("data tag does not match XSD element name")
+
+        for name, value in obj.items():
+            if name == self.text_key:
+                text = value
+            elif self.cdata_prefix is not None and \
+                    name.startswith(self.cdata_prefix) and \
+                    (index := name[len(self.cdata_prefix):]).isdigit():
+                content.append((int(index), value))
+            elif self.is_xmlns(name):
+                continue
+            elif self.attr_prefix and \
+                    name.startswith(self.attr_prefix) and \
+                    (attr_name := name[len(self.attr_prefix):]):
+                ns_name = self.unmap_qname(attr_name, xsd_element.attributes)
+                attributes[ns_name] = value
+            elif not isinstance(value, MutableSequence) or not value:
+                ns_name = self.unmap_qname(name, xmlns=self.get_xmlns_from_data(value))
+                content.append((ns_name, value))
+            elif isinstance(value[0], (MutableMapping, MutableSequence)):
+                ns_name = self.unmap_qname(name, xmlns=self.get_xmlns_from_data(value[0]))
+                content.extend((ns_name, item) for item in value)
+            else:
+                ns_name = self.unmap_qname(name)
+                xsd_child = xsd_element.match_child(ns_name)
+                if xsd_child is not None:
+                    if xsd_child.type and xsd_child.type.is_list():
+                        content.append((ns_name, value))
+                    else:
+                        content.extend((ns_name, item) for item in value)
+                elif self.attr_prefix == '' and ns_name in xsd_element.attributes:
+                    attributes[ns_name] = value
+                else:
+                    content.extend((ns_name, item) for item in value)
+
+        return ElementData(tag, text, content, attributes, xmlns)

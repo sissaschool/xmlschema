@@ -64,6 +64,8 @@ Schema level API
 .. autoclass:: xmlschema.XMLSchemaBase
 
     .. autoattribute:: meta_schema
+    .. autoattribute:: builders
+
     .. autoattribute:: root
     .. automethod:: get_text
     .. autoattribute:: name
@@ -84,9 +86,6 @@ Schema level API
 
     .. automethod:: builtin_types
     .. automethod:: create_meta_schema
-    .. automethod:: create_any_content_group
-    .. automethod:: create_any_attribute_group
-    .. automethod:: create_any_type
 
     .. automethod:: get_locations
     .. automethod:: include_schema
@@ -122,8 +121,7 @@ Global maps API
 ===============
 
 .. autoclass:: xmlschema.XsdGlobals
-    :members: copy, register, iter_schemas, iter_globals, lookup_notation, lookup_type,
-        lookup_attribute, lookup_attribute_group, lookup_group, lookup_element, lookup,
+    :members: copy, register, iter_schemas, iter_globals, lookup,
         clear, build, unbuilt, check
 
 

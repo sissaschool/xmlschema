@@ -42,12 +42,14 @@ from xmlschema.translation import gettext as _
 from xmlschema.utils.decoding import Empty
 from xmlschema.utils.logger import set_logging_level
 from xmlschema.utils.etree import prune_etree, is_etree_element
+from xmlschema.utils.misc import deprecated
 from xmlschema.utils.qnames import get_namespace_ext
 from xmlschema.utils.urls import is_local_url, normalize_url
 from xmlschema.resources import XMLResource
 from xmlschema.converters import XMLSchemaConverter, ConverterType, \
     check_converter_argument, get_converter
 from xmlschema.xpath import XMLSchemaProxy, ElementPathMixin
+from xmlschema.namespaces import NamespaceView
 from xmlschema.locations import SCHEMAS_DIR
 from xmlschema.loaders import SchemaLoader
 from xmlschema.exports import export_schema
@@ -68,7 +70,7 @@ from .groups import XsdGroup
 from .elements import XsdElement
 from .wildcards import XsdAnyElement, XsdDefaultOpenContent
 from .builders import XsdBuilders, SchemaConfig
-from .global_maps import NamespaceView, XsdGlobals
+from .global_maps import XsdGlobals
 
 logger = logging.getLogger('xmlschema')
 
@@ -738,6 +740,20 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
         cls.meta_schema.maps.build()
         return cls.meta_schema.types
+
+    @deprecated('5.0', alt="use XMLSchemaBase.builders.create_any_content_group instead")
+    def create_any_content_group(self, parent: Union[XsdComplexType, XsdGroup],
+                                 any_element: Optional[XsdAnyElement] = None) -> XsdGroup:
+        return self.builders.create_any_content_group(parent, any_element)
+
+    @deprecated('5.0', alt="use XMLSchemaBase.builders.create_any_attribute_group instead")
+    def create_any_attribute_group(self, parent: Union[XsdComplexType, XsdElement]) \
+            -> XsdAttributeGroup:
+        return self.builders.create_any_attribute_group(parent)
+
+    @deprecated('5.0', alt="use XMLSchemaBase.builders.create_any_type instead")
+    def create_any_type(self) -> XsdComplexType:
+        return self.builders.create_any_type(self)
 
     @cached_property
     def annotations(self) -> list[XsdAnnotation]:

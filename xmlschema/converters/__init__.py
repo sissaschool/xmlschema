@@ -12,8 +12,7 @@ from typing import Any, Optional, Type, Union
 from xmlschema.exceptions import XMLSchemaTypeError
 from xmlschema.translation import gettext as _
 
-from .base import ElementData, NamespaceMapper
-from .default import XMLSchemaConverter
+from .base import ElementData, XMLSchemaConverter
 from .unordered import UnorderedConverter
 from .parker import ParkerConverter
 from .badgerfish import BadgerFishConverter
@@ -24,7 +23,7 @@ from .columnar import ColumnarConverter
 
 __all__ = ['XMLSchemaConverter', 'UnorderedConverter', 'ParkerConverter',
            'BadgerFishConverter', 'AbderaConverter', 'JsonMLConverter',
-           'ColumnarConverter', 'ElementData', 'GDataConverter', 'NamespaceMapper',
+           'ColumnarConverter', 'ElementData', 'GDataConverter',
            'ConverterType', 'check_converter_argument', 'get_converter']
 
 

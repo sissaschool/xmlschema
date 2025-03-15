@@ -9,10 +9,11 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import unittest
+import warnings
 
 from xmlschema import XMLSchema10, XMLSchema11
 from xmlschema.validators.exceptions import XMLSchemaParseError
-from xmlschema.validators.global_maps import NamespaceView
+from xmlschema.namespaces import NamespaceView
 import xmlschema.names as nm
 
 
@@ -105,6 +106,19 @@ class TestXsdGlobalsMaps(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             XMLSchema10.meta_schema.maps.lookup('simpleType', nm.XSD_STRING)
+
+    def test_deprecated_api(self):
+        with warnings.catch_warnings(record=True) as ctx:
+            warnings.simplefilter("always")
+
+            maps_dir = dir(XMLSchema10.meta_schema.maps)
+            for k, name in enumerate(filter(lambda x: x.startswith('lookup_'), maps_dir)):
+                with self.assertRaises(KeyError):
+                    getattr(XMLSchema10.meta_schema.maps, name)('wrong')
+
+                self.assertEqual(len(ctx), k+1)
+                self.assertEqual(ctx[k].category, DeprecationWarning)
+                self.assertIn('will be removed in v5.0', ctx[k].message.args[0])
 
     def test_copy(self):
         maps = XMLSchema10.meta_schema.maps.copy()

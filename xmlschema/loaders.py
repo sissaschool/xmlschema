@@ -16,8 +16,8 @@ from xml.etree.ElementTree import ParseError
 from xmlschema.aliases import ElementType, SchemaType, SchemaSourceType
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError, \
     XMLResourceBlocked, XMLResourceForbidden, XMLResourceError
-from xmlschema.locations import NamespaceResourcesMap, get_locations, \
-    FALLBACK_LOCATIONS, LOCATIONS
+from xmlschema.locations import get_locations, FALLBACK_LOCATIONS, LOCATIONS
+from xmlschema.namespaces import NamespaceResourcesMap
 from xmlschema.translation import gettext as _
 from xmlschema.resources import XMLResource
 from xmlschema.utils.urls import get_url, is_local_url, normalize_url

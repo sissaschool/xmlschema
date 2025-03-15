@@ -52,10 +52,10 @@ def catchable_xmlschema_error(func: FT) -> FT:
 
 
 def deprecated(version: str, stacklevel: int = 1, alt: str = '') \
-        -> Callable[[Callable[[Any], RT]],  Callable[[Any], RT]]:
+        -> Callable[[Callable[..., RT]],  Callable[..., RT]]:
 
-    def decorator(func: Callable[[Any], RT]) -> Callable[[Any], RT]:
-        msg = f"{func!r} will be removed in v{version}."
+    def decorator(func: Callable[..., RT]) -> Callable[..., RT]:
+        msg = f"{func.__qualname__!r} will be removed in v{version}."
         if alt:
             msg = f"{msg[:-1]}, {alt}."
 
@@ -69,10 +69,10 @@ def deprecated(version: str, stacklevel: int = 1, alt: str = '') \
 
 
 def will_change(version: str, stacklevel: int = 1, alt: str = '') \
-        -> Callable[[Callable[[Any], RT]],  Callable[[Any], RT]]:
+        -> Callable[[Callable[..., RT]],  Callable[..., RT]]:
 
-    def decorator(func: Callable[[Any], RT]) -> Callable[[Any], RT]:
-        msg = f"{func!r} will change from v{version}."
+    def decorator(func: Callable[..., RT]) -> Callable[..., RT]:
+        msg = f"{func.__qualname__!r} will change from v{version}."
         if alt:
             msg = f"{msg[:-1]}, {alt}."
 
