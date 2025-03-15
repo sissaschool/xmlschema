@@ -464,7 +464,7 @@ class Wsdl11Document(XmlDocument):
     """
     Class for WSDL 1.1 documents.
 
-    :param source: a string containing XML data or a file path or an URL or a \
+    :param source: a string containing XML data or a file path or a URL or a \
     file like object or an ElementTree or an Element.
     :param schema: additional schema for providing XSD types and elements to the \
     WSDL document. Can be a :class:`xmlschema.XMLSchema` instance or a file-like \
@@ -477,8 +477,8 @@ class Wsdl11Document(XmlDocument):
     :param namespaces: is an optional mapping from namespace prefix to URI.
     :param locations: resource location hints, that can be a dictionary or a \
     sequence of couples (namespace URI, resource URL).
-    :param kwargs: other optional arguments for initializing :class:`XMLResource` base \
-    class or building :class:`XMLSchema` instances provided as keyword arguments.
+    :param kwargs: other optional arguments for initializing :class:`xmlschema.XMLResource` \
+    base class or building :class:`xmlschema.XMLSchema` instances provided as keyword arguments.
     """
     target_namespace = ''
     soap_binding = False
