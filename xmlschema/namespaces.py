@@ -94,7 +94,9 @@ class NamespaceMapper(MutableMapping[str, str]):
             self._xmlns_getter = self.get_xmlns_from_data
 
         self._namespaces = self.get_namespaces(namespaces)
-        self._reverse = {v: k for k, v in reversed(self._namespaces.items())}
+        self._reverse = {
+            v: k for k, v in reversed(self._namespaces.items())  # type: ignore[call-overload]
+        }
         self._contexts = []
 
     def __getitem__(self, prefix: str) -> str:
@@ -108,7 +110,7 @@ class NamespaceMapper(MutableMapping[str, str]):
         uri = self._namespaces.pop(prefix)
         del self._reverse[uri]
 
-        for k in reversed(self._namespaces.keys()):
+        for k in reversed(self._namespaces.keys()):   # type: ignore[call-overload]
             if self._namespaces[k] == uri:
                 self._reverse[uri] = k
                 break

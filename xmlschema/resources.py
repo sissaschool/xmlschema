@@ -364,7 +364,7 @@ class XMLResource:
 
                     # Update namespace maps
                     for node in node_tree.iter_descendants(with_self=False):
-                        if isinstance(node, ElementNode):
+                        if isinstance(node, ElementNode) and hasattr(node, 'elem'):
                             nsmap = self._nsmaps[cast(ElementType, node.elem)]
                             node.nsmap = {k or '': v for k, v in nsmap.items()}
 
@@ -1057,7 +1057,7 @@ class XMLResource:
                 msg = "XPath expressions on XML resources can select only elements"
                 raise XMLResourceError(msg)
             elif ancestors is not None:
-                if item.elem is self._root:
+                if item.elem is self._root:  # type: ignore[attr-defined, unused-ignore]
                     ancestors.clear()
                 else:
                     _ancestors: Any = []
@@ -1070,7 +1070,7 @@ class XMLResource:
                         ancestors.clear()
                         ancestors.extend(reversed(_ancestors))
 
-            yield cast(ElementType, item.elem)
+            yield cast(ElementType, item.elem)  # type: ignore[attr-defined, unused-ignore]
 
     def iterfind(self, path: str,
                  namespaces: Optional[NamespacesType] = None,

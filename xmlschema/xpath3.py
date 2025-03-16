@@ -24,14 +24,14 @@ XsdAssertionXPath3Parser.unregister('position')
 
 
 # noinspection PyUnusedLocal
-@XsdAssertionXPath3Parser.method(  # type: ignore[no-untyped-def]
+@XsdAssertionXPath3Parser.method(
     XsdAssertionXPath3Parser.function('last', nargs=0))
-def evaluate_last(self, context=None):
+def evaluate_last(self, context=None):  # type: ignore[no-untyped-def]
     raise self.missing_context("context item size is undefined")
 
 
 # noinspection PyUnusedLocal
-@XsdAssertionXPath3Parser.method(  # type: ignore[no-untyped-def]
+@XsdAssertionXPath3Parser.method(
     XsdAssertionXPath3Parser.function('position', nargs=0))
-def evaluate_position(self, context=None):
+def evaluate_position(self, context=None):  # type: ignore[no-untyped-def]
     raise self.missing_context("context item position is undefined")

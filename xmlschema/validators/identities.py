@@ -440,6 +440,7 @@ class FieldValueSelector:
         """
         value: Union[AtomicValueType, List[AtomicValueType], None] = None
         context = XPathContext(element_node, namespaces=namespaces)
+        elem = element_node.elem  # type: ignore[attr-defined, unused-ignore]
 
         empty = True
         for node in cast(Iterator[IdentityNodeType], self.token.select(context)):
@@ -488,7 +489,7 @@ class FieldValueSelector:
 
         if value is None:
             if not isinstance(self.field.parent, XsdKey) or \
-                    'ref' in element_node.elem.attrib and \
+                    'ref' in elem.attrib and \
                     self.field.schema.meta_schema is None and \
                     self.field.schema.XSD_VERSION != '1.0':
                 return None
