@@ -1,14 +1,2 @@
 # Requirements for setup a development environment for the xmlschema package.
-setuptools
-tox>=4.0
-coverage
-elementpath>=4.4.0, <5.0.0
-lxml
-jinja2
-memory_profiler
-Sphinx
-sphinx_rtd_theme
-flake8
-mypy
-lxml-stubs
--e .
+-e .[dev]

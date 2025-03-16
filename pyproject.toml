@@ -1,3 +1,88 @@
 [build-system]
-requires = ["setuptools"]
+requires = ["setuptools >= 61.0"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "xmlschema"
+version = "3.4.3"
+description = "An XML Schema validator and decoder"
+readme = "README.rst"
+license = {text = "MIT"}
+requires-python = ">=3.8"
+authors = [
+    { name = "Davide Brunato", email = "brunato@sissa.it" },
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: Implementation :: PyPy",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Text Processing :: Markup :: XML",
+]
+dependencies = [
+    "elementpath>=4.4.0, <5.0.0",
+]
+
+[project.optional-dependencies]
+codegen = [
+    "jinja2",
+]
+dev = [
+    "coverage",
+    "flake8",
+    "lxml",
+    "lxml-stubs",
+    "memory_profiler",
+    "mypy",
+    "tox",
+    "xmlschema[docs]",
+]
+docs = [
+    "jinja2",
+    "sphinx",
+    "sphinx_rtd_theme",
+]
+
+[project.scripts]
+xmlschema-json2xml = "xmlschema.cli:json2xml"
+xmlschema-validate = "xmlschema.cli:validate"
+xmlschema-xml2json = "xmlschema.cli:xml2json"
+
+[project.urls]
+Homepage = "https://github.com/sissaschool/xmlschema"
+
+[tool.setuptools]
+license-files = [ "LICENSE" ]
+packages = ["xmlschema"]
+
+[tool.mypy]
+show_error_code_links = true
+
+[tool.coverage.run]
+branch = true
+source = ["xmlschema"]
+omit = ["xmlschema/testing/*"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError()",
+    'in self._etree_iterparse\(',
+    'in PyElementTree.iterparse\(',
+]
