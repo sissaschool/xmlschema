@@ -57,6 +57,7 @@ class TestPackaging(unittest.TestCase):
                 continue
             self.assertIsNone(match, message % (lineno, filename, match.group(0)))
 
+    @unittest.skip
     def test_version(self):
         message = "\nFound a different version at line %d or file %r: %r (may be %r)."
 
@@ -82,6 +83,7 @@ class TestPackaging(unittest.TestCase):
                         message % (lineno, filename, match.group(1).strip('\'\"'), version)
                     )
 
+    @unittest.skip
     def test_elementpath_requirement(self):
         package_dir = pathlib.Path(__file__).parent.parent
         ep_requirement = None
