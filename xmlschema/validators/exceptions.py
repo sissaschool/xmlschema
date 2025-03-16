@@ -52,17 +52,21 @@ class XMLSchemaValidatorError(XMLSchemaException):
                  source: Optional[Any] = None,
                  namespaces: Optional[NsmapType] = None) -> None:
         self.validator = validator
-        self.message = message[:-1] if message[-1] in ('.', ':') else message
+        self._message = message
         self.namespaces = namespaces
         self.source = source
         self.elem = elem
 
+    @property
+    def message(self) -> str:
+        return self._message
+
     def __str__(self) -> str:
-        chunks = ['%s:\n' % self.message]
+        chunks: list[str] = ['%s:\n' % self.message.rstrip('.:')]
         if self.elem is not None:
-            elem_as_string = cast(
-                str, etree_tostring(self.elem, self.namespaces, '  ', 20)
-            )
+            elem_as_string = etree_tostring(self.elem, self.namespaces, '  ', 20)
+            if isinstance(elem_as_string, bytes):
+                elem_as_string = elem_as_string.decode('utf-8')
             chunks.append("Schema component:\n\n%s\n" % elem_as_string)
 
         path = self.path
@@ -170,7 +174,7 @@ class XMLSchemaCircularityError(XMLSchemaValidatorError):
     Raised when a circularity is found building a global component.
     """
     def __init__(self, name: str, elem: ElementType, schema: SchemaType) -> None:
-        msg = _("Circular definition detected for xs:{} {!r}")
+        msg = _("Circular definition detected for xs:{} {!r}.")
         super().__init__(
             validator=schema,
             message=msg.format(local_name(elem.tag), name),
@@ -245,8 +249,13 @@ class XMLSchemaModelError(XMLSchemaValidatorError, ValueError):
 
 class XMLSchemaModelDepthError(XMLSchemaModelError):
     """Raised when recursion depth is exceeded while iterating a model group."""
+
+    @property
+    def message(self) -> str:
+        return f"{self._message} {self.validator!r}."
+
     def __init__(self, group: 'XsdGroup') -> None:
-        msg = f"maximum model recursion depth exceeded while iterating {group!r}"
+        msg = "maximum model recursion depth exceeded while iterating"
         super().__init__(group, message=msg)
 
 
@@ -263,6 +272,12 @@ class XMLSchemaValidationError(XMLSchemaValidatorError, ValueError):
     :param source: the XML resource that contains the error.
     :param namespaces: is an optional mapping from namespace prefix to URI.
     """
+    _message = 'failed validating {} with'
+
+    @property
+    def message(self) -> str:
+        return f'{self._message} {self.validator!r}.'
+
     def __init__(self,
                  validator: ValidatorType,
                  obj: Any,
@@ -280,7 +295,7 @@ class XMLSchemaValidationError(XMLSchemaValidatorError, ValueError):
 
         super().__init__(
             validator=validator,
-            message=f"failed validating {obj_repr} with {validator!r}",
+            message=_(self._message).format(obj_repr),
             elem=obj if is_etree_element(obj) else None,
             source=source,
             namespaces=namespaces,
@@ -292,7 +307,7 @@ class XMLSchemaValidationError(XMLSchemaValidatorError, ValueError):
         return '%s(reason=%r)' % (self.__class__.__name__, self.reason)
 
     def __str__(self) -> str:
-        chunks: list[str] = ['%s:\n' % self.message]
+        chunks: list[str] = ['%s:\n' % self.message.rstrip('.:')]
 
         if self.reason is not None:
             chunks.append('Reason: %s\n' % self.reason)
@@ -350,7 +365,7 @@ class XMLSchemaDecodeError(XMLSchemaValidationError):
     :param source: the XML resource that contains the error.
     :param namespaces: is an optional mapping from namespace prefix to URI.
     """
-    message = "failed decoding {!r} with {!r}.\n"
+    _message = 'failed decoding {} with'
 
     def __init__(self, validator: Union['XsdValidator', Callable[[Any], None]],
                  obj: Any,
@@ -373,7 +388,7 @@ class XMLSchemaEncodeError(XMLSchemaValidationError):
     :param source: the XML resource that contains the error.
     :param namespaces: is an optional mapping from namespace prefix to URI.
     """
-    message = "failed encoding {!r} with {!r}.\n"
+    _message = 'failed encoding {} with'
 
     def __init__(self, validator: Union['XsdValidator', Callable[[Any], None]],
                  obj: Any,

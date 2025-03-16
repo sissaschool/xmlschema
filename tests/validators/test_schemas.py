@@ -29,7 +29,7 @@ from xmlschema.validators import XMLSchemaBase, XMLSchema10, XMLSchema11, \
 from xmlschema.testing import SKIP_REMOTE_TESTS, XsdValidatorTestCase
 from xmlschema.validators.schemas import logger
 from xmlschema.validators.builders import XsdBuilders
-from xmlschema.validators import XMLSchemaDecodeError
+from xmlschema.validators import XMLSchemaValidationError
 
 
 class CustomXMLSchema(XMLSchema10):
@@ -493,7 +493,7 @@ class TestXMLSchema10(XsdValidatorTestCase):
         col_schema = self.schema_class(self.col_xsd_file)
 
         with self.assertRaises(TypeError) as ctx:
-            self.schema_class(self.col_schema, global_maps=col_schema)
+            self.schema_class(self.col_schema, global_maps=col_schema)  # noqa
         self.assertIn(" for argument 'source'", str(ctx.exception))
 
         schema = self.schema_class(source, global_maps=col_schema.maps)
@@ -731,11 +731,12 @@ class TestXMLSchema10(XsdValidatorTestCase):
         self.assertTrue(_schema.is_valid(str(xml_file)))
         self.assertEqual(len(schema.errors), len(_schema.errors))
 
-        err = XMLSchemaDecodeError(schema, 'foo', 'bar')
-        schema.errors.append(err)
+        err = XMLSchemaValidationError(schema, 'foo')
+        schema.errors.append(err)  # noqa, not a parse error, only for checking unpickle correctness
 
         s = pickle.dumps(schema)
-        # _schema = pickle.loads(s)
+        _schema = pickle.loads(s)
+        self.assertEqual(2, len(_schema.errors))
 
     def test_pickling_subclassed_schema__issue_263(self):
         schema_file = self.cases_dir.joinpath('examples/vehicles/vehicles.xsd')
