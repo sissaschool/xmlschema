@@ -29,6 +29,7 @@ from xmlschema.validators import XMLSchemaBase, XMLSchema10, XMLSchema11, \
 from xmlschema.testing import SKIP_REMOTE_TESTS, XsdValidatorTestCase
 from xmlschema.validators.schemas import logger
 from xmlschema.validators.builders import XsdBuilders
+from xmlschema.validators import XMLSchemaDecodeError
 
 
 class CustomXMLSchema(XMLSchema10):
@@ -36,11 +37,15 @@ class CustomXMLSchema(XMLSchema10):
 
 
 class TestXMLSchema10(XsdValidatorTestCase):
-    TEST_CASES_DIR = str(pathlib.Path(__file__).parent.joinpath('../test_cases').resolve())
+    cases_dir = pathlib.Path(__file__).parent.parent.joinpath('test_cases')
     maxDiff = None
 
     class CustomXMLSchema(XMLSchema10):
         pass
+
+    def test_schema_subclasses(self):
+        self.assertIs(CustomXMLSchema.meta_schema, XMLSchema10.meta_schema)
+        self.assertIs(self.CustomXMLSchema.meta_schema, self.schema_class.meta_schema)
 
     def test_schema_validation(self):
         schema = self.schema_class(self.vh_xsd_file)
@@ -714,11 +719,29 @@ class TestXMLSchema10(XsdValidatorTestCase):
         self.assertEqual(len(schema.maps.namespaces['http://xmlschema.test/ns1']), 1)
         self.assertEqual(len(schema3.elements), 1)
 
-    def test_pickling_subclassed_schema__issue_263(self):
-        cases_dir = pathlib.Path(__file__).parent.parent
-        schema_file = cases_dir.joinpath('test_cases/examples/vehicles/vehicles.xsd')
-        xml_file = cases_dir.joinpath('test_cases/examples/vehicles/vehicles.xml')
+    def test_pickling_invalid_schema(self):
+        schema_file = self.cases_dir.joinpath('examples/vehicles/invalid.xsd')
+        xml_file = self.cases_dir.joinpath('examples/vehicles/vehicles.xml')
 
+        schema = self.schema_class(schema_file, validation='lax')
+        self.assertTrue(schema.is_valid(str(xml_file)))
+
+        s = pickle.dumps(schema)
+        _schema = pickle.loads(s)
+        self.assertTrue(_schema.is_valid(str(xml_file)))
+        self.assertEqual(len(schema.errors), len(_schema.errors))
+
+        err = XMLSchemaDecodeError(schema, 'foo', 'bar')
+        schema.errors.append(err)
+
+        s = pickle.dumps(schema)
+        # _schema = pickle.loads(s)
+
+    def test_pickling_subclassed_schema__issue_263(self):
+        schema_file = self.cases_dir.joinpath('examples/vehicles/vehicles.xsd')
+        xml_file = self.cases_dir.joinpath('examples/vehicles/vehicles.xml')
+
+        self.CustomXMLSchema.meta_schema.clear()
         schema = self.CustomXMLSchema(str(schema_file))
         self.assertTrue(schema.is_valid(str(xml_file)))
 

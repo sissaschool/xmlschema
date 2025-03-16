@@ -9,6 +9,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import unittest
+import pathlib
 
 from xmlschema import XMLSchemaParseError
 from xmlschema.validators import XMLSchema11, XsdDefaultOpenContent
@@ -16,6 +17,8 @@ from xmlschema.testing import XsdValidatorTestCase
 
 
 class TestXsdWildcards(XsdValidatorTestCase):
+
+    cases_dir = pathlib.Path(__file__).parent.joinpath('../test_cases')
 
     def test_parsing(self):
         schema = self.schema_class("""

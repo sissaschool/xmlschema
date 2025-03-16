@@ -10,6 +10,7 @@
 #
 import unittest
 import os
+import pathlib
 import decimal
 from textwrap import dedent
 from xml.etree import ElementTree
@@ -168,7 +169,8 @@ class TestValidationMixin(unittest.TestCase):
 
 
 class TestValidation(XsdValidatorTestCase):
-    TEST_CASES_DIR = os.path.join(os.path.dirname(__file__), '../test_cases')
+
+    cases_dir = pathlib.Path(__file__).parent.joinpath('../test_cases')
 
     def check_validity(self, xsd_component, data, expected, use_defaults=True):
         if isinstance(expected, type) and issubclass(expected, Exception):

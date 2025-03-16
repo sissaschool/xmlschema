@@ -9,6 +9,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import unittest
+import pathlib
 
 from xmlschema import XMLSchemaParseError
 from xmlschema.validators import XMLSchema11
@@ -16,6 +17,8 @@ from xmlschema.testing import XsdValidatorTestCase
 
 
 class TestXsdElements(XsdValidatorTestCase):
+
+    cases_dir = pathlib.Path(__file__).parent.joinpath('../test_cases')
 
     def test_element_ref(self):
         schema = self.check_schema("""

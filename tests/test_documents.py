@@ -32,27 +32,22 @@ from xmlschema.names import XSD_NAMESPACE, XSI_NAMESPACE, XSD_SCHEMA
 from xmlschema.utils.etree import is_etree_element, is_etree_document
 from xmlschema.resources import XMLResource
 from xmlschema.documents import get_context
-from xmlschema.testing import etree_elements_assert_equal, SKIP_REMOTE_TESTS
+from xmlschema.testing import etree_elements_assert_equal, SKIP_REMOTE_TESTS, XMLSchemaTestCase
 
 
-TEST_CASES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_cases/')
+class TestXmlDocuments(XMLSchemaTestCase):
 
-
-def casepath(relative_path):
-    return os.path.join(TEST_CASES_DIR, relative_path)
-
-
-class TestXmlDocuments(unittest.TestCase):
+    cases_dir = pathlib.Path(__file__).parent.joinpath('test_cases')
 
     @classmethod
     def setUpClass(cls):
-        cls.vh_dir = casepath('examples/vehicles')
-        cls.vh_xsd_file = casepath('examples/vehicles/vehicles.xsd')
-        cls.vh_xml_file = casepath('examples/vehicles/vehicles.xml')
+        cls.vh_dir = cls.casepath('examples/vehicles')
+        cls.vh_xsd_file = cls.casepath('examples/vehicles/vehicles.xsd')
+        cls.vh_xml_file = cls.casepath('examples/vehicles/vehicles.xml')
 
-        cls.col_dir = casepath('examples/collection')
-        cls.col_xsd_file = casepath('examples/collection/collection.xsd')
-        cls.col_xml_file = casepath('examples/collection/collection.xml')
+        cls.col_dir = cls.casepath('examples/collection')
+        cls.col_xsd_file = cls.casepath('examples/collection/collection.xsd')
+        cls.col_xml_file = cls.casepath('examples/collection/collection.xml')
 
     def test_to_json_api(self):
         json_data = to_json(self.col_xml_file, lazy=True)
@@ -64,7 +59,7 @@ class TestXmlDocuments(unittest.TestCase):
             to_json(self.col_xml_file, lazy=True, decimal_type=Decimal)
         self.assertIn("is not JSON serializable", str(ctx.exception))
 
-        col_1_error_xml_file = casepath('examples/collection/collection-1_error.xml')
+        col_1_error_xml_file = self.casepath('examples/collection/collection-1_error.xml')
         json_data, errors = to_json(col_1_error_xml_file, validation='lax', lazy=True)
         self.assertEqual(len(errors), 1)
         self.assertIsInstance(errors[0], XMLSchemaDecodeError)
@@ -235,10 +230,10 @@ class TestXmlDocuments(unittest.TestCase):
         self.assertTrue(schema.is_valid(source))
 
     def test_use_location_hints_argument__issue_324(self):
-        xsd_file = casepath('issues/issue_324/issue_324a.xsd')
+        xsd_file = self.casepath('issues/issue_324/issue_324a.xsd')
         schema = XMLSchema10(xsd_file)
 
-        xml_file = casepath('issues/issue_324/issue_324-valid.xml')
+        xml_file = self.casepath('issues/issue_324/issue_324-valid.xml')
         self.assertIsNone(validate(xml_file))
 
         with self.assertRaises(XMLSchemaValidationError) as ctx:
@@ -249,7 +244,7 @@ class TestXmlDocuments(unittest.TestCase):
             validate(xml_file, use_location_hints=False)
         self.assertIn('provide a schema argument', str(ctx.exception))
 
-        xml_file = casepath('issues/issue_324/issue_324-invalid.xml')
+        xml_file = self.casepath('issues/issue_324/issue_324-invalid.xml')
         with self.assertRaises(XMLSchemaParseError) as ctx:
             validate(xml_file)
         self.assertIn("import of namespace 'http://xmlschema.test/wrong-ns' failed",
@@ -294,7 +289,7 @@ class TestXmlDocuments(unittest.TestCase):
         self.assertEqual(os.path.basename(xml_document.url), 'collection.xml')
         self.assertIsInstance(xml_document.schema, XMLSchema10)
 
-        xml_file = casepath('examples/collection/collection-1_error.xml')
+        xml_file = self.casepath('examples/collection/collection-1_error.xml')
         with self.assertRaises(XMLSchemaValidationError) as ctx:
             XmlDocument(xml_file)
         self.assertIn('invalid literal for int() with base 10', str(ctx.exception))
@@ -330,7 +325,7 @@ class TestXmlDocuments(unittest.TestCase):
         self.assertEqual(os.path.basename(xml_document.url), 'vehicles.xml')
         self.assertFalse(xml_document.is_lazy())
 
-        xml_file = casepath('examples/vehicles/vehicles-1_error.xml')
+        xml_file = self.casepath('examples/vehicles/vehicles-1_error.xml')
         with self.assertRaises(XMLSchemaValidationError):
             xml_document.parse(xml_file)
 
@@ -353,7 +348,7 @@ class TestXmlDocuments(unittest.TestCase):
         self.assertNotEqual(xml_document.decode(namespaces=namespaces),
                             vh_schema.decode(self.vh_xml_file))
 
-        xml_file = casepath('examples/collection/collection-1_error.xml')
+        xml_file = self.casepath('examples/collection/collection-1_error.xml')
         xml_document = XmlDocument(xml_file, validation='lax')
         col_schema = XMLSchema10(self.col_xsd_file)
         self.assertEqual(xml_document.decode(), col_schema.decode(xml_file, validation='lax')[0])
@@ -409,7 +404,7 @@ class TestXmlDocuments(unittest.TestCase):
         self.assertEqual(fp.getvalue(), json_data)
         fp.close()
 
-        col_1_error_xml_file = casepath('examples/collection/collection-1_error.xml')
+        col_1_error_xml_file = self.casepath('examples/collection/collection-1_error.xml')
         xml_document = XmlDocument(col_1_error_xml_file, validation='lax')
         json_data, errors = xml_document.to_json()
         self.assertEqual(len(errors), 1)

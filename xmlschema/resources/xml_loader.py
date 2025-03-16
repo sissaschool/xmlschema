@@ -195,7 +195,7 @@ class XMLResourceLoader:
         Returns a new lazy element node if the matching element node is not found.
         """
         xpath_node = self.xpath_root.get_element_node(elem)
-        if xpath_node is not None:
+        if isinstance(xpath_node, ElementNode):
             return xpath_node
 
         try:

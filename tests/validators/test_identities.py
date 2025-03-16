@@ -9,7 +9,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import unittest
-import os
+import pathlib
 import xml.etree.ElementTree as ElementTree
 
 from xmlschema import XMLSchemaParseError, XMLSchemaValidationError
@@ -19,7 +19,8 @@ from xmlschema.testing import XsdValidatorTestCase
 
 
 class TestXsdIdentities(XsdValidatorTestCase):
-    TEST_CASES_DIR = os.path.join(os.path.dirname(__file__), '../test_cases')
+
+    cases_dir = pathlib.Path(__file__).parent.joinpath('../test_cases')
 
     def test_key_definition(self):
         schema = self.check_schema("""

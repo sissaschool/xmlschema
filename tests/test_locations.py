@@ -20,14 +20,13 @@ from unittest.mock import patch, MagicMock
 
 from xmlschema.locations import get_locations
 from xmlschema.namespaces import NamespaceResourcesMap
+from xmlschema.testing import XMLSchemaTestCase
 from xmlschema.utils.paths import DRIVE_LETTERS, get_uri, get_uri_path, is_unc_path, \
     is_drive_path, LocationPath, LocationPosixPath, LocationWindowsPath
 from xmlschema.utils.urls import is_url, is_local_url, is_remote_url, is_encoded_url, \
     is_safe_url, encode_url, decode_url, location_is_file, normalize_url, normalize_locations, \
     match_location
 import xmlschema.utils.urls
-
-TEST_CASES_DIR = str(pathlib.Path(__file__).absolute().parent.joinpath('test_cases'))
 
 DRIVE_REGEX = '(/[a-zA-Z]:|)' if platform.system() == 'Windows' else ''
 
@@ -75,10 +74,6 @@ URL_CASES = (
 )
 
 
-def casepath(relative_path):
-    return str(pathlib.Path(TEST_CASES_DIR).joinpath(relative_path))
-
-
 def is_windows_path(path):
     """Checks if the path argument is a Windows platform path."""
     return '\\' in path or ':' in path or '|' in path
@@ -97,7 +92,8 @@ def filter_windows_path(path):
         return path
 
 
-class TestNamespaceResourcesMap(unittest.TestCase):
+class TestNamespaceResourcesMap(XMLSchemaTestCase):
+    cases_dir = pathlib.Path(__file__).absolute().parent.joinpath('test_cases')
 
     def test_init(self):
         nsmap = [('tns0', 'schema1.xsd')]
@@ -142,13 +138,15 @@ class TestNamespaceResourcesMap(unittest.TestCase):
         self.assertEqual(get_locations(locations), NamespaceResourcesMap(locations))
 
 
-class TestLocations(unittest.TestCase):
+class TestLocations(XMLSchemaTestCase):
+
+    cases_dir = pathlib.Path(__file__).absolute().parent.joinpath('test_cases')
 
     @classmethod
     def setUpClass(cls):
-        cls.col_dir = casepath('examples/collection')
-        cls.col_xsd_file = casepath('examples/collection/collection.xsd')
-        cls.col_xml_file = casepath('examples/collection/collection.xml')
+        cls.col_dir = cls.casepath('examples/collection')
+        cls.col_xsd_file = cls.casepath('examples/collection/collection.xsd')
+        cls.col_xml_file = cls.casepath('examples/collection/collection.xml')
 
     def check_url(self, url, expected):
         url_parts = urlsplit(url)

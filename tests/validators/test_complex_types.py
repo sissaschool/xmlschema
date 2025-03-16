@@ -21,7 +21,7 @@ from xmlschema.testing import XsdValidatorTestCase
 
 class TestXsdComplexType(XsdValidatorTestCase):
 
-    TEST_CASES_DIR = str(Path(__file__).parent.joinpath('../test_cases').resolve())
+    cases_dir = Path(__file__).parent.joinpath('../test_cases')
 
     def check_complex_restriction(self, base, restriction, expected=None, **kwargs):
         content = 'complex' if self.content_pattern.search(base) else 'simple'

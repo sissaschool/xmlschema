@@ -9,6 +9,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import unittest
+import pathlib
 
 from xmlschema import XMLSchemaParseError, XMLSchemaValidationError
 from xmlschema.names import XSD_LIST, XSD_UNION
@@ -17,6 +18,8 @@ from xmlschema.testing import XsdValidatorTestCase
 
 
 class TestXsdSimpleTypes(XsdValidatorTestCase):
+
+    cases_dir = pathlib.Path(__file__).parent.joinpath('../test_cases')
 
     def test_simple_types(self):
         # Issue #54: set list or union schema element.

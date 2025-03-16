@@ -45,7 +45,7 @@ except ImportError:
     PythonGenerator = None
 
 from ._helpers import iter_nested_items, etree_elements_assert_equal
-from ._case_class import XsdValidatorTestCase
+from ._test_case_classes import XsdValidatorTestCase
 from ._observers import SchemaObserver
 
 

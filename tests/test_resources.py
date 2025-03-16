@@ -33,23 +33,17 @@ from xmlschema import fetch_namespaces, fetch_resource, fetch_schema, \
     fetch_schema_locations, XMLResource, XMLResourceError, XMLSchema
 from xmlschema.names import XSD_NAMESPACE
 from xmlschema.utils.etree import is_etree_element, is_lxml_element
-from xmlschema.testing import SKIP_REMOTE_TESTS
+from xmlschema.testing import SKIP_REMOTE_TESTS, XMLSchemaTestCase
 from xmlschema.utils.urls import normalize_url
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError, \
     XMLResourceForbidden, XMLResourceBlocked, XMLResourceOSError
 from xmlschema.resources.sax import defuse_xml
-
-TEST_CASES_DIR = str(pathlib.Path(__file__).absolute().parent.joinpath('test_cases'))
 
 DRIVE_REGEX = '(/[a-zA-Z]:|/)' if platform.system() == 'Windows' else ''
 
 XML_WITH_NAMESPACES = '<pfa:root xmlns:pfa="http://xmlschema.test/nsa">\n' \
                       '  <pfb:elem xmlns:pfb="http://xmlschema.test/nsb"/>\n' \
                       '</pfa:root>'
-
-
-def casepath(relative_path):
-    return str(pathlib.Path(TEST_CASES_DIR).joinpath(relative_path))
 
 
 @contextlib.contextmanager
@@ -80,17 +74,19 @@ def filter_windows_path(path):
         return path
 
 
-class TestResources(unittest.TestCase):
+class TestResources(XMLSchemaTestCase):
+
+    cases_dir = pathlib.Path(__file__).absolute().parent.joinpath('test_cases')
 
     @classmethod
     def setUpClass(cls):
-        cls.vh_dir = casepath('examples/vehicles')
-        cls.vh_xsd_file = casepath('examples/vehicles/vehicles.xsd')
-        cls.vh_xml_file = casepath('examples/vehicles/vehicles.xml')
+        cls.vh_dir = cls.casepath('examples/vehicles')
+        cls.vh_xsd_file = cls.casepath('examples/vehicles/vehicles.xsd')
+        cls.vh_xml_file = cls.casepath('examples/vehicles/vehicles.xml')
 
-        cls.col_dir = casepath('examples/collection')
-        cls.col_xsd_file = casepath('examples/collection/collection.xsd')
-        cls.col_xml_file = casepath('examples/collection/collection.xml')
+        cls.col_dir = cls.casepath('examples/collection')
+        cls.col_xsd_file = cls.casepath('examples/collection/collection.xsd')
+        cls.col_xml_file = cls.casepath('examples/collection/collection.xml')
 
     def check_url(self, url, expected):
         url_parts = urlsplit(url)
@@ -121,19 +117,19 @@ class TestResources(unittest.TestCase):
             fetch_resource('')
         self.assertIn('argument must contain a not empty string', str(ctx.exception))
 
-        wrong_path = casepath('resources/dummy_file.txt')
+        wrong_path = self.casepath('resources/dummy_file.txt')
         self.assertRaises(OSError, fetch_resource, wrong_path)
 
-        wrong_path = casepath('/home/dummy_file.txt')
+        wrong_path = self.casepath('/home/dummy_file.txt')
         self.assertRaises(OSError, fetch_resource, wrong_path)
 
-        filepath = casepath('resources/dummy file.txt')
+        filepath = self.casepath('resources/dummy file.txt')
         self.assertTrue(fetch_resource(filepath).endswith('dummy%20file.txt'))
 
-        filepath = Path(casepath('resources/dummy file.txt')).relative_to(os.getcwd())
+        filepath = Path(self.casepath('resources/dummy file.txt')).relative_to(os.getcwd())
         self.assertTrue(fetch_resource(str(filepath), '/home').endswith('dummy%20file.txt'))
 
-        filepath = casepath('resources/dummy file.xml')
+        filepath = self.casepath('resources/dummy file.xml')
         self.assertTrue(fetch_resource(filepath).endswith('dummy%20file.xml'))
 
         with urlopen(fetch_resource(filepath)) as res:
@@ -151,7 +147,7 @@ class TestResources(unittest.TestCase):
             self.assertTrue(result.endswith('dummy%20file.xml'))
 
     def test_fetch_namespaces_function(self):
-        self.assertFalse(fetch_namespaces(casepath('resources/malformed.xml')))
+        self.assertFalse(fetch_namespaces(self.casepath('resources/malformed.xml')))
 
     def test_fetch_schema_locations_function(self):
         schema_url, locations = fetch_schema_locations(self.col_xml_file)
@@ -174,7 +170,7 @@ class TestResources(unittest.TestCase):
         self.check_url(schema_url, self.col_xsd_file)
         self.assertListEqual(locations, locations_)
 
-        locations = [('', casepath('resources/dummy file.xml'))]
+        locations = [('', self.casepath('resources/dummy file.xml'))]
         with self.assertRaises(ValueError) as ctx:
             fetch_schema_locations('<empty/>', locations)
         self.assertIn('not found a schema for', str(ctx.exception))
@@ -419,7 +415,7 @@ class TestResources(unittest.TestCase):
 
     def test_xml_resource_from_malformed_source(self):
         # related to issue #224
-        malformed_xml_file = casepath('resources/malformed.xml')
+        malformed_xml_file = self.casepath('resources/malformed.xml')
         with self.assertRaises(ElementTree.ParseError):
             XMLResource(malformed_xml_file)
 
@@ -531,18 +527,18 @@ class TestResources(unittest.TestCase):
         resource = XMLResource(self.vh_xml_file, defuse='always', lazy=True)
         self.assertIsInstance(resource.root, ElementTree.Element)
 
-        xml_file = casepath('resources/with_entity.xml')
+        xml_file = self.casepath('resources/with_entity.xml')
         self.assertIsInstance(XMLResource(xml_file, lazy=True), XMLResource)
         with self.assertRaises(XMLResourceForbidden):
             XMLResource(xml_file, defuse='always', lazy=True)
 
-        xml_file = casepath('resources/unused_external_entity.xml')
+        xml_file = self.casepath('resources/unused_external_entity.xml')
         self.assertIsInstance(XMLResource(xml_file, lazy=True), XMLResource)
         with self.assertRaises(XMLResourceForbidden):
             XMLResource(xml_file, defuse='always', lazy=True)
 
     def test_xml_resource_defuse_other_source_types(self):
-        xml_file = casepath('resources/external_entity.xml')
+        xml_file = self.casepath('resources/external_entity.xml')
         self.assertIsInstance(XMLResource(xml_file, lazy=True), XMLResource)
 
         with self.assertRaises(XMLResourceForbidden):
@@ -567,8 +563,8 @@ class TestResources(unittest.TestCase):
                 XMLResource(StringIO(fp.read()), defuse='always', lazy=False)
 
     def test_xml_resource_defuse_bypass_example(self):
-        unsafe_xml_file = casepath('resources/external_entity.xml')
-        safe_xml_file = casepath('resources/dummy file.xml')
+        unsafe_xml_file = self.casepath('resources/external_entity.xml')
+        safe_xml_file = self.casepath('resources/dummy file.xml')
 
         with self.assertRaises(XMLResourceForbidden):
             with open(unsafe_xml_file) as fp:
@@ -587,7 +583,7 @@ class TestResources(unittest.TestCase):
                 self.assertIs(defuse_xml(fp2), fp2)
 
     def test_xml_resource_defuse_nonlocal(self):
-        xml_file = casepath('resources/external_entity.xml')
+        xml_file = self.casepath('resources/external_entity.xml')
         resource = XMLResource(xml_file, defuse='nonlocal', lazy=True)
         self.assertIsInstance(resource, XMLResource)
 
@@ -990,7 +986,7 @@ class TestResources(unittest.TestCase):
         self.assertListEqual(resource.findall('*/c3'), [])
 
     def test_xml_resource_nsmap_tracking(self):
-        xsd_file = casepath('examples/collection/collection4.xsd')
+        xsd_file = self.casepath('examples/collection/collection4.xsd')
         resource = XMLResource(xsd_file)
         root = resource.root
 

@@ -24,7 +24,7 @@ from xmlschema.utils.qnames import get_prefixed_qname, local_name
 
 if TYPE_CHECKING:
     from .xsdbase import XsdValidator
-    from .wildcards import XsdAnyElement
+    from .wildcards import XsdAnyElement  # noqa: F401
     from .groups import XsdGroup
 
 ValidatorType = Union['XsdValidator', Callable[[Any], None]]
@@ -292,7 +292,7 @@ class XMLSchemaValidationError(XMLSchemaValidatorError, ValueError):
         return '%s(reason=%r)' % (self.__class__.__name__, self.reason)
 
     def __str__(self) -> str:
-        chunks = ['%s:\n' % self.message]
+        chunks: list[str] = ['%s:\n' % self.message]
 
         if self.reason is not None:
             chunks.append('Reason: %s\n' % self.reason)

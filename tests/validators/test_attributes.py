@@ -9,6 +9,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import unittest
+import pathlib
 from textwrap import dedent
 
 from xmlschema import XMLSchemaParseError, XMLSchemaValidationError
@@ -18,6 +19,8 @@ from xmlschema.names import XSI_NAMESPACE, XSD_ANY_SIMPLE_TYPE, XSD_STRING
 
 
 class TestXsdAttributes(XsdValidatorTestCase):
+
+    cases_dir = pathlib.Path(__file__).parent.joinpath('../test_cases')
 
     def test_attribute_use(self):
         schema = self.check_schema("""

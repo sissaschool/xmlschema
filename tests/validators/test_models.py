@@ -11,13 +11,13 @@
 """Tests concerning model groups validation"""
 import unittest
 import copy
-import os.path
+import pathlib
 from itertools import zip_longest
 
 from textwrap import dedent
 from typing import Any, Union, List, Optional
 
-from xmlschema import XMLSchema10, XMLSchema11
+from xmlschema import XMLSchema11
 from xmlschema.exceptions import XMLSchemaValueError
 from xmlschema.validators.exceptions import XMLSchemaValidationError, XMLSchemaModelError
 from xmlschema.validators.particles import ParticleMixin
@@ -47,8 +47,7 @@ class ModelGroup(XsdGroup):
 
 class TestModelValidation(XsdValidatorTestCase):
 
-    TEST_CASES_DIR = os.path.join(os.path.dirname(__file__), '../test_cases')
-    schema_class = XMLSchema10
+    cases_dir = pathlib.Path(__file__).parent.joinpath('../test_cases')
 
     # --- Test helper functions ---
 
@@ -1449,7 +1448,8 @@ class TestModelValidation11(TestModelValidation):
 
 
 class TestModelBasedSorting(XsdValidatorTestCase):
-    TEST_CASES_DIR = os.path.join(os.path.dirname(__file__), 'test_cases')
+
+    cases_dir = pathlib.Path(__file__).parent.joinpath('../test_cases')
 
     def test_sort_content(self):
         # test of ModelVisitor's sort_content/iter_unordered_content
