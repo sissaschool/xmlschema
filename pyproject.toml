@@ -69,19 +69,19 @@ Homepage = "https://github.com/sissaschool/xmlschema"
 
 [tool.setuptools]
 license-files = [ "LICENSE" ]
+include-package-data = false
 
 [tool.setuptools.package-data]
-"*" = ['py.typed', 'locale/**/*.mo', 'locale/**/*.po', 'schemas/*/*.xsd']
-#xmlschema.extras = ['templates/*/*.jinja']
+xmlschema = [
+    'py.typed',
+    'locale/**/*.mo',
+    'locale/**/*.po',
+    'schemas/*/*.xsd',
+    'extras/templates/*/*.jinja'
+]
 
 [tool.setuptools.packages.find]
-where = ["xmlschema"]
-include = [".", "converters*", "extras*", "testing*", "xpath*"]
-exclude = [
-    "xmlschema.xmlschema.egg-info*",
-    "locale*",
-    "xmlschema.schemas*",
-]
+include = ["xmlschema*"]
 namespaces = false
 
 [tool.mypy]
