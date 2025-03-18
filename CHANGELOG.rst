@@ -2,6 +2,17 @@
 CHANGELOG
 *********
 
+`v3.4.4`_ (2025-03-18)
+======================
+* Migrate project metadata to pyproject.toml (PR #436)
+* Fix static typing errors with mypy==1.15.0 and elementpath==4.8.0
+
+`v3.4.3`_ (2024-10-31)
+======================
+* Fix incorrect validation error for substitution group with abstract head (issue #417)
+* Refactor XSD identities processing using also typed XPath 2.0+ for getting values (issue #418)
+* Clean tag retrieval during encode for some converter types (Abdera, BadgerFish and GData)
+
 `v3.4.2`_ (2024-09-17)
 ======================
 * Fix other failing URL normalization tests
@@ -727,3 +738,5 @@ v0.9.6 (2017-05-05)
 .. _v3.4.0: https://github.com/brunato/xmlschema/compare/v3.3.2...v3.4.0
 .. _v3.4.1: https://github.com/brunato/xmlschema/compare/v3.4.0...v3.4.1
 .. _v3.4.2: https://github.com/brunato/xmlschema/compare/v3.4.1...v3.4.2
+.. _v3.4.3: https://github.com/brunato/xmlschema/compare/v3.4.2...v3.4.3
+.. _v3.4.4: https://github.com/brunato/xmlschema/compare/v3.4.3...v3.4.4

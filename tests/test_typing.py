@@ -34,7 +34,7 @@ class TestTyping(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.cases_dir = Path(__file__).parent.joinpath('test_cases/mypy')
-        cls.config_file = Path(__file__).parent.parent.joinpath('mypy.ini')
+        cls.config_file = Path(__file__).parent.parent.joinpath('pyproject.toml')
 
     def test_schema_source(self):
         result = mypy_api.run([

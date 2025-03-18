@@ -91,7 +91,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'xmlschema'
-copyright = '2016-2024, SISSA - Scuola Internazionale Superiore di Studi Avanzati'
+copyright = '2016-2025, SISSA - Scuola Internazionale Superiore di Studi Avanzati'
 author = 'Davide Brunato'
 
 # The version info for the project you're documenting, acts as replacement for

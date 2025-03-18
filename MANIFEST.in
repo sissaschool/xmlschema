@@ -2,12 +2,8 @@ include MANIFEST.in
 include LICENSE
 include README.rst
 include CHANGELOG.rst
-include setup.py
-include setup.cfg
 include requirements-dev.txt
 include tox.ini
-include .coveragerc
-include mypy.ini
 include doc/*
 
 recursive-include xmlschema *

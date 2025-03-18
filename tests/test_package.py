@@ -16,7 +16,6 @@ import fileinput
 import os
 import re
 import importlib
-import pathlib
 
 
 class TestPackaging(unittest.TestCase):
@@ -29,7 +28,7 @@ class TestPackaging(unittest.TestCase):
         cls.missing_debug = re.compile(
             r"(\bimport\s+pdb\b|\bpdb\s*\.\s*set_trace\(\s*\)|\bprint\s*\()|\bbreakpoint\s*\("
         )
-        cls.get_version = re.compile(r"(?:\brelease|__version__)(?:\s*=\s*)(\'[^\']*\'|\"[^\"]*\")")
+        cls.get_version = re.compile(r"(?:\brelease|__version__)\s*=\s*(\'[^\']*\'|\"[^\"]*\")")
 
     def test_forgotten_debug_statements(self):
         # Exclude explicit debug statements written in the code
@@ -63,7 +62,7 @@ class TestPackaging(unittest.TestCase):
         files = [os.path.join(self.source_dir, '__init__.py')]
         if self.package_dir is not None:
             files.extend([
-                os.path.join(self.package_dir, 'setup.py'),
+                os.path.join(self.package_dir, 'pyproject.toml'),
                 os.path.join(self.package_dir, 'doc/conf.py'),
             ])
         version = filename = None
@@ -82,19 +81,6 @@ class TestPackaging(unittest.TestCase):
                         message % (lineno, filename, match.group(1).strip('\'\"'), version)
                     )
 
-    def test_elementpath_requirement(self):
-        package_dir = pathlib.Path(__file__).parent.parent
-        ep_requirement = None
-        for line in fileinput.input(str(package_dir.joinpath('requirements-dev.txt'))):
-            if 'elementpath' in line:
-                ep_requirement = line.strip()
-
-        self.assertIsNotNone(ep_requirement, msg="Missing elementpath in requirements-dev.txt")
-
-        for line in fileinput.input(str(package_dir.joinpath('setup.py'))):
-            if 'elementpath' in line:
-                self.assertIn(ep_requirement, line, msg="Unmatched requirement in setup.py")
-
     def test_base_schema_files(self):
         et = importlib.import_module('xml.etree.ElementTree')
         schemas_dir = os.path.join(self.source_dir, 'schemas')
@@ -103,9 +89,15 @@ class TestPackaging(unittest.TestCase):
             'XSD_1.1/XMLSchema.xsd',
             'XHTML/xhtml1-strict.xsd',
             'XLINK/xlink.xsd',
-            'XML/xml.xsd',
-            'HFP/XMLSchema-hasFacetAndProperty.xsd',
-            'XSI/XMLSchema-instance.xsd'
+            'DSIG/xmldsig11-schema.xsd',
+            'DSIG/xmldsig-core-schema.xsd',
+            'VC/XMLSchema-versioning.xsd',
+            'WSDL/soap-encoding.xsd',
+            'WSDL/soap-envelope.xsd',
+            'WSDL/wsdl.xsd',
+            'WSDL/wsdl-soap.xsd',
+            'XENC/xenc-schema.xsd',
+            'XENC/xenc-schema-11.xsd',
         ]
         for rel_path in base_schemas:
             filename = os.path.join(schemas_dir, rel_path)
