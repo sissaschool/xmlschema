@@ -404,7 +404,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         # Meta-schema maps creation (MetaXMLSchema10/11 classes)
         if self.meta_schema is None:
             self.namespaces = namespaces
-            self.validation_context = self.get_validation_context()
 
             if global_maps is None:
                 self.config = SchemaConfig.from_args(self)
@@ -447,7 +446,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         # Complete the namespace map with internal declarations, remapping
         # identical prefixes that refer to different namespaces.
         self.namespaces = self.source.get_namespaces(namespaces, root_only=False)
-        self.validation_context = self.get_validation_context()
 
         if any(ns == nm.VC_NAMESPACE for ns in self.namespaces.values()):
             # Apply versioning filter to schema tree. See the paragraph
@@ -558,6 +556,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         for attr in self._mro_slots():
             if attr not in state:
                 state[attr] = getattr(self, attr)
+        state.pop('validation_context', None)
         return state
 
     def __setstate__(self, state: dict[str, Any]) -> None:
@@ -908,7 +907,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             if not isinstance(xsd_global, tuple):
                 yield from xsd_global.iter_components(xsd_classes)
 
-    def get_validation_context(self) -> DecodeContext:
+    @cached_property
+    def validation_context(self) -> DecodeContext:
         """Returns a validation context instance used for decoding schema simple values."""
         return DecodeContext(
             source=self.source,
