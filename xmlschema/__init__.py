@@ -7,6 +7,8 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+from importlib.metadata import version
+
 from elementpath.etree import etree_tostring
 
 from . import limits
@@ -33,7 +35,7 @@ from .validators import (
     XMLSchema, XMLSchema10, XMLSchema11, XsdComponent, XsdType, XsdElement, XsdAttribute
 )
 
-__version__ = '3.4.4'
+__version__ = version("xmlschema")
 __author__ = "Davide Brunato"
 __contact__ = "brunato@sissa.it"
 __copyright__ = "Copyright 2016-2024, SISSA"
