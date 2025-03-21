@@ -154,3 +154,5 @@ issues/issue_311/incorrect_with_list.xml --version=1.1 --validation-only \
 issues/issue_349/issue_349.xml --errors=1 --validation-only
 issues/issue_349/issue_349.xml --version=1.1
 issues/issue_417/issue_417.xml
+issues/issue_437/issue_437-1.xml --version=1.1
+issues/issue_437/issue_437-2.xml --version=1.1

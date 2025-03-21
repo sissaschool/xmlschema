@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE xs:schema PUBLIC "-//W3C//DTD XSD 1.1//EN" "http://www.w3.org/2009/XMLSchema/XMLSchema.dtd" >
+
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:xml="http://www.w3.org/XML/1998/namespace"
+           xml:lang="en">
+
+  <xs:attribute name="NodeType">
+    <xs:simpleType>
+      <xs:restriction base="xs:NMTOKEN">
+        <xs:enumeration value="NodeList"/>
+        <xs:enumeration value="Empty"/>
+      </xs:restriction>
+    </xs:simpleType>
+  </xs:attribute>
+
+  <xs:element name="Comment" type="xs:string"/>
+
+  <!-- These are elements which may be omitted from a valid Node -->
+  <xs:group name="ActionOptions">
+    <xs:all>
+      <xs:element ref="Comment" minOccurs="0"/>
+    </xs:all>
+  </xs:group>
+
+  <xs:element name="NodeId">
+    <xs:complexType>
+      <xs:simpleContent>
+        <xs:extension base="xs:NCName">
+          <xs:attribute name="generated" type="xs:boolean" />
+        </xs:extension>
+      </xs:simpleContent>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="NodeList">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:group ref="ActionGroup" minOccurs="0" maxOccurs="unbounded"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="NodeBody">
+    <xs:complexType>
+      <xs:choice>
+        <xs:element ref="NodeList"/>
+      </xs:choice>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:complexType name="NodeActionType">
+    <xs:all>
+      <xs:group ref="ActionOptions"/>
+      <xs:element ref="NodeId"/>
+      <xs:element ref="NodeBody" minOccurs="0"/>
+    </xs:all>
+    <xs:attribute ref="NodeType" use="required"/>
+  </xs:complexType>
+
+  <xs:element name="Node" type="NodeActionType" />
+
+  <xs:group name="ActionGroup">
+    <xs:choice>
+      <xs:element ref="Node"/>
+    </xs:choice>
+  </xs:group>
+
+  <xs:element name="PlexilPlan">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:group ref="ActionGroup"/>
+      </xs:sequence>
+      <!-- Attempt to imitate rncfix -->
+      <xs:anyAttribute namespace="http://www.w3.org/2001/XMLSchema-instance"
+                       processContents="skip"/>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>
