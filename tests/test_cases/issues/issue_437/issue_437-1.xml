@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PlexilPlan xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="issue_437.xsd">
+  <Node NodeType="Empty">
+    <Comment> This is a comment. </Comment>
+    <NodeId>One</NodeId>
+  </Node>
+</PlexilPlan>

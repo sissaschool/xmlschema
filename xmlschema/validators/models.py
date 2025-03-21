@@ -430,7 +430,8 @@ class ModelVisitor:
     def _iter_all_model_errors(self, occurs: OccursCounterType) -> Iterator[AdvanceYieldedType]:
         """Validate occurrences in an 'all' model, yielding error tuples."""
         stack: List[Tuple[groups.XsdGroup, Iterator[ModelParticleType]]] = []
-        group, particles = self.group, iter(self.group)
+        group = self.group if self.group.ref is None else self.group.ref
+        particles = iter(group)
         zero_missing: List[Tuple[groups.XsdGroup, ModelParticleType]] = []
 
         while True:
@@ -443,6 +444,7 @@ class ModelVisitor:
                         continue
 
                     stack.append((group, particles))
+                    group = item
                     particles = iter(item.content)
                     if len(stack) > limits.MAX_MODEL_DEPTH:
                         raise XMLSchemaModelDepthError(self.group)
