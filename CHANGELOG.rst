@@ -2,6 +2,10 @@
 CHANGELOG
 *********
 
+`v3.4.5`_ (2025-03-22)
+======================
+* Fix xs:all groups occurs check (issue #437)
+
 `v3.4.4`_ (2025-03-18)
 ======================
 * Migrate project metadata to pyproject.toml (PR #436)
@@ -740,3 +744,4 @@ v0.9.6 (2017-05-05)
 .. _v3.4.2: https://github.com/brunato/xmlschema/compare/v3.4.1...v3.4.2
 .. _v3.4.3: https://github.com/brunato/xmlschema/compare/v3.4.2...v3.4.3
 .. _v3.4.4: https://github.com/brunato/xmlschema/compare/v3.4.3...v3.4.4
+.. _v3.4.5: https://github.com/brunato/xmlschema/compare/v3.4.4...v3.4.5
