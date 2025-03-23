@@ -107,6 +107,7 @@ class XsdElement(XsdComponent, ParticleMixin,
 
     identities: list[XsdIdentity]
     selected_by: set[XsdIdentity]
+    xsi_types: set[BaseXsdType]
     alternatives: Union[tuple[()], list['XsdAlternative']] = ()
     inheritable: Union[tuple[()], dict[str, XsdAttribute]] = ()
 
@@ -117,7 +118,7 @@ class XsdElement(XsdComponent, ParticleMixin,
 
     binding: Optional[DataBindingType] = None
 
-    __slots__ = ('type', 'selected_by', 'identities', 'content',
+    __slots__ = ('type', 'selected_by', 'xsi_types', 'identities', 'content',
                  'attributes', 'min_occurs', 'max_occurs', '_build')
 
     def __init__(self, elem: ElementType,
@@ -128,6 +129,7 @@ class XsdElement(XsdComponent, ParticleMixin,
         self.min_occurs = self.max_occurs = 1
         self._build = build
         self.selected_by = set()
+        self.xsi_types = set()
         super().__init__(elem, schema, parent)
 
     def __repr__(self) -> str:
@@ -190,6 +192,7 @@ class XsdElement(XsdComponent, ParticleMixin,
                 self.identities = xsd_element.identities
                 self.alternatives = xsd_element.alternatives
                 self.selected_by = xsd_element.selected_by
+                self.xsi_types = xsd_element.xsi_types
 
             for attr_name in ('type', 'nillable', 'default', 'fixed', 'form',
                               'block', 'abstract', 'final', 'substitutionGroup'):
@@ -419,7 +422,6 @@ class XsdElement(XsdComponent, ParticleMixin,
             self._build = True
             self._parse()
             self._built = True
-            self.__dict__.pop('xpath_proxy', None)
 
     @property
     def built(self) -> bool:
@@ -587,7 +589,7 @@ class XsdElement(XsdComponent, ParticleMixin,
         Decode an Element instance.
 
         :param obj: the Element that has to be decoded.
-        :param validation: the validation mode. Can be 'lax', 'strict' or 'skip.
+        :param validation: the validation mode. Can be 'lax', 'strict' or 'skip'.
         :param context: the decoding context.
         :return: a decoded object.
         """
@@ -651,18 +653,19 @@ class XsdElement(XsdComponent, ParticleMixin,
             except (KeyError, TypeError) as err:
                 context.validation_error(validation, self, err, obj)
             else:
-                if self.identities:
-                    xpath_element = XPathElement(self.name, xsd_type)
-                    for identity in self.identities:
-                        if not identity.built or identity.selector is None:
-                            continue  # Skip unbuilt or incomplete identities
-                        identity.elements.update(
-                            identity.get_selected_elements(xpath_element)
-                        )
+                if xsd_type.is_blocked(self):
+                    reason = _("usage of %r is blocked") % xsd_type
+                    context.validation_error(validation, self, reason, obj)
+                elif xsd_type not in self.xsi_types:
+                    self.xsi_types.add(xsd_type)
 
-            if xsd_type.is_blocked(self):
-                reason = _("usage of %r is blocked") % xsd_type
-                context.validation_error(validation, self, reason, obj)
+                    # For complex contents augments permanently the XSD elements
+                    # that collect keys/keyrefs for enabled identities.
+                    if xsd_type.has_complex_content():
+                        xpath_element = XPathElement(self.name, xsd_type)
+                        for counter in context.identities.values():
+                            if counter.enabled:
+                                counter.identity.update_elements(xpath_element)
 
         if xsd_type.abstract:
             reason = _("%r is abstract") % xsd_type
@@ -860,7 +863,7 @@ class XsdElement(XsdComponent, ParticleMixin,
             except KeyError:
                 continue
             else:
-                if not counter.enabled or not identity.elements:
+                if not counter.enabled:
                     continue
 
             if counter.elements is None:
@@ -915,7 +918,7 @@ class XsdElement(XsdComponent, ParticleMixin,
         Encode data to an Element.
 
         :param obj: the data that has to be encoded.
-        :param validation: the validation mode. Can be 'lax', 'strict' or 'skip.
+        :param validation: the validation mode. Can be 'lax', 'strict' or 'skip'.
         :param context: the encoding context.
         :return: returns an Element.
         """

@@ -197,6 +197,9 @@ class XPathElement(ElementPathMixin['XPathElement']):
         self.type = xsd_type
         self.attributes = getattr(xsd_type, 'attributes', {})
 
+    def __repr__(self) -> str:
+        return '%s(%r, %r)' % (self.__class__.__name__, self.name, self.type)
+
     def __iter__(self) -> Iterator['XPathElement']:
         if not self.type.has_simple_content():
             yield from self.type.content.iter_elements()  # type: ignore[union-attr,misc]

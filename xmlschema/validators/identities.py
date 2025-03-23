@@ -186,6 +186,8 @@ class XsdIdentity(XsdComponent):
             if child.tag == XSD_FIELD:
                 self.fields.append(XsdFieldSelector(child, self.schema, self))
 
+        self.elements = {}
+
     def build(self) -> None:
         if self._built:
             return
@@ -195,6 +197,9 @@ class XsdIdentity(XsdComponent):
             try:
                 ref = self.maps.identities[self.name]
             except KeyError:
+                self.selector = None
+                self.fields = []
+                self.elements = {}
                 msg = _("unknown identity constraint {!r}")
                 self.parse_error(msg.format(self.name))
                 return
@@ -204,55 +209,49 @@ class XsdIdentity(XsdComponent):
                     self.parse_error(msg)
                 self.selector = ref.selector
                 self.fields = ref.fields
+                self.elements = {}
                 self.ref = ref
 
-        if self.selector is None:
-            return  # Do not raise, already found by meta-schema validation.
+        self.update_elements(base_element=self.parent)
 
-        self.elements = self.get_selected_elements(base_element=self.parent)
-
-    def get_selected_elements(self, base_element: Union['XsdElement', XPathElement]) \
-            -> dict['XsdElement', list['FieldValueSelector']]:
-        elements: dict['XsdElement', list['FieldValueSelector']] = {}
+    def update_elements(self, base_element: Union['XsdElement', XPathElement]) -> None:
         if self.selector is None:
-            return elements
+            return
 
         context = XPathContext(self.schema.xpath_node, item=base_element.xpath_node)
+        e: Any
         for e in self.selector.token.select_results(context):
             if isinstance(e, elements_module.XsdElement):
                 if e.name is not None:
                     if e.ref is not None:
                         e = e.ref
-                    if e not in elements:
-                        elements[e] = [FieldValueSelector(f, e) for f in self.fields]
+                    if e not in self.elements:
+                        self.elements[e] = [FieldValueSelector(f, e) for f in self.fields]
                         e.selected_by.add(self)
 
             elif not isinstance(e, XsdAnyElement):
                 msg = _("selector xpath expression can only select elements")
                 self.parse_error(msg)
 
-        if not elements:
-            # Try to detect target XSD elements extracting QNames
-            # of the leaf elements from the XPath expression and
-            # use them to match global elements.
-
-            qname: Any
-            for qname in self.selector.token.iter_leaf_elements():
-                e1 = self.maps.elements.get(
-                    get_extended_qname(qname, self.schema.namespaces)
-                )
-                if e1 is not None and not isinstance(e1, tuple) and e1 not in elements:
-                    if e1.ref is not None:
-                        e1 = e1.ref
-                    if e1 not in elements:
-                        elements[e1] = [FieldValueSelector(f, e1) for f in self.fields]
-                        e1.selected_by.add(self)
-
-        return elements
+        # Try to detect other target XSD elements extracting QNames of
+        # the leaf elements from the XPath expression and use them to
+        # match from global elements. Anyway identity counters created
+        # by identity are not enabled if the data is outside the scope.
+        qname: Any
+        for qname in self.selector.token.iter_leaf_elements():
+            e = self.maps.elements.get(
+                get_extended_qname(qname, self.schema.namespaces)
+            )
+            if isinstance(e, elements_module.XsdElement):
+                if e.ref is not None:
+                    e = e.ref
+                if e not in self.elements:
+                    self.elements[e] = [FieldValueSelector(f, e) for f in self.fields]
+                    e.selected_by.add(self)
 
     @property
     def built(self) -> bool:
-        return self._built and hasattr(self, 'elements')
+        return self._built and self.selector is not None
 
     def get_counter(self, elem: ElementType) -> 'IdentityCounter':
         return IdentityCounter(self, elem)
@@ -344,7 +343,7 @@ class XsdKeyref(XsdIdentity):
 
     @property
     def built(self) -> bool:
-        return self._built and hasattr(self, 'elements') and isinstance(self.refer, XsdIdentity)
+        return self._built and self.selector is not None and isinstance(self.refer, XsdIdentity)
 
     def get_counter(self, elem: ElementType) -> 'KeyrefCounter':
         return KeyrefCounter(self, elem)

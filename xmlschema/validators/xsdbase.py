@@ -281,7 +281,7 @@ class XsdComponent(XsdValidator):
     qualified = True
     ref: Optional['XsdComponent']
     redefine: Optional['XsdComponent']
-    _built: bool = False
+    _built: bool = False  # marks whether the build() method has been called
 
     __slots__ = ('name', 'parent', 'schema', 'xsd_version', 'target_namespace', 'maps',
                  'builders', 'elem', 'validation', 'errors', 'ref', 'redefine')
