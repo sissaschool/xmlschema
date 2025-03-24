@@ -10,7 +10,6 @@
 from . import limits
 from . import translation
 from .exceptions import XMLSchemaException, XMLResourceError, XMLSchemaNamespaceError
-from .locations import UrlResolver
 from .resources import fetch_resource, fetch_namespaces, fetch_schema_locations, \
     fetch_schema, XMLResource
 from .xpath import ElementPathMixin
@@ -21,6 +20,7 @@ from .dataobjects import DataElement, DataElementConverter, DataBindingConverter
 from .documents import validate, is_valid, iter_errors, iter_decode, \
     to_dict, to_json, to_etree, from_json, XmlDocument
 from .exports import download_schemas
+from .loaders import UrlResolver, SchemaLoader, LocationSchemaLoader, SafeSchemaLoader
 from .utils.etree import etree_tostring
 from .utils.urls import normalize_url, normalize_locations
 
@@ -42,7 +42,7 @@ __status__ = "Production/Stable"
 
 __all__ = [
     'limits', 'translation', 'XMLSchemaException', 'XMLResourceError',
-    'XMLSchemaNamespaceError', 'UrlResolver', 'etree_tostring', 'normalize_url',
+    'XMLSchemaNamespaceError', 'etree_tostring', 'normalize_url',
     'normalize_locations', 'fetch_resource', 'fetch_namespaces',
     'fetch_schema_locations', 'fetch_schema',
     'XMLResource', 'ElementPathMixin', 'ElementData', 'XMLSchemaConverter',
@@ -51,6 +51,7 @@ __all__ = [
     'DataElementConverter', 'DataBindingConverter', 'validate', 'is_valid',
     'iter_errors', 'iter_decode', 'to_dict', 'to_json', 'to_etree', 'from_json',
     'XmlDocument', 'download_schemas',
+    'UrlResolver', 'SchemaLoader', 'LocationSchemaLoader', 'SafeSchemaLoader',
     'XMLSchemaValidatorError', 'XMLSchemaParseError', 'XMLSchemaNotBuiltError',
     'XMLSchemaModelError', 'XMLSchemaModelDepthError', 'XMLSchemaValidationError',
     'XMLSchemaDecodeError', 'XMLSchemaEncodeError', 'XMLSchemaChildrenValidationError',

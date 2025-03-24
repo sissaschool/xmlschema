@@ -8,17 +8,15 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import os
-from collections.abc import Iterable, MutableMapping
+from collections.abc import Iterable
 from typing import Optional
 
 from xmlschema.namespaces import NamespaceResourcesMap
-from xmlschema.aliases import LocationsMapType, LocationsType, UriMapperType
+from xmlschema.aliases import LocationsMapType, LocationsType
 from xmlschema.exceptions import XMLSchemaTypeError
 from xmlschema.translation import gettext as _
 from xmlschema.utils.urls import normalize_locations
 import xmlschema.names as nm
-
-SCHEMAS_DIR = os.path.join(os.path.dirname(__file__), 'schemas/')
 
 
 def get_locations(locations: Optional[LocationsType], base_url: Optional[str] = None) \
@@ -51,6 +49,9 @@ def get_fallback_map(locations: LocationsMapType, fallbacks: LocationsMapType) -
     return fallback_map
 
 
+SCHEMAS_DIR = os.path.join(os.path.dirname(__file__), 'schemas/')
+
+###
 # Standard locations for well-known namespaces
 LOCATIONS: LocationsMapType = {
     nm.XSD_NAMESPACE: [
@@ -97,41 +98,4 @@ FALLBACK_LOCATIONS: LocationsMapType = {
     nm.XENC11_NAMESPACE: f'{SCHEMAS_DIR}XENC/xenc-schema-11.xsd',
 }
 
-
-class UrlResolver:
-    """
-    Returns a URL resolver callable objects that extends lookup to SSL protocol variants.
-    An instance of this class is included in the schema configuration to resolve URLs
-    for checking if a schema resource is already loaded.
-
-    :param uri_mapper: optional URI mapper to wrap.
-    :param use_fallback: whether to use fallback locations.
-    """
-    fallback_map = get_fallback_map(LOCATIONS, FALLBACK_LOCATIONS)
-
-    def __init__(self, uri_mapper: Optional[UriMapperType] = None,
-                 use_fallback: bool = True) -> None:
-        self._uri_mapper = uri_mapper
-        if not use_fallback:
-            self.fallback_map = {}
-
-    def map_uri(self, uri: str) -> str:
-        if isinstance(self._uri_mapper, MutableMapping):
-            uri = self._uri_mapper.get(uri, uri)
-        elif callable(self._uri_mapper):
-            uri = self._uri_mapper(uri)
-        return self.fallback_map.get(uri, uri)
-
-    def __call__(self, uri: str) -> str:
-        if not uri.startswith(('http:', 'https:', 'ftp:', 'sftp:')):
-            return self.map_uri(uri)
-        elif (url := self.map_uri(uri)) != uri:
-            return url
-        elif uri.startswith('http:'):
-            return self.map_uri(uri.replace('http:', 'https:', 1))
-        elif uri.startswith('https:'):
-            return self.map_uri(uri.replace('https:', 'http:', 1))
-        elif uri.startswith('sftp:'):
-            return self.map_uri(uri.replace('sftp:', 'ftp:', 1))
-        else:
-            return self.map_uri(uri.replace('ftp:', 'sftp:', 1))
+FALLBACK_MAP = get_fallback_map(LOCATIONS, FALLBACK_LOCATIONS)

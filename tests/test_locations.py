@@ -549,9 +549,7 @@ class TestLocations(XMLSchemaTestCase):
         self.assertEqual(urlsplit(url).geturl(), url)
         self.assertEqual(normalize_url(url), url)
 
-    @unittest.skip
     def test_normalize_url_with_base_url_with_local_part(self):
-
         base_url = "file:///D:/a/xmlschema/xmlschema/filer01/MY_HOME"
         url = normalize_url(r'dev/XMLSCHEMA/test.xsd', base_url)
         self.assertEqual(

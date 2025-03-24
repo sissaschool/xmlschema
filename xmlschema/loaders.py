@@ -10,13 +10,13 @@
 import logging
 import warnings
 from operator import attrgetter
-from typing import Any, Optional, TYPE_CHECKING
+from typing import Any, Optional, TYPE_CHECKING, MutableMapping
 from xml.etree.ElementTree import ParseError
 
-from xmlschema.aliases import ElementType, SchemaType, SchemaSourceType
+from xmlschema.aliases import UriMapperType, ElementType, SchemaType, SchemaSourceType
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError, \
     XMLResourceBlocked, XMLResourceForbidden, XMLResourceError
-from xmlschema.locations import get_locations, FALLBACK_LOCATIONS, LOCATIONS
+from xmlschema.locations import get_locations, LOCATIONS, FALLBACK_LOCATIONS, FALLBACK_MAP
 from xmlschema.namespaces import NamespaceResourcesMap
 from xmlschema.translation import gettext as _
 from xmlschema.resources import XMLResource
@@ -31,6 +31,45 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger('xmlschema')
 base_url_attribute = attrgetter('name')
+
+
+class UrlResolver:
+    """
+    Returns a URL resolver callable objects that extends lookup to SSL protocol variants.
+    An instance of this class is included in the schema configuration to resolve URLs
+    for checking if a schema resource is already loaded.
+
+    :param uri_mapper: optional URI mapper to wrap.
+    :param use_fallback: whether to use fallback locations.
+    """
+    fallback_map = FALLBACK_MAP
+
+    def __init__(self, uri_mapper: Optional[UriMapperType] = None,
+                 use_fallback: bool = True) -> None:
+        self._uri_mapper = uri_mapper
+        if not use_fallback:
+            self.fallback_map = {}
+
+    def map_uri(self, uri: str) -> str:
+        if isinstance(self._uri_mapper, MutableMapping):
+            uri = self._uri_mapper.get(uri, uri)
+        elif callable(self._uri_mapper):
+            uri = self._uri_mapper(uri)
+        return self.fallback_map.get(uri, uri)
+
+    def __call__(self, uri: str) -> str:
+        if not uri.startswith(('http:', 'https:', 'ftp:', 'sftp:')):
+            return self.map_uri(uri)
+        elif (url := self.map_uri(uri)) != uri:
+            return url
+        elif uri.startswith('http:'):
+            return self.map_uri(uri.replace('http:', 'https:', 1))
+        elif uri.startswith('https:'):
+            return self.map_uri(uri.replace('https:', 'http:', 1))
+        elif uri.startswith('sftp:'):
+            return self.map_uri(uri.replace('sftp:', 'ftp:', 1))
+        else:
+            return self.map_uri(uri.replace('ftp:', 'sftp:', 1))
 
 
 class SchemaResource(XMLResource):

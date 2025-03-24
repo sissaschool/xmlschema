@@ -29,8 +29,7 @@ from xmlschema.translation import gettext as _
 from xmlschema.utils.qnames import local_name, get_qname
 from xmlschema.converters import ConverterType
 from xmlschema.resources import XMLResource
-from xmlschema.locations import UrlResolver
-from xmlschema.loaders import SchemaLoader
+from xmlschema.loaders import UrlResolver, SchemaLoader
 from xmlschema.xpath.assertion_parser import XsdAssertionXPathParser
 
 from .helpers import get_xsd_derivation_attribute

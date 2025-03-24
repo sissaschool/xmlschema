@@ -1794,19 +1794,19 @@ class XMLSchema10(XMLSchemaBase):
     """
     XSD 1.0 schema class.
 
-    <schema
-      attributeFormDefault = (qualified | unqualified) : unqualified
-      blockDefault = (#all | List of (extension | restriction | substitution))  : ''
-      elementFormDefault = (qualified | unqualified) : unqualified
-      finalDefault = (#all | List of (extension | restriction | list | union))  : ''
-      id = ID
-      targetNamespace = anyURI
-      version = token
-      xml:lang = language
-      {any attributes with non-schema namespace . . .}>
-      Content: ((include | import | redefine | annotation)*, (((simpleType | complexType | group |
-      attributeGroup) | element | attribute | notation), annotation*)*)
-    </schema>
+    .. <schema
+         attributeFormDefault = (qualified | unqualified) : unqualified
+         blockDefault = (#all | List of (extension | restriction | substitution))  : ''
+         elementFormDefault = (qualified | unqualified) : unqualified
+         finalDefault = (#all | List of (extension | restriction | list | union))  : ''
+         id = ID
+         targetNamespace = anyURI
+         version = token
+         xml:lang = language
+         {any attributes with non-schema namespace . . .}>
+         Content: ((include | import | redefine | annotation)*,  (((simpleType | complexType |
+                   group | attributeGroup) | element | attribute | notation), annotation*)*)
+       </schema>
     """
     builders = XsdBuilders()
 
@@ -1821,36 +1821,37 @@ class XMLSchema11(XMLSchemaBase):
     """
     XSD 1.1 schema class.
 
-    <schema
-      attributeFormDefault = (qualified | unqualified) : unqualified
-      blockDefault = (#all | List of (extension | restriction | substitution)) : ''
-      defaultAttributes = QName
-      xpathDefaultNamespace = (anyURI | (##defaultNamespace | ##targetNamespace| ##local)) : ##local
-      elementFormDefault = (qualified | unqualified) : unqualified
-      finalDefault = (#all | List of (extension | restriction | list | union))  : ''
-      id = ID
-      targetNamespace = anyURI
-      version = token
-      xml:lang = language
-      {any attributes with non-schema namespace . . .}>
-      Content: ((include | import | redefine | override | annotation)*,
-      (defaultOpenContent, annotation*)?, ((simpleType | complexType |
-      group | attributeGroup | element | attribute | notation), annotation*)*)
-    </schema>
+    .. <schema
+         attributeFormDefault = (qualified | unqualified) : unqualified
+         blockDefault = (#all | List of (extension | restriction | substitution)) : ''
+         defaultAttributes = QName
+         xpathDefaultNamespace = (anyURI | (##defaultNamespace | ##targetNamespace|
+                                  ##local)) : ##local
+         elementFormDefault = (qualified | unqualified) : unqualified
+         finalDefault = (#all | List of (extension | restriction | list | union))  : ''
+         id = ID
+         targetNamespace = anyURI
+         version = token
+         xml:lang = language
+         {any attributes with non-schema namespace . . .}>
+         Content: ((include | import | redefine | override | annotation)*,
+         (defaultOpenContent, annotation*)?, ((simpleType | complexType |
+         group | attributeGroup | element | attribute | notation), annotation*)*)
+       </schema>
 
-    <schema
-      attributeFormDefault = (qualified | unqualified) : unqualified
-      blockDefault = (#all | List of (extension | restriction | substitution))  : ''
-      elementFormDefault = (qualified | unqualified) : unqualified
-      finalDefault = (#all | List of (extension | restriction | list | union))  : ''
-      id = ID
-      targetNamespace = anyURI
-      version = token
-      xml:lang = language
-      {any attributes with non-schema namespace . . .}>
-      Content: ((include | import | redefine | annotation)*, (((simpleType | complexType | group |
-      attributeGroup) | element | attribute | notation), annotation*)*)
-    </schema>
+       <schema
+         attributeFormDefault = (qualified | unqualified) : unqualified
+         blockDefault = (#all | List of (extension | restriction | substitution))  : ''
+         elementFormDefault = (qualified | unqualified) : unqualified
+         finalDefault = (#all | List of (extension | restriction | list | union))  : ''
+         id = ID
+         targetNamespace = anyURI
+         version = token
+         xml:lang = language
+         {any attributes with non-schema namespace . . .}>
+         Content: ((include | import | redefine | annotation)*, (((simpleType | complexType |
+                   group | attributeGroup) | element | attribute | notation), annotation*)*)
+       </schema>
     """
     builders = XsdBuilders()
 

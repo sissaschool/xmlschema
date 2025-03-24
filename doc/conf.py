@@ -70,11 +70,11 @@ nitpick_ignore = [
 ]
 
 nitpick_ignore_regex = [
-    ('py:class', 'elementpath\.datatypes\..*'),
-    ('py:class', 'collections\.abc\..*'),
-    ('py:class', 'xmlschema\.validators\.validation\.(ST|DT)'),
-    ('py:class', 'xmlschema\.namespaces\.(T|CT)'),
-    ('py:class', 'elementpath\.protocols\..*Protocol'),
+    ('py:class', r'elementpath\.datatypes\..*'),
+    ('py:class', r'collections\.abc\..*'),
+    ('py:class', r'xmlschema\.validators\.validation\.(ST|DT)'),
+    ('py:class', r'xmlschema\.namespaces\.(T|CT)'),
+    ('py:class', r'elementpath\.protocols\..*Protocol'),
 ]
 
 # Add any paths that contain templates here, relative to this directory.
