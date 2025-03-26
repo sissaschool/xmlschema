@@ -94,7 +94,7 @@ class XsdAssert(XsdComponent, ElementPathMixin[Union['XsdAssert', SchemaElementT
         if self._built:
             return
 
-        self.parser = self.maps.config.xpath_parser_class(
+        self.parser = self.schema.loader.xpath_parser_class(
             namespaces=self.schema.namespaces,
             variable_types={'value': self.base_type.sequence_type},
             strict=False,

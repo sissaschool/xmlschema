@@ -69,7 +69,7 @@ from .complex_types import XsdComplexType
 from .groups import XsdGroup
 from .elements import XsdElement
 from .wildcards import XsdAnyElement, XsdDefaultOpenContent
-from .builders import XsdBuilders, SchemaConfig
+from .builders import XsdBuilders
 from .global_maps import XsdGlobals
 
 logger = logging.getLogger('xmlschema')
@@ -335,6 +335,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         self.imported_namespaces = []
         self.includes = {}
         self.warnings = []
+        self.converter = converter
 
         self.name = self.source.name
         root = self.source.root
@@ -401,17 +402,32 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             except ValueError as err:
                 self.parse_error(err, root, namespaces=namespaces)
 
+        # Create or set the XSD global maps instance
+        if isinstance(global_maps, XsdGlobals):
+            try:
+                self.maps = global_maps
+            except XMLSchemaValueError:
+                # Another schema instance with the same URL is already registered,
+                # this makes this schema unusable.
+                raise
+            else:
+                self.loader = global_maps.validator.loader
+
+        elif global_maps is None:
+            self.maps = XsdGlobals(
+                validator=self, parent=self.meta_schema if use_meta else None
+            )
+            self.loader = (loader_class or SchemaLoader)(
+                self.maps, locations, use_fallback, use_xpath3,
+            )
+        else:
+            raise XMLSchemaTypeError(
+                _("'global_maps' argument must be an %r instance") % XsdGlobals
+            )
+
         # Meta-schema maps creation (MetaXMLSchema10/11 classes)
         if self.meta_schema is None:
             self.namespaces = namespaces
-
-            if global_maps is None:
-                self.config = SchemaConfig.from_args(self)
-                self.maps = XsdGlobals(self, config=self.config)
-            else:
-                self.config = global_maps.config
-                self.maps = global_maps
-
             if self.source.name == 'xsd11-extra.xsd':
                 # Process the patch schema for XSD 1.1 meta-schema
                 for child in self.source.root:
@@ -419,29 +435,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                         self.include_schema(child.attrib['schemaLocation'], self.base_url)
 
             return  # Meta-schemas don't need to be checked and don't process imports
-
-        # Create or set the XSD global maps instance
-        if isinstance(global_maps, XsdGlobals):
-            self.config = global_maps.config
-            try:
-                self.maps = global_maps
-            except XMLSchemaValueError:
-                # Another schema instance with the same URL is already registered,
-                # this makes this schema unusable.
-                raise
-        elif global_maps is None:
-            self.config = SchemaConfig.from_args(
-                self, loader_class, converter, locations, use_fallback, use_xpath3
-            )
-            self.maps = XsdGlobals(
-                validator=self,
-                parent=self.meta_schema if use_meta else None,
-                config=self.config,
-            )
-        else:
-            raise XMLSchemaTypeError(
-                _("'global_maps' argument must be an %r instance") % XsdGlobals
-            )
 
         # Complete the namespace map with internal declarations, remapping
         # identical prefixes that refer to different namespaces.
@@ -522,7 +515,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 object.__setattr__(
                     self, attr, NamespaceView(getattr(value, attr), self.target_namespace)
                 )
-            object.__setattr__(self, 'loader', value.loader)
         else:
             if name == 'meta_schema':
                 msg = _("can't set the meta_schema instance of a schema")
@@ -535,6 +527,10 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 if value is not None and not isinstance(value, (str, XsdAttributeGroup)):
                     msg = _("can't change the {!r} attribute of a schema").format(name)
                     raise XMLSchemaAttributeError(msg)
+            elif name == 'loader':
+                if value.maps is not self.maps:
+                    msg = _("{!r} maps instance must be the schema maps").format(name)
+                    raise XMLSchemaValueError(msg)
             elif name in self.__dict__ and name[:1] != '_':
                 # (: Don't protect a protected attribute :)
                 msg = _("can't change the {!r} attribute of a schema").format(name)
@@ -578,6 +574,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 object.__setattr__(schema, attr, value.copy())
             else:
                 object.__setattr__(schema, attr, value)
+
         return schema
 
     copy = __copy__
@@ -654,24 +651,19 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         return self.source.opener
 
     @property
-    def converter(self) -> Optional[ConverterType]:
-        """The default converter class or instance used for XML data decoding/encoding."""
-        return self.config.converter
-
-    @property
     def locations(self) -> Optional[LocationsType]:
         """Schema extra location hints also provided by document schema location hints."""
-        return self.config.locations
+        return self.loader.locations
 
     @property
     def use_fallback(self) -> bool:
         """If the schema processor uses the validator fallback location hints."""
-        return self.config.use_fallback
+        return self.loader.use_fallback
 
     @property
     def use_xpath3(self) -> bool:
         """If XSD 1.1 schema instance uses the XPath 3 processor for assertions."""
-        return self.config.use_xpath3
+        return self.loader.use_xpath3
 
     @property
     def use_meta(self) -> bool:
@@ -680,10 +672,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
     def is_meta(self) -> bool:
         """Returns `True` if it's a schema of a class meta-schema."""
-        if self.meta_schema is not None:
-            return False
-        return self in _meta_registry or \
-            self.maps.validator in _meta_registry and self in self.maps.schemas
+        return self in _meta_registry
 
     # Schema root attributes
     @property
@@ -929,7 +918,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         :return: a converter instance.
         """
         if converter is None:
-            converter = self.config.converter
+            converter = self.converter
         return get_converter(converter, **kwargs)
 
     def get_locations(self, namespace: str) -> list[str]:
@@ -1541,7 +1530,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             resource = XMLResource(source, defuse=self.defuse, timeout=self.timeout)
 
         if converter is None:
-            converter = self.config.converter
+            converter = self.converter
 
         kwargs.update(
             process_namespaces=process_namespaces,
@@ -1704,7 +1693,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             raise XMLSchemaValueError(msg)
 
         if converter is None:
-            converter = self.config.converter
+            converter = self.converter
 
         kwargs.update(
             namespaces=namespaces,

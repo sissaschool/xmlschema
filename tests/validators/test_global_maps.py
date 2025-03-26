@@ -131,7 +131,6 @@ class TestXsdGlobalsMaps(unittest.TestCase):
 
         self.assertEqual(maps.validation, orig.validation)
         self.assertIsNot(maps.validator, orig.validator)
-        self.assertIsNot(maps.loader, orig.loader)
         self.assertEqual(maps.total_globals, 0)
 
         self.assertEqual(len(maps.namespaces), len(orig.namespaces))
@@ -162,7 +161,7 @@ class TestXsdGlobalsMaps(unittest.TestCase):
             maps.build()  # XSD meta-schema is still there but incomplete
 
         maps.clear()
-        maps.loader.load_namespace(nm.XML_NAMESPACE)
+        maps.validator.loader.load_namespace(nm.XML_NAMESPACE)
         maps.build()
 
         self.assertEqual(maps.total_globals, 154)  # missing XSI namespace

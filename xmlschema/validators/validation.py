@@ -495,7 +495,7 @@ class ValidationMixin(Generic[ST, DT]):
         """
         converter = kwargs.pop('converter', None)
         if converter is None:
-            converter = self.schema.config.converter
+            converter = self.schema.converter
 
         context = DecodeContext(obj, validation, converter, **kwargs)
         result = self.raw_decode(obj, validation, context)
@@ -519,7 +519,7 @@ class ValidationMixin(Generic[ST, DT]):
         """
         converter = kwargs.pop('converter', None)
         if converter is None:
-            converter = self.schema.config.converter
+            converter = self.schema.converter
 
         context = EncodeContext(obj, validation, converter, **kwargs)
         result = self.raw_encode(obj, validation, context)
@@ -540,7 +540,7 @@ class ValidationMixin(Generic[ST, DT]):
         """
         converter = kwargs.pop('converter', None)
         if converter is None:
-            converter = self.schema.config.converter
+            converter = self.schema.converter
 
         context = DecodeContext(obj, validation, converter, **kwargs)
         result = self.raw_decode(obj, validation, context)
@@ -562,7 +562,7 @@ class ValidationMixin(Generic[ST, DT]):
         """
         converter = kwargs.pop('converter', None)
         if converter is None:
-            converter = self.schema.config.converter
+            converter = self.schema.converter
 
         context = EncodeContext(obj, validation, converter, **kwargs)
         result = self.raw_encode(obj, validation, context)

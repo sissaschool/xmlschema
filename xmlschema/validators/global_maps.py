@@ -38,7 +38,7 @@ from .models import check_model
 from . import XsdAttribute, XsdSimpleType, XsdComplexType, XsdElement, \
     XsdGroup, XsdIdentity, XsdAssert, XsdUnion, XsdAtomicRestriction, \
     XsdAtomic, XsdAtomicBuiltin, XsdNotation, XsdAttributeGroup
-from .builders import XsdBuilders, SchemaConfig, TypesMap, NotationsMap, \
+from .builders import XsdBuilders, TypesMap, NotationsMap, \
     AttributesMap, AttributeGroupsMap, ElementsMap, GroupsMap
 
 GLOBAL_TAGS = frozenset((
@@ -180,8 +180,6 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
     :param validator: the origin schema class/instance used for creating the global maps.
     :param parent: an optional parent schema, that is required to be built and with \
     no use of the target namespace of the validator.
-    :param config: a schema configuration object. If not provided, a default \
-    configuration is used.
     """
     _schemas: set[SchemaType]
     namespaces: NamespaceResourcesMap[SchemaType]
@@ -205,8 +203,7 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
                  '_staged_globals', '_validation_attempted', '_validity')
 
     def __init__(self, validator: SchemaType, validation: str = _strict,
-                 parent: Optional[SchemaType] = None,
-                 config: Optional[SchemaConfig] = None) -> None:
+                 parent: Optional[SchemaType] = None) -> None:
 
         if not isinstance(validation, _strict.__class__):
             msg = "argument 'validation' is not used and will be removed in v5.0"
@@ -217,13 +214,11 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
         self._staged_globals = 0
         self._validation_attempted = 'none'
         self._validity = 'notKnown'
-
         self._schemas = set()
 
         self.validator = validator
         self._parent = parent
 
-        self.config = SchemaConfig.from_args(validator) if config is None else config
         self.namespaces = NamespaceResourcesMap()  # Registered schemas by namespace URI
 
         self.global_maps = GlobalMaps.empty_maps(validator.builders)
@@ -232,8 +227,6 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
 
         self.substitution_groups = {}
         self.identities = {}
-
-        self.loader = self.config.loader_class(self)
 
         for ancestor in self.iter_ancestors():
             self._schemas.update(ancestor.maps.schemas)
@@ -295,11 +288,20 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
         obj = type(self)(
             validator=copy.copy(self.validator),
             parent=self._parent,
-            config=self.config,
         )
+
+        loader = copy.copy(obj.validator.loader)
+        loader.maps = obj
+        loader.namespaces = obj.namespaces
+        loader.validator = obj.validator
+
+        obj.validator.maps = obj
+        obj.validator.loader = loader
         for schema in self._schemas:
             if schema.maps is self and schema is not self.validator:
-                copy.copy(schema).maps = obj
+                _schema = copy.copy(schema)
+                _schema.maps = obj
+                _schema.loader = loader
 
         obj.clear()
         return obj
@@ -430,7 +432,7 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
         if not self.built:
             return {}
 
-        self._xpath_parser = self.config.xpath_parser_class()
+        self._xpath_parser = self.validator.loader.xpath_parser_class()
         self._xpath_parser.schema = self.validator.xpath_proxy
 
         constructors: dict[str, Type[XPathToken]] = {}
@@ -541,7 +543,7 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
             ns_schemas.append(schema)
             schema.maps = self
             self.merge(ancestor=ns_schemas[0].maps.validator)
-        elif self.loader.get_schema(namespace, source) is None:
+        elif self.validator.loader.get_schema(namespace, source) is None:
             self._schemas.add(schema)
             ns_schemas.append(schema)
         else:
