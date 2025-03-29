@@ -233,7 +233,6 @@ XML resources API
 Loaders API
 ===========
 
-.. autofunction:: xmlschema.UrlResolver
 .. autofunction:: xmlschema.SchemaLoader
 .. autofunction:: xmlschema.LocationSchemaLoader
 .. autofunction:: xmlschema.SafeSchemaLoader

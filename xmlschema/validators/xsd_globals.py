@@ -10,12 +10,9 @@
 import copy
 import threading
 import warnings
-from collections import Counter
 from collections.abc import Collection, Iterator, Iterable
 from itertools import dropwhile
-from operator import itemgetter
-from types import MappingProxyType
-from typing import Any, cast, NamedTuple, Optional, Union, Type
+from typing import Any, cast, Optional, Union, Type
 
 from elementpath import XPathToken, XPath2Parser
 
@@ -25,147 +22,18 @@ from xmlschema.exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, \
     XMLSchemaValueError, XMLSchemaWarning, XMLSchemaNamespaceError
 from xmlschema.translation import gettext as _
 from xmlschema.utils.misc import deprecated
-from xmlschema.utils.qnames import local_name, get_extended_qname
+from xmlschema.utils.qnames import get_extended_qname
 from xmlschema.utils.descriptors import validator_property
 from xmlschema.namespaces import NamespaceResourcesMap
-from xmlschema.loaders import SchemaResource, SchemaLoader
 import xmlschema.names as nm
 
-from .exceptions import XMLSchemaNotBuiltError, XMLSchemaModelError, \
-    XMLSchemaModelDepthError, XMLSchemaParseError
+from .exceptions import XMLSchemaModelError, XMLSchemaModelDepthError, XMLSchemaParseError
 from .xsdbase import XsdValidator, XsdComponent
 from .models import check_model
 from . import XsdAttribute, XsdSimpleType, XsdComplexType, XsdElement, \
     XsdGroup, XsdIdentity, XsdAssert, XsdUnion, XsdAtomicRestriction, \
     XsdAtomic, XsdAtomicBuiltin, XsdNotation, XsdAttributeGroup
-from .builders import XsdBuilders, TypesMap, NotationsMap, \
-    AttributesMap, AttributeGroupsMap, ElementsMap, GroupsMap
-
-GLOBAL_TAGS = frozenset((
-    nm.XSD_NOTATION, nm.XSD_SIMPLE_TYPE, nm.XSD_COMPLEX_TYPE,
-    nm.XSD_ATTRIBUTE, nm.XSD_ATTRIBUTE_GROUP, nm.XSD_GROUP, nm.XSD_ELEMENT
-))
-
-_GLOBAL_GETTERS = MappingProxyType({
-    nm.XSD_SIMPLE_TYPE: itemgetter(0),
-    nm.XSD_COMPLEX_TYPE: itemgetter(0),
-    nm.XSD_NOTATION: itemgetter(1),
-    nm.XSD_ATTRIBUTE: itemgetter(2),
-    nm.XSD_ATTRIBUTE_GROUP: itemgetter(3),
-    nm.XSD_ELEMENT: itemgetter(4),
-    nm.XSD_GROUP: itemgetter(5),
-})
-
-
-class GlobalMaps(NamedTuple):
-    types: TypesMap
-    notations: NotationsMap
-    attributes: AttributesMap
-    attribute_groups: AttributeGroupsMap
-    elements: ElementsMap
-    groups: GroupsMap
-
-    @classmethod
-    def empty_maps(cls, builders: XsdBuilders) -> 'GlobalMaps':
-        return cls(
-            TypesMap(builders),
-            NotationsMap(builders),
-            AttributesMap(builders),
-            AttributeGroupsMap(builders),
-            ElementsMap(builders),
-            GroupsMap(builders)
-        )
-
-    def clear(self) -> None:
-        for item in self:
-            item.clear()
-
-    def update(self, other: 'GlobalMaps') -> None:
-        for m1, m2 in zip(self, other):
-            m1.update(m2)  # type: ignore[attr-defined]
-
-    def copy(self) -> 'GlobalMaps':
-        return GlobalMaps(*[m.copy() for m in self])  # type: ignore[arg-type]
-
-    def iter_globals(self) -> Iterator[SchemaGlobalType]:
-        for item in self:
-            yield from item.values()
-
-    def iter_staged(self) -> Iterator[StagedItemType]:
-        for item in self:
-            yield from item.staged_values
-
-    def load_globals(self, schemas: Iterable[Union[SchemaType, SchemaResource]]) -> None:
-        """Loads global XSD components for the given schemas."""
-        redefinitions = []
-
-        for schema in schemas:
-            if schema.target_namespace:
-                ns_prefix = f'{{{schema.target_namespace}}}'
-            else:
-                ns_prefix = ''
-
-            for elem in schema.root:
-                if (tag := elem.tag) in (nm.XSD_REDEFINE, nm.XSD_OVERRIDE):
-                    location = elem.get('schemaLocation')
-                    if location is None:
-                        continue
-
-                    for child in elem:
-                        try:
-                            qname = ns_prefix + child.attrib['name']
-                        except KeyError:
-                            continue
-
-                        redefinitions.append(
-                            (qname, elem, child, schema, schema.includes[location])
-                        )
-
-                elif tag in GLOBAL_TAGS:
-                    try:
-                        qname = ns_prefix + elem.attrib['name']
-                    except KeyError:
-                        continue  # Invalid global: skip
-
-                    _GLOBAL_GETTERS[tag](self).load(qname, elem, schema)
-
-        redefined_names = Counter(x[0] for x in redefinitions)
-        for qname, elem, child, schema, redefined_schema in reversed(redefinitions):
-
-            # Checks multiple redefinitions
-            if redefined_names[qname] > 1:
-                redefined_names[qname] = 1
-
-                redefined_schemas: Any
-                redefined_schemas = [x[-1] for x in redefinitions if x[0] == qname]
-                if any(redefined_schemas.count(x) > 1 for x in redefined_schemas):
-                    msg = _("multiple redefinition for {} {!r}")
-                    schema.parse_error(
-                        error=msg.format(local_name(child.tag), qname),
-                        elem=child
-                    )
-                else:
-                    redefined_schemas = {x[-1]: x[-2] for x in redefinitions if x[0] == qname}
-                    for rs, s in redefined_schemas.items():
-                        while True:
-                            try:
-                                s = redefined_schemas[s]
-                            except KeyError:
-                                break
-
-                            if s is rs:
-                                msg = _("circular redefinition for {} {!r}")
-                                schema.parse_error(
-                                    error=msg.format(local_name(child.tag), qname),
-                                    elem=child
-                                )
-                                break
-
-            if elem.tag == nm.XSD_REDEFINE:
-                _GLOBAL_GETTERS[child.tag](self).load_redefine(qname, child, schema)
-            else:
-                _GLOBAL_GETTERS[child.tag](self).load_override(qname, child, schema)
-
+from .builders import GlobalMaps
 
 # Default placeholder for deprecation of argument 'validation' in XsdGlobals
 _strict = type('str', (str,), {})('strict')
@@ -183,7 +51,6 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
     """
     _schemas: set[SchemaType]
     namespaces: NamespaceResourcesMap[SchemaType]
-    loader: SchemaLoader
 
     substitution_groups: dict[str, set[XsdElement]]
     identities: dict[str, XsdIdentity]
@@ -199,8 +66,8 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
         nm.XSD_GROUP: 'groups',
     }
 
-    __slots__ = ('validation', 'substitution_groups', 'types', 'global_maps', '_build_lock',
-                 '_staged_globals', '_validation_attempted', '_validity')
+    __slots__ = ('validation', 'substitution_groups', 'types', 'global_maps',
+                 '_build_lock', '_validation_attempted', '_validity')
 
     def __init__(self, validator: SchemaType, validation: str = _strict,
                  parent: Optional[SchemaType] = None) -> None:
@@ -211,7 +78,6 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
 
         super().__init__(validator.validation)
         self._build_lock = threading.Lock()
-        self._staged_globals = 0
         self._validation_attempted = 'none'
         self._validity = 'notKnown'
         self._schemas = set()
@@ -221,7 +87,7 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
 
         self.namespaces = NamespaceResourcesMap()  # Registered schemas by namespace URI
 
-        self.global_maps = GlobalMaps.empty_maps(validator.builders)
+        self.global_maps = GlobalMaps.from_builders(validator.builders)
         (self.types, self.notations, self.attributes,
          self.attribute_groups, self.elements, self.groups) = self.global_maps
 
@@ -392,29 +258,14 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
 
     @property
     def validation_attempted(self) -> str:
-        if self._staged_globals < self.staged_globals:
-            self._staged_globals = self.staged_globals
-
-            for schema in self._schemas:
-                if schema.maps is self:
-                    schema.clear()  # clear XPath and component lazy properties
-
-            if self._validation_attempted == 'full':
-                self._validation_attempted = 'partial'
-
+        if self._validation_attempted == 'full' and self.staged_globals:
+            self._validation_attempted = 'partial'
         return self._validation_attempted
 
     @property
     def validity(self) -> str:
-        if self._staged_globals < self.staged_globals:
-            self._staged_globals = self.staged_globals
-
-            for schema in self._schemas:
-                if schema.maps is self:
-                    schema.clear()  # clear XPath and component lazy properties
-
-            if self._validity == 'valid':
-                self._validity = 'notKnown'
+        if self._validity == 'valid' and self.staged_globals:
+            self._validity = 'notKnown'
 
         if self._parent is None:
             return self._validity
@@ -557,43 +408,6 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
         if self._validity == 'valid':
             self._validity = 'notKnown'
 
-    def load_namespace(self, namespace: str, build: bool = True) -> bool:
-        """
-        Load namespace from available location hints. Returns `True` if the namespace
-        is already loaded or if the namespace can be loaded from one of the locations,
-        returns `False` otherwise. Failing locations are inserted into the missing
-        locations list.
-
-        :param namespace: the namespace to load.
-        :param build: if left with `True` value builds the maps after load. If the \
-        build fails the resource URL is added to missing locations.
-        """
-        if namespace in self.namespaces:
-            return True
-        elif self.validator.meta_schema is None:
-            return False  # Do not load additional namespaces for meta-schema
-
-        if not build:
-            return self.validator.loader.load_namespace(namespace)
-
-        global_maps = self.global_maps.copy()
-        substitution_groups = self.substitution_groups.copy()
-        identities = self.identities.copy()
-
-        if not self.validator.loader.load_namespace(namespace):
-            return False
-
-        try:
-            self.build()
-        except XMLSchemaNotBuiltError:
-            self.clear()
-            self.global_maps.update(global_maps)
-            self.substitution_groups.update(substitution_groups)
-            self.identities.update(identities)
-            return False
-        else:
-            return True
-
     def merge(self, ancestor: SchemaType) -> None:
         """Merge the global maps until to a specific ancestor."""
         self.clear()
@@ -667,7 +481,7 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
             target_schemas = [s for ns_schemas in self.namespaces.values()
                               for s in ns_schemas if s.maps is self]
 
-            self.global_maps.load_globals(target_schemas)
+            self.global_maps.load(target_schemas)
             initial_staged = self.staged_globals
 
             self.types.build_builtins(self.validator)
@@ -708,9 +522,6 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
             if self.validator.meta_schema is not None:
                 self.check(target_schemas)
 
-            # Save totals for a fast integrity check on globals maps
-            self._staged_globals = self.staged_globals
-
             if not initial_staged:
                 self._validation_attempted = 'full'
             elif 0 < (still_staged := self.staged_globals) < initial_staged:
@@ -733,10 +544,10 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
             raise XMLSchemaValueError(_('global maps main validator is not registered'))
 
         if nm.XML_NAMESPACE not in self.namespaces:
-            self.load_namespace(nm.XML_NAMESPACE, build=False)
+            self.validator.load_namespace(nm.XML_NAMESPACE, build=False)
 
         if nm.XSI_NAMESPACE not in self.namespaces:
-            self.load_namespace(nm.XSI_NAMESPACE, build=False)
+            self.validator.load_namespace(nm.XSI_NAMESPACE, build=False)
 
         registered_schemas = set()
         for namespace, schemas in self.namespaces.items():

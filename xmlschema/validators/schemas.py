@@ -51,7 +51,7 @@ from xmlschema.converters import XMLSchemaConverter, ConverterType, \
 from xmlschema.xpath import XMLSchemaProxy, ElementPathMixin
 from xmlschema.namespaces import NamespaceView
 from xmlschema.locations import SCHEMAS_DIR
-from xmlschema.loaders import SchemaLoader
+from xmlschema.loaders import SchemaLoader, SafeSchemaLoader
 from xmlschema.exports import export_schema
 from xmlschema import dataobjects
 
@@ -70,7 +70,7 @@ from .groups import XsdGroup
 from .elements import XsdElement
 from .wildcards import XsdAnyElement, XsdDefaultOpenContent
 from .builders import XsdBuilders
-from .global_maps import XsdGlobals
+from .xsd_globals import XsdGlobals
 
 logger = logging.getLogger('xmlschema')
 
@@ -461,7 +461,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         if global_maps is None:
             for ns in self.loader.locations:
                 if ns not in self.maps.namespaces:
-                    self.loader.import_namespace(self, ns, self.loader.locations[ns])
+                    self.loader.import_namespace(self, ns)
 
         # Parse XSD 1.1 default declarations (defaultAttributes, defaultOpenContent,
         # xpathDefaultNamespace) after all imports/includes.
@@ -1027,7 +1027,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         :param build: if left with `True` value builds the maps after load. If the \
         build fails the resource URL is added to missing locations.
         """
-        return self.maps.load_namespace(namespace, build)
+        return self.loader.load_namespace(namespace, build)
 
     def export(self, target: Union[str, Path],
                save_remote: bool = False,

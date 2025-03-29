@@ -17,7 +17,7 @@ from pathlib import Path
 from types import TracebackType
 from typing import cast, Any, Optional, Union
 from urllib.request import urlopen, OpenerDirector
-from urllib.parse import urlsplit, unquote, SplitResult
+from urllib.parse import urlsplit, unquote
 from urllib.error import URLError
 from xml.etree import ElementTree
 
@@ -107,9 +107,8 @@ class XMLResource(XMLResourceLoader):
     # Private attributes for arguments
     _source: XMLSourceType
     _base_url: Optional[str]
-    _url_parts: SplitResult = urlsplit('')
-    _defuse: str
     _allow: str
+    _defuse: str
     _timeout: int
     _uri_mapper: Optional[UriMapperType]
     _opener: Optional[OpenerDirector]
@@ -123,6 +122,7 @@ class XMLResource(XMLResourceLoader):
     fp: Optional[IOType] = None
     """An file-like object if the source is a file-like object."""
 
+    _url_scheme: Optional[str] = None
     _context_fp: Optional[IOType] = None
     _context_lock: threading.Lock = threading.Lock()
 
@@ -153,6 +153,7 @@ class XMLResource(XMLResourceLoader):
         if is_url(source):
             assert isinstance(source, (str, bytes, Path))
             self.url = self.get_url(source)
+            self._url_scheme = urlsplit(self.url).scheme
             self.access_control(self.url)
 
         elif isinstance(source, str):
@@ -252,12 +253,17 @@ class XMLResource(XMLResourceLoader):
         return normalize_url(uri, self._base_url)
 
     def match_location(self, location: str) -> bool:
-        """Match the normalized location with the URL the XML resource. URL schemes are compared """
+        """Matches the location with the URL the XML resource. URL schemes are compared """
         if self.url is None:
             return False
 
-        return (url := self.get_url(location)) == self.url or \
-            self._url_parts.scheme != '' and self._url_parts[1:3] == urlsplit(url)[1:3]
+        url = self.get_url(location)
+        if self._url_scheme in ('http', 'https', 'ftp', 'ftps') and \
+                url.startswith(('http://', 'https://', 'ftp://', 'sftp://')) and \
+                url[:5] != self.url[:5]:
+            url = url.replace(self.url[:5], self.url[:5], 1)
+
+        return self.url == url
 
     def access_control(self, url: Optional[str]) -> None:
         if self._allow == 'all' or url is None:

@@ -39,7 +39,7 @@ if TYPE_CHECKING:
     from .complex_types import XsdComplexType
     from .elements import XsdElement
     from .groups import XsdGroup
-    from .global_maps import XsdGlobals
+    from .xsd_globals import XsdGlobals
 
 logger = logging.getLogger('xmlschema')
 

@@ -506,7 +506,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
             return Empty
 
         namespace = get_namespace(obj.tag)
-        if not self.maps.load_namespace(namespace):
+        if not self.schema.load_namespace(namespace):
             reason = _("unavailable namespace {!r}").format(namespace)
         else:
             try:
@@ -548,7 +548,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
         if self.process_contents == 'skip' and not context.process_skipped:
             return Empty
 
-        if not self.maps.load_namespace(namespace):
+        if not self.schema.load_namespace(namespace):
             reason = _("unavailable namespace {!r}").format(namespace)
         else:
             try:
@@ -677,7 +677,7 @@ class XsdAnyAttribute(XsdWildcard, ValidationMixin[tuple[str, str], DecodedValue
             return Empty
 
         namespace = get_namespace(name)
-        if self.maps.load_namespace(namespace):
+        if self.schema.load_namespace(namespace):
             try:
                 xsd_attribute = self.maps.attributes[name]
             except KeyError:
@@ -706,7 +706,7 @@ class XsdAnyAttribute(XsdWildcard, ValidationMixin[tuple[str, str], DecodedValue
         if self.process_contents == 'skip' and not context.process_skipped:
             return Empty
 
-        if self.maps.load_namespace(namespace):
+        if self.schema.load_namespace(namespace):
             try:
                 xsd_attribute = self.maps.attributes[name]
             except KeyError:

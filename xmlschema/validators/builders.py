@@ -8,16 +8,18 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import copy
+from _operator import itemgetter
 from abc import abstractmethod
 from collections import Counter
 from collections.abc import Callable, ItemsView, Iterator, Mapping, ValuesView, Iterable
 from copy import copy as shallow_copy
-from typing import Any, cast, Optional, Union, Type, TypeVar
+from types import MappingProxyType
+from typing import Any, cast, NamedTuple, Optional, Union, Type, TypeVar, TYPE_CHECKING
 from xml.etree.ElementTree import Element
 
 import xmlschema.names as nm
 from xmlschema.aliases import BaseXsdType, ElementType, LoadedItemType, \
-    SchemaType, StagedItemType
+    SchemaType, StagedItemType, SchemaGlobalType
 from xmlschema.exceptions import XMLSchemaAttributeError, XMLSchemaKeyError, \
     XMLSchemaTypeError, XMLSchemaValueError
 from xmlschema.translation import gettext as _
@@ -40,9 +42,13 @@ from .wildcards import XsdAnyElement, Xsd11AnyElement, XsdAnyAttribute, Xsd11Any
 from .groups import XsdGroup, Xsd11Group
 from .elements import XsdElement, Xsd11Element
 
+if TYPE_CHECKING:
+    from xmlschema.loaders import SchemaResource  # noqa: F401
+
 CT = TypeVar('CT', bound=XsdComponent)
 
 BuilderType = Callable[[ElementType, SchemaType, Optional[XsdComponent]], CT]
+LoadableType = Union[SchemaType, 'SchemaResource']
 
 # Elements for building dummy groups
 ATTRIBUTE_GROUP_ELEMENT = Element(nm.XSD_ATTRIBUTE_GROUP)
@@ -58,6 +64,21 @@ ANY_ELEMENT = Element(
         'minOccurs': '0',
         'maxOccurs': 'unbounded'
     })
+
+GLOBAL_TAGS = frozenset((
+    nm.XSD_NOTATION, nm.XSD_SIMPLE_TYPE, nm.XSD_COMPLEX_TYPE,
+    nm.XSD_ATTRIBUTE, nm.XSD_ATTRIBUTE_GROUP, nm.XSD_GROUP, nm.XSD_ELEMENT
+))
+
+GLOBAL_GETTERS = MappingProxyType({
+    nm.XSD_SIMPLE_TYPE: itemgetter(0),
+    nm.XSD_COMPLEX_TYPE: itemgetter(0),
+    nm.XSD_NOTATION: itemgetter(1),
+    nm.XSD_ATTRIBUTE: itemgetter(2),
+    nm.XSD_ATTRIBUTE_GROUP: itemgetter(3),
+    nm.XSD_ELEMENT: itemgetter(4),
+    nm.XSD_GROUP: itemgetter(5),
+})
 
 
 class XsdBuilders:
@@ -417,7 +438,7 @@ class StagedMap(Mapping[str, CT]):
     def staged_values(self) -> ValuesView[StagedItemType]:
         return self._staging.values()
 
-    def load(self, qname: str, elem: ElementType, schema: SchemaType) -> None:
+    def load(self, qname: str, elem: ElementType, schema: LoadableType) -> None:
         if qname in self._store:
             comp = self._store[qname]
             if comp.schema is schema:
@@ -647,3 +668,113 @@ class GroupsMap(StagedMap[XsdGroup]):
 
     def _factory_or_class(self, elem: ElementType, schema: SchemaType) -> XsdGroup:
         return self._builders.group_class(elem, schema)
+
+
+class GlobalMaps(NamedTuple):
+    types: TypesMap
+    notations: NotationsMap
+    attributes: AttributesMap
+    attribute_groups: AttributeGroupsMap
+    elements: ElementsMap
+    groups: GroupsMap
+
+    @classmethod
+    def from_builders(cls, builders: XsdBuilders) -> 'GlobalMaps':
+        return cls(
+            TypesMap(builders),
+            NotationsMap(builders),
+            AttributesMap(builders),
+            AttributeGroupsMap(builders),
+            ElementsMap(builders),
+            GroupsMap(builders)
+        )
+
+    def clear(self) -> None:
+        for item in self:
+            item.clear()
+
+    def update(self, other: 'GlobalMaps') -> None:
+        for m1, m2 in zip(self, other):
+            m1.update(m2)  # type: ignore[attr-defined]
+
+    def copy(self) -> 'GlobalMaps':
+        return GlobalMaps(*[m.copy() for m in self])  # type: ignore[arg-type]
+
+    def iter_globals(self) -> Iterator[SchemaGlobalType]:
+        for item in self:
+            yield from item.values()
+
+    def iter_staged(self) -> Iterator[StagedItemType]:
+        for item in self:
+            yield from item.staged_values
+
+    def load(self, schemas: Iterable[LoadableType]) -> None:
+        """Loads global XSD components for the given schemas."""
+        redefinitions = []
+
+        for schema in schemas:
+            if schema.target_namespace:
+                ns_prefix = f'{{{schema.target_namespace}}}'
+            else:
+                ns_prefix = ''
+
+            for elem in schema.root:
+                if (tag := elem.tag) in (nm.XSD_REDEFINE, nm.XSD_OVERRIDE):
+                    location = elem.get('schemaLocation')
+                    if location is None:
+                        continue
+
+                    for child in elem:
+                        try:
+                            qname = ns_prefix + child.attrib['name']
+                        except KeyError:
+                            continue
+
+                        redefinitions.append(
+                            (qname, elem, child, schema, schema.includes[location])
+                        )
+
+                elif tag in GLOBAL_TAGS:
+                    try:
+                        qname = ns_prefix + elem.attrib['name']
+                    except KeyError:
+                        continue  # Invalid global: skip
+
+                    GLOBAL_GETTERS[tag](self).load(qname, elem, schema)
+
+        redefined_names = Counter(x[0] for x in redefinitions)
+        for qname, elem, child, schema, redefined_schema in reversed(redefinitions):
+
+            # Checks multiple redefinitions
+            if redefined_names[qname] > 1:
+                redefined_names[qname] = 1
+
+                redefined_schemas: Any
+                redefined_schemas = [x[-1] for x in redefinitions if x[0] == qname]
+                if any(redefined_schemas.count(x) > 1 for x in redefined_schemas):
+                    msg = _("multiple redefinition for {} {!r}")
+                    schema.parse_error(
+                        error=msg.format(local_name(child.tag), qname),
+                        elem=child
+                    )
+                else:
+                    redefined_schemas = {x[-1]: x[-2] for x in redefinitions if x[0] == qname}
+                    for rs, s in redefined_schemas.items():
+                        while True:
+                            try:
+                                s = redefined_schemas[s]
+                            except KeyError:
+                                break
+
+                            if s is rs:
+                                msg = _("circular redefinition for {} {!r}")
+                                schema.parse_error(
+                                    error=msg.format(local_name(child.tag), qname),
+                                    elem=child
+                                )
+                                break
+
+            if elem.tag == nm.XSD_REDEFINE:
+                GLOBAL_GETTERS[child.tag](self).load_redefine(qname, child, schema)
+            else:
+                GLOBAL_GETTERS[child.tag](self).load_override(qname, child, schema)
