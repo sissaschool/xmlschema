@@ -523,7 +523,7 @@ class Wsdl11Document(XmlDocument):
         self.locations = get_locations(locations, base_url)
 
         if self.namespace == XSD_NAMESPACE and \
-                self.schema.loader.get_schema(source=self.url) is None:
+                self.schema.maps.get_schema(source=self.url) is None:
             self.schema.__class__(
                 source=self,
                 global_maps=self.schema.maps,

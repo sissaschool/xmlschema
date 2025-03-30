@@ -15,6 +15,7 @@ from xmlschema.namespaces import NamespaceResourcesMap
 from xmlschema.aliases import LocationsMapType, LocationsType
 from xmlschema.exceptions import XMLSchemaTypeError
 from xmlschema.translation import gettext as _
+from xmlschema.utils.paths import LocationPath
 from xmlschema.utils.urls import normalize_locations
 import xmlschema.names as nm
 

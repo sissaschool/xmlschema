@@ -1,10 +1,9 @@
-<schema 
- targetNamespace="http://www.w3.org/2007/XMLSchema-versioning" 
- xmlns:this="http://www.w3.org/2007/XMLSchema-versioning">
+<schema xmlns="http://www.w3.org/2001/XMLSchema"
+ targetNamespace="http://www.w3.org/2007/XMLSchema-versioning">
+ <!-- Patched version for python-xmlschema (wrong xmlns declaration) -->
  <annotation>
   <documentation>
-   <div xmlns="http://www.w3.org/1999/xhtml"
-   >
+   <div xmlns="http://www.w3.org/1999/xhtml">
     <p>Simple schema for the XML Schema Versioning namespace.
      27 August 2007.
     </p>

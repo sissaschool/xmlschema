@@ -859,7 +859,7 @@ class XsdAssertionFacet(XsdFacet):
         else:
             self.xpath_default_namespace = self.schema.xpath_default_namespace
 
-        self.parser = self.schema.loader.assertion_parser_class(
+        self.parser = self.maps.loader.assertion_parser_class(
             namespaces=self.schema.namespaces,
             strict=False,
             variable_types={'value': value},

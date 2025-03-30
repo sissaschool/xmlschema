@@ -161,7 +161,9 @@ class TestXsd10GlobalsMaps(unittest.TestCase):
         maps.clear(remove_schemas=True)
         self.assertEqual(maps.total_globals, 0)
         self.assertEqual(orig.total_globals, self.total_globals)
-        self.assertEqual(len(maps.schemas), 1)  # XSD meta-schema is still there but incomplete
+
+        # XSD meta-schema is still there but incomplete
+        self.assertEqual(len(maps.schemas), 1)
 
         maps.build()
         self.assertEqual(maps.total_globals, self.total_globals)
@@ -216,15 +218,15 @@ class TestXsd11GlobalsMaps(TestXsd10GlobalsMaps):
     def test_totals(self):
         self.assertEqual(len(XMLSchema11.meta_schema.maps.notations), 2)
         self.assertEqual(len(XMLSchema11.meta_schema.maps.types), 103)
-        self.assertEqual(len(XMLSchema11.meta_schema.maps.attributes), 8)
+        self.assertEqual(len(XMLSchema11.meta_schema.maps.attributes), 10)
         self.assertEqual(len(XMLSchema11.meta_schema.maps.attribute_groups), 4)
         self.assertEqual(len(XMLSchema11.meta_schema.maps.groups), 13)
         self.assertEqual(len(XMLSchema11.meta_schema.maps.elements), 47)
         self.assertEqual(
-            len([e.is_global() for e in XMLSchema11.meta_schema.maps.iter_globals()]), 177
+            len([e.is_global() for e in XMLSchema11.meta_schema.maps.iter_globals()]), 179
         )
-        self.assertEqual(self.total_globals, 177)
-        self.assertEqual(self.total_components, 963)
+        self.assertEqual(self.total_globals, 179)
+        self.assertEqual(self.total_components, 965)
         self.assertEqual(len(XMLSchema11.meta_schema.maps.substitution_groups), 1)
 
     def test_xsd_11_restrictions(self):

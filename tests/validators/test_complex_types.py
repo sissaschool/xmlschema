@@ -884,7 +884,7 @@ class TestXsd11ComplexType(TestXsdComplexType):
             self.schema_class(xsd_file)
             schema = self.schema_class(xsd_file)
 
-            self.assertEqual(len(ctx), 2, "Expected two assert warnings")
+            self.assertEqual(len(ctx), 1, "Expected two assert warnings")
             self.assertIn("absolute location path", str(ctx[0].message))
 
         xml_file = self.casepath('issues/issue_386/issue_386-1.xml')
