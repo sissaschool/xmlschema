@@ -41,6 +41,7 @@ from .complex_types import XsdComplexType, Xsd11ComplexType
 from .wildcards import XsdAnyElement, Xsd11AnyElement, XsdAnyAttribute, Xsd11AnyAttribute
 from .groups import XsdGroup, Xsd11Group
 from .elements import XsdElement, Xsd11Element
+from .assertions import XsdAssert
 
 if TYPE_CHECKING:
     from xmlschema.loaders import SchemaResource  # noqa: F401
@@ -778,3 +779,39 @@ class GlobalMaps(NamedTuple):
                 GLOBAL_GETTERS[child.tag](self).load_redefine(qname, child, schema)
             else:
                 GLOBAL_GETTERS[child.tag](self).load_override(qname, child, schema)
+
+    def build(self, schemas: Iterable[LoadableType]) -> None:
+        """Builds global XSD components for the given schemas."""
+        self.notations.build()
+        self.attributes.build()
+        self.attribute_groups.build()
+
+        for schema in schemas:
+            if not isinstance(schema.default_attributes, str):
+                continue
+
+            try:
+                attributes = schema.maps.attribute_groups[schema.default_attributes]
+            except KeyError:
+                schema.default_attributes = None
+                msg = _("defaultAttributes={0!r} doesn't match any attribute group of {1!r}")
+                schema.parse_error(
+                    error=msg.format(schema.root.get('defaultAttributes'), schema),
+                    elem=schema.root
+                )
+            else:
+                schema.default_attributes = attributes
+
+        self.types.build()
+        self.elements.build()
+        self.groups.build()
+
+        # Build element declarations inside model groups.
+        for schema in schemas:
+            for group in schema.iter_components(XsdGroup):
+                group.build()
+
+        # Build identity references and XSD 1.1 assertions
+        for schema in schemas:
+            for obj in schema.iter_components((XsdIdentity, XsdAssert)):
+                obj.build()

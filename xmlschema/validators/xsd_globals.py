@@ -31,7 +31,7 @@ from .exceptions import XMLSchemaModelError, XMLSchemaModelDepthError, XMLSchema
 from .xsdbase import XsdValidator, XsdComponent
 from .models import check_model
 from . import XsdAttribute, XsdSimpleType, XsdComplexType, XsdElement, \
-    XsdGroup, XsdIdentity, XsdAssert, XsdUnion, XsdAtomicRestriction, \
+    XsdGroup, XsdIdentity, XsdUnion, XsdAtomicRestriction, \
     XsdAtomic, XsdAtomicBuiltin, XsdNotation, XsdAttributeGroup
 from .builders import GlobalMaps
 
@@ -478,56 +478,25 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
                 self.substitution_groups.update(ancestor.maps.substitution_groups)
                 self.identities.update(ancestor.maps.identities)
 
-            target_schemas = [s for ns_schemas in self.namespaces.values()
-                              for s in ns_schemas if s.maps is self]
+            schemas = [s for ns_schemas in self.namespaces.values()
+                       for s in ns_schemas if s.maps is self]
 
-            self.global_maps.load(target_schemas)
-            initial_staged = self.staged_globals
-
+            self.global_maps.load(schemas)
             self.types.build_builtins(self.validator)
-            self.notations.build()
-            self.attributes.build()
-            self.attribute_groups.build()
 
-            for schema in target_schemas:
-                if not isinstance(schema.default_attributes, str):
-                    continue
-
-                try:
-                    attributes = schema.maps.attribute_groups[schema.default_attributes]
-                except KeyError:
-                    schema.default_attributes = None
-                    msg = _("defaultAttributes={0!r} doesn't match any attribute group of {1!r}")
-                    schema.parse_error(
-                        error=msg.format(schema.root.get('defaultAttributes'), schema),
-                        elem=schema.root
-                    )
-                else:
-                    schema.default_attributes = attributes
-
-            self.types.build()
-            self.elements.build()
-            self.groups.build()
-
-            # Build element declarations inside model groups.
-            for schema in target_schemas:
-                for group in schema.iter_components(XsdGroup):
-                    group.build()
-
-            # Build identity references and XSD 1.1 assertions
-            for schema in target_schemas:
-                for obj in schema.iter_components((XsdIdentity, XsdAssert)):
-                    obj.build()
-
-            if self.validator.meta_schema is not None:
-                self.check(target_schemas)
-
-            if not initial_staged:
+            if not self.staged_globals:
                 self._validation_attempted = 'full'
-            elif 0 < (still_staged := self.staged_globals) < initial_staged:
+                self._validity = 'valid'
+                return
+
+            self.global_maps.build(schemas)
+            if self.validator.meta_schema is not None:
+                self.check(schemas)
+
+            if self.staged_globals:
                 self._validation_attempted = 'partial'
             else:
-                self._validation_attempted = 'none' if still_staged else 'full'
+                self._validation_attempted = 'full'
 
             if self.total_errors:
                 self._validity = 'invalid'
@@ -543,11 +512,13 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
         if self.validator not in self._schemas:
             raise XMLSchemaValueError(_('global maps main validator is not registered'))
 
-        if nm.XML_NAMESPACE not in self.namespaces:
-            self.validator.load_namespace(nm.XML_NAMESPACE, build=False)
-
-        if nm.XSI_NAMESPACE not in self.namespaces:
-            self.validator.load_namespace(nm.XSI_NAMESPACE, build=False)
+        if self._parent is None:
+            for namespace in self.validator.BASE_SCHEMAS:
+                if namespace not in self.namespaces:
+                    self.validator.loader.load_namespace(namespace, build=False)
+                if namespace == nm.XSD_NAMESPACE and len(self.namespaces[namespace]) == 1:
+                    extra_schema = self.validator.BASE_SCHEMAS[namespace]
+                    self.validator.loader.load_schema(extra_schema, build=False)
 
         registered_schemas = set()
         for namespace, schemas in self.namespaces.items():

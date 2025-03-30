@@ -45,6 +45,7 @@ class SchemaResource(XMLResource):
     includes: dict[str, str]
     override = None
     meta_schema = ()
+    maps = None
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
@@ -56,7 +57,7 @@ class SchemaResource(XMLResource):
                 if location is not None:
                     self.includes[location] = self.get_url(location)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"{self.__class__.__name__}(namespace={self.target_namespace!r})"
 
     def parse_error(self, error: str, *args: Any, **kwargs: Any) -> None:
@@ -135,11 +136,10 @@ class SchemaLoader:
         self.maps.clear()
         self.missing_locations.clear()
 
-    def get_locations(self, namespace: str) -> list[str]:
-        if namespace not in self.locations:
-            locations: list[str] = []
-        else:
-            locations = [x for x in self.locations[namespace]]
+    def get_locations(self, namespace: str, url: Optional[str] = None) -> list[str]:
+        locations: list[str] = [] if url is None else [url]
+        if namespace in self.locations:
+            locations.extend(self.locations[namespace])
 
         if namespace in self.fallback_locations:
             values = self.fallback_locations[namespace]
@@ -248,15 +248,8 @@ class SchemaLoader:
     def import_namespace(self, schema: SchemaType,
                          namespace: str,
                          url: Optional[str] = None) -> None:
-
         import_error: Optional[Exception] = None
-        locations = self.get_locations(namespace)
-        if url is not None:
-            locations.append(url)
-
-        local_urls = [url for url in locations if is_local_url(url)]
-        if local_urls:
-            locations = local_urls + [x for x in locations if x not in local_urls]
+        locations = self.get_locations(namespace, url)
 
         for url in locations:
             try:
@@ -392,7 +385,8 @@ class SchemaLoader:
         """
         if namespace in self.namespaces:
             return True
-        elif self.validator.meta_schema is None:
+        elif self.validator.meta_schema is None and \
+                namespace not in self.validator.BASE_SCHEMAS:
             return False  # Do not load additional namespaces for meta-schema
 
         if not build:
@@ -432,9 +426,8 @@ class SchemaLoader:
             self.maps.global_maps.update(global_maps)
             self.maps.substitution_groups.update(substitution_groups)
             self.maps.identities.update(identities)
-            return False
-        else:
-            return True
+
+        return namespace in self.namespaces
 
     def get_schema(self, namespace: Optional[str] = None,
                    source: Optional[SchemaSourceType] = None,

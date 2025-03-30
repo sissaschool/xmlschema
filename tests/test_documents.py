@@ -41,6 +41,7 @@ class TestXmlDocuments(XMLSchemaTestCase):
 
     @classmethod
     def setUpClass(cls):
+        cls.schema_class.meta_schema.build()
         cls.vh_dir = cls.casepath('examples/vehicles')
         cls.vh_xsd_file = cls.casepath('examples/vehicles/vehicles.xsd')
         cls.vh_xml_file = cls.casepath('examples/vehicles/vehicles.xml')
