@@ -115,6 +115,8 @@ def get_test_line_args_parser():
         '--no-pickle', action="store_true", default=False,
         help="Skip pickling/unpickling test on schema (max recursion exceeded)."
     )
+    parser.add_argument('--no-loaders', action="store_true", default=False,
+                        help="Skip test with alternative schema loaders.")
     parser.add_argument(
         '--lax-encode', action="store_true", default=False,
         help="Use lax mode on encode checks (for cases where test data uses default or "

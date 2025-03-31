@@ -38,6 +38,7 @@ from xmlschema.utils.etree import etree_tostring
 from xmlschema.resources import fetch_namespaces
 from xmlschema.validators import XsdType, Xsd11ComplexType
 from xmlschema.dataobjects import DataElementConverter, DataBindingConverter, DataElement
+from xmlschema.loaders import LocationSchemaLoader, SafeSchemaLoader
 
 try:
     from xmlschema.extras.codegen import PythonGenerator
@@ -72,6 +73,7 @@ def make_schema_test_class(test_file, test_args, test_num, schema_class, check_w
     locations = test_args.locations
     defuse = test_args.defuse
     no_pickle = test_args.no_pickle
+    no_loaders = test_args.no_loaders
     debug_mode = test_args.debug
     codegen = test_args.codegen
     loglevel = logging.DEBUG if debug_mode else None
@@ -147,6 +149,20 @@ def make_schema_test_class(test_file, test_args, test_num, schema_class, check_w
                         if not isinstance(err.validator, Xsd11ComplexType) or \
                                 "is simple or has a simple content" not in str(err):
                             raise error
+
+            # Test alternative schema loaders
+            if not expected_errors and not no_loaders:
+                other = schema_class(
+                    xsd_file, loader_class=LocationSchemaLoader, locations=locations,
+                    defuse=defuse, loglevel=loglevel
+                )
+                self.assertEqual(len(other.maps.schemas), len(schema.maps), msg=xsd_file)
+
+                other = schema_class(
+                    xsd_file, loader_class=SafeSchemaLoader, locations=locations,
+                    defuse=defuse, loglevel=loglevel
+                )
+                self.assertEqual(len(other.maps.schemas), len(schema.maps), msg=xsd_file)
 
             # Check XML bindings module only for schemas that do not have errors
             if codegen and PythonGenerator is not None and not self.errors and \
