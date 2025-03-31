@@ -48,12 +48,12 @@ class TestXsd10BuiltinTypes(unittest.TestCase):
         maps = schema.meta_schema.maps.copy()
 
         maps.clear()
-        self.assertEqual(maps.total_globals, 0)
+        self.assertEqual(maps.global_maps.total, 0)
         maps.types.build_builtins(schema)
         if self.schema_class.XSD_VERSION == '1.0':
-            self.assertEqual(maps.total_globals, 44)
+            self.assertEqual(maps.global_maps.total, 44)
         else:
-            self.assertEqual(maps.total_globals, 48)
+            self.assertEqual(maps.global_maps.total, 48)
 
     def test_boolean_decode(self):
         boolean_type = self.types['boolean']

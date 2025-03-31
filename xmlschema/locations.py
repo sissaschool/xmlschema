@@ -15,7 +15,6 @@ from xmlschema.namespaces import NamespaceResourcesMap
 from xmlschema.aliases import LocationsMapType, LocationsType
 from xmlschema.exceptions import XMLSchemaTypeError
 from xmlschema.translation import gettext as _
-from xmlschema.utils.paths import LocationPath
 from xmlschema.utils.urls import normalize_locations
 import xmlschema.names as nm
 
@@ -34,20 +33,6 @@ def get_locations(locations: Optional[LocationsType], base_url: Optional[str] = 
         raise XMLSchemaTypeError(msg.format(type(locations)))
     else:
         return NamespaceResourcesMap(normalize_locations(locations, base_url))
-
-
-def get_fallback_map(locations: LocationsMapType, fallbacks: LocationsMapType) -> dict[str, str]:
-    fallback_map: dict[str, str] = {}
-
-    for ns, urls in locations.items():
-        if ns in fallbacks:
-            fallback_urls = fallbacks[ns]
-            if isinstance(urls, str) and isinstance(fallback_urls, str):
-                fallback_map[urls] = fallback_urls
-            elif isinstance(urls, list) and isinstance(fallback_urls, list):
-                fallback_map.update(zip(urls, fallback_urls))
-
-    return fallback_map
 
 
 SCHEMAS_DIR = os.path.join(os.path.dirname(__file__), 'schemas/')
@@ -98,5 +83,3 @@ FALLBACK_LOCATIONS: LocationsMapType = {
     nm.XENC_NAMESPACE: f'{SCHEMAS_DIR}XENC/xenc-schema.xsd',
     nm.XENC11_NAMESPACE: f'{SCHEMAS_DIR}XENC/xenc-schema-11.xsd',
 }
-
-FALLBACK_MAP = get_fallback_map(LOCATIONS, FALLBACK_LOCATIONS)

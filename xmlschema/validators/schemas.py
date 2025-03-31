@@ -462,10 +462,11 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
         if partial:
             self.partial = any(e.tag in SCHEMA_DECLARATION_TAGS for e in root)
-            for child in root:
-                if child.tag == nm.XSD_IMPORT:
-                    namespace = child.get('namespace', '').strip()
-                    self.imported_namespaces.append(namespace)
+            if self.partial:
+                for child in root:
+                    if child.tag == nm.XSD_IMPORT:
+                        namespace = child.get('namespace', '').strip()
+                        self.imported_namespaces.append(namespace)
             return
 
         self.maps.loader.load_declared_schemas(self)
@@ -889,8 +890,11 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     def validation_attempted(self) -> str:
         if (validation_attempted := self.maps.validation_attempted) != 'partial':
             return validation_attempted
-        elif sum(m.get_total_staged(self) for m in self.maps.global_maps):
-            return 'partial'
+
+        for t in self.maps.global_maps.iter_staged():
+            for item in t:
+                if item is self or isinstance(item, tuple) and item[-1] is self:
+                    return 'partial'
         else:
             return 'full'
 
@@ -1014,7 +1018,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                       base_url: Optional[str] = None,
                       force: bool = False,
                       build: bool = False,
-                      partial: bool = False) -> SchemaType:
+                      partial: bool = False) -> Optional[SchemaType]:
         """
         Imports a schema for an external namespace from a specific location.
 
@@ -1026,7 +1030,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         :param build: defines when to build the imported schema, the default is to not build.
         :param partial: if `True`, the imported schema is initialized without processing \
         imports/inclusions and the build phase is skipped.
-        :return: the imported :class:`XMLSchema` instance.
+        :return: the imported :class:`XMLSchema` instance or `None` if a schema \
+        can't be imported from that location.
         """
         if namespace not in self.maps.namespaces:
             return self.maps.loader.import_schema(

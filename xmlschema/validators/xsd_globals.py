@@ -78,8 +78,7 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
                  loader_class: Optional[Type[SchemaLoader]] = None,
                  locations: Optional[LocationsType] = None,
                  use_fallback: bool = True,
-                 use_xpath3: bool = False,
-                 use_meta: bool = True) -> None:
+                 use_xpath3: bool = False) -> None:
 
         if not isinstance(validation, _strict.__class__):
             msg = "argument 'validation' is not used and will be removed in v5.0"
@@ -266,13 +265,13 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
 
     @property
     def validation_attempted(self) -> str:
-        if self._validation_attempted == 'full' and self.staged_globals:
+        if self._validation_attempted == 'full' and self.global_maps.total_staged:
             self._validation_attempted = 'partial'
         return self._validation_attempted
 
     @property
     def validity(self) -> str:
-        if self._validity == 'valid' and self.staged_globals:
+        if self._validity == 'valid' and self.global_maps.total_staged:
             self._validity = 'notKnown'
 
         if self._parent is None:
@@ -306,25 +305,6 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
     def use_meta(self) -> bool:
         return self.validator.meta_schema is None or \
             self.validator.meta_schema in self._schemas
-
-    @property
-    def total_globals(self) -> int:
-        """Total number of global components, fully and partially built."""
-        return sum(len(m) for m in self.global_maps)
-
-    @property
-    def built_globals(self) -> int:
-        """Total number of fully built global components."""
-        return sum(1 for c in self.global_maps.iter_globals() if c.built)
-
-    @property
-    def incomplete_globals(self) -> int:
-        """Total number of partially built global components."""
-        return sum(1 for c in self.global_maps.iter_globals() if not c.built)
-
-    @property
-    def staged_globals(self) -> int:
-        return sum(m.get_total_staged() for m in self.global_maps)
 
     @property
     def unbuilt(self) -> list[Union[XsdComponent, SchemaType]]:
@@ -529,7 +509,7 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
             self.global_maps.load(schemas)
             self.types.build_builtins(self.validator)
 
-            if not self.staged_globals:
+            if not self.global_maps.total_staged:
                 self._validation_attempted = 'full'
                 self._validity = 'valid'
                 return
@@ -538,7 +518,7 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
             if self.validator.meta_schema is not None:
                 self.check(schemas)
 
-            if self.staged_globals:
+            if self.global_maps.total_staged:
                 self._validation_attempted = 'partial'
             else:
                 self._validation_attempted = 'full'
@@ -560,21 +540,21 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
         if self._parent is None:
             self.validator.create_meta_schema(global_maps=self)
 
-        registered_schemas = set()
+        total = 0
         for namespace, schemas in self.namespaces.items():
+            total += len(schemas)
             for s in schemas:
                 if s.target_namespace != namespace:
-                    raise XMLSchemaNamespaceError(
-                        _('schema {} does not belong to namespace {!r}').format(s, namespace)
-                    )
-                if s in registered_schemas:
-                    raise XMLSchemaNamespaceError(
-                        _('duplicate of schema {} found in namespace {!r}').format(s, namespace)
-                    )
-                registered_schemas.add(s)
+                    msg = _('schema {!r} does not belong to namespace {!r}')
+                    raise XMLSchemaNamespaceError(msg.format(s, namespace))
+                elif s not in self._schemas:
+                    msg = _('schema {!r} does not belong to {!r}')
+                    raise XMLSchemaNamespaceError(msg.format(s, self))
 
-        if self._schemas != registered_schemas:
-            raise XMLSchemaValueError(_('registered schemas do not match namespace mapped schemas'))
+        if len(self._schemas) != total:
+            raise XMLSchemaValueError(
+                _('registered schemas do not match namespace mapped schemas')
+            )
 
     def check(self, schemas: Optional[Iterable[SchemaType]] = None) -> None:
         """

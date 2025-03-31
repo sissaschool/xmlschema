@@ -83,7 +83,7 @@ class TestXsd10GlobalsMaps(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.schema_class.meta_schema.build()
-        cls.total_globals = cls.schema_class.meta_schema.maps.total_globals
+        cls.total_globals = cls.schema_class.meta_schema.maps.global_maps.total
         cls.total_components = len(list(cls.schema_class.meta_schema.maps.iter_components()))
 
     @classmethod
@@ -131,7 +131,7 @@ class TestXsd10GlobalsMaps(unittest.TestCase):
 
         self.assertEqual(maps.validation, orig.validation)
         self.assertIsNot(maps.validator, orig.validator)
-        self.assertEqual(maps.total_globals, 0)
+        self.assertEqual(maps.global_maps.total, 0)
 
         self.assertEqual(len(maps.namespaces), len(orig.namespaces))
         for k, v in orig.namespaces.items():
@@ -139,35 +139,35 @@ class TestXsd10GlobalsMaps(unittest.TestCase):
             self.assertEqual(len(maps.namespaces[k]), len(v))
 
         maps.build()
-        self.assertEqual(maps.total_globals, self.total_globals)
+        self.assertEqual(maps.global_maps.total, self.total_globals)
 
     def test_clear(self):
         maps = self.schema_class.meta_schema.maps.copy()
         orig = self.schema_class.meta_schema.maps
 
-        self.assertEqual(maps.total_globals, 0)
-        self.assertEqual(orig.total_globals, self.total_globals)
+        self.assertEqual(maps.global_maps.total, 0)
+        self.assertEqual(orig.global_maps.total, self.total_globals)
 
         maps.build()
-        self.assertEqual(maps.total_globals, self.total_globals)
-        self.assertEqual(orig.total_globals, self.total_globals)
+        self.assertEqual(maps.global_maps.total, self.total_globals)
+        self.assertEqual(orig.global_maps.total, self.total_globals)
         maps.clear()
-        self.assertEqual(maps.total_globals, 0)
-        self.assertEqual(orig.total_globals, self.total_globals)
+        self.assertEqual(maps.global_maps.total, 0)
+        self.assertEqual(orig.global_maps.total, self.total_globals)
         maps.build()
-        self.assertEqual(maps.total_globals, self.total_globals)
-        self.assertEqual(orig.total_globals, self.total_globals)
+        self.assertEqual(maps.global_maps.total, self.total_globals)
+        self.assertEqual(orig.global_maps.total, self.total_globals)
 
         maps.clear(remove_schemas=True)
-        self.assertEqual(maps.total_globals, 0)
-        self.assertEqual(orig.total_globals, self.total_globals)
+        self.assertEqual(maps.global_maps.total, 0)
+        self.assertEqual(orig.global_maps.total, self.total_globals)
 
         # XSD meta-schema is still there but incomplete
         self.assertEqual(len(maps.schemas), 1)
 
         maps.build()
-        self.assertEqual(maps.total_globals, self.total_globals)
-        self.assertEqual(orig.total_globals, self.total_globals)
+        self.assertEqual(maps.global_maps.total, self.total_globals)
+        self.assertEqual(orig.global_maps.total, self.total_globals)
 
     def test_totals(self):
         self.assertEqual(len(XMLSchema10.meta_schema.maps.notations), 2)
@@ -243,5 +243,3 @@ if __name__ == '__main__':
     print('{0}\n{1}\n{0}'.format("*" * len(header), header))
 
     unittest.main()
-
-

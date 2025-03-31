@@ -14,7 +14,7 @@ from collections import Counter
 from collections.abc import Callable, ItemsView, Iterator, Mapping, ValuesView, Iterable
 from copy import copy as shallow_copy
 from types import MappingProxyType
-from typing import Any, cast, NamedTuple, Optional, Union, Type, TypeVar, TYPE_CHECKING
+from typing import Any, cast, NamedTuple, Optional, Union, Type, TypeVar
 from xml.etree.ElementTree import Element
 
 import xmlschema.names as nm
@@ -43,13 +43,9 @@ from .groups import XsdGroup, Xsd11Group
 from .elements import XsdElement, Xsd11Element
 from .assertions import XsdAssert
 
-if TYPE_CHECKING:
-    from xmlschema.loaders import SchemaResource  # noqa: F401
-
 CT = TypeVar('CT', bound=XsdComponent)
 
 BuilderType = Callable[[ElementType, SchemaType, Optional[XsdComponent]], CT]
-LoadableType = Union[SchemaType, 'SchemaResource']
 
 # Elements for building dummy groups
 ATTRIBUTE_GROUP_ELEMENT = Element(nm.XSD_ATTRIBUTE_GROUP)
@@ -370,17 +366,12 @@ class StagedMap(Mapping[str, CT]):
     def _factory_or_class(self, elem: ElementType, schema: SchemaType) -> CT:
         """Returns the builder class or method used to build the global map."""
 
-    __slots__ = ('_store', '_staging', '_builders',
-                 '_store_counter', '_staging_counter')
+    __slots__ = ('_store', '_staging', '_builders')
 
     def __init__(self, builders: XsdBuilders):
         self._store: dict[str, CT] = {}
         self._staging: dict[str, StagedItemType] = {}
         self._builders = builders
-
-        # Schema counters for built and staged component
-        self._store_counter: Counter[SchemaType] = Counter()
-        self._staging_counter: Counter[SchemaType] = Counter()
 
     def __getitem__(self, qname: str) -> CT:
         try:
@@ -406,8 +397,6 @@ class StagedMap(Mapping[str, CT]):
         obj._builders = self._builders
         obj._staging = self._staging.copy()
         obj._store = self._store.copy()
-        obj._store_counter = self._store_counter.copy()
-        obj._staging_counter = self._staging_counter.copy()
         return obj
 
     __copy__ = copy
@@ -415,17 +404,13 @@ class StagedMap(Mapping[str, CT]):
     def clear(self) -> None:
         self._store.clear()
         self._staging.clear()
-        self._store_counter.clear()
-        self._staging_counter.clear()
 
     def update(self, other: 'StagedMap[CT]') -> None:
         self._store.update(other._store)
 
-    def get_total(self, schema: Optional[SchemaType] = None) -> int:
-        return len(self._store) if schema is None else self._store_counter[schema]
-
-    def get_total_staged(self, schema: Optional[SchemaType] = None) -> int:
-        return len(self._staging) if schema is None else self._staging_counter[schema]
+    @property
+    def total_staged(self) -> int:
+        return len(self._staging)
 
     @property
     def staged(self) -> list[str]:
@@ -439,7 +424,7 @@ class StagedMap(Mapping[str, CT]):
     def staged_values(self) -> ValuesView[StagedItemType]:
         return self._staging.values()
 
-    def load(self, qname: str, elem: ElementType, schema: LoadableType) -> None:
+    def load(self, qname: str, elem: ElementType, schema: SchemaType) -> None:
         if qname in self._store:
             comp = self._store[qname]
             if comp.schema is schema:
@@ -521,9 +506,6 @@ class StagedMap(Mapping[str, CT]):
 
             self._store[qname] = self._factory_or_class(elem, schema)
             self._staging.pop(qname)
-            self._store_counter[schema] += 1
-            self._staging_counter[schema] -= 1
-
             return self._store[qname]
 
         elif isinstance(obj, list):
@@ -538,8 +520,6 @@ class StagedMap(Mapping[str, CT]):
             self._staging[qname] = obj[0],  # To catch circular builds
             self._store[qname] = component = self._factory_or_class(elem, schema)
             self._staging.pop(qname)
-            self._store_counter[schema] += 1
-            self._staging_counter[schema] -= 1
 
             # Apply redefinitions (changing elem involve reparse of the component)
             for elem, schema in obj[1:]:
@@ -709,7 +689,27 @@ class GlobalMaps(NamedTuple):
         for item in self:
             yield from item.staged_values
 
-    def load(self, schemas: Iterable[LoadableType]) -> None:
+    @property
+    def total(self) -> int:
+        """Total number of global components, fully or partially built."""
+        return sum(len(m) for m in self)
+
+    @property
+    def total_built(self) -> int:
+        """Total number of fully built global components."""
+        return sum(1 for c in self.iter_globals() if c.built)
+
+    @property
+    def total_unbuilt(self) -> int:
+        """Total number of not built or partially built global components."""
+        return sum(1 for c in self.iter_globals() if not c.built)
+
+    @property
+    def total_staged(self) -> int:
+        """Total number of staged global components."""
+        return sum(m.total_staged for m in self)
+
+    def load(self, schemas: Iterable[SchemaType]) -> None:
         """Loads global XSD components for the given schemas."""
         redefinitions = []
 
@@ -731,9 +731,13 @@ class GlobalMaps(NamedTuple):
                         except KeyError:
                             continue
 
-                        redefinitions.append(
-                            (qname, elem, child, schema, schema.includes[location])
-                        )
+                        try:
+                            redefinitions.append(
+                                (qname, elem, child, schema, schema.includes[location])
+                            )
+                        except KeyError:
+                            if schema.partial:
+                                redefinitions.append((qname, elem, child, schema, schema))
 
                 elif tag in GLOBAL_TAGS:
                     try:
@@ -780,7 +784,7 @@ class GlobalMaps(NamedTuple):
             else:
                 GLOBAL_GETTERS[child.tag](self).load_override(qname, child, schema)
 
-    def build(self, schemas: Iterable[LoadableType]) -> None:
+    def build(self, schemas: Iterable[SchemaType]) -> None:
         """Builds global XSD components for the given schemas."""
         self.notations.build()
         self.attributes.build()
