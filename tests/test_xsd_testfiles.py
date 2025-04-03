@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# Copyright (c), 2016-2020, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2025, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -9,22 +9,22 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """Tests concerning the parsing and the building of XSD schemas"""
-
-import os
-
-from xmlschema.testing import get_test_program_args_parser, \
-    factory_tests, make_schema_test_class
-
-DEFAULT_TESTFILES = os.path.join(os.path.dirname(__file__), 'test_cases/testfiles')
-
+import sys
+from pathlib import Path
+from xmlschema.testing import xmlschema_tests_factory, make_schema_test_class
 
 if __name__ == '__main__':
-    import unittest
-    import platform
+    import random
+    from xmlschema.testing import parse_xmlschema_args, run_xmlschema_tests
 
-    args = get_test_program_args_parser(DEFAULT_TESTFILES).parse_args()
+    def load_tests(_loader, tests, _pattern):
+        if args.random:
+            tests._tests.sort(key=lambda x: random.randint(0, 0xFFFFFFFF))  # noqa
+        return tests
 
-    schema_tests = factory_tests(
+    args = parse_xmlschema_args()
+
+    validation_tests = xmlschema_tests_factory(
         test_class_builder=make_schema_test_class,
         testfiles=args.testfiles,
         suffix='xsd',
@@ -32,25 +32,16 @@ if __name__ == '__main__':
         codegen=args.codegen,
         verbosity=args.verbosity,
     )
-    globals().update(schema_tests)
+    globals().update(validation_tests)
 
-    argv = [__file__]
-    if args.tb_locals:
-        argv.append('--local')
-    for pattern in args.patterns:
-        argv.append('-k')
-        argv.append(pattern)
+    run_xmlschema_tests('schema building cases', args)
 
-    header_template = "Schema building tests for xmlschema with Python {} on {}"
-    header = header_template.format(platform.python_version(), platform.platform())
-    print('{0}\n{1}\n{0}'.format("*" * len(header), header))
+elif sys.argv and not sys.argv[0].endswith('run_all_tests.py'):
+    testfiles = Path(__file__).absolute().parent.joinpath('test_cases/testfiles')
 
-    unittest.main(argv=argv, verbosity=args.verbosity, failfast=args.failfast,
-                  catchbreak=args.catchbreak, buffer=args.buffer)
-else:
-    # Creates schema tests from XSD files
-    globals().update(factory_tests(
+    schema_tests = xmlschema_tests_factory(
         test_class_builder=make_schema_test_class,
         suffix='xsd',
-        testfiles=DEFAULT_TESTFILES
-    ))
+        testfiles=testfiles,
+    )
+    globals().update(schema_tests)

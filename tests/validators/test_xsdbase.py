@@ -108,6 +108,24 @@ class TestXsdValidator(unittest.TestCase):
         self.assertEqual(len(schema.errors), 4)
         self.assertEqual(schema.errors[-1].message, "invalid value")
 
+        validator = XsdValidator()
+        error = XMLSchemaParseError(validator, 'validator error')
+        elem = ElementTree.Element('foo')
+        namespaces = {'xs': XSD_NAMESPACE}
+
+        with self.assertRaises(XMLSchemaParseError):
+            validator.parse_error(error, elem, namespaces=namespaces)
+        self.assertIs(error.elem, elem)
+        self.assertIs(error.namespaces, namespaces)
+
+        validator.validation = 'lax'
+        elem = ElementTree.Element('foo')
+        namespaces = {'xs': XSD_NAMESPACE}
+        with self.assertLogs('xmlschema', level='DEBUG'):
+            validator.parse_error(error, elem, namespaces=namespaces)
+        self.assertIsNot(error.elem, elem)
+        self.assertIsNot(error.namespaces, namespaces)
+
     def test_copy(self):
         validator = XsdValidator(validation='lax')
         validator.parse_error(ValueError("test error"))
@@ -769,8 +787,5 @@ class TestXsdType(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    header_template = "Test xmlschema's XSD base classes with Python {} on {}"
-    header = header_template.format(platform.python_version(), platform.platform())
-    print('{0}\n{1}\n{0}'.format("*" * len(header), header))
-
-    unittest.main()
+    from xmlschema.testing import run_xmlschema_tests
+    run_xmlschema_tests('XSD base classes')

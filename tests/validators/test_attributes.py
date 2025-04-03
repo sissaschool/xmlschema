@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# Copyright (c), 2016-2020, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2025, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -8,7 +8,6 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-import unittest
 import pathlib
 from textwrap import dedent
 
@@ -570,9 +569,5 @@ class TestXsd11Attributes(TestXsdAttributes):
 
 
 if __name__ == '__main__':
-    import platform
-    header_template = "Test xmlschema's XSD attributes with Python {} on {}"
-    header = header_template.format(platform.python_version(), platform.platform())
-    print('{0}\n{1}\n{0}'.format("*" * len(header), header))
-
-    unittest.main()
+    from xmlschema.testing import run_xmlschema_tests
+    run_xmlschema_tests('XSD attributes')

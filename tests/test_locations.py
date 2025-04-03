@@ -18,9 +18,7 @@ from urllib.parse import urlsplit
 from pathlib import Path, PurePath, PureWindowsPath, PurePosixPath
 from unittest.mock import patch, MagicMock
 
-from xmlschema.locations import get_locations
-from xmlschema.namespaces import NamespaceResourcesMap
-from xmlschema.testing import XMLSchemaTestCase
+from xmlschema.testing import XMLSchemaTestCase, run_xmlschema_tests
 from xmlschema.utils.paths import DRIVE_LETTERS, get_uri, get_uri_path, is_unc_path, \
     is_drive_path, LocationPath, LocationPosixPath, LocationWindowsPath
 from xmlschema.utils.urls import is_url, is_local_url, is_remote_url, is_encoded_url, \
@@ -90,52 +88,6 @@ def filter_windows_path(path):
         return '/' + path
     else:
         return path
-
-
-class TestNamespaceResourcesMap(XMLSchemaTestCase):
-    cases_dir = pathlib.Path(__file__).absolute().parent.joinpath('test_cases')
-
-    def test_init(self):
-        nsmap = [('tns0', 'schema1.xsd')]
-        self.assertEqual(NamespaceResourcesMap(), {})
-        self.assertEqual(NamespaceResourcesMap(nsmap), {'tns0': ['schema1.xsd']})
-        nsmap.append(('tns0', 'schema2.xsd'))
-        self.assertEqual(NamespaceResourcesMap(nsmap), {'tns0': ['schema1.xsd', 'schema2.xsd']})
-
-    def test_repr(self):
-        namespaces = NamespaceResourcesMap()
-        namespaces['tns0'] = 'schema1.xsd'
-        namespaces['tns1'] = 'schema2.xsd'
-        self.assertEqual(repr(namespaces), "{'tns0': ['schema1.xsd'], 'tns1': ['schema2.xsd']}")
-
-    def test_dictionary_methods(self):
-        namespaces = NamespaceResourcesMap()
-        namespaces['tns0'] = 'schema1.xsd'
-        namespaces['tns1'] = 'schema2.xsd'
-        self.assertEqual(namespaces, {'tns0': ['schema1.xsd'], 'tns1': ['schema2.xsd']})
-
-        self.assertEqual(len(namespaces), 2)
-        self.assertEqual({x for x in namespaces}, {'tns0', 'tns1'})
-
-        del namespaces['tns0']
-        self.assertEqual(namespaces, {'tns1': ['schema2.xsd']})
-        self.assertEqual(len(namespaces), 1)
-
-        namespaces.clear()
-        self.assertEqual(namespaces, {})
-
-    def test_copy(self):
-        namespaces = NamespaceResourcesMap(
-            (('tns0', 'schema1.xsd'), ('tns1', 'schema2.xsd'), ('tns0', 'schema3.xsd'))
-        )
-        self.assertEqual(namespaces, namespaces.copy())
-
-    def test_get_locations(self):
-        self.assertEqual(get_locations(None), NamespaceResourcesMap())
-        self.assertRaises(TypeError, get_locations, 1)
-        locations = (('tns0', 'schema1.xsd'), ('tns1', 'schema2.xsd'), ('tns0', 'schema3.xsd'))
-
-        self.assertEqual(get_locations(locations), NamespaceResourcesMap(locations))
 
 
 class TestLocations(XMLSchemaTestCase):
@@ -773,8 +725,4 @@ class TestLocations(XMLSchemaTestCase):
 
 
 if __name__ == '__main__':
-    header_template = "Test xmlschema locations.py module with Python {} on platform {}"
-    header = header_template.format(platform.python_version(), platform.platform())
-    print('{0}\n{1}\n{0}'.format("*" * len(header), header))
-
-    unittest.main()
+    run_xmlschema_tests("locations.py module")

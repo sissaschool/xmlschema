@@ -20,7 +20,7 @@ import warnings
 
 from xmlschema import XMLSchema10, XMLSchema11
 from xmlschema.exports import download_schemas
-from xmlschema.testing import SKIP_REMOTE_TESTS, XMLSchemaTestCase
+from xmlschema.testing import SKIP_REMOTE_TESTS, XMLSchemaTestCase, run_xmlschema_tests
 
 
 class TestExports(XMLSchemaTestCase):
@@ -362,8 +362,4 @@ class TestDownloads(XMLSchemaTestCase):
 
 
 if __name__ == '__main__':
-    header_template = "Test xmlschema exports.py module with Python {} on platform {}"
-    header = header_template.format(platform.python_version(), platform.platform())
-    print('{0}\n{1}\n{0}'.format("*" * len(header), header))
-
-    unittest.main()
+    run_xmlschema_tests('exports.py module')

@@ -22,7 +22,7 @@ from elementpath.etree import etree_tostring
 
 from xmlschema import XMLSchema, XMLSchemaValidationError, fetch_namespaces
 from xmlschema.dataobjects import DataElement
-from xmlschema.testing import etree_elements_assert_equal
+from xmlschema.testing import etree_elements_assert_equal, run_xmlschema_tests
 
 from xmlschema.converters import XMLSchemaConverter, UnorderedConverter, \
     ParkerConverter, BadgerFishConverter, AbderaConverter, JsonMLConverter, \
@@ -702,10 +702,4 @@ class TestConverters(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    import platform
-
-    header_template = "Test xmlschema converters with Python {} on {}"
-    header = header_template.format(platform.python_version(), platform.platform())
-    print('{0}\n{1}\n{0}'.format("*" * len(header), header))
-
-    unittest.main()
+    run_xmlschema_tests('converters')

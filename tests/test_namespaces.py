@@ -10,15 +10,13 @@
 #
 import io
 import unittest
-import os
 import copy
 from textwrap import dedent
 
 from xmlschema import XMLResource, XMLSchemaConverter
+from xmlschema.locations import get_locations
 from xmlschema.names import XSD_NAMESPACE, XSI_NAMESPACE
-from xmlschema.namespaces import NamespaceMapper
-
-CASES_DIR = os.path.join(os.path.dirname(__file__), '../test_cases')
+from xmlschema.namespaces import NamespaceMapper, NamespaceResourcesMap
 
 
 class TestNamespaceMapper(unittest.TestCase):
@@ -458,10 +456,51 @@ class TestNamespaceMapper(unittest.TestCase):
         self.assertIsNone(xmlns)
 
 
-if __name__ == '__main__':
-    import platform
-    header_template = "Test xmlschema helpers for namespaces with Python {} on {}"
-    header = header_template.format(platform.python_version(), platform.platform())
-    print('{0}\n{1}\n{0}'.format("*" * len(header), header))
+class TestNamespaceResourcesMap(unittest.TestCase):
 
-    unittest.main()
+    def test_init(self):
+        nsmap = [('tns0', 'schema1.xsd')]
+        self.assertEqual(NamespaceResourcesMap(), {})
+        self.assertEqual(NamespaceResourcesMap(nsmap), {'tns0': ['schema1.xsd']})
+        nsmap.append(('tns0', 'schema2.xsd'))
+        self.assertEqual(NamespaceResourcesMap(nsmap), {'tns0': ['schema1.xsd', 'schema2.xsd']})
+
+    def test_repr(self):
+        namespaces = NamespaceResourcesMap()
+        namespaces['tns0'] = 'schema1.xsd'
+        namespaces['tns1'] = 'schema2.xsd'
+        self.assertEqual(repr(namespaces), "{'tns0': ['schema1.xsd'], 'tns1': ['schema2.xsd']}")
+
+    def test_dictionary_methods(self):
+        namespaces = NamespaceResourcesMap()
+        namespaces['tns0'] = 'schema1.xsd'
+        namespaces['tns1'] = 'schema2.xsd'
+        self.assertEqual(namespaces, {'tns0': ['schema1.xsd'], 'tns1': ['schema2.xsd']})
+
+        self.assertEqual(len(namespaces), 2)
+        self.assertEqual({x for x in namespaces}, {'tns0', 'tns1'})
+
+        del namespaces['tns0']
+        self.assertEqual(namespaces, {'tns1': ['schema2.xsd']})
+        self.assertEqual(len(namespaces), 1)
+
+        namespaces.clear()
+        self.assertEqual(namespaces, {})
+
+    def test_copy(self):
+        namespaces = NamespaceResourcesMap(
+            (('tns0', 'schema1.xsd'), ('tns1', 'schema2.xsd'), ('tns0', 'schema3.xsd'))
+        )
+        self.assertEqual(namespaces, namespaces.copy())
+
+    def test_get_locations(self):
+        self.assertEqual(get_locations(None), NamespaceResourcesMap())
+        self.assertRaises(TypeError, get_locations, 1)
+        locations = (('tns0', 'schema1.xsd'), ('tns1', 'schema2.xsd'), ('tns0', 'schema3.xsd'))
+
+        self.assertEqual(get_locations(locations), NamespaceResourcesMap(locations))
+
+
+if __name__ == '__main__':
+    from xmlschema.testing import run_xmlschema_tests
+    run_xmlschema_tests('helpers for namespaces')

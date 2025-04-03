@@ -15,7 +15,7 @@ import warnings
 import pathlib
 
 from xmlschema import XMLSchema, translation
-from xmlschema.testing import SKIP_REMOTE_TESTS
+from xmlschema.testing import SKIP_REMOTE_TESTS, run_xmlschema_tests
 
 
 class TestTranslations(unittest.TestCase):
@@ -146,10 +146,4 @@ class TestTranslations(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    import platform
-
-    header_template = "Test xmlschema translations with Python {} on {}"
-    header = header_template.format(platform.python_version(), platform.platform())
-    print('{0}\n{1}\n{0}'.format("*" * len(header), header))
-
-    unittest.main()
+    run_xmlschema_tests('translations')

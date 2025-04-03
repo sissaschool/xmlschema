@@ -8,7 +8,6 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-import unittest
 import warnings
 from pathlib import Path
 from textwrap import dedent
@@ -947,9 +946,5 @@ class TestXsd11ComplexType(TestXsdComplexType):
 
 
 if __name__ == '__main__':
-    import platform
-    header_template = "Test xmlschema's XSD complex types with Python {} on {}"
-    header = header_template.format(platform.python_version(), platform.platform())
-    print('{0}\n{1}\n{0}'.format("*" * len(header), header))
-
-    unittest.main()
+    from xmlschema.testing import run_xmlschema_tests
+    run_xmlschema_tests('XSD complex types')

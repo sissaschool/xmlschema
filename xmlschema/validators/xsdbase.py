@@ -679,6 +679,32 @@ class XsdComponent(XsdValidator):
         """Serializes the XML elements that declare or define the component to a string."""
         return etree_tostring(self.schema_elem, self.namespaces, indent, max_lines, spaces_for_tab)
 
+    @staticmethod
+    def log_data(*args: Any) -> None:
+        """Dump data to logger for debugging purposes."""
+        if not args:
+            return
+
+        logging.basicConfig()
+        chunks: list[str] = [' dump data for xmlschema debugging\n']
+
+        for item in args:
+            if isinstance(item, XMLResource):
+                chunks.append(repr(item))
+                if item.name:
+                    chunks.append(f'name: {item.name!r}')
+                chunks.append(f'namespace: {item.namespace!r}')
+                if item.url:
+                    chunks.append(f'URL: {item.url}')
+                if not item.is_lazy():
+                    chunks.append(item.tostring())
+                chunks.append('')
+            else:
+                chunks.append(repr(item))
+                chunks.append('')
+
+        logger.warning('\n'.join(chunks))
+
 
 class XsdAnnotation(XsdComponent):
     """

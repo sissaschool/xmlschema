@@ -32,7 +32,8 @@ from xmlschema.names import XSD_NAMESPACE, XSI_NAMESPACE, XSD_SCHEMA
 from xmlschema.utils.etree import is_etree_element, is_etree_document
 from xmlschema.resources import XMLResource
 from xmlschema.documents import get_context
-from xmlschema.testing import etree_elements_assert_equal, SKIP_REMOTE_TESTS, XMLSchemaTestCase
+from xmlschema.testing import etree_elements_assert_equal, SKIP_REMOTE_TESTS, \
+    XMLSchemaTestCase, run_xmlschema_tests
 
 
 class TestXmlDocuments(XMLSchemaTestCase):
@@ -548,9 +549,4 @@ class TestXmlDocuments(XMLSchemaTestCase):
 
 
 if __name__ == '__main__':
-    import platform
-    header_template = "Test xmlschema's XML documents with Python {} on {}"
-    header = header_template.format(platform.python_version(), platform.platform())
-    print('{0}\n{1}\n{0}'.format("*" * len(header), header))
-
-    unittest.main()
+    run_xmlschema_tests('XML documents')

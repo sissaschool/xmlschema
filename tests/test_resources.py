@@ -33,7 +33,7 @@ from xmlschema import fetch_namespaces, fetch_resource, fetch_schema, \
     fetch_schema_locations, XMLResource, XMLResourceError, XMLSchema
 from xmlschema.names import XSD_NAMESPACE
 from xmlschema.utils.etree import is_etree_element, is_lxml_element
-from xmlschema.testing import SKIP_REMOTE_TESTS, XMLSchemaTestCase
+from xmlschema.testing import SKIP_REMOTE_TESTS, XMLSchemaTestCase, run_xmlschema_tests
 from xmlschema.utils.urls import normalize_url
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError, \
     XMLResourceForbidden, XMLResourceBlocked, XMLResourceOSError
@@ -1483,8 +1483,4 @@ class TestResources(XMLSchemaTestCase):
 
 
 if __name__ == '__main__':
-    header_template = "Test xmlschema XML resources with Python {} on platform {}"
-    header = header_template.format(platform.python_version(), platform.platform())
-    print('{0}\n{1}\n{0}'.format("*" * len(header), header))
-
-    unittest.main()
+    run_xmlschema_tests('XML resources')

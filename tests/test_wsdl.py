@@ -10,7 +10,6 @@
 #
 """Tests concerning WSDL documents. Examples from WSDL 1.1 definition document."""
 
-import unittest
 import pathlib
 import warnings
 from xml.etree import ElementTree
@@ -19,7 +18,7 @@ from xmlschema import XMLSchemaValidationError, XMLSchema10, XMLSchema11
 from xmlschema.extras.wsdl import WsdlParseError, WsdlComponent, WsdlMessage, \
     WsdlPortType, WsdlOperation, WsdlBinding, WsdlService, Wsdl11Document, \
     WsdlInput, SoapHeader
-from xmlschema.testing import XMLSchemaTestCase
+from xmlschema.testing import XMLSchemaTestCase, run_xmlschema_tests
 
 
 WSDL_DOCUMENT_EXAMPLE = """<?xml version="1.0"?>
@@ -441,7 +440,7 @@ class TestWsdlDocuments(XMLSchemaTestCase):
         self.assertIn('import of namespace', str(ctx.exception))
 
         locations = [('http://example.com/ns', 'missing-file2')]
-        with warnings.catch_warnings(record=True) as ctx:
+        with warnings.catch_warnings(record=True):
             warnings.simplefilter("always")
             with self.assertRaises(WsdlParseError) as ctx:
                 Wsdl11Document(wsdl_template.format('missing-file'), locations=locations)
@@ -942,9 +941,4 @@ class TestWsdlDocuments(XMLSchemaTestCase):
 
 
 if __name__ == '__main__':
-    import platform
-    header_template = "Test xmlschema WSDL documents with Python {} on {}"
-    header = header_template.format(platform.python_version(), platform.platform())
-    print('{0}\n{1}\n{0}'.format("*" * len(header), header))
-
-    unittest.main()
+    run_xmlschema_tests('WSDL documents')

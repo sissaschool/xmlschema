@@ -33,7 +33,8 @@ from xmlschema.utils.decoding import raw_encode_value, raw_encode_attributes, \
     count_digits, strictly_equal
 from xmlschema.utils.misc import deprecated, will_change
 
-from xmlschema.testing import iter_nested_items, etree_elements_assert_equal
+from xmlschema.testing import iter_nested_items, etree_elements_assert_equal, \
+    run_xmlschema_tests
 from xmlschema.validators.exceptions import XMLSchemaValidationError
 from xmlschema.validators.helpers import get_xsd_derivation_attribute, \
     decimal_validator, qname_validator, \
@@ -835,9 +836,4 @@ class TestUtils(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    import platform
-    header_template = "Test xmlschema utils and helpers with Python {} on {}"
-    header = header_template.format(platform.python_version(), platform.platform())
-    print('{0}\n{1}\n{0}'.format("*" * len(header), header))
-
-    unittest.main()
+    run_xmlschema_tests('utils')

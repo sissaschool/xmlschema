@@ -14,7 +14,6 @@ import logging
 import warnings
 import pathlib
 import pickle
-import platform
 import os
 from textwrap import dedent
 from xml.etree.ElementTree import Element
@@ -1018,8 +1017,5 @@ class TestXMLSchemaMeta(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    header_template = "Test xmlschema's schema classes with Python {} on {}"
-    header = header_template.format(platform.python_version(), platform.platform())
-    print('{0}\n{1}\n{0}'.format("*" * len(header), header))
-
-    unittest.main()
+    from xmlschema.testing import run_xmlschema_tests
+    run_xmlschema_tests('schema classes')
