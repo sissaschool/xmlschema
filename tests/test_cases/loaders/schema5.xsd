@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Invalid import (no namespace but imported has a targetNamespace). -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+  xmlns="http://xmlschema.test/ns"
+  targetNamespace="http://xmlschema.test/ns">
+
+  <xs:import schemaLocation="other5.xsd"/>
+
+  <xs:simpleType name="rootType">
+    <xs:restriction base="xs:string"/>
+  </xs:simpleType>
+
+</xs:schema>
+

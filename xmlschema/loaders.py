@@ -94,17 +94,6 @@ class SchemaLoader:
             self.xpath_parser_class = module.XPath3Parser
             self.assertion_parser_class = module.XsdAssertionXPath3Parser
 
-    def __copy__(self) -> 'SchemaLoader':
-        loader: SchemaLoader = object.__new__(self.__class__)
-        loader.__dict__.update(self.__dict__)
-        loader.maps = self.maps
-        loader.namespaces = self.namespaces
-        loader.locations = self.locations.copy()
-        loader.missing_locations = self.missing_locations.copy()
-        return loader
-
-    copy = __copy__
-
     def clear(self) -> None:
         self.maps.clear()
         self.missing_locations.clear()
@@ -128,8 +117,8 @@ class SchemaLoader:
         Processes xs:include, xs:redefine, xs:override and xs:import statements,
         loading the schemas and/or the namespaced referred into declarations.
         """
-        if schema not in self.maps.schemas:
-            raise XMLSchemaValueError(f"{schema} is not registered in {self.maps}!")
+        if schema not in self.maps.schemas or schema.maps is not self.maps:
+            raise XMLSchemaValueError(f"{schema} is not owned by {self.maps}!")
 
         logger.debug("Processes inclusions and imports of schema %r", self)
         schema.imported_namespaces.clear()
@@ -481,7 +470,7 @@ class SafeSchemaLoader(SchemaLoader):
         self.global_maps.clear()
         try:
             self.global_maps.load(self.namespaces[namespace])
-        except XMLSchemaValueError:
+        except XMLSchemaParseError:
             self.namespaces[namespace].pop()
             self.maps.schemas.remove(schema)
             self.excluded_locations.add(url)

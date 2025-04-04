@@ -120,6 +120,11 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
         return self._schemas
 
     @property
+    def owned_schemas(self) -> list[SchemaType]:
+        """Returns a list of the registered schemas owned by this instance."""
+        return [s for s in self._schemas if s.maps is self]
+
+    @property
     def parent(self) -> Optional[SchemaType]:
         return self._parent
 
@@ -565,10 +570,8 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
         :raise: XMLSchemaParseError
         """
         self.check_validator()
-        if schemas is not None:
-            _schemas = schemas
-        else:
-            _schemas = [s for s in self._schemas if s.maps is self]
+        if schemas is None:
+            schemas = self.owned_schemas
 
         # Checks substitution groups circularity
         for qname in self.substitution_groups:
@@ -580,7 +583,7 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
         # Check redefined global groups restrictions
         for group in self.groups.values():
             assert isinstance(group, XsdGroup), _("global group not built!")
-            if group.schema not in _schemas or group.redefine is None:
+            if group.schema not in schemas or group.redefine is None:
                 continue
 
             while group.redefine is not None:
@@ -592,7 +595,7 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
                 group = group.redefine
 
         # Check complex content types models restrictions
-        for xsd_global in filter(lambda x: x.schema in _schemas, self.iter_globals()):
+        for xsd_global in filter(lambda x: x.schema in schemas, self.iter_globals()):
             xsd_type: Any
             for xsd_type in xsd_global.iter_components(XsdComplexType):
                 if not isinstance(xsd_type.content, XsdGroup):

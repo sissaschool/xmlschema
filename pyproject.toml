@@ -88,7 +88,7 @@ show_error_code_links = true
 [tool.coverage.run]
 branch = true
 source = ["xmlschema"]
-omit = ["xmlschema/testing/*"]
+omit = ["xmlschema/testing/*", "xmlschema/utils/protocols.py"]
 
 [tool.coverage.report]
 exclude_lines = [
