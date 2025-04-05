@@ -15,7 +15,7 @@ from typing import cast, overload, Any, Optional, Type, TYPE_CHECKING, Union
 from urllib.request import OpenerDirector
 from xml.etree import ElementTree
 
-from xmlschema.aliases import XMLSourceType, UriMapperType, IterparseType
+from xmlschema.aliases import XMLSourceType, UriMapperType, IterParseType
 from xmlschema.exceptions import XMLSchemaValueError
 from xmlschema.translation import gettext as _
 from xmlschema.utils.etree import is_etree_element, is_etree_document
@@ -127,12 +127,12 @@ class OpenerArgument(Argument[Optional[OpenerDirector]]):
         super().__init__(OpenerDirector)
 
 
-class IterparseArgument(Argument[Optional[IterparseType]]):
+class IterParseArgument(Argument[Optional[IterParseType]]):
     def __init__(self) -> None:
         super().__init__(validators=(callable,))
 
-    def validated_value(self, value: Any) -> IterparseType:
+    def validated_value(self, value: Any) -> IterParseType:
         value = super().validated_value(value)
         if value is not None:
-            return cast(IterparseType, value)
+            return cast(IterParseType, value)
         return ElementTree.iterparse

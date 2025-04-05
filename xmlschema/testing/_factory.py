@@ -87,12 +87,15 @@ def parse_xmlschema_args(argv=None):
     parser = get_test_program_args_parser(prog)
     args = parser.parse_args(args)
 
-    # Clean argv of xmlschema arguments
+    # Clean argv of xmlschema arguments and
     _argv = sys.argv.copy()
     argv.clear()
     argv.append(prog)
     for item in _argv[1:]:
-        if item not in ('--lxml', '--codegen', '--random') and not item.endswith('testfiles'):
+        if item.endswith('testfiles'):
+            continue
+        elif item not in ('--lxml', '--codegen', '--random', '-f',
+                          '--failfast', '-c', '--catch', '-b', '--buffer'):
             argv.append(item)
 
     return args

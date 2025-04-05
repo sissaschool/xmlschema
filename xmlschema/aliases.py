@@ -38,7 +38,7 @@ __all__ = ['ElementType', 'ElementTreeType', 'XMLSourceType', 'NsmapType', 'Loca
            'JsonDecodeType', 'EncodeType', 'IterEncodeType', 'DecodedValueType',
            'FillerType', 'DepthFillerType', 'ValueHookType', 'ElementHookType',
            'SerializerType', 'OccursCounterType', 'LazyType', 'SourceType',
-           'UriMapperType', 'IterparseType', 'EtreeType', 'IOType', 'ClassInfoType',
+           'UriMapperType', 'IterParseType', 'EtreeType', 'IOType', 'ClassInfoType',
            'ResourceNodeType', 'NsmapsMapType', 'XmlnsMapType', 'ErrorsType']
 
 if TYPE_CHECKING:
@@ -74,7 +74,7 @@ XMLSourceType = Union[SourceType, EtreeType]
 ResourceNodeType = Union[ElementNode, LazyElementNode, DocumentNode]
 LazyType = Union[bool, int]
 UriMapperType = Union[MutableMapping[str, str], Callable[[str], str]]
-IterparseType = Callable[[IOType, Optional[Sequence[str]]], Iterator[tuple[str, Any]]]
+IterParseType = Callable[[IOType, Optional[Sequence[str]]], Iterator[tuple[str, Any]]]
 ParentMapType = dict[ElementType, Optional[ElementType]]
 NsmapsMapType = dict[ElementType, dict[str, str]]
 XmlnsMapType = dict[ElementType, list[tuple[str, str]]]

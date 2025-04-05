@@ -77,6 +77,7 @@ class SchemaLoader:
         self.timeout = self.validator.source.timeout
         self.uri_mapper = self.validator.source.uri_mapper
         self.opener = self.validator.source.opener
+        self.iterparse = self.validator.source.iterparse
 
         self.use_fallback = use_fallback
         self.use_xpath3 = use_xpath3

@@ -18,12 +18,12 @@ from elementpath import ElementNode, LazyElementNode, DocumentNode, \
 from elementpath.protocols import LxmlElementProtocol
 
 from xmlschema.aliases import ElementType, ElementTreeType, \
-    EtreeType, IOType, IterparseType, ParentMapType
+    EtreeType, IOType, IterParseType, ParentMapType
 from xmlschema.exceptions import XMLResourceError, XMLResourceParseError
 from xmlschema.utils.misc import iter_class_slots
 from xmlschema.utils.qnames import get_namespace
 
-from .arguments import LazyArgument, ThinLazyArgument, IterparseArgument
+from .arguments import LazyArgument, ThinLazyArgument, IterParseArgument
 
 LazyLockType = RLock if platform.python_implementation() == 'PyPy' else Lock
 
@@ -35,12 +35,12 @@ class XMLResourceLoader:
     # Descriptor-based attributes for arguments
     lazy = LazyArgument()
     thin_lazy = ThinLazyArgument()
-    iterparse = IterparseArgument()
+    iterparse = IterParseArgument()
 
     # Private attributes for arguments
     _lazy: Union[bool, int]
     _thin_lazy: bool
-    _iterparse: IterparseType
+    _iterparse: IterParseType
 
     # Protected attributes for XML data
     _xpath_root: Union[None, ElementNode, DocumentNode]
@@ -57,7 +57,7 @@ class XMLResourceLoader:
     def __init__(self, source: Union[IOType, EtreeType],
                  lazy: Union[bool, int] = False,
                  thin_lazy: bool = True,
-                 iterparse: Optional[IterparseType] = None) -> None:
+                 iterparse: Optional[IterParseType] = None) -> None:
 
         self.lazy = lazy
         self.thin_lazy = thin_lazy

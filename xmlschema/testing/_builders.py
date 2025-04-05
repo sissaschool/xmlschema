@@ -317,7 +317,7 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
             try:
                 etree_elements_assert_equal(root, elem1, strict=False, unordered=unordered)
             except AssertionError as err:
-                # If the check fails retry only if the converter is lossy (eg. ParkerConverter)
+                # If the check fails retry only if the converter is lossy (e.g. ParkerConverter)
                 # or if the XML case has defaults taken from the schema or some part of data
                 # decoding is skipped by schema wildcards (set the specific argument in testfiles).
                 if lax_encode:
@@ -567,6 +567,25 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
                 self.check_json_serialization(root, AbderaConverter, **options)
                 self.check_json_serialization(root, JsonMLConverter, **options)
 
+        def check_with_lxml_iterparse(self):
+            iterparse = lxml_etree.iterparse
+
+            lxml_errors = []
+            lxml_decoded_chunks = []
+            for obj in self.schema.iter_decode(xml_file, iterparse=iterparse):
+                if isinstance(obj, xmlschema.XMLSchemaValidationError):
+                    lxml_errors.append(obj)
+                else:
+                    lxml_decoded_chunks.append(obj)
+
+            self.assertEqual(lxml_decoded_chunks, self.chunks, msg=xml_file)
+            self.assertEqual(len(lxml_errors), len(self.errors), msg=xml_file)
+
+            if not lxml_errors:
+                self.assertTrue(self.schema.is_valid(xml_file), msg=xml_file)
+            else:
+                self.assertFalse(self.schema.is_valid(xml_file), msg=xml_file)
+
         def check_validate_and_is_valid_api(self):
             if expected_errors:
                 self.assertFalse(self.schema.is_valid(xml_file), msg=xml_file)
@@ -629,7 +648,7 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
 
             with tempfile.TemporaryDirectory() as tempdir:
                 module_name = '{}.py'.format(self.schema.name.rstrip('.xsd'))
-                cwd = os.getcwd()
+                cwd: str = os.getcwd()
 
                 try:
                     self.schema.export(tempdir, save_remote=True)
@@ -666,6 +685,7 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
 
                 if lxml_etree is not None:
                     self.check_data_conversion_with_lxml()
+                    self.check_with_lxml_iterparse()
 
             self.check_iter_errors()
             self.check_validate_and_is_valid_api()

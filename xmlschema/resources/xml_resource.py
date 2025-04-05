@@ -25,7 +25,7 @@ from elementpath import XPathToken, XPathContext, XPath2Parser, ElementNode
 
 from xmlschema.aliases import ElementType, EtreeType, NsmapType, \
     NormalizedLocationsType, LocationsType, XMLSourceType, IOType, \
-    ResourceNodeType, LazyType, IterparseType, UriMapperType
+    ResourceNodeType, LazyType, IterParseType, UriMapperType
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError, \
     XMLResourceError, XMLResourceOSError, XMLResourceBlocked
 from xmlschema.utils.paths import LocationPath
@@ -91,9 +91,10 @@ class XMLResource(XMLResourceLoader):
     a URL, or the argument if there is no mapping for it.
     :param opener: an optional :class:`OpenerDirector` to use for open the resource. \
     For default use the opener installed globally for *urlopen*.
-    :param iterparse: an optional callable that returns an iterator parser that is \
-    used for building the XML resource tree. For default the tree is an *ElementTree* \
-    structure, provide *lxml.etree.iterparse* to build lxml trees.
+    :param iterparse: an optional callable that returns an iterator parser instance used \
+    for building the XML tree. For default that callable is *ElementTree.iterparse*, \
+    provide *lxml.etree.iterparse* to build lxml trees or another callable if a \
+    different parsing of your data.
     """
     # Descriptor-based attributes for arguments
     source = SourceArgument()
@@ -135,7 +136,7 @@ class XMLResource(XMLResourceLoader):
                  thin_lazy: bool = True,
                  uri_mapper: Optional[UriMapperType] = None,
                  opener: Optional[OpenerDirector] = None,
-                 iterparse: Optional[IterparseType] = None) -> None:
+                 iterparse: Optional[IterParseType] = None) -> None:
 
         if allow == 'sandbox' and base_url is None:
             msg = "block access to files out of sandbox requires 'base_url' to be set"
