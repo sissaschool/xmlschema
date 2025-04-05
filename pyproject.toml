@@ -46,8 +46,8 @@ dev = [
     "flake8",
     "lxml",
     "lxml-stubs",
-    "memory_profiler",
     "mypy",
+    "psutil",
     "tox",
     "xmlschema[docs]",
 ]

@@ -15,7 +15,6 @@ Refs:
     https://github.com/brunato/xmlschema/issues/32
 """
 import argparse
-from memory_profiler import profile
 
 
 def test_choice_type(value):
@@ -53,27 +52,32 @@ parser.add_argument('repeat', metavar='REPEAT', nargs='?', type=int, default=1,
 args = parser.parse_args()
 
 
-# noinspection PyUnresolvedReferences
-@profile
+def profile_memory(func):
+    def wrapper(*a, **kw):
+        mem = this_process.memory_info().rss
+        result = func(*a, **kw)
+        mem = this_process.memory_info().rss - mem
+        print("Memory usage by %s(): %.2f MB (%d)" % (func.__name__, mem / 1024 ** 2, mem))
+        return result
+
+    return wrapper
+
+
+@profile_memory
 def import_package():
     # Imports of packages used by xmlschema that
     # have a significant memory usage impact.
-    import decimal                     # noqa
-    from urllib.error import URLError  # noqa
-    import lxml.etree                  # noqa
-    import elementpath                 # noqa
-
     import xmlschema
     return xmlschema
 
 
-@profile
+@profile_memory
 def build_schema(source):
     xs = xmlschema.XMLSchema(source)
     return xs
 
 
-@profile
+@profile_memory
 def etree_parse(source, repeat=1):
     xt = ElementTree.parse(source)
     for _ in range(repeat):
@@ -82,7 +86,7 @@ def etree_parse(source, repeat=1):
     del xt
 
 
-@profile
+@profile_memory
 def etree_full_iterparse(source, repeat=1):
     for _ in range(repeat):
         context = ElementTree.iterparse(source, events=('start', 'end'))
@@ -91,7 +95,7 @@ def etree_full_iterparse(source, repeat=1):
                 pass
 
 
-@profile
+@profile_memory
 def etree_emptied_iterparse(source, repeat=1):
     for _ in range(repeat):
         context = ElementTree.iterparse(source, events=('start', 'end'))
@@ -100,33 +104,33 @@ def etree_emptied_iterparse(source, repeat=1):
                 elem.clear()
 
 
-@profile
+@profile_memory
 def decode(source, repeat=1):
     decoder = xmlschema.XMLSchema.meta_schema if source.endswith('.xsd') else xmlschema
     for _ in range(repeat):
         decoder.to_dict(source)
 
 
-@profile
+@profile_memory
 def lazy_decode(source, repeat=1):
     if source.endswith('.xsd'):
         decoder = xmlschema.XMLSchema.meta_schema.iter_decode
     else:
-        decoder = xmlschema.iter_decode
+        decoder = xmlschema.iter_decode  # type: ignore
 
     for _ in range(repeat):
         for _result in decoder(xmlschema.XMLResource(source, lazy=True), path='*'):
             del _result
 
 
-@profile
+@profile_memory
 def validate(source, repeat=1):
     validator = xmlschema.XMLSchema.meta_schema if source.endswith('.xsd') else xmlschema
     for _ in range(repeat):
         validator.validate(source)
 
 
-@profile
+@profile_memory
 def lazy_validate(source, repeat=1):
     if source.endswith('.xsd'):
         validator, path = xmlschema.XMLSchema.meta_schema, '*'
@@ -137,7 +141,7 @@ def lazy_validate(source, repeat=1):
         validator.validate(xmlschema.XMLResource(source, lazy=True), path=path)
 
 
-@profile
+@profile_memory
 def full_xml_resource(source, repeat=1):
     xr = xmlschema.XMLResource(source)
     for _ in range(repeat):
@@ -146,7 +150,7 @@ def full_xml_resource(source, repeat=1):
     del xr
 
 
-@profile
+@profile_memory
 def lazy_xml_resource(source, repeat=1):
     xr = xmlschema.XMLResource(source, lazy=True, thin_lazy=False)
     for _ in range(repeat):
@@ -155,7 +159,7 @@ def lazy_xml_resource(source, repeat=1):
     del xr
 
 
-@profile
+@profile_memory
 def thin_lazy_xml_resource(source, repeat=1):
     xr = xmlschema.XMLResource(source, lazy=True)
     for _ in range(repeat):
@@ -164,7 +168,7 @@ def thin_lazy_xml_resource(source, repeat=1):
     del xr
 
 
-@profile
+@profile_memory
 def lxml_etree_parse(source, repeat=1):
     xt = etree.parse(source)
     for _ in range(repeat):
@@ -173,7 +177,7 @@ def lxml_etree_parse(source, repeat=1):
     del xt
 
 
-@profile
+@profile_memory
 def lxml_etree_full_iterparse(source, repeat=1):
     for _ in range(repeat):
         context = etree.iterparse(source, events=('start', 'end'))
@@ -183,49 +187,49 @@ def lxml_etree_full_iterparse(source, repeat=1):
 
 
 if __name__ == '__main__':
-    if args.test_num == 1:
-        if args.xml_file is None:
-            import_package()
-        else:
-            import xmlschema
+    import os
+    import decimal                     # noqa
+    from urllib.error import URLError  # noqa
+    from xml.etree import ElementTree
+
+    import lxml.etree as etree         # noqa
+    import elementpath                 # noqa
+    import psutil
+
+    this_process = psutil.Process(os.getpid())
+
+    if args.test_num == 1 and args.xml_file is None:
+        import_package()
+    else:
+        import xmlschema
+
+        if args.test_num == 1:
             build_schema(args.xml_file)
-    elif args.test_num == 2:
-        import xml.etree.ElementTree as ElementTree
-        etree_parse(args.xml_file, args.repeat)
-    elif args.test_num == 3:
-        import xml.etree.ElementTree as ElementTree
-        etree_full_iterparse(args.xml_file, args.repeat)
-    elif args.test_num == 4:
-        import xml.etree.ElementTree as ElementTree
-        etree_emptied_iterparse(args.xml_file, args.repeat)
-    elif args.test_num == 5:
-        import xmlschema
-        xmlschema.XMLSchema.meta_schema.build()
-        decode(args.xml_file, args.repeat)
-    elif args.test_num == 6:
-        import xmlschema
-        xmlschema.XMLSchema.meta_schema.build()
-        lazy_decode(args.xml_file, args.repeat)
-    elif args.test_num == 7:
-        import xmlschema
-        xmlschema.XMLSchema.meta_schema.build()
-        validate(args.xml_file, args.repeat)
-    elif args.test_num == 8:
-        import xmlschema
-        xmlschema.XMLSchema.meta_schema.build()
-        lazy_validate(args.xml_file, args.repeat)
-    elif args.test_num == 9:
-        import xmlschema
-        full_xml_resource(args.xml_file, args.repeat)
-    elif args.test_num == 10:
-        import xmlschema
-        lazy_xml_resource(args.xml_file, args.repeat)
-    elif args.test_num == 11:
-        import xmlschema
-        thin_lazy_xml_resource(args.xml_file, args.repeat)
-    elif args.test_num == 12:
-        from lxml import etree
-        lxml_etree_parse(args.xml_file, args.repeat)
-    elif args.test_num == 13:
-        from lxml import etree
-        lxml_etree_full_iterparse(args.xml_file, args.repeat)
+        elif args.test_num == 2:
+            etree_parse(args.xml_file, args.repeat)
+        elif args.test_num == 3:
+            etree_full_iterparse(args.xml_file, args.repeat)
+        elif args.test_num == 4:
+            etree_emptied_iterparse(args.xml_file, args.repeat)
+        elif args.test_num == 5:
+            xmlschema.XMLSchema.meta_schema.build()
+            decode(args.xml_file, args.repeat)
+        elif args.test_num == 6:
+            xmlschema.XMLSchema.meta_schema.build()
+            lazy_decode(args.xml_file, args.repeat)
+        elif args.test_num == 7:
+            xmlschema.XMLSchema.meta_schema.build()
+            validate(args.xml_file, args.repeat)
+        elif args.test_num == 8:
+            xmlschema.XMLSchema.meta_schema.build()
+            lazy_validate(args.xml_file, args.repeat)
+        elif args.test_num == 9:
+            full_xml_resource(args.xml_file, args.repeat)
+        elif args.test_num == 10:
+            lazy_xml_resource(args.xml_file, args.repeat)
+        elif args.test_num == 11:
+            thin_lazy_xml_resource(args.xml_file, args.repeat)
+        elif args.test_num == 12:
+            lxml_etree_parse(args.xml_file, args.repeat)
+        elif args.test_num == 13:
+            lxml_etree_full_iterparse(args.xml_file, args.repeat)
