@@ -531,7 +531,7 @@ def w3c_tests_factory(argv=None):
             elif isinstance(x, list) and len(x) == 2:
                 yield from range(x[0], x[1] + 1)
 
-    parser = argparse.ArgumentParser(add_help=True)
+    parser = argparse.ArgumentParser(prog=__name__, add_help=True)
     parser.add_argument('-v', '--verbose', default=False, action='store_true')
     parser.add_argument('--version', dest='version', type=xsd_versions,
                         default='1.0 1.1',
@@ -552,6 +552,9 @@ def w3c_tests_factory(argv=None):
     parser.add_argument('numbers', metavar='TEST_NUMBER', type=number_or_interval, nargs='*',
                         help='Runs only specific tests, selected by numbers.')
     args = parser.parse_args(args=argv)
+
+    # Clean argv of xmlschema-only arguments
+    sys.argv[:] = [__name__, '-v'] if '-v' in sys.argv else [__name__]
 
     args.numbers = [x for x in iter_numbers(args.numbers)]
 
@@ -631,10 +634,7 @@ def w3c_tests_factory(argv=None):
 
 
 if __name__ == '__main__':
-    import platform
-    header_template = "W3C XSD tests for xmlschema with Python {} on {}"
-    header = header_template.format(platform.python_version(), platform.platform())
-    print('{0}\n{1}\n{0}'.format("*" * len(header), header))
+    from xmlschema.testing import run_xmlschema_tests
 
     globals().update(w3c_tests_factory())
-    unittest.main(argv=[__name__])
+    run_xmlschema_tests("running W3C XSD 1.0/1.1 tests")
