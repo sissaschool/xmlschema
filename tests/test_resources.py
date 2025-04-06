@@ -37,6 +37,7 @@ from xmlschema.testing import SKIP_REMOTE_TESTS, XMLSchemaTestCase, run_xmlschem
 from xmlschema.utils.urls import normalize_url
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError, \
     XMLResourceForbidden, XMLResourceBlocked, XMLResourceOSError
+from xmlschema.resources import XMLResourceManager
 from xmlschema.resources.sax import defuse_xml
 
 DRIVE_REGEX = '(/[a-zA-Z]:|/)' if platform.system() == 'Windows' else ''
@@ -764,14 +765,28 @@ class TestResources(XMLSchemaTestCase):
         self.assertEqual(resource.seek(1), 1)
         xml_file.close()
 
+    def test_xml_resource_manager(self):
+        resource = XMLResource(self.vh_xml_file)
+
+        with XMLResourceManager(resource) as ctx:
+            self.assertTrue(callable(ctx.fp.read))
+            self.assertFalse(ctx.fp.closed)
+        self.assertTrue(ctx.fp.closed)
+
+        resource = XMLResource(open(self.vh_xml_file))
+
+        with XMLResourceManager(resource) as ctx:
+            self.assertTrue(callable(ctx.fp.read))
+            self.assertFalse(ctx.fp.closed)
+        self.assertFalse(ctx.fp.closed)
+        resource.close()
+
     def test_xml_resource_close(self):
         resource = XMLResource(self.vh_xml_file)
         resource.close()
-        xml_file = resource.open()
-        try:
+
+        with resource.open() as xml_file:
             self.assertTrue(callable(xml_file.read))
-        finally:
-            resource.close()
 
         with open(self.vh_xml_file) as xml_file:
             resource = XMLResource(source=xml_file)
@@ -1376,19 +1391,26 @@ class TestResources(XMLSchemaTestCase):
                 obj = super().file_open(req)
                 if not isinstance(obj, addinfourl):
                     return obj
-                return NoSeekFile(open(obj.fp.name, 'rb'), obj.headers, obj.url)
+                obj.close()
+                return NoSeekFile(open(obj.fp.name, 'rb'), obj.headers, obj.url, obj.code)
 
         opener = build_opener(MyFileHandler)
 
         resource = XMLResource(self.vh_xml_file, opener=opener)
         fp = resource.open()
-        self.assertIsInstance(fp, NoSeekFile)
+        try:
+            self.assertIsInstance(fp, NoSeekFile)
+        finally:
+            fp.close()
 
         resource = XMLResource(self.vh_xml_file, opener=opener, defuse='always')
-        fp = resource.open()
-        self.assertIsInstance(fp, NoSeekFile)
-        self.assertFalse(fp.seekable())
-        self.assertEqual(fp.tell(), 0)  # File not used for defusing XML data
+        try:
+            fp = resource.open()
+            self.assertIsInstance(fp, NoSeekFile)
+            self.assertFalse(fp.seekable())
+            self.assertEqual(fp.tell(), 0)  # File not used for defusing XML data
+        finally:
+            fp.close()
 
     def test_iterparse_argument(self):
         resource = XMLResource(self.vh_xml_file, iterparse=ElementTree.iterparse)
