@@ -178,6 +178,8 @@ class OccursCalculator:
     min_occurs: int
     max_occurs: Optional[int]
 
+    __slots__ = ('min_occurs', 'max_occurs')
+
     @property
     def occurs(self) -> tuple[int, Optional[int]]:
         return self.min_occurs, self.max_occurs
@@ -209,10 +211,13 @@ class OccursCalculator:
             self.max_occurs *= other.max_occurs
         return self
 
-    def __sub__(self, occurs: int) -> 'OccursCalculator':
-        self.min_occurs = max(0, self.min_occurs - occurs)
+    def __sub__(self, other: Union[ParticleMixin, 'OccursCalculator']) -> 'OccursCalculator':
+        self.min_occurs = max(0, self.min_occurs - other.min_occurs)
         if self.max_occurs is not None:
-            self.max_occurs = max(0, self.max_occurs - occurs)
+            if other.max_occurs is None:
+                self.max_occurs = 0
+            else:
+                self.max_occurs = max(0, self.max_occurs - other.max_occurs)
         return self
 
     def reset(self) -> None:
