@@ -237,6 +237,11 @@ class TestXsdComponent(unittest.TestCase):
         self.assertEqual(len(schema.all_errors), 0)
         self.assertEqual(len(xsd_element.errors), 0)
 
+    def test_meta_tag(self):
+        self.assertEqual(self.FakeElement.meta_tag(), XSD_ELEMENT)
+        with self.assertRaises(NotImplementedError):
+            XsdComponent.meta_tag()
+
     def test_is_override(self):
         self.assertFalse(self.schema.elements['cars'].is_override())
         self.assertFalse(self.schema.elements['cars'].type.content[0].is_override())
@@ -624,6 +629,19 @@ class TestXsdComponent(unittest.TestCase):
         self.assertIn('The root element', str(xsd_element.annotation))
         self.assertIsNone(xsd_element.attributes.annotation)
 
+    def test_dump_status(self):
+        schema = XMLSchema10("""\
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+            <xs:element name="root"/>
+        </xs:schema>""")
+
+        with self.assertLogs('xmlschema', 'WARNING') as cm:
+            schema.elements['root'].dump_status('foo')
+
+        self.assertIn("dump data", cm.output[0])
+        self.assertIn("XMLResource(root=", cm.output[0])
+        self.assertIn("'foo'", cm.output[0])
+
 
 class TestXsdType(unittest.TestCase):
 
@@ -735,6 +753,9 @@ class TestXsdType(unittest.TestCase):
 
     def test_is_atomic(self):
         self.assertFalse(self.schema.types['barType'].is_atomic())
+
+    def test_is_primitive(self):
+        self.assertFalse(self.schema.types['barType'].is_primitive())
 
     def test_is_list(self):
         self.assertFalse(self.schema.types['barType'].is_list())

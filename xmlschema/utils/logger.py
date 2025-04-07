@@ -15,6 +15,7 @@ from typing import Any, Optional, TypeVar, Union
 
 from xmlschema.exceptions import XMLSchemaValueError
 from xmlschema.translation import gettext as _
+from xmlschema.resources import XMLResource
 
 logger = logging.getLogger('xmlschema')
 
@@ -68,3 +69,29 @@ def format_xmlschema_stack(start_with: str) -> str:
             return ''.join(formatted_stack[k:])
     else:
         return ''.join(formatted_stack)
+
+
+def dump_data(*args: Any) -> None:
+    """Dump data to logger for debugging purposes."""
+    if not args:
+        return
+
+    logging.basicConfig()
+    chunks: list[str] = [' dump data for xmlschema debugging\n']
+
+    for item in args:
+        if isinstance(item, XMLResource):
+            chunks.append(repr(item))
+            if item.name:
+                chunks.append(f'name: {item.name!r}')
+            chunks.append(f'namespace: {item.namespace!r}')
+            if item.url:
+                chunks.append(f'URL: {item.url}')
+            if not item.is_lazy():
+                chunks.append(item.tostring())
+            chunks.append('')
+        else:
+            chunks.append(repr(item))
+            chunks.append('')
+
+    logger.warning('\n'.join(chunks))

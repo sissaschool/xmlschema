@@ -696,7 +696,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
     def is_meta(self) -> bool:
         """Returns `True` if it's a schema of a class meta-schema."""
-        return self in _meta_registry
+        return self.meta_schema is None and self in _meta_registry
 
     # Schema root attributes
     @property

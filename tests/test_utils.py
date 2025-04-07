@@ -9,6 +9,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """Tests on internal helper functions"""
+import sys
 import unittest
 import decimal
 import logging
@@ -28,7 +29,8 @@ from xmlschema.utils.etree import prune_etree, etree_get_ancestors, etree_getpat
     etree_iter_location_hints, etree_tostring
 from xmlschema.utils.qnames import get_namespace, get_qname, local_name, \
     get_prefixed_qname, get_extended_qname, update_namespaces
-from xmlschema.utils.logger import set_logging_level, logged
+from xmlschema.utils.logger import set_logging_level, logged, format_xmlschema_stack, \
+    dump_data
 from xmlschema.utils.decoding import raw_encode_value, raw_encode_attributes, \
     count_digits, strictly_equal
 from xmlschema.utils.misc import deprecated, will_change
@@ -42,6 +44,7 @@ from xmlschema.validators.helpers import get_xsd_derivation_attribute, \
     int_validator, long_validator, unsigned_byte_validator, \
     unsigned_short_validator, negative_int_validator, error_type_validator
 from xmlschema.validators.particles import OccursCalculator
+from xmlschema.resources import XMLResource
 
 XML_WITH_NAMESPACES = '<pfa:root xmlns:pfa="http://xpath.test/nsa">\n' \
                       '  <pfb:elem xmlns:pfb="http://xpath.test/nsb"/>\n' \
@@ -807,6 +810,29 @@ class TestUtils(unittest.TestCase):
             self.assertIn("Warning log line", ctx.output[-3])
             self.assertIn("Info log line", ctx.output[-2])
             self.assertIn("Debug log line", ctx.output[-1])
+
+    def test_format_xmlschema_stack(self):
+        phrase = 'this is a test'
+        self.assertNotIn(phrase, format_xmlschema_stack(phrase), '')
+        self.assertIn(phrase, format_xmlschema_stack('this is a test'), '')
+
+    def test_dump_data(self):
+        if sys.version_info >= (3, 11):
+            with self.assertNoLogs('xmlschema', 'WARNING'):
+                dump_data()
+
+        xml_data = XMLResource('<root><child/></root>', lazy=True)
+        with self.assertLogs('xmlschema', 'WARNING') as cm:
+            dump_data( xml_data, 1, 2, 3, 'foo')
+
+        self.assertIn('dump data for xmlschema', cm.output[0])
+        self.assertNotIn('URL:', cm.output[0])
+
+        with self.assertLogs('xmlschema', 'WARNING') as cm:
+            dump_data(XMLSchema.meta_schema.source)
+
+        self.assertIn('dump data for xmlschema', cm.output[0])
+        self.assertIn('URL:', cm.output[0])
 
     def test_will_change_decorator(self):
         @will_change('2.0')

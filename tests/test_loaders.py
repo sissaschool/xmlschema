@@ -14,7 +14,7 @@ import warnings
 from xmlschema import XMLSchema11
 from xmlschema import SchemaLoader, LocationSchemaLoader, SafeSchemaLoader
 from xmlschema.testing import XMLSchemaTestCase, run_xmlschema_tests
-from xmlschema import XMLSchemaParseError
+from xmlschema import XMLSchemaParseError, XMLSchemaImportWarning
 import xmlschema.names as nm
 
 
@@ -23,8 +23,8 @@ class TestLoadersAPI(XMLSchemaTestCase):
 
     @classmethod
     def setUpClass(cls):
-        col_xsd_file = cls.casepath('examples/collection/collection.xsd')
-        cls.schema = cls.schema_class(col_xsd_file)
+        cls.col_xsd_file = cls.casepath('examples/collection/collection.xsd')
+        cls.schema = cls.schema_class(cls.col_xsd_file)
         cls.loader = cls.schema.maps.loader
 
     def test_get_namespaces(self):
@@ -44,6 +44,18 @@ class TestLoadersAPI(XMLSchemaTestCase):
         with self.assertRaises(XMLSchemaParseError) as ctx:
             self.schema_class(xsd_file)
         self.assertIn("differs from what expected", str(ctx.exception))
+
+    def test_load_namespace(self):
+        locations = [('http://xmlschema.test/ns', 'unresolved'),]
+
+        with warnings.catch_warnings(record=True):
+            warnings.simplefilter("ignore")
+            schema = self.schema_class(self.col_xsd_file, locations=locations)
+
+        num = len(schema.maps.namespaces)
+        schema.load_namespace('http://xmlschema.test/ns')
+        self.assertEqual(num, len(schema.maps.namespaces))
+        self.assertNotIn('http://xmlschema.test/ns', schema.maps.namespaces)
 
 
 class TestSchemaLoader(XMLSchemaTestCase):

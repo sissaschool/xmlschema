@@ -26,7 +26,8 @@ from xmlschema.testing import etree_elements_assert_equal, run_xmlschema_tests
 
 from xmlschema.converters import XMLSchemaConverter, UnorderedConverter, \
     ParkerConverter, BadgerFishConverter, AbderaConverter, JsonMLConverter, \
-    ColumnarConverter, GDataConverter
+    ColumnarConverter, GDataConverter, check_converter_argument
+from xmlschema.namespaces import NamespaceMapper
 from xmlschema.dataobjects import DataElementConverter
 
 
@@ -59,6 +60,10 @@ class TestConverters(unittest.TestCase):
     @classmethod
     def casepath(cls, relative_path):
         return str(Path(__file__).parent.joinpath('test_cases', relative_path))
+
+    def test_check_converter_argument(self):
+        self.assertIsNone(check_converter_argument(XMLSchemaConverter()))
+        self.assertRaises(TypeError, check_converter_argument, NamespaceMapper())
 
     def test_element_class_argument(self):
         converter = XMLSchemaConverter()

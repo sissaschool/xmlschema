@@ -370,9 +370,6 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
     def is_complex() -> bool:
         return False
 
-    def is_primitive(self) -> bool:
-        return False
-
     @property
     def content_type_label(self) -> str:
         return 'empty' if self.max_length == 0 else 'simple'
