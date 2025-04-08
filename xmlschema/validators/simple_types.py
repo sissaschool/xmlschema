@@ -1137,9 +1137,6 @@ class XsdUnion(XsdSimpleType):
 
             result = mt.raw_decode(obj, 'lax', temp_context)
             if result is not None:
-                if validation == 'skip':
-                    return mt.raw_decode(obj, validation, context)
-
                 if xsd_type is None:
                     xsd_type = mt
                 if not temp_context.errors:
@@ -1176,8 +1173,6 @@ class XsdUnion(XsdSimpleType):
 
             result = mt.raw_encode(obj, 'lax', temp_context)
             if result is not None:
-                if validation == 'skip':
-                    return mt.raw_encode(obj, validation, context)
                 if xsd_type is None:
                     xsd_type = mt
                 if not temp_context.errors:

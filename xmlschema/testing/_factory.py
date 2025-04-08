@@ -72,7 +72,7 @@ def get_test_program_args_parser(prog=None):
     parser.add_argument('--codegen', action="store_true", default=False,
                         help="Test code generation with XML data bindings module.")
     parser.add_argument('--random', dest='random', action='store_true', default=False,
-                        help='Execute the test cases in a random order.')
+                        help='Execute the test cases in random order.')
     parser.add_argument('testfiles', type=str, nargs='*', default=default_testfiles,
                         help="Test files containing a list of cases to build and run.")
     return parser
@@ -164,8 +164,8 @@ def get_test_line_args_parser():
         '--no-pickle', action="store_true", default=False,
         help="Skip pickling/unpickling test on schema (max recursion exceeded)."
     )
-    parser.add_argument('--no-loaders', action="store_true", default=False,
-                        help="Skip test with alternative schema loaders.")
+    parser.add_argument('--skip-location-loader', action="store_true", default=False,
+                        help="Skip test with alternative LocationSchemaLoader.")
     parser.add_argument(
         '--lax-encode', action="store_true", default=False,
         help="Use lax mode on encode checks (for cases where test data uses default or "

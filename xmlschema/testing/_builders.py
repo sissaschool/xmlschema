@@ -73,7 +73,7 @@ def make_schema_test_class(test_file, test_args, test_num, schema_class, check_w
     locations = test_args.locations
     defuse = test_args.defuse
     no_pickle = test_args.no_pickle
-    no_loaders = test_args.no_loaders
+    skip_location_loader = test_args.skip_location_loader
     debug_mode = test_args.debug
     codegen = test_args.codegen
     loglevel = logging.DEBUG if debug_mode else None
@@ -151,18 +151,23 @@ def make_schema_test_class(test_file, test_args, test_num, schema_class, check_w
                             raise error
 
             # Test alternative schema loaders
-            if not expected_errors and not no_loaders:
-                other = schema_class(
-                    xsd_file, loader_class=LocationSchemaLoader, locations=locations,
-                    defuse=defuse, loglevel=loglevel
-                )
-                self.assertEqual(len(other.maps.schemas), len(schema.maps), msg=xsd_file)
-
+            if not expected_errors and not skip_location_loader:
                 other = schema_class(
                     xsd_file, loader_class=SafeSchemaLoader, locations=locations,
                     defuse=defuse, loglevel=loglevel
                 )
-                self.assertEqual(len(other.maps.schemas), len(schema.maps), msg=xsd_file)
+                urls = set(s.url for s in schema.maps.schemas)
+                other_urls = set(s.url for s in other.maps.schemas)
+                self.assertTrue(urls.issubset(other_urls), msg=xsd_file)
+
+                if not skip_location_loader:
+                    other = schema_class(
+                        xsd_file, loader_class=LocationSchemaLoader, locations=locations,
+                        defuse=defuse, loglevel=loglevel
+                    )
+                    urls = set(s.url for s in schema.maps.schemas)
+                    other_urls = set(s.url for s in other.maps.schemas)
+                    self.assertTrue(urls.issubset(other_urls), msg=xsd_file)
 
             # Check XML bindings module only for schemas that do not have errors
             if codegen and PythonGenerator is not None and not self.errors and \

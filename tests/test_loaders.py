@@ -14,7 +14,7 @@ import warnings
 from xmlschema import XMLSchema11
 from xmlschema import SchemaLoader, LocationSchemaLoader, SafeSchemaLoader
 from xmlschema.testing import XMLSchemaTestCase, run_xmlschema_tests
-from xmlschema import XMLSchemaParseError, XMLSchemaImportWarning
+from xmlschema import XMLSchemaParseError
 import xmlschema.names as nm
 
 

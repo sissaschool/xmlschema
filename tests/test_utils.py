@@ -823,7 +823,7 @@ class TestUtils(unittest.TestCase):
 
         xml_data = XMLResource('<root><child/></root>', lazy=True)
         with self.assertLogs('xmlschema', 'WARNING') as cm:
-            dump_data( xml_data, 1, 2, 3, 'foo')
+            dump_data(xml_data, 1, 2, 3, 'foo')
 
         self.assertIn('dump data for xmlschema', cm.output[0])
         self.assertNotIn('URL:', cm.output[0])
