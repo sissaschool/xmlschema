@@ -241,3 +241,17 @@ at runtime and can be deactivated after:
 
     >>> xmlschema.translation.deactivate()
 
+Schema loaders
+==============
+
+With v4.0 and beyond it's possible to variate the loading phase. When a schema instance
+is initialized is connected to or creates a :class:`xmlschema.XsdGlobals` instance and
+a :class:`xmlschema.SchemaLoader` instance for processing declared or explicit imports
+and includes. The default loader class process imports of namespaces, ignoring further
+import statements of the same namespace. This strategy is safe for avoiding component
+collisions, considering that schemas in other namespaces are usually edited and changed
+by others. If you need a loader that import any declared location you can provide the
+:class:`xmlschema.LocationSchemaLoader` through the option *loader_class*.
+For the same strategy you can provide :class:`xmlschema.SafeSchemaLoader`, that try all
+the unloaded locations without raising in case of collision, but in this case the
+loading phase could be slower.

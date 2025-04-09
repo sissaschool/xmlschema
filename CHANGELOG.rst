@@ -2,6 +2,16 @@
 CHANGELOG
 *********
 
+`v4.0.0`_ (2025-04-11)
+======================
+* Extend support of `lxml.etree` through *iterparse* optional argument
+* Rework internal decoding/encoding methods, replacing generators with normal functions
+* Replace kwargs with a validation context (DecodeContext and EncodeContext)
+* Add SchemaLoader class and variants (related to #419)
+* Slicing of XsdGlobals with parent maps
+* Fix `XsdUnion` validation performance issue (related to #442)
+* Drop support for Python 3.8
+
 `v3.4.4`_ (2025-03-18)
 ======================
 * Migrate project metadata to pyproject.toml (PR #436)
@@ -740,3 +750,4 @@ v0.9.6 (2017-05-05)
 .. _v3.4.2: https://github.com/brunato/xmlschema/compare/v3.4.1...v3.4.2
 .. _v3.4.3: https://github.com/brunato/xmlschema/compare/v3.4.2...v3.4.3
 .. _v3.4.4: https://github.com/brunato/xmlschema/compare/v3.4.3...v3.4.4
+.. _v4.0.0: https://github.com/brunato/xmlschema/compare/v3.4.4...v4.0.0

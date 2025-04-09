@@ -398,9 +398,9 @@ namespace information is associated within each node of the trees:
 
     >>> import xmlschema
     >>> from pprint import pprint
-    >>> import lxml.etree as ElementTree
+    >>> import lxml.etree as etree
     >>> xs = xmlschema.XMLSchema('tests/test_cases/examples/vehicles/vehicles.xsd')
-    >>> xt = ElementTree.parse('tests/test_cases/examples/vehicles/vehicles.xml')
+    >>> xt = etree.parse('tests/test_cases/examples/vehicles/vehicles.xml')
     >>> xs.is_valid(xt)
     True
     >>> pprint(xs.to_dict(xt))
@@ -419,6 +419,42 @@ namespace information is associated within each node of the trees:
                               {'@make': 'Yamaha', '@model': 'XS650'}]},
      'vh:cars': {'vh:car': [{'@make': 'Porsche', '@model': '911'},
                             {'@make': 'Porsche', '@model': '911'}]}}
+
+With the version v4.0.0 of the library the optional argument *iterparse* has been
+added for processing XML data using a dependency injection:
+
+.. doctest::
+
+    >>> from lxml.etree import iterparse
+    >>> schema_file = 'tests/test_cases/examples/vehicles/vehicles.xsd'
+    >>> xml_data = 'tests/test_cases/examples/vehicles/vehicles.xml'
+    >>> xs = xmlschema.XMLSchema(schema_file, iterparse=iterparse)
+    >>> type(xs.root)
+    <class 'lxml.etree._Element'>
+
+that option is applied also for creating :class:`xmlschema.XMLResource`
+instances when the validation is called using a schema API:
+
+    >>> xs.is_valid('tests/test_cases/examples/vehicles/vehicles.xml')
+    True
+    >>> obj = xs.to_dict(xt)
+    >>> pprint(obj)
+    {'@xmlns:vh': 'http://example.com/vehicles',
+     '@xmlns:xsi': 'http://www.w3.org/2001/XMLSchema-instance',
+     '@xsi:schemaLocation': 'http://example.com/vehicles vehicles.xsd',
+     'vh:bikes': {'vh:bike': [{'@make': 'Harley-Davidson', '@model': 'WL'},
+                              {'@make': 'Yamaha', '@model': 'XS650'}]},
+     'vh:cars': {'vh:car': [{'@make': 'Porsche', '@model': '911'},
+                            {'@make': 'Porsche', '@model': '911'}]}}
+    >>> root = xs.encode(obj)
+    >>> type(root)
+    <class 'lxml.etree._Element'>
+
+The same option is supported by package API (e.g. `xmlschema.to_dict`).
+
+The benefits of using *lxml* instead of *ElementTree* are mainly on namespace
+processing and an extended data model, but *ElementTree* structures can be fragmented
+without duplications so they could be more suitable for processing data in lazy mode.
 
 
 Customize the decoded data structure
