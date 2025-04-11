@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A valid instance with mixed namespace declarations -->
+<vehicles xmlns="http://example.com/vehicles"
+          xmlns:vh="http://xmlschema.test/other-ns"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://example.com/vehicles vehicles.xsd">
+  <vh:cars xmlns:vh="http://example.com/vehicles" xmlns="">
+    <vh:car make="Porsche" model="911" />
+    <!-- Comment -->
+    <vh:car make="Porsche" model="911" />
+  </vh:cars>
+  <vh:bikes xmlns:vh="http://example.com/vehicles" xmlns="">
+    <vh:bike make="Harley-Davidson" model="WL" />
+    <vh:bike make="Yamaha" model="XS650" />
+  </vh:bikes>
+</vehicles>
