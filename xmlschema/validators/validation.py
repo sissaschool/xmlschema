@@ -166,9 +166,6 @@ class ValidationContext:
 
     def raise_or_collect(self, validation: str, error: XMLSchemaValidationError) \
             -> XMLSchemaValidationError:
-        if validation == 'skip':
-            return error
-
         if error.elem is None and self.elem is not None:
             error.elem = self.elem
 
@@ -185,7 +182,8 @@ class ValidationContext:
             error.stack_trace = format_xmlschema_stack('xmlschema/validators')
             logger.debug("Collect %r with traceback:\n%s", error, error.stack_trace)
 
-        self.errors.append(error)
+        if validation == 'lax':
+            self.errors.append(error)
         return error
 
     def validation_error(self,

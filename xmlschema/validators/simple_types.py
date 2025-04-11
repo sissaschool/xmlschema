@@ -12,7 +12,6 @@ This module contains classes for XML Schema simple data types.
 """
 import re
 from collections.abc import Callable, Iterator
-from copy import copy
 from decimal import DecimalException, Decimal
 from functools import cached_property
 from typing import cast, Any, Optional, Union, Type
@@ -32,9 +31,10 @@ from xmlschema.names import XSD_NAMESPACE, XSD_ANY_TYPE, XSD_SIMPLE_TYPE, XSD_PA
     XSD_EXPLICIT_TIMEZONE, XSD_ERROR, XSD_ASSERT, XSD_QNAME, XSD_NOTATION
 from xmlschema.translation import gettext as _
 from xmlschema.utils.qnames import local_name, get_extended_qname
+from xmlschema.utils.decoding import raw_encode_value
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaParseError, \
-    XMLSchemaCircularityError
+    XMLSchemaCircularityError, XMLSchemaDecodeError, XMLSchemaEncodeError
 from .validation import DecodeContext, EncodeContext, ValidationMixin
 from .xsdbase import XsdComponent, XsdType
 from .facets import XsdFacet, XsdWhiteSpaceFacet, XsdPatternFacets, \
@@ -692,7 +692,7 @@ class XsdAtomicBuiltin(XsdAtomic):
             try:
                 return self.to_python(obj)
             except (ValueError, DecimalException):
-                return str(obj)
+                return raw_encode_value(obj)
 
         if self.patterns is not None:
             try:
@@ -772,7 +772,7 @@ class XsdAtomicBuiltin(XsdAtomic):
             try:
                 return self.from_python(obj)
             except ValueError:
-                return str(obj)
+                return raw_encode_value(obj)
 
         elif isinstance(obj, bool):
             if self.instance_types is not bool or isinstance(self.instance_types, tuple) \
@@ -1132,23 +1132,21 @@ class XsdUnion(XsdSimpleType):
 
         xsd_type = None
         for mt in self.member_types:
-            temp_context = copy(context)
-            temp_context.errors.clear()
-
-            result = mt.raw_decode(obj, 'lax', temp_context)
-            if result is not None:
-                if xsd_type is None:
+            try:
+                result = mt.raw_decode(obj, 'strict', context)
+            except XMLSchemaValidationError as err:
+                if xsd_type is None and not isinstance(err, XMLSchemaDecodeError):
                     xsd_type = mt
-                if not temp_context.errors:
-                    if patterns and isinstance(obj, (str, bytes)):
-                        try:
-                            patterns(mt.normalize(obj))
-                        except XMLSchemaValidationError:
-                            continue
-                    return mt.raw_decode(obj, validation, context)
+            else:
+                if patterns and isinstance(obj, (str, bytes)):
+                    try:
+                        patterns(mt.normalize(obj))
+                    except XMLSchemaValidationError:
+                        continue
+                return result
 
         if validation == 'skip':
-            return None if obj is None else str(obj)
+            return raw_encode_value(obj)
         elif validation == 'lax' and xsd_type is not None:
             result = xsd_type.raw_decode(obj, validation, context)
             if patterns and isinstance(obj, (str, bytes)):
@@ -1168,23 +1166,21 @@ class XsdUnion(XsdSimpleType):
 
         xsd_type = None
         for mt in self.member_types:
-            temp_context = copy(context)
-            temp_context.errors.clear()
-
-            result = mt.raw_encode(obj, 'lax', temp_context)
-            if result is not None:
-                if xsd_type is None:
+            try:
+                result = mt.raw_encode(obj, 'strict', context)
+            except XMLSchemaValidationError as err:
+                if xsd_type is None and not isinstance(err, XMLSchemaEncodeError):
                     xsd_type = mt
-                if not temp_context.errors:
-                    if patterns and isinstance(obj, (str, bytes)):
-                        try:
-                            patterns(mt.normalize(obj))
-                        except XMLSchemaValidationError:
-                            continue
-                    return mt.raw_encode(obj, validation, context)
+            else:
+                if patterns and isinstance(obj, (str, bytes)):
+                    try:
+                        patterns(mt.normalize(obj))
+                    except XMLSchemaValidationError:
+                        continue
+                return result
 
         if validation == 'skip':
-            return None if obj is None else str(obj)
+            return raw_encode_value(obj)
         elif validation == 'lax' and xsd_type is not None:
             result = xsd_type.raw_encode(obj, validation, context)
             if patterns and isinstance(obj, (str, bytes)):

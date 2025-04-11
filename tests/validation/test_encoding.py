@@ -270,18 +270,21 @@ class TestEncoding(XsdValidatorTestCase):
         self.check_encode(integer_or_float, -95, '-95')
         self.check_encode(integer_or_float, -95.0, '-95.0')
         self.check_encode(integer_or_float, True, XMLSchemaEncodeError)
-        self.check_encode(integer_or_float, True, '1', validation='lax')
+        self.check_encode(integer_or_float, True, 'true', validation='skip')
+        self.check_encode(integer_or_float, True, None, validation='lax')
 
         integer_or_string = self.st_schema.types['integer_or_string']
         self.check_encode(integer_or_string, 89, '89')
-        self.check_encode(integer_or_string, 89.0, '89', validation='lax')
+        self.check_encode(integer_or_string, 89.0, '89.0', validation='skip')
+        self.check_encode(integer_or_string, 89.0, None, validation='lax')
         self.check_encode(integer_or_string, 89.0, XMLSchemaEncodeError)
         self.check_encode(integer_or_string, False, XMLSchemaEncodeError)
         self.check_encode(integer_or_string, "Venice ", 'Venice ')
 
         boolean_or_integer_or_string = self.st_schema.types['boolean_or_integer_or_string']
         self.check_encode(boolean_or_integer_or_string, 89, '89')
-        self.check_encode(boolean_or_integer_or_string, 89.0, '89', validation='lax')
+        self.check_encode(boolean_or_integer_or_string, 89.0, '89.0', validation='skip')
+        self.check_encode(boolean_or_integer_or_string, 89.0, None, validation='lax')
         self.check_encode(boolean_or_integer_or_string, 89.0, XMLSchemaEncodeError)
         self.check_encode(boolean_or_integer_or_string, False, 'false')
         self.check_encode(boolean_or_integer_or_string, "Venice ", 'Venice ')

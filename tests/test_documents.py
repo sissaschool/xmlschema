@@ -29,7 +29,7 @@ from xmlschema import XMLSchema10, XMLSchema11, XmlDocument, XMLResourceError, \
     XMLSchemaParseError, is_valid, to_dict, to_etree, JsonMLConverter
 
 from xmlschema.names import XSD_NAMESPACE, XSI_NAMESPACE, XSD_SCHEMA
-from xmlschema.utils.etree import is_etree_element, is_etree_document
+from xmlschema.utils.etree import is_etree_element, is_etree_document, is_lxml_element
 from xmlschema.resources import XMLResource
 from xmlschema.documents import get_context
 from xmlschema.testing import etree_elements_assert_equal, SKIP_REMOTE_TESTS, \
@@ -185,6 +185,36 @@ class TestXmlDocuments(XMLSchemaTestCase):
             source, schema = get_context(f, base_url=self.vh_dir)
             self.assertIsInstance(source, XMLResource)
             self.assertIsInstance(schema, XMLSchema10)
+
+        if lxml_etree is not None:
+            source, schema = get_context(self.col_xml_file, iterparse=lxml_etree.iterparse)
+            self.assertIsInstance(source, XMLResource)
+            self.assertIsInstance(schema, XMLSchema10)
+            self.assertTrue(is_lxml_element(source.root))
+            self.assertTrue(is_lxml_element(schema.root))
+
+            source, schema = get_context(self.col_xml_file, self.col_xsd_file,
+                                         iterparse=lxml_etree.iterparse)
+            self.assertIsInstance(source, XMLResource)
+            self.assertIsInstance(schema, XMLSchema10)
+            self.assertTrue(is_lxml_element(source.root))
+            self.assertTrue(is_lxml_element(schema.root))
+
+            col_schema = XMLSchema10(self.col_xsd_file)
+            source, schema = get_context(self.col_xml_file, col_schema,
+                                         iterparse=lxml_etree.iterparse)
+            self.assertIsInstance(source, XMLResource)
+            self.assertIs(schema, col_schema)
+            self.assertTrue(is_lxml_element(source.root))
+            self.assertFalse(is_lxml_element(schema.root))
+
+            xml_document = XmlDocument(self.vh_xml_file, iterparse=lxml_etree.iterparse)
+            source, schema = get_context(xml_document)
+            self.assertIsInstance(source, XMLResource)
+            self.assertIsInstance(schema, XMLSchema10)
+            self.assertIs(xml_document.schema, schema)
+            self.assertTrue(is_lxml_element(source.root))
+            self.assertTrue(is_lxml_element(schema.root))
 
     def test_get_context_without_schema(self):
         xml_data = '<text xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"\n' \
@@ -496,6 +526,10 @@ class TestXmlDocuments(XMLSchemaTestCase):
         self.assertTrue(is_etree_document(etree_document))
         self.assertTrue(hasattr(etree_document, 'xpath'))
         self.assertTrue(hasattr(etree_document, 'xslt'))
+
+        xml_document = XmlDocument(self.vh_xml_file, iterparse=lxml_etree.iterparse)
+        self.assertTrue(is_etree_element(xml_document.root))
+        self.assertTrue(hasattr(xml_document.root, 'xpath'))
 
     def test_xml_document_tostring(self):
         xml_document = XmlDocument(self.vh_xml_file)
