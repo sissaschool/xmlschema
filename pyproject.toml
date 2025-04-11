@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools >= 61.0"]
+requires = ["setuptools >= 77.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -7,7 +7,8 @@ name = "xmlschema"
 version = "4.0.0"
 description = "An XML Schema validator and decoder"
 readme = "README.rst"
-license = {text = "MIT"}
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.9"
 authors = [
     { name = "Davide Brunato", email = "brunato@sissa.it" },
@@ -17,7 +18,6 @@ classifiers = [
     "Intended Audience :: Developers",
     "Intended Audience :: Information Technology",
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
@@ -66,7 +66,6 @@ xmlschema-xml2json = "xmlschema.cli:xml2json"
 Homepage = "https://github.com/sissaschool/xmlschema"
 
 [tool.setuptools]
-license-files = [ "LICENSE" ]
 include-package-data = false
 
 [tool.setuptools.package-data]
