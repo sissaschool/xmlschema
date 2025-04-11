@@ -20,7 +20,7 @@ import logging
 from abc import ABC, ABCMeta
 from fnmatch import fnmatch
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional
 
 from jinja2 import Environment, ChoiceLoader, FileSystemLoader, \
     TemplateNotFound, TemplateAssertionError
@@ -129,7 +129,7 @@ class AbstractGenerator(ABC, metaclass=GeneratorMeta):
     formal_language: Optional[str] = None
     """The formal language associated to the code generator (eg. Python)."""
 
-    searchpaths: Optional[List[str]] = None
+    searchpaths: Optional[list[str]] = None
     """
     Directory paths for searching templates, specified with a list or a tuple.
     Each path must be provided as relative from the directory of the module
@@ -154,7 +154,7 @@ class AbstractGenerator(ABC, metaclass=GeneratorMeta):
         file_loaders = []
         if searchpath:
             file_loaders.append(FileSystemLoader(searchpath))
-        if self.searchpaths:
+        if self.searchpaths is not None:
             file_loaders.extend(
                 FileSystemLoader(str(path)) for path in reversed(self.searchpaths)
             )

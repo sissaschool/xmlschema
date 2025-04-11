@@ -10,47 +10,13 @@
 #
 import io
 import unittest
-import os
 import copy
 from textwrap import dedent
 
 from xmlschema import XMLResource, XMLSchemaConverter
+from xmlschema.locations import get_locations
 from xmlschema.names import XSD_NAMESPACE, XSI_NAMESPACE
-from xmlschema.namespaces import NamespaceResourcesMap, NamespaceMapper, NamespaceView
-
-CASES_DIR = os.path.join(os.path.dirname(__file__), '../test_cases')
-
-
-class TestNamespaceResourcesMap(unittest.TestCase):
-
-    def test_init(self):
-        nsmap = [('tns0', 'schema1.xsd')]
-        self.assertEqual(NamespaceResourcesMap(), {})
-        self.assertEqual(NamespaceResourcesMap(nsmap), {'tns0': ['schema1.xsd']})
-        nsmap.append(('tns0', 'schema2.xsd'))
-        self.assertEqual(NamespaceResourcesMap(nsmap), {'tns0': ['schema1.xsd', 'schema2.xsd']})
-
-    def test_repr(self):
-        namespaces = NamespaceResourcesMap()
-        namespaces['tns0'] = 'schema1.xsd'
-        namespaces['tns1'] = 'schema2.xsd'
-        self.assertEqual(repr(namespaces), "{'tns0': ['schema1.xsd'], 'tns1': ['schema2.xsd']}")
-
-    def test_dictionary_methods(self):
-        namespaces = NamespaceResourcesMap()
-        namespaces['tns0'] = 'schema1.xsd'
-        namespaces['tns1'] = 'schema2.xsd'
-        self.assertEqual(namespaces, {'tns0': ['schema1.xsd'], 'tns1': ['schema2.xsd']})
-
-        self.assertEqual(len(namespaces), 2)
-        self.assertEqual({x for x in namespaces}, {'tns0', 'tns1'})
-
-        del namespaces['tns0']
-        self.assertEqual(namespaces, {'tns1': ['schema2.xsd']})
-        self.assertEqual(len(namespaces), 1)
-
-        namespaces.clear()
-        self.assertEqual(namespaces, {})
+from xmlschema.namespaces import NamespaceMapper, NamespaceResourcesMap
 
 
 class TestNamespaceMapper(unittest.TestCase):
@@ -490,60 +456,51 @@ class TestNamespaceMapper(unittest.TestCase):
         self.assertIsNone(xmlns)
 
 
-class TestNamespaceView(unittest.TestCase):
+class TestNamespaceResourcesMap(unittest.TestCase):
 
     def test_init(self):
-        qnames = {'{tns0}name0': 0, '{tns1}name1': 1, 'name2': 2}
-        ns_view = NamespaceView(qnames, 'tns1')
-        self.assertEqual(ns_view, {'name1': 1})
+        nsmap = [('tns0', 'schema1.xsd')]
+        self.assertEqual(NamespaceResourcesMap(), {})
+        self.assertEqual(NamespaceResourcesMap(nsmap), {'tns0': ['schema1.xsd']})
+        nsmap.append(('tns0', 'schema2.xsd'))
+        self.assertEqual(NamespaceResourcesMap(nsmap), {'tns0': ['schema1.xsd', 'schema2.xsd']})
 
     def test_repr(self):
-        qnames = {'{tns0}name0': 0, '{tns1}name1': 1, 'name2': 2}
-        ns_view = NamespaceView(qnames, 'tns0')
-        self.assertEqual(repr(ns_view), "NamespaceView({'name0': 0})")
+        namespaces = NamespaceResourcesMap()
+        namespaces['tns0'] = 'schema1.xsd'
+        namespaces['tns1'] = 'schema2.xsd'
+        self.assertEqual(repr(namespaces), "{'tns0': ['schema1.xsd'], 'tns1': ['schema2.xsd']}")
 
-    def test_getitem(self):
-        qnames = {'{tns0}name0': 0, '{tns1}name1': 1, 'name2': 2}
-        ns_view = NamespaceView(qnames, 'tns1')
+    def test_dictionary_methods(self):
+        namespaces = NamespaceResourcesMap()
+        namespaces['tns0'] = 'schema1.xsd'
+        namespaces['tns1'] = 'schema2.xsd'
+        self.assertEqual(namespaces, {'tns0': ['schema1.xsd'], 'tns1': ['schema2.xsd']})
 
-        self.assertEqual(ns_view['name1'], 1)
+        self.assertEqual(len(namespaces), 2)
+        self.assertEqual({x for x in namespaces}, {'tns0', 'tns1'})
 
-        with self.assertRaises(KeyError):
-            ns_view['name0']
+        del namespaces['tns0']
+        self.assertEqual(namespaces, {'tns1': ['schema2.xsd']})
+        self.assertEqual(len(namespaces), 1)
 
-    def test_contains(self):
-        qnames = {'{tns0}name0': 0, '{tns1}name1': 1, 'name2': 2}
-        ns_view = NamespaceView(qnames, 'tns1')
+        namespaces.clear()
+        self.assertEqual(namespaces, {})
 
-        self.assertIn('name1', ns_view)
-        self.assertNotIn('{tns1}name1', ns_view)
-        self.assertNotIn('{tns0}name0', ns_view)
-        self.assertNotIn('name0', ns_view)
-        self.assertNotIn('name2', ns_view)
-        self.assertNotIn(1, ns_view)
+    def test_copy(self):
+        namespaces = NamespaceResourcesMap(
+            (('tns0', 'schema1.xsd'), ('tns1', 'schema2.xsd'), ('tns0', 'schema3.xsd'))
+        )
+        self.assertEqual(namespaces, namespaces.copy())
 
-    def test_as_dict(self):
-        qnames = {'{tns0}name0': 0, '{tns1}name1': 1, '{tns1}name2': 2, 'name3': 3}
-        ns_view = NamespaceView(qnames, 'tns1')
-        self.assertEqual(ns_view.as_dict(), {'name1': 1, 'name2': 2})
-        self.assertEqual(ns_view.as_dict(True), {'{tns1}name1': 1, '{tns1}name2': 2})
+    def test_get_locations(self):
+        self.assertEqual(get_locations(None), NamespaceResourcesMap())
+        self.assertRaises(TypeError, get_locations, 1)
+        locations = (('tns0', 'schema1.xsd'), ('tns1', 'schema2.xsd'), ('tns0', 'schema3.xsd'))
 
-        ns_view = NamespaceView(qnames, '')
-        self.assertEqual(ns_view.as_dict(), {'name3': 3})
-        self.assertEqual(ns_view.as_dict(True), {'name3': 3})
-
-    def test_iter(self):
-        qnames = {'{tns0}name0': 0, '{tns1}name1': 1, '{tns1}name2': 2, 'name3': 3}
-        ns_view = NamespaceView(qnames, 'tns1')
-        self.assertListEqual(list(ns_view), ['name1', 'name2'])
-        ns_view = NamespaceView(qnames, '')
-        self.assertListEqual(list(ns_view), ['name3'])
+        self.assertEqual(get_locations(locations), NamespaceResourcesMap(locations))
 
 
 if __name__ == '__main__':
-    import platform
-    header_template = "Test xmlschema namespaces with Python {} on {}"
-    header = header_template.format(platform.python_version(), platform.platform())
-    print('{0}\n{1}\n{0}'.format("*" * len(header), header))
-
-    unittest.main()
+    from xmlschema.testing import run_xmlschema_tests
+    run_xmlschema_tests('helpers for namespaces')

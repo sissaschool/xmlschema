@@ -7,6 +7,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+from xml.etree.ElementTree import ParseError
 
 
 class XMLSchemaException(Exception):
@@ -37,13 +38,35 @@ class XMLSchemaRuntimeError(XMLSchemaException, RuntimeError):
     pass
 
 
-class XMLResourceError(XMLSchemaException, OSError):
-    """Raised when an error is found accessing an XML resource."""
-
-
 class XMLSchemaNamespaceError(XMLSchemaException, RuntimeError):
     """Raised when a wrong runtime condition is found with a namespace."""
 
 
 class XMLSchemaWarning(Warning):
     """Base warning class for the XMLSchema package."""
+
+
+class XMLResourceError(XMLSchemaException):
+    """
+    A generic error on an XML resource that catches all the errors generated
+    by an XML resource/loader instance on accessing XML data.
+    """
+
+
+class XMLResourceParseError(XMLResourceError, ParseError):
+    """Raised when an error is found parsing an XML resource."""
+
+
+class XMLResourceBlocked(XMLResourceError):
+    """Raised when an XML resource access is blocked by security settings."""
+
+
+class XMLResourceForbidden(XMLResourceError):
+    """Raised when the parsing of an XML resource is forbidden for safety reasons."""
+
+
+class XMLResourceOSError(XMLResourceError, OSError):
+    """
+    Raised when an XMLResource calls a system function that returns a system-related error,
+    including I/O operations.
+    """

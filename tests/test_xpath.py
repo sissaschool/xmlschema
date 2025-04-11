@@ -172,6 +172,14 @@ class XPathElementTest(unittest.TestCase):
         elem = XPathElement('foo', self.col_schema.types['objType'])
         self.assertEqual(elem.target_namespace, 'http://example.com/ns/collection')
 
+    def test_xsd_version(self):
+        elem = XPathElement('foo', self.col_schema.types['objType'])
+        self.assertEqual(elem.xsd_version, self.col_schema.xsd_version)
+
+    def test_maps(self):
+        elem = XPathElement('foo', self.col_schema.types['objType'])
+        self.assertIs(elem.maps, self.col_schema.maps)
+
     def test_elem_name(self):
         elem = XPathElement('foo', self.col_schema.types['objType'])
         try:
@@ -324,9 +332,5 @@ class ElementTreeXPathTest(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    import platform
-    header_template = "Test xmlschema XPath with Python {} on {}"
-    header = header_template.format(platform.python_version(), platform.platform())
-    print('{0}\n{1}\n{0}'.format("*" * len(header), header))
-
-    unittest.main()
+    from xmlschema.testing import run_xmlschema_tests
+    run_xmlschema_tests('XPath processor')

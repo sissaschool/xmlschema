@@ -22,11 +22,12 @@ from elementpath.etree import etree_tostring
 
 from xmlschema import XMLSchema, XMLSchemaValidationError, fetch_namespaces
 from xmlschema.dataobjects import DataElement
-from xmlschema.testing import etree_elements_assert_equal
+from xmlschema.testing import etree_elements_assert_equal, run_xmlschema_tests
 
 from xmlschema.converters import XMLSchemaConverter, UnorderedConverter, \
     ParkerConverter, BadgerFishConverter, AbderaConverter, JsonMLConverter, \
-    ColumnarConverter, GDataConverter
+    ColumnarConverter, GDataConverter, check_converter_argument
+from xmlschema.namespaces import NamespaceMapper
 from xmlschema.dataobjects import DataElementConverter
 
 
@@ -59,6 +60,10 @@ class TestConverters(unittest.TestCase):
     @classmethod
     def casepath(cls, relative_path):
         return str(Path(__file__).parent.joinpath('test_cases', relative_path))
+
+    def test_check_converter_argument(self):
+        self.assertIsNone(check_converter_argument(XMLSchemaConverter()))
+        self.assertRaises(TypeError, check_converter_argument, NamespaceMapper())
 
     def test_element_class_argument(self):
         converter = XMLSchemaConverter()
@@ -702,10 +707,4 @@ class TestConverters(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    import platform
-
-    header_template = "Test xmlschema converters with Python {} on {}"
-    header = header_template.format(platform.python_version(), platform.platform())
-    print('{0}\n{1}\n{0}'.format("*" * len(header), header))
-
-    unittest.main()
+    run_xmlschema_tests('converters')

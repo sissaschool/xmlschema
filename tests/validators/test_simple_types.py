@@ -8,7 +8,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-import unittest
+import pathlib
 
 from xmlschema import XMLSchemaParseError, XMLSchemaValidationError
 from xmlschema.names import XSD_LIST, XSD_UNION
@@ -17,6 +17,8 @@ from xmlschema.testing import XsdValidatorTestCase
 
 
 class TestXsdSimpleTypes(XsdValidatorTestCase):
+
+    cases_dir = pathlib.Path(__file__).parent.joinpath('../test_cases')
 
     def test_simple_types(self):
         # Issue #54: set list or union schema element.
@@ -30,9 +32,9 @@ class TestXsdSimpleTypes(XsdValidatorTestCase):
             <xs:union memberTypes="xs:string xs:integer xs:boolean"/>
         </xs:simpleType>
         """)
-        xs.types['test_list'].elem = xs.root[0]  # elem.tag == 'simpleType'
+        xs.types['test_list'].parse(xs.root[0])  # elem.tag == 'simpleType'
         self.assertEqual(xs.types['test_list'].elem.tag, XSD_LIST)
-        xs.types['test_union'].elem = xs.root[1]  # elem.tag == 'simpleType'
+        xs.types['test_union'].parse(xs.root[1])  # elem.tag == 'simpleType'
         self.assertEqual(xs.types['test_union'].elem.tag, XSD_UNION)
 
     def test_variety_property(self):
@@ -255,9 +257,5 @@ class TestXsd11SimpleTypes(TestXsdSimpleTypes):
 
 
 if __name__ == '__main__':
-    import platform
-    header_template = "Test xmlschema's XSD simple types with Python {} on {}"
-    header = header_template.format(platform.python_version(), platform.platform())
-    print('{0}\n{1}\n{0}'.format("*" * len(header), header))
-
-    unittest.main()
+    from xmlschema.testing import run_xmlschema_tests
+    run_xmlschema_tests('simple types')

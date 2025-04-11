@@ -89,9 +89,6 @@ class TestPackaging(unittest.TestCase):
             'XSD_1.1/XMLSchema.xsd',
             'XHTML/xhtml1-strict.xsd',
             'XLINK/xlink.xsd',
-            'XML/xml_minimal.xsd',
-            'HFP/XMLSchema-hasFacetAndProperty_minimal.xsd',
-            'XSI/XMLSchema-instance_minimal.xsd',
             'DSIG/xmldsig11-schema.xsd',
             'DSIG/xmldsig-core-schema.xsd',
             'VC/XMLSchema-versioning.xsd',
@@ -109,9 +106,5 @@ class TestPackaging(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    import platform
-    header_template = "Packaging tests for xmlschema with Python {} on {}"
-    header = header_template.format(platform.python_version(), platform.platform())
-    print('{0}\n{1}\n{0}'.format("*" * len(header), header))
-
-    unittest.main()
+    from xmlschema.testing import run_xmlschema_tests
+    run_xmlschema_tests('packaging')

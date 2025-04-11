@@ -10,21 +10,15 @@
 #
 """Tests concerning WSDL documents. Examples from WSDL 1.1 definition document."""
 
-import unittest
 import pathlib
+import warnings
 from xml.etree import ElementTree
 
 from xmlschema import XMLSchemaValidationError, XMLSchema10, XMLSchema11
 from xmlschema.extras.wsdl import WsdlParseError, WsdlComponent, WsdlMessage, \
     WsdlPortType, WsdlOperation, WsdlBinding, WsdlService, Wsdl11Document, \
     WsdlInput, SoapHeader
-
-
-TEST_CASES_DIR = str(pathlib.Path(__file__).absolute().parent.joinpath('test_cases'))
-
-
-def casepath(relative_path):
-    return str(pathlib.Path(TEST_CASES_DIR).joinpath(relative_path))
+from xmlschema.testing import XMLSchemaTestCase, run_xmlschema_tests
 
 
 WSDL_DOCUMENT_EXAMPLE = """<?xml version="1.0"?>
@@ -122,17 +116,19 @@ WSDL_DOCUMENT_NO_SOAP = """<?xml version="1.0"?>
 """
 
 
-class TestWsdlDocuments(unittest.TestCase):
+class TestWsdlDocuments(XMLSchemaTestCase):
+
+    cases_dir = pathlib.Path(__file__).absolute().parent.joinpath('test_cases')
 
     @classmethod
     def setUpClass(cls):
-        cls.vh_dir = casepath('examples/vehicles')
-        cls.vh_xsd_file = casepath('examples/vehicles/vehicles.xsd')
-        cls.vh_xml_file = casepath('examples/vehicles/vehicles.xml')
+        cls.vh_dir = cls.casepath('examples/vehicles')
+        cls.vh_xsd_file = cls.casepath('examples/vehicles/vehicles.xsd')
+        cls.vh_xml_file = cls.casepath('examples/vehicles/vehicles.xml')
 
-        cls.col_dir = casepath('examples/collection')
-        cls.col_xsd_file = casepath('examples/collection/collection.xsd')
-        cls.col_xml_file = casepath('examples/collection/collection.xml')
+        cls.col_dir = cls.casepath('examples/collection')
+        cls.col_xsd_file = cls.casepath('examples/collection/collection.xsd')
+        cls.col_xml_file = cls.casepath('examples/collection/collection.xml')
 
     def test_wsdl_document_init(self):
         wsdl_document = Wsdl11Document(WSDL_DOCUMENT_EXAMPLE)
@@ -142,7 +138,8 @@ class TestWsdlDocuments(unittest.TestCase):
         wsdl_document = Wsdl11Document(WSDL_DOCUMENT_EXAMPLE, cls=XMLSchema11)
         self.assertIsInstance(wsdl_document.schema, XMLSchema11)
 
-        self.assertIn('http://example.com/stockquote.xsd', wsdl_document.schema.maps.namespaces)
+        self.assertIn('http://example.com/stockquote.xsd',
+                      wsdl_document.schema.maps.namespaces)
         self.assertIn('{http://example.com/stockquote.xsd}TradePriceRequest',
                       wsdl_document.schema.maps.elements)
         self.assertIn('{http://example.com/stockquote.xsd}TradePrice',
@@ -178,8 +175,24 @@ class TestWsdlDocuments(unittest.TestCase):
         for service in wsdl_document.maps.services.values():
             self.assertIsInstance(service, WsdlService)
 
-        wsdl_document = Wsdl11Document(WSDL_DOCUMENT_EXAMPLE, locations=[('x', 'y'), ('x', 'z')])
-        self.assertEqual(wsdl_document.locations, {'x': ['y', 'z']})
+        with warnings.catch_warnings(record=True) as ctx:
+            warnings.simplefilter("always")
+            wsdl_document = Wsdl11Document(
+                WSDL_DOCUMENT_EXAMPLE, locations=(('x', 'y'), ('x', 'z'))
+            )
+            self.assertEqual(wsdl_document.locations, {'x': ['y', 'z']})
+            self.assertEqual(len(ctx), 1, "Expected one import warning")
+            self.assertIn("Import of namespace 'x' from ['y', 'z'] failed", str(ctx[0].message))
+
+        with warnings.catch_warnings(record=True) as ctx:
+            warnings.simplefilter("always")
+            wsdl_document = Wsdl11Document(
+                WSDL_DOCUMENT_EXAMPLE, locations=[('x', 'y'), ('x', 'z')]
+            )
+            self.assertNotEqual(wsdl_document.locations, {'x': ['y', 'z']})  # Normalized
+            self.assertEqual(len(ctx), 1, "Expected one import warning")
+            self.assertRegex(str(ctx[0].message),
+                             r"Import of namespace 'x' from \[[^]]*\] failed")
 
     def test_schema_class(self):
         wsdl_document = Wsdl11Document(WSDL_DOCUMENT_EXAMPLE)
@@ -210,19 +223,19 @@ class TestWsdlDocuments(unittest.TestCase):
 
         with self.assertRaises(ValueError) as ctx:
             Wsdl11Document(WSDL_DOCUMENT_EXAMPLE, validation='invalid')
-        self.assertEqual("'invalid' is not a validation mode", str(ctx.exception))
+        self.assertEqual("validation mode can be 'strict', 'lax' or 'skip': 'invalid'",
+                         str(ctx.exception))
 
     def test_example3(self):
-        original_example3_file = casepath('features/wsdl/wsdl11_example3.wsdl')
+        original_example3_file = self.casepath('features/wsdl/wsdl11_example3.wsdl')
         with self.assertRaises(XMLSchemaValidationError):
             Wsdl11Document(original_example3_file)
 
         wsdl_document = Wsdl11Document(original_example3_file, validation='lax')
         self.assertEqual(len(wsdl_document.errors), 1)
 
-        example3_file = casepath('features/wsdl/wsdl11_example3_valid.wsdl')
+        example3_file = self.casepath('features/wsdl/wsdl11_example3_valid.wsdl')
         wsdl_document = Wsdl11Document(example3_file)
-
         message_name = '{http://example.com/stockquote.wsdl}SubscribeToQuotes'
         self.assertListEqual(list(wsdl_document.messages), [message_name])
         message = wsdl_document.messages[message_name]
@@ -259,11 +272,11 @@ class TestWsdlDocuments(unittest.TestCase):
         self.assertEqual(port.soap_location, 'mailto:subscribe@example.com')
 
     def test_example3_without_types__issue_347(self):
-        no_types_file = casepath('features/wsdl/wsdl11_example3_no_types.wsdl')
+        no_types_file = self.casepath('features/wsdl/wsdl11_example3_no_types.wsdl')
         with self.assertRaises(WsdlParseError):
             Wsdl11Document(no_types_file)
 
-        schema_file = casepath('features/wsdl/wsdl11_example3_types.xsd')
+        schema_file = self.casepath('features/wsdl/wsdl11_example3_types.xsd')
         wsdl_document = Wsdl11Document(no_types_file, schema=schema_file)
 
         self.assertIn('{http://example.com/stockquote.xsd}SubscribeToQuotes',
@@ -272,11 +285,11 @@ class TestWsdlDocuments(unittest.TestCase):
                       wsdl_document.schema.maps.elements)
 
     def test_example4(self):
-        original_example4_file = casepath('features/wsdl/wsdl11_example4.wsdl')
+        original_example4_file = self.casepath('features/wsdl/wsdl11_example4.wsdl')
         with self.assertRaises(XMLSchemaValidationError):
             Wsdl11Document(original_example4_file)
 
-        example_4_file = casepath('features/wsdl/wsdl11_example4_valid.wsdl')
+        example_4_file = self.casepath('features/wsdl/wsdl11_example4_valid.wsdl')
         wsdl_document = Wsdl11Document(example_4_file)
 
         message1_name = '{http://example.com/stockquote.wsdl}GetTradePriceInput'
@@ -331,11 +344,11 @@ class TestWsdlDocuments(unittest.TestCase):
         self.assertEqual(port.soap_location, 'http://example.com/stockquote')
 
     def test_example5(self):
-        original_example5_file = casepath('features/wsdl/wsdl11_example5.wsdl')
+        original_example5_file = self.casepath('features/wsdl/wsdl11_example5.wsdl')
         with self.assertRaises(ElementTree.ParseError):
             Wsdl11Document(original_example5_file)
 
-        example5_file = casepath('features/wsdl/wsdl11_example5_valid.wsdl')
+        example5_file = self.casepath('features/wsdl/wsdl11_example5_valid.wsdl')
         wsdl_document = Wsdl11Document(example5_file)
 
         message1_name = '{http://example.com/stockquote.wsdl}GetTradePricesInput'
@@ -389,7 +402,7 @@ class TestWsdlDocuments(unittest.TestCase):
         self.assertEqual(port.soap_location, 'http://example.com/stockquote')
 
     def test_wsdl_document_imports(self):
-        stockquote_file = casepath('examples/stockquote/stockquote.wsdl')
+        stockquote_file = self.casepath('examples/stockquote/stockquote.wsdl')
         wsdl_document = Wsdl11Document(stockquote_file)
         self.assertEqual(wsdl_document.target_namespace,
                          "http://example.com/stockquote/definitions")
@@ -404,7 +417,7 @@ class TestWsdlDocuments(unittest.TestCase):
             'http://example.com/stockquote/schemas',
         ])
 
-        stockquote_service_file = casepath('examples/stockquote/stockquoteservice.wsdl')
+        stockquote_service_file = self.casepath('examples/stockquote/stockquoteservice.wsdl')
 
         wsdl_document = Wsdl11Document(stockquote_service_file)
         self.assertListEqual(list(wsdl_document.imports), [
@@ -427,14 +440,16 @@ class TestWsdlDocuments(unittest.TestCase):
         self.assertIn('import of namespace', str(ctx.exception))
 
         locations = [('http://example.com/ns', 'missing-file2')]
-        with self.assertRaises(WsdlParseError) as ctx:
-            Wsdl11Document(wsdl_template.format('missing-file'), locations=locations)
-        self.assertIn('import of namespace', str(ctx.exception))
+        with warnings.catch_warnings(record=True):
+            warnings.simplefilter("always")
+            with self.assertRaises(WsdlParseError) as ctx:
+                Wsdl11Document(wsdl_template.format('missing-file'), locations=locations)
+            self.assertIn('import of namespace', str(ctx.exception))
 
-        malformed_file = casepath('resources/malformed.xml')
+        malformed_file = self.casepath('resources/malformed.xml')
         with self.assertRaises(WsdlParseError) as ctx:
             Wsdl11Document(wsdl_template.format(malformed_file))
-        self.assertIn('cannot import namespace', str(ctx.exception))
+        self.assertIn('can\'t import namespace', str(ctx.exception))
         self.assertIn('no element found', str(ctx.exception))
 
         wsdl_template = """<?xml version="1.0"?>
@@ -444,7 +459,7 @@ class TestWsdlDocuments(unittest.TestCase):
             <import namespace="http://example.com/ns" location="{0}"/>
         </definitions>"""
 
-        stockquote_file = casepath('examples/stockquote/stockquote.wsdl')
+        stockquote_file = self.casepath('examples/stockquote/stockquote.wsdl')
         with self.assertRaises(WsdlParseError) as ctx:
             Wsdl11Document(wsdl_template.format(stockquote_file))
         self.assertIn('namespace to import must be different', str(ctx.exception))
@@ -462,7 +477,7 @@ class TestWsdlDocuments(unittest.TestCase):
         self.assertIn('has an unmatched namespace', str(ctx.exception))
 
     def test_wsdl_document_maps(self):
-        stockquote_file = casepath('examples/stockquote/stockquote.wsdl')
+        stockquote_file = self.casepath('examples/stockquote/stockquote.wsdl')
         wsdl_document = Wsdl11Document(stockquote_file)
 
         self.assertListEqual(list(wsdl_document.maps.imports),
@@ -481,7 +496,7 @@ class TestWsdlDocuments(unittest.TestCase):
                              ['http://example.com/stockquote/schemas'])
         self.assertEqual(len(wsdl_document.maps.messages), 2)
 
-        stockquote_service_file = casepath('examples/stockquote/stockquoteservice.wsdl')
+        stockquote_service_file = self.casepath('examples/stockquote/stockquoteservice.wsdl')
         wsdl_document = Wsdl11Document(stockquote_service_file)
         self.assertListEqual(list(wsdl_document.maps.imports),
                              ['http://example.com/stockquote/schemas',
@@ -880,7 +895,7 @@ class TestWsdlDocuments(unittest.TestCase):
         self.assertIsNone(wsdl_document.bindings['myBinding'].soap_style)
 
     def test_wsdl_and_soap_faults(self):
-        example5_file_with_fault = casepath('features/wsdl/wsdl11_example5_with_fault.wsdl')
+        example5_file_with_fault = self.casepath('features/wsdl/wsdl11_example5_with_fault.wsdl')
         wsdl_document = Wsdl11Document(example5_file_with_fault)
 
         port_type_name = '{http://example.com/stockquote.wsdl}StockQuotePortType'
@@ -926,9 +941,4 @@ class TestWsdlDocuments(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    import platform
-    header_template = "Test xmlschema WSDL documents with Python {} on {}"
-    header = header_template.format(platform.python_version(), platform.platform())
-    print('{0}\n{1}\n{0}'.format("*" * len(header), header))
-
-    unittest.main()
+    run_xmlschema_tests('WSDL documents')

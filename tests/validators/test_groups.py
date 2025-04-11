@@ -27,6 +27,7 @@ class ModelGroup(XsdGroup):
         self._group: List[Union[ParticleMixin, 'ModelGroup']] = []
         self.content = self._group
         self.model: str = model
+        self.ref = None
 
     def __repr__(self) -> str:
         return '%s(model=%r, occurs=%r)' % (self.__class__.__name__, self.model, self.occurs)
@@ -436,10 +437,5 @@ class TestXsdGroups(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    import platform
-
-    header_template = "Test xmlschema's XSD groups with Python {} on {}"
-    header = header_template.format(platform.python_version(), platform.platform())
-    print('{0}\n{1}\n{0}'.format("*" * len(header), header))
-
-    unittest.main()
+    from xmlschema.testing import run_xmlschema_tests
+    run_xmlschema_tests('XSD groups')

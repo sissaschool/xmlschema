@@ -11,6 +11,7 @@
 """
 Tests subpackage module: common definitions for unittest scripts of the 'xmlschema' package.
 """
+import pathlib
 import unittest
 import re
 import os
@@ -19,7 +20,7 @@ from xml.etree.ElementTree import Element, iselement
 
 from xmlschema.exceptions import XMLSchemaValueError
 from xmlschema.names import XSD_NAMESPACE, XSI_NAMESPACE, XSD_SCHEMA
-from xmlschema.helpers import get_namespace
+from xmlschema.utils.qnames import get_namespace
 from xmlschema.resources import fetch_namespaces
 from xmlschema.validators import XMLSchema10
 from ._helpers import etree_elements_assert_equal
@@ -32,13 +33,26 @@ SCHEMA_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
 </xs:schema>"""
 
 
-class XsdValidatorTestCase(unittest.TestCase):
+class XMLSchemaTestCase(unittest.TestCase):
+    cases_dir: pathlib.Path
+    schema_class = XMLSchema10
+
+    @classmethod
+    def casepath(cls, relative_path):
+        """Returns the absolute path of a test case from its relative path."""
+        try:
+            if not cls.cases_dir.is_dir():
+                return FileNotFoundError('cases_dir does not exist')
+        except AttributeError:
+            raise AttributeError(f'cases_dir is not defined for {cls!r}')
+        else:
+            return str(cls.cases_dir.joinpath(relative_path))
+
+
+class XsdValidatorTestCase(XMLSchemaTestCase):
     """
     Base class for testing XSD validators.
     """
-    TEST_CASES_DIR = None
-    schema_class = XMLSchema10
-
     vh_xsd_file: str
     vh_xml_file: str
     col_xsd_file: str
@@ -78,13 +92,6 @@ class XsdValidatorTestCase(unittest.TestCase):
 
             cls.models_xsd_file = cls.casepath('features/models/models.xsd')
             cls.models_schema = cls.schema_class(cls.models_xsd_file)
-
-    @classmethod
-    def casepath(cls, relative_path):
-        """
-        Returns the absolute path from a relative path specified from the referenced TEST_CASES_DIR.
-        """
-        return os.path.join(cls.TEST_CASES_DIR or '', relative_path)
 
     def get_schema_source(self, source):
         """

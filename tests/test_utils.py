@@ -9,9 +9,11 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """Tests on internal helper functions"""
+import sys
 import unittest
 import decimal
 import logging
+import warnings
 from collections import OrderedDict
 from xml.etree import ElementTree
 
@@ -23,11 +25,18 @@ except ImportError:
 from xmlschema import XMLSchema, XMLSchemaParseError
 from xmlschema.names import XSD_NAMESPACE, XSI_NAMESPACE, XSD_SCHEMA, \
     XSD_ELEMENT, XSD_SIMPLE_TYPE, XSD_ANNOTATION, XSI_TYPE
-from xmlschema.helpers import prune_etree, get_namespace, get_qname, \
-    local_name, get_prefixed_qname, get_extended_qname, raw_xml_encode, \
-    count_digits, strictly_equal, etree_iterpath, etree_getpath, \
-    etree_iter_location_hints, update_namespaces, set_logging_level, logged
-from xmlschema.testing import iter_nested_items, etree_elements_assert_equal
+from xmlschema.utils.etree import prune_etree, etree_get_ancestors, etree_getpath, \
+    etree_iter_location_hints, etree_tostring
+from xmlschema.utils.qnames import get_namespace, get_qname, local_name, \
+    get_prefixed_qname, get_extended_qname, update_namespaces
+from xmlschema.utils.logger import set_logging_level, logged, format_xmlschema_stack, \
+    dump_data
+from xmlschema.utils.decoding import raw_encode_value, raw_encode_attributes, \
+    count_digits, strictly_equal
+from xmlschema.utils.misc import deprecated, will_change
+
+from xmlschema.testing import iter_nested_items, etree_elements_assert_equal, \
+    run_xmlschema_tests
 from xmlschema.validators.exceptions import XMLSchemaValidationError
 from xmlschema.validators.helpers import get_xsd_derivation_attribute, \
     decimal_validator, qname_validator, \
@@ -35,9 +44,14 @@ from xmlschema.validators.helpers import get_xsd_derivation_attribute, \
     int_validator, long_validator, unsigned_byte_validator, \
     unsigned_short_validator, negative_int_validator, error_type_validator
 from xmlschema.validators.particles import OccursCalculator
+from xmlschema.resources import XMLResource
+
+XML_WITH_NAMESPACES = '<pfa:root xmlns:pfa="http://xpath.test/nsa">\n' \
+                      '  <pfb:elem xmlns:pfb="http://xpath.test/nsb"/>\n' \
+                      '</pfa:root>'
 
 
-class TestHelpers(unittest.TestCase):
+class TestUtils(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
@@ -96,16 +110,21 @@ class TestHelpers(unittest.TestCase):
         elem.append(ElementTree.Element(XSD_SIMPLE_TYPE))
         self.assertEqual(component._parse_child_component(elem), elem[2])
 
-    def test_raw_xml_encode_function(self):
-        self.assertIsNone(raw_xml_encode(None))
-        self.assertEqual(raw_xml_encode(True), 'true')
-        self.assertEqual(raw_xml_encode(False), 'false')
-        self.assertEqual(raw_xml_encode(10), '10')
-        self.assertEqual(raw_xml_encode(0), '0')
-        self.assertEqual(raw_xml_encode(1), '1')
-        self.assertEqual(raw_xml_encode('alpha'), 'alpha')
-        self.assertEqual(raw_xml_encode([10, 20, 30]), '10 20 30')
-        self.assertEqual(raw_xml_encode((10, 20, 30)), '10 20 30')
+    def test_raw_encode_value_function(self):
+        self.assertIsNone(raw_encode_value(None))
+        self.assertEqual(raw_encode_value(True), 'true')
+        self.assertEqual(raw_encode_value(False), 'false')
+        self.assertEqual(raw_encode_value(10), '10')
+        self.assertEqual(raw_encode_value(0), '0')
+        self.assertEqual(raw_encode_value(1), '1')
+        self.assertEqual(raw_encode_value('alpha'), 'alpha')
+        self.assertEqual(raw_encode_value([10, 20, 30]), '10 20 30')
+        self.assertEqual(raw_encode_value((10, 20, 30)), '10 20 30')
+
+    def test_raw_encode_attributes_function(self):
+        self.assertEqual(raw_encode_attributes(None), {})
+        self.assertEqual(raw_encode_attributes({}), {})
+        self.assertEqual(raw_encode_attributes({'a': 89, 'b': None}), {'a': '89'})
 
     def test_count_digits_function(self):
         self.assertEqual(count_digits(10), (2, 0))
@@ -194,7 +213,7 @@ class TestHelpers(unittest.TestCase):
         self.assertEqual(get_namespace(XSD_ELEMENT), XSD_NAMESPACE)
         self.assertEqual(get_namespace('{wrong'), '')
         self.assertEqual(get_namespace(''), '')
-        self.assertEqual(get_namespace(None), '')
+        self.assertRaises(TypeError, get_namespace, None)
         self.assertEqual(get_namespace('{}name'), '')
         self.assertEqual(get_namespace('{  }name'), '  ')
         self.assertEqual(get_namespace('{ ns }name'), ' ns ')
@@ -205,11 +224,11 @@ class TestHelpers(unittest.TestCase):
         self.assertEqual(get_qname(XSI_NAMESPACE, 'type'), XSI_TYPE)
 
         self.assertEqual(get_qname(XSI_NAMESPACE, ''), '')
-        self.assertEqual(get_qname(XSI_NAMESPACE, None), None)
-        self.assertEqual(get_qname(XSI_NAMESPACE, 0), 0)
-        self.assertEqual(get_qname(XSI_NAMESPACE, False), False)
+        self.assertRaises(TypeError, get_qname, XSI_NAMESPACE, None)
+        self.assertRaises(TypeError, get_qname, XSI_NAMESPACE, 0)
+        self.assertRaises(TypeError, get_qname, XSI_NAMESPACE, False)
         self.assertRaises(TypeError, get_qname, XSI_NAMESPACE, True)
-        self.assertEqual(get_qname(None, True), True)
+        self.assertRaises(TypeError, get_qname, None, True)
 
         self.assertEqual(get_qname(None, 'element'), 'element')
         self.assertEqual(get_qname(None, ''), '')
@@ -325,25 +344,15 @@ class TestHelpers(unittest.TestCase):
                                  '': 'http://example.com/ns2',
                                  'default1': 'http://example.com/ns3'})
 
-    def test_etree_iterpath(self):
+    def test_etree_get_ancestors(self):
         root = ElementTree.XML('<a><b1><c1/><c2/></b1><b2/><b3><c3/></b3></a>')
+        elem = ElementTree.XML('<a/>')
 
-        items = list(etree_iterpath(root))
-        self.assertListEqual(items, [
-            (root, '.'), (root[0], './b1'), (root[0][0], './b1/c1'),
-            (root[0][1], './b1/c2'), (root[1], './b2'), (root[2], './b3'),
-            (root[2][0], './b3/c3')
-        ])
-
-        self.assertListEqual(items, list(etree_iterpath(root, tag='*')))
-        self.assertListEqual(items, list(etree_iterpath(root, path='')))
-        self.assertListEqual(items, list(etree_iterpath(root, path=None)))
-
-        self.assertListEqual(list(etree_iterpath(root, path='/')), [
-            (root, '/'), (root[0], '/b1'), (root[0][0], '/b1/c1'),
-            (root[0][1], '/b1/c2'), (root[1], '/b2'), (root[2], '/b3'),
-            (root[2][0], '/b3/c3')
-        ])
+        self.assertIsNone(etree_get_ancestors(elem, root))
+        self.assertListEqual(etree_get_ancestors(root, root), [])
+        self.assertListEqual(etree_get_ancestors(root[0], root), [root])
+        self.assertListEqual(etree_get_ancestors(root[0][0], root), [root, root[0]])
+        self.assertListEqual(etree_get_ancestors(root[2][0], root), [root, root[2]])
 
     def test_etree_getpath(self):
         root = ElementTree.XML('<a><b1><c1/><c2/></b1><b2/><b3><c3/></b3></a>')
@@ -354,9 +363,23 @@ class TestHelpers(unittest.TestCase):
         self.assertEqual(etree_getpath(root[0], root, parent_path=True), '.')
         self.assertEqual(etree_getpath(root[2][0], root, parent_path=True), './b3')
 
+        self.assertEqual(etree_getpath(root, root, relative=False), '/a')
+        self.assertEqual(etree_getpath(root[0], root, relative=False), '/a/b1')
+        self.assertEqual(etree_getpath(root[2][0], root, relative=False), '/a/b3/c3')
+        self.assertEqual(
+            etree_getpath(root[0], root, relative=False, parent_path=True), '/a'
+        )
+        self.assertEqual(
+            etree_getpath(root[2][0], root, relative=False, parent_path=True), '/a/b3'
+        )
+
         self.assertIsNone(etree_getpath(root, root[0]))
         self.assertIsNone(etree_getpath(root[0], root[1]))
         self.assertIsNone(etree_getpath(root, root, parent_path=True))
+
+        self.assertIsNone(etree_getpath(root, root[0], relative=False))
+        self.assertIsNone(etree_getpath(root[0], root[1], relative=False))
+        self.assertIsNone(etree_getpath(root, root, relative=False, parent_path=True))
 
     def test_etree_elements_assert_equal(self):
         e1 = ElementTree.XML('<a><b1>text<c1 a="1"/></b1>\n<b2/><b3/></a>\n')
@@ -508,6 +531,149 @@ class TestHelpers(unittest.TestCase):
         prune_etree(root, selector=lambda x: x.tag.startswith('c'))
         self.assertListEqual([e.tag for e in root.iter()], ['a', 'b1', 'b2', 'b3'])
 
+    def test_etree_tostring(self):
+        self.assertRaises(TypeError, etree_tostring, '<element/>')
+
+        elem = ElementTree.Element('element')
+        self.assertEqual(etree_tostring(elem), '<element />')
+        self.assertEqual(etree_tostring(elem, xml_declaration=True), '<element />')
+
+        self.assertEqual(etree_tostring(elem, encoding='us-ascii'), b'<element />')
+        self.assertEqual(etree_tostring(elem, encoding='us-ascii', indent='    '),
+                         b'    <element />')
+        self.assertEqual(etree_tostring(elem, encoding='us-ascii', xml_declaration=True),
+                         b'<?xml version="1.0" encoding="us-ascii"?>\n<element />')
+
+        elem.text = '\t'
+        self.assertEqual(etree_tostring(elem), '<element>    </element>')
+        self.assertEqual(etree_tostring(elem, spaces_for_tab=2), '<element>  </element>')
+        self.assertEqual(etree_tostring(elem, spaces_for_tab=0), '<element></element>')
+        self.assertEqual(etree_tostring(elem, spaces_for_tab=None), '<element>\t</element>')
+
+        elem.text = '\n\n'
+        self.assertEqual(etree_tostring(elem), '<element>\n\n</element>')
+        self.assertEqual(etree_tostring(elem, indent='  '), '  <element>\n\n  </element>')
+
+        elem.text = '\nfoo\n'
+        self.assertEqual(etree_tostring(elem), '<element>\nfoo\n</element>')
+        self.assertEqual(etree_tostring(elem, indent=' '), ' <element>\n foo\n </element>')
+
+        elem.text = None
+
+        self.assertEqual(etree_tostring(elem, encoding='ascii'),
+                         b"<?xml version='1.0' encoding='ascii'?>\n<element />")
+        self.assertEqual(etree_tostring(elem, encoding='ascii', xml_declaration=False),
+                         b'<element />')
+        self.assertEqual(etree_tostring(elem, encoding='utf-8'), b'<element />')
+        self.assertEqual(etree_tostring(elem, encoding='utf-8', xml_declaration=True),
+                         b'<?xml version="1.0" encoding="utf-8"?>\n<element />')
+
+        self.assertEqual(etree_tostring(elem, encoding='iso-8859-1'),
+                         b"<?xml version='1.0' encoding='iso-8859-1'?>\n<element />")
+        self.assertEqual(etree_tostring(elem, encoding='iso-8859-1', xml_declaration=False),
+                         b"<element />")
+
+        self.assertEqual(etree_tostring(elem, method='html'), '<element></element>')
+        self.assertEqual(etree_tostring(elem, method='text'), '')
+
+        root = ElementTree.XML('<root>\n'
+                               '  text1\n'
+                               '  <elem>text2</elem>\n'
+                               '</root>')
+        self.assertEqual(etree_tostring(root, method='text'), '\n  text1\n  text2')
+        self.assertEqual(etree_tostring(root, max_lines=1), '<root>\n  ...\n  ...\n</root>')
+
+        root = ElementTree.XML(XML_WITH_NAMESPACES)
+        result = etree_tostring(root)
+        self.assertNotEqual(result, XML_WITH_NAMESPACES)
+        self.assertNotIn('pxa', result)
+        self.assertNotIn('pxa', result)
+        self.assertRegex(result, r'xmlns:ns\d="http://xpath.test/nsa')
+        self.assertRegex(result, r'xmlns:ns\d="http://xpath.test/nsb')
+
+        namespaces = {
+            'pxa': "http://xpath.test/nsa",
+            'pxb': "http://xpath.test/nsb"
+        }
+        expected = '<pxa:root xmlns:pxa="http://xpath.test/nsa" ' \
+                   'xmlns:pxb="http://xpath.test/nsb">\n' \
+                   '  <pxb:elem />\n' \
+                   '</pxa:root>'
+        self.assertEqual(etree_tostring(root, namespaces), expected)
+
+        namespaces = {
+            '': "http://xpath.test/nsa",
+            'pxa': "http://xpath.test/nsa",
+            'pxb': "http://xpath.test/nsb"
+        }
+        self.assertEqual(etree_tostring(root, namespaces), expected)
+
+        namespaces = {
+            '': "http://xpath.test/nsa",
+            'pxb': "http://xpath.test/nsb"
+        }
+        expected = '<root xmlns="http://xpath.test/nsa" ' \
+                   'xmlns:pxb="http://xpath.test/nsb">\n' \
+                   '  <pxb:elem />\n' \
+                   '</root>'
+        self.assertEqual(etree_tostring(root, namespaces), expected)
+
+    @unittest.skipIf(lxml_etree is None, 'lxml is not installed ...')
+    def test_etree_tostring_with_lxml_element(self):
+        elem = lxml_etree.Element('element')
+        self.assertEqual(etree_tostring(elem), '<element/>')
+        self.assertEqual(etree_tostring(elem, xml_declaration=True), '<element/>')
+
+        self.assertEqual(etree_tostring(elem, encoding='us-ascii'), b'<element/>')
+        self.assertEqual(etree_tostring(elem, encoding='us-ascii', indent='    '),
+                         b'    <element/>')
+
+        elem.text = '\t'
+        self.assertEqual(etree_tostring(elem), '<element>    </element>')
+        self.assertEqual(etree_tostring(elem, spaces_for_tab=2), '<element>  </element>')
+        self.assertEqual(etree_tostring(elem, spaces_for_tab=0), '<element></element>')
+        self.assertEqual(etree_tostring(elem, spaces_for_tab=None), '<element>\t</element>')
+        elem.text = None
+
+        self.assertEqual(etree_tostring(elem, encoding='us-ascii'), b'<element/>')
+        self.assertEqual(etree_tostring(elem, encoding='us-ascii', xml_declaration=True),
+                         b'<?xml version="1.0" encoding="us-ascii"?>\n<element/>')
+
+        self.assertEqual(etree_tostring(elem, encoding='ascii'), b'<element/>')
+        self.assertEqual(etree_tostring(elem, encoding='ascii', xml_declaration=True),
+                         b'<?xml version="1.0" encoding="ascii"?>\n<element/>')
+
+        self.assertEqual(etree_tostring(elem, encoding='utf-8'), b'<element/>')
+        self.assertEqual(etree_tostring(elem, encoding='utf-8', xml_declaration=True),
+                         b'<?xml version="1.0" encoding="utf-8"?>\n<element/>')
+
+        self.assertEqual(etree_tostring(elem, encoding='iso-8859-1'),
+                         b"<?xml version='1.0' encoding='iso-8859-1'?>\n<element/>")
+        self.assertEqual(etree_tostring(elem, encoding='iso-8859-1', xml_declaration=False),
+                         b"<element/>")
+
+        self.assertEqual(etree_tostring(elem, method='html'), '<element></element>')
+        self.assertEqual(etree_tostring(elem, method='text'), '')
+
+        root = lxml_etree.XML('<root>\n'
+                              '  text1\n'
+                              '  <elem>text2</elem>\n'
+                              '</root>')
+        self.assertEqual(etree_tostring(root, method='text'), '\n  text1\n  text2')
+
+        root = lxml_etree.XML(XML_WITH_NAMESPACES)
+        self.assertEqual(etree_tostring(root), XML_WITH_NAMESPACES)
+
+        namespaces = {
+            'tns0': "http://xpath.test/nsa",
+            'tns1': "http://xpath.test/nsb"
+        }
+        self.assertEqual(etree_tostring(root, namespaces), XML_WITH_NAMESPACES)
+
+        for prefix, uri in namespaces.items():
+            lxml_etree.register_namespace(prefix, uri)
+        self.assertEqual(etree_tostring(root), XML_WITH_NAMESPACES)
+
     def test_decimal_validator(self):
         self.assertIsNone(decimal_validator(10))
         self.assertIsNone(decimal_validator(10.1))
@@ -645,11 +811,55 @@ class TestHelpers(unittest.TestCase):
             self.assertIn("Info log line", ctx.output[-2])
             self.assertIn("Debug log line", ctx.output[-1])
 
+    def test_format_xmlschema_stack(self):
+        phrase = 'this is a test'
+        self.assertNotIn(phrase, format_xmlschema_stack(phrase), '')
+        self.assertIn(phrase, format_xmlschema_stack('this is a test'), '')
+
+    def test_dump_data(self):
+        if sys.version_info >= (3, 11):
+            with self.assertNoLogs('xmlschema', 'WARNING'):
+                dump_data()
+
+        xml_data = XMLResource('<root><child/></root>', lazy=True)
+        with self.assertLogs('xmlschema', 'WARNING') as cm:
+            dump_data(xml_data, 1, 2, 3, 'foo')
+
+        self.assertIn('dump data for xmlschema', cm.output[0])
+        self.assertNotIn('URL:', cm.output[0])
+
+        with self.assertLogs('xmlschema', 'WARNING') as cm:
+            dump_data(XMLSchema.meta_schema.source)
+
+        self.assertIn('dump data for xmlschema', cm.output[0])
+        self.assertIn('URL:', cm.output[0])
+
+    def test_will_change_decorator(self):
+        @will_change('2.0')
+        def f():
+            pass
+
+        with warnings.catch_warnings(record=True) as ctx:
+            warnings.simplefilter("always")
+            _ = f()
+
+        self.assertEqual(len(ctx), 1, "Wrong number of include/import warnings")
+        self.assertEqual(ctx[0].category, FutureWarning)
+        self.assertTrue(str(ctx[0].message).endswith(" will change from v2.0."))
+
+    def test_deprecated_decorator(self):
+        @deprecated('2.0')
+        def f():
+            pass
+
+        with warnings.catch_warnings(record=True) as ctx:
+            warnings.simplefilter("always")
+            _ = f()
+
+        self.assertEqual(len(ctx), 1, "Wrong number of include/import warnings")
+        self.assertEqual(ctx[0].category, DeprecationWarning)
+        self.assertTrue(str(ctx[0].message).endswith(" will be removed in v2.0."))
+
 
 if __name__ == '__main__':
-    import platform
-    header_template = "Test xmlschema helpers with Python {} on {}"
-    header = header_template.format(platform.python_version(), platform.platform())
-    print('{0}\n{1}\n{0}'.format("*" * len(header), header))
-
-    unittest.main()
+    run_xmlschema_tests('utils')

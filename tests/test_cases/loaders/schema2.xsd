@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Import of the origin schema from a different location with a redef collision. -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+  xmlns="http://xmlschema.test/ns"
+  targetNamespace="http://xmlschema.test/ns">
+
+  <xs:import namespace="http://xmlschema.test/other-ns" schemaLocation="other1.xsd"/>
+  <xs:import namespace="http://xmlschema.test/other-ns" schemaLocation="other2.xsd"/>
+
+  <xs:simpleType name="rootType">
+    <xs:restriction base="xs:string"/>
+  </xs:simpleType>
+
+</xs:schema>
+

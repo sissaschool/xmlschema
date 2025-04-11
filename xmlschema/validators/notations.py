@@ -9,9 +9,10 @@
 #
 from typing import Optional
 
-from ..names import XSD_NOTATION
-from ..translation import gettext as _
-from ..helpers import get_qname
+from xmlschema.names import XSD_NOTATION
+from xmlschema.translation import gettext as _
+from xmlschema.utils.qnames import get_qname
+
 from .xsdbase import XsdComponent
 
 
@@ -28,11 +29,7 @@ class XsdNotation(XsdComponent):
           Content: (annotation?)
         </notation>
     """
-    _ADMITTED_TAGS = {XSD_NOTATION}
-
-    @property
-    def built(self) -> bool:
-        return True
+    _ADMITTED_TAGS = XSD_NOTATION,
 
     def _parse(self) -> None:
         if self.parent is not None:

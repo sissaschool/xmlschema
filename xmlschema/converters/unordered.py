@@ -8,13 +8,14 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from collections.abc import MutableMapping, MutableSequence
-from typing import TYPE_CHECKING, Any, Dict, Union
+from typing import TYPE_CHECKING, Any, Union
 
-from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
-from .default import ElementData, stackable, XMLSchemaConverter
+from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError
+
+from .base import ElementData, stackable, XMLSchemaConverter
 
 if TYPE_CHECKING:
-    from ..validators import XsdElement
+    from xmlschema.validators import XsdElement
 
 
 class UnorderedConverter(XMLSchemaConverter):
@@ -66,7 +67,7 @@ class UnorderedConverter(XMLSchemaConverter):
         # in a list to retain that structure. Character data are not wrapped into
         # lists because they are divided from the rest of the content into the
         # unordered mode generator function of the ModelVisitor class.
-        content_lu: Dict[Union[int, str], Any] = {}
+        content_lu: dict[Union[int, str], Any] = {}
 
         xmlns = self.set_context(obj, level)
 

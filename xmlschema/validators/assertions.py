@@ -7,26 +7,27 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-import threading
 import warnings
-from typing import TYPE_CHECKING, Any, Dict, Iterator, Optional, Union, Type
+from collections.abc import Iterator
+from typing import TYPE_CHECKING, Any, Union
 
-from elementpath import ElementPathError, XPath2Parser, XPathContext, \
-    LazyElementNode, SchemaElementNode, build_schema_node_tree
+from elementpath import ElementPathError, XPathContext, XPathToken, \
+    SchemaElementNode, build_schema_node_tree
 
-from ..names import XSD_ASSERT
-from ..aliases import ElementType, SchemaType, SchemaElementType, NamespacesType
-from ..translation import gettext as _
-from ..xpath import ElementPathMixin, XMLSchemaProxy
+from xmlschema.names import XSD_ASSERT
+from xmlschema.aliases import ElementType, SchemaType, SchemaElementType
+from xmlschema.translation import gettext as _
+from xmlschema.xpath import ElementPathMixin, XMLSchemaProxy
 
-from .exceptions import XMLSchemaNotBuiltError, XMLSchemaValidationError, \
-    XMLSchemaAssertPathWarning
+from .exceptions import XMLSchemaNotBuiltError, XMLSchemaAssertPathWarning
+from .validation import DecodeContext
 from .xsdbase import XsdComponent
 from .groups import XsdGroup
 
 
 if TYPE_CHECKING:
-    from ..resources import XMLResource
+    from elementpath import XPath2Parser
+    from elementpath.xpath3 import XPath3Parser
     from .attributes import XsdAttributeGroup
     from .complex_types import XsdComplexType
     from .elements import XsdElement
@@ -48,17 +49,20 @@ class XsdAssert(XsdComponent, ElementPathMixin[Union['XsdAssert', SchemaElementT
         </assert>
     """
     parent: 'XsdComplexType'
-    _ADMITTED_TAGS = {XSD_ASSERT}
-    token = None
-    parser = None
-    path = 'true()'
+    token: XPathToken
+    parser: Union['XPath2Parser', 'XPath3Parser']
+
+    _ADMITTED_TAGS = XSD_ASSERT,
+
+    __slots__ = (
+        'token', 'parser', 'path', 'base_type', 'xpath_default_namespace'
+    )
 
     def __init__(self, elem: ElementType,
                  schema: SchemaType,
                  parent: 'XsdComplexType',
                  base_type: 'XsdComplexType') -> None:
 
-        self._xpath_lock = threading.Lock()
         self.base_type = base_type
         super().__init__(elem, schema, parent)
 
@@ -68,46 +72,26 @@ class XsdAssert(XsdComponent, ElementPathMixin[Union['XsdAssert', SchemaElementT
         else:
             return '%s(test=%r)' % (self.__class__.__name__, self.path[:37] + '...')
 
-    def __getstate__(self) -> Dict[str, Any]:
-        state = self.__dict__.copy()
-        state.pop('_xpath_lock', None)
-        return state
-
-    def __setstate__(self, state: Any) -> None:
-        self.__dict__.update(state)
-        self._xpath_lock = threading.Lock()
-
     def _parse(self) -> None:
-        if self.base_type.is_simple():
-            msg = _("base_type={!r} is not a complexType definition")
-            self.parse_error(msg.format(self.base_type))
-        else:
-            try:
-                self.path = self.elem.attrib['test'].strip()
-            except KeyError as err:
-                self.parse_error(err)
+        try:
+            self.path = self.elem.attrib['test'].strip()
+        except KeyError:
+            self.path = 'true()'
+            self.parse_error(_("missing required attribute 'test'"))
 
         if 'xpathDefaultNamespace' in self.elem.attrib:
             self.xpath_default_namespace = self._parse_xpath_default_namespace(self.elem)
         else:
             self.xpath_default_namespace = self.schema.xpath_default_namespace
 
-    @property
-    def built(self) -> bool:
-        return self.parser is not None and self.token is not None
-
     def build(self) -> None:
-        if self.schema.use_xpath3:
-            from ..xpath3 import XPath3Parser
-            parser_class: Union[Type[XPath2Parser], Type[XPath3Parser]]
-            parser_class = XPath3Parser
-        else:
-            parser_class = XPath2Parser
-
         # Assert requires a schema bound parser because select
         # is on XML elements and with XSD type decoded values
-        self.parser = parser_class(
-            namespaces=self.namespaces,
+        if self._built:
+            return
+
+        self.parser = self.maps.loader.xpath_parser_class(
+            namespaces=self.schema.namespaces,
             variable_types={'value': self.base_type.sequence_type},
             strict=False,
             default_namespace=self.xpath_default_namespace,
@@ -117,8 +101,8 @@ class XsdAssert(XsdComponent, ElementPathMixin[Union['XsdAssert', SchemaElementT
         try:
             self.token = self.parser.parse(self.path)
         except ElementPathError as err:
-            self.parse_error(err)
             self.token = self.parser.parse('true()')
+            self.parse_error(err)
         else:
             if any(len(tk) < 2 for tk in self.token.iter('/', '//')):
                 msg = (
@@ -127,47 +111,40 @@ class XsdAssert(XsdComponent, ElementPathMixin[Union['XsdAssert', SchemaElementT
                     f"ent so these operators will return empty sequences."
                 )
                 warnings.warn(msg, category=XMLSchemaAssertPathWarning, stacklevel=4)
+            self._built = True
         finally:
             if self.parser.variable_types:
                 self.parser.variable_types.clear()
 
-    def __call__(self, obj: ElementType,
-                 value: Any = None,
-                 namespaces: Optional[NamespacesType] = None,
-                 source: Optional['XMLResource'] = None,
-                 **kwargs: Any) -> Iterator[XMLSchemaValidationError]:
+    def __call__(self,
+                 obj: ElementType,
+                 validation: str,
+                 context: DecodeContext,
+                 value: Any = None) -> None:
 
-        if self.parser is None or self.token is None:
+        if not hasattr(self, 'parser') or not hasattr(self, 'token'):
             raise XMLSchemaNotBuiltError(self, 'schema bound parser not set')
 
-        with self._xpath_lock:
-            if not self.parser.is_schema_bound() and self.parser.schema:
-                self.parser.schema.bind_parser(self.parser)
+        if not self.parser.is_schema_bound() and self.parser.schema:
+            self.parser.schema.bind_parser(self.parser)
 
-        if namespaces is None or isinstance(namespaces, dict):
-            _namespaces = namespaces
-        else:
-            _namespaces = dict(namespaces)
+        if value is not None:
+            value = self.base_type.text_decode(value, context=context)
 
-        variables = {'value': None if value is None else self.base_type.text_decode(value)}
-        context_kwargs: Dict[str, Any] = {
-            'uri': source.url if source is not None else None,
-            'fragment': True,
-            'variables': variables,
-        }
-
-        if source is not None:
-            context = XPathContext(
-                source.get_xpath_node(obj), _namespaces, **context_kwargs
-            )
-        else:
-            context = XPathContext(LazyElementNode(obj), **context_kwargs)
+        xpath_context = XPathContext(
+            root=context.source.get_xpath_node(obj),
+            namespaces=context.namespaces,
+            uri=context.source.url,
+            fragment=True,
+            variables={'value': value},
+            schema=self.parser.schema,
+        )
 
         try:
-            if not self.token.evaluate(context):
-                yield XMLSchemaValidationError(self, obj=obj, reason="assertion test if false")
+            if not self.token.evaluate(xpath_context):
+                context.validation_error(validation, self, "assertion test is false", obj)
         except ElementPathError as err:
-            yield XMLSchemaValidationError(self, obj=obj, reason=str(err))
+            context.validation_error(validation, self, err, obj)
 
     # For implementing ElementPathMixin
     def __iter__(self) -> Iterator[Union['XsdElement', 'XsdAnyElement']]:
@@ -186,6 +163,7 @@ class XsdAssert(XsdComponent, ElementPathMixin[Union['XsdAssert', SchemaElementT
     def xpath_proxy(self) -> 'XMLSchemaProxy':
         return XMLSchemaProxy(self.schema, self)
 
+    # noinspection PyTypeChecker
     @property
     def xpath_node(self) -> SchemaElementNode:
         schema_node = self.schema.xpath_node

@@ -9,14 +9,14 @@
 #
 from decimal import Decimal
 from math import isinf, isnan
-from typing import Optional, Set, SupportsFloat, Union
+from typing import Optional, SupportsFloat, Union
 from xml.etree.ElementTree import Element
 from elementpath import datatypes
 
-from ..aliases import ElementType
-from ..names import XSD_ANNOTATION
-from ..exceptions import XMLSchemaValueError
-from ..translation import gettext as _
+from xmlschema.aliases import ElementType
+from xmlschema.names import XSD_ANNOTATION
+from xmlschema.exceptions import XMLSchemaValueError
+from xmlschema.translation import gettext as _
 from .exceptions import XMLSchemaValidationError
 
 XSD_FINAL_ATTRIBUTE_VALUES = {'restriction', 'extension', 'list', 'union'}
@@ -27,7 +27,7 @@ XSD_BOOLEAN_MAP = {
 
 
 def get_xsd_derivation_attribute(elem: Element, attribute: str,
-                                 values: Optional[Set[str]] = None) -> str:
+                                 values: Optional[set[str]] = None) -> str:
     """
     Get a derivation attribute (maybe 'block', 'blockDefault', 'final' or 'finalDefault')
     checking the items with the values arguments. Returns a string.

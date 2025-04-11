@@ -34,8 +34,8 @@ of the package. The subdirectory *tests/validators* includes tests for XSD valid
 building (schemas and their components) and the subdirectory *tests/validation* contains
 tests validation of XSD/XML and decoding/encoding of XML files.
 
-To run all tests use the command `python -m unittest `. Also, the script *test_all.py* can
-launched during development to run all the tests except memory and packaging tests.
+To run all tests use the command `python -m unittest `. Also, the script *run_all_tests.py*
+can launched during development to run all the tests except memory and packaging tests.
 From the project source base, if you have the *tox automation tool* installed, you can run
 all tests with all supported Python's versions using the command ``tox``.
 
@@ -43,10 +43,10 @@ all tests with all supported Python's versions using the command ``tox``.
 Test cases based on files
 =========================
 
-Three scripts (*test_all.py*, *test_schemas.py*, *test_validation.py*) create many tests
-dinamically, building test classes from a set of XSD/XML files. Only a small set of test
-files is published in the repository for copyright reasons. You can find the repository
-test files into ``tests/test_cases/`` subdirectory.
+Three scripts (*run_all_tests.py*, *test_xsd_testfiles.py*, *test_xml_testfiles.py*) create
+many tests dinamically, building test classes from a set of XSD/XML files. Only a small set
+of test files is published in the repository for copyright reasons.
+You can find the repository test files into ``tests/test_cases/`` subdirectory.
 
 You can locally extend the test with your set of files. For doing this create a submodule
 or a directory outside the repository directory and then copy your XSD/XML files into it.

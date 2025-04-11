@@ -21,6 +21,7 @@ import sys
 
 import xmlschema
 from xmlschema.cli import get_loglevel, get_converter, validate, xml2json, json2xml
+from xmlschema.testing import run_xmlschema_tests
 
 WORK_DIRECTORY = os.getcwd()
 
@@ -263,8 +264,4 @@ class TestConsoleScripts(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    header_template = "Test xmlschema CLI with Python {} on {}"
-    header = header_template.format(platform.python_version(), platform.platform())
-    print('{0}\n{1}\n{0}'.format("*" * len(header), header))
-
-    unittest.main()
+    run_xmlschema_tests('CLI')

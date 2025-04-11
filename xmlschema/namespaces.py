@@ -1,5 +1,5 @@
 #
-# Copyright (c), 2016-2020, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2024, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -8,29 +8,30 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-This module contains classes for managing maps related to namespaces.
+This module contains the base definitions for xmlschema's converters.
 """
 import re
-import copy
-from typing import Any, Callable, Container, Dict, Iterator, List, \
-    Optional, MutableMapping, Mapping, NamedTuple, Union, Tuple, TypeVar
+from collections.abc import Callable, Container, Iterator, Mapping, MutableMapping
+from typing import Any, NamedTuple, Optional, Union, TypeVar, TYPE_CHECKING
 
-from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
-from .helpers import local_name, update_namespaces, get_namespace_map, \
-    iter_decoded_data
-from .aliases import NamespacesType, XmlnsType, ElementType
-from .resources import XMLResource
+from xmlschema.aliases import NsmapType, ElementType, XmlnsType
+from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError
+from xmlschema.utils.decoding import iter_decoded_data
+from xmlschema.utils.qnames import get_namespace_map, update_namespaces, local_name
+from xmlschema.resources import XMLResource
+
+if TYPE_CHECKING:
+    from xmlschema.validators import XsdComponent, XsdElement  # noqa: F401
+
+XMLNS_PROCESSING_MODES = frozenset(('stacked', 'collapsed', 'root-only', 'none'))
 
 
 class NamespaceMapperContext(NamedTuple):
     obj: Union[ElementType, Any]
     level: int
     xmlns: XmlnsType
-    namespaces: NamespacesType
-    reverse: NamespacesType
-
-
-XMLNS_PROCESSING_MODES = frozenset(('stacked', 'collapsed', 'root-only', 'none'))
+    namespaces: NsmapType
+    reverse: NsmapType
 
 
 class NamespaceMapper(MutableMapping[str, str]):
@@ -58,15 +59,15 @@ class NamespaceMapper(MutableMapping[str, str]):
     :param source: the origin of XML data. Con be an `XMLResource` instance, an XML \
     decoded data or `None`.
     """
-    __slots__ = '_namespaces', '_reverse', '_contexts', \
-        'process_namespaces', 'strip_namespaces', '_use_namespaces', \
-        'xmlns_processing', 'source', '_xmlns_getter', '__dict__'
+    __slots__ = ('_namespaces', '_reverse', '_contexts', 'process_namespaces',
+                 'strip_namespaces', '_use_namespaces', 'xmlns_processing',
+                 '_xmlns_getter', 'source')
 
-    _namespaces: NamespacesType
-    _contexts: List[NamespaceMapperContext]
+    _namespaces: NsmapType
+    _contexts: list[NamespaceMapperContext]
     _xmlns_getter: Optional[Callable[[ElementType], XmlnsType]]
 
-    def __init__(self, namespaces: Optional[NamespacesType] = None,
+    def __init__(self, namespaces: Optional[NsmapType] = None,
                  process_namespaces: bool = True,
                  strip_namespaces: bool = False,
                  xmlns_processing: Optional[str] = None,
@@ -122,7 +123,7 @@ class NamespaceMapper(MutableMapping[str, str]):
         return len(self._namespaces)
 
     @property
-    def namespaces(self) -> NamespacesType:
+    def namespaces(self) -> NsmapType:
         return self._namespaces
 
     @property
@@ -139,7 +140,11 @@ class NamespaceMapper(MutableMapping[str, str]):
         for cls in self.__class__.__mro__:
             if hasattr(cls, '__slots__'):
                 for attr in cls.__slots__:
-                    setattr(mapper, attr, copy.copy(getattr(self, attr)))
+                    value = getattr(self, attr)
+                    if isinstance(value, (dict, list)):
+                        setattr(mapper, attr, value.copy())
+                    else:
+                        setattr(mapper, attr, value)
 
         return mapper
 
@@ -152,8 +157,8 @@ class NamespaceMapper(MutableMapping[str, str]):
         """Returns the XML declarations from decoded element data."""
         return None
 
-    def get_namespaces(self, namespaces: Optional[NamespacesType] = None,
-                       root_only: bool = True) -> NamespacesType:
+    def get_namespaces(self, namespaces: Optional[NsmapType] = None,
+                       root_only: bool = True) -> NsmapType:
         """
         Extracts namespaces with related prefixes from the XML source. It the XML
         source is an `XMLResource` instance delegates the extraction to it.
@@ -168,9 +173,10 @@ class NamespaceMapper(MutableMapping[str, str]):
         elif isinstance(self.source, XMLResource):
             return self.source.get_namespaces(namespaces, root_only)
 
+        xmlns: XmlnsType
         namespaces = get_namespace_map(namespaces)
         for obj, level in iter_decoded_data(self.source):
-            if level and root_only:
+            if root_only and level > 1:  # root xmlns declarations are usually at level 0 or 1
                 break
             xmlns = self.get_xmlns_from_data(obj)
             if xmlns:
@@ -180,7 +186,7 @@ class NamespaceMapper(MutableMapping[str, str]):
 
     def set_context(self, obj: Any, level: int) -> XmlnsType:
         """
-        Set the right context for the XML data and its level, updating the namespace
+        set the right context for the XML data and its level, updating the namespace
         map if necessary. Returns the xmlns declarations of the provided XML data.
         """
         xmlns = None
@@ -289,7 +295,7 @@ class NamespaceMapper(MutableMapping[str, str]):
 
     def unmap_qname(self, qname: str,
                     name_table: Optional[Container[Optional[str]]] = None,
-                    xmlns: Optional[List[Tuple[str, str]]] = None) -> str:
+                    xmlns: Optional[list[tuple[str, str]]] = None) -> str:
         """
         Converts a QName in prefixed format or a local name to the extended QName format.
         Local names are converted only if a default namespace is included in the instance.
@@ -342,19 +348,24 @@ class NamespaceMapper(MutableMapping[str, str]):
                 return f'{{{uri}}}{name}' if uri else name
 
 
-class NamespaceResourcesMap(MutableMapping[str, Any]):
+T = TypeVar('T', bound=object)
+
+
+class NamespaceResourcesMap(MutableMapping[str, list[T]]):
     """
-    Dictionary for storing information about namespace resources. The values are
+    Dictionary for storing information about namespace resources. Values are
     lists of objects. Setting an existing value appends the object to the value.
     Setting a value with a list sets/replaces the value.
     """
     __slots__ = ('_store',)
 
     def __init__(self, *args: Any, **kwargs: Any):
-        self._store: Dict[str, List[Any]] = {}
-        self.update(*args, **kwargs)
+        self._store: dict[str, list[T]] = {}
+        for item in args:
+            self.update(item)
+        self.update(kwargs)
 
-    def __getitem__(self, uri: str) -> Any:
+    def __getitem__(self, uri: str) -> list[T]:
         return self._store[uri]
 
     def __setitem__(self, uri: str, value: Any) -> None:
@@ -381,64 +392,64 @@ class NamespaceResourcesMap(MutableMapping[str, Any]):
     def clear(self) -> None:
         self._store.clear()
 
+    def copy(self) -> 'NamespaceResourcesMap[T]':
+        obj: NamespaceResourcesMap[T] = object.__new__(self.__class__)
+        obj._store = {k: v.copy() for k, v in self.items()}
+        return obj
 
-T = TypeVar('T')
+    __copy__ = copy
 
 
-class NamespaceView(Mapping[str, T]):
+CT = TypeVar('CT', bound=Union['XsdComponent', set['XsdElement']])
+
+
+class NamespaceView(Mapping[str, CT]):
     """
-    A read-only map for filtered access to a dictionary that stores
-    objects mapped from QNames in extended format.
+    A mapping for filtered access to a dictionary that stores objects by FQDN.
     """
-    __slots__ = 'target_dict', 'namespace', '_key_prefix'
+    __slots__ = '_target_dict', '_namespace', '_prefix', '_prefix_len'
 
-    def __init__(self, qname_dict: Dict[str, T], namespace_uri: str):
-        self.target_dict = qname_dict
-        self.namespace = namespace_uri
-        self._key_prefix = f'{{{namespace_uri}}}' if namespace_uri else ''
+    def __init__(self, target_dict: Mapping[str, CT], namespace: str):
+        self._target_dict = target_dict
+        self._namespace = namespace
+        self._prefix = f'{{{namespace}}}' if namespace else ''
+        self._prefix_len = len(self._prefix)
 
-    def __getitem__(self, key: str) -> T:
-        return self.target_dict[self._key_prefix + key]
+    def __getitem__(self, key: str) -> CT:
+        try:
+            return self._target_dict[self._prefix + key]
+        except KeyError:
+            raise KeyError(key) from None
 
     def __len__(self) -> int:
-        if not self.namespace:
-            return len([k for k in self.target_dict if not k or k[0] != '{'])
-        return len([k for k in self.target_dict
-                    if k and k[0] == '{' and self.namespace == k[1:k.rindex('}')]])
+        if not self._namespace:
+            return sum(1 for k in self._target_dict if k[:1] != '{')
+        return sum(1 for k in self._target_dict if self._prefix == k[:self._prefix_len])
 
     def __iter__(self) -> Iterator[str]:
-        if not self.namespace:
-            for k in self.target_dict:
-                if not k or k[0] != '{':
+        if not self._namespace:
+            for k in self._target_dict:
+                if k[:1] != '{':
                     yield k
         else:
-            for k in self.target_dict:
-                if k and k[0] == '{' and self.namespace == k[1:k.rindex('}')]:
-                    yield k[k.rindex('}') + 1:]
+            for k in self._target_dict:
+                if self._prefix == k[:self._prefix_len]:
+                    yield k[self._prefix_len:]
 
     def __repr__(self) -> str:
         return '%s(%s)' % (self.__class__.__name__, str(self.as_dict()))
 
     def __contains__(self, key: object) -> bool:
-        if isinstance(key, str):
-            return self._key_prefix + key in self.target_dict
-        return key in self.target_dict
+        return isinstance(key, str) and (self._prefix + key) in self._target_dict
 
     def __eq__(self, other: Any) -> Any:
         return self.as_dict() == other
 
-    def as_dict(self, fqn_keys: bool = False) -> Dict[str, T]:
-        if not self.namespace:
-            return {
-                k: v for k, v in self.target_dict.items() if not k or k[0] != '{'
-            }
-        elif fqn_keys:
-            return {
-                k: v for k, v in self.target_dict.items()
-                if k and k[0] == '{' and self.namespace == k[1:k.rindex('}')]
-            }
+    def as_dict(self) -> dict[str, CT]:
+        if not self._namespace:
+            return {k: v for k, v in self._target_dict.items() if k[:1] != '{'}
         else:
             return {
-                k[k.rindex('}') + 1:]: v for k, v in self.target_dict.items()
-                if k and k[0] == '{' and self.namespace == k[1:k.rindex('}')]
+                k[self._prefix_len:]: v for k, v in self._target_dict.items()
+                if self._prefix == k[:self._prefix_len]
             }

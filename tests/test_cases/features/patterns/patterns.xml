@@ -17,4 +17,8 @@
     <Digits>5067746900909</Digits>
     <Word>abc</Word>
     <NoWord>.</NoWord>
+    <CRS></CRS>
+    <CRS/>
+    <CRSw>^$</CRSw>
+    <CRSw></CRSw>
 </ns:patterns>

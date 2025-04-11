@@ -10,46 +10,34 @@
 #
 import unittest
 import os
-import decimal
 import pathlib
+import platform
 import subprocess
 import sys
 import tempfile
 
 try:
-    import memory_profiler
+    import psutil
 except ImportError:
-    memory_profiler = None
+    psutil = None
 
 
-@unittest.skipIf(memory_profiler is None, "Memory profiler is not installed!")
+@unittest.skipIf(platform.python_implementation() == 'PyPy', "skipped on PyPy")
+@unittest.skipIf(psutil is None, "Package psutil is not installed!")
 class TestMemoryUsage(unittest.TestCase):
 
     @staticmethod
-    def check_memory_profile(output):
-        """Check the output of a memory profile run on a function."""
-        mem_usage = []
-        func_num = 0
-        for line in output.split('\n'):
-            parts = line.split()
-            if 'def' in parts:
-                func_num += 1
-            if not parts or not parts[0].isdigit() or len(parts) == 1 \
-                    or not parts[1].replace('.', '').isdigit():
-                continue
-            mem_usage.append(decimal.Decimal(parts[1]))
+    def get_memory_usage(output):
+        if '-v' in sys.argv:
+            sys.stdout.write(f'\n  {output.strip()} ')
+        return int(output.strip().rsplit('(')[-1][:-1])
 
-        if func_num > 1:
-            raise ValueError("Cannot the a memory profile output of more than one function!")
-        return max(v - mem_usage[0] for v in mem_usage[1:])
-
-    @unittest.skip
     def test_package_memory_usage(self):
         test_dir = os.path.dirname(__file__) or '.'
         cmd = [sys.executable, os.path.join(test_dir, 'check_memory.py'), '1']
-        output = subprocess.check_output(cmd, text=True)
-        package_mem = self.check_memory_profile(output)
-        self.assertLess(package_mem, 20)
+        output = subprocess.check_output(cmd, text=True).strip()
+        package_mem = self.get_memory_usage(output)
+        self.assertLess(package_mem, 20 * 1024 ** 2)
 
     def test_element_tree_memory_usage(self):
         test_dir = os.path.dirname(__file__) or '.'
@@ -60,17 +48,17 @@ class TestMemoryUsage(unittest.TestCase):
 
         cmd = [sys.executable, os.path.join(test_dir, 'check_memory.py'), '2', xsd10_schema_file]
         output = subprocess.check_output(cmd, text=True)
-        parse_mem = self.check_memory_profile(output)
+        parse_mem = self.get_memory_usage(output)
 
         cmd = [sys.executable, os.path.join(test_dir, 'check_memory.py'), '3', xsd10_schema_file]
         output = subprocess.check_output(cmd, text=True)
-        iterparse_mem = self.check_memory_profile(output)
+        iterparse_mem = self.get_memory_usage(output)
 
         cmd = [sys.executable, os.path.join(test_dir, 'check_memory.py'), '4', xsd10_schema_file]
         output = subprocess.check_output(cmd, text=True)
-        lazy_iterparse_mem = self.check_memory_profile(output)
+        lazy_iterparse_mem = self.get_memory_usage(output)
 
-        self.assertLess(parse_mem, 2)
+        self.assertLess(parse_mem, 2 * 1024 ** 2)
         self.assertLess(lazy_iterparse_mem, parse_mem)
         self.assertLess(lazy_iterparse_mem, iterparse_mem)
 
@@ -92,14 +80,14 @@ class TestMemoryUsage(unittest.TestCase):
 
             cmd = [sys.executable, python_script, '5', str(xml_file)]
             output = subprocess.check_output(cmd, text=True)
-            decode_mem = self.check_memory_profile(output)
+            decode_mem = self.get_memory_usage(output)
 
             cmd = [sys.executable, python_script, '6', str(xml_file)]
             output = subprocess.check_output(cmd, text=True)
-            lazy_decode_mem = self.check_memory_profile(output)
+            lazy_decode_mem = self.get_memory_usage(output)
 
-        self.assertLessEqual(decode_mem, 2.6)
-        self.assertLessEqual(lazy_decode_mem, 2.1)
+            self.assertLessEqual(decode_mem, 2.6 * 1024 ** 2)
+            self.assertLessEqual(lazy_decode_mem, 2.1 * 1024 ** 2)
 
     def test_validate_memory_usage(self):
         with tempfile.TemporaryDirectory() as dirname:
@@ -119,20 +107,16 @@ class TestMemoryUsage(unittest.TestCase):
 
             cmd = [sys.executable, python_script, '7', str(xml_file)]
             output = subprocess.check_output(cmd, text=True)
-            validate_mem = self.check_memory_profile(output)
+            validate_mem = self.get_memory_usage(output)
 
             cmd = [sys.executable, python_script, '8', str(xml_file)]
             output = subprocess.check_output(cmd, text=True)
-            lazy_validate_mem = self.check_memory_profile(output)
+            lazy_validate_mem = self.get_memory_usage(output)
 
-            self.assertLess(validate_mem, 2.6)
-            self.assertLess(lazy_validate_mem, 2.1)
+            self.assertLess(validate_mem, 2.6 * 1024 ** 2)
+            self.assertLess(lazy_validate_mem, 2.1 * 1024 ** 2)
 
 
 if __name__ == '__main__':
-    import platform
-    header_template = "Memory usage tests for xmlschema with Python {} on {}"
-    header = header_template.format(platform.python_version(), platform.platform())
-    print('{0}\n{1}\n{0}'.format("*" * len(header), header))
-
-    unittest.main()
+    from xmlschema.testing import run_xmlschema_tests
+    run_xmlschema_tests('memory usage')

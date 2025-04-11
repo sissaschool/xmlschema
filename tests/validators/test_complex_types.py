@@ -8,7 +8,6 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-import unittest
 import warnings
 from pathlib import Path
 from textwrap import dedent
@@ -21,7 +20,7 @@ from xmlschema.testing import XsdValidatorTestCase
 
 class TestXsdComplexType(XsdValidatorTestCase):
 
-    TEST_CASES_DIR = str(Path(__file__).parent.joinpath('../test_cases').resolve())
+    cases_dir = Path(__file__).parent.joinpath('../test_cases')
 
     def check_complex_restriction(self, base, restriction, expected=None, **kwargs):
         content = 'complex' if self.content_pattern.search(base) else 'simple'
@@ -846,7 +845,35 @@ class TestXsd11ComplexType(TestXsdComplexType):
         self.assertTrue(xsd_type.is_valid(Element('a', attrib={'min': '10', 'max': '19'})))
         self.assertTrue(xsd_type.is_valid(Element('a', attrib={'min': '19', 'max': '19'})))
         self.assertFalse(xsd_type.is_valid(Element('a', attrib={'min': '25', 'max': '19'})))
+
+        # doesn't set a type if it's based on a dummy element
         self.assertTrue(xsd_type.is_valid(Element('a', attrib={'min': '25', 'max': '100'})))
+
+        schema = self.schema_class(dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+              <xs:complexType name="intRange">
+                <xs:attribute name="min" type="xs:int"/>
+                <xs:attribute name="max" type="xs:int"/>
+                <xs:assert test="@min le @max"/>
+              </xs:complexType>
+              <xs:element name="a" type="intRange"/>
+            </xs:schema>"""))
+
+        xsd_type = schema.types['intRange']
+        xsd_type.decode(Element('a', attrib={'min': '10', 'max': '19'}))
+        self.assertTrue(xsd_type.is_valid(Element('a', attrib={'min': '10', 'max': '19'})))
+        self.assertTrue(xsd_type.is_valid(Element('a', attrib={'min': '19', 'max': '19'})))
+        self.assertFalse(xsd_type.is_valid(Element('a', attrib={'min': '25', 'max': '19'})))
+
+        # doesn't set a type if it's based on a dummy element (TODO: add dummy element to maps?
+        self.assertTrue(xsd_type.is_valid(Element('a', attrib={'min': '25', 'max': '100'})))
+
+        xsd_element = schema.elements['a']
+        xsd_element.decode(Element('a', attrib={'min': '10', 'max': '19'}))
+        self.assertTrue(xsd_element.is_valid(Element('a', attrib={'min': '10', 'max': '19'})))
+        self.assertTrue(xsd_element.is_valid(Element('a', attrib={'min': '19', 'max': '19'})))
+        self.assertFalse(xsd_element.is_valid(Element('a', attrib={'min': '25', 'max': '19'})))
+        self.assertTrue(xsd_element.is_valid(Element('a', attrib={'min': '25', 'max': '100'})))
 
     def test_rooted_expression_in_assertion__issue_386(self):
         # absolute expression in assertion
@@ -856,7 +883,7 @@ class TestXsd11ComplexType(TestXsdComplexType):
             self.schema_class(xsd_file)
             schema = self.schema_class(xsd_file)
 
-            self.assertEqual(len(ctx), 2, "Expected two assert warnings")
+            self.assertEqual(len(ctx), 1, "Expected two assert warnings")
             self.assertIn("absolute location path", str(ctx[0].message))
 
         xml_file = self.casepath('issues/issue_386/issue_386-1.xml')
@@ -919,9 +946,5 @@ class TestXsd11ComplexType(TestXsdComplexType):
 
 
 if __name__ == '__main__':
-    import platform
-    header_template = "Test xmlschema's XSD complex types with Python {} on {}"
-    header = header_template.format(platform.python_version(), platform.platform())
-    print('{0}\n{1}\n{0}'.format("*" * len(header), header))
-
-    unittest.main()
+    from xmlschema.testing import run_xmlschema_tests
+    run_xmlschema_tests('XSD complex types')

@@ -8,17 +8,16 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 # mypy: ignore-errors
-import os
 
-from ..exceptions import XMLSchemaException, XMLSchemaValueError
-from ..names import XSD_NAMESPACE, WSDL_NAMESPACE, SOAP_NAMESPACE, \
-    SCHEMAS_DIR, XSD_ANY_TYPE, XSD_SCHEMA
-from ..helpers import get_qname, local_name, get_extended_qname, get_prefixed_qname
-from ..namespaces import NamespaceResourcesMap
-from ..locations import normalize_url
-from ..documents import XmlDocument
-from ..validators import XMLSchemaBase, XMLSchema10
-
+from xmlschema.exceptions import XMLSchemaException, XMLSchemaValueError
+from xmlschema.names import XSD_NAMESPACE, WSDL_NAMESPACE, SOAP_NAMESPACE, \
+    XSD_ANY_TYPE, XSD_SCHEMA
+from xmlschema.utils.qnames import get_qname, local_name, get_extended_qname, \
+    get_prefixed_qname
+from xmlschema.utils.urls import normalize_url
+from xmlschema.locations import SCHEMAS_DIR, get_locations
+from xmlschema.documents import SCHEMA_KWARGS, XmlDocument
+from xmlschema.validators import XMLSchemaBase, XMLSchema10
 
 # WSDL 1.1 global declarations
 WSDL_IMPORT = '{%s}import' % WSDL_NAMESPACE
@@ -73,7 +72,11 @@ class WsdlComponent:
     def __init__(self, elem, wsdl_document):
         self.elem = elem
         self.wsdl_document = wsdl_document
-        self.name = get_qname(wsdl_document.target_namespace, elem.get('name'))
+
+        try:
+            self.name = get_qname(wsdl_document.target_namespace, elem.attrib['name'])
+        except KeyError:
+            self.name = None
 
     def __repr__(self):
         return '%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
@@ -461,7 +464,7 @@ class Wsdl11Document(XmlDocument):
     """
     Class for WSDL 1.1 documents.
 
-    :param source: a string containing XML data or a file path or an URL or a \
+    :param source: a string containing XML data or a file path or a URL or a \
     file like object or an ElementTree or an Element.
     :param schema: additional schema for providing XSD types and elements to the \
     WSDL document. Can be a :class:`xmlschema.XMLSchema` instance or a file-like \
@@ -474,17 +477,17 @@ class Wsdl11Document(XmlDocument):
     :param namespaces: is an optional mapping from namespace prefix to URI.
     :param locations: resource location hints, that can be a dictionary or a \
     sequence of couples (namespace URI, resource URL).
-    :param base_url: the base URL for base :class:`xmlschema.XMLResource` initialization.
-    :param allow: the security mode for base :class:`xmlschema.XMLResource` initialization.
-    :param defuse: the defuse mode for base :class:`xmlschema.XMLResource` initialization.
-    :param timeout: the timeout for base :class:`xmlschema.XMLResource` initialization.
+    :param kwargs: other optional arguments for initializing :class:`xmlschema.XMLResource` \
+    base class or building :class:`xmlschema.XMLSchema` instances provided as keyword arguments.
     """
     target_namespace = ''
     soap_binding = False
 
     def __init__(self, source, schema=None, cls=None, validation='strict',
-                 namespaces=None, maps=None, locations=None, base_url=None,
-                 allow='all', defuse='remote', timeout=300):
+                 namespaces=None, maps=None, locations=None, base_url=None, **kwargs):
+
+        if kwargs.get('lazy'):
+            raise WsdlParseError(f"{self.__class__!r} instance cannot be lazy")
 
         if maps is not None:
             self.maps = maps
@@ -493,24 +496,19 @@ class Wsdl11Document(XmlDocument):
             if cls is None:
                 cls = XMLSchema10
 
+            xsd_filepath = f'{SCHEMAS_DIR}WSDL/wsdl.xsd'
             if isinstance(schema, XMLSchemaBase):
-                cls = schema.__class__
-                global_maps = schema.maps
-            elif schema is not None:
-                global_maps = cls(schema).maps
+                self.schema = schema
             else:
-                global_maps = None
+                self.schema = cls(
+                    source=schema or xsd_filepath,
+                    base_url=base_url,
+                    locations=locations,
+                    **{k: v for k, v in kwargs.items() if k in SCHEMA_KWARGS}
+                )
 
-            self.schema = cls(
-                source=os.path.join(SCHEMAS_DIR, 'WSDL/wsdl.xsd'),
-                global_maps=global_maps,
-            )
+            self.schema.add_schema(xsd_filepath, WSDL_NAMESPACE, base_url, True)
             self.maps = Wsdl11Maps(self)
-
-        if locations:
-            self.locations = NamespaceResourcesMap(locations)
-        else:
-            self.locations = NamespaceResourcesMap()
 
         super().__init__(
             source=source,
@@ -518,11 +516,37 @@ class Wsdl11Document(XmlDocument):
             validation=validation,
             namespaces=namespaces,
             locations=locations,
-            base_url=base_url,
-            allow=allow,
-            defuse=defuse,
-            timeout=timeout,
+            **kwargs,
         )
+        self.target_namespace = self.root.get('targetNamespace', '')
+        self.soap_binding = SOAP_NAMESPACE in self.namespaces.values()
+        self.locations = get_locations(locations, base_url)
+
+        if self.namespace == XSD_NAMESPACE and \
+                self.schema.maps.get_schema(source=self.url) is None:
+            self.schema.__class__(
+                source=self,
+                global_maps=self.schema.maps,
+                locations=self.locations,
+                **{k: v for k, v in kwargs.items() if k in SCHEMA_KWARGS}
+            )
+            return
+
+        if self is self.maps.wsdl_document:
+            self.maps.clear()
+
+        self._parse_imports()
+        self._parse_types()
+        self._parse_messages()
+        self._parse_port_types()
+        self._parse_bindings()
+        self._parse_services()
+
+    def get_arguments(self):
+        """Returns keyword arguments for rebuilding the WSDL document."""
+        kwargs = super().get_arguments()
+        kwargs['locations'] = self.locations
+        return kwargs
 
     @property
     def imports(self):
@@ -549,28 +573,6 @@ class Wsdl11Document(XmlDocument):
         """WSDL 1.1 services."""
         return self.maps.services
 
-    def parse(self, source, lazy=False):
-        if lazy:
-            raise WsdlParseError(f"{self.__class__!r} instance cannot be lazy")
-
-        super().parse(source, lazy)
-        self.target_namespace = self._root.get('targetNamespace', '')
-        self.soap_binding = SOAP_NAMESPACE in self.namespaces.values()
-
-        if self.namespace == XSD_NAMESPACE:
-            self.schema.__class__(self, global_maps=self.schema.maps, locations=self.locations)
-            return
-
-        if self is self.maps.wsdl_document:
-            self.maps.clear()
-
-        self._parse_imports()
-        self._parse_types()
-        self._parse_messages()
-        self._parse_port_types()
-        self._parse_bindings()
-        self._parse_services()
-
     def parse_error(self, message):
         if self.validation == 'strict':
             raise WsdlParseError(message)
@@ -580,7 +582,7 @@ class Wsdl11Document(XmlDocument):
     def _parse_types(self):
         path = f'{WSDL_TYPES}/{XSD_SCHEMA}'
 
-        for child in self._root.iterfind(path):
+        for child in self.root.iterfind(path):
             source = self.subresource(child)
             self.schema.__class__(source, global_maps=self.schema.maps)
 
@@ -617,17 +619,15 @@ class Wsdl11Document(XmlDocument):
                 self.maps.services[service.name] = service
 
     def _parse_imports(self):
-        namespace_imports = NamespaceResourcesMap(map(
-            lambda x: (x.get('namespace', ''), x.get('location', '')),
-            filter(lambda x: x.tag == WSDL_IMPORT, self.root)
-        ))
+        for child in self.root:
+            if child.tag != WSDL_IMPORT:
+                continue
 
-        for namespace, locations in namespace_imports.items():
-            locations = [url for url in locations if url]
-            try:
+            namespace = child.get('namespace', '').strip()
+            location = child.get('location', '').strip()
+            locations = [location] if location else []
+            if namespace in self.locations:
                 locations.extend(self.locations[namespace])
-            except KeyError:
-                pass
 
             import_error = None
             for url in locations:
@@ -637,7 +637,7 @@ class Wsdl11Document(XmlDocument):
                     if import_error is None:
                         import_error = err
                 except SyntaxError as err:
-                    msg = f"cannot import namespace {namespace!r}: {err}."
+                    msg = f"can't import namespace {namespace!r}: {err}."
                     self.parse_error(msg)
                 except XMLSchemaValueError as err:
                     self.parse_error(err)
@@ -662,7 +662,7 @@ class Wsdl11Document(XmlDocument):
         wsdl_document = self.__class__(
             source=url,
             maps=self.maps,
-            namespaces=self._namespaces,
+            namespaces=self._init_namespaces,
             validation=self.validation,
             base_url=self.base_url,
             allow=self.allow,

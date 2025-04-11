@@ -18,10 +18,10 @@ from xmlschema import XMLSchema10, XMLSchema11, fetch_namespaces, etree_tostring
     XsdElement, XsdAttribute, XsdType
 
 from xmlschema.validators import XsdAttributeGroup
-from xmlschema.helpers import is_etree_element
+from xmlschema.utils.etree import is_etree_element
 from xmlschema.names import XSI_TYPE
 from xmlschema.dataobjects import DataBindingMeta, DataBindingConverter
-from xmlschema.testing import etree_elements_assert_equal
+from xmlschema.testing import etree_elements_assert_equal, run_xmlschema_tests
 
 
 class TestDataElementInterface(unittest.TestCase):
@@ -651,9 +651,4 @@ class TestDataBindings11(TestDataBindings):
 
 
 if __name__ == '__main__':
-    import platform
-    header_template = "Test xmlschema data objects with Python {} on {}"
-    header = header_template.format(platform.python_version(), platform.platform())
-    print('{0}\n{1}\n{0}'.format("*" * len(header), header))
-
-    unittest.main()
+    run_xmlschema_tests('data objects')

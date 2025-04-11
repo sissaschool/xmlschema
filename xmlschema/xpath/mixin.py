@@ -8,21 +8,18 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from abc import abstractmethod
-from typing import cast, overload, Any, Dict, Iterator, List, Optional, \
-    Sequence, Set, TypeVar, Union, TYPE_CHECKING
-import re
+from collections.abc import Iterator, Sequence
+from typing import cast, overload, Any, Optional, TypeVar, Union, TYPE_CHECKING
 
 from elementpath import XPath2Parser, XPathSchemaContext, LazyElementNode, SchemaElementNode
 from elementpath.protocols import XsdElementProtocol
 
-from ..aliases import NamespacesType, SchemaType, BaseXsdType
-from ..helpers import get_qname, local_name, get_prefixed_qname
+from xmlschema.aliases import NsmapType, SchemaType, BaseXsdType
+from xmlschema.utils.qnames import get_qname, local_name, get_prefixed_qname
 from .proxy import XMLSchemaProxy
 
 if TYPE_CHECKING:
     from ..validators import XsdGlobals
-
-_REGEX_TAG_POSITION = re.compile(r'\b\[\d+]')
 
 E_co = TypeVar('E_co', covariant=True, bound='ElementPathMixin[Any]')
 
@@ -88,15 +85,15 @@ class ElementPathMixin(Sequence[E_co]):
         """Returns an XPath node for applying selectors on XSD schema/component."""
         raise NotImplementedError
 
-    def _get_xpath_namespaces(self, namespaces: Optional[NamespacesType] = None) \
-            -> Dict[str, str]:
+    def _get_xpath_namespaces(self, namespaces: Optional[NsmapType] = None) \
+            -> dict[str, str]:
         """
         Returns a dictionary with namespaces for XPath selection.
 
         :param namespaces: an optional map from namespace prefix to namespace URI. \
         If this argument is not provided the schema's namespaces are used.
         """
-        xpath_namespaces: Dict[str, str] = XPath2Parser.DEFAULT_NAMESPACES.copy()
+        xpath_namespaces: dict[str, str] = XPath2Parser.DEFAULT_NAMESPACES.copy()
         if namespaces is None:
             xpath_namespaces.update(self.namespaces)
         else:
@@ -109,7 +106,7 @@ class ElementPathMixin(Sequence[E_co]):
         else:
             return self.name == f'{{{default_namespace}}}{name}'
 
-    def find(self, path: str, namespaces: Optional[NamespacesType] = None) -> Optional[E_co]:
+    def find(self, path: str, namespaces: Optional[NsmapType] = None) -> Optional[E_co]:
         """
         Finds the first XSD subelement matching the path.
 
@@ -117,14 +114,12 @@ class ElementPathMixin(Sequence[E_co]):
         :param namespaces: an optional mapping from namespace prefix to namespace URI.
         :return: the first matching XSD subelement or ``None`` if there is no match.
         """
-        path = _REGEX_TAG_POSITION.sub('', path.strip())  # Strips tags positions from path
         namespaces = self._get_xpath_namespaces(namespaces)
         parser = XPath2Parser(namespaces, strict=False)
         context = XPathSchemaContext(self.xpath_node)
-
         return cast(Optional[E_co], next(parser.parse(path).select_results(context), None))
 
-    def findall(self, path: str, namespaces: Optional[NamespacesType] = None) -> List[E_co]:
+    def findall(self, path: str, namespaces: Optional[NsmapType] = None) -> list[E_co]:
         """
         Finds all XSD subelements matching the path.
 
@@ -133,14 +128,13 @@ class ElementPathMixin(Sequence[E_co]):
         :return: a list containing all matching XSD subelements in document order, an empty \
         list is returned if there is no match.
         """
-        path = _REGEX_TAG_POSITION.sub('', path.strip())  # Strip tags positions from path
         namespaces = self._get_xpath_namespaces(namespaces)
         parser = XPath2Parser(namespaces, strict=False)
         context = XPathSchemaContext(self.xpath_node)
 
-        return cast(List[E_co], parser.parse(path).get_results(context))
+        return cast(list[E_co], parser.parse(path).get_results(context))
 
-    def iterfind(self, path: str, namespaces: Optional[NamespacesType] = None) -> Iterator[E_co]:
+    def iterfind(self, path: str, namespaces: Optional[NsmapType] = None) -> Iterator[E_co]:
         """
         Creates and iterator for all XSD subelements matching the path.
 
@@ -148,7 +142,6 @@ class ElementPathMixin(Sequence[E_co]):
         :param namespaces: is an optional mapping from namespace prefix to full name.
         :return: an iterable yielding all matching XSD subelements in document order.
         """
-        path = _REGEX_TAG_POSITION.sub('', path.strip())  # Strip tags positions from path
         namespaces = self._get_xpath_namespaces(namespaces)
         parser = XPath2Parser(namespaces, strict=False)
         context = XPathSchemaContext(self.xpath_node)
@@ -177,7 +170,7 @@ class ElementPathMixin(Sequence[E_co]):
 
         if tag == '*':
             tag = None
-        local_elements: Set[E_co] = set()
+        local_elements: set[E_co] = set()
         return safe_iter(self)
 
     def iterchildren(self, tag: Optional[str] = None) -> Iterator[E_co]:
@@ -204,6 +197,9 @@ class XPathElement(ElementPathMixin['XPathElement']):
         self.type = xsd_type
         self.attributes = getattr(xsd_type, 'attributes', {})
 
+    def __repr__(self) -> str:
+        return '%s(%r, %r)' % (self.__class__.__name__, self.name, self.type)
+
     def __iter__(self) -> Iterator['XPathElement']:
         if not self.type.has_simple_content():
             yield from self.type.content.iter_elements()  # type: ignore[union-attr,misc]
@@ -214,7 +210,7 @@ class XPathElement(ElementPathMixin['XPathElement']):
 
     @property
     def maps(self) -> 'XsdGlobals':
-        return self.type.maps
+        return self.schema.maps
 
     @property
     def xpath_proxy(self) -> XMLSchemaProxy:
@@ -235,7 +231,7 @@ class XPathElement(ElementPathMixin['XPathElement']):
         return self.type.schema.target_namespace
 
     @property
-    def namespaces(self) -> NamespacesType:
+    def namespaces(self) -> NsmapType:
         return self.type.schema.namespaces
 
     @property

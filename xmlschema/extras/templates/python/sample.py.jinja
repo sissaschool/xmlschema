@@ -38,7 +38,7 @@ class {{ xsd_element|name|capitalize }}:
 
     {%- elif xsd_element.type.is_simple() -%}
 
-        xsd_type = {{ xsd_element.primitive_type|name }}
+        xsd_type = {{ xsd_element.type.root_type|name }}
 
     {%- else %}
 

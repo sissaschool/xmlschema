@@ -7,12 +7,12 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from typing import cast, Any, List, Optional, Tuple, Union
+from typing import cast, Any, Optional, Union
 
-from ..exceptions import XMLSchemaValueError
-from ..aliases import ElementType, ModelGroupType, ModelParticleType, \
+from xmlschema.exceptions import XMLSchemaValueError
+from xmlschema.aliases import ElementType, ModelGroupType, ModelParticleType, \
     OccursCounterType, SchemaElementType
-from ..translation import gettext as _
+from xmlschema.translation import gettext as _
 
 
 class ParticleMixin:
@@ -28,20 +28,22 @@ class ParticleMixin:
     :cvar oid: an optional secondary unique identifier for tracking occurs. Is \
     set to a unique tuple for XsdGroup instances for tracking higher occurrence \
     in choice and choice-compatible models.
+    :cvar skip: a flag that is set to `True` for wildcards that have processContents='skip'.
     """
     name: Any
     maps: Any
 
     min_occurs: int = 1
     max_occurs: Optional[int] = 1
-    oid: Optional[Tuple[ModelGroupType]] = None
+    oid: Optional[tuple[ModelGroupType]] = None
+    skip: bool = False
 
     def __init__(self, min_occurs: int = 1, max_occurs: Optional[int] = 1) -> None:
         self.min_occurs = min_occurs
         self.max_occurs = max_occurs
 
     @property
-    def occurs(self) -> Tuple[int, Optional[int]]:
+    def occurs(self) -> tuple[int, Optional[int]]:
         return self.min_occurs, self.max_occurs
 
     @property
@@ -114,7 +116,7 @@ class ParticleMixin:
             return False
         return self.max_occurs < occurs[self]
 
-    def get_expected(self, occurs: OccursCounterType) -> List[SchemaElementType]:
+    def get_expected(self, occurs: OccursCounterType) -> list[SchemaElementType]:
         return [cast(SchemaElementType, self)] if self.min_occurs > occurs[self] else []
 
     def has_occurs_restriction(self, other: Union[ModelParticleType, 'OccursCalculator']) -> bool:
@@ -165,6 +167,9 @@ class ParticleMixin:
                     self.parse_error(msg)
                     self.max_occurs = None
 
+    def is_substitute(self, other: ModelParticleType) -> bool:
+        return False
+
 
 class OccursCalculator:
     """
@@ -173,8 +178,10 @@ class OccursCalculator:
     min_occurs: int
     max_occurs: Optional[int]
 
+    __slots__ = ('min_occurs', 'max_occurs')
+
     @property
-    def occurs(self) -> Tuple[int, Optional[int]]:
+    def occurs(self) -> tuple[int, Optional[int]]:
         return self.min_occurs, self.max_occurs
 
     def __init__(self) -> None:
@@ -204,10 +211,13 @@ class OccursCalculator:
             self.max_occurs *= other.max_occurs
         return self
 
-    def __sub__(self, occurs: int) -> 'OccursCalculator':
-        self.min_occurs = max(0, self.min_occurs - occurs)
+    def __sub__(self, other: Union[ParticleMixin, 'OccursCalculator']) -> 'OccursCalculator':
+        self.min_occurs = max(0, self.min_occurs - other.min_occurs)
         if self.max_occurs is not None:
-            self.max_occurs = max(0, self.max_occurs - occurs)
+            if other.max_occurs is None:
+                self.max_occurs = 0
+            else:
+                self.max_occurs = max(0, self.max_occurs - other.max_occurs)
         return self
 
     def reset(self) -> None:

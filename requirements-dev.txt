@@ -1,2 +1,1 @@
-# Requirements for setup a development environment for the xmlschema package.
 -e .[dev]

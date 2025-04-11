@@ -8,17 +8,18 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import re
-from typing import Any, Dict, List, Type, Union, Iterator
+from collections.abc import Iterator
+from typing import Any, Type, Union
 from xml.etree.ElementTree import Element
 
-from ..helpers import get_namespace, get_qname
+from xmlschema.utils.qnames import get_namespace, get_qname
 
 _REGEX_SPACES = re.compile(r'\s+')
 
 
-def iter_nested_items(items: Union[Dict[Any, Any], List[Any]],
-                      dict_class: Type[Dict[Any, Any]] = dict,
-                      list_class: Type[List[Any]] = list) -> Iterator[Any]:
+def iter_nested_items(items: Union[dict[Any, Any], list[Any]],
+                      dict_class: Type[dict[Any, Any]] = dict,
+                      list_class: Type[list[Any]] = list) -> Iterator[Any]:
     """Iterates a nested object composed by lists and dictionaries."""
     if isinstance(items, dict_class):
         for k, v in items.items():
@@ -49,7 +50,7 @@ def etree_elements_assert_equal(elem: Element, other: Element,
     :param check_nsmap: if to check namespace maps.
     :raise: an AssertionError containing information about first difference encountered.
     """
-    children: Union[Element, List[Element]]
+    children: Union[Element, list[Element]]
 
     if unordered:
         children = sorted(elem, key=lambda x: '' if callable(x.tag) else x.tag)

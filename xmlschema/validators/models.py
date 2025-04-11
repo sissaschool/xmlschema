@@ -1,5 +1,5 @@
 #
-# Copyright (c), 2016-2020, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2024, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -11,36 +11,29 @@
 This module contains a function and a class for validating XSD content models,
 plus a set of functions for manipulating encoded content.
 """
-import sys
-from collections import defaultdict, deque, Counter
-from copy import copy
-from operator import attrgetter
-from typing import Any, Dict, Iterable, Iterator, List, Optional, Tuple, Union
 import warnings
+from collections import defaultdict, deque, Counter
+from collections.abc import Iterable, Iterator, MutableMapping, MutableSequence
+from copy import copy
+from typing import Any, Optional, Union
 
-if sys.version_info >= (3, 9):
-    from collections.abc import MutableMapping, MutableSequence
-else:
-    from typing import MutableMapping, MutableSequence
-
-from ..exceptions import XMLSchemaRuntimeError, XMLSchemaTypeError, XMLSchemaValueError
-from ..aliases import ModelGroupType, ModelParticleType, SchemaElementType, \
+from xmlschema.aliases import ModelGroupType, ModelParticleType, SchemaElementType, \
     OccursCounterType
-from ..translation import gettext as _
-from .. import limits
+from xmlschema.exceptions import XMLSchemaRuntimeError, XMLSchemaTypeError, XMLSchemaValueError
+from xmlschema.translation import gettext as _
+from xmlschema import limits
+
 from .exceptions import XMLSchemaModelError, XMLSchemaModelDepthError
 from .wildcards import XsdAnyElement, Xsd11AnyElement
 from . import groups
 
-AdvanceYieldedType = Tuple[ModelParticleType, int, List[SchemaElementType]]
-ContentItemType = Tuple[Union[int, str], Any]
+AdvanceYieldedType = tuple[ModelParticleType, int, list[SchemaElementType]]
+ContentItemType = tuple[Union[int, str], Any]
 EncodedContentType = Union[MutableMapping[Union[int, str], Any], Iterable[ContentItemType]]
-StepType = Union[str, SchemaElementType, Tuple[Union[str, SchemaElementType], int]]
-
-get_occurs = attrgetter('min_occurs', 'max_occurs')
+StepType = Union[str, SchemaElementType, tuple[Union[str, SchemaElementType], int]]
 
 
-def distinguishable_paths(path1: List[ModelParticleType], path2: List[ModelParticleType]) -> bool:
+def distinguishable_paths(path1: list[ModelParticleType], path2: list[ModelParticleType]) -> bool:
     """
     Checks if two model paths are distinguishable in a deterministic way, without looking forward
     or backtracking. The arguments are lists containing paths from the base group of the model to
@@ -114,7 +107,7 @@ def check_model(group: ModelGroupType) -> None:
     :raises: an `XMLSchemaModelError` at first violated constraint.
     """
     def safe_iter_path() -> Iterator[SchemaElementType]:
-        iterators: List[Iterator[ModelParticleType]] = []
+        iterators: list[Iterator[ModelParticleType]] = []
         particles = iter(group)
 
         while True:
@@ -136,7 +129,7 @@ def check_model(group: ModelGroupType) -> None:
                     return
 
     paths: Any = {}
-    current_path: List[ModelParticleType] = [group]
+    current_path: list[ModelParticleType] = [group]
     try:
         any_element = group.parent.open_content.any_element  # type: ignore[union-attr]
     except AttributeError:
@@ -144,7 +137,7 @@ def check_model(group: ModelGroupType) -> None:
 
     for e in safe_iter_path():
 
-        previous_path: List[ModelParticleType]
+        previous_path: list[ModelParticleType]
         for pe, previous_path in paths.values():
             # EDC check
             if not e.is_consistent(pe) or any_element and not any_element.is_consistent(pe):
@@ -194,7 +187,7 @@ class ModelVisitor:
     :ivar items: the current XSD group's items iterator.
     :ivar match: if the XSD group has an effective item match.
     """
-    _groups: List[Tuple[ModelGroupType, Iterator[ModelParticleType], bool]]
+    _groups: list[tuple[ModelGroupType, Iterator[ModelParticleType], bool]]
     element: Optional[SchemaElementType]
     occurs: OccursCounterType
 
@@ -238,7 +231,7 @@ class ModelVisitor:
                 self.match = False
 
     @property
-    def expected(self) -> List[SchemaElementType]:
+    def expected(self) -> list[SchemaElementType]:
         """Returns the expected elements of the current and descendant groups."""
         return self.group.get_expected(self.occurs)
 
@@ -307,7 +300,8 @@ class ModelVisitor:
                     return False
 
                 high_occurs = occurs[item.oid] or item_occurs
-                min_occurs, max_occurs = get_occurs(item)
+                min_occurs = item.min_occurs
+                max_occurs = item.max_occurs
 
                 if max_occurs is None:
                     occurs[self.group] += 1
@@ -321,7 +315,7 @@ class ModelVisitor:
                 occurs[item] = occurs[item.oid] = 0
                 self.items = self.iter_group()
                 self.match = False
-                return min_occurs > high_occurs  # type: ignore[no-any-return]
+                return min_occurs > high_occurs
 
             elif self.group.model == 'all':
                 return False  # 'all' models can only be checked at the end
@@ -429,10 +423,10 @@ class ModelVisitor:
 
     def _iter_all_model_errors(self, occurs: OccursCounterType) -> Iterator[AdvanceYieldedType]:
         """Validate occurrences in an 'all' model, yielding error tuples."""
-        stack: List[Tuple[groups.XsdGroup, Iterator[ModelParticleType]]] = []
+        stack: list[tuple[groups.XsdGroup, Iterator[ModelParticleType]]] = []
         group = self.group if self.group.ref is None else self.group.ref
         particles = iter(group)
-        zero_missing: List[Tuple[groups.XsdGroup, ModelParticleType]] = []
+        zero_missing: list[tuple[groups.XsdGroup, ModelParticleType]] = []
 
         while True:
             for item in particles:
@@ -834,7 +828,7 @@ def iter_unordered_content(content: EncodedContentType, group: ModelGroupType) \
     of a single element.
     :param group: the model group related to content.
     """
-    consumable_content: Dict[str, Any]
+    consumable_content: dict[str, Any]
 
     if isinstance(content, MutableMapping):
         cdata_content = sorted(
@@ -883,7 +877,7 @@ def iter_unordered_content(content: EncodedContentType, group: ModelGroupType) \
 
 
 def sort_content(content: EncodedContentType, group: ModelGroupType) \
-        -> List[ContentItemType]:
+        -> list[ContentItemType]:
     return [x for x in iter_unordered_content(content, group)]
 
 
@@ -904,7 +898,7 @@ def iter_collapsed_content(content: Iterable[ContentItemType], group: ModelGroup
     :param group: the model group related to content.
     """
     prev_name = None
-    unordered_content: Dict[str, Any] = defaultdict(deque)
+    unordered_content: dict[str, Any] = defaultdict(deque)
 
     model = ModelVisitor(group)
     for name, value in content:

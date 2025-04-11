@@ -14,30 +14,31 @@ import re
 import math
 import operator
 from abc import abstractmethod
-from typing import TYPE_CHECKING, cast, overload, Any, Dict, List, \
-    MutableSequence, Optional, Pattern, Union, Tuple, Type
+from collections.abc import MutableSequence
+from typing import TYPE_CHECKING, Any, cast, overload, Optional, Type, Union
 from xml.etree.ElementTree import Element
 
 from elementpath import XPathContext, ElementPathError, \
     translate_pattern, RegexError, ElementNode
-from elementpath.datatypes import AnyAtomicType
+from elementpath.datatypes import AbstractQName
 
-from ..names import XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_ENUMERATION, \
+from xmlschema.names import XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_ENUMERATION, \
     XSD_INTEGER, XSD_WHITE_SPACE, XSD_PATTERN, XSD_MAX_INCLUSIVE, XSD_MAX_EXCLUSIVE, \
     XSD_MIN_INCLUSIVE, XSD_MIN_EXCLUSIVE, XSD_TOTAL_DIGITS, XSD_FRACTION_DIGITS, \
     XSD_ASSERTION, XSD_DECIMAL, XSD_EXPLICIT_TIMEZONE, XSD_NOTATION_TYPE, XSD_QNAME, \
     XSD_ANNOTATION
-from ..aliases import ElementType, SchemaType, AtomicValueType, BaseXsdType
-from ..translation import gettext as _
-from ..helpers import count_digits, local_name
-from ..xpath import XsdAssertionXPathParser
+from xmlschema.aliases import ElementType, SchemaType, AtomicValueType, BaseXsdType
+from xmlschema.translation import gettext as _
+from xmlschema.utils.decoding import count_digits
+from xmlschema.utils.qnames import local_name
+
 from .exceptions import XMLSchemaValidationError, XMLSchemaDecodeError
 from .xsdbase import XsdComponent, XsdAnnotation
 
 if TYPE_CHECKING:
-    from .simple_types import XsdList, XsdAtomicRestriction
+    from .simple_types import XsdAtomicBuiltin, XsdList, XsdUnion, XsdAtomicRestriction
 
-LaxDecodeType = Tuple[Any, List[XMLSchemaValidationError]]
+LaxDecodeType = tuple[Any, list[XMLSchemaValidationError]]
 
 
 class XsdFacet(XsdComponent):
@@ -46,40 +47,39 @@ class XsdFacet(XsdComponent):
     """
     value: Optional[AtomicValueType]
     base_type: Optional[BaseXsdType]
-    base_value: Optional[AtomicValueType]
+    base_value: Optional[AtomicValueType] = None
     fixed = False
+
+    __slots__ = ('base_type', 'value', 'validate')
 
     def __init__(self, elem: ElementType,
                  schema: SchemaType,
-                 parent: Union['XsdList', 'XsdAtomicRestriction'],
+                 parent: Union['XsdAtomicBuiltin', 'XsdList', 'XsdUnion', 'XsdAtomicRestriction'],
                  base_type: Optional[BaseXsdType]) -> None:
+        self.value = None
         self.base_type = base_type
-        self._validator = self._skip_validation
+        self.validate = self.skip_validation
         super().__init__(elem, schema, parent)
 
     def __repr__(self) -> str:
         return '%s(value=%r, fixed=%r)' % (self.__class__.__name__, self.value, self.fixed)
 
     def __call__(self, value: Any) -> None:
-        try:
-            self._validator(value)
-        except TypeError:
-            reason = _("invalid type {!r} provided").format(type(value))
-            raise XMLSchemaValidationError(self, value, reason) from None
+        self.validate(value)
 
-    def _skip_validation(self, value: Any) -> None:
+    def skip_validation(self, value: Any) -> None:
         return
 
     def _parse(self) -> None:
         if 'fixed' in self.elem.attrib and self.elem.attrib['fixed'] in ('true', '1'):
             self.fixed = True
         base_facet = self.base_facet
-        self.base_value = None if base_facet is None else base_facet.value
+        if base_facet is not None:
+            self.base_value = base_facet.value
 
         try:
             self._parse_value(self.elem)
-        except (KeyError, ValueError, XMLSchemaDecodeError) as err:
-            self.value = None
+        except (KeyError, TypeError, ValueError) as err:
             self.parse_error(err)
         else:
             if base_facet is not None and base_facet.fixed and \
@@ -87,13 +87,13 @@ class XsdFacet(XsdComponent):
                 msg = _("{0!r} facet value is fixed to {1!r}")
                 self.parse_error(msg.format(local_name(self.elem.tag), base_facet.value))
 
-    def _parse_value(self, elem: ElementType) -> Union[None, AtomicValueType, Pattern[str]]:
+    def _parse_value(self, elem: ElementType) -> Union[None, AtomicValueType, re.Pattern[str]]:
         self.value = elem.attrib['value']  # pragma: no cover
         return None
 
-    @property
-    def built(self) -> bool:
-        return True  # pragma: no cover
+    def invalid_type_error(self, error: Union[TypeError, AttributeError], value: Any) -> None:
+        reason = _("invalid type {!r} provided: {}").format(type(value), str(error))
+        raise XMLSchemaValidationError(self, value, reason) from None
 
     @property
     def base_facet(self) -> Optional['XsdFacet']:
@@ -132,27 +132,33 @@ class XsdWhiteSpaceFacet(XsdFacet):
     def _parse_value(self, elem: ElementType) -> None:
         self.value = elem.attrib['value']
         if self.value == 'collapse':
-            self._validator = self.collapse_white_space_validator
+            self.validate = self.collapse_white_space_validator
         elif self.value == 'replace':
             if self.base_value == 'collapse':
                 self.parse_error(_("facet value can be only 'collapse'"))
-            self._validator = self.replace_white_space_validator
+            self.validate = self.replace_white_space_validator
         elif self.base_value == 'collapse':
             self.parse_error(_("facet value can be only 'collapse'"))
         elif self.base_value == 'replace':
             self.parse_error(_("facet value can be only 'replace' or 'collapse'"))
 
     def replace_white_space_validator(self, value: str) -> None:
-        if '\t' in value or '\n' in value:
-            raise XMLSchemaValidationError(
-                self, value, _("value contains tabs or newlines")
-            )
+        try:
+            if '\t' in value or '\n' in value:
+                raise XMLSchemaValidationError(
+                    self, value, _("value contains tabs or newlines")
+                )
+        except TypeError as err:
+            self.invalid_type_error(err, value)
 
     def collapse_white_space_validator(self, value: str) -> None:
-        if '\t' in value or '\n' in value or '  ' in value:
-            raise XMLSchemaValidationError(
-                self, value, _("value contains non collapsed white spaces")
-            )
+        try:
+            if '\t' in value or '\n' in value or '  ' in value:
+                raise XMLSchemaValidationError(
+                    self, value, _("value contains non collapsed white spaces")
+                )
+        except TypeError as err:
+            self.invalid_type_error(err, value)
 
 
 class XsdLengthFacet(XsdFacet):
@@ -179,14 +185,18 @@ class XsdLengthFacet(XsdFacet):
             self.parse_error(msg.format(self.base_value))
 
         primitive_type = getattr(self.base_type, 'primitive_type', None)
-        if primitive_type is None or primitive_type.name not in {XSD_QNAME, XSD_NOTATION_TYPE}:
+        if primitive_type is None or primitive_type.name not in (XSD_QNAME, XSD_NOTATION_TYPE):
             # See: https://www.w3.org/Bugs/Public/show_bug.cgi?id=4009
-            self._validator = self.length_validator
+            self.validate = self.length_validator
 
     def length_validator(self, value: Any) -> None:
-        if len(value) != self.value:
-            reason = _("length has to be {!r}").format(self.value)
-            raise XMLSchemaValidationError(self, value, reason)
+        try:
+            if len(value) != self.value:
+                reason = _("length has to be {!r}").format(self.value)
+                raise XMLSchemaValidationError(self, value, reason)
+        except TypeError as err:
+            if not isinstance(value, AbstractQName):
+                self.invalid_type_error(err, value)
 
 
 class XsdMinLengthFacet(XsdFacet):
@@ -213,14 +223,18 @@ class XsdMinLengthFacet(XsdFacet):
             self.parse_error(msg.format(self.base_value))
 
         primitive_type = getattr(self.base_type, 'primitive_type', None)
-        if primitive_type is None or primitive_type.name not in {XSD_QNAME, XSD_NOTATION_TYPE}:
+        if primitive_type is None or primitive_type.name not in (XSD_QNAME, XSD_NOTATION_TYPE):
             # See: https://www.w3.org/Bugs/Public/show_bug.cgi?id=4009
-            self._validator = self.min_length_validator
+            self.validate = self.min_length_validator
 
     def min_length_validator(self, value: Any) -> None:
-        if len(value) < self.value:
-            reason = _("value length cannot be lesser than {!r}").format(self.value)
-            raise XMLSchemaValidationError(self, value, reason)
+        try:
+            if len(value) < self.value:
+                reason = _("value length cannot be lesser than {!r}").format(self.value)
+                raise XMLSchemaValidationError(self, value, reason)
+        except TypeError as err:
+            if not isinstance(value, AbstractQName):
+                self.invalid_type_error(err, value)
 
 
 class XsdMaxLengthFacet(XsdFacet):
@@ -247,14 +261,18 @@ class XsdMaxLengthFacet(XsdFacet):
             self.parse_error(msg.format(self.base_value))
 
         primitive_type = getattr(self.base_type, 'primitive_type', None)
-        if primitive_type is None or primitive_type.name not in {XSD_QNAME, XSD_NOTATION_TYPE}:
+        if primitive_type is None or primitive_type.name not in (XSD_QNAME, XSD_NOTATION_TYPE):
             # See: https://www.w3.org/Bugs/Public/show_bug.cgi?id=4009
-            self._validator = self.max_length_validator
+            self.validate = self.max_length_validator
 
     def max_length_validator(self, value: Any) -> None:
-        if len(value) > self.value:
-            reason = _("value length cannot be greater than {!r}").format(self.value)
-            raise XMLSchemaValidationError(self, value, reason)
+        try:
+            if len(value) > self.value:
+                reason = _("value length cannot be greater than {!r}").format(self.value)
+                raise XMLSchemaValidationError(self, value, reason)
+        except TypeError as err:
+            if not isinstance(value, AbstractQName):
+                self.invalid_type_error(err, value)
 
 
 class XsdMinInclusiveFacet(XsdFacet):
@@ -273,10 +291,20 @@ class XsdMinInclusiveFacet(XsdFacet):
     _ADMITTED_TAGS = XSD_MIN_INCLUSIVE,
 
     def _parse_value(self, elem: ElementType) -> None:
-        value = elem.attrib['value']
-        self.value, errors = cast(LaxDecodeType, self.base_type.decode(value, 'lax'))
-        for e in errors:
+        self.schema.validation_context.clear()
+        value = self.base_type.text_decode(
+            elem.attrib['value'], 'lax', self.schema.validation_context
+        )
+
+        if isinstance(value, list):
+            raise TypeError("attribute 'value' must be atomic")
+        self.value = value
+        self.validate = self.__call__
+
+        for e in self.schema.validation_context.errors:
             self.parse_error(_("invalid restriction: {}").format(e.reason))
+
+        self.value = value
 
     def __call__(self, value: Any) -> None:
         try:
@@ -284,7 +312,7 @@ class XsdMinInclusiveFacet(XsdFacet):
                 reason = _("value has to be greater or equal than {!r}").format(self.value)
                 raise XMLSchemaValidationError(self, value, reason)
         except TypeError as err:
-            raise XMLSchemaValidationError(self, value, str(err)) from None
+            self.invalid_type_error(err, value)
 
 
 class XsdMinExclusiveFacet(XsdFacet):
@@ -303,9 +331,17 @@ class XsdMinExclusiveFacet(XsdFacet):
     _ADMITTED_TAGS = XSD_MIN_EXCLUSIVE,
 
     def _parse_value(self, elem: ElementType) -> None:
-        value = elem.attrib['value']
-        self.value, errors = cast(LaxDecodeType, self.base_type.decode(value, 'lax'))
-        for e in errors:
+        self.schema.validation_context.clear()
+        value = self.base_type.text_decode(
+            elem.attrib['value'], 'lax', self.schema.validation_context
+        )
+
+        if isinstance(value, list):
+            raise TypeError("attribute 'value' must be atomic")
+        self.value = value
+        self.validate = self.__call__
+
+        for e in self.schema.validation_context.errors:
             if not isinstance(e.validator, self.__class__) or e.validator.value != self.value:
                 self.parse_error(_("invalid restriction: {}").format(e.reason))
 
@@ -320,7 +356,7 @@ class XsdMinExclusiveFacet(XsdFacet):
                 reason = _("value has to be greater than {!r}").format(self.value)
                 raise XMLSchemaValidationError(self, value, reason)
         except TypeError as err:
-            raise XMLSchemaValidationError(self, value, str(err)) from None
+            self.invalid_type_error(err, value)
 
 
 class XsdMaxInclusiveFacet(XsdFacet):
@@ -339,9 +375,17 @@ class XsdMaxInclusiveFacet(XsdFacet):
     _ADMITTED_TAGS = XSD_MAX_INCLUSIVE,
 
     def _parse_value(self, elem: ElementType) -> None:
-        value = elem.attrib['value']
-        self.value, errors = cast(LaxDecodeType, self.base_type.decode(value, 'lax'))
-        for e in errors:
+        self.schema.validation_context.clear()
+        value = self.base_type.text_decode(
+            elem.attrib['value'], 'lax', self.schema.validation_context
+        )
+
+        if isinstance(value, list):
+            raise TypeError("attribute 'value' must be atomic")
+        self.value = value
+        self.validate = self.__call__
+
+        for e in self.schema.validation_context.errors:
             self.parse_error(_("invalid restriction: {}").format(e.reason))
 
     def __call__(self, value: Any) -> None:
@@ -350,7 +394,7 @@ class XsdMaxInclusiveFacet(XsdFacet):
                 reason = _("value has to be less than or equal than {!r}").format(self.value)
                 raise XMLSchemaValidationError(self, value, reason)
         except TypeError as err:
-            raise XMLSchemaValidationError(self, value, str(err)) from None
+            self.invalid_type_error(err, value)
 
 
 class XsdMaxExclusiveFacet(XsdFacet):
@@ -369,9 +413,17 @@ class XsdMaxExclusiveFacet(XsdFacet):
     _ADMITTED_TAGS = XSD_MAX_EXCLUSIVE,
 
     def _parse_value(self, elem: ElementType) -> None:
-        value = elem.attrib['value']
-        self.value, errors = cast(LaxDecodeType, self.base_type.decode(value, 'lax'))
-        for e in errors:
+        self.schema.validation_context.clear()
+        value = self.base_type.text_decode(
+            elem.attrib['value'], 'lax', self.schema.validation_context
+        )
+
+        if isinstance(value, list):
+            raise TypeError("attribute 'value' must be atomic")
+        self.value = value
+        self.validate = self.__call__
+
+        for e in self.schema.validation_context.errors:
             if not isinstance(e.validator, self.__class__) or e.validator.value != self.value:
                 self.parse_error(_("invalid restriction: {}").format(e.reason))
 
@@ -386,7 +438,7 @@ class XsdMaxExclusiveFacet(XsdFacet):
                 reason = _("value has to be lesser than {!r}").format(self.value)
                 raise XMLSchemaValidationError(self, value, reason)
         except TypeError as err:
-            raise XMLSchemaValidationError(self, value, str(err)) from None
+            self.invalid_type_error(err, value)
 
 
 class XsdTotalDigitsFacet(XsdFacet):
@@ -408,6 +460,8 @@ class XsdTotalDigitsFacet(XsdFacet):
     def _parse_value(self, elem: ElementType) -> None:
         # Errors are detected by meta-schema validation. For schemas with
         # 'lax' validation mode use 9999 in case of an invalid value.
+        self.validate = self.__call__
+
         try:
             self.value = int(elem.attrib['value'])
         except (ValueError, KeyError):
@@ -423,9 +477,12 @@ class XsdTotalDigitsFacet(XsdFacet):
 
     def __call__(self, value: Any) -> None:
         try:
-            if operator.add(*count_digits(value)) <= self.value:
+            a, b = count_digits(value)
+            if operator.add(a, b) <= self.value:
                 return
-        except (TypeError, ValueError, ArithmeticError) as err:
+        except TypeError as err:
+            self.invalid_type_error(err, value)
+        except (ValueError, ArithmeticError) as err:
             raise XMLSchemaValidationError(self, value, str(err)) from None
         else:
             reason = _("the number of digits has to be lesser or equal "
@@ -462,6 +519,8 @@ class XsdFractionDigitsFacet(XsdFacet):
     def _parse_value(self, elem: ElementType) -> None:
         # Errors are detected by meta-schema validation. For schemas with
         # 'lax' validation mode use 9999 in case of an invalid value.
+        self.validate = self.__call__
+
         try:
             self.value = int(elem.attrib['value'])
         except (ValueError, KeyError):
@@ -482,7 +541,9 @@ class XsdFractionDigitsFacet(XsdFacet):
         try:
             if count_digits(value)[1] <= self.value:
                 return
-        except (TypeError, ValueError, ArithmeticError) as err:
+        except TypeError as err:
+            self.invalid_type_error(err, value)
+        except (ValueError, ArithmeticError) as err:
             raise XMLSchemaValidationError(self, value, str(err)) from None
         else:
             reason = _("the number of fraction digits has to be lesser "
@@ -509,11 +570,9 @@ class XsdExplicitTimezoneFacet(XsdFacet):
     def _parse_value(self, elem: ElementType) -> None:
         self.value = elem.attrib['value']
         if self.value == 'prohibited':
-            self._validator = self.prohibited_timezone_validator
+            self.validate = self.prohibited_timezone_validator
         elif self.value == 'required':
-            self._validator = self.required_timezone_validator
-        elif self.value != 'optional':
-            self.value = 'optional'  # Error already detected by meta-schema validation
+            self.validate = self.required_timezone_validator
 
         facet: Any = self.base_type.get_facet(XSD_EXPLICIT_TIMEZONE)
         if facet is not None and facet.value != self.value and facet.value != 'optional':
@@ -521,14 +580,20 @@ class XsdExplicitTimezoneFacet(XsdFacet):
             self.parse_error(msg.format(facet.value))
 
     def required_timezone_validator(self, value: Any) -> None:
-        if value.tzinfo is None:
-            reason = _("time zone required for value {!r}").format(self.value)
-            raise XMLSchemaValidationError(self, value, reason)
+        try:
+            if value.tzinfo is None:
+                reason = _("time zone required for value {!r}").format(self.value)
+                raise XMLSchemaValidationError(self, value, reason)
+        except (TypeError, AttributeError) as err:
+            self.invalid_type_error(err, value)
 
     def prohibited_timezone_validator(self, value: Any) -> None:
-        if value.tzinfo is not None:
-            reason = _("time zone prohibited for value {!r}").format(self.value)
-            raise XMLSchemaValidationError(self, value, reason)
+        try:
+            if value.tzinfo is not None:
+                reason = _("time zone prohibited for value {!r}").format(self.value)
+                raise XMLSchemaValidationError(self, value, reason)
+        except TypeError as err:
+            self.invalid_type_error(err, value)
 
 
 class XsdEnumerationFacets(MutableSequence[ElementType], XsdFacet):
@@ -543,21 +608,25 @@ class XsdEnumerationFacets(MutableSequence[ElementType], XsdFacet):
         </enumeration>
     """
     base_type: BaseXsdType
-    _ADMITTED_TAGS = {XSD_ENUMERATION}
+    _ADMITTED_TAGS = XSD_ENUMERATION,
 
     def __init__(self, elem: ElementType,
                  schema: SchemaType,
                  parent: 'XsdAtomicRestriction',
                  base_type: BaseXsdType) -> None:
         XsdFacet.__init__(self, elem, schema, parent, base_type)
+        self.validate = self.__call__
 
     def _parse(self) -> None:
         self._elements = [self.elem]
         self.enumeration = [self._parse_value(self.elem)]
 
     def _parse_value(self, elem: ElementType) -> Optional[AtomicValueType]:
+        self.schema.validation_context.clear()
         try:
-            value = self.base_type.decode(elem.attrib['value'], namespaces=self.schema.namespaces)
+            value = self.base_type.text_decode(
+                elem.attrib['value'], 'strict', self.schema.validation_context
+            )
         except KeyError:
             pass  # pragma: no cover (already detected by meta-schema validation)
         except XMLSchemaValidationError as err:
@@ -656,20 +725,21 @@ class XsdPatternFacets(MutableSequence[ElementType], XsdFacet):
           Content: (annotation?)
         </pattern>
     """
-    _ADMITTED_TAGS = {XSD_PATTERN}
-    patterns: List[Pattern[str]]
+    _ADMITTED_TAGS = XSD_PATTERN,
+    patterns: list[re.Pattern[str]]
 
     def __init__(self, elem: ElementType,
                  schema: SchemaType,
                  parent: 'XsdAtomicRestriction',
                  base_type: Optional[BaseXsdType]) -> None:
         XsdFacet.__init__(self, elem, schema, parent, base_type)
+        self.validate = self.__call__
 
     def _parse(self) -> None:
         self._elements = [self.elem]
         self.patterns = [self._parse_value(self.elem)]
 
-    def _parse_value(self, elem: ElementType) -> Pattern[str]:
+    def _parse_value(self, elem: ElementType) -> re.Pattern[str]:
         try:
             python_pattern = translate_pattern(
                 pattern=elem.attrib['value'],
@@ -722,16 +792,22 @@ class XsdPatternFacets(MutableSequence[ElementType], XsdFacet):
         else:
             return '%s(%s...\'])' % (self.__class__.__name__, s[:70])
 
-    def __call__(self, text: str) -> None:
+    def __call__(self, value: Any) -> None:
         try:
-            if all(pattern.match(text) is None for pattern in self.patterns):
+            if all(pattern.match(value) is None for pattern in self.patterns):
                 reason = _("value doesn't match any pattern of {!r}").format(self.regexps)
-                raise XMLSchemaValidationError(self, text, reason)
+                raise XMLSchemaValidationError(self, value, reason)
         except TypeError as err:
-            raise XMLSchemaValidationError(self, text, str(err)) from None
+            self.invalid_type_error(err, value)
+
+    def re_match(self, text: str) -> Optional[re.Match[str]]:
+        for pattern in self.patterns:
+            if match := pattern.match(text):
+                return match
+        return None
 
     @property
-    def regexps(self) -> List[str]:
+    def regexps(self) -> list[str]:
         return [e.attrib.get('value', '') for e in self._elements]
 
     def get_annotation(self, i: int) -> Optional[XsdAnnotation]:
@@ -759,13 +835,14 @@ class XsdAssertionFacet(XsdFacet):
           Content: (annotation?)
         </assertion>
     """
-    _ADMITTED_TAGS = {XSD_ASSERTION}
+    _ADMITTED_TAGS = XSD_ASSERTION,
     _root = ElementNode(elem=Element('root'))
 
     def __repr__(self) -> str:
         return '%s(test=%r)' % (self.__class__.__name__, self.path)
 
     def _parse(self) -> None:
+        self.validate = self.__call__
         try:
             self.path = self.elem.attrib['test']
         except KeyError:
@@ -782,17 +859,8 @@ class XsdAssertionFacet(XsdFacet):
         else:
             self.xpath_default_namespace = self.schema.xpath_default_namespace
 
-        if self.schema.use_xpath3:
-            from ..xpath3 import XsdAssertionXPath3Parser
-
-            parser_class: Union[
-                Type[XsdAssertionXPathParser], Type[XsdAssertionXPath3Parser]
-            ] = XsdAssertionXPath3Parser
-        else:
-            parser_class = XsdAssertionXPathParser
-
-        self.parser = parser_class(
-            namespaces=self.namespaces,
+        self.parser = self.maps.loader.assertion_parser_class(
+            namespaces=self.schema.namespaces,
             strict=False,
             variable_types={'value': value},
             default_namespace=self.xpath_default_namespace
@@ -804,17 +872,19 @@ class XsdAssertionFacet(XsdFacet):
             self.parse_error(err)
             self.token = self.parser.parse('true()')
 
-    def __call__(self, value: AnyAtomicType) -> None:
+    def __call__(self, value: Any) -> None:
         context = XPathContext(self._root, variables={'value': value})
         try:
             if not self.token.evaluate(context):
                 reason = _("value is not true with test path {!r}").format(self.path)
                 raise XMLSchemaValidationError(self, value, reason)
+        except TypeError as err:
+            self.invalid_type_error(err, value)
         except ElementPathError as err:
             raise XMLSchemaValidationError(self, value, reason=str(err)) from None
 
 
-XSD_10_FACETS_BUILDERS: Dict[str, Type[XsdFacet]] = {
+XSD_10_FACETS_CLASSES: dict[str, Type[XsdFacet]] = {
     XSD_WHITE_SPACE: XsdWhiteSpaceFacet,
     XSD_LENGTH: XsdLengthFacet,
     XSD_MIN_LENGTH: XsdMinLengthFacet,
@@ -829,14 +899,19 @@ XSD_10_FACETS_BUILDERS: Dict[str, Type[XsdFacet]] = {
     XSD_PATTERN: XsdPatternFacets
 }
 
-XSD_11_FACETS_BUILDERS: Dict[str, Type[XsdFacet]] = XSD_10_FACETS_BUILDERS.copy()
-XSD_11_FACETS_BUILDERS.update({
+XSD_11_FACETS_CLASSES: dict[str, Type[XsdFacet]] = XSD_10_FACETS_CLASSES.copy()
+XSD_11_FACETS_CLASSES.update({
     XSD_ASSERTION: XsdAssertionFacet,
     XSD_EXPLICIT_TIMEZONE: XsdExplicitTimezoneFacet
 })
 
-XSD_10_FACETS = set(XSD_10_FACETS_BUILDERS)
-XSD_11_FACETS = set(XSD_11_FACETS_BUILDERS)
+FACETS_CLASSES = {
+    '1.0': XSD_10_FACETS_CLASSES,
+    '1.1': XSD_11_FACETS_CLASSES,
+}
+
+XSD_10_FACETS = set(XSD_10_FACETS_CLASSES)
+XSD_11_FACETS = set(XSD_11_FACETS_CLASSES)
 
 XSD_10_LIST_FACETS = {XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_PATTERN,
                       XSD_ENUMERATION, XSD_WHITE_SPACE}
@@ -844,9 +919,3 @@ XSD_11_LIST_FACETS = XSD_10_LIST_FACETS | {XSD_ASSERTION}
 
 XSD_10_UNION_FACETS = {XSD_PATTERN, XSD_ENUMERATION}
 XSD_11_UNION_FACETS = MULTIPLE_FACETS = {XSD_PATTERN, XSD_ENUMERATION, XSD_ASSERTION}
-
-
-XsdFacetType = Union[XsdLengthFacet, XsdMinLengthFacet, XsdMaxLengthFacet,
-                     XsdMinInclusiveFacet, XsdMinExclusiveFacet, XsdMaxInclusiveFacet,
-                     XsdMaxExclusiveFacet, XsdTotalDigitsFacet, XsdFractionDigitsFacet,
-                     XsdEnumerationFacets, XsdPatternFacets]

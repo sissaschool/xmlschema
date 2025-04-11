@@ -24,36 +24,32 @@ try:
 except ImportError:
     lxml_etree = None
 
-from xmlschema import XMLSchema10, XMLSchema11, XmlDocument, \
-    XMLResourceError, XMLSchemaValidationError, XMLSchemaDecodeError, \
-    to_json, from_json, validate, XMLSchemaParseError, is_valid, to_dict, \
-    to_etree, JsonMLConverter
+from xmlschema import XMLSchema10, XMLSchema11, XmlDocument, XMLResourceError, \
+    XMLSchemaValidationError, XMLSchemaDecodeError, to_json, from_json, validate, \
+    XMLSchemaParseError, is_valid, to_dict, to_etree, JsonMLConverter
 
 from xmlschema.names import XSD_NAMESPACE, XSI_NAMESPACE, XSD_SCHEMA
-from xmlschema.helpers import is_etree_element, is_etree_document
+from xmlschema.utils.etree import is_etree_element, is_etree_document, is_lxml_element
 from xmlschema.resources import XMLResource
 from xmlschema.documents import get_context
-from xmlschema.testing import etree_elements_assert_equal, SKIP_REMOTE_TESTS
+from xmlschema.testing import etree_elements_assert_equal, SKIP_REMOTE_TESTS, \
+    XMLSchemaTestCase, run_xmlschema_tests
 
 
-TEST_CASES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_cases/')
+class TestXmlDocuments(XMLSchemaTestCase):
 
-
-def casepath(relative_path):
-    return os.path.join(TEST_CASES_DIR, relative_path)
-
-
-class TestXmlDocuments(unittest.TestCase):
+    cases_dir = pathlib.Path(__file__).parent.joinpath('test_cases')
 
     @classmethod
     def setUpClass(cls):
-        cls.vh_dir = casepath('examples/vehicles')
-        cls.vh_xsd_file = casepath('examples/vehicles/vehicles.xsd')
-        cls.vh_xml_file = casepath('examples/vehicles/vehicles.xml')
+        cls.schema_class.meta_schema.build()
+        cls.vh_dir = cls.casepath('examples/vehicles')
+        cls.vh_xsd_file = cls.casepath('examples/vehicles/vehicles.xsd')
+        cls.vh_xml_file = cls.casepath('examples/vehicles/vehicles.xml')
 
-        cls.col_dir = casepath('examples/collection')
-        cls.col_xsd_file = casepath('examples/collection/collection.xsd')
-        cls.col_xml_file = casepath('examples/collection/collection.xml')
+        cls.col_dir = cls.casepath('examples/collection')
+        cls.col_xsd_file = cls.casepath('examples/collection/collection.xsd')
+        cls.col_xml_file = cls.casepath('examples/collection/collection.xml')
 
     def test_to_json_api(self):
         json_data = to_json(self.col_xml_file, lazy=True)
@@ -65,7 +61,7 @@ class TestXmlDocuments(unittest.TestCase):
             to_json(self.col_xml_file, lazy=True, decimal_type=Decimal)
         self.assertIn("is not JSON serializable", str(ctx.exception))
 
-        col_1_error_xml_file = casepath('examples/collection/collection-1_error.xml')
+        col_1_error_xml_file = self.casepath('examples/collection/collection-1_error.xml')
         json_data, errors = to_json(col_1_error_xml_file, validation='lax', lazy=True)
         self.assertEqual(len(errors), 1)
         self.assertIsInstance(errors[0], XMLSchemaDecodeError)
@@ -190,6 +186,36 @@ class TestXmlDocuments(unittest.TestCase):
             self.assertIsInstance(source, XMLResource)
             self.assertIsInstance(schema, XMLSchema10)
 
+        if lxml_etree is not None:
+            source, schema = get_context(self.col_xml_file, iterparse=lxml_etree.iterparse)
+            self.assertIsInstance(source, XMLResource)
+            self.assertIsInstance(schema, XMLSchema10)
+            self.assertTrue(is_lxml_element(source.root))
+            self.assertTrue(is_lxml_element(schema.root))
+
+            source, schema = get_context(self.col_xml_file, self.col_xsd_file,
+                                         iterparse=lxml_etree.iterparse)
+            self.assertIsInstance(source, XMLResource)
+            self.assertIsInstance(schema, XMLSchema10)
+            self.assertTrue(is_lxml_element(source.root))
+            self.assertTrue(is_lxml_element(schema.root))
+
+            col_schema = XMLSchema10(self.col_xsd_file)
+            source, schema = get_context(self.col_xml_file, col_schema,
+                                         iterparse=lxml_etree.iterparse)
+            self.assertIsInstance(source, XMLResource)
+            self.assertIs(schema, col_schema)
+            self.assertTrue(is_lxml_element(source.root))
+            self.assertFalse(is_lxml_element(schema.root))
+
+            xml_document = XmlDocument(self.vh_xml_file, iterparse=lxml_etree.iterparse)
+            source, schema = get_context(xml_document)
+            self.assertIsInstance(source, XMLResource)
+            self.assertIsInstance(schema, XMLSchema10)
+            self.assertIs(xml_document.schema, schema)
+            self.assertTrue(is_lxml_element(source.root))
+            self.assertTrue(is_lxml_element(schema.root))
+
     def test_get_context_without_schema(self):
         xml_data = '<text xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"\n' \
                    '      xmlns:xs="http://www.w3.org/2001/XMLSchema"\n' \
@@ -236,10 +262,10 @@ class TestXmlDocuments(unittest.TestCase):
         self.assertTrue(schema.is_valid(source))
 
     def test_use_location_hints_argument__issue_324(self):
-        xsd_file = casepath('issues/issue_324/issue_324a.xsd')
+        xsd_file = self.casepath('issues/issue_324/issue_324a.xsd')
         schema = XMLSchema10(xsd_file)
 
-        xml_file = casepath('issues/issue_324/issue_324-valid.xml')
+        xml_file = self.casepath('issues/issue_324/issue_324-valid.xml')
         self.assertIsNone(validate(xml_file))
 
         with self.assertRaises(XMLSchemaValidationError) as ctx:
@@ -250,10 +276,11 @@ class TestXmlDocuments(unittest.TestCase):
             validate(xml_file, use_location_hints=False)
         self.assertIn('provide a schema argument', str(ctx.exception))
 
-        xml_file = casepath('issues/issue_324/issue_324-invalid.xml')
+        xml_file = self.casepath('issues/issue_324/issue_324-invalid.xml')
         with self.assertRaises(XMLSchemaParseError) as ctx:
             validate(xml_file)
-        self.assertIn('unmatched namespace', str(ctx.exception))
+        self.assertIn("import of namespace 'http://xmlschema.test/wrong-ns' failed",
+                      str(ctx.exception))
 
         with self.assertRaises(XMLSchemaValidationError) as ctx:
             validate(xml_file, schema=schema)
@@ -283,15 +310,18 @@ class TestXmlDocuments(unittest.TestCase):
         xml_document = XmlDocument(self.vh_xml_file, vh_schema)
         self.assertIsInstance(xml_document.schema, XMLSchema10)
 
+        xml_document = XmlDocument(self.vh_xml_file, self.col_xsd_file)
+        self.assertIsInstance(xml_document.schema, XMLSchema10)
+
         with self.assertRaises(XMLSchemaValidationError) as ctx:
-            XmlDocument(self.vh_xml_file, self.col_xsd_file)
+            XmlDocument(self.vh_xml_file, self.col_xsd_file, use_location_hints=False)
         self.assertIn('is not an element of the schema', str(ctx.exception))
 
         xml_document = XmlDocument(self.col_xml_file)
         self.assertEqual(os.path.basename(xml_document.url), 'collection.xml')
         self.assertIsInstance(xml_document.schema, XMLSchema10)
 
-        xml_file = casepath('examples/collection/collection-1_error.xml')
+        xml_file = self.casepath('examples/collection/collection-1_error.xml')
         with self.assertRaises(XMLSchemaValidationError) as ctx:
             XmlDocument(xml_file)
         self.assertIn('invalid literal for int() with base 10', str(ctx.exception))
@@ -303,7 +333,8 @@ class TestXmlDocuments(unittest.TestCase):
 
         with self.assertRaises(ValueError) as ctx:
             XmlDocument(xml_file, validation='foo')
-        self.assertEqual(str(ctx.exception), "'foo' is not a validation mode")
+        self.assertEqual("validation mode can be 'strict', 'lax' or 'skip': 'foo'",
+                         str(ctx.exception))
 
     def test_xml_document_init_without_schema(self):
         with self.assertRaises(ValueError) as ctx:
@@ -312,23 +343,21 @@ class TestXmlDocuments(unittest.TestCase):
                       str(ctx.exception))
 
         xml_document = XmlDocument('<empty/>', validation='skip')
-        self.assertIsNone(xml_document.schema)
-        self.assertIsInstance(xml_document._fallback_schema, XMLSchema10)
-        self.assertEqual(xml_document._fallback_schema.target_namespace, '')
+        self.assertIsInstance(xml_document.schema, XMLSchema10)
+        self.assertEqual(xml_document.schema.target_namespace, '')
 
         xml_document = XmlDocument(
             '<tns:empty xmlns:tns="http://example.com/ns" />', validation='skip'
         )
-        self.assertIsNone(xml_document.schema)
-        self.assertIsInstance(xml_document._fallback_schema, XMLSchema10)
-        self.assertEqual(xml_document._fallback_schema.target_namespace, xml_document.namespace)
+        self.assertIsInstance(xml_document.schema, XMLSchema10)
+        self.assertEqual(xml_document.schema.target_namespace, xml_document.namespace)
 
     def test_xml_document_parse(self):
         xml_document = XmlDocument(self.vh_xml_file)
         self.assertEqual(os.path.basename(xml_document.url), 'vehicles.xml')
         self.assertFalse(xml_document.is_lazy())
 
-        xml_file = casepath('examples/vehicles/vehicles-1_error.xml')
+        xml_file = self.casepath('examples/vehicles/vehicles-1_error.xml')
         with self.assertRaises(XMLSchemaValidationError):
             xml_document.parse(xml_file)
 
@@ -351,7 +380,7 @@ class TestXmlDocuments(unittest.TestCase):
         self.assertNotEqual(xml_document.decode(namespaces=namespaces),
                             vh_schema.decode(self.vh_xml_file))
 
-        xml_file = casepath('examples/collection/collection-1_error.xml')
+        xml_file = self.casepath('examples/collection/collection-1_error.xml')
         xml_document = XmlDocument(xml_file, validation='lax')
         col_schema = XMLSchema10(self.col_xsd_file)
         self.assertEqual(xml_document.decode(), col_schema.decode(xml_file, validation='lax')[0])
@@ -407,7 +436,7 @@ class TestXmlDocuments(unittest.TestCase):
         self.assertEqual(fp.getvalue(), json_data)
         fp.close()
 
-        col_1_error_xml_file = casepath('examples/collection/collection-1_error.xml')
+        col_1_error_xml_file = self.casepath('examples/collection/collection-1_error.xml')
         xml_document = XmlDocument(col_1_error_xml_file, validation='lax')
         json_data, errors = xml_document.to_json()
         self.assertEqual(len(errors), 1)
@@ -444,6 +473,8 @@ class TestXmlDocuments(unittest.TestCase):
             self.assertIs(xml_document.schema, schema)
 
             col_file_path.unlink()
+
+            # Remapping default namespace can invalidate elements defined as unqualified.
             xml_document.write(str(col_file_path),
                                default_namespace="http://example.com/ns/collection")
             xml_document = XmlDocument(str(col_file_path), schema=schema)
@@ -467,7 +498,7 @@ class TestXmlDocuments(unittest.TestCase):
     def test_xml_document_etree_interface(self):
         xml_document = XmlDocument(self.vh_xml_file)
 
-        self.assertIs(xml_document.getroot(), xml_document._root)
+        self.assertIs(xml_document.getroot(), xml_document.root)
         self.assertTrue(is_etree_element(xml_document.getroot()))
 
         self.assertTrue(is_etree_document(xml_document.get_etree_document()))
@@ -495,6 +526,10 @@ class TestXmlDocuments(unittest.TestCase):
         self.assertTrue(is_etree_document(etree_document))
         self.assertTrue(hasattr(etree_document, 'xpath'))
         self.assertTrue(hasattr(etree_document, 'xslt'))
+
+        xml_document = XmlDocument(self.vh_xml_file, iterparse=lxml_etree.iterparse)
+        self.assertTrue(is_etree_element(xml_document.root))
+        self.assertTrue(hasattr(xml_document.root, 'xpath'))
 
     def test_xml_document_tostring(self):
         xml_document = XmlDocument(self.vh_xml_file)
@@ -548,9 +583,4 @@ class TestXmlDocuments(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    import platform
-    header_template = "Test xmlschema's XML documents with Python {} on {}"
-    header = header_template.format(platform.python_version(), platform.platform())
-    print('{0}\n{1}\n{0}'.format("*" * len(header), header))
-
-    unittest.main()
+    run_xmlschema_tests('XML documents')

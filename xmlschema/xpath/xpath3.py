@@ -10,6 +10,9 @@
 """
 Optional module for handling XPath 3 parsing on XSD 1.1 assertions.
 """
+from typing import Optional
+
+from elementpath import XPathToken, XPathContext
 from elementpath.xpath3 import XPath3Parser
 
 __all__ = ['XPath3Parser', 'XsdAssertionXPath3Parser']
@@ -25,13 +28,15 @@ XsdAssertionXPath3Parser.unregister('position')
 
 # noinspection PyUnusedLocal
 @XsdAssertionXPath3Parser.method(
-    XsdAssertionXPath3Parser.function('last', nargs=0))
-def evaluate_last(self, context=None):  # type: ignore[no-untyped-def]
-    raise self.missing_context("context item size is undefined")
+    XsdAssertionXPath3Parser.function('last', nargs=0)
+)
+def evaluate_last(self: XPathToken, context: Optional[XPathContext] = None) -> None:
+    raise self.missing_context("context item size is undefined")  # pragma: no cover
 
 
 # noinspection PyUnusedLocal
 @XsdAssertionXPath3Parser.method(
-    XsdAssertionXPath3Parser.function('position', nargs=0))
-def evaluate_position(self, context=None):  # type: ignore[no-untyped-def]
-    raise self.missing_context("context item position is undefined")
+    XsdAssertionXPath3Parser.function('position', nargs=0)
+)
+def evaluate_position(self: XPathToken, context: Optional[XPathContext] = None) -> None:
+    raise self.missing_context("context item position is undefined")  # pragma: no cover

@@ -7,18 +7,18 @@
 #
 # @author Mikhail Razgovorov <1338833@gmail.com>
 #
-from collections.abc import MutableMapping, MutableSequence
-from typing import TYPE_CHECKING, Any, Optional, List, Dict, Type, Union, \
-    Tuple, Container
+from collections.abc import Container, MutableMapping, MutableSequence
+from typing import TYPE_CHECKING, Any, Optional, Type, Union
 
-from ..aliases import NamespacesType, BaseXsdType
-from ..names import XSD_ANY_TYPE
-from ..helpers import local_name
-from ..exceptions import XMLSchemaTypeError
-from .default import ElementData, stackable, XMLSchemaConverter
+from xmlschema.exceptions import XMLSchemaTypeError
+from xmlschema.aliases import NsmapType, BaseXsdType
+from xmlschema.names import XSD_ANY_TYPE
+from xmlschema.utils.qnames import local_name
+
+from .base import ElementData, stackable, XMLSchemaConverter
 
 if TYPE_CHECKING:
-    from ..validators import XsdElement
+    from xmlschema.validators import XsdElement
 
 
 class GDataConverter(XMLSchemaConverter):
@@ -28,16 +28,16 @@ class GDataConverter(XMLSchemaConverter):
     ref: https://developers.google.com/gdata/docs/json
 
     :param namespaces: Map from namespace prefixes to URI.
-    :param dict_class: Dictionary class to use for decoded data. Default is `dict`.
-    :param list_class: List class to use for decoded data. Default is `list`.
+    :param dict_class: dictionary class to use for decoded data. Default is `dict`.
+    :param list_class: list class to use for decoded data. Default is `list`.
     :param kwargs: Additional keyword arguments to pass to base converter and \
     namespace mapper classes.
     """
     __slots__ = ()
 
-    def __init__(self, namespaces: Optional[NamespacesType] = None,
-                 dict_class: Optional[Type[Dict[str, Any]]] = None,
-                 list_class: Optional[Type[List[Any]]] = None,
+    def __init__(self, namespaces: Optional[NsmapType] = None,
+                 dict_class: Optional[Type[dict[str, Any]]] = None,
+                 list_class: Optional[Type[list[Any]]] = None,
                  **kwargs: Any) -> None:
         kwargs.update(attr_prefix='', text_key='$t', cdata_prefix='$')
         super().__init__(namespaces, dict_class, list_class, **kwargs)
@@ -55,12 +55,12 @@ class GDataConverter(XMLSchemaConverter):
 
     def unmap_qname(self, qname: str,
                     name_table: Optional[Container[Optional[str]]] = None,
-                    xmlns: Optional[List[Tuple[str, str]]] = None) -> str:
+                    xmlns: Optional[list[tuple[str, str]]] = None) -> str:
         if '$' in qname and not qname.startswith('$'):
             qname = qname.replace('$', ':')
         return super().unmap_qname(qname, name_table, xmlns)
 
-    def get_xmlns_from_data(self, obj: Any) -> Optional[List[Tuple[str, str]]]:
+    def get_xmlns_from_data(self, obj: Any) -> Optional[list[tuple[str, str]]]:
         if not self._use_namespaces or not isinstance(obj, MutableMapping):
             return None
 
@@ -136,7 +136,7 @@ class GDataConverter(XMLSchemaConverter):
                     tag = xsd_element.name
 
         text = None
-        content: List[Tuple[Union[str, int], Any]] = []
+        content: list[tuple[Union[str, int], Any]] = []
         attributes = {}
 
         xmlns = self.set_context(obj, level)

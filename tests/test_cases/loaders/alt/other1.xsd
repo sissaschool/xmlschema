@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+  xmlns="http://xmlschema.test/other-ns"
+  targetNamespace="http://xmlschema.test/other-ns">
+
+  <xs:import namespace="http://xmlschema.test/ns" schemaLocation="schema1.xsd"/>
+
+  <xs:simpleType name="otherType">
+    <xs:restriction base="xs:string"/>
+  </xs:simpleType>
+
+</xs:schema>
+

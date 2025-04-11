@@ -13,19 +13,19 @@ import pprint
 from dataclasses import dataclass
 from itertools import chain
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, Optional, Iterable, List, Set, Union, Tuple
+from collections.abc import Iterable
+from typing import Any, Optional, Union
 from urllib.parse import unquote, urlsplit
 from xml.etree import ElementTree
 
-from .exceptions import XMLResourceError, XMLSchemaValueError
-from .names import XSD_SCHEMA, XSD_IMPORT, XSD_INCLUDE, XSD_REDEFINE, XSD_OVERRIDE
-from .helpers import logged
-from .locations import LocationPath, is_remote_url, normalize_url, match_location
-from .translation import gettext as _
-from .resources import XMLResource
-
-if TYPE_CHECKING:
-    from .validators import XMLSchemaBase
+from xmlschema.aliases import SchemaType
+from xmlschema.exceptions import XMLSchemaValueError, XMLResourceOSError
+from xmlschema.names import XSD_SCHEMA, XSD_IMPORT, XSD_INCLUDE, XSD_REDEFINE, XSD_OVERRIDE
+from xmlschema.utils.logger import logged
+from xmlschema.utils.paths import LocationPath
+from xmlschema.utils.urls import is_remote_url, normalize_url, match_location
+from xmlschema.translation import gettext as _
+from xmlschema.resources import XMLResource
 
 logger = logging.getLogger('xmlschema')
 
@@ -45,10 +45,10 @@ class XsdSource:
         self.text = resource.get_text()
         self.processed = False
         self.modified = False
-        self.substitutions: Optional[List[Tuple[str, str]]] = None
+        self.substitutions: Optional[list[tuple[str, str]]] = None
 
     @property
-    def schema_locations(self) -> Set[str]:
+    def schema_locations(self) -> set[str]:
         """Extract schema locations from XSD resource tree."""
         locations = set()
         for child in self.resource.root:
@@ -70,7 +70,7 @@ class XsdSource:
         self.modified = True
 
     def get_location_path(self, location: str,
-                          ref: Union['XMLSchemaBase', XMLResource],
+                          ref: Union[SchemaType, XMLResource],
                           modify: bool = True) -> LocationPath:
         """
         Return a relative location path for the referred XSD schema, replacing
@@ -140,7 +140,7 @@ class XsdSource:
 
 def save_sources(target: Union[str, Path],
                  sources: Iterable[XsdSource],
-                 save_locations: bool = False) -> Dict[str, str]:
+                 save_locations: bool = False) -> dict[str, str]:
     """Save XSD sources to a target directory."""
     target_path = Path(target) if isinstance(target, str) else target
     if target_path.is_dir():
@@ -208,12 +208,12 @@ def save_sources(target: Union[str, Path],
 
 
 @logged
-def export_schema(schema: 'XMLSchemaBase',
+def export_schema(schema: SchemaType,
                   target: Union[str, Path],
                   save_remote: bool = False,
                   remove_residuals: bool = True,
-                  exclude_locations: Optional[List[str]] = None,
-                  loglevel: Optional[Union[str, int]] = None) -> Dict[str, str]:
+                  exclude_locations: Optional[list[str]] = None,
+                  loglevel: Optional[Union[str, int]] = None) -> dict[str, str]:
     """
     Export XSD sources used by a schema instance to a target directory.
     Don't use this function directly, use XMLSchema.export() method instead.
@@ -291,8 +291,8 @@ def download_schemas(url: str,
                      modify: bool = False,
                      defuse: str = 'remote',
                      timeout: int = 300,
-                     exclude_locations: Optional[List[str]] = None,
-                     loglevel: Optional[Union[str, int]] = None) -> Dict[str, str]:
+                     exclude_locations: Optional[list[str]] = None,
+                     loglevel: Optional[Union[str, int]] = None) -> dict[str, str]:
     """
     Download one or more schemas from a URL and save them in a target directory. All the
     referred locations in schema sources are downloaded and stored in the target directory.
@@ -353,7 +353,7 @@ def download_schemas(url: str,
 
                 try:
                     ref_resource = XMLResource(url, defuse=defuse, timeout=timeout)
-                except (OSError, XMLResourceError) as err:
+                except (OSError, XMLResourceOSError) as err:
                     logger.error('Error accessing resource at URL %s: %s', url, err)
                     continue
                 except ElementTree.ParseError as err:

@@ -12,10 +12,11 @@
 Observers for testing XMLSchema classes.
 """
 from functools import wraps
+from itertools import chain
 
-from ..names import XSD_NAMESPACE, XSD_ANY_TYPE
-from ..validators import XMLSchema10, XMLSchema11, XsdGroup, \
-    XsdAttributeGroup, XsdComplexType, XsdComponent
+from xmlschema.names import XSD_NAMESPACE, XSD_ANY_TYPE
+from xmlschema.validators import XMLSchema10, XMLSchema11, XsdGroup, \
+    XsdAttributeGroup, XsdComplexType, XsdComponent, XsdBuilders
 
 
 class SchemaObserver:
@@ -77,38 +78,23 @@ class SchemaObserver:
         return False
 
 
-observed_builder = SchemaObserver.observed_builder
+class ObservedBuilders(XsdBuilders):
+
+    def __set_name__(self, cls, name):
+        super().__set_name__(cls, name)
+
+        for attr in chain(self.__dict__, self.__slots__):
+            value = getattr(self, attr)
+            if isinstance(value, dict):
+                for k, v in value.items():
+                    value[k] = SchemaObserver.observed_builder(v)
+            elif isinstance(value, type):
+                object.__setattr__(self, attr, SchemaObserver.observed_builder(value))
 
 
 class ObservedXMLSchema10(XMLSchema10):
-    xsd_notation_class = observed_builder(XMLSchema10.xsd_notation_class)
-    xsd_complex_type_class = observed_builder(XMLSchema10.xsd_complex_type_class)
-    xsd_attribute_class = observed_builder(XMLSchema10.xsd_attribute_class)
-    xsd_any_attribute_class = observed_builder(XMLSchema10.xsd_any_attribute_class)
-    xsd_attribute_group_class = observed_builder(XMLSchema10.xsd_attribute_group_class)
-    xsd_group_class = observed_builder(XMLSchema10.xsd_group_class)
-    xsd_element_class = observed_builder(XMLSchema10.xsd_element_class)
-    xsd_any_class = observed_builder(XMLSchema10.xsd_any_class)
-    xsd_atomic_restriction_class = observed_builder(XMLSchema10.xsd_atomic_restriction_class)
-    xsd_list_class = observed_builder(XMLSchema10.xsd_list_class)
-    xsd_union_class = observed_builder(XMLSchema10.xsd_union_class)
-    xsd_key_class = observed_builder(XMLSchema10.xsd_key_class)
-    xsd_keyref_class = observed_builder(XMLSchema10.xsd_keyref_class)
-    xsd_unique_class = observed_builder(XMLSchema10.xsd_unique_class)
+    builders = ObservedBuilders()
 
 
 class ObservedXMLSchema11(XMLSchema11):
-    xsd_notation_class = observed_builder(XMLSchema11.xsd_notation_class)
-    xsd_complex_type_class = observed_builder(XMLSchema11.xsd_complex_type_class)
-    xsd_attribute_class = observed_builder(XMLSchema11.xsd_attribute_class)
-    xsd_any_attribute_class = observed_builder(XMLSchema11.xsd_any_attribute_class)
-    xsd_attribute_group_class = observed_builder(XMLSchema11.xsd_attribute_group_class)
-    xsd_group_class = observed_builder(XMLSchema11.xsd_group_class)
-    xsd_element_class = observed_builder(XMLSchema11.xsd_element_class)
-    xsd_any_class = observed_builder(XMLSchema11.xsd_any_class)
-    xsd_atomic_restriction_class = observed_builder(XMLSchema11.xsd_atomic_restriction_class)
-    xsd_list_class = observed_builder(XMLSchema11.xsd_list_class)
-    xsd_union_class = observed_builder(XMLSchema11.xsd_union_class)
-    xsd_key_class = observed_builder(XMLSchema11.xsd_key_class)
-    xsd_keyref_class = observed_builder(XMLSchema11.xsd_keyref_class)
-    xsd_unique_class = observed_builder(XMLSchema11.xsd_unique_class)
+    xsd_builders = ObservedBuilders()

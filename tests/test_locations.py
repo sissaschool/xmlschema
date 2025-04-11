@@ -18,13 +18,13 @@ from urllib.parse import urlsplit
 from pathlib import Path, PurePath, PureWindowsPath, PurePosixPath
 from unittest.mock import patch, MagicMock
 
-import xmlschema.locations
-from xmlschema.locations import LocationPath, LocationPosixPath, LocationWindowsPath, \
-    is_url, is_local_url, is_remote_url, url_path_is_file, is_unc_path, is_drive_path, \
-    normalize_url, normalize_locations, match_location, is_encoded_url, is_safe_url, \
-    encode_url, decode_url, get_uri_path, get_uri, DRIVE_LETTERS
-
-TEST_CASES_DIR = str(pathlib.Path(__file__).absolute().parent.joinpath('test_cases'))
+from xmlschema.testing import XMLSchemaTestCase, run_xmlschema_tests
+from xmlschema.utils.paths import DRIVE_LETTERS, get_uri, get_uri_path, is_unc_path, \
+    is_drive_path, LocationPath, LocationPosixPath, LocationWindowsPath
+from xmlschema.utils.urls import is_url, is_local_url, is_remote_url, is_encoded_url, \
+    is_safe_url, encode_url, decode_url, location_is_file, normalize_url, normalize_locations, \
+    match_location
+import xmlschema.utils.urls
 
 DRIVE_REGEX = '(/[a-zA-Z]:|)' if platform.system() == 'Windows' else ''
 
@@ -37,7 +37,7 @@ URL_CASES = (
     'file:///tmp/xmlschema/schemas/VC/XMLSchema-versioning.xsd',
     'file:///tmp/xmlschema/schemas/XSD_1.1/xsd11-extra.xsd',
     'issue #000.xml', 'dev/XMLSCHEMA/test.xsd',
-    'file:///tmp/xmlschema/schemas/XSI/XMLSchema-instance_minimal.xsd',
+    'file:///tmp/xmlschema/schemas/XSI/XMLSchema-instance.xsd',
     'vehicles.xsd', 'file://filer01/MY_HOME/',
     '//anaconda/envs/testenv/lib/python3.6/site-packages/xmlschema/validators/schemas/',
     'z:\\Dir-1.0\\Dir-2_0\\', 'https://host/path?name=2&id=', 'data.xml',
@@ -50,11 +50,11 @@ URL_CASES = (
     '/tmp/tests/test_cases/examples/collection', 'file:other.xsd',
     'issue%20%23000.xml', '\\\\filer01\\MY_HOME\\dev\\XMLSCHEMA\\test.xsd',
     'http://site/base', 'dir2/schema.xsd', '//root/dir1/schema.xsd',
-    'file:///tmp/xmlschema/schemas/XML/xml_minimal.xsd',
+    'file:///tmp/xmlschema/schemas/XML/xml.xsd',
     'https://site/base', 'file:///home#attribute',
     '/dir1/dir2/issue%20%23002', '////root/dir1/schema.xsd',
     '/tmp/xmlschema/schemas/XSD_1.1/XMLSchema.xsd',
-    '/tmp/xmlschema/schemas/XML/xml_minimal.xsd',
+    '/tmp/xmlschema/schemas/XML/xml.xsd',
     '/tmp/xmlschema/schemas/XSD_1.0/XMLSchema.xsd',
     'file:///home/', '////root/dir1', '//root/dir1/', 'file:///home', 'other.xsd',
     'file:///tmp/tests/test_cases/examples/collection/collection.xml',
@@ -64,16 +64,12 @@ URL_CASES = (
     'https://xmlschema.test/schema 2/test.xsd?name=2 id=3',
     'xsd1.0/schema.xsd', '/home', 'schema.xsd',
     'dev\\XMLSCHEMA\\test.xsd', '../dir1/./dir2', 'beta',
-    '/tmp/xmlschema/schemas/XSI/XMLSchema-instance_minimal.xsd',
+    '/tmp/xmlschema/schemas/XSI/XMLSchema-instance.xsd',
     'file:///dir1/dir2/', 'file:///dir1/dir2/issue%20001', '/root/dir1/schema.xsd',
     'file:///tmp/xmlschema/schemas/XSD_1.1', '/path/schema 2/test.xsd?name=2 id=3',
     'file:////filer01/MY_HOME/', 'file:///home?name=2&id=', 'http://example.com/beta',
     '/home/user', 'file:///\\k:\\Dir A\\schema.xsd'
 )
-
-
-def casepath(relative_path):
-    return str(pathlib.Path(TEST_CASES_DIR).joinpath(relative_path))
 
 
 def is_windows_path(path):
@@ -94,13 +90,15 @@ def filter_windows_path(path):
         return path
 
 
-class TestLocations(unittest.TestCase):
+class TestLocations(XMLSchemaTestCase):
+
+    cases_dir = pathlib.Path(__file__).absolute().parent.joinpath('test_cases')
 
     @classmethod
     def setUpClass(cls):
-        cls.col_dir = casepath('examples/collection')
-        cls.col_xsd_file = casepath('examples/collection/collection.xsd')
-        cls.col_xml_file = casepath('examples/collection/collection.xml')
+        cls.col_dir = cls.casepath('examples/collection')
+        cls.col_xsd_file = cls.casepath('examples/collection/collection.xsd')
+        cls.col_xml_file = cls.casepath('examples/collection/collection.xml')
 
     def check_url(self, url, expected):
         url_parts = urlsplit(url)
@@ -159,9 +157,8 @@ class TestLocations(unittest.TestCase):
         else:
             default_class = LocationPosixPath
 
-        with self.assertRaises(ValueError) as ec:
-            LocationPath.from_uri('')
-        self.assertEqual(str(ec.exception), 'Empty URI provided!')
+        path = LocationPath.from_uri('')
+        self.assertEqual(str(path), '.')
 
         path = LocationPath.from_uri('https://example.com/names/?name=foo')
         self.assertIsInstance(path, LocationPosixPath)
@@ -316,7 +313,7 @@ class TestLocations(unittest.TestCase):
             self.assertIs(path.__class__, PureWindowsPath)
             self.assertEqual(path.as_uri(), url)
 
-            self.assertEqual(xmlschema.locations.os.name, 'nt')
+            self.assertEqual(xmlschema.utils.urls.os.name, 'nt')
             path = LocationPath(unc_path)
             self.assertIs(path.__class__, LocationWindowsPath)
             self.assertEqual(path.as_uri(), url_host_in_path)
@@ -329,7 +326,7 @@ class TestLocations(unittest.TestCase):
             self.assertEqual(str(path), unc_path)
             self.assertRaises(ValueError, path.as_uri)  # Not recognized as UNC path
 
-            self.assertEqual(xmlschema.locations.os.name, 'posix')
+            self.assertEqual(xmlschema.utils.urls.os.name, 'posix')
             path = LocationPath(unc_path)
             self.assertIs(path.__class__, LocationPosixPath)
             self.assertEqual(str(path), unc_path)
@@ -504,9 +501,7 @@ class TestLocations(unittest.TestCase):
         self.assertEqual(urlsplit(url).geturl(), url)
         self.assertEqual(normalize_url(url), url)
 
-    @unittest.skip
     def test_normalize_url_with_base_url_with_local_part(self):
-
         base_url = "file:///D:/a/xmlschema/xmlschema/filer01/MY_HOME"
         url = normalize_url(r'dev/XMLSCHEMA/test.xsd', base_url)
         self.assertEqual(
@@ -570,13 +565,13 @@ class TestLocations(unittest.TestCase):
         self.assertTrue(is_remote_url(b'  http://example.com/schema.xsd'))
 
     def test_url_path_is_file_function(self):
-        self.assertTrue(url_path_is_file(self.col_xml_file))
-        self.assertTrue(url_path_is_file(normalize_url(self.col_xml_file)))
-        self.assertFalse(url_path_is_file(self.col_dir))
-        self.assertFalse(url_path_is_file('http://example.com/'))
+        self.assertTrue(location_is_file(self.col_xml_file))
+        self.assertTrue(location_is_file(normalize_url(self.col_xml_file)))
+        self.assertFalse(location_is_file(self.col_dir))
+        self.assertFalse(location_is_file('http://example.com/'))
 
         with patch('platform.system', MagicMock(return_value="Windows")):
-            self.assertFalse(url_path_is_file('file:///c:/Windows/unknown'))
+            self.assertFalse(location_is_file('file:///c:/Windows/unknown'))
 
     def test_is_unc_path_function(self):
         self.assertFalse(is_unc_path(''))
@@ -730,8 +725,4 @@ class TestLocations(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    header_template = "Test xmlschema locations.py module with Python {} on platform {}"
-    header = header_template.format(platform.python_version(), platform.platform())
-    print('{0}\n{1}\n{0}'.format("*" * len(header), header))
-
-    unittest.main()
+    run_xmlschema_tests("locations.py module")

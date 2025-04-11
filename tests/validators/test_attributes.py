@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# Copyright (c), 2016-2020, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2025, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -8,7 +8,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-import unittest
+import pathlib
 from textwrap import dedent
 
 from xmlschema import XMLSchemaParseError, XMLSchemaValidationError
@@ -18,6 +18,8 @@ from xmlschema.names import XSI_NAMESPACE, XSD_ANY_SIMPLE_TYPE, XSD_STRING
 
 
 class TestXsdAttributes(XsdValidatorTestCase):
+
+    cases_dir = pathlib.Path(__file__).parent.joinpath('../test_cases')
 
     def test_attribute_use(self):
         schema = self.check_schema("""
@@ -477,7 +479,9 @@ class TestXsdAttributes(XsdValidatorTestCase):
 
         with self.assertRaises(XMLSchemaValidationError) as ctx:
             schema.attribute_groups['extra'].decode({'label': 'alpha'})
-        self.assertTrue(ctx.exception.reason.startswith("cannot validate against xs:NOTATION"))
+        self.assertTrue(ctx.exception.reason.startswith(
+            "attribute label='alpha': cannot validate against xs:NOTATION"
+        ))
 
         schema = self.check_schema("""
         <xs:attributeGroup name="extra">
@@ -490,7 +494,10 @@ class TestXsdAttributes(XsdValidatorTestCase):
 
         with self.assertRaises(XMLSchemaValidationError) as ctx:
             schema.attribute_groups['extra'].decode({'label': 'alpha'})
-        self.assertEqual(ctx.exception.reason, "missing enumeration facet in xs:NOTATION subtype")
+        self.assertEqual(
+            ctx.exception.reason,
+            "attribute label='alpha': missing enumeration facet in xs:NOTATION subtype"
+        )
 
         schema = self.check_schema("""
         <xs:notation name="jpeg" public="image/jpeg"/>
@@ -562,9 +569,5 @@ class TestXsd11Attributes(TestXsdAttributes):
 
 
 if __name__ == '__main__':
-    import platform
-    header_template = "Test xmlschema's XSD attributes with Python {} on {}"
-    header = header_template.format(platform.python_version(), platform.platform())
-    print('{0}\n{1}\n{0}'.format("*" * len(header), header))
-
-    unittest.main()
+    from xmlschema.testing import run_xmlschema_tests
+    run_xmlschema_tests('XSD attributes')

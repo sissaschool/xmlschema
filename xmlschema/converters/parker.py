@@ -8,14 +8,15 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from collections.abc import MutableMapping, MutableSequence
-from typing import TYPE_CHECKING, Any, Optional, List, Dict, Type
+from typing import TYPE_CHECKING, Any, Optional, Type
 
-from ..aliases import NamespacesType, BaseXsdType
-from ..resources import XMLResource
-from .default import ElementData, XMLSchemaConverter
+from xmlschema.aliases import NsmapType, BaseXsdType
+from xmlschema.resources import XMLResource
+
+from .base import ElementData, XMLSchemaConverter
 
 if TYPE_CHECKING:
-    from ..validators import XsdElement
+    from xmlschema.validators import XsdElement
 
 
 class ParkerConverter(XMLSchemaConverter):
@@ -26,16 +27,16 @@ class ParkerConverter(XMLSchemaConverter):
     ref: https://developer.mozilla.org/en-US/docs/Archive/JXON#The_Parker_Convention
 
     :param namespaces: Map from namespace prefixes to URI.
-    :param dict_class: Dictionary class to use for decoded data. Default is `dict`.
-    :param list_class: List class to use for decoded data. Default is `list`.
+    :param dict_class: dictionary class to use for decoded data. Default is `dict`.
+    :param list_class: list class to use for decoded data. Default is `list`.
     :param preserve_root: If `True` the root element will be preserved. For default \
     the Parker convention remove the document root element, returning only the value.
     """
     __slots__ = ()
 
-    def __init__(self, namespaces: Optional[NamespacesType] = None,
-                 dict_class: Optional[Type[Dict[str, Any]]] = None,
-                 list_class: Optional[Type[List[Any]]] = None,
+    def __init__(self, namespaces: Optional[NsmapType] = None,
+                 dict_class: Optional[Type[dict[str, Any]]] = None,
+                 list_class: Optional[Type[list[Any]]] = None,
                  preserve_root: bool = False, **kwargs: Any) -> None:
         kwargs.update(attr_prefix=None, text_key='', cdata_prefix=None)
         super().__init__(

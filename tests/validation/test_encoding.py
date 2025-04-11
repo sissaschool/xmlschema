@@ -8,7 +8,8 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-import os
+import decimal
+import pathlib
 import unittest
 from textwrap import dedent
 from xml.etree import ElementTree
@@ -23,7 +24,8 @@ from elementpath.etree import etree_tostring
 
 from xmlschema import XMLSchemaEncodeError, XMLSchemaValidationError
 from xmlschema.converters import UnorderedConverter, JsonMLConverter
-from xmlschema.helpers import local_name, is_etree_element
+from xmlschema.utils.etree import is_etree_element
+from xmlschema.utils.qnames import local_name
 from xmlschema.resources import XMLResource
 from xmlschema.validators.exceptions import XMLSchemaChildrenValidationError
 from xmlschema.validators import XMLSchema11
@@ -32,7 +34,7 @@ from xmlschema.testing import XsdValidatorTestCase, etree_elements_assert_equal
 
 class TestEncoding(XsdValidatorTestCase):
 
-    TEST_CASES_DIR = os.path.join(os.path.dirname(__file__), '../test_cases')
+    cases_dir = pathlib.Path(__file__).parent.joinpath('../test_cases')
 
     def check_encode(self, xsd_component, data, expected, **kwargs):
         if isinstance(expected, type) and issubclass(expected, Exception):
@@ -68,45 +70,104 @@ class TestEncoding(XsdValidatorTestCase):
             for e1, e2 in zip(elem.iter(), xt.getroot().iter())
         ))
 
-    def test_string_based_builtin_types(self):
+    def test_string_builtin_type(self):
         self.check_encode(self.xsd_types['string'], 'sample string ', 'sample string ')
+        self.check_encode(self.xsd_types['string'],
+                          '\n\r sample\tstring\n', '\n\r sample\tstring\n')
+
+    def test_normalized_string_builtin_type(self):
         self.check_encode(self.xsd_types['normalizedString'], ' sample string ', ' sample string ')
         self.check_encode(self.xsd_types['normalizedString'],
                           '\n\r sample\tstring\n', '   sample string ')
-        self.check_encode(self.xsd_types['token'], '\n\r sample\t\tstring\n ', 'sample string')
-        self.check_encode(self.xsd_types['language'], 'sample string', XMLSchemaValidationError)
-        self.check_encode(self.xsd_types['language'], ' en ', 'en')
+
+        self.check_encode(self.xsd_types['normalizedString'],
+                          datatypes.NormalizedString(' sample string '), ' sample string ')
+        self.check_encode(self.xsd_types['normalizedString'],
+                          datatypes.NormalizedString('\n\r sample\tstring\n'), '   sample string ')
+
+    def test_name_builtin_type(self):
         self.check_encode(self.xsd_types['Name'], 'first_name', 'first_name')
         self.check_encode(self.xsd_types['Name'], ' first_name ', 'first_name')
         self.check_encode(self.xsd_types['Name'], 'first name', XMLSchemaValidationError)
         self.check_encode(self.xsd_types['Name'], '1st_name', XMLSchemaValidationError)
         self.check_encode(self.xsd_types['Name'], 'first_name1', 'first_name1')
         self.check_encode(self.xsd_types['Name'], 'first:name', 'first:name')
-        self.check_encode(self.xsd_types['NCName'], 'first_name', 'first_name')
-        self.check_encode(self.xsd_types['NCName'], 'first:name', XMLSchemaValidationError)
-        self.check_encode(self.xsd_types['ENTITY'], 'first:name', XMLSchemaValidationError)
-        self.check_encode(self.xsd_types['ID'], 'first:name', XMLSchemaValidationError)
-        self.check_encode(self.xsd_types['IDREF'], 'first:name', XMLSchemaValidationError)
+        self.check_encode(self.xsd_types['Name'], datatypes.Name('first:name'), 'first:name')
 
-    def test_decimal_based_builtin_types(self):
+    def test_token_builtin_type(self):
+        self.check_encode(self.xsd_types['token'], '\n\r sample\t\tstring\n ', 'sample string')
+        self.check_encode(self.xsd_types['token'],
+                          datatypes.XsdToken('\n\r sample\t\tstring\n '), 'sample string')
+
+    def test_language_builtin_type(self):
+        self.check_encode(self.xsd_types['language'], 'sample string', XMLSchemaValidationError)
+        self.check_encode(self.xsd_types['language'], ' en ', 'en')
+        self.check_encode(self.xsd_types['language'], datatypes.Language(' en '), 'en')
+
+    def test_ncname_builtin_type(self):
+        self.check_encode(self.xsd_types['NCName'], 'first_name', 'first_name')
+        self.check_encode(self.xsd_types['NCName'], datatypes.NCName('first_name'), 'first_name')
+        self.check_encode(self.xsd_types['NCName'], 'first:name', XMLSchemaValidationError)
+
+    def test_entity_builtin_type(self):
+        self.check_encode(self.xsd_types['ENTITY'], 'first:name', XMLSchemaValidationError)
+        self.check_encode(self.xsd_types['ENTITY'], 'name  ', 'name')
+        self.check_encode(self.xsd_types['ENTITY'], datatypes.Entity('name  '), 'name')
+
+    def test_id_builtin_type(self):
+        self.check_encode(self.xsd_types['ID'], 'first:name', XMLSchemaValidationError)
+        self.check_encode(self.xsd_types['ID'], '12345', XMLSchemaValidationError)
+        self.check_encode(self.xsd_types['ID'], ' a12345 ', 'a12345')
+        self.check_encode(self.xsd_types['ID'], datatypes.Id(' a12345 '), 'a12345')
+
+    def test_idref_builtin_type(self):
+        self.check_encode(self.xsd_types['IDREF'], 'first:name', XMLSchemaValidationError)
+        self.check_encode(self.xsd_types['IDREF'], '12345', XMLSchemaValidationError)
+        self.check_encode(self.xsd_types['IDREF'], ' a12345 ', 'a12345')
+        self.check_encode(self.xsd_types['IDREF'], datatypes.Id(' a12345 '), 'a12345')
+
+    def test_decimal_builtin_type(self):
         self.check_encode(self.xsd_types['decimal'], -99.09, '-99.09')
         self.check_encode(self.xsd_types['decimal'], '-99.09', '-99.09')
+        self.check_encode(self.xsd_types['decimal'], decimal.Decimal('-99.09'), '-99.09')
+
+    def test_integer_builtin_type(self):
         self.check_encode(self.xsd_types['integer'], 1000, '1000')
+        self.check_encode(self.xsd_types['integer'], ' 1000', '1000', untyped_data=True)
+        self.check_encode(self.xsd_types['integer'], datatypes.Integer(1000), '1000')
         self.check_encode(self.xsd_types['integer'], 100.0, XMLSchemaEncodeError)
         self.check_encode(self.xsd_types['integer'], 100.0, '100', validation='lax')
+
+    def test_short_builtin_type(self):
         self.check_encode(self.xsd_types['short'], 1999, '1999')
+        self.check_encode(self.xsd_types['short'], ' 1999 ', '1999', untyped_data=True)
+        self.check_encode(self.xsd_types['short'], datatypes.Short(1999), '1999')
         self.check_encode(self.xsd_types['short'], 10000000, XMLSchemaValidationError)
+
+    def test_float_builtin_type(self):
         self.check_encode(self.xsd_types['float'], 100.0, '100.0')
         self.check_encode(self.xsd_types['float'], 'hello', XMLSchemaEncodeError)
+
+    def test_double_builtin_type(self):
         self.check_encode(self.xsd_types['double'], -4531.7, '-4531.7')
+
+    def test_positive_integer_builtin_type(self):
         self.check_encode(self.xsd_types['positiveInteger'], -1, XMLSchemaValidationError)
         self.check_encode(self.xsd_types['positiveInteger'], 0, XMLSchemaValidationError)
+
+    def test_non_negative_integer_builtin_type(self):
         self.check_encode(self.xsd_types['nonNegativeInteger'], 0, '0')
         self.check_encode(self.xsd_types['nonNegativeInteger'], -1, XMLSchemaValidationError)
+
+    def test_negative_integer_builtin_type(self):
         self.check_encode(self.xsd_types['negativeInteger'], -100, '-100')
-        self.check_encode(self.xsd_types['nonPositiveInteger'], 7, XMLSchemaValidationError)
+
+    def test_unsigned_long_builtin_type(self):
         self.check_encode(self.xsd_types['unsignedLong'], 101, '101')
         self.check_encode(self.xsd_types['unsignedLong'], -101, XMLSchemaValidationError)
+
+    def test_non_positive_integer_builtin_type(self):
+        self.check_encode(self.xsd_types['nonPositiveInteger'], -7, '-7')
         self.check_encode(self.xsd_types['nonPositiveInteger'], 7, XMLSchemaValidationError)
 
     def test_list_builtin_types(self):
@@ -209,18 +270,21 @@ class TestEncoding(XsdValidatorTestCase):
         self.check_encode(integer_or_float, -95, '-95')
         self.check_encode(integer_or_float, -95.0, '-95.0')
         self.check_encode(integer_or_float, True, XMLSchemaEncodeError)
-        self.check_encode(integer_or_float, True, '1', validation='lax')
+        self.check_encode(integer_or_float, True, 'true', validation='skip')
+        self.check_encode(integer_or_float, True, None, validation='lax')
 
         integer_or_string = self.st_schema.types['integer_or_string']
         self.check_encode(integer_or_string, 89, '89')
-        self.check_encode(integer_or_string, 89.0, '89', validation='lax')
+        self.check_encode(integer_or_string, 89.0, '89.0', validation='skip')
+        self.check_encode(integer_or_string, 89.0, None, validation='lax')
         self.check_encode(integer_or_string, 89.0, XMLSchemaEncodeError)
         self.check_encode(integer_or_string, False, XMLSchemaEncodeError)
         self.check_encode(integer_or_string, "Venice ", 'Venice ')
 
         boolean_or_integer_or_string = self.st_schema.types['boolean_or_integer_or_string']
         self.check_encode(boolean_or_integer_or_string, 89, '89')
-        self.check_encode(boolean_or_integer_or_string, 89.0, '89', validation='lax')
+        self.check_encode(boolean_or_integer_or_string, 89.0, '89.0', validation='skip')
+        self.check_encode(boolean_or_integer_or_string, 89.0, None, validation='lax')
         self.check_encode(boolean_or_integer_or_string, 89.0, XMLSchemaEncodeError)
         self.check_encode(boolean_or_integer_or_string, False, 'false')
         self.check_encode(boolean_or_integer_or_string, "Venice ", 'Venice ')
@@ -313,7 +377,7 @@ class TestEncoding(XsdValidatorTestCase):
             schema.encode(rotation_data)
         except XMLSchemaValidationError as err:
             message_lines = str(err).split('\n')
-            self.assertIsNone(err.source)
+            self.assertEqual(err.source, {'@roll': 0.0, '@pitch': 0.0, '@yaw': -1.0})
             self.assertIsNone(err.path)
 
         self.assertTrue(message_lines, msg="Empty error message!")
@@ -860,9 +924,5 @@ class TestEncoding11(TestEncoding):
 
 
 if __name__ == '__main__':
-    import platform
-    header_template = "Test xmlschema encoding with Python {} on {}"
-    header = header_template.format(platform.python_version(), platform.platform())
-    print('{0}\n{1}\n{0}'.format("*" * len(header), header))
-
-    unittest.main()
+    from xmlschema.testing import run_xmlschema_tests
+    run_xmlschema_tests('encoding')

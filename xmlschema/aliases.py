@@ -10,123 +10,131 @@
 """
 Type aliases for static typing analysis. In a type checking context the aliases
 are defined from effective classes imported from package modules. In a runtime
-context the aliases cannot be set from the same bases, due to circular imports,
-so they are set with a common dummy subscriptable type to keep compatibility.
+context the aliases that can't be set from the same bases, due to circular
+imports, are set with a common.
 """
-from typing import TYPE_CHECKING, Optional, TypeVar
+from decimal import Decimal
+from pathlib import Path
+from collections import Counter
+from collections.abc import Callable, Iterator, MutableMapping, Sequence
+from typing import Any, AnyStr, IO, Optional, TYPE_CHECKING, TypeVar, Union
+from xml.etree.ElementTree import Element, ElementTree
 
-__all__ = ['ElementType', 'ElementTreeType', 'XMLSourceType', 'NamespacesType',
+from elementpath.datatypes import NormalizedString, QName, Float10, Integer, \
+    AnyURI, Duration, AbstractDateTime, AbstractBinary
+from elementpath.protocols import ElementProtocol, DocumentProtocol
+from elementpath import ElementNode, LazyElementNode, DocumentNode
+
+from .utils.protocols import IOProtocol
+
+__all__ = ['ElementType', 'ElementTreeType', 'XMLSourceType', 'NsmapType', 'LocationsMapType',
            'NormalizedLocationsType', 'LocationsType', 'NsmapType', 'XmlnsType',
-           'ParentMapType', 'LazyType', 'SchemaType', 'BaseXsdType', 'SchemaElementType',
-           'SchemaAttributeType', 'SchemaGlobalType', 'GlobalMapType', 'ModelGroupType',
-           'ModelParticleType', 'XPathElementType', 'AtomicValueType', 'NumericValueType',
-           'DateTimeType', 'SchemaSourceType', 'ConverterType', 'ComponentClassType',
-           'ExtraValidatorType', 'ValidationHookType', 'DecodeType', 'IterDecodeType',
+           'ParentMapType', 'SchemaType', 'BaseXsdType', 'SchemaElementType',
+           'SchemaAttributeType', 'SchemaGlobalType', 'ModelGroupType',
+           'ModelParticleType', 'XPathElementType', 'AtomicValueType',
+           'NumericValueType', 'SchemaSourceType', 'ComponentClassType',
+           'LoadedItemType', 'StagedItemType', 'ExtraValidatorType',
+           'ValidationHookType', 'DecodeType', 'IterDecodeType',
            'JsonDecodeType', 'EncodeType', 'IterEncodeType', 'DecodedValueType',
-           'EncodedValueType', 'FillerType', 'DepthFillerType', 'ValueHookType',
-           'ElementHookType', 'UriMapperType', 'OccursCounterType']
+           'FillerType', 'DepthFillerType', 'ValueHookType', 'ElementHookType',
+           'SerializerType', 'OccursCounterType', 'LazyType', 'SourceType',
+           'UriMapperType', 'IterParseType', 'EtreeType', 'IOType', 'ClassInfoType',
+           'ResourceNodeType', 'NsmapsMapType', 'XmlnsMapType', 'ErrorsType']
 
 if TYPE_CHECKING:
-    from decimal import Decimal
-    from pathlib import Path
-    from typing import Any, Callable, Counter, Dict, List, IO, Iterator, \
-        MutableMapping, Tuple, Type, Union
-    from xml.etree import ElementTree
-
-    from elementpath.datatypes import NormalizedString, QName, Float10, Integer, \
-        Time, Base64Binary, HexBinary, AnyURI, Duration
-    from elementpath.datatypes.datetime import OrderedDateTime
-
-    from .namespaces import NamespaceResourcesMap
-    from .resources import XMLResource
-    from .converters import ElementData, XMLSchemaConverter
-    from .validators import XMLSchemaValidationError, XsdComponent, XMLSchemaBase, \
+    from xmlschema.resources import XMLResource
+    from xmlschema.namespaces import NamespaceResourcesMap
+    from xmlschema.converters import ElementData  # noqa: F401
+    from xmlschema.validators import XMLSchemaValidationError, XsdComponent, \
         XsdComplexType, XsdSimpleType, XsdElement, XsdAnyElement, XsdAttribute, \
         XsdAnyAttribute, XsdAssert, XsdGroup, XsdAttributeGroup, XsdNotation, \
-        ParticleMixin
+        ParticleMixin, XMLSchemaBase
 
-    ##
-    # Type aliases for ElementTree
-    ElementType = ElementTree.Element
-    ElementTreeType = ElementTree.ElementTree
-    XMLSourceType = Union[str, bytes, Path, IO[str], IO[bytes], ElementType, ElementTreeType]
+##
+# Type aliases for ElementTree
+ElementType = Element
+ElementTreeType = ElementTree
 
-    ##
-    # Type aliases for XML resources
-    NamespacesType = MutableMapping[str, str]
-    NormalizedLocationsType = List[Tuple[str, str]]
-    LocationsType = Union[Tuple[Tuple[str, str], ...], Dict[str, str],
-                          NormalizedLocationsType, NamespaceResourcesMap]
-    NsmapType = MutableMapping[str, str]
-    XmlnsType = Optional[List[Tuple[str, str]]]
-    ParentMapType = Dict[ElementType, Optional[ElementType]]
-    LazyType = Union[bool, int]
-    UriMapperType = Union[MutableMapping[str, str], Callable[[str], str]]
+##
+# Type aliases for namespaces
+NsmapType = MutableMapping[str, str]
+LocationsMapType = dict[str, Union[str, list[str]]]
+NormalizedLocationsType = list[tuple[str, str]]
+LocationsType = Union[tuple[tuple[str, str], ...], dict[str, str],
+                      NormalizedLocationsType, 'NamespaceResourcesMap[str]']
+XmlnsType = Optional[list[tuple[str, str]]]
 
-    ##
-    # Type aliases for XSD components
-    SchemaSourceType = Union[str, bytes, Path, IO[str], IO[bytes], XMLResource,
-                             ElementTree.Element, ElementTree.ElementTree]
-    SchemaType = XMLSchemaBase
-    BaseXsdType = Union[XsdSimpleType, XsdComplexType]
-    SchemaElementType = Union[XsdElement, XsdAnyElement]
-    SchemaAttributeType = Union[XsdAttribute, XsdAnyAttribute]
-    SchemaGlobalType = Union[XsdNotation, BaseXsdType, XsdElement,
-                             XsdAttribute, XsdAttributeGroup, XsdGroup]
+##
+# Type aliases for XML resources
+IOType = Union[IOProtocol[str], IOProtocol[bytes]]
+EtreeType = Union[Element, ElementTree, ElementProtocol, DocumentProtocol]
+SourceType = Union[str, bytes, Path, IO[str], IO[bytes]]
+XMLSourceType = Union[SourceType, EtreeType]
 
-    ModelGroupType = XsdGroup
-    ModelParticleType = Union[XsdElement, XsdAnyElement, XsdGroup]
-    OccursCounterType = Counter[
-        Union[ParticleMixin, ModelParticleType, Tuple[ModelGroupType], None]
-    ]
-    ComponentClassType = Union[None, Type[XsdComponent], Tuple[Type[XsdComponent], ...]]
-    XPathElementType = Union[XsdElement, XsdAnyElement, XsdAssert]
+ResourceNodeType = Union[ElementNode, LazyElementNode, DocumentNode]
+LazyType = Union[bool, int]
+UriMapperType = Union[MutableMapping[str, str], Callable[[str], str]]
+IterParseType = Callable[[IOType, Optional[Sequence[str]]], Iterator[tuple[str, Any]]]
+ParentMapType = dict[ElementType, Optional[ElementType]]
+NsmapsMapType = dict[ElementType, dict[str, str]]
+XmlnsMapType = dict[ElementType, list[tuple[str, str]]]
 
-    C = TypeVar('C')
-    GlobalMapType = Dict[str, Union[C, Tuple[ElementType, SchemaType]]]
+##
+# Type aliases for XSD components
+SchemaSourceType = Union[
+    str, bytes, Path, IO[str], IO[bytes], Element, ElementTree, 'XMLResource'
+]
+SchemaType = Union['XMLSchemaBase']
+BaseXsdType = Union['XsdSimpleType', 'XsdComplexType']
+SchemaElementType = Union['XsdElement', 'XsdAnyElement']
+SchemaAttributeType = Union['XsdAttribute', 'XsdAnyAttribute']
+SchemaGlobalType = Union['XsdNotation', 'BaseXsdType', 'XsdElement',
+                         'XsdAttribute', 'XsdAttributeGroup', 'XsdGroup']
 
-    ##
-    # Type aliases for datatypes
-    AtomicValueType = Union[str, bytes, int, float, Decimal, bool, Integer,
-                            Float10, NormalizedString, AnyURI, HexBinary,
-                            Base64Binary, QName, Duration, OrderedDateTime, Time]
-    NumericValueType = Union[str, bytes, int, float, Decimal]
-    DateTimeType = Union[OrderedDateTime, Time]
+ModelGroupType = Union['XsdGroup']
+ModelParticleType = Union['XsdElement', 'XsdAnyElement', 'XsdGroup']
+OccursCounterType = Counter[
+    Union['ParticleMixin', ModelParticleType, tuple[ModelGroupType], None]
+]
+ComponentClassType = Union[None, type['XsdComponent'], tuple[type['XsdComponent'], ...]]
+XPathElementType = Union['XsdElement', 'XsdAnyElement', 'XsdAssert']
 
-    ##
-    # Type aliases for validation/decoding/encoding
-    ConverterType = Union[Type[XMLSchemaConverter], XMLSchemaConverter]
-    ExtraValidatorType = Callable[[ElementType, XsdElement],
-                                  Optional[Iterator[XMLSchemaValidationError]]]
-    ValidationHookType = Callable[[ElementType, XsdElement], Union[bool, str]]
+C = TypeVar('C')
+ClassInfoType = Union[type[C], tuple[type[C], ...]]
 
-    D = TypeVar('D')
-    DecodeType = Union[Optional[D], Tuple[Optional[D], List[XMLSchemaValidationError]]]
-    IterDecodeType = Iterator[Union[D, XMLSchemaValidationError]]
+LoadedItemType = tuple[ElementType, SchemaType]
+StagedItemType = Union[LoadedItemType, list[LoadedItemType], tuple[LoadedItemType]]
 
-    E = TypeVar('E')
-    EncodeType = Union[E, Tuple[E, List[XMLSchemaValidationError]]]
-    IterEncodeType = Iterator[Union[E, XMLSchemaValidationError]]
+##
+# Type aliases for datatypes
+AtomicValueType = Union[str, bytes, int, float, Decimal, bool, Integer,
+                        Float10, NormalizedString, AnyURI, QName, Duration,
+                        AbstractDateTime, AbstractBinary]
+NumericValueType = Union[str, bytes, int, float, Decimal]
 
-    JsonDecodeType = Union[str, None, Tuple[XMLSchemaValidationError, ...],
-                           Tuple[Union[str, None], Tuple[XMLSchemaValidationError, ...]]]
+##
+# Type aliases for validation/decoding/encoding
+ErrorsType = list['XMLSchemaValidationError']
+ExtraValidatorType = Callable[[ElementType, 'XsdElement'],
+                              Optional[Iterator['XMLSchemaValidationError']]]
+ValidationHookType = Callable[[ElementType, 'XsdElement'], Union[bool, str]]
 
-    DecodedValueType = Union[None, AtomicValueType, List[Optional[AtomicValueType]],
-                             XMLSchemaValidationError]
-    EncodedValueType = Union[None, str, List[str], XMLSchemaValidationError]
+D = TypeVar('D')
+DecodeType = Union[Optional[D], tuple[Optional[D], ErrorsType]]
+IterDecodeType = Iterator[Union[D, 'XMLSchemaValidationError']]
 
-    FillerType = Callable[[Union[XsdElement, XsdAttribute]], Any]
-    DepthFillerType = Callable[[XsdElement], Any]
-    ValueHookType = Callable[[AtomicValueType, BaseXsdType], Any]
-    ElementHookType = Callable[
-        [ElementData, Optional[XsdElement], Optional[BaseXsdType]], ElementData
-    ]
+E = TypeVar('E')
+EncodeType = Union[E, tuple[E, ErrorsType]]
+IterEncodeType = Iterator[Union[E, 'XMLSchemaValidationError']]
 
-else:
-    # In runtime use a dummy subscriptable type for compatibility
-    T = TypeVar('T')
-    DummyType = Optional[T]
+JsonDecodeType = Union[str, None, tuple['XMLSchemaValidationError', ...],
+                       tuple[Union[str, None], tuple['XMLSchemaValidationError', ...]]]
 
-    module_globals = globals()
-    for name in __all__:
-        module_globals[name] = DummyType
+DecodedValueType = Union[None, AtomicValueType, list[Optional[AtomicValueType]]]
+FillerType = Callable[[Union['XsdElement', 'XsdAttribute']], DecodedValueType]
+DepthFillerType = Callable[['XsdElement'], Any]
+ValueHookType = Callable[[Optional[AtomicValueType], 'BaseXsdType'], DecodedValueType]
+ElementHookType = Callable[
+    ['ElementData', Optional['XsdElement'], Optional['BaseXsdType']], 'ElementData'
+]
+SerializerType = Callable[[Any], IO[AnyStr]]

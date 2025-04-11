@@ -20,7 +20,7 @@ except ImportError:
     lxml_etree = None
 
 from xmlschema import XMLSchema, XMLResource
-from xmlschema.helpers import is_etree_element
+from xmlschema.utils.etree import is_etree_element
 from xmlschema.validators.exceptions import XMLSchemaValidatorError, \
     XMLSchemaNotBuiltError, XMLSchemaParseError, XMLSchemaModelDepthError, \
     XMLSchemaValidationError, XMLSchemaDecodeError, XMLSchemaEncodeError, \
@@ -374,7 +374,8 @@ class TestValidatorExceptions(unittest.TestCase):
         self.assertEqual(invalid_child.tag, 'c1')
 
         xml_source = '<a><b1></b1><b2><c1/><c1/></b2></a>'
-        resource = XMLResource(xml_source, lazy=True)
+        resource = XMLResource(xml_source)
+
         errors = list(schema.iter_errors(resource))
         self.assertEqual(len(errors), 3)
         self.assertIsNone(errors[0].invalid_child)
@@ -382,6 +383,15 @@ class TestValidatorExceptions(unittest.TestCase):
         self.assertEqual(errors[1].invalid_child.tag, 'c1')
         self.assertTrue(is_etree_element(errors[2].invalid_child))
         self.assertEqual(errors[2].invalid_child.tag, 'b2')
+
+        xml_source = '<a><b1></b1><b2><c1/><c1/></b2></a>'
+        resource = XMLResource(xml_source, lazy=True)
+
+        errors = list(schema.iter_errors(resource))
+        self.assertEqual(len(errors), 3)
+        self.assertIsNone(errors[0].invalid_child)
+        self.assertIsNone(errors[1].invalid_child)
+        self.assertIsNone(errors[2].invalid_child)
 
     def test_validation_error_logging(self):
         schema = XMLSchema("""
@@ -404,9 +414,5 @@ class TestValidatorExceptions(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    import platform
-    header_template = "Test xmlschema's validator exceptions with Python {} on {}"
-    header = header_template.format(platform.python_version(), platform.platform())
-    print('{0}\n{1}\n{0}'.format("*" * len(header), header))
-
-    unittest.main()
+    from xmlschema.testing import run_xmlschema_tests
+    run_xmlschema_tests('validator exceptions')

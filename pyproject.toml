@@ -4,11 +4,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "xmlschema"
-version = "3.4.5"
+version = "4.0.0"
 description = "An XML Schema validator and decoder"
 readme = "README.rst"
 license = {text = "MIT"}
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 authors = [
     { name = "Davide Brunato", email = "brunato@sissa.it" },
 ]
@@ -22,7 +22,6 @@ classifiers = [
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -35,7 +34,7 @@ classifiers = [
     "Topic :: Text Processing :: Markup :: XML",
 ]
 dependencies = [
-    "elementpath>=4.4.0, <5.0.0",
+    "elementpath>=4.8.0, <6.0.0",
 ]
 
 [project.optional-dependencies]
@@ -47,8 +46,8 @@ dev = [
     "flake8",
     "lxml",
     "lxml-stubs",
-    "memory_profiler",
     "mypy",
+    "psutil",
     "tox",
     "xmlschema[docs]",
 ]
@@ -89,7 +88,7 @@ show_error_code_links = true
 [tool.coverage.run]
 branch = true
 source = ["xmlschema"]
-omit = ["xmlschema/testing/*"]
+omit = ["xmlschema/testing/*", "xmlschema/utils/protocols.py"]
 
 [tool.coverage.report]
 exclude_lines = [

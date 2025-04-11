@@ -14,10 +14,8 @@ from textwrap import dedent
 
 from xmlschema import XMLSchemaDecodeError, XMLSchemaEncodeError, \
     XMLSchemaValidationError, XMLSchema10, XMLSchema11
-from xmlschema.names import XSD_STRING
-from xmlschema.helpers import is_etree_element
-from xmlschema.validators.builtins import XSD_10_BUILTIN_TYPES, \
-    XSD_11_BUILTIN_TYPES, xsd_builtin_types_factory
+from xmlschema.utils.etree import is_etree_element
+from xmlschema.validators.builtins import XSD_10_BUILTIN_TYPES, XSD_11_BUILTIN_TYPES
 
 
 class TestXsd10BuiltinTypes(unittest.TestCase):
@@ -41,16 +39,21 @@ class TestXsd10BuiltinTypes(unittest.TestCase):
                         self.assertTrue(callable(e) or is_etree_element(e))
 
     def test_factory(self):
+
         schema = self.schema_class(dedent("""\
             <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
                 <xs:element name="root"/>
             </xs:schema>"""), use_meta=False, build=False)
 
-        with self.assertRaises(ValueError) as ctx:
-            xsd_types = {XSD_STRING: (None, schema)}
-            xsd_builtin_types_factory(schema.meta_schema, xsd_types)
+        maps = schema.meta_schema.maps.copy()
 
-        self.assertEqual(str(ctx.exception), "loaded entry schema is not the meta-schema!")
+        maps.clear()
+        self.assertEqual(maps.global_maps.total, 0)
+        maps.types.build_builtins(schema)
+        if self.schema_class.XSD_VERSION == '1.0':
+            self.assertEqual(maps.global_maps.total, 44)
+        else:
+            self.assertEqual(maps.global_maps.total, 48)
 
     def test_boolean_decode(self):
         boolean_type = self.types['boolean']
@@ -284,9 +287,5 @@ class TestXsd11BuiltinTypes(TestXsd10BuiltinTypes):
 
 
 if __name__ == '__main__':
-    import platform
-    header_template = "Test xmlschema's XSD builtins with Python {} on {}"
-    header = header_template.format(platform.python_version(), platform.platform())
-    print('{0}\n{1}\n{0}'.format("*" * len(header), header))
-
-    unittest.main()
+    from xmlschema.testing import run_xmlschema_tests
+    run_xmlschema_tests('XSD builtin types')

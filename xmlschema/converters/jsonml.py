@@ -8,14 +8,15 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from collections.abc import MutableMapping, MutableSequence
-from typing import TYPE_CHECKING, Any, Optional, List, Dict, Tuple, Type
+from typing import TYPE_CHECKING, Any, Optional, Type
 
-from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
-from ..aliases import NamespacesType, BaseXsdType
-from .default import ElementData, stackable, XMLSchemaConverter
+from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError
+from xmlschema.aliases import NsmapType, BaseXsdType
+
+from .base import ElementData, stackable, XMLSchemaConverter
 
 if TYPE_CHECKING:
-    from ..validators import XsdElement
+    from xmlschema.validators import XsdElement
 
 
 class JsonMLConverter(XMLSchemaConverter):
@@ -26,14 +27,14 @@ class JsonMLConverter(XMLSchemaConverter):
     ref: https://www.ibm.com/developerworks/library/x-jsonml/
 
     :param namespaces: Map from namespace prefixes to URI.
-    :param dict_class: Dictionary class to use for decoded data. Default is `dict`.
-    :param list_class: List class to use for decoded data. Default is `list`.
+    :param dict_class: dictionary class to use for decoded data. Default is `dict`.
+    :param list_class: list class to use for decoded data. Default is `list`.
     """
     __slots__ = ()
 
-    def __init__(self, namespaces: Optional[NamespacesType] = None,
-                 dict_class: Optional[Type[Dict[str, Any]]] = None,
-                 list_class: Optional[Type[List[Any]]] = None,
+    def __init__(self, namespaces: Optional[NsmapType] = None,
+                 dict_class: Optional[Type[dict[str, Any]]] = None,
+                 list_class: Optional[Type[list[Any]]] = None,
                  **kwargs: Any) -> None:
         kwargs.update(attr_prefix='', text_key='', cdata_prefix='')
         super().__init__(namespaces, dict_class, list_class, **kwargs)
@@ -46,7 +47,7 @@ class JsonMLConverter(XMLSchemaConverter):
     def losslessly(self) -> bool:
         return True
 
-    def get_xmlns_from_data(self, obj: Any) -> Optional[List[Tuple[str, str]]]:
+    def get_xmlns_from_data(self, obj: Any) -> Optional[list[tuple[str, str]]]:
         if not self._use_namespaces or not isinstance(obj, MutableSequence) \
                 or len(obj) < 2 or not isinstance(obj[1], MutableMapping):
             return None
@@ -106,7 +107,7 @@ class JsonMLConverter(XMLSchemaConverter):
         if data_len == 1:
             return ElementData(tag, None, None, {}, None)
 
-        attributes: Dict[str, Any] = {}
+        attributes: dict[str, Any] = {}
         if isinstance(obj[1], MutableMapping):
             content_index = 2
             for k, v in obj[1].items():

@@ -8,7 +8,8 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 #
-from typing import cast, Any, Iterable, Optional, Union
+from collections.abc import Iterable
+from typing import cast, Any, Optional, Union
 import gettext as _gettext
 from pathlib import Path
 

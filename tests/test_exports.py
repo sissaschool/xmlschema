@@ -20,25 +20,17 @@ import warnings
 
 from xmlschema import XMLSchema10, XMLSchema11
 from xmlschema.exports import download_schemas
-from xmlschema.testing import SKIP_REMOTE_TESTS
+from xmlschema.testing import SKIP_REMOTE_TESTS, XMLSchemaTestCase, run_xmlschema_tests
 
 
-TEST_CASES_DIR = str(pathlib.Path(__file__).absolute().parent.joinpath('test_cases'))
-
-
-def casepath(relative_path):
-    return str(pathlib.Path(TEST_CASES_DIR).joinpath(relative_path))
-
-
-class TestExports(unittest.TestCase):
-
-    schema_class = XMLSchema10
+class TestExports(XMLSchemaTestCase):
+    cases_dir = pathlib.Path(__file__).absolute().parent.joinpath('test_cases')
 
     @classmethod
     def setUpClass(cls):
-        cls.vh_dir = casepath('examples/vehicles')
-        cls.vh_xsd_file = vh_xsd_file = casepath('examples/vehicles/vehicles.xsd')
-        cls.vh_xml_file = casepath('examples/vehicles/vehicles.xml')
+        cls.vh_dir = cls.casepath('examples/vehicles')
+        cls.vh_xsd_file = vh_xsd_file = cls.casepath('examples/vehicles/vehicles.xsd')
+        cls.vh_xml_file = cls.casepath('examples/vehicles/vehicles.xml')
         cls.vh_schema = cls.schema_class(vh_xsd_file)
 
     def test_export_errors__issue_187(self):
@@ -86,7 +78,7 @@ class TestExports(unittest.TestCase):
         self.assertFalse(os.path.isdir(dirname))
 
     def test_export_another_directory__issue_187(self):
-        vh_schema_file = casepath('issues/issue_187/issue_187_1.xsd')
+        vh_schema_file = self.casepath('issues/issue_187/issue_187_1.xsd')
         vh_schema = self.schema_class(vh_schema_file)
 
         with tempfile.TemporaryDirectory() as dirname:
@@ -119,7 +111,7 @@ class TestExports(unittest.TestCase):
             self.assertNotEqual(exported_schema, original_schema)
 
             if platform.system() != 'Windows':
-                repl = str(pathlib.Path('file').joinpath(str(TEST_CASES_DIR).lstrip('/')))
+                repl = str(pathlib.Path('file').joinpath(str(self.cases_dir).lstrip('/')))
                 self.assertEqual(
                     exported_schema,
                     original_schema.replace('../..', repl)
@@ -139,7 +131,7 @@ class TestExports(unittest.TestCase):
 
     @unittest.skipIf(SKIP_REMOTE_TESTS, "Remote networks are not accessible.")
     def test_export_remote__issue_187(self):
-        vh_schema_file = casepath('issues/issue_187/issue_187_2.xsd')
+        vh_schema_file = self.casepath('issues/issue_187/issue_187_2.xsd')
         vh_schema = self.schema_class(vh_schema_file)
 
         with tempfile.TemporaryDirectory() as dirname:
@@ -213,9 +205,9 @@ class TestExports(unittest.TestCase):
 
     @unittest.skipIf(platform.system() == 'Windows', 'skip, Windows systems save with <CR><LF>')
     def test_export_other_encoding(self):
-        schema_file = casepath('examples/menù/menù.xsd')
-        schema_ascii_file = casepath('examples/menù/menù-ascii.xsd')
-        schema_cp1252_file = casepath('examples/menù/menù-cp1252.xsd')
+        schema_file = self.casepath('examples/menù/menù.xsd')
+        schema_ascii_file = self.casepath('examples/menù/menù-ascii.xsd')
+        schema_cp1252_file = self.casepath('examples/menù/menù-cp1252.xsd')
 
         schema = self.schema_class(schema_file)
         with tempfile.TemporaryDirectory() as dirname:
@@ -242,7 +234,7 @@ class TestExports(unittest.TestCase):
             self.assertTrue(filecmp.cmp(schema_cp1252_file, exported_schema))
 
     def test_export_more_remote_imports__issue_362(self):
-        schema_file = casepath('issues/issue_362/issue_362_1.xsd')
+        schema_file = self.casepath('issues/issue_362/issue_362_1.xsd')
         with warnings.catch_warnings(record=True):
             warnings.simplefilter("always")
             schema = self.schema_class(schema_file)
@@ -279,13 +271,14 @@ class TestExports11(TestExports):
     schema_class = XMLSchema11
 
 
-class TestDownloads(unittest.TestCase):
+class TestDownloads(XMLSchemaTestCase):
+    cases_dir = pathlib.Path(__file__).absolute().parent.joinpath('test_cases')
 
     @classmethod
     def setUpClass(cls):
-        cls.vh_dir = casepath('examples/vehicles')
-        cls.vh_xsd_file = casepath('examples/vehicles/vehicles.xsd')
-        cls.vh_xml_file = casepath('examples/vehicles/vehicles.xml')
+        cls.vh_dir = cls.casepath('examples/vehicles')
+        cls.vh_xsd_file = cls.casepath('examples/vehicles/vehicles.xsd')
+        cls.vh_xml_file = cls.casepath('examples/vehicles/vehicles.xml')
 
     def test_download_local_schemas(self):
         with tempfile.TemporaryDirectory() as dirname:
@@ -302,7 +295,7 @@ class TestDownloads(unittest.TestCase):
 
     @unittest.skipIf(SKIP_REMOTE_TESTS, "Remote networks are not accessible.")
     def test_download_local_and_remote_schemas(self):
-        vh_schema_file = casepath('issues/issue_187/issue_187_2.xsd')
+        vh_schema_file = self.casepath('issues/issue_187/issue_187_2.xsd')
         url_common = ('raw.githubusercontent.com/brunato/xmlschema/master/'
                       'tests/test_cases/examples/vehicles')
         url_map = {
@@ -369,8 +362,4 @@ class TestDownloads(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    header_template = "Test xmlschema exports.py module with Python {} on platform {}"
-    header = header_template.format(platform.python_version(), platform.platform())
-    print('{0}\n{1}\n{0}'.format("*" * len(header), header))
-
-    unittest.main()
+    run_xmlschema_tests('exports.py module')

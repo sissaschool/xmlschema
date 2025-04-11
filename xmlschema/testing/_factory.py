@@ -21,6 +21,9 @@ import argparse
 import os
 import fileinput
 import logging
+import platform
+import sys
+import unittest
 
 from xmlschema.cli import xsd_version_number, defuse_data
 from xmlschema.validators import XMLSchema10, XMLSchema11
@@ -38,13 +41,14 @@ def get_test_args(args_line):
     return re.split(r'(?<!\\) ', args_line.strip())
 
 
-def get_test_program_args_parser(default_testfiles):
+def get_test_program_args_parser(prog=None):
     """
     Gets an argument parser for building test scripts for schemas and xml files.
     The returned parser has many arguments of unittest's TestProgram plus some
     arguments for selecting testfiles and XML schema options.
     """
-    parser = argparse.ArgumentParser(add_help=True)
+    parser = argparse.ArgumentParser(os.path.basename(prog), add_help=True)
+    default_testfiles = os.path.join(os.path.dirname(prog), 'test_cases/testfiles')
 
     # unittest's arguments
     parser.add_argument('-v', '--verbose', dest='verbosity', default=1,
@@ -62,14 +66,59 @@ def get_test_program_args_parser(default_testfiles):
     parser.add_argument('-k', dest='patterns', action='append', default=list(),
                         help='Only run tests which match the given substring')
 
-    # xmlschema's arguments
+    # xmlschema's arguments (removed by the test script)
     parser.add_argument('--lxml', dest='lxml', action='store_true', default=False,
                         help='Check also with lxml.etree.XMLSchema (for XSD 1.0)')
     parser.add_argument('--codegen', action="store_true", default=False,
                         help="Test code generation with XML data bindings module.")
+    parser.add_argument('--random', dest='random', action='store_true', default=False,
+                        help='Execute the test cases in random order.')
     parser.add_argument('testfiles', type=str, nargs='*', default=default_testfiles,
-                        help="Test cases directory.")
+                        help="Test files containing a list of cases to build and run.")
     return parser
+
+
+def parse_xmlschema_args(argv=None):
+    """Parse CLI arguments removing xmlschema's additional arguments after parsing."""
+    if argv is None:
+        argv = sys.argv
+
+    prog, args = argv[0], argv[1:]
+    parser = get_test_program_args_parser(prog)
+    args = parser.parse_args(args)
+
+    # Clean argv of xmlschema arguments and
+    _argv = sys.argv.copy()
+    argv.clear()
+    argv.append(prog)
+    for item in _argv[1:]:
+        if item.endswith('testfiles'):
+            continue
+        elif item not in ('--lxml', '--codegen', '--random', '-f',
+                          '--failfast', '-c', '--catch', '-b', '--buffer'):
+            argv.append(item)
+
+    return args
+
+
+def run_xmlschema_tests(target=None, args=None):
+    if target is not None:
+        header_template = "Test xmlschema {} with Python {} on platform {}"
+        header = header_template.format(
+            target, platform.python_version(), platform.platform()
+        )
+        print('{0}\n{1}\n{0}'.format("*" * len(header), header))
+
+    if args is None:
+        unittest.main()
+    else:
+        unittest.main(
+            argv=sys.argv,
+            verbosity=args.verbosity,
+            failfast=args.failfast,
+            catchbreak=args.catchbreak,
+            buffer=args.buffer
+        )
 
 
 def get_test_line_args_parser():
@@ -115,6 +164,8 @@ def get_test_line_args_parser():
         '--no-pickle', action="store_true", default=False,
         help="Skip pickling/unpickling test on schema (max recursion exceeded)."
     )
+    parser.add_argument('--skip-location-loader', action="store_true", default=False,
+                        help="Skip test with alternative LocationSchemaLoader.")
     parser.add_argument(
         '--lax-encode', action="store_true", default=False,
         help="Use lax mode on encode checks (for cases where test data uses default or "
@@ -133,8 +184,8 @@ def get_test_line_args_parser():
     return parser
 
 
-def factory_tests(test_class_builder, testfiles, suffix,
-                  check_with_lxml=False, codegen=False, verbosity=1):
+def xmlschema_tests_factory(test_class_builder, testfiles, suffix,
+                            check_with_lxml=False, codegen=False, verbosity=1):
     """
     Factory function for file based schema/validation cases.
 

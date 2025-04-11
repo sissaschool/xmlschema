@@ -8,12 +8,11 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-This module contains namespace definitions for W3C core standards.
+This module contains namespaces and name definitions for W3C core standards.
 """
-import os
 
 ###
-# Namespace URIs for schemas
+# Namespace URIs
 XSD_NAMESPACE = 'http://www.w3.org/2001/XMLSchema'
 "URI of the XML Schema Definition namespace (xs|xsd)"
 
@@ -61,33 +60,6 @@ DSIG11_NAMESPACE = 'http://www.w3.org/2009/xmldsig11#'
 # Namespaces for XML Encryption Syntax and Processing
 XENC_NAMESPACE = 'http://www.w3.org/2001/04/xmlenc#'
 XENC11_NAMESPACE = 'http://www.w3.org/2009/xmlenc11#'
-
-
-###
-# Schema location hints
-
-SCHEMAS_DIR = os.path.join(os.path.dirname(__file__), 'schemas/')
-
-LOCATION_HINTS = {
-    # Locally saved schemas
-    HFP_NAMESPACE: os.path.join(SCHEMAS_DIR, 'HFP/XMLSchema-hasFacetAndProperty_minimal.xsd'),
-    VC_NAMESPACE: os.path.join(SCHEMAS_DIR, 'VC/XMLSchema-versioning.xsd'),
-    XLINK_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XLINK/xlink.xsd'),
-    XHTML_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XHTML/xhtml1-strict.xsd'),
-    WSDL_NAMESPACE: os.path.join(SCHEMAS_DIR, 'WSDL/wsdl.xsd'),
-    SOAP_NAMESPACE: os.path.join(SCHEMAS_DIR, 'WSDL/wsdl-soap.xsd'),
-    SOAP_ENVELOPE_NAMESPACE: os.path.join(SCHEMAS_DIR, 'WSDL/soap-envelope.xsd'),
-    SOAP_ENCODING_NAMESPACE: os.path.join(SCHEMAS_DIR, 'WSDL/soap-encoding.xsd'),
-    DSIG_NAMESPACE: os.path.join(SCHEMAS_DIR, 'DSIG/xmldsig-core-schema.xsd'),
-    DSIG11_NAMESPACE: os.path.join(SCHEMAS_DIR, 'DSIG/xmldsig11-schema.xsd'),
-    XENC_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XENC/xenc-schema.xsd'),
-    XENC11_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XENC/xenc-schema-11.xsd'),
-    XSI_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XSI/XMLSchema-instance_minimal.xsd'),
-
-    # Remote locations: contributors can propose additional official locations
-    # for other namespaces for extending this list.
-    XSLT_NAMESPACE: 'http://www.w3.org/2007/schema-for-xslt20.xsd',
-}
 
 
 ###

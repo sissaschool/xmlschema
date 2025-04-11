@@ -8,15 +8,16 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from collections.abc import MutableMapping, MutableSequence
-from typing import TYPE_CHECKING, Any, Optional, List, Dict, Type, Tuple
+from typing import TYPE_CHECKING, Any, Optional, Type
 
-from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
-from ..aliases import NamespacesType, BaseXsdType
-from ..resources import XMLResource
-from .default import ElementData, XMLSchemaConverter
+from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError
+from xmlschema.aliases import NsmapType, BaseXsdType
+from xmlschema.resources import XMLResource
+
+from .base import ElementData, XMLSchemaConverter
 
 if TYPE_CHECKING:
-    from ..validators import XsdElement
+    from xmlschema.validators import XsdElement
 
 
 class ColumnarConverter(XMLSchemaConverter):
@@ -31,9 +32,9 @@ class ColumnarConverter(XMLSchemaConverter):
     """
     __slots__ = ()
 
-    def __init__(self, namespaces: Optional[NamespacesType] = None,
-                 dict_class: Optional[Type[Dict[str, Any]]] = None,
-                 list_class: Optional[Type[List[Any]]] = None,
+    def __init__(self, namespaces: Optional[NsmapType] = None,
+                 dict_class: Optional[Type[dict[str, Any]]] = None,
+                 list_class: Optional[Type[list[Any]]] = None,
                  attr_prefix: Optional[str] = '',
                  **kwargs: Any) -> None:
         kwargs.update(text_key=None, cdata_prefix=None)
@@ -143,7 +144,7 @@ class ColumnarConverter(XMLSchemaConverter):
                 return ElementData(xsd_element.name, None, obj, {}, None)
 
         text = None
-        content: List[Tuple[Optional[str], MutableSequence[Any]]] = []
+        content: list[tuple[Optional[str], MutableSequence[Any]]] = []
         attributes = {}
         pfx = tag + self.attr_prefix if self.attr_prefix else tag
 

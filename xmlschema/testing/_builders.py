@@ -28,17 +28,17 @@ except ImportError:
 else:
     lxml_etree_element = lxml_etree.Element
 
-from elementpath.etree import PyElementTree, etree_tostring
-
 import xmlschema
 from xmlschema import XMLSchemaBase, XMLSchema11, XMLSchemaValidationError, \
     XMLSchemaParseError, UnorderedConverter, ParkerConverter, BadgerFishConverter, \
     AbderaConverter, JsonMLConverter, ColumnarConverter, GDataConverter
 from xmlschema.names import XSD_IMPORT
-from xmlschema.helpers import local_name
+from xmlschema.utils.qnames import local_name
+from xmlschema.utils.etree import etree_tostring
 from xmlschema.resources import fetch_namespaces
 from xmlschema.validators import XsdType, Xsd11ComplexType
 from xmlschema.dataobjects import DataElementConverter, DataBindingConverter, DataElement
+from xmlschema.loaders import LocationSchemaLoader, SafeSchemaLoader
 
 try:
     from xmlschema.extras.codegen import PythonGenerator
@@ -46,7 +46,7 @@ except ImportError:
     PythonGenerator = None
 
 from ._helpers import iter_nested_items, etree_elements_assert_equal
-from ._case_class import XsdValidatorTestCase
+from ._test_case_classes import XsdValidatorTestCase
 from ._observers import SchemaObserver
 
 
@@ -73,6 +73,7 @@ def make_schema_test_class(test_file, test_args, test_num, schema_class, check_w
     locations = test_args.locations
     defuse = test_args.defuse
     no_pickle = test_args.no_pickle
+    skip_location_loader = test_args.skip_location_loader
     debug_mode = test_args.debug
     codegen = test_args.codegen
     loglevel = logging.DEBUG if debug_mode else None
@@ -109,21 +110,10 @@ def make_schema_test_class(test_file, test_args, test_num, schema_class, check_w
 
             # Pickling test (skip inspected schema classes test)
             if not inspect and not no_pickle:
-                try:
-                    obj = pickle.dumps(schema)
-                    deserialized_schema = pickle.loads(obj)
-                except pickle.PicklingError:
-                    # Don't raise if some schema parts (eg. a schema loaded from remote)
-                    # are built with the SafeXMLParser that uses pure Python elements.
-                    for e in schema.maps.iter_components():
-                        elem = getattr(e, 'elem', getattr(e, 'root', None))
-                        if isinstance(elem, PyElementTree.Element):
-                            break
-                    else:
-                        raise
-                else:
-                    self.assertTrue(isinstance(deserialized_schema, XMLSchemaBase), msg=xsd_file)
-                    self.assertEqual(schema.built, deserialized_schema.built, msg=xsd_file)
+                obj = pickle.dumps(schema)
+                deserialized_schema = pickle.loads(obj)
+                self.assertTrue(isinstance(deserialized_schema, XMLSchemaBase), msg=xsd_file)
+                self.assertEqual(schema.built, deserialized_schema.built, msg=xsd_file)
 
             # XPath node tree tests
             if not inspect and not self.errors:
@@ -159,6 +149,25 @@ def make_schema_test_class(test_file, test_args, test_num, schema_class, check_w
                         if not isinstance(err.validator, Xsd11ComplexType) or \
                                 "is simple or has a simple content" not in str(err):
                             raise error
+
+            # Test alternative schema loaders
+            if not expected_errors and not skip_location_loader:
+                other = schema_class(
+                    xsd_file, loader_class=SafeSchemaLoader, locations=locations,
+                    defuse=defuse, loglevel=loglevel
+                )
+                urls = set(s.url for s in schema.maps.schemas)
+                other_urls = set(s.url for s in other.maps.schemas)
+                self.assertTrue(urls.issubset(other_urls), msg=xsd_file)
+
+                if not skip_location_loader:
+                    other = schema_class(
+                        xsd_file, loader_class=LocationSchemaLoader, locations=locations,
+                        defuse=defuse, loglevel=loglevel
+                    )
+                    urls = set(s.url for s in schema.maps.schemas)
+                    other_urls = set(s.url for s in other.maps.schemas)
+                    self.assertTrue(urls.issubset(other_urls), msg=xsd_file)
 
             # Check XML bindings module only for schemas that do not have errors
             if codegen and PythonGenerator is not None and not self.errors and \
@@ -276,6 +285,8 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
             losslessly = converter is JsonMLConverter
             unordered = converter not in (AbderaConverter, JsonMLConverter) or \
                 kwargs.get('unordered', False)
+            if self.schema.validity != 'valid' and 'validation' not in kwargs:
+                kwargs['validation'] = 'lax'
 
             decoded_data1 = self.schema.decode(root, converter=converter, **kwargs)
             if isinstance(decoded_data1, tuple):
@@ -311,7 +322,7 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
             try:
                 etree_elements_assert_equal(root, elem1, strict=False, unordered=unordered)
             except AssertionError as err:
-                # If the check fails retry only if the converter is lossy (eg. ParkerConverter)
+                # If the check fails retry only if the converter is lossy (e.g. ParkerConverter)
                 # or if the XML case has defaults taken from the schema or some part of data
                 # decoding is skipped by schema wildcards (set the specific argument in testfiles).
                 if lax_encode:
@@ -362,6 +373,9 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
             lossy = converter in (ParkerConverter, AbderaConverter, ColumnarConverter)
             unordered = converter not in (AbderaConverter, JsonMLConverter) or \
                 kwargs.get('unordered', False)
+
+            if self.schema.validity != 'valid' and 'validation' not in kwargs:
+                kwargs['validation'] = 'lax'
 
             # Use str instead of float in order to preserve original data
             kwargs['decimal_type'] = str
@@ -468,7 +482,7 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
             self.check_decode_encode(root, BadgerFishConverter, **options)
             self.check_decode_encode(root, GDataConverter, **options)
             self.check_decode_encode(root, AbderaConverter, **options)
-            # self.check_decode_encode(root, JsonMLConverter, **options)
+            self.check_decode_encode(root, JsonMLConverter, **options)
             self.check_decode_encode(root, ColumnarConverter, validation='lax', **options)
 
             self.check_decode_encode(root, DataElementConverter, **options)
@@ -482,7 +496,7 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
             self.check_json_serialization(root, BadgerFishConverter, **options)
             self.check_json_serialization(root, GDataConverter, **options)
             self.check_json_serialization(root, AbderaConverter, **options)
-            # self.check_json_serialization(root, JsonMLConverter, **options)
+            self.check_json_serialization(root, JsonMLConverter, **options)
             self.check_json_serialization(root, ColumnarConverter, validation='lax', **options)
 
             self.check_decode_to_objects(root)
@@ -490,7 +504,13 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
             self.schema.maps.clear_bindings()
 
         def check_decode_to_objects(self, root, with_bindings=False):
-            data_element = self.schema.to_objects(xml_file, with_bindings)
+            validation = 'lax' if self.schema.validity != 'valid' else 'strict'
+
+            data_element = self.schema.to_objects(xml_file, with_bindings, validation=validation)
+            if validation == 'lax':
+                self.assertIsInstance(data_element, tuple)
+                data_element = data_element[0]
+
             self.assertIsInstance(data_element, DataElement)
             self.assertEqual(data_element.tag, root.tag)
 
@@ -550,7 +570,26 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
                 self.check_json_serialization(root, BadgerFishConverter, **options)
                 self.check_json_serialization(root, GDataConverter, **options)
                 self.check_json_serialization(root, AbderaConverter, **options)
-                # self.check_json_serialization(root, JsonMLConverter, **options)
+                self.check_json_serialization(root, JsonMLConverter, **options)
+
+        def check_with_lxml_iterparse(self):
+            iterparse = lxml_etree.iterparse
+
+            lxml_errors = []
+            lxml_decoded_chunks = []
+            for obj in self.schema.iter_decode(xml_file, iterparse=iterparse):
+                if isinstance(obj, xmlschema.XMLSchemaValidationError):
+                    lxml_errors.append(obj)
+                else:
+                    lxml_decoded_chunks.append(obj)
+
+            self.assertEqual(lxml_decoded_chunks, self.chunks, msg=xml_file)
+            self.assertEqual(len(lxml_errors), len(self.errors), msg=xml_file)
+
+            if not lxml_errors:
+                self.assertTrue(self.schema.is_valid(xml_file), msg=xml_file)
+            else:
+                self.assertFalse(self.schema.is_valid(xml_file), msg=xml_file)
 
         def check_validate_and_is_valid_api(self):
             if expected_errors:
@@ -578,14 +617,14 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
             self.assertEqual(len(errors), expected_errors, msg=xml_file)
 
             module_api_errors = list(xmlschema.iter_errors(xml_file, schema=self.schema))
-            self.assertEqual(len(errors), len(module_api_errors), msg=xml_file)
             for e, api_error in zip(errors, module_api_errors):
                 compare_error_reasons(e.reason, api_error.reason)
+            self.assertEqual(len(errors), len(module_api_errors), msg=xml_file)
 
             lazy_errors = list(xmlschema.iter_errors(xml_file, schema=self.schema, lazy=True))
-            self.assertEqual(len(errors), len(lazy_errors), msg=xml_file)
             for e, lazy_error in zip(errors, lazy_errors):
                 compare_error_reasons(e.reason, lazy_error.reason)
+            self.assertEqual(len(errors), len(lazy_errors), msg=xml_file)
 
             # TODO: Test also lazy validation with lazy=2.
             #  This needs two fixes in XPath:
@@ -614,7 +653,7 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
 
             with tempfile.TemporaryDirectory() as tempdir:
                 module_name = '{}.py'.format(self.schema.name.rstrip('.xsd'))
-                cwd = os.getcwd()
+                cwd: str = os.getcwd()
 
                 try:
                     self.schema.export(tempdir, save_remote=True)
@@ -651,6 +690,7 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
 
                 if lxml_etree is not None:
                     self.check_data_conversion_with_lxml()
+                    self.check_with_lxml_iterparse()
 
             self.check_iter_errors()
             self.check_validate_and_is_valid_api()

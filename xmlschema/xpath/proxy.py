@@ -7,23 +7,21 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from typing import cast, Any, Iterator, Optional, Union, TYPE_CHECKING
+from collections.abc import Iterator
+from typing import cast, Any, Optional, Union, TYPE_CHECKING
 
-from elementpath import XPath2Parser, XPathSchemaContext, AbstractSchemaProxy, \
-    SchemaElementNode, LazyElementNode
+from elementpath import AbstractSchemaProxy, XPath2Parser, XPathSchemaContext
 from elementpath.protocols import XsdTypeProtocol
 
-from ..exceptions import XMLSchemaValueError, XMLSchemaTypeError
-from ..aliases import SchemaType
-from ..names import XSD_NAMESPACE
+from xmlschema.exceptions import XMLSchemaValueError, XMLSchemaTypeError
+from xmlschema.aliases import SchemaType
+from xmlschema.names import XSD_NAMESPACE
 
 if TYPE_CHECKING:
-    from ..validators import XsdElement, XsdAnyElement, XsdAssert
+    from xmlschema.validators import XsdElement, XsdAnyElement, XsdAssert
     from .mixin import XPathElement
 
-    BaseElementType = Union[XsdElement, XsdAnyElement, XPathElement, XsdAssert]
-else:
-    BaseElementType = Any
+BaseElementType = Union['XsdElement', 'XsdAnyElement', 'XsdAssert', 'XPathElement']
 
 
 class XMLSchemaProxy(AbstractSchemaProxy):
@@ -51,38 +49,20 @@ class XMLSchemaProxy(AbstractSchemaProxy):
 
     def bind_parser(self, parser: XPath2Parser) -> None:
         parser.schema = self
-        parser.symbol_table = dict(parser.__class__.symbol_table)
-
-        with self._schema.lock:
-            if self._schema.xpath_tokens is None:
-                self._schema.xpath_tokens = {
-                    xsd_type.name: parser.schema_constructor(xsd_type.name)
-                    for xsd_type in self.iter_atomic_types() if xsd_type.name
-                }
-
-        parser.symbol_table.update(self._schema.xpath_tokens)
+        parser.symbol_table = {k: v for k, v in parser.__class__.symbol_table.items()}
+        parser.symbol_table.update(self._schema.maps.xpath_constructors)
 
     def get_context(self) -> XPathSchemaContext:
-        item: Union[None, SchemaElementNode, LazyElementNode]
         if self._base_element is not None:
-            item = self._base_element.xpath_node
-        else:
-            item = None
-
-        return XPathSchemaContext(
-            root=self._schema.xpath_node,
-            namespaces=self._schema.namespaces,
-            item=item,
-        )
+            return XPathSchemaContext(
+                root=self._schema.xpath_node,
+                namespaces=self._schema.namespaces,
+                item=self._base_element.xpath_node,
+            )
+        return XPathSchemaContext(self._schema.xpath_node, self._schema.namespaces)
 
     def is_instance(self, obj: Any, type_qname: str) -> bool:
-        # FIXME: use elementpath.datatypes for checking atomic datatypes
         xsd_type = self._schema.maps.types[type_qname]
-        if isinstance(xsd_type, tuple):  # pragma: no cover
-            from ..validators import XMLSchemaNotBuiltError
-            schema = xsd_type[1]
-            raise XMLSchemaNotBuiltError(schema, f"XSD type {type_qname!r} is not built")
-
         try:
             xsd_type.encode(obj)
         except ValueError:
@@ -92,16 +72,10 @@ class XMLSchemaProxy(AbstractSchemaProxy):
 
     def cast_as(self, obj: Any, type_qname: str) -> Any:
         xsd_type = self._schema.maps.types[type_qname]
-        if isinstance(xsd_type, tuple):  # pragma: no cover
-            from ..validators import XMLSchemaNotBuiltError
-            schema = xsd_type[1]
-            raise XMLSchemaNotBuiltError(schema, f"XSD type {type_qname!r} is not built")
-
         return xsd_type.decode(obj)
 
     def iter_atomic_types(self) -> Iterator[XsdTypeProtocol]:
         for xsd_type in self._schema.maps.types.values():
-            if not isinstance(xsd_type, tuple) and \
-                    xsd_type.target_namespace != XSD_NAMESPACE and \
+            if xsd_type.target_namespace != XSD_NAMESPACE and \
                     hasattr(xsd_type, 'primitive_type'):
                 yield cast(XsdTypeProtocol, xsd_type)

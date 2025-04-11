@@ -13,8 +13,8 @@ import unittest
 from collections import Counter
 from xml.etree import ElementTree
 
-from xmlschema import XMLSchema10, XMLSchemaParseError
-from xmlschema.validators.particles import ParticleMixin
+from xmlschema import XMLSchema10, XMLSchema11, XMLSchemaParseError
+from xmlschema.validators.particles import ParticleMixin, OccursCalculator
 
 CASES_DIR = os.path.join(os.path.dirname(__file__), '../test_cases')
 
@@ -190,12 +190,101 @@ class TestParticleMixin(unittest.TestCase):
         self.assertIn("minOccurs value is not an integer value",
                       str(ctx.exception))
 
+    def test_substitution(self):
+        schema = XMLSchema11("""\
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+            <xs:element name="root" type="rootType"/>
+            <xs:element name="alt-child" substitutionGroup="child"/>
+            <xs:element name="child"/>
+            <xs:element name="other"/>
+            <xs:element name="unknown"/>
+            <xs:complexType name="rootType">
+                <xs:choice maxOccurs="unbounded">
+                    <xs:element ref="child"/>
+                    <xs:any notQName="child alt-child unknown"/>
+                </xs:choice>
+            </xs:complexType>
+        </xs:schema>""")
+
+        xsd_element = schema.elements['root']
+        self.assertFalse(schema.elements['alt-child'].is_substitute(xsd_element))
+
+        xsd_element = schema.elements['child']
+        self.assertTrue(schema.elements['alt-child'].is_substitute(xsd_element))
+        self.assertFalse(schema.elements['child'].is_substitute(xsd_element))
+        self.assertFalse(schema.elements['other'].is_substitute(xsd_element))
+
+        xsd_choice = schema.types['rootType'].content
+        self.assertFalse(xsd_choice.is_substitute(xsd_element))
+        self.assertFalse(xsd_choice[0].is_substitute(xsd_element))
+        self.assertFalse(xsd_choice[1].is_substitute(xsd_element))
+
+        xml_data = "<root><child/><alt-child/></root>"
+        self.assertTrue(schema.is_valid(xml_data))
+
+        xml_data = "<root><other/><alt-child/></root>"
+        self.assertTrue(schema.is_valid(xml_data))
+
+        xml_data = "<root><unknown/></root>"
+        self.assertFalse(schema.is_valid(xml_data))
+
+
+class TestOccursCalculator(unittest.TestCase):
+
+    def test_repr(self):
+        occurs = OccursCalculator()
+        self.assertEqual(repr(occurs), 'OccursCalculator(0, 0)')
+
+    def test_add(self):
+        occurs = OccursCalculator()
+        occurs += ParticleMixin(1, 2)
+        self.assertEqual(occurs.occurs, (1, 2))
+
+        occurs += ParticleMixin(1, None)
+        self.assertEqual(occurs.occurs, (2, None))
+
+        occurs.reset()
+        self.assertEqual(occurs.occurs, (0, 0))
+
+    def test_mul(self):
+        occurs = OccursCalculator()
+        occurs *= ParticleMixin(1, 2)
+        self.assertEqual(occurs.occurs, (0, 0))
+
+        occurs *= ParticleMixin(1, None)
+        self.assertEqual(occurs.occurs, (0, 0))
+
+        occurs += ParticleMixin(1, 1)
+        occurs *= ParticleMixin(1, 2)
+        self.assertEqual(occurs.occurs, (1, 2))
+
+        occurs *= ParticleMixin(2, None)
+        self.assertEqual(occurs.occurs, (2, None))
+
+        occurs *= ParticleMixin(3, None)
+        self.assertEqual(occurs.occurs, (6, None))
+
+        occurs *= ParticleMixin(0, 0)
+        self.assertEqual(occurs.occurs, (0, 0))
+
+    def test_sub(self):
+        occurs = OccursCalculator()
+        occurs += ParticleMixin(5, 10)
+        self.assertEqual(occurs.occurs, (5, 10))
+        occurs -= ParticleMixin(1, 2)
+        self.assertEqual(occurs.occurs, (4, 8))
+        occurs -= ParticleMixin(1, None)
+        self.assertEqual(occurs.occurs, (3, 0))
+
+        occurs.reset()
+        occurs += ParticleMixin(10, None)
+        self.assertEqual(occurs.occurs, (10, None))
+        occurs -= ParticleMixin(1, 99999)
+        self.assertEqual(occurs.occurs, (9, None))
+        occurs -= ParticleMixin(10, None)
+        self.assertEqual(occurs.occurs, (0, None))
+
 
 if __name__ == '__main__':
-    import platform
-
-    header_template = "Test xmlschema's XSD particles with Python {} on {}"
-    header = header_template.format(platform.python_version(), platform.platform())
-    print('{0}\n{1}\n{0}'.format("*" * len(header), header))
-
-    unittest.main()
+    from xmlschema.testing import run_xmlschema_tests
+    run_xmlschema_tests('XSD particles')
