@@ -212,7 +212,10 @@ class XsdIdentity(XsdComponent):
                 self.elements = {}
                 self.ref = ref
 
-        self.update_elements(base_element=self.parent)
+        try:
+            self.update_elements(base_element=self.parent)
+        except TypeError as err:
+            self.parse_error(err)
 
     def update_elements(self, base_element: Union['XsdElement', XPathElement]) -> None:
         if self.selector is None:
@@ -229,9 +232,9 @@ class XsdIdentity(XsdComponent):
                         self.elements[e] = [FieldValueSelector(f, e) for f in self.fields]
                         e.selected_by.add(self)
 
-            elif not isinstance(e, XsdAnyElement):
+            elif not isinstance(e, (XsdAnyElement, XPathElement)):
                 msg = _("selector xpath expression can only select elements")
-                self.parse_error(msg)
+                raise XMLSchemaTypeError(msg)
 
         # Try to detect other target XSD elements extracting QNames of
         # the leaf elements from the XPath expression and use them to

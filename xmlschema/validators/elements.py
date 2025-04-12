@@ -665,7 +665,10 @@ class XsdElement(XsdComponent, ParticleMixin,
                         xpath_element = XPathElement(self.name, xsd_type)
                         for counter in context.identities.values():
                             if counter.enabled:
-                                counter.identity.update_elements(xpath_element)
+                                try:
+                                    counter.identity.update_elements(xpath_element)
+                                except TypeError as e:
+                                    context.validation_error(validation, self, e, obj)
 
         if xsd_type.abstract:
             reason = _("%r is abstract") % xsd_type
