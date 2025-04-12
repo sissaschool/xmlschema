@@ -25,12 +25,17 @@ from xmlschema.converters import ConverterType
 from xmlschema.validators import check_validation_mode, XMLSchema10, XMLSchemaBase, \
     XMLSchemaValidationError
 
+__all__ = ('from_json', 'is_valid', 'iter_errors', 'iter_decode', 'to_dict',
+           'to_etree', 'to_json', 'validate', 'XmlDocument')
+
 # Allowed keyword arguments for building schema and resource instances, if necessary.
 COMMON_KWARGS = frozenset(
     ('base_url', 'allow', 'defuse', 'timeout', 'uri_mapper', 'opener', 'iterparse')
 )
-RESOURCE_KWARGS = COMMON_KWARGS.union(('lazy', 'thin_lazy', 'iterparse'))
-SCHEMA_KWARGS = COMMON_KWARGS.union(('use_meta', 'use_fallback', 'use_xpath3'))
+RESOURCE_KWARGS = COMMON_KWARGS.union(('lazy', 'thin_lazy'))
+SCHEMA_KWARGS = COMMON_KWARGS.union(
+    ('loader_class', 'use_fallback', 'use_xpath3', 'use_meta', 'loglevel')
+)
 
 
 def get_context(xml_document: Union[XMLSourceType, XMLResource],
