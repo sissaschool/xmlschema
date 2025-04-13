@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "xmlschema"
-version = "4.0.0"
+version = "4.0.1"
 description = "An XML Schema validator and decoder"
 readme = "README.rst"
 license = "MIT"

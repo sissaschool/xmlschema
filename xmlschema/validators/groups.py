@@ -1022,7 +1022,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
 
                 try:
                     self.check_dynamic_context(child, xsd_element, model.element, namespaces)
-                except XMLSchemaValidationError as err:
+                except (XMLSchemaValidationError, TypeError) as err:
                     context.validation_error(validation, self, err, obj)
 
                 for particle, occurs, expected in model.advance(True):

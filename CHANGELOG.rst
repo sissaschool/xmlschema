@@ -2,6 +2,10 @@
 CHANGELOG
 *********
 
+`v4.0.1`_ (2025-04-12)
+======================
+* Fix XSD identity update with xsi:type substitution (issue #446)
+
 `v4.0.0`_ (2025-04-11)
 ======================
 * Extend support of `lxml.etree` through *iterparse* optional argument
@@ -756,3 +760,4 @@ v0.9.6 (2017-05-05)
 .. _v3.4.4: https://github.com/brunato/xmlschema/compare/v3.4.3...v3.4.4
 .. _v3.4.5: https://github.com/brunato/xmlschema/compare/v3.4.4...v3.4.5
 .. _v4.0.0: https://github.com/brunato/xmlschema/compare/v3.4.5...v4.0.0
+.. _v4.0.1: https://github.com/brunato/xmlschema/compare/v4.0.0...v4.0.1
