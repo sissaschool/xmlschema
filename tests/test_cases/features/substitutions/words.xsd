@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+    <xs:element name="words">
+        <xs:complexType>
+            <xs:sequence maxOccurs="unbounded">
+                <xs:element name="word" type="xs:string"/>
+            </xs:sequence>
+        </xs:complexType>
+        <xs:key name="key">
+          <xs:selector xpath="./word"/>
+          <xs:field xpath="."/>
+        </xs:key>
+    </xs:element>
+
+    <xs:simpleType name="numbers">
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="one"/>
+            <xs:enumeration value="two"/>
+            <xs:enumeration value="three"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="letters">
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="alpha"/>
+            <xs:enumeration value="beta"/>
+            <xs:enumeration value="gamma"/>
+            <xs:enumeration value="delta"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+</xs:schema>

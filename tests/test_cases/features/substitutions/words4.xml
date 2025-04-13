@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<words xmlns:xs="http://www.w3.org/2001/XMLSchema"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="words.xsd">
+    <word xsi:type="xs:int">1</word>
+    <word>beta</word>
+</words>

@@ -462,6 +462,24 @@ class TestXsd11Identities(TestXsdIdentities):
         self.assertIs(schema.elements['secondary_key'].identities[0].ref,
                       schema.elements['primary_key'].identities[-1])
 
+    def test_xsi_type_substitution__issue_446(self):
+        xsd_file = self.casepath('features/substitutions/words.xsd')
+        schema = self.schema_class(xsd_file)
+
+        xml_data = '<words><word>foo</word></words>'
+        self.assertTrue(schema.is_valid(xml_data))
+        xml_data = '<words><word>foo</word><word>foo</word></words>'
+        self.assertFalse(schema.is_valid(xml_data))
+
+        xml_file = self.casepath('features/substitutions/words1.xml')
+        self.assertTrue(schema.is_valid(xml_file))
+        xml_file = self.casepath('features/substitutions/words2.xml')
+        self.assertTrue(schema.is_valid(xml_file))
+        xml_file = self.casepath('features/substitutions/words3.xml')
+        self.assertFalse(schema.is_valid(xml_file))
+        xml_file = self.casepath('features/substitutions/words4.xml')
+        self.assertFalse(schema.is_valid(xml_file))
+
     def test_selector_default_namespace(self):
         schema = self.check_schema("""
             <xs:element name="primary_key" type="xs:string">
