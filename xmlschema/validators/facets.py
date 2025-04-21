@@ -596,7 +596,7 @@ class XsdExplicitTimezoneFacet(XsdFacet):
             self.invalid_type_error(err, value)
 
 
-class XsdEnumerationFacets(MutableSequence[ElementType], XsdFacet):
+class XsdEnumerationFacets(XsdFacet, MutableSequence[ElementType]):
     """
     Sequence of XSD *enumeration* facets. Values are validates if match any of enumeration values.
 
@@ -614,7 +614,7 @@ class XsdEnumerationFacets(MutableSequence[ElementType], XsdFacet):
                  schema: SchemaType,
                  parent: 'XsdAtomicRestriction',
                  base_type: BaseXsdType) -> None:
-        XsdFacet.__init__(self, elem, schema, parent, base_type)
+        super().__init__(elem, schema, parent, base_type)
         self.validate = self.__call__
 
     def _parse(self) -> None:
@@ -714,7 +714,7 @@ class XsdEnumerationFacets(MutableSequence[ElementType], XsdFacet):
         return None
 
 
-class XsdPatternFacets(MutableSequence[ElementType], XsdFacet):
+class XsdPatternFacets(XsdFacet, MutableSequence[ElementType]):
     """
     Sequence of XSD *pattern* facets. Values are validates if match any of patterns.
 
@@ -732,7 +732,7 @@ class XsdPatternFacets(MutableSequence[ElementType], XsdFacet):
                  schema: SchemaType,
                  parent: 'XsdAtomicRestriction',
                  base_type: Optional[BaseXsdType]) -> None:
-        XsdFacet.__init__(self, elem, schema, parent, base_type)
+        super().__init__(elem, schema, parent, base_type)
         self.validate = self.__call__
 
     def _parse(self) -> None:
