@@ -38,7 +38,7 @@ AttributeGroupDecodeType = Optional[list[tuple[str, DecodedValueType]]]
 AttributeGroupEncodeType = Optional[list[tuple[str, str]]]
 
 
-class XsdAttribute(XsdComponent, ValidationMixin[str, DecodedValueType]):
+class XsdAttribute(XsdComponent, ValidationMixin[Optional[str], DecodedValueType]):
     """
     Class for XSD 1.0 *attribute* declarations.
 
@@ -228,7 +228,7 @@ class XsdAttribute(XsdComponent, ValidationMixin[str, DecodedValueType]):
         """Returns the decoded data value of the provided text as XPath fn:data()."""
         return cast(AtomicValueType, self.decode(text, validation='skip'))
 
-    def raw_decode(self, obj: str, validation: str, context: DecodeContext) \
+    def raw_decode(self, obj: Optional[str], validation: str, context: DecodeContext) \
             -> DecodedValueType:
         if obj is None and self.default is not None:
             obj = self.default
@@ -250,6 +250,11 @@ class XsdAttribute(XsdComponent, ValidationMixin[str, DecodedValueType]):
                     self.type.text_decode(self.fixed):
                 msg = _("attribute {0!r} has a fixed value {1!r}").format(self.name, self.fixed)
                 context.validation_error(validation, self, msg, obj)
+
+        if obj is None:
+            msg = _("attribute {0!r} has no value").format(self.name)
+            context.validation_error(validation, self, msg, obj)
+            return None
 
         value = self.type.raw_decode(obj, validation, context)
 

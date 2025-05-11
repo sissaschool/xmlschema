@@ -506,12 +506,9 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
             -> Optional[str]:
         if isinstance(obj, (str, bytes)):
             text = self.normalize(obj)
-        elif obj is None:
-            text = ''
-        elif isinstance(obj, list):
-            text = ' '.join(str(x) for x in obj)
         else:
-            text = str(obj)
+            obj = raw_encode_value(obj)
+            text = '' if obj is None else obj
 
         if self.patterns is not None:
             try:
@@ -525,7 +522,7 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
             except XMLSchemaValidationError as err:
                 context.validation_error(validation, self, err)
 
-        return text
+        return text if obj is not None else None
 
     def get_facet(self, tag: str) -> Optional[FacetsValueType]:
         return self.facets.get(tag)
@@ -684,14 +681,14 @@ class XsdAtomicBuiltin(XsdAtomic):
                    context: DecodeContext) -> DecodedValueType:
         if isinstance(obj, (str, bytes)):
             obj = self.normalize(obj)
-        elif obj is not None and not isinstance(obj, self.instance_types):
+        elif not isinstance(obj, self.instance_types):
             msg = _("value is not an instance of {!r}").format(self.instance_types)
             context.decode_error(validation, self, obj, self.to_python, msg)
 
         if validation == 'skip':
             try:
                 return self.to_python(obj)
-            except (ValueError, DecimalException):
+            except (ValueError, TypeError, DecimalException):
                 return raw_encode_value(obj)
 
         if self.patterns is not None:
@@ -701,7 +698,7 @@ class XsdAtomicBuiltin(XsdAtomic):
                 context.validation_error(validation, self, err)
 
         try:
-            result = self.to_python(obj)
+            result: DecodedValueType = self.to_python(obj)
         except (ValueError, DecimalException) as err:
             context.decode_error(validation, self, obj, self.to_python, err)
             return None
@@ -1141,8 +1138,8 @@ class XsdUnion(XsdSimpleType):
                 if patterns and isinstance(obj, (str, bytes)):
                     try:
                         patterns(mt.normalize(obj))
-                    except XMLSchemaValidationError:
-                        continue
+                    except XMLSchemaValidationError as err:
+                        context.validation_error(validation, self, err)
                 return result
 
         if validation == 'skip':
@@ -1172,20 +1169,20 @@ class XsdUnion(XsdSimpleType):
                 if xsd_type is None and not isinstance(err, XMLSchemaEncodeError):
                     xsd_type = mt
             else:
-                if patterns and isinstance(obj, (str, bytes)):
+                if patterns and isinstance(result, str):
                     try:
-                        patterns(mt.normalize(obj))
-                    except XMLSchemaValidationError:
-                        continue
+                        patterns(mt.normalize(result))
+                    except XMLSchemaValidationError as err:
+                        context.validation_error(validation, self, err)
                 return result
 
         if validation == 'skip':
             return raw_encode_value(obj)
         elif validation == 'lax' and xsd_type is not None:
             result = xsd_type.raw_encode(obj, validation, context)
-            if patterns and isinstance(obj, (str, bytes)):
+            if patterns and isinstance(result, str):
                 try:
-                    patterns(xsd_type.normalize(obj))
+                    patterns(result)
                 except XMLSchemaValidationError as err:
                     context.validation_error(validation, self, err)
             return result

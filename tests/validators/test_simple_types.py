@@ -176,6 +176,65 @@ class TestXsdSimpleTypes(XsdValidatorTestCase):
         self.assertTrue(schema.types['emptyType3'].is_empty())
         self.assertFalse(schema.types['notEmptyType1'].is_empty())
 
+    def test_union_decode_encode__issue_450(self):
+        schema = self.check_schema(r"""
+            <xs:element name="value" type="type" />
+            <xs:simpleType name="type">
+                <xs:restriction base="xs:string">
+                    <xs:pattern value="[$][{][ A-Za-z0-9_\+\-\*/%$\(\)\.,]*[\}]" />
+                </xs:restriction>
+            </xs:simpleType>
+ 
+            <xs:element name="value1" type="union1" />
+            <xs:simpleType name="union1">
+                <xs:union memberTypes="xs:QName xs:time type" />
+            </xs:simpleType>
+            
+            <xs:element name="value2" type="union2" />
+            <xs:simpleType name="union2">
+                <xs:union memberTypes="xs:QName type xs:time" />
+            </xs:simpleType>
+            
+            <xs:element name="value3" type="union3" />
+            <xs:simpleType name="union3">
+                <xs:union memberTypes="type xs:QName xs:time" />
+            </xs:simpleType>
+            """)
+
+        self.assertIsNone(schema.validate('<value>${}</value>'))
+        self.assertIsNone(schema.validate('<value>${abc}</value>'))
+        self.assertIsNone(schema.validate('<value>${()}</value>'))
+        self.assertIsNone(schema.validate('<value>${1}</value>'))
+
+        with self.assertRaises(XMLSchemaValidationError):
+            schema.validate('<value>1</value>')
+
+        self.assertIsNone(schema.validate('<value1>${}</value1>'))
+        with self.assertRaises(XMLSchemaValidationError) as cm:
+            schema.validate('<value1>1</value1>')
+        self.assertEqual(cm.exception.reason, "invalid value '1'")
+
+        self.assertIsNone(schema.validate('<value2>${}</value2>'))
+        with self.assertRaises(XMLSchemaValidationError) as cm:
+            schema.validate('<value2>1</value2>')
+        self.assertEqual(cm.exception.reason, "invalid value '1'")
+
+        self.assertIsNone(schema.validate('<value3>${}</value3>'))
+        with self.assertRaises(XMLSchemaValidationError) as cm:
+            schema.validate('<value3>1</value3>')
+        self.assertEqual(cm.exception.reason, "invalid value '1'")
+
+    def test_union_date_and_datetime(self):
+        schema = self.check_schema(r"""
+            <xs:element name="value" type="dateUnion" />
+            
+            <xs:simpleType name="dateUnion">
+                <xs:union memberTypes="xs:date xs:dateTime " />
+            </xs:simpleType>
+            """)
+
+        self.assertIsNone(schema.validate('<value>2007-12-31T12:30:40</value>'))
+
 
 class TestXsd11SimpleTypes(TestXsdSimpleTypes):
 

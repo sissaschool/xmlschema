@@ -74,7 +74,7 @@ def raw_encode_value(value: DecodedValueType) -> Optional[str]:
     if isinstance(value, bool):
         return 'true' if value else 'false'
     elif isinstance(value, (list, tuple)):
-        return ' '.join(str(e) for e in value)
+        return ' '.join(e for e in (raw_encode_value(v) for v in value) if e is not None)
     elif isinstance(value, bytes):
         return value.decode()
     else:
