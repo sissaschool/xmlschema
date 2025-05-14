@@ -305,12 +305,13 @@ class TestEncoding(XsdValidatorTestCase):
                           128000, XMLSchemaValidationError)
         elem.text = '0'
         self.check_encode(self.get_element('A', type='xs:nonNegativeInteger'), 0, elem)
-        self.check_encode(self.get_element('A', type='xs:nonNegativeInteger'),
-                          '0', XMLSchemaValidationError)
+        self.check_encode(self.get_element('A', type='xs:nonNegativeInteger'), 0, elem)
         self.check_encode(self.get_element('A', type='xs:positiveInteger'),
                           0, XMLSchemaValidationError)
         elem.text = '-1'
         self.check_encode(self.get_element('A', type='xs:negativeInteger'), -1, elem)
+        self.check_encode(self.get_element('A', type='xs:nonNegativeInteger'),
+                          '-1', XMLSchemaValidationError)
         self.check_encode(self.get_element('A', type='xs:nonNegativeInteger'),
                           -1, XMLSchemaValidationError)
 

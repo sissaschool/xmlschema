@@ -414,15 +414,15 @@ class TestDataObjects(unittest.TestCase):
         col_data = self.col_schema.decode(self.col_xml_filename)
         self.assertTrue(col_data.is_valid())
 
-        col_data[0][0].value = '1'
+        col_data[0][0].value = '1.0'
         with self.assertRaises(XMLSchemaValidationError) as ec:
             col_data.validate()
-        self.assertIn("'1' is not an instance of <class 'int'>", str(ec.exception))
+        self.assertIn("invalid literal for int() with base 10", str(ec.exception))
         self.assertFalse(col_data.is_valid())
 
         errors = list(col_data.iter_errors())
         self.assertEqual(len(errors), 1)
-        self.assertIn("'1' is not an instance of <class 'int'>", str(errors[0]))
+        self.assertIn("invalid literal for int() with base 10", str(errors[0]))
 
         col_data.find('object/position').value = 1
         self.assertTrue(col_data.is_valid())

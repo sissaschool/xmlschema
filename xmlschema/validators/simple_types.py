@@ -28,7 +28,7 @@ from xmlschema.names import XSD_NAMESPACE, XSD_ANY_TYPE, XSD_SIMPLE_TYPE, XSD_PA
     XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_WHITE_SPACE, XSD_ENUMERATION, \
     XSD_LIST, XSD_ANY_SIMPLE_TYPE, XSD_UNION, XSD_RESTRICTION, XSD_ANNOTATION, \
     XSD_ASSERTION, XSD_ID, XSD_IDREF, XSD_FRACTION_DIGITS, XSD_TOTAL_DIGITS, \
-    XSD_EXPLICIT_TIMEZONE, XSD_ERROR, XSD_ASSERT, XSD_QNAME, XSD_NOTATION
+    XSD_EXPLICIT_TIMEZONE, XSD_ERROR, XSD_ASSERT, XSD_QNAME, XSD_NOTATION, XSD_BOOLEAN
 from xmlschema.translation import gettext as _
 from xmlschema.utils.qnames import local_name, get_extended_qname
 from xmlschema.utils.decoding import raw_encode_value
@@ -772,8 +772,7 @@ class XsdAtomicBuiltin(XsdAtomic):
                 return raw_encode_value(obj)
 
         elif isinstance(obj, bool):
-            if self.instance_types is not bool or isinstance(self.instance_types, tuple) \
-                    and bool in self.instance_types:
+            if self.name != XSD_BOOLEAN:
                 msg = _("boolean value {0!r} requires a {1!r} decoder").format(obj, bool)
                 context.encode_error(validation, self, obj, self.from_python, msg)
                 obj = self.python_type(obj)
@@ -805,6 +804,9 @@ class XsdAtomicBuiltin(XsdAtomic):
                 validator(self.python_type(obj))
             except XMLSchemaValidationError as err:
                 context.validation_error(validation, self, err)
+            except ValueError as err:
+                context.encode_error(validation, self, obj, self.python_type, err)
+                return None
 
         try:
             text = self.from_python(obj)

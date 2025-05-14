@@ -184,17 +184,17 @@ class TestXsdSimpleTypes(XsdValidatorTestCase):
                     <xs:pattern value="[$][{][ A-Za-z0-9_\+\-\*/%$\(\)\.,]*[\}]" />
                 </xs:restriction>
             </xs:simpleType>
- 
+
             <xs:element name="value1" type="union1" />
             <xs:simpleType name="union1">
                 <xs:union memberTypes="xs:QName xs:time type" />
             </xs:simpleType>
-            
+
             <xs:element name="value2" type="union2" />
             <xs:simpleType name="union2">
                 <xs:union memberTypes="xs:QName type xs:time" />
             </xs:simpleType>
-            
+
             <xs:element name="value3" type="union3" />
             <xs:simpleType name="union3">
                 <xs:union memberTypes="type xs:QName xs:time" />
@@ -227,7 +227,7 @@ class TestXsdSimpleTypes(XsdValidatorTestCase):
     def test_union_date_and_datetime(self):
         schema = self.check_schema(r"""
             <xs:element name="value" type="dateUnion" />
-            
+
             <xs:simpleType name="dateUnion">
                 <xs:union memberTypes="xs:date xs:dateTime " />
             </xs:simpleType>

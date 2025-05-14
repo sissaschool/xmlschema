@@ -25,7 +25,8 @@ from .helpers import decimal_validator, qname_validator, byte_validator, \
     unsigned_short_validator, unsigned_int_validator, unsigned_long_validator, \
     negative_int_validator, positive_int_validator, non_positive_int_validator, \
     non_negative_int_validator, hex_binary_validator, base64_binary_validator, \
-    error_type_validator, boolean_to_python, python_to_boolean, python_to_float
+    error_type_validator, boolean_to_python, python_to_boolean, python_to_float, \
+    python_to_int
 
 #
 # Admitted facets sets for XSD atomic types
@@ -138,28 +139,28 @@ XSD_COMMON_BUILTIN_TYPES: tuple[dict[str, Any], ...] = (
     {
         'name': nm.XSD_QNAME,
         'datatype': datatypes.QName,
-        'python_type': str,
+        'python_type': (str, datatypes.QName),
         'admitted_facets': STRING_FACETS,
         'facets': [COLLAPSE_WHITE_SPACE_ELEMENT, qname_validator],
     },  # prf:name (the prefix needs to be qualified with an in-scope namespace)
     {
         'name': nm.XSD_NOTATION_TYPE,
         'datatype': datatypes.Notation,
-        'python_type': str,
+        'python_type': (str, datatypes.Notation),
         'admitted_facets': STRING_FACETS,
         'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
     },  # type for NOTATION attributes: QNames of xs:notation declarations as value space.
     {
         'name': nm.XSD_ANY_URI,
         'datatype': datatypes.AnyURI,
-        'python_type': str,
+        'python_type': (str, datatypes.AnyURI),
         'admitted_facets': STRING_FACETS,
         'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
     },  # absolute or relative uri (RFC 2396)
     {
         'name': nm.XSD_BOOLEAN,
         'datatype': datatypes.BooleanProxy,
-        'python_type': bool,
+        'python_type': (bool, str),
         'admitted_facets': BOOLEAN_FACETS,
         'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
         'to_python': boolean_to_python,
@@ -250,13 +251,15 @@ XSD_COMMON_BUILTIN_TYPES: tuple[dict[str, Any], ...] = (
     {
         'name': nm.XSD_INTEGER,
         'datatype': datatypes.Integer,
-        'python_type': int,
+        'python_type': (int, str),
+        'from_python': python_to_int,
         'base_type': nm.XSD_DECIMAL
     },  # any integer value
     {
         'name': nm.XSD_LONG,
         'datatype': datatypes.Long,
-        'python_type': int,
+        'python_type': (int, str),
+        'from_python': python_to_int,
         'base_type': nm.XSD_INTEGER,
         'facets': [long_validator,
                    Element(nm.XSD_MIN_INCLUSIVE, value='-9223372036854775808'),
@@ -265,7 +268,8 @@ XSD_COMMON_BUILTIN_TYPES: tuple[dict[str, Any], ...] = (
     {
         'name': nm.XSD_INT,
         'datatype': datatypes.Int,
-        'python_type': int,
+        'python_type': (int, str),
+        'from_python': python_to_int,
         'base_type': nm.XSD_LONG,
         'facets': [int_validator,
                    Element(nm.XSD_MIN_INCLUSIVE, value='-2147483648'),
@@ -274,7 +278,8 @@ XSD_COMMON_BUILTIN_TYPES: tuple[dict[str, Any], ...] = (
     {
         'name': nm.XSD_SHORT,
         'datatype': datatypes.Short,
-        'python_type': int,
+        'python_type': (int, str),
+        'from_python': python_to_int,
         'base_type': nm.XSD_INT,
         'facets': [short_validator,
                    Element(nm.XSD_MIN_INCLUSIVE, value='-32768'),
@@ -283,7 +288,8 @@ XSD_COMMON_BUILTIN_TYPES: tuple[dict[str, Any], ...] = (
     {
         'name': nm.XSD_BYTE,
         'datatype': datatypes.Byte,
-        'python_type': int,
+        'python_type': (int, str),
+        'from_python': python_to_int,
         'base_type': nm.XSD_SHORT,
         'facets': [byte_validator,
                    Element(nm.XSD_MIN_INCLUSIVE, value='-128'),
@@ -292,21 +298,24 @@ XSD_COMMON_BUILTIN_TYPES: tuple[dict[str, Any], ...] = (
     {
         'name': nm.XSD_NON_NEGATIVE_INTEGER,
         'datatype': datatypes.NonNegativeInteger,
-        'python_type': int,
+        'python_type': (int, str),
+        'from_python': python_to_int,
         'base_type': nm.XSD_INTEGER,
         'facets': [non_negative_int_validator, Element(nm.XSD_MIN_INCLUSIVE, value='0')]
     },  # only zero and more value allowed [>= 0]
     {
         'name': nm.XSD_POSITIVE_INTEGER,
         'datatype': datatypes.PositiveInteger,
-        'python_type': int,
+        'python_type': (int, str),
+        'from_python': python_to_int,
         'base_type': nm.XSD_NON_NEGATIVE_INTEGER,
         'facets': [positive_int_validator, Element(nm.XSD_MIN_INCLUSIVE, value='1')]
     },  # only positive value allowed [> 0]
     {
         'name': nm.XSD_UNSIGNED_LONG,
         'datatype': datatypes.UnsignedLong,
-        'python_type': int,
+        'python_type': (int, str),
+        'from_python': python_to_int,
         'base_type': nm.XSD_NON_NEGATIVE_INTEGER,
         'facets': [unsigned_long_validator,
                    Element(nm.XSD_MAX_INCLUSIVE, value='18446744073709551615')]
@@ -314,35 +323,40 @@ XSD_COMMON_BUILTIN_TYPES: tuple[dict[str, Any], ...] = (
     {
         'name': nm.XSD_UNSIGNED_INT,
         'datatype': datatypes.UnsignedInt,
-        'python_type': int,
+        'python_type': (int, str),
+        'from_python': python_to_int,
         'base_type': nm.XSD_UNSIGNED_LONG,
         'facets': [unsigned_int_validator, Element(nm.XSD_MAX_INCLUSIVE, value='4294967295')]
     },  # unsigned 64 bit value
     {
         'name': nm.XSD_UNSIGNED_SHORT,
         'datatype': datatypes.UnsignedShort,
-        'python_type': int,
+        'python_type': (int, str),
+        'from_python': python_to_int,
         'base_type': nm.XSD_UNSIGNED_INT,
         'facets': [unsigned_short_validator, Element(nm.XSD_MAX_INCLUSIVE, value='65535')]
     },  # unsigned 32 bit value
     {
         'name': nm.XSD_UNSIGNED_BYTE,
         'datatype': datatypes.UnsignedByte,
-        'python_type': int,
+        'python_type': (int, str),
+        'from_python': python_to_int,
         'base_type': nm.XSD_UNSIGNED_SHORT,
         'facets': [unsigned_byte_validator, Element(nm.XSD_MAX_INCLUSIVE, value='255')]
     },  # unsigned 8 bit value
     {
         'name': nm.XSD_NON_POSITIVE_INTEGER,
         'datatype': datatypes.NonPositiveInteger,
-        'python_type': int,
+        'python_type': (int, str),
+        'from_python': python_to_int,
         'base_type': nm.XSD_INTEGER,
         'facets': [non_positive_int_validator, Element(nm.XSD_MAX_INCLUSIVE, value='0')]
     },  # only zero and smaller value allowed [<= 0]
     {
         'name': nm.XSD_NEGATIVE_INTEGER,
         'datatype': datatypes.NegativeInteger,
-        'python_type': int,
+        'python_type': (int, str),
+        'from_python': python_to_int,
         'base_type': nm.XSD_NON_POSITIVE_INTEGER,
         'facets': [negative_int_validator, Element(nm.XSD_MAX_INCLUSIVE, value='-1')]
     },  # only negative value allowed [< 0]
@@ -352,7 +366,7 @@ XSD_10_BUILTIN_TYPES: tuple[dict[str, Any], ...] = XSD_COMMON_BUILTIN_TYPES + (
     {
         'name': nm.XSD_DOUBLE,
         'datatype': datatypes.DoubleProxy10,
-        'python_type': float,
+        'python_type': (float, str),
         'admitted_facets': FLOAT_FACETS,
         'facets': [XSD10_FLOAT_PATTERN_ELEMENT, COLLAPSE_WHITE_SPACE_ELEMENT],
         'from_python': python_to_float,
@@ -360,7 +374,7 @@ XSD_10_BUILTIN_TYPES: tuple[dict[str, Any], ...] = XSD_COMMON_BUILTIN_TYPES + (
     {
         'name': nm.XSD_FLOAT,
         'datatype': datatypes.Float10,
-        'python_type': float,
+        'python_type': (float, str),
         'admitted_facets': FLOAT_FACETS,
         'facets': [XSD10_FLOAT_PATTERN_ELEMENT, COLLAPSE_WHITE_SPACE_ELEMENT],
         'from_python': python_to_float,
@@ -405,7 +419,7 @@ XSD_11_BUILTIN_TYPES: tuple[dict[str, Any], ...] = XSD_COMMON_BUILTIN_TYPES + (
     {
         'name': nm.XSD_DOUBLE,
         'datatype': datatypes.DoubleProxy,
-        'python_type': float,
+        'python_type': (float, str),
         'admitted_facets': FLOAT_FACETS,
         'facets': [XSD11_FLOAT_PATTERN_ELEMENT, COLLAPSE_WHITE_SPACE_ELEMENT],
         'from_python': python_to_float,
@@ -413,7 +427,7 @@ XSD_11_BUILTIN_TYPES: tuple[dict[str, Any], ...] = XSD_COMMON_BUILTIN_TYPES + (
     {
         'name': nm.XSD_FLOAT,
         'datatype': datatypes.Float,
-        'python_type': float,
+        'python_type': (float, str),
         'admitted_facets': FLOAT_FACETS,
         'facets': [XSD11_FLOAT_PATTERN_ELEMENT, COLLAPSE_WHITE_SPACE_ELEMENT],
         'from_python': python_to_float,

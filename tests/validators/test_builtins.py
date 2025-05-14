@@ -68,6 +68,10 @@ class TestXsd10BuiltinTypes(unittest.TestCase):
         boolean_type = self.types['boolean']
         self.assertTrue(boolean_type.encode(True) == 'true')
         self.assertTrue(boolean_type.encode(False) == 'false')
+
+        self.assertTrue(boolean_type.encode('true') == 'true')
+        self.assertTrue(boolean_type.encode('false') == 'false')
+
         self.assertRaises(XMLSchemaEncodeError, boolean_type.encode, 1)
         self.assertRaises(XMLSchemaEncodeError, boolean_type.encode, 0)
         self.assertRaises(XMLSchemaEncodeError, boolean_type.encode, 10)
@@ -85,9 +89,15 @@ class TestXsd10BuiltinTypes(unittest.TestCase):
 
     def test_integer_encode(self):
         integer_type = self.types['integer']
+
         self.assertTrue(integer_type.encode(1000) == '1000')
         self.assertTrue(integer_type.encode(-19) == '-19')
         self.assertTrue(integer_type.encode(0) == '0')
+
+        self.assertTrue(integer_type.encode('1000') == '1000')
+        self.assertTrue(integer_type.encode('-19') == '-19')
+        self.assertTrue(integer_type.encode('0') == '0')
+
         self.assertRaises(XMLSchemaEncodeError, integer_type.encode, 10.1)
         self.assertRaises(XMLSchemaEncodeError, integer_type.encode, 'alpha')
         self.assertRaises(XMLSchemaValidationError, self.types['unsignedInt'].decode, ' -1')
@@ -101,11 +111,16 @@ class TestXsd10BuiltinTypes(unittest.TestCase):
 
     def test_float_encode(self):
         float_type = self.types['float']
+
         self.assertTrue(float_type.encode(1000.0) == '1000.0')
         self.assertTrue(float_type.encode(-19.0) == '-19.0')
         self.assertTrue(float_type.encode(0.0) == '0.0')
         self.assertRaises(XMLSchemaEncodeError, float_type.encode, True)
         self.assertRaises(XMLSchemaEncodeError, float_type.encode, 'alpha')
+
+        self.assertTrue(float_type.encode('1000.0') == '1000.0')
+        self.assertTrue(float_type.encode('-19.0') == '-19.0')
+        self.assertTrue(float_type.encode('0.0') == '0.0')
 
     def test_time_type(self):
         time_type = self.types['time']

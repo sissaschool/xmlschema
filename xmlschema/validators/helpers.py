@@ -9,7 +9,7 @@
 #
 from decimal import Decimal
 from math import isinf, isnan
-from typing import Optional, SupportsFloat, Union
+from typing import Optional, SupportsInt, SupportsFloat, Union
 from xml.etree.ElementTree import Element
 from elementpath import datatypes
 
@@ -193,14 +193,26 @@ def boolean_to_python(value: str) -> bool:
 
 
 def python_to_boolean(value: object) -> str:
+    if isinstance(value, str):
+        if value in XSD_BOOLEAN_MAP:
+            return value
+        raise XMLSchemaValueError(_('{!r} is not a boolean value').format(value))
     return str(value).lower()
 
 
-def python_to_float(value: SupportsFloat) -> str:
-    if isnan(value):
+def python_to_float(value: Union[SupportsFloat, str]) -> str:
+    if isinstance(value, str):
+        if value in ('NaN', 'INF', '-INF'):
+            return value
+        return str(float(value))
+    elif isnan(value):
         return "NaN"
     if value == float("inf"):
         return "INF"
     if value == float("-inf"):
         return "-INF"
     return str(value)
+
+
+def python_to_int(value: Union[SupportsInt, str]) -> str:
+    return str(int(value))
