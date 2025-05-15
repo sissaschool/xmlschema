@@ -8,11 +8,11 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import copy
-from _operator import itemgetter
 from abc import abstractmethod
 from collections import Counter
 from collections.abc import Callable, ItemsView, Iterator, Mapping, ValuesView, Iterable
 from copy import copy as shallow_copy
+from operator import itemgetter
 from types import MappingProxyType
 from typing import Any, cast, NamedTuple, Optional, Union, Type, TypeVar
 from xml.etree.ElementTree import Element
