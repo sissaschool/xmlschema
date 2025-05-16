@@ -10,7 +10,10 @@
 #
 """Tests on XSD meta schema and XSD builtins"""
 import unittest
+from decimal import Decimal
 from textwrap import dedent
+from elementpath import datatypes
+from elementpath.datatypes import AbstractDateTime
 
 from xmlschema import XMLSchemaDecodeError, XMLSchemaEncodeError, \
     XMLSchemaValidationError, XMLSchema10, XMLSchema11
@@ -62,6 +65,8 @@ class TestXsd10BuiltinTypes(unittest.TestCase):
         self.assertTrue(boolean_type.decode(' 1  \n') is True)
         self.assertTrue(boolean_type.decode(' false  \n') is False)
         self.assertRaises(XMLSchemaDecodeError, boolean_type.decode, ' 1.0  ')
+        self.assertRaises(XMLSchemaDecodeError, boolean_type.decode, ' 00  ')
+        self.assertRaises(XMLSchemaDecodeError, boolean_type.decode, 'true true ')
         self.assertRaises(XMLSchemaDecodeError, boolean_type.decode, ' alpha  \n')
 
     def test_boolean_encode(self):
@@ -76,6 +81,30 @@ class TestXsd10BuiltinTypes(unittest.TestCase):
         self.assertRaises(XMLSchemaEncodeError, boolean_type.encode, 0)
         self.assertRaises(XMLSchemaEncodeError, boolean_type.encode, 10)
         self.assertRaises(XMLSchemaEncodeError, boolean_type.encode, 'alpha')
+        self.assertRaises(XMLSchemaEncodeError, boolean_type.encode, '1 1')
+
+    def test_decimal_decode(self):
+        decimal_type = self.types['decimal']
+        self.assertEqual(decimal_type.decode(' 1000.0001  \n'), Decimal('1000.0001'))
+
+        self.assertEqual(decimal_type.encode(' 1000.0001  \n'), '1000.0001')
+        self.assertEqual(decimal_type.encode(1000.01), '1000.01')
+
+        schema = self.schema_class(dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:element name="value" type="valueType"/>
+                <xs:simpleType name="valueType">
+                    <xs:restriction base="xs:decimal">
+                        <xs:minInclusive value="1000" />
+                    </xs:restriction>
+                </xs:simpleType>
+            </xs:schema>"""))
+
+        decimal_type = schema.types['valueType']
+        self.assertEqual(decimal_type.decode(' 1000.0001  \n'), Decimal('1000.0001'))
+
+        self.assertEqual(decimal_type.encode(' 1000.0001  \n'), '1000.0001')
+        self.assertEqual(decimal_type.encode(1000.01), '1000.01')
 
     def test_integer_decode(self):
         integer_type = self.types['integer']
@@ -84,6 +113,7 @@ class TestXsd10BuiltinTypes(unittest.TestCase):
         self.assertTrue(integer_type.decode(' 0\n') == 0)
         self.assertRaises(XMLSchemaDecodeError, integer_type.decode, ' 1000.0  \n')
         self.assertRaises(XMLSchemaDecodeError, integer_type.decode, ' alpha  \n')
+        self.assertRaises(XMLSchemaDecodeError, integer_type.decode, ' 1 0  \n')
         self.assertRaises(XMLSchemaValidationError, self.types['byte'].decode, ' 257  \n')
         self.assertRaises(XMLSchemaValidationError, self.types['unsignedInt'].decode, ' -1')
 
@@ -100,6 +130,7 @@ class TestXsd10BuiltinTypes(unittest.TestCase):
 
         self.assertRaises(XMLSchemaEncodeError, integer_type.encode, 10.1)
         self.assertRaises(XMLSchemaEncodeError, integer_type.encode, 'alpha')
+        self.assertRaises(XMLSchemaEncodeError, integer_type.encode, '1 0')
         self.assertRaises(XMLSchemaValidationError, self.types['unsignedInt'].decode, ' -1')
 
     def test_float_decode(self):
@@ -116,6 +147,7 @@ class TestXsd10BuiltinTypes(unittest.TestCase):
         self.assertTrue(float_type.encode(-19.0) == '-19.0')
         self.assertTrue(float_type.encode(0.0) == '0.0')
         self.assertRaises(XMLSchemaEncodeError, float_type.encode, True)
+        self.assertRaises(XMLSchemaEncodeError, float_type.encode, '0.1 9')
         self.assertRaises(XMLSchemaEncodeError, float_type.encode, 'alpha')
 
         self.assertTrue(float_type.encode('1000.0') == '1000.0')
@@ -163,6 +195,15 @@ class TestXsd10BuiltinTypes(unittest.TestCase):
         self.assertFalse(date_type.is_valid('1999-06-31'))
         self.assertFalse(date_type.is_valid('+2012-05-31'))
         self.assertFalse(date_type.is_valid(''))
+        self.assertRaises(XMLSchemaDecodeError, date_type.decode, '2012-05-3')
+
+        self.assertEqual(date_type.encode('2012-05-31'), '2012-05-31')
+        self.assertRaises(XMLSchemaEncodeError, date_type.encode, '2012-05-3')
+        self.assertRaises(XMLSchemaEncodeError, date_type.encode, 7)
+
+        assert issubclass(date_type.datatype, AbstractDateTime)
+        value = date_type.datatype(2014, 5, 31)
+        self.assertEqual(date_type.encode(value), '2014-05-31')
 
     def test_year_zero(self):
         self.assertFalse(self.types['date'].is_valid('0000-01-01'))
@@ -220,6 +261,11 @@ class TestXsd10BuiltinTypes(unittest.TestCase):
         self.assertFalse(g_day_type.is_valid('---7'))
         self.assertFalse(g_day_type.is_valid(''))
 
+        value = datatypes.GregorianDay.fromstring('---19')
+        self.assertEqual(g_day_type.encode(value), '---19')
+        self.assertEqual(g_day_type.encode('---27'), '---27')
+        self.assertRaises(XMLSchemaEncodeError, g_day_type.encode, '--27')
+
     def test_duration_type(self):
         duration_type = self.types['duration']
         self.assertTrue(duration_type.is_valid('-P809YT3H5M5S'))
@@ -242,6 +288,10 @@ class TestXsd10BuiltinTypes(unittest.TestCase):
         self.assertFalse(duration_type.is_valid('P'))
         self.assertFalse(duration_type.is_valid('PT10.S'))
         self.assertFalse(duration_type.is_valid(''))
+
+        value = datatypes.Duration.fromstring('PT5M30.5S')
+        self.assertEqual(duration_type.encode(value), 'PT5M30.5S')
+        self.assertEqual(duration_type.encode('P0Y15M0D'), 'P0Y15M0D')
 
 
 class TestXsd11BuiltinTypes(TestXsd10BuiltinTypes):

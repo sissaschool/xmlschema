@@ -261,7 +261,8 @@ class TestEncoding(XsdValidatorTestCase):
         list_of_booleans = self.st_schema.types['list_of_booleans']
         self.check_encode(list_of_booleans, [True, False, True], 'true false true')
         self.check_encode(list_of_booleans, [10, False, True], XMLSchemaEncodeError)
-        self.check_encode(list_of_booleans, [True, False, 40.0], 'true false', validation='lax')
+        self.check_encode(list_of_booleans, [True, False, 40.0],
+                          'true false true', validation='lax')
         self.check_encode(list_of_booleans, [True, False, 40.0],
                           'true false 40.0', validation='skip')
 
