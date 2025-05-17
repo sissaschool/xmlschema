@@ -864,7 +864,7 @@ class TestXMLSchema10(XsdValidatorTestCase):
             schema.create_empty_attribute_group(xsd_element), XsdAttributeGroup
         )
         self.assertIsInstance(
-            schema.create_empty_content_group(xsd_element.type), XsdAttributeGroup
+            schema.create_empty_content_group(xsd_element.type), XsdGroup
         )
         self.assertIsInstance(
             schema.create_element('foo', xsd_element), XsdElement

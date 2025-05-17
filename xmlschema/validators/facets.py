@@ -610,6 +610,8 @@ class XsdEnumerationFacets(XsdFacet, MutableSequence[ElementType]):
     base_type: BaseXsdType
     _ADMITTED_TAGS = XSD_ENUMERATION,
 
+    __slots__ = ('_elements', 'enumeration')
+
     def __init__(self, elem: ElementType,
                  schema: SchemaType,
                  parent: 'XsdAtomicRestriction',
@@ -728,6 +730,13 @@ class XsdPatternFacets(XsdFacet, MutableSequence[ElementType]):
     _ADMITTED_TAGS = XSD_PATTERN,
     patterns: list[re.Pattern[str]]
 
+    # XSD pattern translation options
+    back_references = False
+    lazy_quantifiers = False
+    anchors = False
+
+    __slots__ = ('_elements', 'patterns')
+
     def __init__(self, elem: ElementType,
                  schema: SchemaType,
                  parent: 'XsdAtomicRestriction',
@@ -744,9 +753,9 @@ class XsdPatternFacets(XsdFacet, MutableSequence[ElementType]):
             python_pattern = translate_pattern(
                 pattern=elem.attrib['value'],
                 xsd_version=self.xsd_version,
-                back_references=False,
-                lazy_quantifiers=False,
-                anchors=False
+                back_references=self.back_references,
+                lazy_quantifiers=self.lazy_quantifiers,
+                anchors=self.anchors,
             )
             return re.compile(python_pattern)
         except KeyError:

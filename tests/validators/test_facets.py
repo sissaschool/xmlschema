@@ -20,7 +20,8 @@ from xmlschema.names import XSD_NAMESPACE, XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_L
     XSD_WHITE_SPACE, XSD_MIN_INCLUSIVE, XSD_MIN_EXCLUSIVE, XSD_MAX_INCLUSIVE, \
     XSD_MAX_EXCLUSIVE, XSD_TOTAL_DIGITS, XSD_FRACTION_DIGITS, XSD_ENUMERATION, \
     XSD_PATTERN, XSD_ASSERTION
-from xmlschema.validators import XsdEnumerationFacets, XsdPatternFacets, XsdAssertionFacet
+from xmlschema.validators import XsdEnumerationFacets, XsdPatternFacets, \
+    XsdAssertionFacet, XsdBuilders
 
 
 class TestXsdFacets(unittest.TestCase):
@@ -1178,6 +1179,44 @@ class TestXsdFacets(unittest.TestCase):
                                          'abcde abcd abcde</list_of_strings>'))
         self.assertFalse(schema.is_valid('<list_of_strings>abcde abcde abcde '
                                          'abcde abcde abcde abcde</list_of_strings>'))
+
+    def test_custom_pattern_facets__issue_440(self):
+
+        class UnanchoredXsdPatternFacets(XsdPatternFacets):
+            anchors = True
+
+        class MyXMLSchema(self.schema_class):
+            builders = XsdBuilders(None, UnanchoredXsdPatternFacets)
+
+        schema = MyXMLSchema(dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:simpleType name="pattern1">
+                    <xs:restriction base="xs:string">
+                        <xs:pattern value="^\\w+$"/>
+                    </xs:restriction>
+                </xs:simpleType>
+            </xs:schema>"""))
+
+        facet = schema.types['pattern1'].get_facet(XSD_PATTERN)
+        self.assertIsInstance(facet, UnanchoredXsdPatternFacets)
+        self.assertIsNone(facet('abc'))
+        self.assertRaises(XMLSchemaValidationError, facet, '')
+        self.assertRaises(XMLSchemaValidationError, facet, 'a;')
+
+        schema = self.schema_class(dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:simpleType name="pattern1">
+                    <xs:restriction base="xs:string">
+                        <xs:pattern value="^\\w+$"/>
+                    </xs:restriction>
+                </xs:simpleType>
+            </xs:schema>"""))
+
+        facet = schema.types['pattern1'].get_facet(XSD_PATTERN)
+        self.assertIsInstance(facet, XsdPatternFacets)
+        self.assertRaises(XMLSchemaValidationError, facet, 'abc')
+        self.assertRaises(XMLSchemaValidationError, facet, '')
+        self.assertRaises(XMLSchemaValidationError, facet, 'a;')
 
 
 class TestXsd11Identities(TestXsdFacets):
