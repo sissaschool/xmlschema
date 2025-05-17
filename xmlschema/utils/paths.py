@@ -38,11 +38,18 @@ def get_uri_path(scheme: str = '', authority: str = '', path: str = '',
         else:
             return f'//{authority}{path}'
     elif path[:2] == '//':
-        return f'//{path}'  # UNC path
-    elif scheme and scheme not in DRIVE_LETTERS and (not path or path[0] == '/'):
-        return f'//{path}'
-    else:
-        return path
+        return f'//{path}#{fragment}' if fragment else f'//{path}'  # UNC path
+    elif scheme and scheme not in DRIVE_LETTERS:
+        if not path or path[0] == '/':
+            return f'//{path}'
+        else:
+            return path
+
+    if query:
+        path = f'{path}?{query}'
+    if fragment:
+        return f'{path}#{fragment}'
+    return path
 
 
 def get_uri(scheme: str = '', authority: str = '', path: str = '',
@@ -53,7 +60,7 @@ def get_uri(scheme: str = '', authority: str = '', path: str = '',
     if scheme == 'urn':
         return f'urn:{get_uri_path(scheme, authority, path, query, fragment)}'
 
-    url = get_uri_path(scheme, authority, path, query, fragment)
+    url = get_uri_path(scheme, authority, path)
     if scheme:
         url = scheme + ':' + url
     if query:
@@ -108,7 +115,12 @@ class LocationPath(PurePath):
         """
         parts = urlsplit(uri.strip())
         if not parts.scheme or parts.scheme == 'file':
-            path = get_uri_path(authority=parts.netloc, path=parts.path)
+            path = get_uri_path(
+                authority=parts.netloc,
+                path=parts.path,
+                query=parts.query,
+                fragment=parts.fragment
+            )
 
             # Detect invalid Windows paths (rooted or UNC path followed by a drive)
             for k in range(len(path)):

@@ -202,8 +202,6 @@ def normalize_url(url: str, base_url: Optional[str] = None,
                 base_url_parts.scheme,
                 base_url_parts.netloc,
                 base_path.joinpath(path).normalize().as_posix(),
-                url_parts.query,
-                url_parts.fragment
             )
             return encode_url(url, method)
 

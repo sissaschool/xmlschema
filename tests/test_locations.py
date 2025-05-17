@@ -166,14 +166,14 @@ class TestLocations(XMLSchemaTestCase):
 
         path = LocationPosixPath.from_uri('file:///home/foo/names/?name=foo')
         self.assertIsInstance(path, default_class)
-        self.assertEqual(str(path).replace('\\', '/'), '/home/foo/names')
+        self.assertEqual(str(path).replace('\\', '/'), '/home/foo/names/?name=foo')
 
         path = LocationPosixPath.from_uri('file:///home/foo/names#foo')
         self.assertIsInstance(path, default_class)
-        self.assertEqual(str(path).replace('\\', '/'), '/home/foo/names')
+        self.assertEqual(str(path).replace('\\', '/'), '/home/foo/names#foo')
 
         path = LocationPath.from_uri('file:///home\\foo\\names#foo')
-        self.assertTrue(path.as_posix().endswith('/home/foo/names'))
+        self.assertTrue(path.as_posix().endswith('/home/foo/names#foo'))
         self.assertIsInstance(path, LocationWindowsPath)
 
         path = LocationPosixPath.from_uri('file:///c:/home/foo/names/')
@@ -207,7 +207,7 @@ class TestLocations(XMLSchemaTestCase):
         self.assertEqual(get_uri_path('https', 'host', 'path', 'id=7', 'types'),
                          '//host/path')
         self.assertEqual(get_uri_path('k', '', 'path/file', 'id=7', 'types'),
-                         'path/file')
+                         'path/file?id=7#types')
         self.assertEqual(get_uri_path('file', '', 'path/file', 'id=7', 'types'),
                          'path/file')
 
@@ -457,6 +457,9 @@ class TestLocations(XMLSchemaTestCase):
         url = normalize_url('data.xml', '/dir1/dir2/issue%20%23002')
         self.assertRegex(url, f'{DRIVE_REGEX}/dir1/dir2/issue%20%23002/data.xml')
 
+        url = normalize_url('test.#.again.xml', 'file:///dir1/dir2/')
+        self.assertRegex(url, f'{DRIVE_REGEX}/dir1/dir2/test.%23.again.xml')
+
     def test_normalize_url_with_query_part(self):
         url = "https://xmlschema.test/schema 2/test.xsd?name=2 id=3"
         self.assertEqual(
@@ -478,11 +481,11 @@ class TestLocations(XMLSchemaTestCase):
 
         self.assertRegex(
             normalize_url('other.xsd?id=2', 'file:///home?name=2&id='),
-            f'file://{DRIVE_REGEX}/home/other.xsd'
+            f'file://{DRIVE_REGEX}/home%3Fname%3D2%26id%3D/other.xsd%3Fid%3D2'
         )
         self.assertRegex(
             normalize_url('other.xsd#element', 'file:///home#attribute'),
-            f'file://{DRIVE_REGEX}/home/other.xsd'
+            f'file://{DRIVE_REGEX}/home%23attribute/other.xsd%23element'
         )
 
         self.check_url(normalize_url('other.xsd?id=2', 'https://host/path?name=2&id='),
