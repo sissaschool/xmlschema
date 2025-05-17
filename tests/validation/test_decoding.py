@@ -1476,7 +1476,8 @@ class TestDecoding(XsdValidatorTestCase):
         with self.assertRaises(XMLSchemaValidationError) as ctx:
             schema.to_dict(self.casepath('issues/issue_200/issue_200.xml'),
                            path='/na:main/na:item[@doc_id=2]'),
-        self.assertIn('is not an element of the schema', str(ctx.exception))
+        self.assertIn("doesn't select any '{ames}item' element of the schema",
+                      str(ctx.exception))
 
     def test_issue_238__decode_bytes_strings(self):
         with open(self.vh_xml_file, 'rb') as fp:

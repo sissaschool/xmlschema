@@ -230,6 +230,27 @@ class ValidationContext:
         )
         return self.raise_or_collect(validation, error)
 
+    def missing_element_error(self, validation: str,
+                              validator: 'XsdValidator',
+                              elem: ElementType,
+                              path: Optional[str] = None,
+                              schema_path: Optional[str] = None) -> XMLSchemaValidationError:
+        if not path:
+            reason = _("{!r} is not an element of the schema").format(elem.tag)
+        elif schema_path != path:
+            reason = _(
+                "schema_path={!r} doesn't select any {!r} element of the schema"
+            ).format(schema_path, elem.tag)
+        else:
+            reason = _(
+                "path={!r} doesn't select any {!r} element of the schema, "
+                "maybe you have to provide a different path using the "
+                "schema_path argument"
+            ).format(path, elem.tag)
+
+        error = XMLSchemaValidationError(validator, elem, reason, self.source, self.namespaces)
+        return self.raise_or_collect(validation, error)
+
 
 class DecodeContext(ValidationContext):
     """A context for handling validated decoding processes."""

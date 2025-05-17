@@ -934,6 +934,16 @@ class TestXMLSchema11(TestXMLSchema10):
 
         self.assertIn('XPST0003', str(ctx.exception))
 
+    def test_xpath_predicate_selector__issue_454(self):
+        schema_file = self.casepath('examples/vehicles/vehicles.xsd')
+        xml_file = self.casepath('examples/vehicles/vehicles.xml')
+
+        schema = self.schema_class(schema_file)
+        with self.assertRaises(XMLSchemaValidationError) as ctx:
+            schema.decode(xml_file, '/vh:vehicles/vh:bikes/vh:bike[2]')
+
+        self.assertIn("maybe you have to provide a different path", ctx.exception.reason)
+
 
 class TestXMLSchemaMeta(unittest.TestCase):
 

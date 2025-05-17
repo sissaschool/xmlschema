@@ -1422,8 +1422,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 elif elem is not resource.root and ancestors:
                     continue
                 else:
-                    reason = _("{!r} is not an element of the schema").format(elem)
-                    yield context.validation_error(validation, self, reason, elem)
+                    yield context.missing_element_error(validation, self, elem, path, schema_path)
                     return
 
             try:
@@ -1479,8 +1478,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 if nm.XSI_TYPE in elem.attrib:
                     xsd_element = self.builders.create_element(elem.tag, self)
                 else:
-                    reason = _("{!r} is not an element of the schema").format(elem)
-                    yield context.validation_error(validation, self, reason, elem)
+                    yield context.missing_element_error(validation, self, elem, path, schema_path)
                     continue
 
             result = xsd_element.raw_decode(elem, validation, context)
@@ -1664,8 +1662,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 if nm.XSI_TYPE in elem.attrib:
                     xsd_element = self.builders.create_element(elem.tag, self)
                 else:
-                    reason = _("{!r} is not an element of the schema").format(elem)
-                    yield context.validation_error(validation, self, reason, elem)
+                    yield context.missing_element_error(validation, self, elem, path, schema_path)
                     return
 
             result = xsd_element.raw_decode(elem, validation, context)
