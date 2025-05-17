@@ -28,7 +28,8 @@ from xmlschema.validators import XMLSchemaBase, XMLSchema10, XMLSchema11, \
 from xmlschema.testing import SKIP_REMOTE_TESTS, XsdValidatorTestCase
 from xmlschema.validators.schemas import logger
 from xmlschema.validators.builders import XsdBuilders
-from xmlschema.validators import XMLSchemaValidationError
+from xmlschema.validators import XMLSchemaValidationError, XsdComplexType, \
+    XsdAttributeGroup, XsdElement, XsdGroup
 
 
 class CustomXMLSchema(XMLSchema10):
@@ -843,30 +844,31 @@ class TestXMLSchema10(XsdValidatorTestCase):
         with self.assertRaises(xmlschema.XMLSchemaException):
             self.schema_class(malformed_xsd)
 
-    def test_deprecated_api(self):
+    def test_build_helpers_api(self):
         schema = self.schema_class(dedent("""\
             <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
                 <xs:element name="root"/>
             </xs:schema>"""))
         xsd_element = schema.elements['root']
 
-        with warnings.catch_warnings(record=True) as ctx:
-            warnings.simplefilter("always")
-
-            schema.create_any_type()
-            self.assertEqual(len(ctx), 1)
-            self.assertEqual(ctx[0].category, DeprecationWarning)
-            self.assertIn('will be removed in v5.0', ctx[0].message.args[0])
-
-            schema.create_any_content_group(xsd_element.type)
-            self.assertEqual(len(ctx), 2)
-            self.assertEqual(ctx[1].category, DeprecationWarning)
-            self.assertIn('will be removed in v5.0', ctx[1].message.args[0])
-
-            schema.create_any_attribute_group(xsd_element)
-            self.assertEqual(len(ctx), 3)
-            self.assertEqual(ctx[2].category, DeprecationWarning)
-            self.assertIn('will be removed in v5.0', ctx[2].message.args[0])
+        self.assertIsInstance(
+            schema.create_any_type(), XsdComplexType
+        )
+        self.assertIsInstance(
+            schema.create_any_content_group(xsd_element.type), XsdGroup
+        )
+        self.assertIsInstance(
+            schema.create_any_attribute_group(xsd_element), XsdAttributeGroup
+        )
+        self.assertIsInstance(
+            schema.create_empty_attribute_group(xsd_element), XsdAttributeGroup
+        )
+        self.assertIsInstance(
+            schema.create_empty_content_group(xsd_element.type), XsdAttributeGroup
+        )
+        self.assertIsInstance(
+            schema.create_element('foo', xsd_element), XsdElement
+        )
 
 
 class TestXMLSchema11(TestXMLSchema10):

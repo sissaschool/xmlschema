@@ -42,7 +42,6 @@ from xmlschema.translation import gettext as _
 from xmlschema.utils.decoding import Empty
 from xmlschema.utils.logger import set_logging_level
 from xmlschema.utils.etree import prune_etree, is_etree_element
-from xmlschema.utils.misc import deprecated
 from xmlschema.utils.qnames import get_namespace_ext
 from xmlschema.utils.urls import is_local_url, normalize_url
 from xmlschema.resources import XMLResource
@@ -753,20 +752,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         cls.meta_schema.maps.build()
         return cls.meta_schema.types
 
-    @deprecated('5.0', alt="use XMLSchemaBase.builders.create_any_content_group instead")
-    def create_any_content_group(self, parent: Union[XsdComplexType, XsdGroup],
-                                 any_element: Optional[XsdAnyElement] = None) -> XsdGroup:
-        return self.builders.create_any_content_group(parent, any_element)
-
-    @deprecated('5.0', alt="use XMLSchemaBase.builders.create_any_attribute_group instead")
-    def create_any_attribute_group(self, parent: Union[XsdComplexType, XsdElement]) \
-            -> XsdAttributeGroup:
-        return self.builders.create_any_attribute_group(parent)
-
-    @deprecated('5.0', alt="use XMLSchemaBase.builders.create_any_type instead")
-    def create_any_type(self) -> XsdComplexType:
-        return self.builders.create_any_type(self)
-
     @cached_property
     def annotations(self) -> list[XsdAnnotation]:
         """
@@ -880,6 +865,35 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 schema.import_schema(namespace=ns, location=location, partial=True)
 
         return schema
+
+    def create_any_content_group(self, parent: Union[XsdComplexType, XsdGroup],
+                                 any_element: Optional[XsdAnyElement] = None) -> XsdGroup:
+        """Helper method for creating an XSD model group based on a wildcard."""
+        return self.builders.create_any_content_group(parent, any_element)
+
+    def create_any_attribute_group(self, parent: Union[XsdComplexType, XsdElement]) \
+            -> XsdAttributeGroup:
+        """Helper method for creating an XSD attribute group based on a wildcard."""
+        return self.builders.create_any_attribute_group(parent)
+
+    def create_any_type(self) -> XsdComplexType:
+        """Helper method for creating an XSD type that accepts any content."""
+        return self.builders.create_any_type(self)
+
+    def create_empty_content_group(self, parent: Union[XsdComplexType, XsdGroup],
+                                   model: str = 'sequence', **attrib: Any) -> XsdGroup:
+        """Helper method for creating an empty XSD model group."""
+        return self.builders.create_empty_content_group(parent, model, **attrib)
+
+    def create_empty_attribute_group(self, parent: Union[XsdComplexType, XsdElement]) \
+            -> XsdAttributeGroup:
+        """Helper method for creating an empty XSD attribute group."""
+        return self.builders.create_empty_attribute_group(parent)
+
+    def create_element(self, name: str, parent: Optional[XsdComponent] = None,
+                       text: Optional[str] = None, **attrib: Any) -> XsdElement:
+        """Helper method for creating an XSD element."""
+        return self.builders.create_element(name, self, parent, text, **attrib)
 
     def build(self) -> None:
         """Builds the schema's XSD global maps."""
