@@ -752,6 +752,7 @@ class XsdType(XsdComponent):
     base_type: Optional[BaseXsdType] = None
     derivation: Optional[str] = None
     _final: Optional[str] = None
+    ref: Optional[BaseXsdType]
 
     @property
     def final(self) -> str:

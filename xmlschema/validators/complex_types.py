@@ -659,21 +659,18 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
             return self.mixed or self.base_type is not None and \
                 self.base_type.is_valid(obj, **kwargs)
 
-    def is_derived(self, other: Union[BaseXsdType, tuple[ElementType, SchemaType]],
-                   derivation: Optional[str] = None) -> bool:
-        if derivation and derivation == self.derivation:
-            derivation = None  # derivation mode checked
+    def is_derived(self, other: BaseXsdType, derivation: Optional[str] = None) -> bool:
+        if other.ref is not None:
+            other = other.ref
 
-        if self is other:
-            return derivation is None
-        elif isinstance(other, tuple):
-            msg = _("global type {!r} is not built")
-            other[1].parse_error(msg.format(other[0].tag))
+        if derivation and self.derivation and derivation != self.derivation:
             return False
-        elif other.name == XSD_ANY_TYPE:
+        elif self is other or self.ref is other:
             return True
+        elif other.name == XSD_ANY_TYPE:
+            return derivation != 'extension'
         elif self.base_type is other:
-            return derivation is None  # or self.base_type.derivation == derivation
+            return True
         elif isinstance(other, XsdUnion):
             return any(self.is_derived(m, derivation) for m in other.member_types)
         elif self.base_type is None:

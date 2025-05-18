@@ -419,10 +419,13 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
         return False
 
     def is_derived(self, other: BaseXsdType, derivation: Optional[str] = None) -> bool:
-        if self is other:
-            return True
-        elif derivation and self.derivation and derivation != self.derivation:
+        if other.ref is not None:
+            other = other.ref
+
+        if derivation and self.derivation and derivation != self.derivation:
             return False
+        elif self is other or self.ref is other:
+            return True
         elif other.name in self._special_types:
             return derivation != 'extension'
         elif self.base_type is other:
@@ -933,10 +936,13 @@ class XsdList(XsdSimpleType):
         return True
 
     def is_derived(self, other: BaseXsdType, derivation: Optional[str] = None) -> bool:
-        if self is other:
-            return True
-        elif derivation and self.derivation and derivation != self.derivation:
+        if other.ref is not None:
+            other = other.ref
+
+        if derivation and self.derivation and derivation != self.derivation:
             return False
+        elif self is other or self.ref is other:
+            return True
         elif other.name in self._special_types:
             return derivation != 'extension'
         elif self.item_type is other:
