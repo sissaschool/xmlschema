@@ -1002,19 +1002,22 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
     def get_element(self, tag: str, path: Optional[str] = None,
                     namespaces: Optional[NsmapType] = None) -> Optional[XsdElement]:
-        if not path:
-            xsd_element = self.find(tag)
-            return xsd_element if isinstance(xsd_element, XsdElement) else None
+        if not path or path == tag or path == f'/{tag}':
+            return self.maps.elements.get(tag)
         elif path[-1] == '*':
             xsd_element = self.find(path[:-1] + tag, namespaces)
             if isinstance(xsd_element, XsdElement):
                 return xsd_element
-
-            obj = self.maps.elements.get(tag)
-            return obj if isinstance(obj, XsdElement) else None
+            else:
+                return self.maps.elements.get(tag)
         else:
             xsd_element = self.find(path, namespaces)
-            return xsd_element if isinstance(xsd_element, XsdElement) else None
+            if not isinstance(xsd_element, XsdElement):
+                return None
+            elif xsd_element.name != tag:
+                return self.maps.elements.get(tag)
+            else:
+                return xsd_element
 
     def create_bindings(self, *bases: type, **attrs: Any) -> None:
         """
