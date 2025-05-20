@@ -544,7 +544,7 @@ class ModelVisitor:
         is ended.
         """
         if particle is not None:
-            for _group in self.root.get_subgroups(particle):
+            for _subgroups in self.root.iter_subgroups(particle):
                 break
             return particle
         elif self.element is not None:
@@ -558,15 +558,21 @@ class ModelVisitor:
         occurrences already registered by the occurs counter. Defaults to current
         element.
         """
+        result = []
         particle = self.get_model_particle(particle)
-        min_occurs = 1
-        for group in self.root.get_subgroups(particle):
-            group_min_occurs = group.min_occurs - self.occurs[group]
-            if group_min_occurs <= 0 or group.model == 'choice' and len(group) > 1:
-                return 0
-            min_occurs *= group_min_occurs
 
-        return max(0, min_occurs * particle.min_occurs - self.occurs[particle])
+        for subgroups in self.root.iter_subgroups(particle):
+            min_occurs = 1
+            for group in subgroups:
+                group_min_occurs = group.min_occurs - self.occurs[group]
+                if group_min_occurs <= 0 or group.model == 'choice' and len(group) > 1:
+                    result.append(0)
+                    break
+                min_occurs *= group_min_occurs
+            else:
+                result.append(min_occurs * particle.min_occurs - self.occurs[particle])
+
+        return max(0, min(result))
 
     def overall_max_occurs(self, particle: Optional[ModelParticleType] = None) -> Optional[int]:
         """
@@ -574,29 +580,36 @@ class ModelVisitor:
         occurrences already registered by the occurs counter. Defaults to current
         element.
         """
+        results = [0]
         particle = self.get_model_particle(particle)
-        max_occurs: Optional[int] = 1
+        max_occurs: Optional[int]
 
-        for group in self.root.get_subgroups(particle):
-            group_max_occurs = group.max_occurs
-            if group_max_occurs == 0:
-                return 0
-            elif max_occurs is None:
-                continue
-            elif group_max_occurs is None:
-                max_occurs = None
+        for subgroups in self.root.iter_subgroups(particle):
+            max_occurs = 1
+            for group in subgroups:
+                group_max_occurs = group.max_occurs
+                if group_max_occurs == 0:
+                    results.append(0)
+                    break
+                elif max_occurs is None:
+                    continue
+                elif group_max_occurs is None:
+                    max_occurs = None
+                else:
+                    group_max_occurs -= self.occurs[group]
+                    if group_max_occurs <= 0:
+                        results.append(0)
+                        break
+                    max_occurs *= group_max_occurs
             else:
-                group_max_occurs -= self.occurs[group]
-                if group_max_occurs <= 0:
-                    return 0
-                max_occurs *= group_max_occurs
+                if particle.max_occurs == 0:
+                    results.append(0)
+                elif particle.max_occurs is None or max_occurs is None:
+                    return None
+                else:
+                    results.append(max_occurs * particle.max_occurs - self.occurs[particle])
 
-        if particle.max_occurs == 0:
-            return 0
-        elif particle.max_occurs is None or max_occurs is None:
-            return None
-        else:
-            return max_occurs * particle.max_occurs - self.occurs[particle]
+        return max(results)
 
     def is_optional(self, particle: Optional[ModelParticleType] = None) -> bool:
         """

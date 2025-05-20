@@ -373,19 +373,30 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
 
     def get_subgroups(self, particle: ModelParticleType) -> list['XsdGroup']:
         """
-        Returns a list of the groups that represent the path to the enclosed particle.
-        Raises an `XMLSchemaModelError` if the argument is not a particle of the model
-        group.
+        Returns a list of the groups that represent the first path to the enclosed particle.
+        Raises an `XMLSchemaModelError` if the argument is not a particle of the model group.
+        """
+        for subgroups in self.iter_subgroups(particle):
+            return subgroups
+        else:
+            return []
+
+    def iter_subgroups(self, particle: ModelParticleType) -> Iterator[list['XsdGroup']]:
+        """
+        Iterates all subgroups where the provided particle is present.
+        Raises an `XMLSchemaModelError` if the argument is not a particle of the model group.
         """
         subgroups: list[tuple[XsdGroup, Iterator[ModelParticleType]]] = []
         group, children = self, iter(self if self.ref is None else self.ref)
+        found = False
 
         while True:
             for child in children:
                 if child is particle:
+                    found = True
                     _subgroups = [x[0] for x in subgroups]
                     _subgroups.append(group)
-                    return _subgroups
+                    yield _subgroups
                 elif isinstance(child, XsdGroup):
                     if len(subgroups) > limits.MAX_MODEL_DEPTH:
                         raise XMLSchemaModelDepthError(self)
@@ -396,8 +407,10 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                 try:
                     group, children = subgroups.pop()
                 except IndexError:
-                    msg = _('{!r} is not a particle of the model group')
-                    raise XMLSchemaModelError(self, msg.format(particle)) from None
+                    if not found:
+                        msg = _('{!r} is not a particle of the model group')
+                        raise XMLSchemaModelError(self, msg.format(particle)) from None
+                    return
 
     def get_model_visitor(self) -> ModelVisitor:
         if self.open_content is None or self.open_content.mode == 'none':

@@ -466,6 +466,20 @@ class XsdElement(XsdComponent, ParticleMixin,
             return self._block
         return self.schema.block_default
 
+    def overall_min_occurs(self, particle: ModelParticleType) -> int:
+        """
+        Returns the overall minimum for occurrences of a content model particle.
+        The content type of the element must be 'element-only' or 'mixed'.
+        """
+        return self.type.overall_min_occurs(particle)
+
+    def overall_max_occurs(self, particle: ModelParticleType) -> Optional[int]:
+        """
+        Returns the overall maximum for occurrences of a content model particle.
+        The content type of the element must be 'element-only' or 'mixed'.
+        """
+        return self.type.overall_max_occurs(particle)
+
     def get_binding(self, *bases: Type[Any], replace_existing: bool = False, **attrs: Any) \
             -> DataBindingType:
         """

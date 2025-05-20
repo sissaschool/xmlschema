@@ -57,16 +57,16 @@ class TestXsdGroups(unittest.TestCase):
         group = ModelGroup('choice')
 
         group.append(('a',))
-        self.assertListEqual(group[:], [('a',)])
+        self.assertListEqual(group[:], [('a',)])  # noqa
 
         group[0] = ('a', 'b')
-        self.assertListEqual(group[:], [('a', 'b')])
+        self.assertListEqual(group[:], [('a', 'b')])  # noqa
 
         group.append(('c',))
-        self.assertListEqual(group[:], [('a', 'b'), ('c',)])
+        self.assertListEqual(group[:], [('a', 'b'), ('c',)])  # noqa
 
         del group[0]
-        self.assertListEqual(group[:], [('c',)])
+        self.assertListEqual(group[:], [('c',)])  # noqa
 
     def test_is_empty(self):
         group = ModelGroup('all')
@@ -184,7 +184,7 @@ class TestXsdGroups(unittest.TestCase):
         root_group = group = ModelGroup('sequence')
         for k in range(3):
             for _ in range(k + 1):
-                group.append(ParticleMixin())
+                group.append(ParticleMixin())  # noqa
             group.append(ModelGroup('sequence'))
             group = group[-1]
 
@@ -198,7 +198,7 @@ class TestXsdGroups(unittest.TestCase):
         root_group = group = ModelGroup('sequence')
         for k in range(3):
             for _ in range(k + 1):
-                group.append(ParticleMixin())
+                group.append(ParticleMixin())  # noqa
             group.append(ModelGroup('sequence', max_occurs=None))
             group = group[-1]
 
@@ -211,7 +211,7 @@ class TestXsdGroups(unittest.TestCase):
         # Model group with an excessive depth
         root_group = group = ModelGroup('sequence')
         for k in range(16):
-            group.append(ParticleMixin())
+            group.append(ParticleMixin())  # noqa
             group.append(ModelGroup('sequence'))
             group = group[1]
 
@@ -224,7 +224,7 @@ class TestXsdGroups(unittest.TestCase):
         root_group = group = ModelGroup('sequence')
         for k in range(3):
             for _ in range(k + 1):
-                group.append(ParticleMixin())
+                group.append(ParticleMixin())  # noqa
             group.append(ModelGroup('sequence'))
             group = group[-1]
 
@@ -238,7 +238,7 @@ class TestXsdGroups(unittest.TestCase):
         root_group = group = ModelGroup('sequence')
         for k in range(3):
             for _ in range(k + 1):
-                group.append(ParticleMixin())
+                group.append(ParticleMixin())  # noqa
             group.append(ModelGroup('sequence', max_occurs=None))
             group = group[-1]
 
@@ -254,7 +254,7 @@ class TestXsdGroups(unittest.TestCase):
         # Model group with an excessive depth
         root_group = group = ModelGroup('sequence')
         for k in range(16):
-            group.append(ParticleMixin())
+            group.append(ParticleMixin())  # noqa
             group.append(ModelGroup('sequence'))
             group = group[1]
 
@@ -268,7 +268,7 @@ class TestXsdGroups(unittest.TestCase):
         subgroups = []
         for k in range(4):
             for _ in range(k + 1):
-                group.append(ParticleMixin())
+                group.append(ParticleMixin())  # noqa
             group.append(ModelGroup('sequence'))
             subgroups.append(group)
             group = group[-1]
@@ -280,12 +280,12 @@ class TestXsdGroups(unittest.TestCase):
         self.assertListEqual(root_group.get_subgroups(subgroups[-4][0]), subgroups[:-3])
 
         with self.assertRaises(XMLSchemaModelError):
-            root_group.get_subgroups(ParticleMixin())
+            root_group.get_subgroups(ParticleMixin())  # noqa
 
         # Model group with an excessive depth
         root_group = group = ModelGroup('sequence')
         for k in range(18):
-            group.append(ParticleMixin())
+            group.append(ParticleMixin())  # noqa
             group.append(ModelGroup('sequence'))
             group = group[1]
 
@@ -296,7 +296,7 @@ class TestXsdGroups(unittest.TestCase):
         root_group = group = ModelGroup('sequence')
         subgroups = []
         for k in range(4):
-            group.append(ParticleMixin())
+            group.append(ParticleMixin())  # noqa
             group.append(ModelGroup('sequence', max_occurs=10))
             subgroups.append(group)
             group = group[-1]
@@ -314,7 +314,7 @@ class TestXsdGroups(unittest.TestCase):
         root_group = group = ModelGroup('choice')
         subgroups = []
         for k in range(4):
-            group.append(ParticleMixin())
+            group.append(ParticleMixin())  # noqa
             group.append(ModelGroup('choice', max_occurs=10))
             subgroups.append(group)
             group = group[-1]
@@ -325,7 +325,7 @@ class TestXsdGroups(unittest.TestCase):
         root_group = group = ModelGroup('sequence', min_occurs=0)
         subgroups = []
         for k in range(4):
-            group.append(ParticleMixin())
+            group.append(ParticleMixin())  # noqa
             group.append(ModelGroup('sequence', min_occurs=0))
             subgroups.append(group)
             group = group[-1]

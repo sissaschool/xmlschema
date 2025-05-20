@@ -11,9 +11,10 @@
 import os
 import unittest
 from collections import Counter
+from textwrap import dedent
 from xml.etree import ElementTree
 
-from xmlschema import XMLSchema10, XMLSchema11, XMLSchemaParseError
+from xmlschema import XMLSchema10, XMLSchema11, XMLSchemaParseError, XMLSchemaModelError
 from xmlschema.validators.particles import ParticleMixin, OccursCalculator
 
 CASES_DIR = os.path.join(os.path.dirname(__file__), '../test_cases')
@@ -227,6 +228,83 @@ class TestParticleMixin(unittest.TestCase):
 
         xml_data = "<root><unknown/></root>"
         self.assertFalse(schema.is_valid(xml_data))
+
+    def test_overall_min_and_max_occurs(self):
+        schema = XMLSchema10(dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:element name="root" type="rootType" />
+                <xs:complexType name="rootType">
+                    <xs:sequence minOccurs="1" maxOccurs="10">
+                        <xs:element name="s0"/>
+                        <xs:group ref="group1" minOccurs="0" maxOccurs="0"/>
+                        <xs:element name="s1" />
+                        <xs:group ref="group1" minOccurs="1" maxOccurs="unbounded"/>
+                        <xs:element name="s2" />
+                        <xs:group ref="group2" minOccurs="2" maxOccurs="4"/>
+                        <xs:element name="s3" />
+                        <xs:group ref="group2" minOccurs="3" maxOccurs="6"/>
+                    </xs:sequence>
+                </xs:complexType>
+                <xs:group name="group1">
+                    <xs:choice>
+                        <xs:element name="n0" />
+                        <xs:element name="n1" minOccurs="0" maxOccurs="0"/>
+                        <xs:element name="n2" minOccurs="0" maxOccurs="unbounded"/>
+                        <xs:element name="n3" minOccurs="2" maxOccurs="unbounded"/>
+                        <xs:element name="n4" minOccurs="4" maxOccurs="5"/>
+                    </xs:choice>
+                </xs:group>
+                <xs:group name="group2">
+                    <xs:choice>
+                        <xs:element name="n5" />
+                        <xs:element name="n6" minOccurs="4" maxOccurs="9"/>
+                        <xs:element name="n7" minOccurs="1" maxOccurs="9"/>
+                        <xs:element name="n8" minOccurs="3" maxOccurs="11"/>
+                        <xs:element name="n9" minOccurs="0" maxOccurs="0"/>
+                    </xs:choice>
+                </xs:group>
+            </xs:schema>"""))
+
+        root_element = schema.elements['root']
+
+        with self.assertRaises(XMLSchemaModelError):
+            root_element.overall_min_occurs(ParticleMixin())  # noqa
+        with self.assertRaises(XMLSchemaModelError):
+            root_element.overall_max_occurs(ParticleMixin())  # noqa
+
+        group = schema.groups['group1']
+
+        self.assertEqual(root_element.overall_min_occurs(group[0]), 0)
+        self.assertIsNone(root_element.overall_max_occurs(group[0]))
+
+        self.assertEqual(root_element.overall_min_occurs(group[1]), 0)
+        self.assertEqual(root_element.overall_max_occurs(group[1]), 0)
+
+        self.assertEqual(root_element.overall_min_occurs(group[2]), 0)
+        self.assertIsNone(root_element.overall_max_occurs(group[2]))
+
+        self.assertEqual(root_element.overall_min_occurs(group[3]), 0)
+        self.assertIsNone(root_element.overall_max_occurs(group[3]))
+
+        self.assertEqual(root_element.overall_min_occurs(group[3]), 0)
+        self.assertIsNone(root_element.overall_max_occurs(group[3]))
+
+        group = schema.groups['group2']
+
+        self.assertEqual(root_element.overall_min_occurs(group[0]), 2)
+        self.assertEqual(root_element.overall_max_occurs(group[0]), 60)
+
+        self.assertEqual(root_element.overall_min_occurs(group[1]), 8)
+        self.assertEqual(root_element.overall_max_occurs(group[1]), 540)
+
+        self.assertEqual(root_element.overall_min_occurs(group[2]), 2)
+        self.assertEqual(root_element.overall_max_occurs(group[2]), 540)
+
+        self.assertEqual(root_element.overall_min_occurs(group[3]), 6)
+        self.assertEqual(root_element.overall_max_occurs(group[3]), 660)
+
+        self.assertEqual(root_element.overall_min_occurs(group[4]), 0)
+        self.assertEqual(root_element.overall_max_occurs(group[4]), 0)
 
 
 class TestOccursCalculator(unittest.TestCase):

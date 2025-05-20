@@ -23,7 +23,7 @@ from xmlschema.names import XSD_ANNOTATION, XSD_APPINFO, XSD_DOCUMENTATION, \
     XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_BOOLEAN, XSD_ID, \
     XSD_QNAME, XSD_OVERRIDE, XSD_NOTATION_TYPE, XSD_DECIMAL, XMLNS_NAMESPACE
 from xmlschema.aliases import ElementType, NsmapType, SchemaType, BaseXsdType, \
-    ComponentClassType, DecodedValueType
+    ComponentClassType, DecodedValueType, ModelParticleType
 from xmlschema.translation import gettext as _
 from xmlschema.utils.qnames import get_qname, local_name, get_prefixed_qname
 from xmlschema.utils.etree import is_etree_element
@@ -914,3 +914,17 @@ class XsdType(XsdComponent):
 
     def text_is_valid(self, text: str, context: Optional[DecodeContext] = None) -> bool:
         raise NotImplementedError()
+
+    def overall_min_occurs(self, particle: ModelParticleType) -> int:
+        """Returns the overall minimum for occurrences of a content model particle."""
+        content = self.model_group
+        if content is None or self.is_empty():
+            raise XMLSchemaTypeError(_("content type must be 'element-only' or 'mixed'"))
+        return content.overall_min_occurs(particle)
+
+    def overall_max_occurs(self, particle: ModelParticleType) -> Optional[int]:
+        """Returns the overall maximum for occurrences of a content model particle."""
+        content = self.model_group
+        if content is None or self.is_empty():
+            raise XMLSchemaTypeError(_("content must type be 'element-only' or 'mixed'"))
+        return content.overall_max_occurs(particle)
