@@ -267,7 +267,7 @@ class XMLResourceLoader:
                 else:
                     end_ns = True
         except SyntaxError as err:
-            raise XMLResourceParseError(str(err)) from err
+            raise XMLResourceParseError("invalid XML syntax: {}".format(err)) from err
         finally:
             self._lazy_lock.release()
 
@@ -300,7 +300,7 @@ class XMLResourceLoader:
                 else:
                     end_ns = True
         except SyntaxError as err:
-            raise XMLResourceParseError(str(err)) from err
+            raise XMLResourceParseError("invalid XML syntax: {}".format(err)) from err
 
     def _clear(self, elem: ElementType,
                ancestors: Optional[list[ElementType]] = None) -> None:

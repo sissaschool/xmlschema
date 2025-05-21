@@ -380,7 +380,9 @@ class TestResources(XMLSchemaTestCase):
         with self.assertRaises(ElementTree.ParseError) as ctx:
             XMLResource(invalid_xml)
 
-        self.assertEqual(str(ctx.exception), 'unbound prefix: line 1, column 0')
+        self.assertEqual(
+            str(ctx.exception), 'invalid XML syntax: unbound prefix: line 1, column 0'
+        )
 
     def test_xml_resource_from_string_io(self):
         with open(self.vh_xsd_file) as schema_file:

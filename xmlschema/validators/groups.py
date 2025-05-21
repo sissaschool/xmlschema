@@ -1104,7 +1104,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         Encode data to a list containing Element children.
 
         :param obj: an ElementData instance.
-        :param validation: the validation mode. Can be 'lax', 'strict' or 'skip.
+        :param validation: the validation mode. Can be 'lax', 'strict' or 'skip'.
         :param context: the encoding context.
         :return: returns a couple with the text of the Element and a list of child \
         elements.
