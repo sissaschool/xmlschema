@@ -42,8 +42,6 @@ class XsdAttribute(XsdComponent, ValidationMixin[Optional[str], DecodedValueType
     """
     Class for XSD 1.0 *attribute* declarations.
 
-    :ivar type: the XSD simpleType of the attribute.
-
     ..  <attribute
           default = string
           fixed = string
@@ -65,12 +63,29 @@ class XsdAttribute(XsdComponent, ValidationMixin[Optional[str], DecodedValueType
     prefixed_name: str
 
     type: XsdSimpleType
-    qualified: bool = False
-    default: Optional[str] = None
-    fixed: Optional[str] = None
+    """The XSD simpleType of the attribute."""
+
     form: Optional[str] = None
+    qualified: bool = False
+    """
+    The effective form for the attribute. If `True` the attribute name is qualified by a
+    braced namespace URI as prefix. The name of a global attribute is always qualified.
+    """
+
+    default: Optional[str] = None
+    """The default value of the attribute."""
+
+    fixed: Optional[str] = None
+    """The fixed value of the attribute."""
+
     use: str = 'optional'
-    inheritable: bool = False  # For XSD 1.1 attributes, always False for XSD 1.0 attributes.
+    """Defines the use of the attribute. Can be 'optional', 'prohibited' or 'required'."""
+
+    inheritable: bool = False
+    """
+    Defines whether the attribute can be inherited by descendant elements.
+    XSD 1.1 only, it's always `False` for XSD 1.0 attributes.
+    """
 
     __slots__ = ('type',)
 

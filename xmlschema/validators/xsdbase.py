@@ -262,9 +262,6 @@ class XsdComponent(XsdValidator):
     has the schema as parent.
     :param name: name of the component, maybe overwritten by the parse of the `elem` argument.
 
-    :cvar qualified: for name matching, unqualified matching may be admitted only \
-    for elements and attributes.
-    :vartype qualified: bool
     """
     @classmethod
     def meta_tag(cls) -> str:
@@ -278,7 +275,9 @@ class XsdComponent(XsdValidator):
 
     maps: 'XsdGlobals'
     elem: ElementType
-    qualified = True
+    qualified: bool = True
+    """For name matching, unqualified matching may be admitted only for elements and attributes"""
+
     ref: Optional['XsdComponent']
     redefine: Optional['XsdComponent']
     _built: bool = False  # marks whether the build() method has been called
@@ -760,7 +759,9 @@ class XsdType(XsdComponent):
 
     @property
     def content_type_label(self) -> str:
-        """The content type classification."""
+        """
+        The content type classification. Can be 'simple', 'mixed', 'element-only' or 'empty'.
+        """
         raise NotImplementedError()
 
     @property

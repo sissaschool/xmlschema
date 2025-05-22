@@ -1268,6 +1268,7 @@ class XsdAtomicRestriction(XsdAtomic):
                         base_type = self.maps.types[base_qname]
                     except KeyError:
                         self.parse_error(_("unknown type {!r}").format(elem.attrib['base']))
+
                         base_type = self.any_atomic_type
                     except XMLSchemaParseError as err:
                         self.parse_error(err)

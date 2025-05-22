@@ -34,7 +34,13 @@ class ParticleMixin:
     maps: Any
 
     min_occurs: int = 1
+    """The minOccurs property of the XSD particle. Defaults to 1."""
+
     max_occurs: Optional[int] = 1
+    """
+    The maxOccurs property of the XSD particle. Defaults to 1, a `None` value means 'unbounded'.
+    """
+
     oid: Optional[tuple[ModelGroupType]] = None
     skip: bool = False
 

@@ -64,9 +64,6 @@ class XsdElement(XsdComponent, ParticleMixin,
     """
     Class for XSD 1.0 *element* declarations.
 
-    :ivar type: the XSD simpleType or complexType of the element.
-    :ivar attributes: the group of the attributes associated with the element.
-
     ..  <element
           abstract = boolean : false
           block = (#all | List of (extension | restriction | substitution))
@@ -93,16 +90,39 @@ class XsdElement(XsdComponent, ParticleMixin,
 
     parent: Optional['XsdGroup']
     ref: Optional['XsdElement']
-    attributes: 'XsdAttributeGroup'
 
     type: BaseXsdType
+    """The XSD simpleType or complexType of the element."""
+
+    attributes: 'XsdAttributeGroup'
+    """The group of the attributes associated with the element."""
+
     content: Union[tuple[()], 'XsdGroup']
-    abstract = False
-    nillable = False
-    qualified = False
+
+    abstract: bool = False
+    """
+    Defines whether the element can be used in an instance document. An abstract
+    element must be global and can still be the head of a substitution group.
+    """
+
+    nillable: bool = False
+    """
+    Defines whether the element content is nillable using xsi:nil="true" as attribute.
+    """
+
     form: Optional[str] = None
+    qualified: bool = False
+    """
+    The effective form for the element. If `True` the element name is qualified by a
+    braced namespace URI as prefix. The name of a global element is always qualified.
+    """
+
     default: Optional[str] = None
+    """The default value of the element if its content is a simple type."""
+
     fixed: Optional[str] = None
+    """The fixed value of the element if its content is a simple type."""
+
     substitution_group: Optional[str] = None
 
     identities: list[XsdIdentity]
@@ -452,6 +472,10 @@ class XsdElement(XsdComponent, ParticleMixin,
 
     @property
     def final(self) -> str:
+        """
+        The effective value for prevent the usage of derived elements. Can be empty, '#all'
+        or containing a subset of words (extension|restrictions) separated by a space.
+        """
         if self.ref is not None:
             return self.ref.final
         elif self._final is not None:
@@ -460,6 +484,10 @@ class XsdElement(XsdComponent, ParticleMixin,
 
     @property
     def block(self) -> str:
+        """
+        The effective value for blocking the derivation of the element. Can be empty, '#all' or
+        containing a subset of words (extension|restrictions|substitution) separated by a space.
+        """
         if self.ref is not None:
             return self.ref.block
         elif self._block is not None:

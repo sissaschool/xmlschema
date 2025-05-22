@@ -358,6 +358,40 @@ expression using the *path* argument.
     An XPath expression for the schema *considers the schema as the root element
     with global elements as its children*.
 
+If you need to be selective on XML data, e.g. select the 2nd of a sequence od elements
+using a predicate, the provided *path* argument can't be used for selecting the matching
+XSD element:
+
+.. doctest::
+
+    >>> xs = xmlschema.XMLSchema('tests/test_cases/examples/vehicles/vehicles.xsd')
+    >>> filepath = 'tests/test_cases/examples/vehicles/vehicles.xml'
+    >>> pprint(xs.to_dict(filepath, path='//vh:bike[2]'))
+    Traceback (most recent call last):
+    ...
+    xmlschema.validators.exceptions.XMLSchemaValidationError: failed validating <Element '{http://example.com/vehicles}bike' at 0x...> with XMLSchema10(name='vehicles.xsd', namespace='http://example.com/vehicles'):
+
+    Reason: path='//vh:bike[2]' doesn't select any '{http://example.com/vehicles}bike' element of the schema, maybe you have to provide a different path using the schema_path argument
+
+    Instance type: <class 'xml.etree.ElementTree.Element'>
+
+    Instance:
+
+      <vh:bike xmlns:vh="http://example.com/vehicles" make="Yamaha" model="XS650" />
+
+    Path: /vh:vehicles/vh:bikes/vh:bike[2]
+
+in these cases you must provide also an appropriate *schema_path* argument for finding the schema element:
+
+.. doctest::
+
+    >>> xs = xmlschema.XMLSchema('tests/test_cases/examples/vehicles/vehicles.xsd')
+    >>> filepath = 'tests/test_cases/examples/vehicles/vehicles.xml'
+    >>> pprint(xs.to_dict(filepath, path='//vh:bike[2]', schema_path='/vh:vehicles/vh:bikes/vh:bike'))
+    {'@make': 'Yamaha', '@model': 'XS650'}
+    >>> pprint(xs.to_dict(filepath, path='//vh:bike[2]', schema_path='//vh:bike'))
+    {'@make': 'Yamaha', '@model': 'XS650'}
+
 
 Validating and decoding ElementTree's data
 ------------------------------------------

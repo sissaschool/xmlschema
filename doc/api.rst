@@ -326,6 +326,7 @@ Main XSD components
 .. autoclass:: xmlschema.XsdComponent
 
     .. autoattribute:: target_namespace
+    .. autoattribute:: qualified
     .. autoattribute:: local_name
     .. autoattribute:: qualified_name
     .. autoattribute:: prefixed_name
@@ -333,16 +334,44 @@ Main XSD components
     .. automethod:: is_matching
     .. automethod:: tostring
 
-.. autoclass:: xmlschema.XsdType
-    :members: is_simple, is_complex, is_atomic, is_list, is_datetime, is_empty,
-        is_emptiable, has_simple_content, has_complex_content, has_mixed_content,
-        is_element_only, is_derived, is_extension, is_restriction, is_key, is_qname
 
+.. autoclass:: xmlschema.XsdType
+    :members: is_simple, is_complex, is_atomic, is_primitive, is_list, is_union,
+        is_empty, is_emptiable, has_simple_content, has_complex_content, has_mixed_content,
+        is_element_only, is_derived, is_extension, is_restriction, is_blocked,
+        is_dynamic_consistent, is_key, is_qname, is_notation, is_datetime, is_decimal,
+        is_boolean, overall_min_occurs, overall_max_occurs
+
+    .. autoattribute:: content_type_label
+    .. autoattribute:: sequence_type
+    .. autoattribute:: root_type
     .. autoattribute:: simple_type
     .. autoattribute:: model_group
 
+
 .. autoclass:: xmlschema.XsdElement
+    :members: get_binding, get_path, match_child, overall_min_occurs, overall_max_occurs
+
+    .. autoattribute:: type
+    .. autoattribute:: attributes
+    .. autoattribute:: min_occurs
+    .. autoattribute:: max_occurs
+    .. autoattribute:: abstract
+    .. autoattribute:: block
+    .. autoattribute:: final
+    .. autoattribute:: default
+    .. autoattribute:: fixed
+    .. autoattribute:: qualified
+
+
 .. autoclass:: xmlschema.XsdAttribute
+
+    .. autoattribute:: type
+    .. autoattribute:: default
+    .. autoattribute:: fixed
+    .. autoattribute:: use
+    .. autoattribute:: inheritable
+    .. autoattribute:: qualified
 
 
 .. _other-xsd-components:
