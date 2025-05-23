@@ -197,7 +197,6 @@ class XsdIdentity(XsdComponent):
             try:
                 ref = self.maps.identities[self.name]
             except KeyError:
-                self.selector = None
                 self.fields = []
                 self.elements = {}
                 msg = _("unknown identity constraint {!r}")
@@ -251,10 +250,6 @@ class XsdIdentity(XsdComponent):
                 if e not in self.elements:
                     self.elements[e] = [FieldValueSelector(f, e) for f in self.fields]
                     e.selected_by.add(self)
-
-    @property
-    def built(self) -> bool:
-        return self._built and self.selector is not None
 
     def get_counter(self, elem: ElementType) -> 'IdentityCounter':
         return IdentityCounter(self, elem)
@@ -343,10 +338,6 @@ class XsdKeyref(XsdIdentity):
                     refer_path = f'{path1}/{path2}'
 
             self.refer_path = refer_path
-
-    @property
-    def built(self) -> bool:
-        return self._built and self.selector is not None and isinstance(self.refer, XsdIdentity)
 
     def get_counter(self, elem: ElementType) -> 'KeyrefCounter':
         return KeyrefCounter(self, elem)

@@ -643,9 +643,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
     @property
     def allow(self) -> str:
-        """
-        The resource access security mode: can be 'all', 'remote', 'local' or 'sandbox'.
-        """
+        """The resource access security mode: can be 'all', 'remote', 'local' or 'sandbox'."""
         return self.source.allow
 
     @property
@@ -895,10 +893,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         """Helper method for creating an XSD element."""
         return self.builders.create_element(name, self, parent, text, **attrib)
 
-    def build(self) -> None:
-        """Builds the schema's XSD global maps."""
-        self.maps.build()
-
     def clear(self) -> None:
         """Clears the schema cache."""
         self.__dict__.pop('xpath_node', None)
@@ -909,23 +903,35 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         self.__dict__.pop('complex_types', None)
         self.__dict__.pop('target_prefix', None)
 
+    def build(self) -> None:
+        """Builds the schema's XSD global maps."""
+        self.maps.build()
+
     @property
     def built(self) -> bool:
-        if (validation_attempted := self.validation_attempted) == 'none':
-            return False
-        return validation_attempted == 'full' or self.validation != 'strict'
+        return self.maps.built
 
     @property
     def validation_attempted(self) -> str:
         if (validation_attempted := self.maps.validation_attempted) != 'partial':
             return validation_attempted
-
-        for t in self.maps.global_maps.iter_staged():
-            for item in t:
-                if item is self or isinstance(item, tuple) and item[-1] is self:
-                    return 'partial'
+        elif any(isinstance(t, tuple) and t[-1] is self
+                 for x in self.maps.global_maps.iter_staged() for t in x):
+            return 'partial'
         else:
             return 'full'
+
+    @property
+    def validity(self) -> str:
+        if self.validation == 'skip':
+            return 'notKnown'
+        elif any(v.errors for v in self.iter_components()):
+            return 'invalid'
+        elif any(isinstance(t, tuple) and t[-1] is self
+                 for x in self.maps.global_maps.iter_staged() for t in x):
+            return 'notKnown'
+        else:
+            return 'valid'
 
     def iter_globals(self) -> Iterator[SchemaGlobalType]:
         """Iterates XSD global definitions/declarations of the schema."""

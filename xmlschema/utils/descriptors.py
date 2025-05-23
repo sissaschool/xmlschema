@@ -16,7 +16,7 @@ from xmlschema.exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, XM
 from xmlschema.translation import gettext as _
 
 if TYPE_CHECKING:
-    from xmlschema.validators.xsdbase import XsdValidator
+    from xmlschema.validators.xsdbase import XsdValidator  # noqa
 
 __all__ = ['validator_property', 'Argument', 'ChoiceArgument', 'ValueArgument']
 
@@ -56,15 +56,15 @@ class validator_property(Generic[VT, RT]):
         if instance is None:
             return self
 
-        if self._name not in instance.__dict__:
-            value = self.func(instance)
-            if not instance.built:
-                # Can't cache the property if the validator is not built
-                return value
-
+        if not instance.built:
+            # Can't cache the property if the validator is not built
+            if self._name in instance.__dict__:
+                instance.__dict__.pop(self._name)
+            return self.func(instance)
+        elif self._name not in instance.__dict__:
             with self.lock:
                 if self._name not in instance.__dict__:
-                    instance.__dict__[self._name] = value
+                    instance.__dict__[self._name] = self.func(instance)
 
         return cast(RT, instance.__dict__[self._name])
 

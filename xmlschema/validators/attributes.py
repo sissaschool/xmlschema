@@ -210,10 +210,6 @@ class XsdAttribute(XsdComponent, ValidationMixin[Optional[str], DecodedValueType
                 self.parse_error(msg)
 
     @property
-    def validation_attempted(self) -> str:
-        return 'full'
-
-    @property
     def scope(self) -> str:
         """The scope of the attribute declaration that can be 'global' or 'local'."""
         return 'global' if self.parent is None else 'local'

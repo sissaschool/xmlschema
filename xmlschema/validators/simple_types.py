@@ -356,10 +356,6 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
     def admitted_facets(self) -> set[str]:
         return XSD_10_FACETS if self.xsd_version == '1.0' else XSD_11_FACETS
 
-    @property
-    def built(self) -> bool:
-        return True
-
     @staticmethod
     def is_simple() -> bool:
         return True

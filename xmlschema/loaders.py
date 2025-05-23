@@ -12,14 +12,13 @@ import logging
 import warnings
 from operator import attrgetter
 from types import MappingProxyType
-from typing import Any, Optional, TYPE_CHECKING
-from xml.etree.ElementTree import ParseError
+from typing import Optional, TYPE_CHECKING
 
 from elementpath import XPath2Parser
 
 from xmlschema.aliases import SchemaType, SchemaSourceType, LocationsType
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError, \
-    XMLResourceBlocked, XMLResourceForbidden, XMLResourceError
+    XMLResourceBlocked, XMLResourceForbidden, XMLResourceError, XMLResourceParseError
 from xmlschema.locations import get_locations, LOCATIONS, FALLBACK_LOCATIONS
 from xmlschema.namespaces import NamespaceResourcesMap
 from xmlschema.translation import gettext as _
@@ -180,7 +179,7 @@ class SchemaLoader:
                     schema.warnings.append(msg)
                     warnings.warn(msg, XMLSchemaIncludeWarning, stacklevel=3)
 
-                except (XMLSchemaParseError, XMLSchemaTypeError, ParseError) as err:
+                except (XMLSchemaParseError, XMLSchemaTypeError, XMLResourceParseError) as err:
                     if elem.tag == nm.XSD_INCLUDE:
                         msg = _("can't include schema {!r}: {}")
                     elif elem.tag == nm.XSD_REDEFINE:
@@ -188,7 +187,7 @@ class SchemaLoader:
                     else:
                         msg = _("can't override schema {!r}: {}")
 
-                    if isinstance(err, (XMLSchemaParseError, ParseError)):
+                    if isinstance(err, (XMLSchemaParseError, XMLResourceParseError)):
                         schema.parse_error(msg.format(location, err), elem)
                     else:
                         raise type(err)(msg.format(location, err))
@@ -222,13 +221,13 @@ class SchemaLoader:
                 logger.debug('%s', err)
                 if import_error is None:
                     import_error = err
-            except (XMLSchemaParseError, XMLSchemaTypeError, ParseError) as err:
+            except (XMLSchemaParseError, XMLSchemaTypeError, XMLResourceParseError) as err:
                 if namespace:
                     msg = _("import of namespace {!r} failed: {}").format(namespace, err)
                 else:
                     msg = _("import of chameleon schema failed: {}").format(err)
 
-                if isinstance(err, (XMLSchemaParseError, ParseError)):
+                if isinstance(err, (XMLSchemaParseError, XMLResourceParseError)):
                     schema.parse_error(msg)
                 else:
                     raise type(err)(msg)
@@ -378,8 +377,6 @@ class SchemaLoader:
 
         schemas = self.maps.schemas.copy()
         namespaces = self.namespaces.copy()
-        validity = getattr(self.maps, '_validity')
-        validation_attempted = getattr(self.maps, '_validation_attempted')
         global_maps = self.maps.global_maps.copy()
         substitution_groups = self.maps.substitution_groups.copy()
         identities = self.maps.identities.copy()
@@ -399,8 +396,6 @@ class SchemaLoader:
             self.maps.namespaces.clear()
             self.maps.schemas.update(schemas)
             self.maps.namespaces.update(namespaces)
-            setattr(self.maps, '_validity', validity)
-            setattr(self.maps, '_validation_attempted', validation_attempted)
             self.maps.global_maps.update(global_maps)
             self.maps.substitution_groups.update(substitution_groups)
             self.maps.identities.update(identities)
@@ -435,8 +430,11 @@ class SafeSchemaLoader(SchemaLoader):
     referred location is not already loaded and after checking
     if there aren't collisions with loaded schemas.
     """
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(self, maps: 'XsdGlobals',
+                 locations: Optional[LocationsType] = None,
+                 use_fallback: bool = True,
+                 use_xpath3: bool = False):
+        super().__init__(maps, locations, use_fallback, use_xpath3)
         self.global_maps = GlobalMaps.from_builders(self.validator.builders)
         self.excluded_locations: set[str] = set()
 

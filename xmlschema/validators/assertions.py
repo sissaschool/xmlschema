@@ -55,7 +55,7 @@ class XsdAssert(XsdComponent, ElementPathMixin[Union['XsdAssert', SchemaElementT
     _ADMITTED_TAGS = XSD_ASSERT,
 
     __slots__ = (
-        'token', 'parser', 'path', 'base_type', 'xpath_default_namespace'
+        'token', 'parser', 'path', 'base_type', 'xpath_default_namespace',
     )
 
     def __init__(self, elem: ElementType,
@@ -89,6 +89,7 @@ class XsdAssert(XsdComponent, ElementPathMixin[Union['XsdAssert', SchemaElementT
         # is on XML elements and with XSD type decoded values
         if self._built:
             return
+        self._built = True
 
         self.parser = self.maps.loader.xpath_parser_class(
             namespaces=self.schema.namespaces,
@@ -111,7 +112,6 @@ class XsdAssert(XsdComponent, ElementPathMixin[Union['XsdAssert', SchemaElementT
                     f"ent so these operators will return empty sequences."
                 )
                 warnings.warn(msg, category=XMLSchemaAssertPathWarning, stacklevel=4)
-            self._built = True
         finally:
             if self.parser.variable_types:
                 self.parser.variable_types.clear()

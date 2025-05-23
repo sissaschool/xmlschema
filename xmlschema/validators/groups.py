@@ -573,8 +573,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
             if child.tag == XSD_ANNOTATION or callable(child.tag):
                 continue
             elif child.tag == XSD_ELEMENT:
-                # Builds inner elements later, for avoid circularity.
-                self.append(self.builders.element_class(child, self.schema, self, False))
+                self.append(self.builders.element_class(child, self.schema, self))
             elif content_model.tag == XSD_ALL:
                 self.parse_error(_("'all' model can contain only elements"))
             elif child.tag == XSD_ANY:
@@ -613,6 +612,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
     def build(self) -> None:
         if self._built:
             return
+        self._built = True
 
         for item in self._group:
             if isinstance(item, XsdElement):
@@ -621,38 +621,6 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         if self.redefine is not None:
             for group in self.redefine.iter_components(XsdGroup):
                 group.build()
-
-        self._built = True
-
-    @property
-    def built(self) -> bool:
-        if not self._built:
-            return False
-
-        for item in self:
-            if isinstance(item, XsdElement):
-                if not item.built:
-                    return False
-            elif isinstance(item, XsdAnyElement):
-                continue
-            elif item.parent is None:
-                continue
-            elif item.parent is not self.parent and \
-                    isinstance(item.parent, XsdType) and item.parent.parent is None:
-                continue
-            elif not item.ref and not item.built:
-                return False
-
-        return True if hasattr(self, 'model') and self.model else False
-
-    @property
-    def validation_attempted(self) -> str:
-        if self.built:
-            return 'full'
-        elif any(item.validation_attempted == 'partial' for item in self):
-            return 'partial'
-        else:
-            return 'none'
 
     @property
     def schema_elem(self) -> ElementType:
@@ -1258,8 +1226,7 @@ class Xsd11Group(XsdGroup):
 
         for child in content_model:
             if child.tag == XSD_ELEMENT:
-                # Builds inner elements later, for avoid circularity.
-                self.append(self.builders.element_class(child, self.schema, self, False))
+                self.append(self.builders.element_class(child, self.schema, self))
             elif child.tag == XSD_ANY:
                 self._group.append(self.builders.any_element_class(child, self.schema, self))
             elif child.tag in (XSD_SEQUENCE, XSD_CHOICE, XSD_ALL):

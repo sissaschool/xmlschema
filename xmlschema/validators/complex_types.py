@@ -519,14 +519,6 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
         return self.schema.block_default if self._block is None else self._block
 
     @property
-    def built(self) -> bool:
-        return self.content.parent is not None or self.content.built
-
-    @property
-    def validation_attempted(self) -> str:
-        return 'full' if self.built else self.content.validation_attempted
-
-    @property
     def simple_type(self) -> Optional[XsdSimpleType]:
         return self.content if isinstance(self.content, XsdSimpleType) else None
 

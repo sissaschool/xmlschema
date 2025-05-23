@@ -8,11 +8,11 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import copy
-from _operator import itemgetter
 from abc import abstractmethod
 from collections import Counter
 from collections.abc import Callable, ItemsView, Iterator, Mapping, ValuesView, Iterable
 from copy import copy as shallow_copy
+from operator import attrgetter
 from types import MappingProxyType
 from typing import Any, cast, NamedTuple, Optional, Union, Type, TypeVar
 from xml.etree.ElementTree import Element
@@ -67,14 +67,24 @@ GLOBAL_TAGS = frozenset((
     nm.XSD_ATTRIBUTE, nm.XSD_ATTRIBUTE_GROUP, nm.XSD_GROUP, nm.XSD_ELEMENT
 ))
 
-GLOBAL_GETTERS = MappingProxyType({
-    nm.XSD_SIMPLE_TYPE: itemgetter(0),
-    nm.XSD_COMPLEX_TYPE: itemgetter(0),
-    nm.XSD_NOTATION: itemgetter(1),
-    nm.XSD_ATTRIBUTE: itemgetter(2),
-    nm.XSD_ATTRIBUTE_GROUP: itemgetter(3),
-    nm.XSD_ELEMENT: itemgetter(4),
-    nm.XSD_GROUP: itemgetter(5),
+GLOBAL_MAP_INDEX = MappingProxyType({
+    nm.XSD_SIMPLE_TYPE: 0,
+    nm.XSD_COMPLEX_TYPE: 0,
+    nm.XSD_NOTATION: 1,
+    nm.XSD_ATTRIBUTE: 2,
+    nm.XSD_ATTRIBUTE_GROUP: 3,
+    nm.XSD_ELEMENT: 4,
+    nm.XSD_GROUP: 5,
+})
+
+GLOBAL_MAP_ATTRIBUTE = MappingProxyType({
+    nm.XSD_SIMPLE_TYPE: attrgetter('types'),
+    nm.XSD_COMPLEX_TYPE: attrgetter('types'),
+    nm.XSD_ATTRIBUTE: attrgetter('attributes'),
+    nm.XSD_ATTRIBUTE_GROUP: attrgetter('attribute_groups'),
+    nm.XSD_NOTATION: attrgetter('notations'),
+    nm.XSD_ELEMENT: attrgetter('elements'),
+    nm.XSD_GROUP: attrgetter('groups'),
 })
 
 
@@ -745,7 +755,7 @@ class GlobalMaps(NamedTuple):
                     except KeyError:
                         continue  # Invalid global: skip
 
-                    GLOBAL_GETTERS[tag](self).load(qname, elem, schema)
+                    self[GLOBAL_MAP_INDEX[tag]].load(qname, elem, schema)
 
         redefined_names = Counter(x[0] for x in redefinitions)
         for qname, elem, child, schema, redefined_schema in reversed(redefinitions):
@@ -780,9 +790,9 @@ class GlobalMaps(NamedTuple):
                                 break
 
             if elem.tag == nm.XSD_REDEFINE:
-                GLOBAL_GETTERS[child.tag](self).load_redefine(qname, child, schema)
+                self[GLOBAL_MAP_INDEX[child.tag]].load_redefine(qname, child, schema)
             else:
-                GLOBAL_GETTERS[child.tag](self).load_override(qname, child, schema)
+                self[GLOBAL_MAP_INDEX[child.tag]].load_override(qname, child, schema)
 
     def build(self, schemas: Iterable[SchemaType]) -> None:
         """Builds global XSD components for the given schemas."""
