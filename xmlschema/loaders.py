@@ -27,7 +27,7 @@ from xmlschema.xpath import XsdAssertionXPathParser
 import xmlschema.names as nm
 
 from xmlschema.validators import GlobalMaps, XMLSchemaParseError, \
-    XMLSchemaIncludeWarning, XMLSchemaImportWarning, XMLSchemaNotBuiltError
+    XMLSchemaIncludeWarning, XMLSchemaImportWarning
 
 if TYPE_CHECKING:
     from xmlschema.validators import XsdGlobals
@@ -375,30 +375,15 @@ class SchemaLoader:
                         self.missing_locations.add(url)
             return namespace in self.namespaces
 
-        schemas = self.maps.schemas.copy()
-        namespaces = self.namespaces.copy()
-        global_maps = self.maps.global_maps.copy()
-        substitution_groups = self.maps.substitution_groups.copy()
-        identities = self.maps.identities.copy()
+        with self.maps.protect_status(reraise=False):
+            for url in self.get_locations(namespace):
+                if self.is_missing(namespace, url):
+                    try:
+                        self.load_schema(url, namespace)
+                    except OSError:
+                        self.missing_locations.add(url)
 
-        for url in self.get_locations(namespace):
-            if self.is_missing(namespace, url):
-                try:
-                    self.load_schema(url, namespace)
-                except OSError:
-                    self.missing_locations.add(url)
-
-        try:
             self.maps.build()
-        except XMLSchemaNotBuiltError:
-            self.maps.clear()
-            self.maps.schemas.clear()
-            self.maps.namespaces.clear()
-            self.maps.schemas.update(schemas)
-            self.maps.namespaces.update(namespaces)
-            self.maps.global_maps.update(global_maps)
-            self.maps.substitution_groups.update(substitution_groups)
-            self.maps.identities.update(identities)
 
         return namespace in self.namespaces
 

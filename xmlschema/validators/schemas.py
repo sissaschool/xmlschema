@@ -68,7 +68,7 @@ from .complex_types import XsdComplexType
 from .groups import XsdGroup
 from .elements import XsdElement
 from .wildcards import XsdAnyElement, XsdDefaultOpenContent
-from .builders import XsdBuilders
+from .builders import GLOBAL_TAGS, XsdBuilders
 from .xsd_globals import XsdGlobals
 
 logger = logging.getLogger('xmlschema')
@@ -902,6 +902,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         self.__dict__.pop('simple_types', None)
         self.__dict__.pop('complex_types', None)
         self.__dict__.pop('target_prefix', None)
+        self.__dict__.pop('validation_attempted', None)
 
     def build(self) -> None:
         """Builds the schema's XSD global maps."""
@@ -911,13 +912,19 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     def built(self) -> bool:
         return self.maps.built
 
-    @property
+    @cached_property
     def validation_attempted(self) -> str:
-        if (validation_attempted := self.maps.validation_attempted) != 'partial':
-            return validation_attempted
-        elif any(isinstance(t, tuple) and t[-1] is self
-                 for x in self.maps.global_maps.iter_staged() for t in x):
+        if any(isinstance(t, tuple) and t[-1] is self
+               for x in self.maps.global_maps.iter_staged() for t in x):
             return 'partial'
+        elif any(c.schema is self and not c.built
+                 for c in self.maps.global_maps.iter_globals()):
+            return 'partial'
+        elif any(c.schema is self for c in self.maps.global_maps.iter_globals()):
+            return 'full'
+        elif any(child.tag in GLOBAL_TAGS for child in self.root) or \
+                any(e.tag in GLOBAL_TAGS for child in self.root for e in child):
+            return 'none'
         else:
             return 'full'
 
@@ -927,8 +934,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             return 'notKnown'
         elif any(v.errors for v in self.iter_components()):
             return 'invalid'
-        elif any(isinstance(t, tuple) and t[-1] is self
-                 for x in self.maps.global_maps.iter_staged() for t in x):
+        elif self.validation_attempted != 'full':
             return 'notKnown'
         else:
             return 'valid'

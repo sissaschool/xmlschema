@@ -586,14 +586,15 @@ class XsdElement(XsdComponent, ParticleMixin,
                 context.validation_error(validation, self, reason, elem)
 
             try:
-                if ns in self.maps.namespaces:
-                    schema = self.maps.namespaces[ns][0]
-                    schema.include_schema(url)
+                with self.maps.protect_status():
+                    if ns in self.maps.namespaces:
+                        schema = self.maps.namespaces[ns][0]
+                        schema.include_schema(url, context.source.base_url)
+                    else:
+                        schema = self.schema
+                        schema.import_schema(ns, url, context.source.base_url)
                     schema.clear()
                     schema.build()
-                else:
-                    schema = self.schema
-                    schema.import_schema(ns, url, context.source.base_url, build=True)
 
             except (XMLSchemaValidationError, XMLResourceParseError) as err:
                 context.validation_error(validation, self, err, elem)
@@ -1425,14 +1426,15 @@ class Xsd11Element(XsdElement):
                 continue
 
             try:
-                if ns in self.maps.namespaces:
-                    schema = self.maps.namespaces[ns][0]
-                    schema.include_schema(url)
+                with self.maps.protect_status():
+                    if ns in self.maps.namespaces:
+                        schema = self.maps.namespaces[ns][0]
+                        schema.include_schema(url, context.source.base_url)
+                    else:
+                        schema = self.schema
+                        schema.import_schema(ns, url, context.source.base_url)
                     schema.clear()
                     schema.build()
-                else:
-                    schema = self.schema
-                    schema.import_schema(ns, url, context.source.base_url, build=True)
 
             except (XMLSchemaValidationError, ParseError) as err:
                 context.validation_error(validation, self, err, elem)

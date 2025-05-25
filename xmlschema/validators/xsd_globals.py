@@ -11,9 +11,10 @@ import copy
 import threading
 import warnings
 from collections.abc import Collection, Iterator, Iterable
+from contextlib import contextmanager
 from functools import cached_property
 from itertools import dropwhile
-from typing import Any, cast, Optional, Union, Type
+from typing import Any, cast, Optional, Type
 
 from elementpath import XPathToken
 
@@ -21,7 +22,7 @@ import xmlschema.names as nm
 from xmlschema.aliases import SchemaType, BaseXsdType, LocationsType, \
     SchemaGlobalType, SchemaSourceType, NsmapType, StagedItemType, ComponentClassType
 from xmlschema.exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, \
-    XMLSchemaValueError, XMLSchemaWarning, XMLSchemaNamespaceError
+    XMLSchemaValueError, XMLSchemaWarning, XMLSchemaNamespaceError, XMLSchemaException
 from xmlschema.translation import gettext as _
 from xmlschema.utils.misc import deprecated
 from xmlschema.utils.qnames import get_extended_qname
@@ -249,30 +250,26 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
     def built(self) -> bool:
         return self._built
 
-    @property
+    @cached_property
     def validation_attempted(self) -> str:
         if not any(m for m in self.global_maps):
             return 'none'
-        elif any(m.total_staged for m in self.global_maps):
+        elif not self._built or any(m.total_staged for m in self.global_maps):
             return 'partial'
         else:
             return 'full'
 
-    @property
+    @cached_property
     def validity(self) -> str:
         if self.validation == 'skip':
             return 'notKnown'
-        elif self.invalid:
+        elif any(s.errors for s in self._schemas) or \
+                any(c.errors for c in self.iter_components()):
             return 'invalid'
-        elif any(m.total_staged for m in self.global_maps):
+        elif not self._built or any(m.total_staged for m in self.global_maps):
             return 'notKnown'
         else:
             return 'valid'
-
-    @cached_property
-    def invalid(self) -> bool:
-        return any(s.errors for s in self._schemas) or \
-            any(c.errors for c in self.iter_components())
 
     @validator_property
     def xpath_constructors(self) -> dict[str, Type[XPathToken]]:
@@ -296,7 +293,7 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
             self.validator.meta_schema in self._schemas
 
     @property
-    def unbuilt(self) -> list[Union[XsdComponent, SchemaType]]:
+    def unbuilt(self) -> list[XsdComponent]:
         """Property that returns a list with unbuilt components."""
         return [c for c in self.iter_components() if not c.built]
 
@@ -325,10 +322,8 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
             xsd_element.binding = None
 
     def iter_components(self, xsd_classes: Optional[ComponentClassType] = None) \
-            -> Iterator[Union['XsdGlobals', XsdComponent]]:
+            -> Iterator[XsdComponent]:
         """Creates an iterator for the XSD components of built schemas."""
-        if xsd_classes is None or isinstance(self, xsd_classes):
-            yield self
         for xsd_global in self.global_maps.iter_globals():
             yield from xsd_global.iter_components(xsd_classes)
 
@@ -492,7 +487,35 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
             self.check(schemas)
 
             self._built = True
+            for s in schemas:
+                s.clear()
+
             self.check_validator()
+
+    @contextmanager
+    def protect_status(self, reraise: bool = True) -> Iterator['XsdGlobals']:
+        """Context manager for set a restore point in case of error."""
+        schemas = self._schemas.copy()
+        namespaces = self.namespaces.copy()
+        global_maps = self.global_maps.copy()
+        substitution_groups = self.substitution_groups.copy()
+        identities = self.identities.copy()
+        built = self._built
+
+        try:
+            yield self
+        except XMLSchemaException:
+            self.clear()
+            self._schemas.clear()
+            self.namespaces.clear()
+            self._schemas.update(schemas)
+            self.namespaces.update(namespaces)
+            self.global_maps.update(global_maps)
+            self.substitution_groups.update(substitution_groups)
+            self.identities.update(identities)
+            self._built = built
+            if reraise:
+                raise
 
     def check_loaded_schemas(self) -> None:
         """Checks the coherence of schema registrations."""

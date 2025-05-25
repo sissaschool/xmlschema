@@ -179,7 +179,7 @@ class TestXsd10GlobalsMaps(unittest.TestCase):
         self.assertEqual(
             len([e.is_global() for e in XMLSchema10.meta_schema.maps.iter_globals()]), 158
         )
-        self.assertEqual(self.total_components, 809)
+        self.assertEqual(self.total_components, 808)
         self.assertEqual(len(XMLSchema10.meta_schema.maps.substitution_groups), 0)
 
     def test_build(self):
@@ -200,7 +200,6 @@ class TestXsd10GlobalsMaps(unittest.TestCase):
                 if c.is_global():
                     global_counter += 1
         self.assertEqual(global_counter, self.total_globals)
-        # self.assertEqual(total_counter, self.total_components)
 
 
 class TestXsd11GlobalsMaps(TestXsd10GlobalsMaps):
@@ -226,7 +225,7 @@ class TestXsd11GlobalsMaps(TestXsd10GlobalsMaps):
             len([e.is_global() for e in XMLSchema11.meta_schema.maps.iter_globals()]), 179
         )
         self.assertEqual(self.total_globals, 179)
-        self.assertEqual(self.total_components, 965)
+        self.assertEqual(self.total_components, 964)
         self.assertEqual(len(XMLSchema11.meta_schema.maps.substitution_groups), 1)
 
     def test_xsd_11_restrictions(self):
