@@ -480,7 +480,10 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
                 self.substitution_groups.update(ancestor.maps.substitution_groups)
                 self.identities.update(ancestor.maps.identities)
 
-            schemas = {s for s in self._schemas if s.maps is self}
+            # Have to respect the insertion order for redefinitions/overrides
+            schemas = [s for ns_schemas in self.namespaces.values()
+                       for s in ns_schemas if s.maps is self]
+
             self.global_maps.load(schemas)
             self.types.build_builtins(self.validator)
             self.global_maps.build(schemas)

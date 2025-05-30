@@ -76,6 +76,6 @@ class XMLSchemaProxy(AbstractSchemaProxy):
 
     def iter_atomic_types(self) -> Iterator[XsdTypeProtocol]:
         for xsd_type in self._schema.maps.types.values():
-            if xsd_type.target_namespace != XSD_NAMESPACE and \
+            if getattr(xsd_type, 'target_namespace', None) != XSD_NAMESPACE and \
                     hasattr(xsd_type, 'primitive_type'):
                 yield cast(XsdTypeProtocol, xsd_type)

@@ -21,7 +21,7 @@ from urllib.parse import urlsplit, unquote
 from urllib.error import URLError
 from xml.etree import ElementTree
 
-from elementpath import XPathToken, XPathContext, XPath2Parser, ElementNode
+from elementpath import XPathToken, XPathContext, ElementNode
 
 from xmlschema.aliases import ElementType, EtreeType, NsmapType, \
     NormalizedLocationsType, LocationsType, XMLSourceType, IOType, \
@@ -36,6 +36,7 @@ from xmlschema.utils.qnames import update_namespaces, get_namespace_map
 from xmlschema.utils.urls import is_url, is_remote_url, is_local_url, normalize_url, \
     normalize_locations
 from xmlschema.utils.descriptors import Argument
+from xmlschema.xpath import get_element_selector
 
 from .sax import defuse_xml
 from .arguments import SourceArgument, BaseUrlArgument, AllowArgument, \
@@ -643,30 +644,40 @@ class XMLResource(XMLResourceLoader):
         used for parsing the XPath expression.
         :param ancestors: provide a list for tracking the ancestors of yielded elements.
         """
-        parser = XPath2Parser(namespaces, strict=False)
-        token = parser.parse(path)
+        selector = get_element_selector(path, namespaces)
 
         if not self._lazy:
-            yield from self._select_elements(token, self.xpath_root, ancestors)
+            if ancestors is None:
+                yield from selector.iter_select(self)
+            else:
+                for elem in selector.iter_select(self):
+                    if elem is self.root:
+                        ancestors.clear()
+                    else:
+                        _ancestors: Any = []
+                        parent = self.parent_map[elem]
+                        while parent is not None:
+                            _ancestors.append(parent)
+                            parent = self.parent_map[parent]
+
+                        if _ancestors:
+                            ancestors.clear()
+                            ancestors.extend(reversed(_ancestors))
+                    yield elem
+
             return
 
         lazy_depth = int(self._lazy)
         level = 0
 
-        path = path.replace(' ', '').replace('./', '')
-        select_all = '*' in path and set(path).issubset(('*', '/'))
-        if path == '.':
-            path_depth = 0
-        elif path.startswith('/'):
-            path_depth = path.count('/') - 1
-        else:
-            path_depth = path.count('/') + 1
-
-        if not path_depth:
+        if not selector.path_depth:
             raise XMLSchemaValueError(f"can't use path {path!r} on a lazy resource")
-        elif path_depth < lazy_depth:
+        elif selector.path_depth < lazy_depth:
             raise XMLSchemaValueError(f"can't use path {path!r} on a lazy resource "
                                       f"with lazy_depth=={lazy_depth}")
+        else:
+            path_depth = selector.path_depth
+            select_all = selector.select_all
 
         if ancestors is not None:
             ancestors.clear()
@@ -687,7 +698,7 @@ class XMLResource(XMLResourceLoader):
                         continue
                     elif level == path_depth:
                         if select_all or \
-                             node in self._select_elements(token, self.xpath_root):
+                             node in selector.iter_select(self):
                             yield node
                     if level == lazy_depth:
                         self._clear(node, ancestors)
