@@ -17,6 +17,11 @@ from xmlschema.exceptions import XMLSchemaException, XMLSchemaValueError, \
     XMLSchemaRuntimeError
 
 
+def is_subclass(t: type[Any], cls: type[Any]) -> bool:
+    """A safe subclass checker."""
+    return isinstance(t, type) and issubclass(t, cls)
+
+
 def iter_class_slots(obj: Any) -> Iterator[str]:
     """Iterates slots defined for a class and its bases."""
     for cls in obj.__class__.__mro__:

@@ -10,6 +10,7 @@
 import io
 import os
 from collections.abc import MutableMapping
+from functools import partial
 from pathlib import Path
 from typing import cast, overload, Any, Optional, Type, TYPE_CHECKING, Union
 from urllib.request import OpenerDirector
@@ -19,9 +20,11 @@ from xmlschema.aliases import XMLSourceType, UriMapperType, IterParseType
 from xmlschema.exceptions import XMLSchemaValueError
 from xmlschema.translation import gettext as _
 from xmlschema.utils.etree import is_etree_element, is_etree_document
+from xmlschema.utils.misc import is_subclass
 from xmlschema.utils.streams import is_file_object
 from xmlschema.utils.urls import is_url
 from xmlschema.utils.descriptors import Argument, ChoiceArgument, ValueArgument
+from xmlschema.xpath import ElementSelector
 
 if TYPE_CHECKING:
     from .xml_resource import XMLResource
@@ -116,6 +119,12 @@ class ThinLazyArgument(ValueArgument[bool]):
         super().__init__(bool)
 
 
+class FastFindArgument(ValueArgument[bool]):
+    """Defines if to use  resource uses the `xml.etree.ElementPath.iterfind()` API."""
+    def __init__(self) -> None:
+        super().__init__(bool)
+
+
 class UriMapperArgument(Argument[Optional[UriMapperType]]):
     """The optional URI mapper argument for relocating addressed resources."""
     def __init__(self) -> None:
@@ -136,3 +145,18 @@ class IterParseArgument(Argument[Optional[IterParseType]]):
         if value is not None:
             return cast(IterParseType, value)
         return ElementTree.iterparse
+
+
+is_selector_subclass = partial[bool](is_subclass, cls=ElementSelector)
+
+
+class SelectorArgument(Argument[Optional[type[ElementSelector]]]):
+    """Defines if the resource is loaded only for a specific path."""
+    def __init__(self) -> None:
+        super().__init__(validators=(is_selector_subclass,))
+
+    def validated_value(self, value: Any) -> type[ElementSelector]:
+        value = super().validated_value(value)
+        if value is not None:
+            return cast(type[ElementSelector], value)
+        return ElementSelector

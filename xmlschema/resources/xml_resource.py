@@ -21,11 +21,9 @@ from urllib.parse import urlsplit, unquote
 from urllib.error import URLError
 from xml.etree import ElementTree
 
-from elementpath import XPathToken, XPathContext, ElementNode
-
 from xmlschema.aliases import ElementType, EtreeType, NsmapType, \
     NormalizedLocationsType, LocationsType, XMLSourceType, IOType, \
-    ResourceNodeType, LazyType, IterParseType, UriMapperType
+    LazyType, IterParseType, UriMapperType
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError, \
     XMLResourceError, XMLResourceOSError, XMLResourceBlocked
 from xmlschema.utils.paths import LocationPath
@@ -36,11 +34,11 @@ from xmlschema.utils.qnames import update_namespaces, get_namespace_map
 from xmlschema.utils.urls import is_url, is_remote_url, is_local_url, normalize_url, \
     normalize_locations
 from xmlschema.utils.descriptors import Argument
-from xmlschema.xpath import get_element_selector
+from xmlschema.xpath import ElementSelector
 
 from .sax import defuse_xml
-from .arguments import SourceArgument, BaseUrlArgument, AllowArgument, \
-    DefuseArgument, TimeoutArgument, UriMapperArgument, OpenerArgument
+from .arguments import SourceArgument, BaseUrlArgument, AllowArgument, DefuseArgument, \
+    TimeoutArgument, UriMapperArgument, OpenerArgument, SelectorArgument
 from .xml_loader import XMLResourceLoader
 
 
@@ -105,6 +103,7 @@ class XMLResource(XMLResourceLoader):
     timeout = TimeoutArgument()
     uri_mapper = UriMapperArgument()
     opener = OpenerArgument()
+    selector = SelectorArgument()
 
     # Private attributes for arguments
     _source: XMLSourceType
@@ -114,6 +113,7 @@ class XMLResource(XMLResourceLoader):
     _timeout: int
     _uri_mapper: Optional[UriMapperType]
     _opener: Optional[OpenerDirector]
+    _selector: type[ElementSelector]
 
     text: Optional[str] = None
     """The XML text source, `None` if it's not loaded or available."""
@@ -137,7 +137,8 @@ class XMLResource(XMLResourceLoader):
                  thin_lazy: bool = True,
                  uri_mapper: Optional[UriMapperType] = None,
                  opener: Optional[OpenerDirector] = None,
-                 iterparse: Optional[IterParseType] = None) -> None:
+                 iterparse: Optional[IterParseType] = None,
+                 selector: Optional[type[ElementSelector]] = None) -> None:
 
         if allow == 'sandbox' and base_url is None:
             msg = "block access to files out of sandbox requires 'base_url' to be set"
@@ -150,6 +151,7 @@ class XMLResource(XMLResourceLoader):
         self.timeout = timeout
         self.uri_mapper = uri_mapper
         self.opener = opener
+        self.selector = selector
         self.source = source
 
         if is_url(source):
@@ -169,7 +171,9 @@ class XMLResource(XMLResourceLoader):
             self.fp = cast(IOType, source)
             self.access_control(getattr(source, 'url', None))
         else:
-            super().__init__(cast(EtreeType, source), lazy, thin_lazy, iterparse)
+            super().__init__(
+                cast(EtreeType, source), lazy, thin_lazy, iterparse
+            )
             return
 
         with XMLResourceManager(self) as cm:
@@ -607,31 +611,6 @@ class XMLResource(XMLResourceLoader):
                     if self._xpath_root is not None:
                         self.xpath_root.children.clear()
 
-    def _select_elements(self, token: XPathToken,
-                         node: ResourceNodeType,
-                         ancestors: Optional[list[ElementType]] = None) -> Iterator[ElementType]:
-        context = XPathContext(node)
-        for item in token.select(context):
-            if not isinstance(item, ElementNode):  # pragma: no cover
-                msg = "XPath expressions on XML resources can select only elements"
-                raise XMLSchemaTypeError(msg)
-
-            if ancestors is not None:
-                if item.obj is self.root:
-                    ancestors.clear()
-                else:
-                    _ancestors: Any = []
-                    parent = item.parent
-                    while parent is not None:
-                        _ancestors.append(parent.obj)
-                        parent = parent.parent
-
-                    if _ancestors:
-                        ancestors.clear()
-                        ancestors.extend(reversed(_ancestors))
-
-            yield cast(ElementType, item.obj)
-
     def iterfind(self, path: str,
                  namespaces: Optional[NsmapType] = None,
                  ancestors: Optional[list[ElementType]] = None) -> Iterator[ElementType]:
@@ -644,7 +623,7 @@ class XMLResource(XMLResourceLoader):
         used for parsing the XPath expression.
         :param ancestors: provide a list for tracking the ancestors of yielded elements.
         """
-        selector = get_element_selector(path, namespaces)
+        selector = self._selector.from_cache(path, namespaces)
 
         if not self._lazy:
             if ancestors is None:
@@ -668,16 +647,14 @@ class XMLResource(XMLResourceLoader):
             return
 
         lazy_depth = int(self._lazy)
-        level = 0
-
-        if not selector.path_depth:
+        path_depth = selector.depth
+        if path_depth < 1:
             raise XMLSchemaValueError(f"can't use path {path!r} on a lazy resource")
-        elif selector.path_depth < lazy_depth:
+        elif path_depth < lazy_depth:
             raise XMLSchemaValueError(f"can't use path {path!r} on a lazy resource "
                                       f"with lazy_depth=={lazy_depth}")
-        else:
-            path_depth = selector.path_depth
-            select_all = selector.select_all
+        select_all = selector.select_all
+        level = 0
 
         if ancestors is not None:
             ancestors.clear()
@@ -697,8 +674,7 @@ class XMLResource(XMLResourceLoader):
                             ancestors.pop()
                         continue
                     elif level == path_depth:
-                        if select_all or \
-                             node in selector.iter_select(self):
+                        if select_all or node in selector.iter_select(self):
                             yield node
                     if level == lazy_depth:
                         self._clear(node, ancestors)
@@ -711,6 +687,14 @@ class XMLResource(XMLResourceLoader):
     def findall(self, path: str, namespaces: Optional[NsmapType] = None) \
             -> list[ElementType]:
         return list(self.iterfind(path, namespaces))
+
+    def findtext(self, path: str,
+                 default: Optional[str] = None,
+                 namespaces: Optional[NsmapType] = None) -> Optional[str]:
+        for elem in self.iterfind(path, namespaces):
+            return '' if elem.text is None else elem.text
+        else:
+            return default
 
     def get_namespaces(self, namespaces: Optional[NsmapType] = None,
                        root_only: bool = True) -> NsmapType:

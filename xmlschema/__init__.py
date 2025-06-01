@@ -12,7 +12,7 @@ from . import translation
 from .exceptions import XMLSchemaException, XMLResourceError, XMLSchemaNamespaceError
 from .resources import fetch_resource, fetch_namespaces, fetch_schema_locations, \
     fetch_schema, XMLResource
-from .xpath import ElementPathMixin
+from .xpath import ElementPathMixin, ElementSelector, ElementPathSelector
 from .converters import ElementData, XMLSchemaConverter, \
     UnorderedConverter, ParkerConverter, BadgerFishConverter, \
     AbderaConverter, JsonMLConverter, ColumnarConverter, GDataConverter
@@ -50,7 +50,7 @@ __all__ = [
     'AbderaConverter', 'JsonMLConverter', 'ColumnarConverter', 'DataElement',
     'DataElementConverter', 'DataBindingConverter', 'validate', 'is_valid',
     'iter_errors', 'iter_decode', 'to_dict', 'to_json', 'to_etree', 'from_json',
-    'XmlDocument', 'download_schemas',
+    'XmlDocument', 'download_schemas', 'ElementSelector', 'ElementPathSelector',
     'SchemaLoader', 'LocationSchemaLoader', 'SafeSchemaLoader',
     'XMLSchemaValidatorError', 'XMLSchemaParseError', 'XMLSchemaNotBuiltError',
     'XMLSchemaModelError', 'XMLSchemaModelDepthError', 'XMLSchemaValidationError',

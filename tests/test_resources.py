@@ -37,7 +37,7 @@ from xmlschema.testing import SKIP_REMOTE_TESTS, XMLSchemaTestCase, run_xmlschem
 from xmlschema.utils.urls import normalize_url
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError, \
     XMLResourceForbidden, XMLResourceBlocked, XMLResourceOSError
-from xmlschema.resources import XMLResourceManager
+from xmlschema.resources import XMLResourceManager, iterfind_parser
 from xmlschema.resources.sax import defuse_xml
 
 DRIVE_REGEX = '(/[a-zA-Z]:|/)' if platform.system() == 'Windows' else ''
@@ -1001,6 +1001,14 @@ class TestResources(XMLSchemaTestCase):
 
         self.assertListEqual(resource.findall('*/*'), root[0][:])
         self.assertListEqual(resource.findall('*/c3'), [])
+
+    def test_iterfind_parser(self):
+        source = StringIO('<a><b1><c1/><c2 x="2"/></b1><b2/></a>')
+
+        parser = iterfind_parser('*/b2')
+        resource = XMLResource(source, iterparse=parser)
+        for e in resource.iter():
+            print(e)
 
     def test_xml_resource_nsmap_tracking(self):
         xsd_file = self.casepath('examples/collection/collection4.xsd')

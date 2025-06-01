@@ -26,7 +26,7 @@ from xmlschema import XMLSchema, XMLSchemaParseError
 from xmlschema.names import XSD_NAMESPACE, XSI_NAMESPACE, XSD_SCHEMA, \
     XSD_ELEMENT, XSD_SIMPLE_TYPE, XSD_ANNOTATION, XSI_TYPE
 from xmlschema.utils.etree import prune_etree, etree_get_ancestors, etree_getpath, \
-    etree_get_element_path, etree_iter_location_hints, etree_tostring
+    etree_iter_location_hints, etree_tostring
 from xmlschema.utils.qnames import get_namespace, get_qname, local_name, \
     get_prefixed_qname, get_extended_qname, update_namespaces
 from xmlschema.utils.logger import set_logging_level, logged, format_xmlschema_stack, \
@@ -380,41 +380,6 @@ class TestUtils(unittest.TestCase):
         self.assertIsNone(etree_getpath(root, root[0], relative=False))
         self.assertIsNone(etree_getpath(root[0], root[1], relative=False))
         self.assertIsNone(etree_getpath(root, root, relative=False, parent_path=True))
-
-    def test_etree_get_element_path(self):
-        path = '/md:EntitiesDescriptor/md:EntityDescriptor[@entityID="https://xmlschema.test"]'
-        result = './md:EntityDescriptor[@entityID="https://xmlschema.test"]'
-        self.assertEqual(etree_get_element_path(path), result)
-
-        path = 'md:EntitiesDescriptor/md:EntityDescriptor[@entityID="https://xmlschema.test"]'
-        result = 'md:EntitiesDescriptor/md:EntityDescriptor[@entityID="https://xmlschema.test"]'
-        self.assertEqual(etree_get_element_path(path), result)
-
-        namespaces = {'': 'foo'}
-        self.assertEqual(etree_get_element_path(path, namespaces), result)
-
-        path = '/A/B/C'
-        self.assertEqual(etree_get_element_path(path), './B/C')
-        self.assertEqual(etree_get_element_path(path, namespaces), './{foo}B/{foo}C')
-
-        path = 'A/B/C'
-        self.assertEqual(etree_get_element_path(path), 'A/B/C')
-        self.assertEqual(etree_get_element_path(path, namespaces), '{foo}A/{foo}B/{foo}C')
-
-        path = 'A/{}B/C[@D="1"]'
-        self.assertEqual(etree_get_element_path(path), 'A/{}B/C[@D="1"]')
-        self.assertEqual(etree_get_element_path(path, namespaces),
-                         '{foo}A/{}B/{foo}C[@D="1"]')
-
-        path = 'A/{bar}B/C[@D="1"]'
-        self.assertEqual(etree_get_element_path(path), 'A/{bar}B/C[@D="1"]')
-        self.assertEqual(etree_get_element_path(path, namespaces),
-                         '{foo}A/{bar}B/{foo}C[@D="1"]')
-
-        path = 'A/p:B/C[@D="1"]/E'
-        self.assertEqual(etree_get_element_path(path), 'A/p:B/C[@D="1"]/E')
-        self.assertEqual(etree_get_element_path(path, namespaces),
-                         '{foo}A/p:B/{foo}C[@D="1"]/{foo}E')
 
     def test_etree_elements_assert_equal(self):
         e1 = ElementTree.XML('<a><b1>text<c1 a="1"/></b1>\n<b2/><b3/></a>\n')

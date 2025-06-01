@@ -9,22 +9,13 @@
 #
 import importlib
 import re
-from collections import deque
 from collections.abc import Callable, Iterator
 from typing import Any, Optional, Union
 from xml.etree import ElementTree
 
-from elementpath.regex import UnicodeSubset
-
 from xmlschema.names import XSI_SCHEMA_LOCATION, XSI_NONS_SCHEMA_LOCATION
 from xmlschema.aliases import ElementType, NsmapType
 from xmlschema.utils.qnames import get_namespace, get_prefixed_qname
-
-NCNAME_OTHERS = str(UnicodeSubset('-.\u00B7\u0300-\u036F\u0387\u06DD\u06DE\u203F\u2040'))
-
-
-def is_ncname_continuation(c: str) -> bool:
-    return c.isalnum() or c in NCNAME_OTHERS
 
 
 def is_etree_element(obj: object) -> bool:
@@ -131,79 +122,6 @@ def etree_getpath(elem: ElementType,
             parts.append(name)
 
     return '/'.join(parts)
-
-
-def etree_get_element_path(path: str, namespaces: Optional[NsmapType] = None) -> Optional[str]:
-    """
-    Returns an equivalent XPath expression for ElementTree elements, otherwise returns `None`.
-    """
-    start = end = 0
-
-    def flush() -> None:
-        nonlocal start
-        if start < end:
-            chunks.append(path[start:end])
-            start = end
-
-    def advance(condition: Callable[[str], bool]) -> None:
-        nonlocal end
-        end += 1
-        while condition(path[end]):
-            end += 1
-
-    chunks: deque[str] = deque()
-    default_namespace = '' if namespaces is None else namespaces.get('')
-
-    while True:
-        try:
-            if path[end] in '"\'':
-                flush()
-                advance(lambda x: x != path[start])
-                end += 1
-                flush()
-            elif path[end] == '{':
-                flush()
-                advance(lambda x: x != '}')
-                end += 1
-                if path[end].isalpha():
-                    advance(is_ncname_continuation)
-                flush()
-            elif path[end].isalpha():
-                flush()
-                advance(is_ncname_continuation)
-                if path[end] == ':':
-                    end += 1
-                    if path[end].isalpha():
-                        advance(is_ncname_continuation)
-                elif default_namespace and (not chunks or not chunks[-1].endswith('@')):
-                    chunks.append(f'{{{default_namespace}}}')
-                flush()
-            else:
-                end += 1
-
-        except IndexError:
-            if default_namespace:
-                if path[start].isalpha() and ':' not in path[start:] and \
-                        (not chunks or not chunks[-1].endswith('@')):
-                    chunks.append(f'{{{default_namespace}}}')
-            flush()
-            break
-
-    if not chunks:
-        return None
-    elif path.startswith('//'):
-        return f".{''.join(chunks)}"
-    elif path.startswith('/'):
-        chunks.popleft()
-        while chunks:
-            if chunks[0].startswith('/'):
-                break
-            chunks.popleft()
-        if not chunks:
-            return None
-        return f".{''.join(chunks)}"
-
-    return ''.join(chunks)
 
 
 def etree_iter_location_hints(elem: ElementType) -> Iterator[tuple[Any, Any]]:

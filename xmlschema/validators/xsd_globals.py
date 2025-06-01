@@ -46,13 +46,24 @@ _strict = type('str', (str,), {})('strict')
 
 class XsdGlobals(XsdValidator, Collection[SchemaType]):
     """
-    Mediator set for composing XML schema instances and provides lookup maps. It stores the global
-    declarations defined in the registered schemas. Register a schema to
-    add its declarations to the global maps.
+    Mediator collection class for composing XML schema instances and provides lookup maps.
+    It stores the global declarations defined in the registered schemas. Register a schema
+    to add its declarations to the global maps.
 
     :param validator: the origin schema class/instance used for creating the global maps.
+    :param validation: deprecated argument for the validation mode, now it takes the \
+    validation mode of the validator.
     :param parent: an optional parent schema, that is required to be built and with \
     no use of the target namespace of the validator.
+    :param loader_class: an optional subclass of :class:`SchemaLoader` to use for creating \
+    the loader instance.
+    :param locations: schema extra location hints, that can include custom resource locations \
+    or additional namespaces to import after processing schema's import statements.
+    :param use_fallback: if `True` the schema processor uses the validator fallback \
+    location hints to load well-known namespaces (e.g. xhtml).
+    in case of empty selections. For default uses only the *elementpath* processor.
+    :param use_xpath3: if `True` an XSD 1.1 schema instance uses the XPath 3 processor \
+    for assertions. For default a full XPath 2.0 processor is used.
     """
     _schemas: set[SchemaType]
     namespaces: NamespaceResourcesMap[SchemaType]

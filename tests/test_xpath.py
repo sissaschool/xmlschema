@@ -19,7 +19,7 @@ from elementpath import XPath1Parser, XPath2Parser, Selector, LazyElementNode
 
 from xmlschema import XMLSchema10, XMLSchema11
 from xmlschema.names import XSD_NAMESPACE
-from xmlschema.xpath import XMLSchemaProxy, XPathElement
+from xmlschema.xpath import XMLSchemaProxy, XPathElement, split_path
 from xmlschema.validators import XsdAtomic, XsdAtomicRestriction
 
 CASES_DIR = os.path.join(os.path.dirname(__file__), 'test_cases/')
@@ -322,13 +322,48 @@ class XMLSchemaXPathTest(unittest.TestCase):
         self.assertListEqual(children, self.xs1.elements['vehicles'].type.content[1:])
 
 
-class ElementTreeXPathTest(unittest.TestCase):
+class XPathSelectorsTest(unittest.TestCase):
 
     def test_rel_xpath_boolean(self):
         root = ElementTree.XML('<A><B><C/></B></A>')
         el = root[0]
         self.assertTrue(Selector('boolean(C)').iter_select(el))
         self.assertFalse(next(Selector('boolean(D)').iter_select(el)))
+
+    def test_split_path(self):
+        path = '/md:EntitiesDescriptor/md:EntityDescriptor[@entityID="https://xmlschema.test"]'
+        result = './md:EntityDescriptor[@entityID="https://xmlschema.test"]'
+        self.assertEqual(''.join(split_path(path)), result)
+
+        path = 'md:EntitiesDescriptor/md:EntityDescriptor[@entityID="https://xmlschema.test"]'
+        result = 'md:EntitiesDescriptor/md:EntityDescriptor[@entityID="https://xmlschema.test"]'
+        self.assertEqual(''.join(split_path(path)), result)
+
+        namespaces = {'': 'foo'}
+        self.assertEqual(''.join(split_path(path, namespaces)), result)
+
+        path = '/A/B/C'
+        self.assertEqual(''.join(split_path(path)), './B/C')
+        self.assertEqual(''.join(split_path(path, namespaces)), './{foo}B/{foo}C')
+
+        path = 'A/B/C'
+        self.assertEqual(''.join(split_path(path)), 'A/B/C')
+        self.assertEqual(''.join(split_path(path, namespaces)), '{foo}A/{foo}B/{foo}C')
+
+        path = 'A/{}B/C[@D="1"]'
+        self.assertEqual(''.join(split_path(path)), 'A/{}B/C[@D="1"]')
+        self.assertEqual(''.join(split_path(path, namespaces)),
+                         '{foo}A/{}B/{foo}C[@D="1"]')
+
+        path = 'A/{bar}B/C[@D="1"]'
+        self.assertEqual(''.join(split_path(path)), 'A/{bar}B/C[@D="1"]')
+        self.assertEqual(''.join(split_path(path, namespaces)),
+                         '{foo}A/{bar}B/{foo}C[@D="1"]')
+
+        path = 'A/p:B/C[@D="1"]/E'
+        self.assertEqual(''.join(split_path(path)), 'A/p:B/C[@D="1"]/E')
+        self.assertEqual(''.join(split_path(path), namespaces),
+                         '{foo}A/p:B/{foo}C[@D="1"]/{foo}E')
 
 
 if __name__ == '__main__':

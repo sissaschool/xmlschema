@@ -191,7 +191,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     :param opener: an optional :class:`OpenerDirector` instance used for opening XML \
     resources. For default uses the opener installed globally for *urlopen*.
     :param iterparse: an optional callable that returns an iterator parser instance \
-    used for building the XML tree. For default *ElementTree.iterparse* is used.
+    used for building the XML trees. For default *ElementTree.iterparse* is used.
     :param use_fallback: if `True` the schema processor uses the validator fallback \
     location hints to load well-known namespaces (e.g. xhtml).
     :param use_xpath3: if `True` an XSD 1.1 schema instance uses the XPath 3 processor \
@@ -1616,8 +1616,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         instance plus optionally the XSD element and the XSD type, and returns a \
         new `ElementData` instance.
         :param errors: optional internal collector for validation errors.
-        :param kwargs: keyword arguments with other options for building XMLResource \
-        and converter instances.
+        :param kwargs: keyword arguments with other options for building converter instances.
         :return: yields a decoded data object, eventually preceded by a sequence of \
         validation or decoding errors.
         """

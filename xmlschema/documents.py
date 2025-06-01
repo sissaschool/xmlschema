@@ -32,7 +32,7 @@ __all__ = ('from_json', 'is_valid', 'iter_errors', 'iter_decode', 'to_dict',
 COMMON_KWARGS = frozenset(
     ('base_url', 'allow', 'defuse', 'timeout', 'uri_mapper', 'opener', 'iterparse')
 )
-RESOURCE_KWARGS = COMMON_KWARGS.union(('lazy', 'thin_lazy'))
+RESOURCE_KWARGS = COMMON_KWARGS.union(('lazy', 'thin_lazy', 'selector'))
 SCHEMA_KWARGS = COMMON_KWARGS.union(
     ('loader_class', 'use_fallback', 'use_xpath3', 'use_meta', 'loglevel')
 )

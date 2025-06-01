@@ -15,8 +15,8 @@ from .proxy import XMLSchemaProxy
 from .mixin import ElementPathMixin, XPathElement
 from .assertion_parser import XsdAssertionXPathParser
 from .identity_parser import IdentityXPathParser
-from .selector import get_element_selector, ElementSelector
+from .selectors import split_path, ElementSelector, ElementPathSelector
 
 __all__ = ['XMLSchemaProxy', 'ElementPathMixin', 'XPathElement',
            'XsdAssertionXPathParser', 'IdentityXPathParser',
-           'get_element_selector', 'ElementSelector']
+           'split_path', 'ElementSelector', 'ElementPathSelector']

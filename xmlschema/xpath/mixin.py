@@ -100,10 +100,8 @@ class ElementPathMixin(Sequence[E_co]):
         :return: the first matching XSD subelement or ``None`` if there is no match.
         """
         if namespaces is None:
-            parser = XPath2Parser(self.namespaces, strict=False)
-        else:
-            parser = XPath2Parser(namespaces, strict=False)
-
+            namespaces = self.namespaces
+        parser = XPath2Parser(namespaces, strict=False)
         context = XPathSchemaContext(self.xpath_node)
         return cast(Optional[E_co], next(parser.parse(path).select_results(context), None))
 
@@ -117,10 +115,8 @@ class ElementPathMixin(Sequence[E_co]):
         list is returned if there is no match.
         """
         if namespaces is None:
-            parser = XPath2Parser(self.namespaces, strict=False)
-        else:
-            parser = XPath2Parser(namespaces, strict=False)
-
+            namespaces = self.namespaces
+        parser = XPath2Parser(namespaces, strict=False)
         context = XPathSchemaContext(self.xpath_node)
         return cast(list[E_co], parser.parse(path).get_results(context))
 
@@ -133,10 +129,8 @@ class ElementPathMixin(Sequence[E_co]):
         :return: an iterable yielding all matching XSD subelements in document order.
         """
         if namespaces is None:
-            parser = XPath2Parser(self.namespaces, strict=False)
-        else:
-            parser = XPath2Parser(namespaces, strict=False)
-
+            namespaces = self.namespaces
+        parser = XPath2Parser(namespaces, strict=False)
         context = XPathSchemaContext(self.xpath_node)
         return cast(Iterator[E_co], parser.parse(path).select_results(context))
 
