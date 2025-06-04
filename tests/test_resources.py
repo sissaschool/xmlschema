@@ -1003,12 +1003,22 @@ class TestResources(XMLSchemaTestCase):
         self.assertListEqual(resource.findall('*/c3'), [])
 
     def test_iterfind_parser(self):
-        source = StringIO('<a><b1><c1/><c2 x="2"/></b1><b2/></a>')
+        source = StringIO('<a><b1 x="9"><c1/><c2 x="2"/></b1><b2/></a>')
 
-        parser = iterfind_parser('*/b2')
+        parser = iterfind_parser('/a/b2')
         resource = XMLResource(source, iterparse=parser)
-        for e in resource.iter():
-            print(e)
+        tags = [e.tag for e in resource.iter()]
+        self.assertListEqual(tags, ['a', 'b1', 'b2'])
+
+        parser = iterfind_parser('/a/b2', ancestors=[])
+        resource = XMLResource(source, iterparse=parser)
+        tags = [e.tag for e in resource.iter()]
+        self.assertListEqual(tags, ['a', 'b2'])
+
+        parser = iterfind_parser('./b2')
+        resource = XMLResource(source,  iterparse=parser)
+        tags = [e.tag for e in resource.iter()]
+        self.assertListEqual(tags, ['a', 'b1', 'b2'])
 
     def test_xml_resource_nsmap_tracking(self):
         xsd_file = self.casepath('examples/collection/collection4.xsd')

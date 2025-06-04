@@ -19,7 +19,7 @@ from elementpath import XPath1Parser, XPath2Parser, Selector, LazyElementNode
 
 from xmlschema import XMLSchema10, XMLSchema11
 from xmlschema.names import XSD_NAMESPACE
-from xmlschema.xpath import XMLSchemaProxy, XPathElement, split_path
+from xmlschema.xpath import XMLSchemaProxy, XPathElement, split_path, ElementSelector
 from xmlschema.validators import XsdAtomic, XsdAtomicRestriction
 
 CASES_DIR = os.path.join(os.path.dirname(__file__), 'test_cases/')
@@ -46,7 +46,7 @@ class XMLSchemaProxyTest(unittest.TestCase):
             XMLSchemaProxy(self.xs1, base_element=self.xs2.elements['collection'])
 
         with self.assertRaises(TypeError):
-            XMLSchemaProxy(self.xs1, base_element=ElementTree.Element('vehicles'))
+            XMLSchemaProxy(self.xs1, base_element=ElementTree.Element('vehicles'))  # noqa
 
     def test_bind_parser_method(self):
         schema_proxy1 = XMLSchemaProxy(self.xs1)
@@ -332,7 +332,7 @@ class XPathSelectorsTest(unittest.TestCase):
 
     def test_split_path(self):
         path = '/md:EntitiesDescriptor/md:EntityDescriptor[@entityID="https://xmlschema.test"]'
-        result = './md:EntityDescriptor[@entityID="https://xmlschema.test"]'
+        result = '/md:EntitiesDescriptor/md:EntityDescriptor[@entityID="https://xmlschema.test"]'
         self.assertEqual(''.join(split_path(path)), result)
 
         path = 'md:EntitiesDescriptor/md:EntityDescriptor[@entityID="https://xmlschema.test"]'
@@ -343,8 +343,8 @@ class XPathSelectorsTest(unittest.TestCase):
         self.assertEqual(''.join(split_path(path, namespaces)), result)
 
         path = '/A/B/C'
-        self.assertEqual(''.join(split_path(path)), './B/C')
-        self.assertEqual(''.join(split_path(path, namespaces)), './{foo}B/{foo}C')
+        self.assertEqual(''.join(split_path(path)), '/A/B/C')
+        self.assertEqual(''.join(split_path(path, namespaces)), '/{foo}A/{foo}B/{foo}C')
 
         path = 'A/B/C'
         self.assertEqual(''.join(split_path(path)), 'A/B/C')
@@ -362,8 +362,77 @@ class XPathSelectorsTest(unittest.TestCase):
 
         path = 'A/p:B/C[@D="1"]/E'
         self.assertEqual(''.join(split_path(path)), 'A/p:B/C[@D="1"]/E')
-        self.assertEqual(''.join(split_path(path), namespaces),
+        self.assertEqual(''.join(split_path(path, namespaces)),
                          '{foo}A/p:B/{foo}C[@D="1"]/{foo}E')
+
+    def test_split_path_parts(self):
+        path = '/md:EntitiesDescriptor/md:EntityDescriptor[@entityID="https://xmlschema.test"]'
+        result = ['/', 'md:EntitiesDescriptor', '/', 'md:EntityDescriptor', '[', '@',
+                  'entityID', '=', '"https://xmlschema.test"', ']']
+        self.assertListEqual(list(split_path(path)), result)
+
+        path = '/A/B/C'
+        result = ['/', '{foo}A', '/', '{foo}B', '/', '{foo}C']
+        namespaces = {'': 'foo'}
+        self.assertEqual(list(split_path(path, namespaces)), result)
+        self.assertEqual(list(split_path(path)), ['/', 'A', '/', 'B', '/', 'C'])
+
+        path = 'A/B/C'
+        self.assertEqual(list(split_path(path)), ['A', '/', 'B', '/', 'C'])
+        self.assertEqual(list(split_path(path, namespaces)), result[1:])
+
+        path = 'A/{}B/C[@D="1"]'
+        result = ['A', '/', '{}B', '/', 'C', '[', '@', 'D', '=', '"1"', ']']
+        self.assertEqual(list(split_path(path)), result)
+        self.assertEqual(list(split_path(path, namespaces)),
+                         ['{foo}A', '/', '{}B', '/', '{foo}C', '[', '@', 'D', '=', '"1"', ']'])
+
+        path = 'A/{bar}B/C[@D="1"]'
+        self.assertEqual(
+            list(split_path(path)),
+            ['A', '/', '{bar}B', '/', 'C', '[', '@', 'D', '=', '"1"', ']']
+        )
+        self.assertEqual(
+            list(split_path(path, namespaces)),
+            ['{foo}A', '/', '{bar}B', '/', '{foo}C', '[', '@', 'D', '=', '"1"', ']']
+        )
+
+        path = 'A/p:B/C[@D="1"]/E'
+        self.assertEqual(
+            list(split_path(path)),
+            ['A', '/', 'p:B', '/', 'C', '[', '@', 'D', '=', '"1"', ']', '/', 'E']
+        )
+        self.assertEqual(
+            list(split_path(path, namespaces)),
+            ['{foo}A', '/', 'p:B', '/', '{foo}C', '[', '@', 'D', '=', '"1"', ']', '/', '{foo}E']
+        )
+
+        self.assertEqual(
+            list(split_path(path, namespaces, extended_names=True)),
+            ['{foo}A', '/', 'p:B', '/', '{foo}C', '[', '@', 'D', '=', '"1"', ']', '/', '{foo}E']
+        )
+
+        namespaces = {'': 'foo', 'p': 'bar'}
+        self.assertEqual(
+            list(split_path(path, namespaces, extended_names=True)),
+            ['{foo}A', '/', '{bar}B', '/', '{foo}C', '[', '@', 'D', '=', '"1"', ']', '/', '{foo}E']
+        )
+
+        path = 'A//p:B/C[2]/E'
+        self.assertEqual(
+            list(split_path(path)),
+            ['A', '//', 'p:B', '/', 'C', '[', '2', ']', '/', 'E']
+        )
+        self.assertEqual(
+            list(split_path(path, namespaces)),
+            ['{foo}A', '//', 'p:B', '/', '{foo}C', '[', '2', ']', '/', '{foo}E']
+        )
+        self.assertEqual(list(split_path('.')), ['.'])
+        self.assertEqual(list(split_path('*/b')), ['*', '/', 'b'])
+
+    def test_element_selector(self):
+        selector = ElementSelector('*')
+        self.assertEqual(list(selector.parts), ['*'])
 
 
 if __name__ == '__main__':

@@ -34,7 +34,7 @@ __all__ = ['ElementType', 'ElementTreeType', 'XMLSourceType', 'NsmapType', 'Loca
            'ModelParticleType', 'XPathElementType', 'AtomicValueType',
            'NumericValueType', 'SchemaSourceType', 'ComponentClassType',
            'LoadedItemType', 'StagedItemType', 'ExtraValidatorType',
-           'ValidationHookType', 'DecodeType', 'IterDecodeType',
+           'ValidationHookType', 'DecodeType', 'IterDecodeType', 'AncestorsType',
            'JsonDecodeType', 'EncodeType', 'IterEncodeType', 'DecodedValueType',
            'FillerType', 'DepthFillerType', 'ValueHookType', 'ElementHookType',
            'SerializerType', 'OccursCounterType', 'LazyType', 'SourceType',
@@ -42,13 +42,15 @@ __all__ = ['ElementType', 'ElementTreeType', 'XMLSourceType', 'NsmapType', 'Loca
            'ResourceNodeType', 'NsmapsMapType', 'XmlnsMapType', 'ErrorsType']
 
 if TYPE_CHECKING:
-    from xmlschema.resources import XMLResource
-    from xmlschema.namespaces import NamespaceResourcesMap
-    from xmlschema.converters import ElementData  # noqa: F401
+    from xmlschema.resources import XMLResource  # noqa
+    from xmlschema.namespaces import NamespaceResourcesMap  # noqa
+    from xmlschema.converters import ElementData  # noqa
+
+    # noinspection PyUnresolvedReferences
     from xmlschema.validators import XMLSchemaValidationError, XsdComponent, \
         XsdComplexType, XsdSimpleType, XsdElement, XsdAnyElement, XsdAttribute, \
         XsdAnyAttribute, XsdAssert, XsdGroup, XsdAttributeGroup, XsdNotation, \
-        ParticleMixin, XMLSchemaBase
+        ParticleMixin, XMLSchemaBase  # noqa
 
 ##
 # Type aliases for ElementTree
@@ -78,6 +80,7 @@ IterParseType = Callable[[IOType, Optional[Sequence[str]]], Iterator[tuple[str, 
 ParentMapType = dict[ElementType, Optional[ElementType]]
 NsmapsMapType = dict[ElementType, dict[str, str]]
 XmlnsMapType = dict[ElementType, list[tuple[str, str]]]
+AncestorsType = Optional[list[ElementType]]
 
 ##
 # Type aliases for XSD components

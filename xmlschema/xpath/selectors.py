@@ -30,12 +30,28 @@ _selectors_cache: dict[CacheKeyType, 'ElementSelector'] = {}
 _dummy_element = Element('dummy')
 
 
+def is_ncname(s: str) -> bool:
+    return s.isalpha() and ':' not in s and all(is_ncname_continuation(c) for c in s[1:])
+
+
 def is_ncname_continuation(c: str) -> bool:
     return (c.isalnum() or c in '-.\u00B7\u0387\u06DD\u06DE\u203F\u2040'
             or 0x300 <= ord(c) <= 0x36F)
 
 
-def split_path(path: str, namespaces: Optional[NsmapType] = None) -> deque[str]:
+def split_path(path: str, namespaces: Optional[NsmapType] = None,
+               extended_names: bool = False) -> deque[str]:
+    """
+    Splits a path expression to a sequence of chunks that put in evidence path steps,
+    predicates and other parts that can be useful for checking some properties of the
+    provided path, like the path depth of if the path is composed only by path steps
+    and wildcards.
+
+    :param path: the path expression to split.
+    :param namespaces: an optional namespace mapping to use on prefixed names.
+    :param extended_names: if `True` maps prefixed names to extended form. For \
+    default only the default namespace is used, if defined and not empty.
+    """
     start = end = 0
 
     def flush() -> None:
@@ -50,48 +66,49 @@ def split_path(path: str, namespaces: Optional[NsmapType] = None) -> deque[str]:
         while condition(path[end]):
             end += 1
 
-    chunks: deque[str] = deque()
+    path = path.replace(' ', '').replace('\t', '').replace('./', '')  # path normalization
+    chunks: deque[str] = deque([''])  # add an empty element to avoid index errors
     default_namespace = None if not namespaces else namespaces.get('')
 
     while True:
         try:
+            flush()
             if path[end] in '"\'':
-                flush()
                 advance(lambda x: x != path[start])
                 end += 1
-                flush()
             elif path[end] == '{':
-                flush()
                 advance(lambda x: x != '}')
                 end += 1
                 if path[end].isalpha():
                     advance(is_ncname_continuation)
-                flush()
             elif path[end].isalpha():
-                flush()
                 advance(is_ncname_continuation)
                 if path[end] == ':':
+                    prefix = path[start:end]
                     end += 1
                     if path[end].isalpha():
                         advance(is_ncname_continuation)
-                elif default_namespace and (not chunks or not chunks[-1].endswith('@')):
-                    chunks.append(f'{{{default_namespace}}}')
-                flush()
+                        if extended_names and namespaces and prefix in namespaces:
+                            flush()
+                            uri = namespaces[prefix]
+                            chunks[-1] = f'{{{uri}}}{chunks[-1][len(prefix)+1:]}'
+
+                elif default_namespace and not chunks[-1].endswith('@'):
+                    flush()
+                    chunks[-1] = f'{{{default_namespace}}}{chunks[-1]}'
+            elif path[end] == '/':
+                advance(lambda x: x == '/')
             else:
                 end += 1
 
         except IndexError:
-            if default_namespace:
-                if path[start].isalpha() and ':' not in path[start:] and \
-                        (not chunks or not chunks[-1].endswith('@')):
-                    chunks.append(f'{{{default_namespace}}}')
-            flush()
+            if start < len(path):
+                flush()
+                if default_namespace and is_ncname(chunks[-1]) and chunks[-2] != '@':
+                    chunks[-1] = f'{{{default_namespace}}}{chunks[-1]}'
+
+            chunks.popleft()
             return chunks
-
-
-def etree_get_element_path(path: str, namespaces: Optional[NsmapType] = None) -> str:
-    """Returns an equivalent XPath expression for ElementTree elements."""
-    return ''.join(split_path(path, namespaces))
 
 
 class ElementSelector:
@@ -131,9 +148,10 @@ class ElementSelector:
 
     def __init__(self, path: str, namespaces: Optional[NsmapType] = None) -> None:
         self.namespaces = None if namespaces is None else {k: v for k, v in namespaces.items()}
-        self.path = path.strip().replace(' ', '')
+        self._parts = split_path(path, namespaces)
 
-        self._parts = split_path(self.path, namespaces)
+        self.path = ''.join(self._parts)
+
         self._parser = XPath2Parser(namespaces, strict=False)
         self._token = self._parser.parse(self.path)
         self.select(_dummy_element)
@@ -175,6 +193,8 @@ class ElementSelector:
             return -1
         elif self._parts[0] == '/':
             return sum(s == '/' for s in self._parts) - 1
+        elif self._parts[0] == '.':
+            return sum(s == '/' for s in self._parts)
         else:
             return sum(s == '/' for s in self._parts) + 1
 
