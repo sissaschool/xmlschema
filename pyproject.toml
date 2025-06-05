@@ -34,7 +34,7 @@ classifiers = [
     "Topic :: Text Processing :: Markup :: XML",
 ]
 dependencies = [
-    "elementpath>=4.8.0, <6.0.0",
+    "elementpath>=5.0.1, <6.0.0",
 ]
 
 [project.optional-dependencies]

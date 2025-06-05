@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 
 CacheKeyType = Union[
     tuple[str, type['ElementSelector']],
-    tuple[str | type['ElementSelector'] | Iterable[tuple[str, str]] | tuple[str, str], ...]
+    tuple[Union[str, type['ElementSelector'], Iterable[tuple[str, str]], tuple[str, str]], ...]
 ]
 
 _selectors_cache: dict[CacheKeyType, 'ElementSelector'] = {}
@@ -121,7 +121,7 @@ class ElementSelector:
     """
 
     path: str
-    """The origin XPath expression path provided by argument."""
+    """The normalized XPath expression of the path provided by argument."""
 
     namespaces: Optional[dict[str, str]]
     """The namespaces mapping associated with the XPath expression path."""
@@ -130,7 +130,8 @@ class ElementSelector:
     _token: XPathToken
 
     @classmethod
-    def from_cache(cls, path: str, namespaces: Optional[NsmapType] = None) -> 'ElementSelector':
+    def cached_selector(cls, path: str, namespaces: Optional[NsmapType] = None) \
+            -> 'ElementSelector':
         """A builder of ElementSelector instances based on a cache."""
         key: CacheKeyType = (path, cls)
         if namespaces is not None:
@@ -161,6 +162,7 @@ class ElementSelector:
 
     @property
     def parts(self) -> list[str]:
+        """Return a list with the parts of the parsed path."""
         return list(self._parts)
 
     @cached_property
@@ -187,6 +189,7 @@ class ElementSelector:
 
     @cached_property
     def depth(self) -> int:
+        """Path depth, 0 means a self axis selector, -1 means an unlimited depth."""
         if not self._parts:
             return 0
         elif '//' in self._parts:

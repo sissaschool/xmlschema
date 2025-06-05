@@ -623,7 +623,7 @@ class XMLResource(XMLResourceLoader):
         used for parsing the XPath expression.
         :param ancestors: provide a list for tracking the ancestors of yielded elements.
         """
-        selector = self._selector.from_cache(path, namespaces)
+        selector = self._selector.cached_selector(path, namespaces)
 
         if not self._lazy:
             if ancestors is None:

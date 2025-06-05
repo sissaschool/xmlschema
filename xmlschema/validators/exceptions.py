@@ -278,6 +278,15 @@ class XMLSchemaValidationError(XMLSchemaValidatorError, ValueError):
     def message(self) -> str:
         return f'{self._message} {self.validator!r}.'
 
+    # For compatibility with XMLSchemaChildrenValidationError
+    invalid_tag: Optional[str] = None
+
+    @property
+    def expected_tags(self) -> list[str]: return []
+
+    @property
+    def invalid_child(self) -> Optional[ElementType]: return None
+
     def __init__(self,
                  validator: ValidatorType,
                  obj: Any,

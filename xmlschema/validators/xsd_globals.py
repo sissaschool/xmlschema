@@ -61,7 +61,6 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
     or additional namespaces to import after processing schema's import statements.
     :param use_fallback: if `True` the schema processor uses the validator fallback \
     location hints to load well-known namespaces (e.g. xhtml).
-    in case of empty selections. For default uses only the *elementpath* processor.
     :param use_xpath3: if `True` an XSD 1.1 schema instance uses the XPath 3 processor \
     for assertions. For default a full XPath 2.0 processor is used.
     """

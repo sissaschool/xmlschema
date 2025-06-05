@@ -278,6 +278,21 @@ Implemented through a mixin class on XSD schemas and elements.
     .. automethod:: iterfind
 
 
+.. autoclass:: xmlschema.ElementSelector
+
+    .. autoattribute:: path
+    .. autoattribute:: namespaces
+    .. autoattribute:: parts
+    .. autoattribute:: relative_path
+    .. autoattribute:: depth
+    .. autoattribute:: select_all
+    .. automethod:: select
+    .. automethod:: iter_select
+    .. automethod:: cached_selector
+
+.. autoclass:: xmlschema.ElementPathSelector
+
+
 .. _validation-api:
 
 Validation API

@@ -37,7 +37,7 @@ class TestValidatorExceptions(unittest.TestCase):
 
     def test_exception_init(self):
         with self.assertRaises(ValueError) as ctx:
-            XMLSchemaValidatorError(self.schema, 'unknown error', elem='wrong')
+            XMLSchemaValidatorError(self.schema, 'unknown error', elem='wrong')  # noqa
         self.assertIn("'elem' attribute requires an Element", str(ctx.exception))
 
         error = XMLSchemaNotBuiltError(self.schema, 'schema not built!')
@@ -134,7 +134,7 @@ class TestValidatorExceptions(unittest.TestCase):
         root = lxml_etree.XML('<root a="10"/>')
 
         with self.assertRaises(XMLSchemaValidationError) as ctx:
-            schema.validate(root)
+            schema.validate(root)  # noqa
 
         lines = str(ctx.exception).split('\n')
         self.assertEqual(lines[0], "failed validating {'a': '10'} with XsdAttributeGroup():")
@@ -230,7 +230,7 @@ class TestValidatorExceptions(unittest.TestCase):
 
         root = lxml_etree.XML('<root a="10"/>')
         with self.assertRaises(XMLSchemaValidationError) as ctx:
-            schema.validate(root)
+            schema.validate(root)  # noqa
 
         self.assertEqual(ctx.exception.sourceline, 1)
         self.assertEqual(ctx.exception.root, root)
@@ -245,7 +245,7 @@ class TestValidatorExceptions(unittest.TestCase):
         self.assertIsNone(ctx.exception.root)
         self.assertIsNotNone(ctx.exception.schema_url)
         self.assertEqual(ctx.exception.origin_url, xs.source.url)
-        self.assertIsNone(XMLSchemaValidatorError(None, 'unknown error').origin_url)
+        self.assertIsNone(XMLSchemaValidatorError(None, 'unknown error').origin_url)  # noqa
 
     def test_decode_error(self):
         error = XMLSchemaDecodeError(
@@ -411,6 +411,19 @@ class TestValidatorExceptions(unittest.TestCase):
             self.assertEqual(len(ctx.output), 1)
             self.assertIn('Collect XMLSchemaDecodeError', ctx.output[0])
             self.assertIn('with traceback:', ctx.output[0])
+
+    @unittest.skipIf(lxml_etree is None, 'lxml is not installed ...')
+    def test_sourceline__issue_456(self):
+        xsd_file = CASES_DIR.joinpath('examples/vehicles/vehicles.xsd')
+        xml_file = CASES_DIR.joinpath('examples/vehicles/vehicles-2_errors.xml')
+        schema = XMLSchema(xsd_file)
+
+        root = lxml_etree.parse(xml_file).getroot()
+
+        errors = [e for e in schema.iter_errors(root)]  # noqa
+        self.assertEqual(len(errors), 2)
+        self.assertEqual(errors[0].sourceline, 4)
+        self.assertEqual(errors[1].sourceline, 9)
 
 
 if __name__ == '__main__':
