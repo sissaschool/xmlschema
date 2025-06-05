@@ -21,7 +21,7 @@ from elementpath.datatypes import AnyAtomicType, AbstractDateTime, AbstractQName
     Duration, UntypedAtomic
 
 from xmlschema.aliases import ElementType, AtomicValueType, ComponentClassType, \
-    BaseXsdType, SchemaType, DecodedValueType
+    BaseXsdType, SchemaType, DecodedValueType, NsmapType
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from xmlschema.names import XSD_NAMESPACE, XSD_ANY_TYPE, XSD_SIMPLE_TYPE, XSD_PATTERN, \
     XSD_ANY_ATOMIC_TYPE, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ANY_ATTRIBUTE, \
@@ -78,7 +78,7 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
     datatype: Type[Any] = str  # Unicode string as default datatype for XSD simple types
     python_type: Type[Any] = str
     instance_types: PythonTypeClasses = str
-    to_python: Union[Type[Any], Callable[[Union[str, bytes]], DecodedValueType]] = str
+    to_python: Union[Type[Any], Callable[[Union[str, bytes]], AtomicValueType]] = str
     from_python: Union[Type[str], Callable[[Any], str]] = str
 
     __slots__ = ('_facets', 'min_length', 'max_length', 'white_space', 'patterns',
@@ -486,6 +486,11 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
             else:
                 return True
 
+    def get_atomic_value(self, value: AtomicValueType,
+                         namespaces: Optional[NsmapType] = None,
+                         strict: bool = False) -> AtomicValueType:
+        return value
+
     def raw_decode(self, obj: Union[str, bytes], validation: str,
                    context: DecodeContext) -> DecodedValueType:
         text = self.normalize(obj)
@@ -603,6 +608,30 @@ class XsdAtomic(XsdSimpleType):
         else:
             return None
 
+    def get_atomic_value(self, value: AtomicValueType,
+                         namespaces: Optional[NsmapType] = None,
+                         strict: bool = False) -> AtomicValueType:
+        """
+        Returns a full decoded atomic value for the given value. Used for ensuring
+        that the value is compliant for facets validation. If *strict* is `True`
+        keeps the original value unchanged, otherwise raises an error.
+        """
+        if self.primitive_type is not self:
+            return self.primitive_type.get_atomic_value(value, namespaces, strict)
+        elif not isinstance(value, self.python_type):
+            try:
+                return self.to_python(value)  # type: ignore[arg-type]
+            except (ValueError, DecimalException, TypeError):
+                if strict:
+                    raise
+        elif self.is_qname():
+            if isinstance(value, str):
+                return get_extended_qname(value, namespaces)
+            elif isinstance(value, AbstractQName):
+                return value.expanded_name
+
+        return value
+
     def is_atomic(self) -> bool:
         return True
 
@@ -632,7 +661,7 @@ class XsdAtomicBuiltin(XsdAtomic):
                  base_type: Optional['XsdAtomicBuiltin'] = None,
                  admitted_facets: Optional[set[str]] = None,
                  facets: Optional[dict[Optional[str], FacetsValueType]] = None,
-                 to_python: Optional[Callable[[Any], DecodedValueType]] = None,
+                 to_python: Optional[Callable[[Any], AtomicValueType]] = None,
                  from_python: Optional[Callable[[Any], str]] = None) -> None:
         """
         :param name: the XSD type's qualified name.
@@ -959,6 +988,11 @@ class XsdList(XsdSimpleType):
         if self.item_type.parent is not None:
             yield from self.item_type.iter_components(xsd_classes)
 
+    def get_atomic_value(self, value: AtomicValueType,
+                         namespaces: Optional[NsmapType] = None,
+                         strict: bool = False) -> AtomicValueType:
+        return self.item_type.get_atomic_value(value, namespaces=namespaces, strict=strict)
+
     def raw_decode(self, obj: Union[str, bytes], validation: str, context: DecodeContext) \
             -> list[Optional[AtomicValueType]]:
         items = []
@@ -1123,6 +1157,26 @@ class XsdUnion(XsdSimpleType):
             yield self
         for mt in filter(lambda x: x.parent is not None, self.member_types):
             yield from mt.iter_components(xsd_classes)
+
+    def get_atomic_value(self, value: AtomicValueType,
+                         namespaces: Optional[NsmapType] = None,
+                         strict: bool = False) -> AtomicValueType:
+        values = []
+        for mt in self.member_types:
+            try:
+                values.append(mt.get_atomic_value(value, namespaces, strict=True))
+            except (TypeError, ValueError, DecimalException):
+                pass
+
+        if not values:
+            if strict:
+                msg = f'{self!r} has not compatible types for decoding the given value'
+                raise XMLSchemaTypeError(msg)
+            return value
+        elif any(v == value for v in values):
+            return value
+        else:
+            return values[0]
 
     def raw_decode(self, obj: Union[str, bytes], validation: str, context: DecodeContext) \
             -> DecodedValueType:
@@ -1455,20 +1509,15 @@ class XsdAtomicRestriction(XsdAtomic):
         result = base_type.raw_encode(obj, validation, context)
 
         if self.validators:
-            if not isinstance(obj, self.primitive_type.python_type):
-                try:
-                    obj = self.primitive_type.to_python(obj)
-                except (ValueError, DecimalException, TypeError):
-                    pass
-            elif self.root_type.name in (XSD_QNAME, XSD_NOTATION):
-                if isinstance(obj, str):
-                    obj = get_extended_qname(obj, context.namespaces)
-                elif isinstance(obj, AbstractQName):
-                    obj = obj.expanded_name
+            value: DecodedValueType
+            if isinstance(obj, list):
+                value = [self.get_atomic_value(x, context.namespaces) for x in obj]
+            else:
+                value = self.get_atomic_value(obj, context.namespaces)
 
             for validator in self.validators:
                 try:
-                    validator(obj)
+                    validator(value)
                 except XMLSchemaValidationError as err:
                     context.validation_error(validation, self, err)
 
