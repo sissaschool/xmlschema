@@ -41,6 +41,7 @@ class XMLSchemaValidatorError(XMLSchemaException):
     :param namespaces: is an optional mapping from namespace prefix to URI.
     """
     _path: Optional[str] = None
+    _sourceline: Optional[int] = None
 
     # Optional dump of the execution stack that can be set in collected
     # validator errors for debugging purposes.
@@ -90,9 +91,12 @@ class XMLSchemaValidatorError(XMLSchemaException):
                 raise XMLSchemaValueError(
                     "'elem' attribute requires an Element, not %r." % type(value)
                 )
+            
+            self._sourceline = getattr(value, 'sourceline', self._sourceline)
             if isinstance(self.source, XMLResource):
                 if self.source.is_lazy():
                     # Don't save the element of a lazy resource but save the path
+                    # and sourceline (if it's a lxml Element)
                     self._path = etree_getpath(
                         elem=value,
                         root=self.source.root,
@@ -105,9 +109,9 @@ class XMLSchemaValidatorError(XMLSchemaException):
         super().__setattr__(name, value)
 
     @property
-    def sourceline(self) -> Any:
-        """XML element *sourceline* if available (lxml Element) and *elem* is set."""
-        return getattr(self.elem, 'sourceline', None)
+    def sourceline(self) -> Optional[int]:
+        """XML element *sourceline* if available (lxml Element)."""
+        return getattr(self.elem, 'sourceline', self._sourceline)
 
     @property
     def root(self) -> Optional[ElementType]:

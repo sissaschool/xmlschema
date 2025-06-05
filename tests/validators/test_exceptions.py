@@ -19,7 +19,7 @@ try:
 except ImportError:
     lxml_etree = None
 
-from xmlschema import XMLSchema, XMLResource
+from xmlschema import XMLSchema, XMLResource, iter_errors
 from xmlschema.utils.etree import is_etree_element
 from xmlschema.validators.exceptions import XMLSchemaValidatorError, \
     XMLSchemaNotBuiltError, XMLSchemaParseError, XMLSchemaModelDepthError, \
@@ -421,6 +421,18 @@ class TestValidatorExceptions(unittest.TestCase):
         root = lxml_etree.parse(xml_file).getroot()
 
         errors = [e for e in schema.iter_errors(root)]  # noqa
+        self.assertEqual(len(errors), 2)
+        self.assertEqual(errors[0].sourceline, 4)
+        self.assertEqual(errors[1].sourceline, 9)
+
+        kwargs = dict(schema=schema, lazy=False)
+        errors = [e for e in iter_errors(root, **kwargs)]  # noqa
+        self.assertEqual(len(errors), 2)
+        self.assertEqual(errors[0].sourceline, 4)
+        self.assertEqual(errors[1].sourceline, 9)
+
+        kwargs = dict(iterparse=lxml_etree.iterparse, schema=schema, lazy=True)
+        errors = [e for e in iter_errors(xml_file, **kwargs)]  # noqa
         self.assertEqual(len(errors), 2)
         self.assertEqual(errors[0].sourceline, 4)
         self.assertEqual(errors[1].sourceline, 9)
