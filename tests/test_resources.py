@@ -1016,7 +1016,7 @@ class TestResources(XMLSchemaTestCase):
         self.assertListEqual(tags, ['a', 'b2'])
 
         parser = iterfind_parser('./b2')
-        resource = XMLResource(source,  iterparse=parser)
+        resource = XMLResource(source, iterparse=parser)
         tags = [e.tag for e in resource.iter()]
         self.assertListEqual(tags, ['a', 'b1', 'b2'])
 

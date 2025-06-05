@@ -91,7 +91,7 @@ class XMLSchemaValidatorError(XMLSchemaException):
                 raise XMLSchemaValueError(
                     "'elem' attribute requires an Element, not %r." % type(value)
                 )
-            
+
             self._sourceline = getattr(value, 'sourceline', self._sourceline)
             if isinstance(self.source, XMLResource):
                 if self.source.is_lazy():

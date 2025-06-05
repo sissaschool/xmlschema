@@ -13,8 +13,10 @@ import sys
 import os
 import pathlib
 import platform
+import warnings
 
 from urllib.parse import urlsplit
+from urllib.request import pathname2url
 from pathlib import Path, PurePath, PureWindowsPath, PurePosixPath
 from unittest.mock import patch, MagicMock
 
@@ -88,6 +90,16 @@ def filter_windows_path(path):
         return '/' + path
     else:
         return path
+
+
+# noinspection PyArgumentList
+def uri_from_path(path, suppress_warning=True):
+    if sys.version_info >= (3, 14) and not suppress_warning:
+        return pathname2url(str(path), add_scheme=True)  # The result is different!!
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        return path.as_uri()
 
 
 class TestLocations(XMLSchemaTestCase):
@@ -289,49 +301,52 @@ class TestLocations(XMLSchemaTestCase):
                          f'file:///{base_url}vehicles.xsd')
 
     def test_normalize_url_unc_paths__issue_246(self):
-        url = PureWindowsPath(r'\\host\share\file.xsd').as_uri()
+        url = uri_from_path(PureWindowsPath(r'\\host\share\file.xsd'))
         self.assertNotEqual(normalize_url(r'\\host\share\file.xsd'),
                             url)  # file://host/share/file.xsd
         self.assertEqual(normalize_url(r'\\host\share\file.xsd'),
                          url.replace('file://', 'file:////'))
 
     def test_normalize_url_unc_paths__issue_268(self,):
-        unc_path = r'\\filer01\MY_HOME\dev\XMLSCHEMA\test.xsd'
-        url = PureWindowsPath(unc_path).as_uri()
-        self.assertEqual(str(PureWindowsPath(unc_path)), unc_path)
-        self.assertEqual(url, 'file://filer01/MY_HOME/dev/XMLSCHEMA/test.xsd')
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
 
-        # Same UNC path as URI with the host inserted in path.
-        url_host_in_path = url.replace('file://', 'file:////')
-        self.assertEqual(url_host_in_path, 'file:////filer01/MY_HOME/dev/XMLSCHEMA/test.xsd')
+            unc_path = r'\\filer01\MY_HOME\dev\XMLSCHEMA\test.xsd'
+            url = uri_from_path(PureWindowsPath(unc_path))
+            self.assertEqual(str(PureWindowsPath(unc_path)), unc_path)
+            self.assertEqual(url, 'file://filer01/MY_HOME/dev/XMLSCHEMA/test.xsd')
 
-        self.assertEqual(normalize_url(unc_path), url_host_in_path)
+            # Same UNC path as URI with the host inserted in path.
+            url_host_in_path = url.replace('file://', 'file:////')
+            self.assertEqual(url_host_in_path, 'file:////filer01/MY_HOME/dev/XMLSCHEMA/test.xsd')
 
-        with patch.object(os, 'name', 'nt'):
-            self.assertEqual(os.name, 'nt')
-            path = PurePath(unc_path)
-            self.assertIs(path.__class__, PureWindowsPath)
-            self.assertEqual(path.as_uri(), url)
-
-            self.assertEqual(xmlschema.utils.urls.os.name, 'nt')
-            path = LocationPath(unc_path)
-            self.assertIs(path.__class__, LocationWindowsPath)
-            self.assertEqual(path.as_uri(), url_host_in_path)
             self.assertEqual(normalize_url(unc_path), url_host_in_path)
 
-        with patch.object(os, 'name', 'posix'):
-            self.assertEqual(os.name, 'posix')
-            path = PurePath(unc_path)
-            self.assertIs(path.__class__, PurePosixPath)
-            self.assertEqual(str(path), unc_path)
-            self.assertRaises(ValueError, path.as_uri)  # Not recognized as UNC path
+            with patch.object(os, 'name', 'nt'):
+                self.assertEqual(os.name, 'nt')
+                path = PurePath(unc_path)
+                self.assertIs(path.__class__, PureWindowsPath)
+                self.assertEqual(uri_from_path(path), url)
 
-            self.assertEqual(xmlschema.utils.urls.os.name, 'posix')
-            path = LocationPath(unc_path)
-            self.assertIs(path.__class__, LocationPosixPath)
-            self.assertEqual(str(path), unc_path)
-            self.assertNotEqual(path.as_uri(), url)
-            self.assertEqual(normalize_url(unc_path), url_host_in_path)
+                self.assertEqual(xmlschema.utils.urls.os.name, 'nt')
+                path = LocationPath(unc_path)
+                self.assertIs(path.__class__, LocationWindowsPath)
+                self.assertEqual(path.as_uri(), url_host_in_path)
+                self.assertEqual(normalize_url(unc_path), url_host_in_path)
+
+            with patch.object(os, 'name', 'posix'):
+                self.assertEqual(os.name, 'posix')
+                path = PurePath(unc_path)
+                self.assertIs(path.__class__, PurePosixPath)
+                self.assertEqual(str(path), unc_path)
+                self.assertRaises(ValueError, path.as_uri)  # Not recognized as UNC path
+
+                self.assertEqual(xmlschema.utils.urls.os.name, 'posix')
+                path = LocationPath(unc_path)
+                self.assertIs(path.__class__, LocationPosixPath)
+                self.assertEqual(str(path), unc_path)
+                self.assertNotEqual(path.as_uri(), url)
+                self.assertEqual(normalize_url(unc_path), url_host_in_path)
 
     @unittest.skipIf(platform.system() != 'Windows', "Run only on Windows systems")
     def test_normalize_url_with_base_unc_path_on_windows(self,):
@@ -367,7 +382,7 @@ class TestLocations(XMLSchemaTestCase):
     @unittest.skipIf(platform.system() == 'Windows', "Skip on Windows systems")
     def test_normalize_url_with_base_unc_path_on_others(self,):
         base_unc_path = '\\\\filer01\\MY_HOME\\'
-        base_url = PureWindowsPath(base_unc_path).as_uri()
+        base_url = uri_from_path(PureWindowsPath(base_unc_path))
         self.assertEqual(str(PureWindowsPath(base_unc_path)), base_unc_path)
         self.assertEqual(base_url, 'file://filer01/MY_HOME/')
 
@@ -415,7 +430,7 @@ class TestLocations(XMLSchemaTestCase):
         url = '//anaconda/envs/testenv/lib/python3.6/site-packages/xmlschema/validators/schemas/'
         if os.name == 'posix':
             normalize_url(url)
-            self.assertEqual(normalize_url(url), pathlib.PurePath(url).as_uri())
+            self.assertEqual(normalize_url(url), uri_from_path(pathlib.PurePath(url)))
         else:
             # On Windows // is interpreted as a network share UNC path
             self.assertEqual(os.name, 'nt')

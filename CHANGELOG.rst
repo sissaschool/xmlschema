@@ -2,6 +2,16 @@
 CHANGELOG
 *********
 
+`v4.1.0`_ (2025-06-05)
+======================
+* Add XPath selectors: ElementSelector and ElementPathSelectors
+* Add *selector* argument to XMLResource and iterparse filters
+* Fix element substitution (issue #452)
+* Restore v3.4.5 builder methods as helpers (issue #451)
+* Add overall_min_occurs and overall_max_occurs helpers to XsdElement (issue #449)
+* Extend error message for XML syntax errors (issue #448)
+* Fix query/fragment like for filenames (issue #447)
+
 `v4.0.1`_ (2025-04-12)
 ======================
 * Fix XSD identity update with xsi:type substitution (issue #446)
@@ -761,3 +771,4 @@ v0.9.6 (2017-05-05)
 .. _v3.4.5: https://github.com/brunato/xmlschema/compare/v3.4.4...v3.4.5
 .. _v4.0.0: https://github.com/brunato/xmlschema/compare/v3.4.5...v4.0.0
 .. _v4.0.1: https://github.com/brunato/xmlschema/compare/v4.0.0...v4.0.1
+.. _v4.1.0: https://github.com/brunato/xmlschema/compare/v4.0.1...v4.1.0
