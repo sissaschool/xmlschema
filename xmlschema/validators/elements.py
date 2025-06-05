@@ -387,6 +387,7 @@ class XsdElement(XsdComponent, ParticleMixin,
             elif 'substitution' in head_element.block:
                 return
 
+        final = head_element.final
         if self.type.name == XSD_ANY_TYPE and 'type' not in self.elem.attrib:
             if head_element.type.name != XSD_ANY_TYPE:
                 # Set the type with head element's type for validate content
@@ -396,9 +397,7 @@ class XsdElement(XsdComponent, ParticleMixin,
             msg = _("{0!r} type is not of the same or a derivation "
                     "of the head element {1!r} type")
             self.parse_error(msg.format(self, head_element))
-
-        final = head_element.final
-        if final == '#all' or 'extension' in final and 'restriction' in final:
+        elif final == '#all' or 'extension' in final and 'restriction' in final:
             msg = _("head element %r can't be substituted by an "
                     "element that has a derivation of its type")
             self.parse_error(msg % head_element)
@@ -410,9 +409,6 @@ class XsdElement(XsdComponent, ParticleMixin,
             msg = _("head element %r can't be substituted by an "
                     "element that has a restriction of its type")
             self.parse_error(msg % head_element)
-
-        if self.abstract and self.xsd_version == '1.0':
-            return  # don't include abstract elements in substitution group with XSD 1.0
 
         try:
             self.maps.substitution_groups[substitution_group_qname].add(self)
