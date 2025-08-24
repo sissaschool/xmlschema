@@ -19,7 +19,7 @@ from typing import Any, cast, Optional, Type
 from elementpath import XPathToken
 
 import xmlschema.names as nm
-from xmlschema.aliases import SchemaType, BaseXsdType, LocationsType, \
+from xmlschema.aliases import SchemaType, BaseXsdType, LocationsType, IterParseType, \
     SchemaGlobalType, SchemaSourceType, NsmapType, StagedItemType, ComponentClassType
 from xmlschema.exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, \
     XMLSchemaValueError, XMLSchemaWarning, XMLSchemaNamespaceError, XMLSchemaException
@@ -80,6 +80,7 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
                  parent: Optional[SchemaType] = None,
                  loader_class: Optional[Type[SchemaLoader]] = None,
                  locations: Optional[LocationsType] = None,
+                 iterparse: Optional[IterParseType] = None,
                  use_fallback: bool = True,
                  use_xpath3: bool = False) -> None:
 
@@ -114,7 +115,7 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
 
         self.validator.maps = self
         self.loader = (loader_class or SchemaLoader)(
-            self, locations, use_fallback, use_xpath3
+            self, locations, iterparse, use_fallback, use_xpath3
         )
 
     @property

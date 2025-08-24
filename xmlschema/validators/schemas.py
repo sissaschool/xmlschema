@@ -191,7 +191,9 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     :param opener: an optional :class:`OpenerDirector` instance used for opening XML \
     resources. For default uses the opener installed globally for *urlopen*.
     :param iterparse: an optional callable that returns an iterator parser instance \
-    used for building the XML trees. For default *ElementTree.iterparse* is used.
+    used for building the XML trees. For default *ElementTree.iterparse* is used. \
+    XSD schemas are built using only *ElementTree.iterparse*, because *lxml* is \
+    unsuitable for multitree structures.
     :param use_fallback: if `True` the schema processor uses the validator fallback \
     location hints to load well-known namespaces (e.g. xhtml).
     :param use_xpath3: if `True` an XSD 1.1 schema instance uses the XPath 3 processor \
@@ -341,7 +343,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 timeout=timeout,
                 uri_mapper=uri_mapper,
                 opener=opener,
-                iterparse=iterparse,
             )
 
         logger.debug("Load schema from %r", self.source.url or self.source.source)
@@ -436,8 +437,9 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 parent=parent,
                 loader_class=loader_class,
                 locations=locations,
+                iterparse=iterparse,
                 use_fallback=use_fallback,
-                use_xpath3=use_xpath3
+                use_xpath3=use_xpath3,
             )
         else:
             raise XMLSchemaTypeError(
@@ -669,7 +671,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     @property
     def iterparse(self) -> Optional[IterParseType]:
         """The optional callable argument for creating iterator parsers for XML data."""
-        return self.source.iterparse
+        return self.maps.loader.iterparse
 
     @property
     def locations(self) -> Optional[LocationsType]:

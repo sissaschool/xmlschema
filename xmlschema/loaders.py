@@ -16,7 +16,7 @@ from typing import Optional, TYPE_CHECKING
 
 from elementpath import XPath2Parser
 
-from xmlschema.aliases import SchemaType, SchemaSourceType, LocationsType
+from xmlschema.aliases import SchemaType, SchemaSourceType, LocationsType, IterParseType
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError, \
     XMLResourceBlocked, XMLResourceForbidden, XMLResourceError, XMLResourceParseError
 from xmlschema.locations import get_locations, LOCATIONS, FALLBACK_LOCATIONS
@@ -60,6 +60,7 @@ class SchemaLoader:
 
     def __init__(self, maps: 'XsdGlobals',
                  locations: Optional[LocationsType] = None,
+                 iterparse: Optional[IterParseType] = None,
                  use_fallback: bool = True,
                  use_xpath3: bool = False):
 
@@ -76,10 +77,10 @@ class SchemaLoader:
         self.timeout = self.validator.source.timeout
         self.uri_mapper = self.validator.source.uri_mapper
         self.opener = self.validator.source.opener
-        self.iterparse = self.validator.source.iterparse
 
         self.use_fallback = use_fallback
         self.use_xpath3 = use_xpath3
+        self.iterparse = iterparse
         self.locations = get_locations(locations, self.base_url)
         self.missing_locations = set()
 
@@ -417,9 +418,11 @@ class SafeSchemaLoader(SchemaLoader):
     """
     def __init__(self, maps: 'XsdGlobals',
                  locations: Optional[LocationsType] = None,
+                 iterparse: Optional[IterParseType] = None,
                  use_fallback: bool = True,
                  use_xpath3: bool = False):
-        super().__init__(maps, locations, use_fallback, use_xpath3)
+
+        super().__init__(maps, locations, iterparse, use_fallback, use_xpath3)
         self.global_maps = GlobalMaps.from_builders(self.validator.builders)
         self.excluded_locations: set[str] = set()
 

@@ -191,14 +191,14 @@ class TestXmlDocuments(XMLSchemaTestCase):
             self.assertIsInstance(source, XMLResource)
             self.assertIsInstance(schema, XMLSchema10)
             self.assertTrue(is_lxml_element(source.root))
-            self.assertTrue(is_lxml_element(schema.root))
+            self.assertFalse(is_lxml_element(schema.root))
 
             source, schema = get_context(self.col_xml_file, self.col_xsd_file,
                                          iterparse=lxml_etree.iterparse)
             self.assertIsInstance(source, XMLResource)
             self.assertIsInstance(schema, XMLSchema10)
             self.assertTrue(is_lxml_element(source.root))
-            self.assertTrue(is_lxml_element(schema.root))
+            self.assertFalse(is_lxml_element(schema.root))
 
             col_schema = XMLSchema10(self.col_xsd_file)
             source, schema = get_context(self.col_xml_file, col_schema,
@@ -214,7 +214,7 @@ class TestXmlDocuments(XMLSchemaTestCase):
             self.assertIsInstance(schema, XMLSchema10)
             self.assertIs(xml_document.schema, schema)
             self.assertTrue(is_lxml_element(source.root))
-            self.assertTrue(is_lxml_element(schema.root))
+            self.assertFalse(is_lxml_element(schema.root))
 
     def test_get_context_without_schema(self):
         xml_data = '<text xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"\n' \
