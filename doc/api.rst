@@ -211,6 +211,7 @@ XML resources API
     .. automethod:: tostring
     .. automethod:: open
     .. automethod:: load
+    .. automethod:: subresource
     .. automethod:: is_lazy
     .. autoattribute:: lazy_depth
     .. automethod:: is_remote

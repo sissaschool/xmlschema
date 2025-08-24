@@ -661,6 +661,51 @@ class TestValidation(XsdValidatorTestCase):
         xml_data = '<muclient><world/><include/></muclient>'
         self.check_validity(schema, xml_data, True)
 
+    def test_fragment_validation__issue_457(self):
+        schema = self.schema_class(dedent("""\
+          <schema xmlns="http://www.w3.org/2001/XMLSchema"
+                  targetNamespace="http://www.w3.org/example">
+            <element id="x1" name="x1" type="QName"/>
+            <element id="container" name="container"/>
+          </schema>"""))
+
+        xml_data = dedent("""\
+            <container xmlns="http://www.w3.org/example" xmlns:a="http://www.w3.org/example">
+                <container>
+                    <a:x1 xmlns:b="http://www.w33.org/test">b:test</a:x1>
+                </container>
+            </container>""")
+
+        self.assertIsNone(schema.validate(xml_data))
+        self.assertIsNone(schema.validate(xml_data, path='container'))
+
+        result = {'@xmlns': 'http://www.w3.org/example',
+                  '@xmlns:a': 'http://www.w3.org/example',
+                  'x1': [{'@xmlns:b': 'http://www.w33.org/test', '$': 'b:test'}]}
+        self.assertEqual(schema.decode(xml_data, path='container'), result)
+
+        resource = XMLResource(xml_data)
+        child = resource.root[0]
+        nsmap = resource.get_nsmap(child)
+        with self.assertRaises(XMLSchemaValidationError) as ctx:
+            schema.validate(child, namespaces=nsmap)
+        self.assertEqual(ctx.exception.reason, "unmapped prefix 'b' in a QName")
+
+        resource = XMLResource(xml_data)
+        child = resource.root[0]
+        namespaces = resource.get_namespaces(root_only=False)
+        self.assertIsNone(schema.validate(child, namespaces=namespaces))
+
+        if lxml_etree is not None:
+            resource = XMLResource(lxml_etree.XML(xml_data))
+            child = resource.root[0]
+            nsmap = resource.get_nsmap(child)
+            self.assertIsNone(schema.validate(child, namespaces=nsmap))
+
+        resource = XMLResource(xml_data)
+        subresource = resource.subresource(resource.root[0])
+        self.assertIsNone(schema.validate(subresource))
+
 
 class TestValidation11(TestValidation):
     schema_class = XMLSchema11

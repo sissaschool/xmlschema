@@ -1,0 +1,44 @@
+<schema targetNamespace="http://www.w3.org/9999/test" elementFormDefault="qualified"
+    xmlns="http://www.w3.org/2001/XMLSchema"
+    xmlns:test="http://www.w3.org/9999/test">
+    <complexType name="SubElemType">
+        <simpleContent>
+            <extension base="string">
+                <anyAttribute namespace="##other" processContents="lax"/>
+            </extension>
+        </simpleContent>
+    </complexType>
+
+    <element name="SubElem" type="test:SubElemType" abstract="true"/>
+
+    <complexType name="ChildChildType">
+        <complexContent>
+            <restriction base="anyType">
+                <choice minOccurs="0" maxOccurs="unbounded">
+                    <element ref="test:SubElem"/>
+                </choice>
+                <attribute name="id" type="ID" use="optional"/>
+                <anyAttribute namespace="http://www.w3.org/XML/1998/namespace" processContents="lax"/>
+            </restriction>
+        </complexContent>
+    </complexType>
+
+    <complexType name="ChildType">
+        <complexContent>
+            <restriction base="test:ChildChildType">
+                <choice minOccurs="0" maxOccurs="unbounded">
+                    <element ref="test:SubElem"/>
+                </choice>
+                <anyAttribute namespace="http://www.w3.org/XML/1998/namespace" processContents="lax" />
+            </restriction>
+        </complexContent>
+    </complexType>
+
+    <complexType name="ErrorType">
+        <complexContent>
+            <extension base="test:ChildType">
+                <anyAttribute namespace="##other" />
+            </extension>
+        </complexContent>
+    </complexType>
+</schema>
