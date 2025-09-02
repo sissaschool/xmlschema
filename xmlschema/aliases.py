@@ -42,15 +42,15 @@ __all__ = ['ElementType', 'ElementTreeType', 'XMLSourceType', 'NsmapType', 'Loca
            'ResourceNodeType', 'NsmapsMapType', 'XmlnsMapType', 'ErrorsType']
 
 if TYPE_CHECKING:
-    from xmlschema.resources import XMLResource  # noqa
-    from xmlschema.namespaces import NamespaceResourcesMap  # noqa
-    from xmlschema.converters import ElementData  # noqa
+    from xmlschema.resources import XMLResource  # noqa: F401
+    from xmlschema.namespaces import NamespaceResourcesMap  # noqa: F401
+    from xmlschema.converters import ElementData  # noqa: F401
 
     # noinspection PyUnresolvedReferences
     from xmlschema.validators import XMLSchemaValidationError, XsdComponent, \
         XsdComplexType, XsdSimpleType, XsdElement, XsdAnyElement, XsdAttribute, \
         XsdAnyAttribute, XsdAssert, XsdGroup, XsdAttributeGroup, XsdNotation, \
-        ParticleMixin, XMLSchemaBase  # noqa
+        ParticleMixin, XMLSchemaBase  # noqa: F401
 
 ##
 # Type aliases for ElementTree

@@ -32,14 +32,15 @@ from .exceptions import XMLSchemaModelError, XMLSchemaModelDepthError, \
     XMLSchemaValidationError, XMLSchemaTypeTableWarning, XMLSchemaCircularityError
 from .validation import DecodeContext, EncodeContext, ValidationMixin
 from .xsdbase import XsdComponent, XsdType
-from .particles import ParticleMixin, OccursCalculator
+from .particles import ParticleMixin
 from .elements import XsdElement, XsdAlternative
 from .wildcards import XsdAnyElement, XsdOpenContent
 from .models import ModelVisitor, InterleavedModelVisitor, SuffixedModelVisitor, \
     iter_unordered_content, iter_collapsed_content
 
 if TYPE_CHECKING:
-    from .complex_types import XsdComplexType
+    from .complex_types import XsdComplexType  # noqa: F401
+    from .particles import OccursCalculator  # noqa: F401
 
 get_occurs = attrgetter('min_occurs', 'max_occurs')
 
@@ -960,7 +961,10 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                     cdata_index = 0  # Do not decode CDATA
 
         if cdata_index and obj.text is not None:
-            text = str(obj.text.strip())
+            if self.mixed and context.preserve_mixed:
+                text = obj.text
+            else:
+                text = str(obj.text.strip())
             if text:
                 if result is not None:
                     result.append((cdata_index, text, None))
@@ -977,16 +981,15 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
 
         errors = []
         broken_model = False
-        converter = context.converter
-        namespaces = converter.namespaces
+        namespaces = context.namespaces
         model = self.get_model_visitor()
 
         for index, child in enumerate(obj):
             if callable(child.tag):
                 continue  # child is a comment or PI
 
-            converter.set_context(child, context.level)
-            name = converter.map_qname(child.tag)
+            context.converter.set_context(child, context.level)
+            name = context.converter.map_qname(child.tag)
 
             while model.element is not None:
                 xsd_element = model.match_element(child.tag)
@@ -1040,7 +1043,10 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                 result.append((name, result_item, xsd_element))
 
                 if cdata_index and child.tail is not None:
-                    tail = str(child.tail.strip())
+                    if self.mixed and context.preserve_mixed:
+                        tail = child.tail
+                    else:
+                        tail = str(child.tail.strip())
                     if tail:
                         if result and isinstance(result[-1][0], int):
                             tail = result[-1][1] + ' ' + tail
@@ -1063,6 +1069,8 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
 
         if index or result is not None or obj.text is None:
             return result
+        elif self.mixed and context.preserve_mixed:
+            return [(1, obj.text, None)]
         else:
             return [(1, str(obj.text.strip()), None)]
 
@@ -1082,10 +1090,8 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         errors = []
         text = raw_encode_value(obj.text)
         children = None if context.validation_only else []
-
-        converter = context.converter
         padding = context.padding
-        default_namespace = converter.get('')
+        default_namespace = context.namespaces.get('')
 
         elem = context.elem
         if elem is None:
@@ -1110,7 +1116,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
             else:
                 text = raw_encode_value(obj.content[0])
             content = []
-        elif converter.losslessly:
+        elif context.converter.losslessly:
             content = obj.content
         else:
             content = iter_collapsed_content(obj.content, self)
@@ -1118,11 +1124,13 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         for index, (name, value) in enumerate(content):
             if isinstance(name, int):
                 if not children:
-                    text = padding + value if text is None else text + value + padding
-                elif children[-1].tail is None:
-                    children[-1].tail = padding + value
+                    text = text + value if text is not None else value
+                elif self.mixed and context.preserve_mixed:
+                    children[-1].tail = value
+                elif value:
+                    children[-1].tail = padding + value + padding
                 else:
-                    children[-1].tail += value + padding
+                    children[-1].tail = padding
                 cdata_index += 1
                 continue
 
@@ -1170,18 +1178,17 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                 break
 
         if children:
-            if children[-1].tail is None:
-                children[-1].tail = padding[:-converter.indent] or '\n'
-            else:
-                children[-1].tail = children[-1].tail.strip() + (
-                        padding[:-converter.indent] or '\n'
-                )
-
-        if children:
-            elem.text = text or context.padding
             elem.extend(children)
-        else:
-            elem.text = text
+            if not self.mixed or not context.preserve_mixed:
+                for child in children:
+                    if child.tail is None:
+                        child.tail = padding
+
+                if children[-1].tail is not None and context.indent:
+                    children[-1].tail = children[-1].tail[:-context.indent]
+                text = padding + text if text is not None else padding
+
+        elem.text = text
 
         if wrong_content_type:
             reason = _("wrong content type {!r}").format(type(obj.content))

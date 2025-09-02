@@ -23,9 +23,9 @@ from xmlschema.utils.etree import etree_getpath, is_etree_element
 from xmlschema.utils.qnames import get_prefixed_qname, local_name
 
 if TYPE_CHECKING:
-    from .xsdbase import XsdValidator
+    from .xsdbase import XsdValidator  # noqa: F401
     from .wildcards import XsdAnyElement  # noqa: F401
-    from .groups import XsdGroup
+    from .groups import XsdGroup  # noqa: F401
 
 ValidatorType = Union['XsdValidator', Callable[[Any], None]]
 

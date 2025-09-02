@@ -16,7 +16,7 @@ from xmlschema.exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, XM
 from xmlschema.translation import gettext as _
 
 if TYPE_CHECKING:
-    from xmlschema.validators.xsdbase import XsdValidator  # noqa
+    from xmlschema.validators.xsdbase import XsdValidator  # noqa: F401
 
 __all__ = ['validator_property', 'Argument', 'ChoiceArgument', 'ValueArgument']
 

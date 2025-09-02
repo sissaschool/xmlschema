@@ -701,7 +701,7 @@ class TestDecoding(XsdValidatorTestCase):
         # Check reverse encoding
         obj = schema.decode(xml_data, converter=JsonMLConverter)
         root = schema.encode(obj, converter=JsonMLConverter)
-        self.assertEqual(ElementTree.tostring(root), b'<root name="ns0:bar">ns0:foo</root>\n')
+        self.assertEqual(ElementTree.tostring(root), b'<root name="ns0:bar">ns0:foo</root>')
 
         with self.assertRaises(XMLSchemaValidationError) as ctx:
             schema.decode('<root name="ns0:bar">foo</root>')

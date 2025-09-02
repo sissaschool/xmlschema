@@ -37,9 +37,9 @@ from .exceptions import XMLSchemaValidationError, \
     XMLSchemaChildrenValidationError, XMLSchemaDecodeError, XMLSchemaEncodeError
 
 if TYPE_CHECKING:
-    from .xsdbase import XsdValidator
-    from .facets import XsdPatternFacets
-    from .identities import XsdIdentity, IdentityCounter
+    from .xsdbase import XsdValidator  # noqa: F401
+    from .facets import XsdPatternFacets  # noqa: F401
+    from .identities import XsdIdentity, IdentityCounter  # noqa: F401
 
 logger = logging.getLogger('xmlschema')
 
@@ -94,6 +94,7 @@ class ValidationContext:
                  elem: Optional[ElementType] = None,
                  check_identities: bool = False,
                  use_defaults: bool = True,
+                 preserve_mixed: bool = False,
                  process_skipped: bool = False,
                  max_depth: Optional[int] = None,
                  errors: Optional[ErrorsType] = None,
@@ -113,6 +114,7 @@ class ValidationContext:
         self.patterns = None
         self.check_identities = check_identities
         self.use_defaults = use_defaults
+        self.preserve_mixed = preserve_mixed
         self.process_skipped = process_skipped
         self.max_depth = max_depth
 
@@ -266,6 +268,7 @@ class DecodeContext(ValidationContext):
                  validation_only: bool = False,
                  check_identities: bool = False,
                  use_defaults: bool = True,
+                 preserve_mixed: bool = False,
                  process_skipped: bool = False,
                  max_depth: Optional[int] = None,
                  extra_validator: Optional[ExtraValidatorType] = None,
@@ -327,8 +330,8 @@ class DecodeContext(ValidationContext):
         self.keep_datatypes: ClassInfoType[DecodedValueType] = tuple(keep_datatypes)
 
         super().__init__(source, validation, converter, level, elem,
-                         check_identities, use_defaults, process_skipped,
-                         max_depth, errors, **kwargs)
+                         check_identities, use_defaults, preserve_mixed,
+                         process_skipped, max_depth, errors, **kwargs)
 
     def decode_error(self,
                      validation: str,
@@ -360,8 +363,11 @@ class EncodeContext(ValidationContext):
                  level: int = 0,
                  elem: Optional[ElementType] = None,
                  *,
+                 indent: int = 4,
+                 etree_element_class: Optional[Type[ElementType]] = None,
                  check_identities: bool = False,
                  use_defaults: bool = True,
+                 preserve_mixed: bool = False,
                  unordered: bool = False,
                  process_skipped: bool = False,
                  max_depth: Optional[int] = None,
@@ -369,11 +375,19 @@ class EncodeContext(ValidationContext):
                  errors: Optional[list[XMLSchemaValidationError]] = None,
                  **kwargs: Any) -> None:
 
+        self._indent = ' ' * indent
+        if etree_element_class is not None:
+            self.etree_element_class = etree_element_class
+            self._use_element_tree = False
+        else:
+            self._use_element_tree = True
+            self.etree_element_class = Element
+
         self.unordered = unordered
         self.untyped_data = untyped_data
         super().__init__(source, validation, converter, level, elem,
-                         check_identities, use_defaults, process_skipped,
-                         max_depth, errors, **kwargs)
+                         check_identities, use_defaults, preserve_mixed,
+                         process_skipped, max_depth, errors, **kwargs)
 
     def encode_error(self,
                      validation: str,
@@ -392,11 +406,25 @@ class EncodeContext(ValidationContext):
         return self.raise_or_collect(validation, error)
 
     @property
-    def padding(self) -> str:
-        return '\n' + ' ' * self.converter.indent * self.level
+    def indent(self) -> int:
+        return len(self._indent)
 
-    def create_element(self, tag: str) -> Element:
-        self.elem = self.converter.etree_element(tag, level=self.level)
+    @property
+    def padding(self) -> str:
+        return '\n' + self._indent * self.level
+
+    def create_element(self, tag: str) -> ElementType:
+        """
+        Builds an ElementTree/lxml Element.
+
+        :param tag: the Element tag string.
+        """
+        if self._use_element_tree:
+            self.elem = self.etree_element_class(tag)
+        else:
+            nsmap = {prefix if prefix else None: uri
+                     for prefix, uri in self.namespaces.items() if uri}
+            self.elem = self.etree_element_class(tag, nsmap=nsmap)  # type: ignore[arg-type]
         return self.elem
 
     def set_element_content(self, elem: Element, text: Optional[str],
