@@ -13,7 +13,7 @@ from typing import Any, Optional
 from xml.etree import ElementTree
 
 from xmlschema.aliases import AncestorsType, IOType, IterParseType, ElementType, NsmapType
-from xmlschema.exceptions import XMLResourceParseError
+from xmlschema.exceptions import XMLResourceParseError, XMLSchemaValueError
 from xmlschema.xpath import ElementPathSelector
 
 FilterFunctionType = Callable[[ElementType, ElementType, AncestorsType], bool]
@@ -23,7 +23,7 @@ ClearFunctionType = Callable[[ElementType, ElementType, AncestorsType], None]
 ###
 # Default filter and clear functions
 
-def no_filter(r: ElementType, e: ElementType, a: AncestorsType) -> bool:
+def no_filter(root: ElementType, elem: ElementType,  ancestors: AncestorsType) -> bool:
     return True
 
 
@@ -33,22 +33,39 @@ def no_cleanup(root: ElementType, elem: ElementType,  ancestors: AncestorsType) 
 
 def clear_elem(root: ElementType, elem: ElementType,  ancestors: AncestorsType) -> None:
     elem.clear()
+    if ancestors is not None:
+        if elem in ancestors[-1]:
+            ancestors[-1].remove(elem)
 
 
 ###
-# Iterparse generator function
+# Iterparse generator functions
 
-def filtered_iterparse(fp: IOType,
-                       events: Optional[Sequence[str]] = None,
-                       filter_fn: Optional[FilterFunctionType] = None,
-                       clear_fn: Optional[ClearFunctionType] = None,
-                       ancestors: Optional[list[ElementType]] = None,
-                       depth: int = 1) -> Iterator[tuple[str, Any]]:
+def generic_iterparse(fp: IOType,
+                      events: Optional[Sequence[str]] = None,
+                      filter_fn: Optional[FilterFunctionType] = None,
+                      clear_fn: Optional[ClearFunctionType] = None,
+                      ancestors: AncestorsType = None,
+                      depth: int = -1,
+                      limit: int = -1) -> Iterator[tuple[str, Any]]:
     """
     An event-based parser for filtering XML elements during parsing.
+
+    :param fp: an open file-like object to read from.
+    :param events: an optional sequence of events to filter on.
+    :param filter_fn: a function that takes the root element, the \
+    current element and an optional list of ancestors elements and \
+    returns a boolean.
+    :param clear_fn: a function that takes the root element, the \
+    current element and an optional list of ancestors elements.
+    :param ancestors: an optional sequence of ancestors to track.
+    :param depth: an optional integer specifying the depth of the tree \
+    at where to clean elements. The default value means no cleanup.
+    :param limit: an optional integer specifying the maximum number of \
+    parser events to process. The default value means no limit.
     """
     if events is None:
-        events = 'start-ns', 'end-ns', 'start', 'end'
+        events = 'start-ns', 'end-ns', 'start', 'end', 'comment', 'pi'
     elif 'start' not in events or 'end' not in events:
         events = tuple(events) + ('start', 'end')
 
@@ -64,6 +81,10 @@ def filtered_iterparse(fp: IOType,
 
     try:
         for event, node in ElementTree.iterparse(fp, events):
+            if not limit:
+                raise StopIteration
+            limit -= 1
+
             if event == 'end':
                 level -= 1
                 if level < depth:
@@ -95,22 +116,41 @@ def filtered_iterparse(fp: IOType,
 
 def iterfind_parser(path: str,
                     namespaces: Optional[NsmapType] = None,
-                    ancestors: AncestorsType = None) -> IterParseType:
+                    ancestors: AncestorsType = None,
+                    limit: int = -1) -> IterParseType:
+    """
+    Returns an iterparse function that yields elements that match the given path.
+    """
     selector = ElementPathSelector(path, namespaces)
 
-    def filter_fn(root: ElementType, node: ElementType, ancestors: AncestorsType) -> bool:
-        return selector.select_all or node in selector.iter_select(root)
-
-    def clear_fn(root: ElementType, node: ElementType, ancestors: AncestorsType) -> None:
-        node.clear()
-        if ancestors is not None:
-            if node in ancestors[-1]:
-                ancestors[-1].remove(node)
+    def filter_fn(r: ElementType, e: ElementType, a: AncestorsType) -> bool:
+        return selector.select_all or e in selector.iter_select(r)
 
     return partial(
-        filtered_iterparse,
+        generic_iterparse,
         filter_fn=filter_fn,
+        clear_fn=clear_elem,
+        ancestors=ancestors,
+        depth=selector.depth,
+        limit=limit
+    )
+
+
+def limited_parser(limit: int,
+                   ancestors: AncestorsType = None,
+                   depth: int = -1) -> IterParseType:
+    """
+    Returns an iterparse function that process a limited number of parser events.
+    """
+    if limit < 0:
+        raise XMLSchemaValueError("limit argument must be >= 0")
+    clear_fn = None if depth > 0 else clear_elem
+
+    return partial(
+        generic_iterparse,
+        filter_fn=None,
         clear_fn=clear_fn,
         ancestors=ancestors,
-        depth=selector.depth
+        depth=depth,
+        limit=limit,
     )

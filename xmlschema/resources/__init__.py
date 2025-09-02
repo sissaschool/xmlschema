@@ -8,9 +8,9 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from .xml_resource import XMLResourceManager, XMLResource
-from .filters import iterfind_parser
+from .parsers import iterfind_parser, limited_parser
 from .fetchers import fetch_resource, fetch_namespaces, \
     fetch_schema_locations, fetch_schema
 
-__all__ = ['XMLResourceManager', 'XMLResource', 'iterfind_parser', 'fetch_resource',
-           'fetch_namespaces', 'fetch_schema_locations', 'fetch_schema']
+__all__ = ['XMLResourceManager', 'XMLResource', 'iterfind_parser', 'limited_parser',
+           'fetch_resource', 'fetch_namespaces', 'fetch_schema_locations', 'fetch_schema']

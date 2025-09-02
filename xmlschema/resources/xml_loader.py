@@ -264,8 +264,11 @@ class XMLResourceLoader:
 
                 elif event == 'start-ns':
                     start_ns.append(node)
-                else:
+                elif event == 'end-ns':
                     end_ns = True
+                else:
+                    yield event, node  # comment or pi node
+
         except SyntaxError as err:
             raise XMLResourceParseError("invalid XML syntax: {}".format(err)) from err
         finally:
@@ -277,7 +280,7 @@ class XMLResourceLoader:
         end_ns = False
         nsmaps = self._nsmaps
         xmlns = self._xmlns
-        events = 'start-ns', 'end-ns', 'start'
+        events = 'start-ns', 'end-ns', 'start', 'comment', 'pi'
         nsmap_stack: list[dict[str, str]] = [{}]
 
         try:
@@ -297,7 +300,7 @@ class XMLResourceLoader:
                     nsmaps[node] = nsmap_stack[-1]
                 elif event == 'start-ns':
                     start_ns.append(node)
-                else:
+                elif event == 'end-ns':
                     end_ns = True
         except SyntaxError as err:
             raise XMLResourceParseError("invalid XML syntax: {}".format(err)) from err
