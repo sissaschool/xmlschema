@@ -474,15 +474,12 @@ class TestResources(XMLSchemaTestCase):
 
         with self.assertRaises(XMLSchemaValueError) as ctx:
             XMLResource("https://xmlschema.test/vehicles.xsd", allow='sandbox')
-        self.assertEqual(str(ctx.exception),
-                         "block access to files out of sandbox requires 'base_url' to be set")
+        self.assertEqual(str(ctx.exception), "block access to files out of sandbox requires "
+                                             "'base_url' to be set or a local source URL")
 
-        with self.assertRaises(XMLSchemaValueError) as ctx:
-            XMLResource("/tmp/vehicles.xsd", allow='sandbox')
-        self.assertEqual(
-            str(ctx.exception),
-            "block access to files out of sandbox requires 'base_url' to be set",
-        )
+        resource = XMLResource(self.vh_xml_file, allow='sandbox')
+        self.assertTrue(resource.url.endswith('test_cases/examples/vehicles/vehicles.xml'))
+        self.assertTrue(resource.base_url.endswith('test_cases/examples/vehicles'))
 
         source = "/tmp/vehicles.xsd"
         with self.assertRaises(XMLResourceBlocked) as ctx:

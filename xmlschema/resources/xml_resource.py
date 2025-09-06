@@ -141,8 +141,12 @@ class XMLResource(XMLResourceLoader):
                  selector: Optional[type[ElementSelector]] = None) -> None:
 
         if allow == 'sandbox' and base_url is None:
-            msg = "block access to files out of sandbox requires 'base_url' to be set"
-            raise XMLSchemaValueError(msg)
+            if not is_local_url(source):
+                raise XMLSchemaValueError("block access to files out of sandbox requires"
+                                          " 'base_url' to be set or a local source URL")
+            # Allow sandbox mode without a base_url using the source URL as base
+            assert isinstance(source, str)
+            base_url = os.path.dirname(normalize_url(source))
 
         # set and validate arguments
         self.base_url = base_url

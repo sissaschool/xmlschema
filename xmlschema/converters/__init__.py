@@ -30,7 +30,7 @@ __all__ = ['XMLSchemaConverter', 'UnorderedConverter', 'ParkerConverter',
 ConverterType = Union[Type[XMLSchemaConverter], XMLSchemaConverter]
 
 
-def check_converter_argument(converter: ConverterType) -> None:
+def check_converter_argument(converter: Any) -> None:
     if converter is not None and \
             (not isinstance(converter, type) or not issubclass(converter, XMLSchemaConverter)) \
             and not isinstance(converter, XMLSchemaConverter):

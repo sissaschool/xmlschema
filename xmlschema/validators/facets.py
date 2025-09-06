@@ -36,7 +36,7 @@ from .exceptions import XMLSchemaValidationError, XMLSchemaDecodeError
 from .xsdbase import XsdComponent, XsdAnnotation
 
 if TYPE_CHECKING:
-    from .simple_types import XsdAtomicBuiltin, XsdList, XsdUnion, XsdAtomicRestriction
+    from .simple_types import XsdAtomicBuiltin, XsdList, XsdUnion, XsdAtomicRestriction  # noqa
 
 LaxDecodeType = tuple[Any, list[XMLSchemaValidationError]]
 
@@ -868,7 +868,7 @@ class XsdAssertionFacet(XsdFacet):
         else:
             self.xpath_default_namespace = self.schema.xpath_default_namespace
 
-        self.parser = self.maps.loader.assertion_parser_class(
+        self.parser = self.schema.loader.assertion_parser_class(
             namespaces=self.schema.namespaces,
             strict=False,
             variable_types={'value': value},

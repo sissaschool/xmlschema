@@ -18,3 +18,9 @@ MAX_MODEL_DEPTH = 15
 """
 Maximum XSD model group depth. An `XMLSchemaModelDepthError` is raised if this limit is exceeded.
 """
+
+MAX_SCHEMA_SOURCES: int = 999
+"""
+Maximum number of XSD schema sources loadable by each `XsdGlobals` instance.
+An `XMLSchemaValidatorError` is raised if this limit is exceeded.
+"""

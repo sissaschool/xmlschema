@@ -19,20 +19,22 @@ from typing import Any, cast, Optional, Type
 from elementpath import XPathToken
 
 import xmlschema.names as nm
-from xmlschema.aliases import SchemaType, BaseXsdType, LocationsType, IterParseType, \
-    SchemaGlobalType, SchemaSourceType, NsmapType, StagedItemType, ComponentClassType
+from xmlschema.aliases import SchemaType, BaseXsdType, SchemaGlobalType, \
+    SchemaSourceType, NsmapType, StagedItemType, ComponentClassType
 from xmlschema.exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, \
     XMLSchemaValueError, XMLSchemaWarning, XMLSchemaNamespaceError, XMLSchemaException
+from xmlschema import limits
 from xmlschema.translation import gettext as _
 from xmlschema.utils.misc import deprecated
 from xmlschema.utils.qnames import get_extended_qname
 from xmlschema.utils.descriptors import validator_property
 from xmlschema.utils.urls import get_url, normalize_url
 from xmlschema.namespaces import NamespaceResourcesMap
-from xmlschema.loaders import SchemaLoader
 from xmlschema.resources import XMLResource
+from xmlschema.loaders import SchemaLoader
 
-from .exceptions import XMLSchemaModelError, XMLSchemaModelDepthError, XMLSchemaParseError
+from .exceptions import XMLSchemaValidatorError, XMLSchemaModelError, \
+    XMLSchemaModelDepthError, XMLSchemaParseError
 from .xsdbase import XsdValidator, XsdComponent
 from .models import check_model
 from . import XsdAttribute, XsdSimpleType, XsdComplexType, XsdElement, \
@@ -55,37 +57,30 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
     validation mode of the validator.
     :param parent: an optional parent schema, that is required to be built and with \
     no use of the target namespace of the validator.
-    :param loader_class: an optional subclass of :class:`SchemaLoader` to use for creating \
-    the loader instance.
-    :param locations: schema extra location hints, that can include custom resource locations \
-    or additional namespaces to import after processing schema's import statements.
-    :param use_fallback: if `True` the schema processor uses the validator fallback \
-    location hints to load well-known namespaces (e.g. xhtml).
-    :param use_xpath3: if `True` an XSD 1.1 schema instance uses the XPath 3 processor \
-    for assertions. For default a full XPath 2.0 processor is used.
     """
     _schemas: set[SchemaType]
     namespaces: NamespaceResourcesMap[SchemaType]
-    loader: SchemaLoader
     substitution_groups: dict[str, set[XsdElement]]
     identities: dict[str, XsdIdentity]
 
     __slots__ = ('_build_lock', '_schemas', '_parent', 'validation', 'errors',
-                 'validator', 'namespaces', 'loader', 'global_maps', 'types',
-                 'notations', 'attributes', 'attribute_groups', 'elements',
-                 'groups', 'substitution_groups', 'identities', '_built')
+                 'validator', 'namespaces', 'global_maps', 'types', 'notations',
+                 'attributes', 'attribute_groups', 'elements', 'groups',
+                 'substitution_groups', 'identities', '_built')
 
     def __init__(self, validator: SchemaType,
                  validation: str = _strict,
                  parent: Optional[SchemaType] = None,
-                 loader_class: Optional[Type[SchemaLoader]] = None,
-                 locations: Optional[LocationsType] = None,
-                 iterparse: Optional[IterParseType] = None,
-                 use_fallback: bool = True,
-                 use_xpath3: bool = False) -> None:
+                 *args: Any, **kwargs: Any) -> None:
 
         if not isinstance(validation, _strict.__class__):
             msg = "argument 'validation' is not used and will be removed in v5.0"
+            warnings.warn(msg, DeprecationWarning, stacklevel=1)
+        if args:
+            msg = f"positional arguments {args!r} are not used and will be removed in v5.0"
+            warnings.warn(msg, DeprecationWarning, stacklevel=1)
+        if kwargs:
+            msg = f"additional arguments {list(kwargs)} are not used and will be removed in v5.0"
             warnings.warn(msg, DeprecationWarning, stacklevel=1)
 
         super().__init__(validator.validation)
@@ -114,9 +109,6 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
             self.identities.update(ancestor.maps.identities)
 
         self.validator.maps = self
-        self.loader = (loader_class or SchemaLoader)(
-            self, locations, iterparse, use_fallback, use_xpath3
-        )
 
     @property
     def schemas(self) -> set[SchemaType]:
@@ -130,6 +122,12 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
     @property
     def parent(self) -> Optional[SchemaType]:
         return self._parent
+
+    @property
+    def loader(self) -> SchemaLoader:
+        msg = "'loader' usage from XsdGlobals instance is deprecated and will be removed in v5.0"
+        warnings.warn(msg, DeprecationWarning, stacklevel=1)
+        return self.validator.loader
 
     def __repr__(self) -> str:
         return '%s(validator=%r)' % (self.__class__.__name__, self.validator)
@@ -164,17 +162,21 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
         other = type(self)(
             validator=copy.copy(self.validator),
             parent=self._parent,
-            loader_class=self.loader.__class__,
         )
 
-        other.loader.__dict__.update(self.loader.__dict__)
-        other.loader.locations = self.loader.locations.copy()
-        other.loader.missing_locations.update(self.loader.missing_locations)
+        loader = copy.copy(self.validator.loader)
+        loader.maps = other
+        loader.namespaces = other.namespaces
+        loader.validator = other.validator
+        loader.missing_locations = set()
 
         other.validator.maps = other
+        other.validator.loader = loader
         for schema in self._schemas:
             if schema.maps is self and schema is not self.validator:
-                copy.copy(schema).maps = other
+                schema = copy.copy(schema)
+                schema.maps = other
+                schema.loader = loader
 
         other.clear()
         return other
@@ -287,7 +289,7 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
         if not self._built:
             return {}
 
-        xpath_parser = self.loader.xpath_parser_class()
+        xpath_parser = self.validator.loader.xpath_parser_class()
         xpath_parser.schema = self.validator.xpath_proxy
 
         constructors: dict[str, Type[XPathToken]] = {}
@@ -418,6 +420,11 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
             source_ref = schema.source.url or type(schema.source)
             raise XMLSchemaValueError(
                 f"another schema loaded from {source_ref!r} is already registered"
+            )
+
+        if limits.MAX_SCHEMA_SOURCES < len(self._schemas):
+            raise XMLSchemaValidatorError(
+                self, f"number of schema sources loaded by {self!r} exceeded"
             )
 
         self._built = False

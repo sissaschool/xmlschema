@@ -480,10 +480,10 @@ class TestXMLSchema10(XsdValidatorTestCase):
             </xs:schema>""")
 
         schema = self.schema_class(source)
-        self.assertEqual(schema.maps.loader.fallback_locations,
+        self.assertEqual(schema.loader.fallback_locations,
                          SchemaLoader.fallback_locations)
         schema = self.schema_class(source, use_fallback=False)
-        self.assertEqual(schema.maps.loader.fallback_locations, {})
+        self.assertEqual(schema.loader.fallback_locations, {})
 
     def test_global_maps(self):
         source = dedent("""\
