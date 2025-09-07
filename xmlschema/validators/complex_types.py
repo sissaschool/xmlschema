@@ -281,7 +281,7 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
                 self.parse_error(msg, elem)
             else:
                 self.parse_error(err, elem)
-            return self.any_type
+            return self.maps.any_type
 
         try:
             base_type = self.maps.types[base_qname]
@@ -289,17 +289,17 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
             msg = _("missing base type %r")
             self.parse_error(msg % base_qname, elem)
             if complex_content:
-                return self.any_type
+                return self.maps.any_type
             else:
-                return self.any_simple_type
+                return self.maps.any_simple_type
         except XMLSchemaCircularityError as err:
             self.parse_error(err, err.elem)
-            return self.any_type
+            return self.maps.any_type
         else:
             if complex_content and base_type.is_simple():
                 msg = _("a complexType ancestor required: {!r}")
                 self.parse_error(msg.format(base_type), elem)
-                return self.any_type
+                return self.maps.any_type
 
             if base_type.final and elem.tag.rsplit('}', 1)[-1] in base_type.final:
                 msg = _("derivation by %r blocked by attribute 'final' in base type")
@@ -373,7 +373,7 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
         if base_type.is_simple() or base_type.has_simple_content():
             msg = _("base %r is simple or has a simple content")
             self.parse_error(msg % base_type, elem)
-            base_type = self.any_type
+            base_type = self.maps.any_type
 
         # complexContent restriction: the base type must be a complexType with a complex content.
         for child in elem:
@@ -466,7 +466,7 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
             if base_type.is_simple() or base_type.has_simple_content():
                 msg = _("base %r is simple or has a simple content")
                 self.parse_error(msg % base_type, elem)
-                base_type = self.any_type
+                base_type = self.maps.any_type
 
             group = self.builders.group_class(group_elem, self.schema, self)
 
@@ -783,9 +783,9 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
 
         xsd_type: BaseXsdType
         if isinstance(value, AnyAtomicType):
-            xsd_type = self.any_atomic_type
+            xsd_type = self.maps.any_atomic_type
         else:
-            xsd_type = self.any_type
+            xsd_type = self.maps.any_type
 
         xsd_element = self.builders.create_element(
             name, self.schema, xsd_type, form='unqualified'
@@ -851,7 +851,7 @@ class Xsd11ComplexType(XsdComplexType):
     def _parse(self) -> None:
         super()._parse()
 
-        if self.base_type and self.base_type.base_type is self.any_simple_type and \
+        if self.base_type and self.base_type.base_type is self.maps.any_simple_type and \
                 self.base_type.derivation == 'extension' and not self.attributes:
             # Derivation from xs:anySimpleType with missing variety.
             # See: http://www.w3.org/TR/xmlschema11-1/#Simple_Type_Definition_details
@@ -903,7 +903,7 @@ class Xsd11ComplexType(XsdComplexType):
         if base_type.is_simple() or base_type.has_simple_content():
             msg = _("base %r is simple or has a simple content")
             self.parse_error(msg % base_type, elem)
-            base_type = self.any_type
+            base_type = self.maps.any_type
 
         if 'extension' in base_type.final:
             msg = _("the base type is not derivable by extension")

@@ -861,7 +861,7 @@ class XsdAssertionFacet(XsdFacet):
         try:
             value = self.base_type.primitive_type.prefixed_name  # type: ignore[union-attr]
         except AttributeError:
-            value = self.any_simple_type.prefixed_name
+            value = self.maps.any_simple_type.prefixed_name
 
         if 'xpathDefaultNamespace' in self.elem.attrib:
             self.xpath_default_namespace = self._parse_xpath_default_namespace(self.elem)

@@ -123,11 +123,23 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
     def parent(self) -> Optional[SchemaType]:
         return self._parent
 
-    @property
+    @cached_property
     def loader(self) -> SchemaLoader:
-        msg = "'loader' usage from XsdGlobals instance is deprecated and will be removed in v5.0"
-        warnings.warn(msg, DeprecationWarning, stacklevel=1)
         return self.validator.loader
+
+    @cached_property
+    def any_type(self) -> 'XsdComplexType':
+        return self.validator.create_any_type()
+
+    @cached_property
+    def any_simple_type(self) -> 'XsdSimpleType':
+        """Property that references to the xs:anySimpleType instance of the global maps."""
+        return cast('XsdSimpleType', self.types[nm.XSD_ANY_SIMPLE_TYPE])
+
+    @cached_property
+    def any_atomic_type(self) -> 'XsdSimpleType':
+        """Property that references to the xs:anyAtomicType instance of the global maps."""
+        return cast('XsdSimpleType', self.types[nm.XSD_ANY_ATOMIC_TYPE])
 
     def __repr__(self) -> str:
         return '%s(validator=%r)' % (self.__class__.__name__, self.validator)

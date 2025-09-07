@@ -853,7 +853,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                     return
                 else:
                     xsd_type = self.maps.get_instance_type(
-                        type_name, self.any_type, namespaces
+                        type_name, self.maps.any_type, namespaces
                     )
             else:
                 alternatives = xsd_element.alternatives
@@ -1024,7 +1024,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
             # Optional checks on matched XSD child
             if xsd_element is None:
                 if context.keep_unknown:
-                    result_item = self.any_type.raw_decode(child, validation, context)
+                    result_item = self.maps.any_type.raw_decode(child, validation, context)
                     if result is not None:
                         result.append((name, result_item, None))
                 continue

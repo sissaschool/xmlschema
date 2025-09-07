@@ -506,7 +506,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
             return Empty
 
         namespace = get_namespace(obj.tag)
-        if not self.schema.loader.load_namespace(namespace):
+        if not self.maps.loader.load_namespace(namespace):
             reason = _("unavailable namespace {!r}").format(namespace)
         else:
             try:
@@ -548,7 +548,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
         if self.process_contents == 'skip' and not context.process_skipped:
             return Empty
 
-        if not self.schema.loader.load_namespace(namespace):
+        if not self.maps.loader.load_namespace(namespace):
             reason = _("unavailable namespace {!r}").format(namespace)
         else:
             try:
@@ -581,7 +581,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
         if validation != 'skip' and self.process_contents == 'strict':
             context.validation_error(validation, self, reason)
 
-        return self.any_type.raw_encode(obj, validation, context)
+        return self.maps.any_type.raw_encode(obj, validation, context)
 
     def is_overlap(self, other: ModelParticleType) -> bool:
         if not isinstance(other, XsdAnyElement):
@@ -677,7 +677,7 @@ class XsdAnyAttribute(XsdWildcard, ValidationMixin[tuple[str, str], DecodedValue
             return Empty
 
         namespace = get_namespace(name)
-        if self.schema.loader.load_namespace(namespace):
+        if self.maps.loader.load_namespace(namespace):
             try:
                 xsd_attribute = self.maps.attributes[name]
             except KeyError:
@@ -706,7 +706,7 @@ class XsdAnyAttribute(XsdWildcard, ValidationMixin[tuple[str, str], DecodedValue
         if self.process_contents == 'skip' and not context.process_skipped:
             return Empty
 
-        if self.schema.loader.load_namespace(namespace):
+        if self.maps.validator.load_namespace(namespace):
             try:
                 xsd_attribute = self.maps.attributes[name]
             except KeyError:

@@ -100,7 +100,7 @@ class XsdAttribute(XsdComponent, ValidationMixin[Optional[str], DecodedValueType
             try:
                 xsd_attribute = self.maps.attributes[self.name]
             except KeyError:
-                self.type = self.any_simple_type
+                self.type = self.maps.any_simple_type
                 msg = _("unknown attribute {!r}")
                 self.parse_error(msg.format(self.name))
             else:
@@ -156,13 +156,13 @@ class XsdAttribute(XsdComponent, ValidationMixin[Optional[str], DecodedValueType
                 try:
                     type_qname = self.schema.resolve_qname(attrib['type'])
                 except (KeyError, ValueError, RuntimeError) as err:
-                    self.type = self.any_simple_type
+                    self.type = self.maps.any_simple_type
                     self.parse_error(err)
                 else:
                     try:
                         self.type = cast(XsdSimpleType, self.maps.types[type_qname])
                     except KeyError as err:
-                        self.type = self.any_simple_type
+                        self.type = self.maps.any_simple_type
                         self.parse_error(err)
 
                     if child is not None and child.tag == XSD_SIMPLE_TYPE:
@@ -174,10 +174,10 @@ class XsdAttribute(XsdComponent, ValidationMixin[Optional[str], DecodedValueType
                 self.type = self.builders.simple_type_factory(child, self.schema, self)
             else:
                 # Empty declaration means xsdAnySimpleType
-                self.type = self.any_simple_type
+                self.type = self.maps.any_simple_type
 
             if not isinstance(self.type, XsdSimpleType):
-                self.type = self.any_simple_type
+                self.type = self.maps.any_simple_type
                 msg = _("XSD attribute's type must be a simpleType")
                 self.parse_error(msg)
 

@@ -906,7 +906,7 @@ class XsdList(XsdSimpleType):
                 item_type = self.builders.simple_type_factory(child, self.schema, self)
             except XMLSchemaParseError as err:
                 self.parse_error(err)
-                item_type = self.any_atomic_type
+                item_type = self.maps.any_atomic_type
 
             if 'itemType' in self.elem.attrib:
                 self.parse_error(_("ambiguous list type declaration"))
@@ -920,17 +920,17 @@ class XsdList(XsdSimpleType):
                     self.parse_error(_("missing list type declaration"))
                 else:
                     self.parse_error(err)
-                item_type = self.any_atomic_type
+                item_type = self.maps.any_atomic_type
             else:
                 try:
                     item_type = self.maps.types[item_qname]
                 except KeyError:
                     msg = _("unknown type {!r}")
                     self.parse_error(msg.format(self.elem.attrib['itemType']))
-                    item_type = self.any_atomic_type
+                    item_type = self.maps.any_atomic_type
                 except XMLSchemaCircularityError as err:
                     self.parse_error(err, err.elem)
-                    item_type = self.any_atomic_type
+                    item_type = self.maps.any_atomic_type
 
         if item_type.final == '#all' or 'list' in item_type.final:
             msg = _("'final' value of the itemType %r forbids derivation by list")
@@ -944,7 +944,7 @@ class XsdList(XsdSimpleType):
             self.item_type = item_type
         else:
             self.parse_error(_("%r: a list must be based on atomic data types") % item_type)
-            self.item_type = self.any_atomic_type
+            self.item_type = self.maps.any_atomic_type
 
     @property
     def variety(self) -> Optional[str]:
@@ -1098,10 +1098,10 @@ class XsdUnion(XsdSimpleType):
                     mt = self.maps.types[type_qname]
                 except KeyError:
                     self.parse_error(_("unknown type {!r}").format(type_qname))
-                    mt = self.any_atomic_type
+                    mt = self.maps.any_atomic_type
                 except XMLSchemaParseError as err:
                     self.parse_error(err)
-                    mt = self.any_atomic_type
+                    mt = self.maps.any_atomic_type
                 except XMLSchemaCircularityError as err:
                     self.parse_error(err, err.elem)
                     continue
@@ -1118,7 +1118,7 @@ class XsdUnion(XsdSimpleType):
 
         if not self.member_types:
             self.parse_error(_("missing xs:union type declarations"))
-            self.member_types = [self.any_atomic_type]
+            self.member_types = [self.maps.any_atomic_type]
         elif any(mt.name == XSD_ANY_ATOMIC_TYPE for mt in self.member_types):
             msg = _("cannot use xs:anyAtomicType as base type of a user-defined type")
             self.parse_error(msg)
@@ -1300,13 +1300,13 @@ class XsdAtomicRestriction(XsdAtomic):
                 base_qname = self.schema.resolve_qname(elem.attrib['base'])
             except (KeyError, ValueError, RuntimeError) as err:
                 self.parse_error(err)
-                base_type = self.any_atomic_type
+                base_type = self.maps.any_atomic_type
             else:
                 if base_qname == self.name:
                     if self.redefine is None:
                         msg = _("wrong definition with self-reference")
                         self.parse_error(msg)
-                        base_type = self.any_atomic_type
+                        base_type = self.maps.any_atomic_type
                     else:
                         base_type = self.base_type
                 else:
@@ -1319,13 +1319,13 @@ class XsdAtomicRestriction(XsdAtomic):
                     except KeyError:
                         self.parse_error(_("unknown type {!r}").format(elem.attrib['base']))
 
-                        base_type = self.any_atomic_type
+                        base_type = self.maps.any_atomic_type
                     except XMLSchemaParseError as err:
                         self.parse_error(err)
-                        base_type = self.any_atomic_type
+                        base_type = self.maps.any_atomic_type
                     except XMLSchemaCircularityError as err:
                         self.parse_error(err, err.elem)
-                        base_type = self.any_atomic_type
+                        base_type = self.maps.any_atomic_type
 
             if base_type.is_simple() and base_type.name == XSD_ANY_SIMPLE_TYPE:
                 msg = _("wrong base type %r, an atomic type required")
@@ -1368,7 +1368,7 @@ class XsdAtomicRestriction(XsdAtomic):
                         )
                     except XMLSchemaParseError as err:
                         self.parse_error(err, child)
-                        base_type = self.any_simple_type
+                        base_type = self.maps.any_simple_type
                 elif base_type.is_complex():
                     if base_type.admit_simple_restriction():
                         base_type = self.builders.complex_type_class(

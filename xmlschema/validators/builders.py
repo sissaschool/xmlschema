@@ -288,9 +288,8 @@ class XsdBuilders:
         elem[0].text = elem[0][0].tail = '\n    '
 
         any_type = self.complex_type_class(elem, schema, mixed=True, block='', final='')
-        assert isinstance(any_type.content, XsdGroup)
-        any_type.maps = any_type.content.maps = any_type.content[0].maps = \
-            any_type.attributes[None].maps = maps
+        for c in any_type.iter_components():
+            c.maps = maps
         return any_type
 
     def create_element(self, name: str,
@@ -549,10 +548,8 @@ class TypesMap(StagedMap[BaseXsdType]):
 
     def build_builtins(self, schema: SchemaType) -> None:
         if schema.meta_schema is not None and nm.XSD_ANY_TYPE in self._store:
-            # builtin types already provided, rebuild only xs:anyType for wildcards
-            self._store[nm.XSD_ANY_TYPE] = self._builders.create_any_type(schema)
+            # builtin types already provided
             return
-
         #
         # Special builtin types.
         #

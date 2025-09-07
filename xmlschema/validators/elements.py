@@ -196,7 +196,7 @@ class XsdElement(XsdComponent, ParticleMixin,
             try:
                 xsd_element: XsdElement = self.maps.elements[self.name]
             except KeyError:
-                self._set_type(self.any_type)
+                self._set_type(self.maps.any_type)
                 self.parse_error(_('unknown element %r') % self.name)
             else:
                 self.ref = xsd_element
@@ -280,16 +280,16 @@ class XsdElement(XsdComponent, ParticleMixin,
                 extended_name = self.schema.resolve_qname(type_name)
             except (KeyError, ValueError, RuntimeError) as err:
                 self.parse_error(err)
-                self._set_type(self.any_type)
+                self._set_type(self.maps.any_type)
             else:
                 if extended_name == XSD_ANY_TYPE:
-                    self._set_type(self.any_type)
+                    self._set_type(self.maps.any_type)
                 else:
                     try:
                         self._set_type(self.maps.types[extended_name])
                     except KeyError:
                         self.parse_error(_('unknown type {!r}').format(type_name))
-                        self._set_type(self.any_type)
+                        self._set_type(self.maps.any_type)
             finally:
                 child = self._parse_child_component(self.elem, strict=False)
                 if child is not None and child.tag in (XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE):
@@ -297,14 +297,14 @@ class XsdElement(XsdComponent, ParticleMixin,
                             "declaration are mutually exclusive")
                     self.parse_error(msg.format(child.tag.split('}')[-1]))
         elif (child := self._parse_child_component(self.elem, strict=False)) is None:
-            self._set_type(self.any_type)
+            self._set_type(self.maps.any_type)
         else:
             try:
                 self._set_type(
                     self.builders.local_types[child.tag](child, self.schema, self)
                 )
             except KeyError:
-                self._set_type(self.any_type)
+                self._set_type(self.maps.any_type)
 
     def _parse_constraints(self) -> None:
         # Value constraints
@@ -1118,7 +1118,7 @@ class XsdElement(XsdComponent, ParticleMixin,
         xsd_group = self.type.model_group
         if xsd_group is None:
             # fallback to xs:anyType encoder for matching extra content
-            xsd_group = self.any_type.model_group
+            xsd_group = self.maps.any_type.model_group
             assert xsd_group is not None
 
         for xsd_child in xsd_group.iter_elements():
@@ -1520,10 +1520,10 @@ class XsdAlternative(XsdComponent):
         except (KeyError, ValueError, RuntimeError) as err:
             if 'type' in attrib:
                 self.parse_error(err)
-                self.type = self.any_type
+                self.type = self.maps.any_type
             elif (child := self._parse_child_component(self.elem, strict=False)) is None:
                 self.parse_error(_("missing 'type' attribute"))
-                self.type = self.any_type
+                self.type = self.maps.any_type
             else:
                 try:
                     self.type = self.builders.local_types[child.tag](
@@ -1531,7 +1531,7 @@ class XsdAlternative(XsdComponent):
                     )
                 except KeyError:
                     self.parse_error(_("missing 'type' attribute"))
-                    self.type = self.any_type
+                    self.type = self.maps.any_type
                 else:
                     if not self.type.is_derived(self.parent.type):
                         msg = _("declared type is not derived from {!r}")
@@ -1541,7 +1541,7 @@ class XsdAlternative(XsdComponent):
                 self.type = self.maps.types[type_qname]
             except KeyError:
                 self.parse_error(_("unknown type {!r}").format(attrib['type']))
-                self.type = self.any_type
+                self.type = self.maps.any_type
             else:
                 if self.type.name != XSD_ERROR and not self.type.is_derived(self.parent.type):
                     msg = _("type {0!r} is not derived from {1!r}")

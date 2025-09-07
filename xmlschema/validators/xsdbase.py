@@ -20,8 +20,8 @@ from elementpath.etree import etree_tostring
 
 from xmlschema.exceptions import XMLSchemaTypeError
 from xmlschema.names import XSD_ANNOTATION, XSD_APPINFO, XSD_DOCUMENTATION, \
-    XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_BOOLEAN, XSD_ID, \
-    XSD_QNAME, XSD_OVERRIDE, XSD_NOTATION_TYPE, XSD_DECIMAL, XMLNS_NAMESPACE
+    XSD_ANY_TYPE, XSD_BOOLEAN, XSD_ID, XSD_QNAME, XSD_OVERRIDE, XSD_NOTATION_TYPE, \
+    XSD_DECIMAL, XMLNS_NAMESPACE
 from xmlschema.aliases import ElementType, NsmapType, SchemaType, BaseXsdType, \
     ComponentClassType, DecodedValueType, ModelParticleType
 from xmlschema.translation import gettext as _
@@ -37,7 +37,6 @@ from .helpers import get_xsd_annotation_child
 
 if TYPE_CHECKING:
     from .simple_types import XsdSimpleType
-    from .complex_types import XsdComplexType
     from .elements import XsdElement
     from .groups import XsdGroup
     from .xsd_globals import XsdGlobals
@@ -361,21 +360,6 @@ class XsdComponent(XsdValidator):
     def namespaces(self) -> NsmapType:
         """Property that references to schema's namespace mapping."""
         return self.schema.namespaces
-
-    @property
-    def any_type(self) -> 'XsdComplexType':
-        """Property that references to the xs:anyType instance of the global maps."""
-        return cast('XsdComplexType', self.maps.types[XSD_ANY_TYPE])
-
-    @property
-    def any_simple_type(self) -> 'XsdSimpleType':
-        """Property that references to the xs:anySimpleType instance of the global maps."""
-        return cast('XsdSimpleType', self.maps.types[XSD_ANY_SIMPLE_TYPE])
-
-    @property
-    def any_atomic_type(self) -> 'XsdSimpleType':
-        """Property that references to the xs:anyAtomicType instance of the global maps."""
-        return cast('XsdSimpleType', self.maps.types[XSD_ANY_ATOMIC_TYPE])
 
     @cached_property
     def annotation(self) -> Optional['XsdAnnotation']:
