@@ -85,8 +85,9 @@ class SchemaLoader:
         self.validator = maps.validator
         self.namespaces = maps.namespaces
 
+        # Save init params for loading other XSD or XML resources
         self.schema_class = self.validator.__class__
-        self.validation = validation
+        self.validation = self.validator.validation
         self.converter = converter
         self.allow = allow
         self.defuse = defuse

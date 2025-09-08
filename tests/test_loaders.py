@@ -25,7 +25,7 @@ class TestLoadersAPI(XMLSchemaTestCase):
     def setUpClass(cls):
         cls.col_xsd_file = cls.casepath('examples/collection/collection.xsd')
         cls.schema = cls.schema_class(cls.col_xsd_file)
-        cls.loader = cls.schema.loader
+        cls.loader = cls.schema.maps.loader
 
     def test_get_namespaces(self):
         self.assertListEqual(self.loader.get_locations('tns'), [])
@@ -72,7 +72,7 @@ class TestSchemaLoader(XMLSchemaTestCase):
         total_globals = schema.maps.global_maps.total
         self.assertGreater(total_globals, 0)
 
-        schema.loader.clear()
+        schema.maps.loader.clear()
         self.assertEqual(len(schema.maps.owned_schemas), 1)
         schema.build()
         self.assertEqual(schema.maps.global_maps.total, total_globals)
@@ -87,7 +87,7 @@ class TestSchemaLoader(XMLSchemaTestCase):
         total_globals = schema.maps.global_maps.total
         self.assertGreater(total_globals, 0)
 
-        schema.loader.clear()
+        schema.maps.loader.clear()
         self.assertEqual(len(schema.maps.owned_schemas), 4)
         schema.build()
         self.assertEqual(schema.maps.global_maps.total, total_globals)

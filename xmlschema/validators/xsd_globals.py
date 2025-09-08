@@ -64,23 +64,18 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
     identities: dict[str, XsdIdentity]
 
     __slots__ = ('_build_lock', '_schemas', '_parent', 'validation', 'errors',
-                 'validator', 'namespaces', 'global_maps', 'types', 'notations',
-                 'attributes', 'attribute_groups', 'elements', 'groups',
-                 'substitution_groups', 'identities', '_built')
+                 'validator', 'namespaces', 'loader', 'global_maps', 'types',
+                 'notations', 'attributes', 'attribute_groups', 'elements',
+                 'groups', 'substitution_groups', 'identities', '_built')
 
     def __init__(self, validator: SchemaType,
                  validation: str = _strict,
                  parent: Optional[SchemaType] = None,
-                 *args: Any, **kwargs: Any) -> None:
+                 loader_class: Optional[Type[SchemaLoader]] = None,
+                 **loader_params: Any) -> None:
 
         if not isinstance(validation, _strict.__class__):
             msg = "argument 'validation' is not used and will be removed in v5.0"
-            warnings.warn(msg, DeprecationWarning, stacklevel=1)
-        if args:
-            msg = f"positional arguments {args!r} are not used and will be removed in v5.0"
-            warnings.warn(msg, DeprecationWarning, stacklevel=1)
-        if kwargs:
-            msg = f"additional arguments {list(kwargs)} are not used and will be removed in v5.0"
             warnings.warn(msg, DeprecationWarning, stacklevel=1)
 
         super().__init__(validator.validation)
@@ -109,6 +104,7 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
             self.identities.update(ancestor.maps.identities)
 
         self.validator.maps = self
+        self.loader = (loader_class or SchemaLoader)(self, **loader_params)
 
     @property
     def schemas(self) -> set[SchemaType]:
@@ -122,10 +118,6 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
     @property
     def parent(self) -> Optional[SchemaType]:
         return self._parent
-
-    @cached_property
-    def loader(self) -> SchemaLoader:
-        return self.validator.loader
 
     @cached_property
     def any_type(self) -> 'XsdComplexType':
@@ -174,21 +166,17 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
         other = type(self)(
             validator=copy.copy(self.validator),
             parent=self._parent,
+            loader_class=self.loader.__class__,
         )
 
-        loader = copy.copy(self.validator.loader)
-        loader.maps = other
-        loader.namespaces = other.namespaces
-        loader.validator = other.validator
-        loader.missing_locations = set()
+        other.loader.__dict__.update(self.loader.__dict__)
+        other.loader.locations = self.loader.locations.copy()
+        other.loader.missing_locations.update(self.loader.missing_locations)
 
         other.validator.maps = other
-        other.validator.loader = loader
         for schema in self._schemas:
             if schema.maps is self and schema is not self.validator:
-                schema = copy.copy(schema)
-                schema.maps = other
-                schema.loader = loader
+                copy.copy(schema).maps = other
 
         other.clear()
         return other
@@ -301,7 +289,7 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
         if not self._built:
             return {}
 
-        xpath_parser = self.validator.loader.xpath_parser_class()
+        xpath_parser = self.loader.xpath_parser_class()
         xpath_parser.schema = self.validator.xpath_proxy
 
         constructors: dict[str, Type[XPathToken]] = {}

@@ -258,7 +258,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     source: XMLResource
     namespaces: NsmapType
     maps: XsdGlobals
-    loader: SchemaLoader
 
     imported_namespaces: list[str]
     imports: dict[str, Optional[SchemaType]]
@@ -287,8 +286,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     default_open_content: Optional[XsdDefaultOpenContent] = None
     override: Optional[SchemaType] = None
 
-    __slots__ = ('validation', 'errors', 'maps', 'loader',
-                 'target_namespace', 'source', 'namespaces')
+    __slots__ = ('validation', 'errors', 'maps', 'target_namespace', 'source', 'namespaces')
 
     def __init__(self, source: Union[SchemaSourceType, list[SchemaSourceType]],
                  namespace: Optional[str] = None,
@@ -313,6 +311,13 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                  partial: bool = False) -> None:
 
         super().__init__(validation)
+
+        self.imports = {}
+        self.imported_namespaces = []
+        self.includes = {}
+        self.warnings = []
+        self.converter = converter
+
         if loglevel is not None:
             set_logging_level(loglevel)
         elif build and global_maps is None:
@@ -324,6 +329,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         else:
             other_sources = []
 
+        logger.debug("Load schema from %r", source)
         if isinstance(source, XMLResource):
             self.source = source
         else:
@@ -336,14 +342,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 uri_mapper=uri_mapper,
                 opener=opener,
             )
-
-        logger.debug("Load schema from %r", self.source.url or self.source.source)
-
-        self.imports = {}
-        self.imported_namespaces = []
-        self.includes = {}
-        self.warnings = []
-        self.converter = converter
 
         self.name = self.source.name
         root = self.source.root
@@ -367,7 +365,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 )
 
         elif namespace is not None:
-            # Chameleon schema case
             self.target_namespace = namespace
             if '' not in namespaces:
                 namespaces[''] = namespace
@@ -378,13 +375,13 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             # If not declared map the default namespace to no namespace
             namespaces[''] = ''
 
+        logger.debug("Schema targetNamespace is %r", self.target_namespace)
+        logger.debug("Schema namespaces: %r", namespaces)
+
         if self.target_namespace == nm.XMLNS_NAMESPACE:
             # https://www.w3.org/TR/xmlschema11-1/#sec-nss-special
             msg = _(f"The namespace {nm.XMLNS_NAMESPACE} cannot be used as 'targetNamespace'")
             raise XMLSchemaValueError(msg)
-
-        logger.debug("Schema targetNamespace is %r", self.target_namespace)
-        logger.debug("Schema namespaces: %r", namespaces)
 
         # Parses the schema defaults
         if 'attributeFormDefault' in root.attrib:
@@ -412,21 +409,21 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             except ValueError as err:
                 self.parse_error(err, root, namespaces=namespaces)
 
-        # Create or set the XSD global maps instance
+        # Create or set the XSD global maps instance and the loader
         if global_maps is not None:
             self.maps = global_maps
-            self.loader = global_maps.validator.loader
         else:
             if parent is None and use_meta:
                 parent = self.meta_schema
 
-            self.maps = XsdGlobals(self, parent=parent)
-            self.loader = (loader_class or SchemaLoader)(
-                self.maps,
+            self.maps = XsdGlobals(
+                self,
+                parent=parent,
+                loader_class=loader_class,
+
                 locations=locations,
-                validation=validation,
                 converter=converter,
-                base_url=base_url,
+                base_url=self.source.base_url,
                 allow=allow,
                 defuse=defuse,
                 timeout=timeout,
@@ -472,13 +469,13 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                         self.imported_namespaces.append(namespace)
             return
 
-        self.loader.load_declared_schemas(self)
+        self.maps.loader.load_declared_schemas(self)
 
         # Import namespaces by argument (usually from xsi:schemaLocation attribute).
         if global_maps is None:
-            for ns in self.loader.locations:
+            for ns in self.maps.loader.locations:
                 if ns not in self.maps.namespaces:
-                    self.loader.import_namespace(self, ns)
+                    self.maps.loader.import_namespace(self, ns)
 
         # Parse XSD 1.1 default declarations (defaultAttributes, defaultOpenContent,
         # xpathDefaultNamespace) after all imports/includes.
@@ -551,8 +548,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         elif name == 'meta_schema':
             msg = _("can't set the meta_schema instance of a schema")
             raise XMLSchemaAttributeError(msg)
-        elif name == 'loader':
-            assert value.maps is self.maps
         elif name == 'default_attributes':
             if isinstance(self.default_attributes, XsdAttributeGroup):
                 msg = _("can't change the {!r} attribute of a schema").format(name)
@@ -676,22 +671,22 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     @property
     def iterparse(self) -> Optional[IterParseType]:
         """The optional callable argument for creating iterator parsers for XML data."""
-        return self.loader.iterparse
+        return self.maps.loader.iterparse
 
     @property
     def locations(self) -> Optional[LocationsType]:
         """Schema extra location hints also provided by document schema location hints."""
-        return self.loader.locations
+        return self.maps.loader.locations
 
     @property
     def use_fallback(self) -> bool:
         """If the schema processor uses the validator fallback location hints."""
-        return self.loader.use_fallback
+        return self.maps.loader.use_fallback
 
     @property
     def use_xpath3(self) -> bool:
         """If XSD 1.1 schema instance uses the XPath 3 processor for assertions."""
-        return self.loader.use_xpath3
+        return self.maps.loader.use_xpath3
 
     @property
     def use_meta(self) -> bool:
@@ -1004,7 +999,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
     def get_locations(self, namespace: str) -> list[str]:
         """Get a list of location hints for a namespace."""
-        return self.loader.get_locations(namespace)
+        return self.maps.loader.get_locations(namespace)
 
     def get_schema(self, namespace: str) -> SchemaType:
         """
@@ -1062,7 +1057,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         imports/inclusions and the build phase is skipped.
         :return: the included :class:`XMLSchema` instance.
         """
-        return self.loader.include_schema(self, location, base_url, build, partial)
+        return self.maps.loader.include_schema(self, location, base_url, build, partial)
 
     def import_schema(self, namespace: str,
                       location: str,
@@ -1085,13 +1080,13 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         can't be imported from that location.
         """
         if namespace not in self.maps.namespaces:
-            return self.loader.import_schema(
+            return self.maps.loader.import_schema(
                 self, namespace, location, base_url, build, partial
             )
         elif not force:
             return self.maps.namespaces[namespace][0]
         else:
-            return self.loader.load_schema(location, namespace, base_url, build, partial)
+            return self.maps.loader.load_schema(location, namespace, base_url, build, partial)
 
     def add_schema(self, source: SchemaSourceType,
                    namespace: Optional[str] = None,
@@ -1114,7 +1109,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         imports/inclusions and the build phase is skipped.
         :return: the added :class:`XMLSchema` instance.
         """
-        return self.loader.load_schema(source, namespace, base_url, build, partial)
+        return self.maps.loader.load_schema(source, namespace, base_url, build, partial)
 
     def load_namespace(self, namespace: str, build: bool = True) -> bool:
         """
@@ -1127,7 +1122,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         :param build: if left with `True` value builds the maps after load. If the \
         build fails the resource URL is added to missing locations.
         """
-        return self.loader.load_namespace(namespace, build)
+        return self.maps.loader.load_namespace(namespace, build)
 
     def export(self, target: Union[str, Path],
                save_remote: bool = False,
@@ -1384,7 +1379,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         if isinstance(source, XMLResource):
             resource: XMLResource = source
         else:
-            resource = self.loader.load_resource(source)
+            resource = self.maps.loader.load_resource(source)
 
         ancestors: list[Element] = []
         prev_ancestors: list[Element] = []
@@ -1625,7 +1620,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         if isinstance(source, XMLResource):
             resource: XMLResource = source
         else:
-            resource = self.loader.load_resource(source)
+            resource = self.maps.loader.load_resource(source)
 
         if converter is None:
             converter = self.converter
