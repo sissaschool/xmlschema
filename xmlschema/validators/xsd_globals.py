@@ -8,30 +8,35 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import copy
+import importlib
 import threading
 import warnings
 from collections.abc import Collection, Iterator, Iterable
 from contextlib import contextmanager
+from dataclasses import dataclass
 from functools import cached_property
 from itertools import dropwhile
-from typing import Any, cast, Optional, Type
-
-from elementpath import XPathToken
+from typing import Any, cast, Optional, Type, Union
+from elementpath import XPathToken, XPath2Parser
 
 import xmlschema.names as nm
 from xmlschema.aliases import SchemaType, BaseXsdType, SchemaGlobalType, \
-    SchemaSourceType, NsmapType, StagedItemType, ComponentClassType
+    SchemaSourceType, NsmapType, StagedItemType, ComponentClassType, LocationsType
 from xmlschema.exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, \
     XMLSchemaValueError, XMLSchemaWarning, XMLSchemaNamespaceError, XMLSchemaException
 from xmlschema import limits
 from xmlschema.translation import gettext as _
 from xmlschema.utils.misc import deprecated
 from xmlschema.utils.qnames import get_extended_qname
-from xmlschema.utils.descriptors import validator_property
 from xmlschema.utils.urls import get_url, normalize_url
 from xmlschema.namespaces import NamespaceResourcesMap
+from xmlschema.fields import BaseUrlField, AllowField, DefuseField, TimeoutField, \
+    UriMapperField, OpenerField, IterParseField, BooleanField
+from xmlschema.converters import ConverterField
+from xmlschema.locations import LocationsField
 from xmlschema.resources import XMLResource
 from xmlschema.loaders import SchemaLoader
+from xmlschema.xpath import XsdAssertionXPathParser
 
 from .exceptions import XMLSchemaValidatorError, XMLSchemaModelError, \
     XMLSchemaModelDepthError, XMLSchemaParseError
@@ -46,6 +51,27 @@ from .builders import GLOBAL_MAP_ATTRIBUTE, GlobalMaps
 _strict = type('str', (str,), {})('strict')
 
 
+@dataclass(slots=True)
+class SchemaSettings:
+    """
+    Settings for schemas and XML instances that uses a specific configuration.
+    """
+    loader_class: Optional[type[SchemaLoader]] = None
+    locations: LocationsField = LocationsField()
+    converter: ConverterField = ConverterField()
+    base_url: BaseUrlField = BaseUrlField()
+    allow: AllowField = AllowField()
+    defuse: DefuseField = DefuseField()
+    timeout: TimeoutField = TimeoutField()
+    uri_mapper: UriMapperField = UriMapperField()
+    opener: OpenerField = OpenerField()
+    iterparse: IterParseField = IterParseField()
+    use_fallback: BooleanField = BooleanField(default=True)
+    use_xpath3: BooleanField = BooleanField(default=False)
+    use_meta: BooleanField = BooleanField(default=True)
+    loglevel: Optional[Union[str, int]] = None
+
+
 class XsdGlobals(XsdValidator, Collection[SchemaType]):
     """
     Mediator collection class for composing XML schema instances and provides lookup maps.
@@ -57,22 +83,37 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
     validation mode of the validator.
     :param parent: an optional parent schema, that is required to be built and with \
     no use of the target namespace of the validator.
+    :param loader_class: an optional subclass of :class:`SchemaLoader` to use for creating \
+    the loader instance.
+    :param locations: schema extra location hints, that can include custom resource locations \
+    or additional namespaces to import after processing schema's import statements.
+    :param use_fallback: if `True` the schema processor uses the validator fallback \
+    location hints to load well-known namespaces (e.g. xhtml).
+    :param use_xpath3: if `True` an XSD 1.1 schema instance uses the XPath 3 processor \
+    for assertions. For default a full XPath 2.0 processor is used.
+    :param kwargs: other keyword arguments passed to :class:`SchemaLoader`.
     """
     _schemas: set[SchemaType]
     namespaces: NamespaceResourcesMap[SchemaType]
     substitution_groups: dict[str, set[XsdElement]]
     identities: dict[str, XsdIdentity]
+    xpath_parser_class: type[XPath2Parser]
+    assertion_parser_class: type[XsdAssertionXPathParser]
 
-    __slots__ = ('_build_lock', '_schemas', '_parent', 'validation', 'errors',
-                 'validator', 'namespaces', 'loader', 'global_maps', 'types',
-                 'notations', 'attributes', 'attribute_groups', 'elements',
-                 'groups', 'substitution_groups', 'identities', '_built')
+    __slots__ = ('_build_lock', '_built', '_schemas', '_parent', 'validation',
+                 'errors', 'validator', 'namespaces', 'loader', 'global_maps',
+                 'types', 'notations', 'attributes', 'attribute_groups',
+                 'elements', 'groups', 'substitution_groups', 'identities',
+                 'xpath_parser_class', 'assertion_parser_class', 'settings')
 
     def __init__(self, validator: SchemaType,
                  validation: str = _strict,
                  parent: Optional[SchemaType] = None,
                  loader_class: Optional[Type[SchemaLoader]] = None,
-                 **loader_params: Any) -> None:
+                 locations: Optional[LocationsType] = None,
+                 use_fallback: bool = True,
+                 use_xpath3: bool = False,
+                 **kwargs: Any) -> None:
 
         if not isinstance(validation, _strict.__class__):
             msg = "argument 'validation' is not used and will be removed in v5.0"
@@ -94,6 +135,14 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
         self.substitution_groups = {}
         self.identities = {}
 
+        if use_xpath3:
+            module = importlib.import_module('xmlschema.xpath.xpath3')
+            self.xpath_parser_class = module.XPath3Parser
+            self.assertion_parser_class = module.XsdAssertionXPath3Parser
+        else:
+            self.xpath_parser_class = XPath2Parser
+            self.assertion_parser_class = XsdAssertionXPathParser
+
         for ancestor in self.iter_ancestors():
             self._schemas.update(ancestor.maps.schemas)
             self.namespaces.update(ancestor.maps.namespaces)
@@ -103,8 +152,17 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
             self.substitution_groups.update(ancestor.maps.substitution_groups)
             self.identities.update(ancestor.maps.identities)
 
+        kwargs.update(
+            loader_class=loader_class,
+            locations=locations,
+            use_fallback=use_fallback,
+            use_xpath3=use_xpath3,
+        )
+        self.settings = SchemaSettings(**kwargs)
+
         self.validator.maps = self
-        self.loader = (loader_class or SchemaLoader)(self, **loader_params)
+        self.loader = (loader_class or SchemaLoader)(self, locations, use_fallback)
+        assert not len(self.__dict__)
 
     @property
     def schemas(self) -> set[SchemaType]:
@@ -140,7 +198,7 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
         if hasattr(self, name):
             if name == '_built':
                 self.__dict__.clear()
-            elif name != '_parent':
+            elif name != '_parent' and name != 'settings':
                 msg = _("can't change attribute {!r} of a global maps instance")
                 raise XMLSchemaAttributeError(msg.format(name))
         super().__setattr__(name, value)
@@ -168,7 +226,7 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
             parent=self._parent,
             loader_class=self.loader.__class__,
         )
-
+        other.settings = self.settings
         other.loader.__dict__.update(self.loader.__dict__)
         other.loader.locations = self.loader.locations.copy()
         other.loader.missing_locations.update(self.loader.missing_locations)
@@ -284,12 +342,12 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
         else:
             return 'valid'
 
-    @validator_property
+    @cached_property
     def xpath_constructors(self) -> dict[str, Type[XPathToken]]:
         if not self._built:
             return {}
 
-        xpath_parser = self.loader.xpath_parser_class()
+        xpath_parser = self.xpath_parser_class()
         xpath_parser.schema = self.validator.xpath_proxy
 
         constructors: dict[str, Type[XPathToken]] = {}

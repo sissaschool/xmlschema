@@ -51,9 +51,15 @@ Ref.: https://www.w3.org/TR/xmlschema11-1/#key-va
 
 
 def check_validation_mode(validation: str) -> None:
+    try:
+        if validation in XSD_VALIDATION_MODES:
+            return
+    except TypeError:
+        pass
+
     if not isinstance(validation, str):
         raise XMLSchemaTypeError(_("validation mode must be a string"))
-    if validation not in XSD_VALIDATION_MODES:
+    else:
         raise XMLSchemaValueError(_("validation mode can be 'strict', "
                                     "'lax' or 'skip': %r") % validation)
 
@@ -100,7 +106,6 @@ class ValidationContext:
                  errors: Optional[ErrorsType] = None,
                  **kwargs: Any) -> None:
 
-        check_validation_mode(validation)
         self.source = source
         self.validation = validation
         self.errors = [] if errors is None else errors

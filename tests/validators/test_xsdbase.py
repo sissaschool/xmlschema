@@ -96,15 +96,18 @@ class TestXsdValidator(unittest.TestCase):
             schema.parse_error("test error")
 
         self.assertEqual(len(schema.errors), 0)
-        schema.parse_error("test error", validation='skip')
+        schema.validation = 'skip'
+        schema.parse_error("test error")
         self.assertEqual(len(schema.errors), 0)
-        schema.parse_error("test error", validation='lax')
+
+        schema.validation = 'lax'
+        schema.parse_error("test error")
         self.assertEqual(len(schema.errors), 1)
-        schema.parse_error(XMLSchemaParseError(schema, "test error"), validation='lax')
+        schema.parse_error(XMLSchemaParseError(schema, "test error"))
         self.assertEqual(len(schema.errors), 2)
-        schema.parse_error(ValueError("wrong value"), validation='lax')
+        schema.parse_error(ValueError("wrong value"))
         self.assertEqual(len(schema.errors), 3)
-        schema.parse_error(ValueError("'invalid value'"), validation='lax')
+        schema.parse_error(ValueError("'invalid value'"))
         self.assertEqual(len(schema.errors), 4)
         self.assertEqual(schema.errors[-1].message, "invalid value")
 

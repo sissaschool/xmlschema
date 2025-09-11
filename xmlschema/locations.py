@@ -14,6 +14,7 @@ from typing import Optional
 from xmlschema.namespaces import NamespaceResourcesMap
 from xmlschema.aliases import LocationsMapType, LocationsType
 from xmlschema.exceptions import XMLSchemaTypeError
+from xmlschema.fields import ValidatedField
 from xmlschema.translation import gettext as _
 from xmlschema.utils.urls import normalize_locations
 import xmlschema.names as nm
@@ -33,6 +34,11 @@ def get_locations(locations: Optional[LocationsType], base_url: Optional[str] = 
         raise XMLSchemaTypeError(msg.format(type(locations)))
     else:
         return NamespaceResourcesMap(normalize_locations(locations, base_url))
+
+
+class LocationsField(ValidatedField[Optional[LocationsType]]):
+    def __init__(self) -> None:
+        super().__init__((tuple, dict, list, NamespaceResourcesMap))
 
 
 SCHEMAS_DIR = os.path.join(os.path.dirname(__file__), 'schemas/')

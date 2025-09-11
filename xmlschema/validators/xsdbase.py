@@ -168,7 +168,6 @@ class XsdValidator:
 
     def parse_error(self, error: Union[str, Exception],
                     elem: Optional[ElementType] = None,
-                    validation: Optional[str] = None,
                     namespaces: Optional[NsmapType] = None) -> None:
         """
         Helper method for registering parse errors. Does nothing if validation mode is 'skip'.
@@ -177,16 +176,10 @@ class XsdValidator:
         :param error: can be a parse error or an error message.
         :param elem: the Element instance related to the error, for default uses the 'elem' \
         attribute of the validator, if it's present.
-        :param validation: overrides the default validation mode of the validator.
         :param namespaces: overrides the namespaces of the validator, or provides a mapping \
         if the validator hasn't a namespaces attribute.
         """
-        if validation is not None:
-            check_validation_mode(validation)
-        else:
-            validation = self.validation
-
-        if validation == 'skip':
+        if self.validation == 'skip':
             return
         elif elem is None:
             elem = getattr(self, 'elem', None)
@@ -215,7 +208,7 @@ class XsdValidator:
             msg = "'error' argument must be an exception or a string, not {!r}."
             raise XMLSchemaTypeError(msg.format(error))
 
-        if validation == 'lax':
+        if self.validation == 'lax':
             if error.stack_trace is None and logger.level == logging.DEBUG:
                 error.stack_trace = format_xmlschema_stack('xmlschema/validators')
                 logger.debug("Collect %r with traceback:\n%s", error, error.stack_trace)

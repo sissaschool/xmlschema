@@ -7,31 +7,24 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-import importlib
 import logging
 import warnings
 from operator import attrgetter
 from types import MappingProxyType
-from typing import Any, Optional, TYPE_CHECKING, Union
-from urllib.request import OpenerDirector
-
-from elementpath import XPath2Parser
+from typing import Any, Optional, TYPE_CHECKING
 
 from xmlschema import XMLResource
-from xmlschema.aliases import SchemaType, SchemaSourceType, XMLSourceType, LocationsType, \
-    IterParseType, UriMapperType
-from xmlschema.converters import check_converter_argument, ConverterType
+from xmlschema.aliases import SchemaType, SchemaSourceType, XMLSourceType, LocationsType
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError, \
     XMLResourceBlocked, XMLResourceForbidden, XMLResourceError, XMLResourceParseError
 from xmlschema.locations import get_locations, LOCATIONS, FALLBACK_LOCATIONS
 from xmlschema.namespaces import NamespaceResourcesMap
 from xmlschema.translation import gettext as _
 from xmlschema.utils.urls import normalize_url
-from xmlschema.xpath import XsdAssertionXPathParser
 import xmlschema.names as nm
 
-from xmlschema.validators import check_validation_mode, GlobalMaps, XMLSchemaParseError, \
-    XMLSchemaIncludeWarning, XMLSchemaImportWarning
+from xmlschema.validators import GlobalMaps, XMLSchemaParseError, XMLSchemaIncludeWarning, \
+    XMLSchemaImportWarning
 
 if TYPE_CHECKING:
     from xmlschema.validators import XsdGlobals  # noqa:F401
@@ -49,15 +42,10 @@ class SchemaLoader:
     The default schema loader, that processes an import statement only
     if the referred namespace is not imported yet.
     """
-    schema_class: type[SchemaType]
-    xpath_parser_class: type[XPath2Parser]
-    assertion_parser_class: type[XsdAssertionXPathParser]
-
-    validation: str
-
     fallback_locations = MappingProxyType({**LOCATIONS, **FALLBACK_LOCATIONS})
 
     locations: NamespaceResourcesMap[str]
+    schema_class: type[SchemaType]
     missing_locations: set[str]  # Missing or failing resource locations
 
     __slots__ = ('maps', 'namespaces', 'locations', 'missing_locations', '__dict__')
@@ -65,59 +53,16 @@ class SchemaLoader:
     def __init__(self,
                  maps: 'XsdGlobals',
                  locations: Optional[LocationsType] = None,
-                 validation: str = 'strict',
-                 converter: Optional[ConverterType] = None,
-                 base_url: Optional[str] = None,
-                 allow: str = 'all',
-                 defuse: str = 'remote',
-                 timeout: int = 300,
-                 uri_mapper: Optional[UriMapperType] = None,
-                 opener: Optional[OpenerDirector] = None,
-                 iterparse: Optional[IterParseType] = None,
-                 use_fallback: bool = True,
-                 use_xpath3: bool = False,
-                 loglevel: Optional[Union[str, int]] = None) -> None:
-
-        check_validation_mode(validation)
-        check_converter_argument(converter)
+                 use_fallback: bool = True) -> None:
 
         self.maps = maps
-        self.validator = maps.validator
         self.namespaces = maps.namespaces
-
-        # Save init params for loading other XSD or XML resources
-        self.schema_class = self.validator.__class__
-        self.validation = self.validator.validation
-        self.converter = converter
-        self.allow = allow
-        self.defuse = defuse
-        self.timeout = timeout
-        self.uri_mapper = uri_mapper
-        self.iterparse = iterparse
-        self.opener = opener
-
-        self.use_fallback = use_fallback
-        self.use_xpath3 = use_xpath3
-        self.loglevel = loglevel
-
-        if base_url is None:
-            self.base_url = self.validator.base_url
-        else:
-            self.base_url = base_url
-
-        self.locations = get_locations(locations, self.base_url)
+        self.schema_class = type(maps.validator)
+        self.locations = get_locations(locations, maps.validator.base_url)
         self.missing_locations = set()
 
         if not use_fallback:
             self.fallback_locations = MappingProxyType({})
-
-        if not use_xpath3:
-            self.xpath_parser_class = XPath2Parser
-            self.assertion_parser_class = XsdAssertionXPathParser
-        else:
-            module = importlib.import_module('xmlschema.xpath.xpath3')
-            self.xpath_parser_class = module.XPath3Parser
-            self.assertion_parser_class = module.XsdAssertionXPath3Parser
 
     def clear(self) -> None:
         self.maps.clear()
@@ -360,15 +305,15 @@ class SchemaLoader:
         return self.schema_class(
             source=source,
             namespace=namespace,
-            validation=self.validation,
+            validation=self.maps.validation,
             global_maps=self.maps,
-            converter=self.converter,
+            converter=self.maps.settings.converter,
             base_url=base_url,
-            allow=self.allow,
-            defuse=self.defuse,
-            timeout=self.timeout,
-            uri_mapper=self.uri_mapper,
-            opener=self.opener,
+            allow=self.maps.settings.allow,
+            defuse=self.maps.settings.defuse,
+            timeout=self.maps.settings.timeout,
+            uri_mapper=self.maps.settings.uri_mapper,
+            opener=self.maps.settings.opener,
             build=build,
             partial=partial,
         )
@@ -385,11 +330,10 @@ class SchemaLoader:
         build fails the resource URL is added to missing locations and the global \
         maps are restored at previous state.
         """
-        if namespace in self.namespaces:
+        if namespace in self.maps.namespaces:
             return True
-        elif self.validator.meta_schema is None and \
-                namespace not in self.validator.BASE_SCHEMAS:
-            return False  # Do not load additional namespaces for meta-schema
+        elif self.maps.validator.meta_schema is None:
+            return True  # Do not load additional namespaces in meta-schema maps
 
         if not build:
             for url in self.get_locations(namespace):
@@ -417,10 +361,10 @@ class SchemaLoader:
         """Loads an XML resource using the loader settings."""
         return (cls or XMLResource)(
             source=source,
-            defuse=self.defuse,
-            timeout=self.timeout,
-            opener=self.opener,
-            iterparse=self.iterparse,
+            defuse=self.maps.settings.defuse,
+            timeout=self.maps.settings.timeout,
+            opener=self.maps.settings.opener,
+            iterparse=self.maps.settings.iterparse,
         )
 
     def is_missing(self, namespace: str, location: Optional[str] = None,
@@ -452,9 +396,9 @@ class SafeSchemaLoader(SchemaLoader):
     referred location is not already loaded and after checking
     if there aren't collisions with loaded schemas.
     """
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
-        self.global_maps = GlobalMaps.from_builders(self.validator.builders)
+    def __init__(self, maps: 'XsdGlobals', *args: Any, **kwargs: Any) -> None:
+        super().__init__(maps, *args, **kwargs)
+        self.global_maps = GlobalMaps.from_builders(maps.validator.builders)
         self.excluded_locations: set[str] = set()
 
     def clear(self) -> None:

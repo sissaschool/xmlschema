@@ -71,7 +71,7 @@ class BaseUrlArgument(Argument[Optional[str]]):
 
         if instance.url is not None:
             return os.path.dirname(instance.url)
-        return self.validated_value(getattr(instance, self._private_name))
+        return cast(Optional[str], getattr(instance, self._private_name))
 
     def validated_value(self, value: Any) -> Optional[str]:
         value = super().validated_value(value)

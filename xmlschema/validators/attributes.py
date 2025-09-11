@@ -618,12 +618,11 @@ class XsdAttributeGroup(
 
     def parse_error(self, error: Union[str, Exception],
                     elem: Optional[ElementType] = None,
-                    validation: Optional[str] = None,
                     namespaces: Optional[NsmapType] = None) -> None:
         if self.parent is None:
-            super().parse_error(error, elem, validation, namespaces)
+            super().parse_error(error, elem, namespaces)
         else:
-            self.parent.parse_error(error, elem, validation, namespaces)
+            self.parent.parse_error(error, elem, namespaces)
 
     def iter_required(self) -> Iterator[str]:
         for k, v in self._attribute_group.items():

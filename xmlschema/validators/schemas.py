@@ -54,7 +54,7 @@ from xmlschema import dataobjects
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaEncodeError, \
     XMLSchemaStopValidation
-from .validation import DecodeContext, EncodeContext
+from .validation import DecodeContext, EncodeContext, check_validation_mode
 from .helpers import get_xsd_derivation_attribute, get_xsd_annotation_child, qname_validator
 from .xsdbase import XSD_ELEMENT_DERIVATIONS, XsdValidator, XsdComponent, XsdAnnotation
 from .notations import XsdNotation
@@ -316,7 +316,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         self.imported_namespaces = []
         self.includes = {}
         self.warnings = []
-        self.converter = converter
 
         if loglevel is not None:
             set_logging_level(loglevel)
@@ -420,7 +419,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 self,
                 parent=parent,
                 loader_class=loader_class,
-
                 locations=locations,
                 converter=converter,
                 base_url=self.source.base_url,
@@ -548,6 +546,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         elif name == 'meta_schema':
             msg = _("can't set the meta_schema instance of a schema")
             raise XMLSchemaAttributeError(msg)
+        elif name == 'validation':
+            check_validation_mode(value)
         elif name == 'default_attributes':
             if isinstance(self.default_attributes, XsdAttributeGroup):
                 msg = _("can't change the {!r} attribute of a schema").format(name)
@@ -669,24 +669,28 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         return self.source.opener
 
     @property
+    def converter(self) -> Optional[ConverterType]:
+        return self.maps.settings.converter
+
+    @property
     def iterparse(self) -> Optional[IterParseType]:
         """The optional callable argument for creating iterator parsers for XML data."""
-        return self.maps.loader.iterparse
+        return self.maps.settings.iterparse
 
     @property
     def locations(self) -> Optional[LocationsType]:
         """Schema extra location hints also provided by document schema location hints."""
-        return self.maps.loader.locations
+        return self.maps.settings.locations
 
     @property
     def use_fallback(self) -> bool:
         """If the schema processor uses the validator fallback location hints."""
-        return self.maps.loader.use_fallback
+        return self.maps.settings.use_fallback
 
     @property
     def use_xpath3(self) -> bool:
         """If XSD 1.1 schema instance uses the XPath 3 processor for assertions."""
-        return self.maps.loader.use_xpath3
+        return self.maps.settings.use_xpath3
 
     @property
     def use_meta(self) -> bool:
@@ -698,17 +702,17 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         return self.meta_schema is None and self in _meta_registry
 
     # Schema root attributes
-    @property
+    @cached_property
     def tag(self) -> str:
         """Schema root tag. For compatibility with the ElementTree API."""
         return self.source.root.tag
 
-    @property
+    @cached_property
     def id(self) -> Optional[str]:
         """The schema's *id* attribute, defaults to ``None``."""
         return self.source.root.get('id')
 
-    @property
+    @cached_property
     def version(self) -> Optional[str]:
         """The schema's *version* attribute, defaults to ``None``."""
         return self.source.root.get('version')
@@ -994,7 +998,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         :return: a converter instance.
         """
         if converter is None:
-            converter = self.converter
+            converter = self.maps.settings.converter
         return get_converter(converter, **kwargs)
 
     def get_locations(self, namespace: str) -> list[str]:
@@ -1623,7 +1627,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             resource = self.maps.loader.load_resource(source)
 
         if converter is None:
-            converter = self.converter
+            converter = self.maps.settings.converter
 
         kwargs.update(
             process_namespaces=process_namespaces,
@@ -1785,7 +1789,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             raise XMLSchemaValueError(msg)
 
         if converter is None:
-            converter = self.converter
+            converter = self.maps.settings.converter
 
         kwargs.update(
             namespaces=namespaces,

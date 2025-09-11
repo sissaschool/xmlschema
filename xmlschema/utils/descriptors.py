@@ -105,7 +105,7 @@ class Argument(Generic[T]):
             -> Union['Argument[T]', T]:
         if instance is None:
             return self
-        return self.validated_value(getattr(instance, self._private_name))
+        return cast(T, getattr(instance, self._private_name))
 
     def __set__(self, instance: Any, value: Any) -> None:
         if hasattr(instance, self._private_name):
