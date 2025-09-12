@@ -1,5 +1,5 @@
 #
-# Copyright (c), 2016-2024, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2025, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -11,14 +11,13 @@ from collections.abc import Callable, Iterable
 from threading import Lock
 from typing import Any, cast, Generic, Optional, overload, TypeVar, TYPE_CHECKING, Union
 
-from xmlschema.aliases import ClassInfoType
 from xmlschema.exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, XMLSchemaValueError
 from xmlschema.translation import gettext as _
 
 if TYPE_CHECKING:
-    from xmlschema.validators.xsdbase import XsdValidator  # noqa: F401
+    from xmlschema.validators.xsdbase import XsdValidator  # noqa
 
-__all__ = ['validator_property', 'Argument', 'ChoiceArgument', 'ValueArgument']
+__all__ = ['validator_property', 'Attribute', 'Option', 'Argument']
 
 
 VT = TypeVar('VT', bound='XsdValidator')
@@ -72,90 +71,73 @@ class validator_property(Generic[VT, RT]):
 T = TypeVar('T')
 
 
-class Argument(Generic[T]):
+class Attribute(Generic[T]):
     """
-    A validated initialization argument, with a private attribute that
-    can set only if it's not defined yet.
-
-    :param types: a type or a tuple of types for explicit type check. \
-    For default no type checking is done.
-    :param validators: an optional sequence of validator functions that accepts \
-    a single argument and returns True if the argument is valid.
-    :param nillable: defines when a `None` value is accepted.
+    A validated descriptor for handling protected attributes
     """
-
-    def __init__(self, types: Optional[ClassInfoType[Any]] = None,
-                 validators: Iterable[Callable[[Any], bool]] = (),
-                 nillable: bool = True) -> None:
-        self.types = types
-        self.validators = validators
-        self.nillable = nillable
+    __slots__ = ('_name', '_owner')
 
     def __set_name__(self, owner: type[Any], name: str) -> None:
-        self._name = name
-        self._private_name = f'_{name}'
+        self._name = f'_{name}'
+        self._owner = owner
 
-    @overload
-    def __get__(self, instance: None, owner: type[Any]) -> 'Argument[T]': ...
+    def __str__(self) -> str:
+        return _('attribute {!r}').format(self._name[1:])
 
-    @overload
-    def __get__(self, instance: Any, owner: type[Any]) -> T: ...
-
-    def __get__(self, instance: Optional[Any], owner: type[Any]) \
-            -> Union['Argument[T]', T]:
-        if instance is None:
-            return self
-        return cast(T, getattr(instance, self._private_name))
+    def __get__(self, instance: Optional[Any], owner: type[Any]) -> T:
+        try:
+            return cast(T, getattr(instance, self._name))
+        except AttributeError:
+            if instance is None:
+                msg = _("{} can't be accessed from {!r}").format(self, owner)
+            else:
+                msg = _("{} of {!r} object has not been set").format(self, instance)
+            raise XMLSchemaAttributeError(msg) from None
 
     def __set__(self, instance: Any, value: Any) -> None:
-        if hasattr(instance, self._private_name):
-            raise XMLSchemaAttributeError(_("Can't set attribute {}").format(self._name))
-        setattr(instance, self._private_name, self.validated_value(value))
+        if hasattr(instance, self._name):
+            raise XMLSchemaAttributeError(_("can't change {}").format(self))
+        setattr(instance, self._name, self.validated_value(value))
 
     def __delete__(self, instance: Any) -> None:
-        raise XMLSchemaAttributeError(_("Can't delete attribute {}").format(self._name))
+        raise XMLSchemaAttributeError(_("can't delete {}").format(self))
 
     def validated_value(self, value: Any) -> T:
-        if value is None and self.nillable or \
-                self.types and isinstance(value, self.types) or \
-                any(func(value) for func in self.validators):
-            return cast(T, value)
-        else:
-            msg = _("invalid type {!r} for argument {!r}")
-            raise XMLSchemaTypeError(msg.format(type(value), self._name))
-
-
-class ChoiceArgument(Argument[T]):
-    """A string-type argument restricted by a set of choices."""
-
-    def __init__(self, types: ClassInfoType[Any], choices: Iterable[T]) -> None:
-        super().__init__(types, nillable=False)
-        self.choices = choices
-
-    def validated_value(self, value: Any) -> T:
-        value = super().validated_value(value)
-        if value not in self.choices:
-            msg = _("invalid value {!r} for argument {!r}: must be one of {}")
-            raise XMLSchemaValueError(msg.format(value, self._name, tuple(self.choices)))
         return cast(T, value)
 
+    def _validate_choice(self, value: T, choices: Iterable[T]) -> None:
+        if value not in choices:
+            msg = _("invalid value {!r} for {}: must be one of {}")
+            raise XMLSchemaValueError(msg.format(value, self, tuple(choices)))
 
-class ValueArgument(Argument[T]):
-    """A typed argument with optional min and max values."""
+    def _validate_minimum(self, value: T, min_value: Any) -> None:
+        if value < min_value:
+            msg = _("the value of {} must be greater or equal than {}")
+            raise XMLSchemaValueError(msg.format(self, min_value))
 
-    def __init__(self, types: ClassInfoType[Any],
-                 min_value: Optional[T] = None,
-                 max_value: Optional[T] = None) -> None:
-        super().__init__(types, nillable=False)
-        self.min_value = min_value
-        self.max_value = max_value
 
-    def validated_value(self, value: Any) -> T:
-        value = super().validated_value(value)
-        if self.min_value is not None and value < self.min_value:
-            msg = _("the argument {!r} must be greater or equal than {}")
-            raise XMLSchemaValueError(msg.format(self._name, self.min_value))
-        elif self.max_value is not None and value > self.max_value:
-            msg = _("the argument {!r} must be lesser or equal than {}")
-            raise XMLSchemaValueError(msg.format(self._name, self.max_value))
-        return cast(T, value)
+class Argument(Attribute[T]):
+    """Descriptor for an XML schema positional arguments."""
+    def __str__(self) -> str:
+        return _('argument {!r}').format(self._name[1:])
+
+
+class Option(Argument[T]):
+    """
+    Descriptor for handling XML schema optional arguments and settings options.
+    """
+    __slots__ = ('_default',)
+
+    def __init__(self, *, default: T) -> None:
+        self._default = default
+
+    def __str__(self) -> str:
+        if 'Settings' in self._owner.__name__:
+            return _('settings option {!r}').format(self._name[1:])
+        return _('optional argument {!r}').format(self._name[1:])
+
+    def __get__(self, instance: Any, owner: type[Any]) -> T:
+        try:
+            return cast(T, getattr(instance, self._name))
+        except AttributeError:
+            return self._default

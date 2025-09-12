@@ -33,12 +33,12 @@ from xmlschema.utils.streams import is_file_object
 from xmlschema.utils.qnames import update_namespaces, get_namespace_map
 from xmlschema.utils.urls import is_url, is_remote_url, is_local_url, normalize_url, \
     normalize_locations
-from xmlschema.utils.descriptors import Argument
+from xmlschema.utils.descriptors import Argument, Option
 from xmlschema.xpath import ElementSelector
+from xmlschema.options import SourceArgument, BaseUrlOption, AllowOption, \
+    DefuseOption, TimeoutOption, UriMapperOption, OpenerOption, SelectorOption
 
 from .sax import defuse_xml
-from .arguments import SourceArgument, BaseUrlArgument, AllowArgument, DefuseArgument, \
-    TimeoutArgument, UriMapperArgument, OpenerArgument, SelectorArgument
 from .xml_loader import XMLResourceLoader
 
 
@@ -97,13 +97,14 @@ class XMLResource(XMLResourceLoader):
     """
     # Descriptor-based attributes for arguments
     source = SourceArgument()
-    base_url = BaseUrlArgument()
-    allow = AllowArgument()
-    defuse = DefuseArgument()
-    timeout = TimeoutArgument()
-    uri_mapper = UriMapperArgument()
-    opener = OpenerArgument()
-    selector = SelectorArgument()
+
+    base_url = BaseUrlOption(default=None)
+    allow = AllowOption(default='all')
+    defuse = DefuseOption(default='remote')
+    timeout = TimeoutOption(default=300)
+    uri_mapper = UriMapperOption(default=None)
+    opener = OpenerOption(default=None)
+    selector = SelectorOption(default=ElementSelector)
 
     # Private attributes for arguments
     _source: XMLSourceType
@@ -302,7 +303,7 @@ class XMLResource(XMLResourceLoader):
     def get_arguments(self) -> dict[str, Any]:
         """Returns keyword arguments for rebuilding the XML resource."""
         return {k: getattr(self, k) for k, v in self.__class__.__dict__.items()
-                if isinstance(v, Argument)}
+                if isinstance(v, (Argument, Option))}
 
     def get_text(self) -> str:
         """
@@ -434,7 +435,7 @@ class XMLResource(XMLResourceLoader):
                     (self._opener is None or self.url is None):
                 # For seekable file-like objects or ones that can be wrapped in
                 # a buffered reader defuse with rewind option if no custom opener
-                # is provided and the instance has an url, otherwise fallback to
+                # is provided and the instance has a url, otherwise fallback to
                 # double opening with no rewind after the defusing.
                 try:
                     return defuse_xml(fp)

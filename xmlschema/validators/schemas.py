@@ -22,7 +22,7 @@ from collections.abc import Callable, Iterator
 from functools import cached_property
 from operator import attrgetter
 from pathlib import Path
-from typing import Any, cast, Optional, Union, Type
+from typing import Any, cast, Optional, Union
 from urllib.request import OpenerDirector
 from xml.etree import ElementTree
 from xml.etree.ElementTree import Element
@@ -85,7 +85,7 @@ class XMLSchemaMeta(ABCMeta):
     meta_schema: Optional[SchemaType]
     create_meta_schema: Callable[[SchemaType, Optional[str]], SchemaType]
 
-    def __new__(mcs, name: str, bases: tuple[Type[Any]], dict_: dict[str, Any]) \
+    def __new__(mcs, name: str, bases: tuple[type[Any]], dict_: dict[str, Any]) \
             -> 'XMLSchemaMeta':
         assert bases, "a base class is mandatory"
         base_class = bases[0]
@@ -302,7 +302,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                  uri_mapper: Optional[UriMapperType] = None,
                  opener: Optional[OpenerDirector] = None,
                  iterparse: Optional[IterParseType] = None,
-                 loader_class: Optional[Type[SchemaLoader]] = None,
+                 loader_class: Optional[type[SchemaLoader]] = None,
                  use_fallback: bool = True,
                  use_xpath3: bool = False,
                  use_meta: bool = True,
@@ -615,7 +615,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         return build_schema_node_tree(root=self, uri=self.source.url)
 
     @property
-    def xpath_tokens(self) -> dict[str, Type[XPathToken]]:
+    def xpath_tokens(self) -> dict[str, type[XPathToken]]:
         """Returns the XPath constructors tokens."""
         return self.maps.xpath_constructors
 
@@ -1528,7 +1528,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                     namespaces: Optional[NsmapType] = None,
                     use_defaults: bool = True,
                     use_location_hints: bool = False,
-                    decimal_type: Optional[Type[Any]] = None,
+                    decimal_type: Optional[type[Any]] = None,
                     datetime_types: bool = False,
                     binary_types: bool = False,
                     converter: Optional[ConverterType] = None,

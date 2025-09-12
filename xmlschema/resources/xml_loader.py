@@ -12,6 +12,7 @@ from itertools import zip_longest
 from collections.abc import Iterator
 from threading import Lock, RLock
 from typing import cast, Any, Optional, Union
+from xml.etree import ElementTree
 
 from elementpath import ElementNode, LazyElementNode, DocumentNode, \
     build_lxml_node_tree, build_node_tree
@@ -23,7 +24,7 @@ from xmlschema.exceptions import XMLResourceError, XMLResourceParseError
 from xmlschema.utils.misc import iter_class_slots
 from xmlschema.utils.qnames import get_namespace
 
-from .arguments import LazyArgument, ThinLazyArgument, IterParseArgument
+from xmlschema.options import LazyOption, ThinLazyOption, IterParseOption
 
 LazyLockType = RLock if platform.python_implementation() == 'PyPy' else Lock
 
@@ -33,9 +34,9 @@ class XMLResourceLoader:
     A proxy for XML data loading that can handle full or lazy loads of XML trees.
     """
     # Descriptor-based attributes for arguments
-    lazy = LazyArgument()
-    thin_lazy = ThinLazyArgument()
-    iterparse = IterParseArgument()
+    lazy = LazyOption(default=False)
+    thin_lazy = ThinLazyOption(default=True)
+    iterparse = IterParseOption(default=ElementTree.iterparse)
 
     # Private attributes for arguments
     _lazy: Union[bool, int]

@@ -9,15 +9,65 @@
 #
 import os
 from collections.abc import Iterable
-from typing import Optional
+from typing import Optional, Any, MutableMapping, Iterator, TypeVar
 
-from xmlschema.namespaces import NamespaceResourcesMap
 from xmlschema.aliases import LocationsMapType, LocationsType
 from xmlschema.exceptions import XMLSchemaTypeError
-from xmlschema.fields import ValidatedField
 from xmlschema.translation import gettext as _
 from xmlschema.utils.urls import normalize_locations
+from xmlschema.utils.descriptors import Option
 import xmlschema.names as nm
+
+T = TypeVar('T', bound=object)
+
+
+class NamespaceResourcesMap(MutableMapping[str, list[T]]):
+    """
+    Dictionary for storing information about namespace resources. Values are
+    lists of objects. Setting an existing value appends the object to the value.
+    Setting a value with a list sets/replaces the value.
+    """
+    __slots__ = ('_store',)
+
+    def __init__(self, *args: Any, **kwargs: Any):
+        self._store: dict[str, list[T]] = {}
+        for item in args:
+            self.update(item)
+        self.update(kwargs)
+
+    def __getitem__(self, uri: str) -> list[T]:
+        return self._store[uri]
+
+    def __setitem__(self, uri: str, value: Any) -> None:
+        if isinstance(value, list):
+            self._store[uri] = value[:]
+        else:
+            try:
+                self._store[uri].append(value)
+            except KeyError:
+                self._store[uri] = [value]
+
+    def __delitem__(self, uri: str) -> None:
+        del self._store[uri]
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self._store)
+
+    def __len__(self) -> int:
+        return len(self._store)
+
+    def __repr__(self) -> str:
+        return repr(self._store)
+
+    def clear(self) -> None:
+        self._store.clear()
+
+    def copy(self) -> 'NamespaceResourcesMap[T]':
+        obj: NamespaceResourcesMap[T] = object.__new__(self.__class__)
+        obj._store = {k: v.copy() for k, v in self.items()}
+        return obj
+
+    __copy__ = copy
 
 
 def get_locations(locations: Optional[LocationsType], base_url: Optional[str] = None) \
@@ -36,9 +86,14 @@ def get_locations(locations: Optional[LocationsType], base_url: Optional[str] = 
         return NamespaceResourcesMap(normalize_locations(locations, base_url))
 
 
-class LocationsField(ValidatedField[Optional[LocationsType]]):
-    def __init__(self) -> None:
-        super().__init__((tuple, dict, list, NamespaceResourcesMap))
+class LocationsOption(Option[Optional[LocationsType]]):
+    def validated_value(self, value: Any) -> Optional[LocationsType]:
+        if value is None or isinstance(value, (tuple, dict, list, NamespaceResourcesMap)):
+            return value
+        msg = _("invalid type {!r} for {}, must be of type {!r} or None")
+        raise XMLSchemaTypeError(msg.format(
+            type(value), self, (tuple, dict, list, NamespaceResourcesMap)
+        ))
 
 
 SCHEMAS_DIR = os.path.join(os.path.dirname(__file__), 'schemas/')

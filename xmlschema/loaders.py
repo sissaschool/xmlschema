@@ -11,16 +11,18 @@ import logging
 import warnings
 from operator import attrgetter
 from types import MappingProxyType
-from typing import Any, Optional, TYPE_CHECKING
+from typing import Any, cast, Optional, TYPE_CHECKING
 
-from xmlschema import XMLResource
 from xmlschema.aliases import SchemaType, SchemaSourceType, XMLSourceType, LocationsType
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError, \
     XMLResourceBlocked, XMLResourceForbidden, XMLResourceError, XMLResourceParseError
-from xmlschema.locations import get_locations, LOCATIONS, FALLBACK_LOCATIONS
-from xmlschema.namespaces import NamespaceResourcesMap
 from xmlschema.translation import gettext as _
 from xmlschema.utils.urls import normalize_url
+from xmlschema.utils.descriptors import Option
+from xmlschema.utils.misc import is_subclass
+from xmlschema.locations import NamespaceResourcesMap, get_locations, \
+    LOCATIONS, FALLBACK_LOCATIONS
+from xmlschema.resources import XMLResource
 import xmlschema.names as nm
 
 from xmlschema.validators import GlobalMaps, XMLSchemaParseError, XMLSchemaIncludeWarning, \
@@ -35,6 +37,17 @@ base_url_attribute = attrgetter('name')
 SCHEMA_DECLARATION_TAGS = frozenset(
     (nm.XSD_IMPORT, nm.XSD_INCLUDE, nm.XSD_REDEFINE, nm.XSD_OVERRIDE)
 )
+
+
+class LoaderClassOption(Option[type['SchemaLoader']]):
+    def validated_value(self, value: Any) -> type['SchemaLoader']:
+        if value is None:
+            return self._default
+        elif is_subclass(value, SchemaLoader):
+            return cast(type[SchemaLoader], value)
+        else:
+            msg = _("invalid type {!r} for {}, must be a subclass of {!r}")
+            raise XMLSchemaTypeError(msg.format(value, self, SchemaLoader))
 
 
 class SchemaLoader:

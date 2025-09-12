@@ -10,7 +10,7 @@
 import json
 from io import IOBase, TextIOBase
 from collections.abc import Iterator
-from typing import Any, Optional, Type, Union, IO, BinaryIO, TextIO
+from typing import Any, BinaryIO, IO, Optional, TextIO, Union
 from xml.etree import ElementTree
 
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError, XMLResourceError
@@ -40,7 +40,7 @@ SCHEMA_KWARGS = COMMON_KWARGS.union(
 
 def get_context(xml_document: Union[XMLSourceType, XMLResource],
                 schema: Optional[Union[XMLSchemaBase, SchemaSourceType]] = None,
-                cls: Optional[Type[XMLSchemaBase]] = None,
+                cls: Optional[type[XMLSchemaBase]] = None,
                 locations: Optional[LocationsType] = None,
                 use_location_hints: bool = True,
                 dummy_schema: bool = False,
@@ -97,7 +97,7 @@ def get_context(xml_document: Union[XMLSourceType, XMLResource],
         raise XMLSchemaValueError(msg)
 
 
-def get_dummy_schema(tag: str, cls: Type[XMLSchemaBase]) -> XMLSchemaBase:
+def get_dummy_schema(tag: str, cls: type[XMLSchemaBase]) -> XMLSchemaBase:
     if tag.startswith('{'):
         namespace, name = tag[1:].split('}')
     else:
@@ -117,7 +117,7 @@ def get_dummy_schema(tag: str, cls: Type[XMLSchemaBase]) -> XMLSchemaBase:
         )
 
 
-def get_lazy_json_encoder(errors: list[XMLSchemaValidationError]) -> Type[json.JSONEncoder]:
+def get_lazy_json_encoder(errors: list[XMLSchemaValidationError]) -> type[json.JSONEncoder]:
 
     class JSONLazyEncoder(json.JSONEncoder):
         def default(self, obj: Any) -> Any:
@@ -135,7 +135,7 @@ def get_lazy_json_encoder(errors: list[XMLSchemaValidationError]) -> Type[json.J
 
 def validate(xml_document: Union[XMLSourceType, XMLResource],
              schema: Optional[XMLSchemaBase] = None,
-             cls: Optional[Type[XMLSchemaBase]] = None,
+             cls: Optional[type[XMLSchemaBase]] = None,
              path: Optional[str] = None,
              schema_path: Optional[str] = None,
              use_defaults: bool = True,
@@ -181,7 +181,7 @@ def validate(xml_document: Union[XMLSourceType, XMLResource],
 
 def is_valid(xml_document: Union[XMLSourceType, XMLResource],
              schema: Optional[XMLSchemaBase] = None,
-             cls: Optional[Type[XMLSchemaBase]] = None,
+             cls: Optional[type[XMLSchemaBase]] = None,
              path: Optional[str] = None,
              schema_path: Optional[str] = None,
              use_defaults: bool = True,
@@ -202,7 +202,7 @@ def is_valid(xml_document: Union[XMLSourceType, XMLResource],
 
 def iter_errors(xml_document: Union[XMLSourceType, XMLResource],
                 schema: Optional[XMLSchemaBase] = None,
-                cls: Optional[Type[XMLSchemaBase]] = None,
+                cls: Optional[type[XMLSchemaBase]] = None,
                 path: Optional[str] = None,
                 schema_path: Optional[str] = None,
                 use_defaults: bool = True,
@@ -223,7 +223,7 @@ def iter_errors(xml_document: Union[XMLSourceType, XMLResource],
 
 def iter_decode(xml_document: Union[XMLSourceType, XMLResource],
                 schema: Optional[XMLSchemaBase] = None,
-                cls: Optional[Type[XMLSchemaBase]] = None,
+                cls: Optional[type[XMLSchemaBase]] = None,
                 path: Optional[str] = None,
                 validation: str = 'lax',
                 locations: Optional[LocationsType] = None,
@@ -266,7 +266,7 @@ def iter_decode(xml_document: Union[XMLSourceType, XMLResource],
 
 def to_dict(xml_document: Union[XMLSourceType, XMLResource],
             schema: Optional[XMLSchemaBase] = None,
-            cls: Optional[Type[XMLSchemaBase]] = None,
+            cls: Optional[type[XMLSchemaBase]] = None,
             path: Optional[str] = None,
             validation: str = 'strict',
             locations: Optional[LocationsType] = None,
@@ -291,7 +291,7 @@ def to_dict(xml_document: Union[XMLSourceType, XMLResource],
 def to_json(xml_document: Union[XMLSourceType, XMLResource],
             fp: Optional[IO[str]] = None,
             schema: Optional[XMLSchemaBase] = None,
-            cls: Optional[Type[XMLSchemaBase]] = None,
+            cls: Optional[type[XMLSchemaBase]] = None,
             path: Optional[str] = None,
             validation: str = 'strict',
             locations: Optional[LocationsType] = None,
@@ -365,7 +365,7 @@ def to_json(xml_document: Union[XMLSourceType, XMLResource],
 
 def to_etree(obj: Any,
              schema: Optional[Union[XMLSchemaBase, SchemaSourceType]] = None,
-             cls: Optional[Type[XMLSchemaBase]] = None,
+             cls: Optional[type[XMLSchemaBase]] = None,
              path: Optional[str] = None,
              validation: str = 'strict',
              namespaces: Optional[NsmapType] = None,
@@ -444,7 +444,7 @@ def to_etree(obj: Any,
 
 def from_json(source: Union[str, bytes, IO[str]],
               schema: Optional[Union[XMLSchemaBase, SchemaSourceType]] = None,
-              cls: Optional[Type[XMLSchemaBase]] = None,
+              cls: Optional[type[XMLSchemaBase]] = None,
               path: Optional[str] = None,
               validation: str = 'strict',
               namespaces: Optional[NsmapType] = None,
@@ -530,7 +530,7 @@ class XmlDocument(XMLResource):
 
     def __init__(self, source: XMLSourceType,
                  schema: Optional[Union[XMLSchemaBase, SchemaSourceType]] = None,
-                 cls: Optional[Type[XMLSchemaBase]] = None,
+                 cls: Optional[type[XMLSchemaBase]] = None,
                  validation: str = 'strict',
                  namespaces: Optional[NsmapType] = None,
                  locations: Optional[LocationsType] = None,

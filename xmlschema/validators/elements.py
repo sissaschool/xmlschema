@@ -51,8 +51,8 @@ from .attributes import XsdAttribute
 from .wildcards import XsdAnyElement
 
 if TYPE_CHECKING:
-    from .attributes import XsdAttributeGroup
-    from .groups import XsdGroup
+    from .attributes import XsdAttributeGroup  # noqa: F401
+    from .groups import XsdGroup  # noqa: F401
 
 DataBindingType = Type['dataobjects.DataElement']
 
@@ -86,6 +86,7 @@ class XsdElement(XsdComponent, ParticleMixin,
     local_name: str
     qualified_name: str
     prefixed_name: str
+    target_namespace: str
 
     parent: Optional['XsdGroup']
     ref: Optional['XsdElement']

@@ -492,11 +492,12 @@ class TestResources(XMLSchemaTestCase):
         with self.assertRaises(XMLSchemaTypeError) as ctx:
             XMLResource("https://xmlschema.test/vehicles.xsd", allow=None)
         self.assertEqual(str(ctx.exception),
-                         "invalid type <class 'NoneType'> for argument 'allow'")
+                         "invalid type <class 'NoneType'> for optional argument "
+                         "'allow', must be of type <class 'str'>")
 
         with self.assertRaises(XMLSchemaValueError) as ctx:
             XMLResource("https://xmlschema.test/vehicles.xsd", allow='any')
-        self.assertIn("invalid value 'any' for argument 'allow'", str(ctx.exception))
+        self.assertIn("invalid value 'any' for optional argument 'allow'", str(ctx.exception))
 
         with self.assertRaises(XMLResourceBlocked) as ctx:
             XMLResource(self.vh_xml_file, allow='none')

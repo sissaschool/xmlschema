@@ -27,7 +27,7 @@ from elementpath import ElementNode, LazyElementNode, DocumentNode
 
 from .utils.protocols import IOProtocol
 
-__all__ = ['ElementType', 'ElementTreeType', 'XMLSourceType', 'NsmapType', 'LocationsMapType',
+__all__ = ['ElementType', 'ElementTreeType', 'XMLSourceType', 'NsmapType',
            'NormalizedLocationsType', 'LocationsType', 'NsmapType', 'XmlnsType',
            'ParentMapType', 'SchemaType', 'BaseXsdType', 'SchemaElementType',
            'SchemaAttributeType', 'SchemaGlobalType', 'ModelGroupType',
@@ -38,13 +38,15 @@ __all__ = ['ElementType', 'ElementTreeType', 'XMLSourceType', 'NsmapType', 'Loca
            'JsonDecodeType', 'EncodeType', 'IterEncodeType', 'DecodedValueType',
            'FillerType', 'DepthFillerType', 'ValueHookType', 'ElementHookType',
            'SerializerType', 'OccursCounterType', 'LazyType', 'SourceType',
-           'UriMapperType', 'IterParseType', 'EtreeType', 'IOType', 'ClassInfoType',
-           'ResourceNodeType', 'NsmapsMapType', 'XmlnsMapType', 'ErrorsType']
+           'UriMapperType', 'IterParseType', 'SelectorType', 'EtreeType',
+           'IOType', 'ClassInfoType', 'ResourceNodeType', 'NsmapsMapType',
+           'XmlnsMapType', 'ErrorsType', 'LocationsMapType']
 
 if TYPE_CHECKING:
     from xmlschema.resources import XMLResource  # noqa: F401
-    from xmlschema.namespaces import NamespaceResourcesMap  # noqa: F401
+    from xmlschema.locations import NamespaceResourcesMap  # noqa: F401
     from xmlschema.converters import ElementData  # noqa: F401
+    from xmlschema.xpath import ElementSelector
 
     # noinspection PyUnresolvedReferences
     from xmlschema.validators import XMLSchemaValidationError, XsdComponent, \
@@ -77,6 +79,7 @@ ResourceNodeType = Union[ElementNode, LazyElementNode, DocumentNode]
 LazyType = Union[bool, int]
 UriMapperType = Union[MutableMapping[str, str], Callable[[str], str]]
 IterParseType = Callable[[IOType, Optional[Sequence[str]]], Iterator[tuple[str, Any]]]
+SelectorType = Optional[type['ElementSelector']]
 ParentMapType = dict[ElementType, Optional[ElementType]]
 NsmapsMapType = dict[ElementType, dict[str, str]]
 XmlnsMapType = dict[ElementType, list[tuple[str, str]]]

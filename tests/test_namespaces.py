@@ -16,7 +16,8 @@ from textwrap import dedent
 from xmlschema import XMLResource, XMLSchemaConverter
 from xmlschema.locations import get_locations
 from xmlschema.names import XSD_NAMESPACE, XSI_NAMESPACE
-from xmlschema.namespaces import NamespaceMapper, NamespaceResourcesMap
+from xmlschema.namespaces import NamespaceMapper
+from xmlschema.locations import NamespaceResourcesMap
 
 
 class TestNamespaceMapper(unittest.TestCase):
