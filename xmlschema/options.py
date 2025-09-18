@@ -183,11 +183,7 @@ class LogLevelOption(Option[Union[None, str, int]]):
     def validated_value(self, value: Any) -> Union[None, str, int]:
         if value is None:
             return self._default
-        elif isinstance(value, int):
-            self._validate_choice(value, LOG_LEVELS)
-            return value
-        elif isinstance(value, str):
-            value = value.upper().strip()
+        elif isinstance(value, (int, str)):
             self._validate_choice(value, LOG_LEVELS)
             return value
         else:

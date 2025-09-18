@@ -19,7 +19,7 @@ from xmlschema.utils.qnames import get_namespace
 from xmlschema.namespaces import NamespaceMapper
 
 if TYPE_CHECKING:
-    from xmlschema.validators import XsdElement
+    from xmlschema.validators import XsdElement  # noqa: F401
 
 
 ElementData = namedtuple('ElementData',

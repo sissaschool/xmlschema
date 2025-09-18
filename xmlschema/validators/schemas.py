@@ -110,7 +110,7 @@ class XMLSchemaMeta(ABCMeta):
                 )
             else:
                 if not isinstance(base_schemas, dict):
-                    raise XMLSchemaTypeError("BASE_SCHEMAS must be a dictionary")
+                    raise XMLSchemaTypeError("BASE_SCHEMAS must be a dictionary")  # noqa
 
             # Build the meta-schema class and register it into module's globals
             meta_schema_class_name = 'Meta' + name
@@ -233,19 +233,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     included schema. It also comprehends schemas included by "xs:redefine" or \
     "xs:override" statements.
     :ivar warnings: warning messages about failure of import and include elements.
-
-    :ivar notations: `xsd:notation` declarations.
-    :vartype notations: NamespaceView
-    :ivar types: `xsd:simpleType` and `xsd:complexType` global declarations.
-    :vartype types: NamespaceView
-    :ivar attributes: `xsd:attribute` global declarations.
-    :vartype attributes: NamespaceView
-    :ivar attribute_groups: `xsd:attributeGroup` definitions.
-    :vartype attribute_groups: NamespaceView
-    :ivar groups: `xsd:group` global definitions.
-    :vartype groups: NamespaceView
-    :ivar elements: `xsd:element` global declarations.
-    :vartype elements: NamespaceView
     """
     XSD_VERSION: str = '1.0'
     META_SCHEMA: str
@@ -263,15 +250,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     imports: dict[str, Optional[SchemaType]]
     includes: dict[str, SchemaType]
     warnings: list[str]
-
-    notations: NamespaceView[XsdNotation]
-    types: NamespaceView[BaseXsdType]
-    attributes: NamespaceView[XsdAttribute]
-    attribute_groups: NamespaceView[XsdAttributeGroup]
-    groups: NamespaceView[XsdGroup]
-    elements: NamespaceView[XsdElement]
-    substitution_groups: NamespaceView[set[XsdElement]]
-    identities: NamespaceView[XsdIdentity]
 
     # Schema defaults
     attribute_form_default = 'unqualified'
@@ -528,11 +506,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
             value.register(self)
             super().__setattr__(name, value)
-            for attr in ('types', 'attributes', 'attribute_groups', 'groups', 'elements',
-                         'notations', 'substitution_groups', 'identities'):
-                object.__setattr__(
-                    self, attr, NamespaceView(getattr(value, attr), self.target_namespace)
-                )
             return
 
         if name == 'source':
@@ -603,6 +576,46 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     def xsd_version(self) -> str:
         """Compatibility property that returns the class attribute XSD_VERSION."""
         return self.XSD_VERSION
+
+    @cached_property
+    def types(self) -> NamespaceView[BaseXsdType]:
+        """`xsd:simpleType` and `xsd:complexType` global declarations"""
+        return NamespaceView(self, 'types')
+
+    @cached_property
+    def attributes(self) -> NamespaceView[XsdAttribute]:
+        """`xsd:attribute` global declarations"""
+        return NamespaceView(self, 'attributes')
+
+    @cached_property
+    def attribute_groups(self) -> NamespaceView[XsdAttributeGroup]:
+        """`xsd:attributeGroup` definitions"""
+        return NamespaceView(self, 'attribute_groups')
+
+    @cached_property
+    def groups(self) -> NamespaceView[XsdGroup]:
+        """`xsd:group` global definitions"""
+        return NamespaceView(self, 'groups')
+
+    @cached_property
+    def elements(self) -> NamespaceView[XsdElement]:
+        """`xsd:element` global declarations"""
+        return NamespaceView(self, 'elements')
+
+    @cached_property
+    def notations(self) -> NamespaceView[XsdNotation]:
+        """`xsd:notation` declarations"""
+        return NamespaceView(self, 'notations')
+
+    @cached_property
+    def substitution_groups(self) -> NamespaceView[set[XsdElement]]:
+        """`xsd:substitutionGroup` definitions"""
+        return NamespaceView(self, 'substitution_groups')
+
+    @cached_property
+    def identities(self) -> NamespaceView[XsdIdentity]:
+        """`xsd:key`, `xsd:keyref`, `xsd:unique` declarations"""
+        return NamespaceView(self, 'identities')
 
     @property
     def xpath_proxy(self) -> XMLSchemaProxy:

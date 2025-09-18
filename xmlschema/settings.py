@@ -61,10 +61,10 @@ class SchemaSettings(CommonSettings):
     use_meta: Option[bool] = BooleanOption(default=True)
     loglevel: Option[Union[None, int, str]] = LogLevelOption(default=None)
 
-    def create_xsd_resource(self, cls: type[XMLResource], source: SourceType) -> XMLResource:
+    def create_xsd_resource(self, cls: type[XMLResource], source: SourceType, base_url=None) -> XMLResource:
         return cls(
             source=source,
-            base_url=self.base_url,
+            base_url=base_url,
             allow=self.allow,
             defuse=self.defuse,
             timeout=self.timeout,

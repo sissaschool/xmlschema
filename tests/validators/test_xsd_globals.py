@@ -19,6 +19,15 @@ import xmlschema.names as nm
 
 class TestGlobalMapsViews(unittest.TestCase):
 
+    class FakeSchema:
+        def __init__(self, namespace, **kwargs):
+            self.target_namespace = namespace
+            self.__dict__.update(kwargs)
+
+        @property
+        def maps(self):
+            return self
+
     @classmethod
     def setUpClass(cls):
         XMLSchema10.meta_schema.build()
@@ -32,18 +41,23 @@ class TestGlobalMapsViews(unittest.TestCase):
 
     def test_init(self):
         components: Any = {'{tns0}name0': 0, '{tns1}name1': 1, 'name2': 2}
-        ns_view = NamespaceView(components, 'tns1')
+        obj = self.FakeSchema('tns1', components=components)
+
+        ns_view = NamespaceView(obj, 'components')  # noqa
         self.assertEqual(ns_view, {'name1': 1})
 
     def test_repr(self):
         qnames: Any = {'{tns0}name0': 0, '{tns1}name1': 1, 'name2': 2}
-        ns_view = NamespaceView(qnames, 'tns0')
+
+        obj = self.FakeSchema('tns0', qnames=qnames)
+        ns_view = NamespaceView(obj, 'qnames')  # noqa
         self.assertEqual(repr(ns_view), "NamespaceView({'name0': 0})")
 
     def test_getitem(self):
         qnames: Any = {'{tns0}name0': 0, '{tns1}name1': 1, 'name2': 2}
-        ns_view = NamespaceView(qnames, 'tns1')
 
+        obj = self.FakeSchema('tns1', qnames=qnames)
+        ns_view = NamespaceView(obj, 'qnames')  # noqa
         self.assertEqual(ns_view['name1'], 1)
 
         with self.assertRaises(KeyError):
@@ -51,8 +65,9 @@ class TestGlobalMapsViews(unittest.TestCase):
 
     def test_contains(self):
         qnames: Any = {'{tns0}name0': 0, '{tns1}name1': 1, 'name2': 2}
-        ns_view = NamespaceView(qnames, 'tns1')
 
+        obj = self.FakeSchema('tns1', qnames=qnames)
+        ns_view = NamespaceView(obj, 'qnames')  # noqa
         self.assertIn('name1', ns_view)
         self.assertNotIn('{tns1}name1', ns_view)
         self.assertNotIn('{tns0}name0', ns_view)
@@ -62,17 +77,24 @@ class TestGlobalMapsViews(unittest.TestCase):
 
     def test_as_dict(self):
         qnames: Any = {'{tns0}name0': 0, '{tns1}name1': 1, '{tns1}name2': 2, 'name3': 3}
-        ns_view = NamespaceView(qnames, 'tns1')
+
+        obj = self.FakeSchema('tns1', qnames=qnames)
+        ns_view = NamespaceView(obj, 'qnames')  # noqa
         self.assertEqual(ns_view.as_dict(), {'name1': 1, 'name2': 2})
 
-        ns_view = NamespaceView(qnames, '')
+        obj = self.FakeSchema('', qnames=qnames)
+        ns_view = NamespaceView(obj, 'qnames')  # noqa
         self.assertEqual(ns_view.as_dict(), {'name3': 3})
 
     def test_iter(self):
         qnames: Any = {'{tns0}name0': 0, '{tns1}name1': 1, '{tns1}name2': 2, 'name3': 3}
-        ns_view = NamespaceView(qnames, 'tns1')
+
+        obj = self.FakeSchema('tns1', qnames=qnames)
+        ns_view = NamespaceView(obj, 'qnames')  # noqa
         self.assertListEqual(list(ns_view), ['name1', 'name2'])
-        ns_view = NamespaceView(qnames, '')
+
+        obj = self.FakeSchema('', qnames=qnames)
+        ns_view = NamespaceView(obj, 'qnames')  # noqa
         self.assertListEqual(list(ns_view), ['name3'])
 
 

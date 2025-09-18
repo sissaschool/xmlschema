@@ -12,9 +12,9 @@ This module contains the base definitions for xmlschema's converters.
 """
 import re
 from collections.abc import Callable, Container, Iterator, Mapping, MutableMapping
-from typing import Any, NamedTuple, Optional, Union, TypeVar, TYPE_CHECKING
+from typing import Any, NamedTuple, Optional, Union, TypeVar, TYPE_CHECKING, cast
 
-from xmlschema.aliases import NsmapType, ElementType, XmlnsType
+from xmlschema.aliases import NsmapType, ElementType, XmlnsType, SchemaType
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from xmlschema.utils.decoding import iter_decoded_data
 from xmlschema.utils.qnames import get_namespace_map, update_namespaces, local_name
@@ -355,32 +355,34 @@ class NamespaceView(Mapping[str, CT]):
     """
     A mapping for filtered access to a dictionary that stores objects by FQDN.
     """
-    __slots__ = '_target_dict', '_namespace', '_prefix', '_prefix_len'
+    __slots__ = '_schema', '_name', '_prefix', '_prefix_len'
 
-    def __init__(self, target_dict: Mapping[str, CT], namespace: str):
-        self._target_dict = target_dict
-        self._namespace = namespace
+    def __init__(self, schema: SchemaType, name: str) -> None:
+        self._schema = schema
+        self._name = name
+        namespace = schema.target_namespace
         self._prefix = f'{{{namespace}}}' if namespace else ''
         self._prefix_len = len(self._prefix)
 
     def __getitem__(self, key: str) -> CT:
         try:
-            return self._target_dict[self._prefix + key]
+            return cast(CT, getattr(self._schema.maps, self._name)[self._prefix + key])
         except KeyError:
             raise KeyError(key) from None
 
     def __len__(self) -> int:
-        if not self._namespace:
-            return sum(1 for k in self._target_dict if k[:1] != '{')
-        return sum(1 for k in self._target_dict if self._prefix == k[:self._prefix_len])
+        target = getattr(self._schema.maps, self._name)
+        if not self._prefix:
+            return sum(1 for k in target if k[:1] != '{')
+        return sum(1 for k in target if self._prefix == k[:self._prefix_len])
 
     def __iter__(self) -> Iterator[str]:
-        if not self._namespace:
-            for k in self._target_dict:
+        if not self._prefix:
+            for k in getattr(self._schema.maps, self._name):
                 if k[:1] != '{':
                     yield k
         else:
-            for k in self._target_dict:
+            for k in getattr(self._schema.maps, self._name):
                 if self._prefix == k[:self._prefix_len]:
                     yield k[self._prefix_len:]
 
@@ -388,16 +390,18 @@ class NamespaceView(Mapping[str, CT]):
         return '%s(%s)' % (self.__class__.__name__, str(self.as_dict()))
 
     def __contains__(self, key: object) -> bool:
-        return isinstance(key, str) and (self._prefix + key) in self._target_dict
+        return isinstance(key, str) and \
+            (self._prefix + key) in getattr(self._schema.maps, self._name)
 
     def __eq__(self, other: Any) -> Any:
         return self.as_dict() == other
 
     def as_dict(self) -> dict[str, CT]:
-        if not self._namespace:
-            return {k: v for k, v in self._target_dict.items() if k[:1] != '{'}
+        target = getattr(self._schema.maps, self._name)
+        if not self._prefix:
+            return {k: v for k, v in target.items() if k[:1] != '{'}
         else:
             return {
-                k[self._prefix_len:]: v for k, v in self._target_dict.items()
+                k[self._prefix_len:]: v for k, v in target.items()
                 if self._prefix == k[:self._prefix_len]
             }
