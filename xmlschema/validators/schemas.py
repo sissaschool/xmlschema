@@ -324,36 +324,30 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         root = self.source.root
 
         # Initialize schema's namespaces, the XML namespace is implicitly declared.
-        namespaces = self.source.get_namespaces({'xml': nm.XML_NAMESPACE})
+        self.namespaces = self.source.get_namespaces(
+            {'xml': nm.XML_NAMESPACE}, self.meta_schema is None, True
+        )
+        logger.debug("Schema namespaces: %r", self.namespaces)
 
         if 'targetNamespace' in root.attrib:
             self.target_namespace = root.attrib['targetNamespace'].strip()
             if not self.target_namespace:
                 # https://www.w3.org/TR/2004/REC-xmlschema-1-20041028/structures.html#element-schema
                 msg = _("the attribute 'targetNamespace' cannot be an empty string")
-                self.parse_error(msg, root, namespaces=namespaces)
+                self.parse_error(msg)
             elif namespace is not None and self.target_namespace != namespace:
                 msg = _("targetNamespace of XSD resource {} differs from what expected "
                         "(found {!r} instead of {!r})")
-                self.parse_error(
-                    error=msg.format(self.url, self.target_namespace, namespace),
-                    elem=root,
-                    namespaces=namespaces,
-                )
+                self.parse_error(msg.format(self.url, self.target_namespace, namespace))
 
         elif namespace is not None:
             self.target_namespace = namespace
-            if '' not in namespaces:
-                namespaces[''] = namespace
+            if self.namespaces[''] == '':
+                self.namespaces[''] = namespace
         else:
             self.target_namespace = ''
 
-        if '' not in namespaces:
-            # If not declared map the default namespace to no namespace
-            namespaces[''] = ''
-
         logger.debug("Schema targetNamespace is %r", self.target_namespace)
-        logger.debug("Schema namespaces: %r", namespaces)
 
         if self.target_namespace == nm.XMLNS_NAMESPACE:
             # https://www.w3.org/TR/xmlschema11-1/#sec-nss-special
@@ -402,12 +396,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
         # Meta-schema maps creation (MetaXMLSchema10/11 classes)
         if self.meta_schema is None:
-            self.namespaces = namespaces
             return  # Meta-schemas don't need to be checked and don't process imports
-
-        # Complete the namespace map with internal declarations, remapping
-        # identical prefixes that refer to different namespaces.
-        self.namespaces = self.source.get_namespaces(namespaces, root_only=False)
 
         if any(ns == nm.VC_NAMESPACE for ns in self.namespaces.values()):
             # Apply versioning filter to schema tree. See the paragraph

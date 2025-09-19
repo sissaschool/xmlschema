@@ -702,7 +702,8 @@ class XMLResource(XMLResourceLoader):
             return default
 
     def get_namespaces(self, namespaces: Optional[NsmapType] = None,
-                       root_only: bool = True) -> NsmapType:
+                       root_only: bool = True,
+                       root_default: bool = False) -> NsmapType:
         """
         Extracts namespaces with related prefixes from the XML resource.
         If a duplicate prefix is encountered in a xmlns declaration, and
@@ -717,16 +718,25 @@ class XMLResource(XMLResourceLoader):
         element, otherwise scan the whole tree for further namespace declarations. \
         A full namespace map can be useful for cases where the element context is \
         not available.
-
+        :param root_default: if `True` insert default namespace declaration to no \
+        namespace if it's not declared in the root element. Used for getting the \
+        right default namespace declaration for schemas.
         :return: a dictionary for mapping namespace prefixes to full URI.
         """
         namespaces = get_namespace_map(namespaces)
         try:
-            for elem in self.iter():
-                if elem in self._xmlns:
-                    update_namespaces(namespaces, self._xmlns[elem], elem is self.root)
-                if root_only:
-                    break
+            descendants = self.iter()
+            root = next(descendants)
+            if root in self._xmlns:
+                update_namespaces(namespaces, self._xmlns[root], True)
+            if root_default and '' not in namespaces:
+                namespaces[''] = ''
+
+            if not root_only:
+                for elem in descendants:
+                    if elem in self._xmlns:
+                        update_namespaces(namespaces, self._xmlns[elem], False)
+
         except (ElementTree.ParseError, UnicodeEncodeError):
             return namespaces  # a lazy resource with malformed XML data
         else:
