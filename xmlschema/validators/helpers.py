@@ -9,21 +9,58 @@
 #
 from decimal import Decimal
 from math import isinf, isnan
-from typing import Optional, SupportsInt, SupportsFloat, Union
+from typing import Optional, SupportsInt, SupportsFloat, TYPE_CHECKING, Union
 from xml.etree.ElementTree import Element
 from elementpath import datatypes
 
-from xmlschema.aliases import ElementType
-from xmlschema.names import XSD_ANNOTATION
+import xmlschema.names as nm
+from xmlschema.aliases import ElementType, SchemaType
 from xmlschema.exceptions import XMLSchemaValueError
 from xmlschema.translation import gettext as _
 from .exceptions import XMLSchemaValidationError
+
+if TYPE_CHECKING:
+    from xmlschema.validators import XsdAnnotation, XsdComponent  # noqa: F401
 
 XSD_FINAL_ATTRIBUTE_VALUES = {'restriction', 'extension', 'list', 'union'}
 XSD_BOOLEAN_MAP = {
     'false': False, '0': False,
     'true': True, '1': True
 }
+
+
+
+def get_xsd_annotation(elem: ElementType,
+                       schema: SchemaType,
+                       parent: Optional['XsdComponent'] = None) -> Optional['XsdAnnotation']:
+    """
+    Returns the XSD annotation from the 1st child element of the provided element,
+    `None` if it doesn't exist.
+    """
+    for child in elem:
+        if child.tag == nm.XSD_ANNOTATION:
+            return schema.builders.annotation_class(
+                child, schema, parent, parent_elem=elem
+            )
+        elif not callable(child.tag):
+            return None
+    else:
+        return None
+
+
+def get_schema_annotations(schema: SchemaType) -> list['XsdAnnotation']:
+    annotations = []
+    annotation_class = schema.builders.annotation_class
+
+    for elem in schema.source.root:
+        if elem.tag == nm.XSD_ANNOTATION:
+            annotations.append(annotation_class(elem, schema))
+        elif elem.tag in nm.SCHEMA_DECLARATION_TAGS or elem.tag == nm.XSD_DEFAULT_OPEN_CONTENT:
+            annotation = get_xsd_annotation(elem, schema)
+            if annotation is not None:
+                annotations.append(annotation)
+
+    return annotations
 
 
 def get_xsd_derivation_attribute(elem: Element, attribute: str,
@@ -49,20 +86,6 @@ def get_xsd_derivation_attribute(elem: Element, attribute: str,
     elif not all(s in values for s in items):
         raise ValueError(_("wrong value %r for attribute %r") % (value, attribute))
     return value
-
-
-def get_xsd_annotation_child(elem: ElementType) -> Optional[ElementType]:
-    """
-    Returns the child element of the annotation associated to an XSD component,
-    `None` if it doesn't exist.
-    """
-    for child in elem:
-        if child.tag == XSD_ANNOTATION:
-            return child
-        elif not callable(child.tag):
-            return None
-    else:
-        return None
 
 
 #

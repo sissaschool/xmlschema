@@ -48,14 +48,14 @@ from xmlschema.converters import XMLSchemaConverter, ConverterType, get_converte
 from xmlschema.xpath import XMLSchemaProxy, ElementPathMixin
 from xmlschema.namespaces import NamespaceView
 from xmlschema.locations import SCHEMAS_DIR
-from xmlschema.loaders import SCHEMA_DECLARATION_TAGS, SchemaLoader
+from xmlschema.loaders import SchemaLoader
 from xmlschema.exports import export_schema
 from xmlschema import dataobjects
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaEncodeError, \
     XMLSchemaStopValidation
 from .validation import DecodeContext, EncodeContext, check_validation_mode
-from .helpers import get_xsd_derivation_attribute, get_xsd_annotation_child, qname_validator
+from .helpers import get_xsd_derivation_attribute, get_schema_annotations, qname_validator
 from .xsdbase import XSD_ELEMENT_DERIVATIONS, XsdValidator, XsdComponent, XsdAnnotation
 from .notations import XsdNotation
 from .identities import XsdIdentity, XsdKeyref, KeyrefCounter
@@ -437,7 +437,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 self.parse_error(e.reason or e, elem=e.elem)
 
         if partial:
-            self.partial = any(e.tag in SCHEMA_DECLARATION_TAGS for e in root)
+            self.partial = any(e.tag in nm.SCHEMA_DECLARATION_TAGS for e in root)
             if self.partial:
                 for child in root:
                     if child.tag == nm.XSD_IMPORT:
@@ -446,12 +446,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             return
 
         self.maps.loader.load_declared_schemas(self)
-
-        # Import namespaces by argument (usually from xsi:schemaLocation attribute).
-        if global_maps is None:
-            for ns in self.maps.loader.locations:
-                if ns not in self.maps.namespaces:
-                    self.maps.loader.import_namespace(self, ns)
 
         # Parse XSD 1.1 default declarations (defaultAttributes, defaultOpenContent,
         # xpathDefaultNamespace) after all imports/includes.
@@ -775,22 +769,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         Annotations related to schema object. This list includes the annotations
         of xs:include, xs:import, xs:redefine and xs:override elements.
         """
-        annotations = []
-        for elem in self.source.root:
-            if elem.tag == nm.XSD_ANNOTATION:
-                annotations.append(XsdAnnotation(elem, self))
-            elif elem.tag in (nm.XSD_IMPORT, nm.XSD_INCLUDE, nm.XSD_DEFAULT_OPEN_CONTENT):
-                child = get_xsd_annotation_child(elem)
-                if child is not None:
-                    annotation = XsdAnnotation(child, self, parent_elem=elem)
-                    annotations.append(annotation)
-            elif elem.tag in (nm.XSD_REDEFINE, nm.XSD_OVERRIDE):
-                for child in elem:
-                    if child.tag == nm.XSD_ANNOTATION:
-                        annotation = XsdAnnotation(child, self, parent_elem=elem)
-                        annotations.append(annotation)
-
-        return annotations
+        return get_schema_annotations(self)
 
     @cached_property
     def components(self) -> dict[ElementType, XsdComponent]:

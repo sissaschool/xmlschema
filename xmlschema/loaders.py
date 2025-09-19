@@ -34,10 +34,6 @@ if TYPE_CHECKING:
 logger = logging.getLogger('xmlschema')
 base_url_attribute = attrgetter('name')
 
-SCHEMA_DECLARATION_TAGS = frozenset(
-    (nm.XSD_IMPORT, nm.XSD_INCLUDE, nm.XSD_REDEFINE, nm.XSD_OVERRIDE)
-)
-
 
 class LoaderClassOption(Option[type['SchemaLoader']]):
     def validated_value(self, value: Any) -> type['SchemaLoader']:
@@ -109,7 +105,7 @@ class SchemaLoader:
         for elem in schema.source.root:
             if elem.tag in nm.XSD_ANNOTATION:
                 continue
-            elif elem.tag not in SCHEMA_DECLARATION_TAGS:
+            elif elem.tag not in nm.SCHEMA_DECLARATION_TAGS:
                 break
 
             location = elem.get('schemaLocation')
@@ -184,6 +180,12 @@ class SchemaLoader:
                         _schema.override = schema
 
         logger.debug("Inclusions and imports of schema %r processed", schema)
+
+        # Import other namespaces provided by argument (usually from xsi:schemaLocation attribute).
+        if self.maps.validator is schema:
+            for ns in self.locations:
+                if ns not in self.maps.namespaces:
+                    self.import_namespace(schema, ns)
 
     def import_namespace(self, schema: SchemaType,
                          namespace: str,

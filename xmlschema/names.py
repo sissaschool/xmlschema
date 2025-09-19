@@ -235,3 +235,8 @@ XSD_YEAR_MONTH_DURATION = _XSD_TEMPLATE % 'yearMonthDuration'
 XSD_ERROR = _XSD_TEMPLATE % 'error'
 
 XSD_UNTYPED_ATOMIC = _XSD_TEMPLATE % 'untypedAtomic'
+
+###
+# Aggregations of multiple tags for checking
+
+SCHEMA_DECLARATION_TAGS = frozenset((XSD_IMPORT, XSD_INCLUDE, XSD_REDEFINE, XSD_OVERRIDE))

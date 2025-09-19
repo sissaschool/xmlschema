@@ -98,7 +98,8 @@ class XsdBuilders:
                  'notation_class', 'attribute_group_class', 'complex_type_class',
                  'attribute_class', 'group_class', 'element_class', 'any_element_class',
                  'any_attribute_class', 'atomic_restriction_class', 'list_class',
-                 'union_class', 'unique_class', 'key_class', 'keyref_class')
+                 'union_class', 'unique_class', 'key_class', 'keyref_class',
+                 'annotation_class')
 
     def __init__(self, xsd_version: Optional[str] = None,
                  *facets_classes: Type[XsdFacet],
@@ -134,6 +135,7 @@ class XsdBuilders:
         self.notation_class = XsdNotation
         self.attribute_group_class = XsdAttributeGroup
         self.list_class = XsdList
+        self.annotation_class = XsdAnnotation
 
         if self._xsd_version == '1.0':
             self.complex_type_class = XsdComplexType

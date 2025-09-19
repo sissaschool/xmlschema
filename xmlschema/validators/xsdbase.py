@@ -33,13 +33,10 @@ from xmlschema.resources import XMLResource
 
 from .validation import check_validation_mode, DecodeContext
 from .exceptions import XMLSchemaParseError, XMLSchemaNotBuiltError
-from .helpers import get_xsd_annotation_child
+from .helpers import get_xsd_annotation
 
 if TYPE_CHECKING:
-    from .simple_types import XsdSimpleType
-    from .elements import XsdElement
-    from .groups import XsdGroup
-    from .xsd_globals import XsdGlobals
+    from xmlschema.validators import XsdSimpleType, XsdElement, XsdGroup, XsdGlobals  # noqa: F401
 
 logger = logging.getLogger('xmlschema')
 
@@ -360,11 +357,7 @@ class XsdComponent(XsdValidator):
         The primary annotation of the XSD component, if any. This is the annotation
         defined in the first child of the element where the component is defined.
         """
-        child = get_xsd_annotation_child(self.elem)
-        if child is not None:
-            return XsdAnnotation(child, self.schema, self)
-        else:
-            return None
+        return get_xsd_annotation(self.elem, self.schema, self)
 
     @cached_property
     def annotations(self) -> Union[tuple[()], list['XsdAnnotation']]:
