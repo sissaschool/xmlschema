@@ -18,12 +18,10 @@ from typing import cast, Any, Optional, Union
 
 from elementpath.datatypes import AbstractDateTime, Duration
 
+import xmlschema.names as nm
 from xmlschema.aliases import ComponentClassType, ElementType, \
     AtomicValueType, SchemaType, DecodedValueType, NsmapType
 from xmlschema.exceptions import XMLSchemaValueError
-from xmlschema.names import XSI_NAMESPACE, XSD_ANY_SIMPLE_TYPE, XSD_SIMPLE_TYPE, \
-    XSD_ATTRIBUTE_GROUP, XSD_COMPLEX_TYPE, XSD_RESTRICTION, XSD_EXTENSION, \
-    XSD_ATTRIBUTE, XSD_ANY_ATTRIBUTE, XSD_ASSERT, XSD_NOTATION_TYPE, XSD_ANNOTATION
 from xmlschema.translation import gettext as _
 from xmlschema.utils.decoding import EmptyType
 from xmlschema.utils.qnames import get_namespace, get_qname
@@ -55,7 +53,7 @@ class XsdAttribute(XsdComponent, ValidationMixin[Optional[str], DecodedValueType
           Content: (annotation?, simpleType?)
         </attribute>
     """
-    _ADMITTED_TAGS = XSD_ATTRIBUTE,
+    _ADMITTED_TAGS = nm.XSD_ATTRIBUTE,
 
     name: str
     local_name: str
@@ -142,11 +140,11 @@ class XsdAttribute(XsdComponent, ValidationMixin[Optional[str], DecodedValueType
                     self.parse_error(msg)
 
                 if self.parent is None or self.qualified:
-                    if self.target_namespace == XSI_NAMESPACE and \
+                    if self.target_namespace == nm.XSI_NAMESPACE and \
                             name not in ('nil', 'type', 'schemaLocation',
                                          'noNamespaceSchemaLocation'):
                         msg = _("cannot add attributes in %r namespace")
-                        self.parse_error(msg % XSI_NAMESPACE)
+                        self.parse_error(msg % nm.XSI_NAMESPACE)
                     self.name = get_qname(self.target_namespace, name)
                 else:
                     self.name = name
@@ -165,7 +163,7 @@ class XsdAttribute(XsdComponent, ValidationMixin[Optional[str], DecodedValueType
                         self.type = self.maps.any_simple_type
                         self.parse_error(err)
 
-                    if child is not None and child.tag == XSD_SIMPLE_TYPE:
+                    if child is not None and child.tag == nm.XSD_SIMPLE_TYPE:
                         msg = _("ambiguous type definition for XSD attribute")
                         self.parse_error(msg)
 
@@ -245,7 +243,7 @@ class XsdAttribute(XsdComponent, ValidationMixin[Optional[str], DecodedValueType
             obj = self.default
 
         if self.type.is_notation():
-            if self.type.name == XSD_NOTATION_TYPE:
+            if self.type.name == nm.XSD_NOTATION_TYPE:
                 msg = _("cannot validate against xs:NOTATION directly, "
                         "only against a subtype with an enumeration facet")
                 context.validation_error(validation, self, msg, obj)
@@ -341,7 +339,9 @@ class XsdAttributeGroup(
           Content: (annotation?, ((attribute | attributeGroup)*, anyAttribute?))
         </attributeGroup>
     """
-    _ADMITTED_TAGS = (XSD_ATTRIBUTE_GROUP, XSD_COMPLEX_TYPE, XSD_RESTRICTION, XSD_EXTENSION)
+    _ADMITTED_TAGS = (
+        nm.XSD_ATTRIBUTE_GROUP, nm.XSD_COMPLEX_TYPE, nm.XSD_RESTRICTION, nm.XSD_EXTENSION
+    )
 
     __slots__ = ('_attribute_group', 'derivation', 'base_attributes')
 
@@ -390,7 +390,7 @@ class XsdAttributeGroup(
         return len(self._attribute_group)
 
     def _parse(self) -> None:
-        if self.elem.tag == XSD_ATTRIBUTE_GROUP:
+        if self.elem.tag == nm.XSD_ATTRIBUTE_GROUP:
             if self.parent is not None:
                 return  # Skip parsing dummy instances
             try:
@@ -406,17 +406,17 @@ class XsdAttributeGroup(
         attributes: dict[Optional[str], Union[XsdAttribute, XsdAnyAttribute]] = {}
 
         for child in self.elem:
-            if child.tag == XSD_ANNOTATION or callable(child.tag):
+            if child.tag == nm.XSD_ANNOTATION or callable(child.tag):
                 continue  # pragma: no cover
             elif any_attribute is not None:
-                if child.tag == XSD_ANY_ATTRIBUTE:
+                if child.tag == nm.XSD_ANY_ATTRIBUTE:
                     msg = _("more anyAttribute declarations in the same attribute group")
                     self.parse_error(msg)
-                elif child.tag != XSD_ASSERT:
+                elif child.tag != nm.XSD_ASSERT:
                     msg = _("another declaration after anyAttribute")
                     self.parse_error(msg)
 
-            elif child.tag == XSD_ANY_ATTRIBUTE:
+            elif child.tag == nm.XSD_ANY_ATTRIBUTE:
                 any_attribute = self.builders.any_attribute_class(child, self.schema, self)
                 if None in attributes:
                     attributes[None] = attr = copy(attributes[None])
@@ -426,15 +426,15 @@ class XsdAttributeGroup(
                 else:
                     attributes[None] = any_attribute
 
-            elif child.tag == XSD_ATTRIBUTE:
+            elif child.tag == nm.XSD_ATTRIBUTE:
                 attribute = self.builders.attribute_class(child, self.schema, self)
                 if attribute.name in attributes:
                     msg = _("multiple declaration for attribute {!r}")
                     self.parse_error(msg.format(attribute.name))
-                elif attribute.use != 'prohibited' or self.elem.tag != XSD_ATTRIBUTE_GROUP:
+                elif attribute.use != 'prohibited' or self.elem.tag != nm.XSD_ATTRIBUTE_GROUP:
                     attributes[attribute.name] = attribute
 
-            elif child.tag == XSD_ATTRIBUTE_GROUP:
+            elif child.tag == nm.XSD_ATTRIBUTE_GROUP:
                 try:
                     ref = child.attrib['ref']
                 except KeyError:
@@ -463,7 +463,7 @@ class XsdAttributeGroup(
                             continue
                         elif not attribute_group_refs:
                             # Maybe an attributeGroup restriction with a ref to another group
-                            if not any(e.tag == XSD_ATTRIBUTE_GROUP and ref == e.get('ref')
+                            if not any(e.tag == nm.XSD_ATTRIBUTE_GROUP and ref == e.get('ref')
                                        for e in self.redefine.elem):
                                 msg = _("attributeGroup ref={!r} is not in the redefined group")
                                 self.parse_error(msg.format(ref))
@@ -533,7 +533,8 @@ class XsdAttributeGroup(
                 assert name is not None, "None key resolves to an xs:attribute"
                 assert isinstance(base_attr, XsdAttribute), "invalid base attribute"
 
-                if self.derivation == 'restriction' and attr.type.name != XSD_ANY_SIMPLE_TYPE and \
+                if self.derivation == 'restriction' and \
+                        attr.type.name != nm.XSD_ANY_SIMPLE_TYPE and \
                         not attr.type.is_derived(base_attr.type, 'restriction'):
                     msg = _("Attribute type is not a restriction of the base attribute type")
                     self.parse_error(msg)
@@ -613,7 +614,7 @@ class XsdAttributeGroup(
             self.schema.default_attributes = self
 
     @cached_property
-    def annotation(self) -> Optional['XsdAnnotation']:
+    def annotation(self) -> Optional[XsdAnnotation]:
         return super().annotation if self.parent is None else None
 
     def parse_error(self, error: Union[str, Exception],
@@ -681,7 +682,7 @@ class XsdAttributeGroup(
             try:
                 xsd_attribute = self._attribute_group[name]
             except KeyError:
-                if get_namespace(name) == XSI_NAMESPACE:
+                if get_namespace(name) == nm.XSI_NAMESPACE:
                     try:
                         xsd_attribute = self.maps.attributes[name]
                     except KeyError:
@@ -744,7 +745,7 @@ class XsdAttributeGroup(
                 xsd_attribute = self._attribute_group[name]
             except KeyError:
                 namespace = get_namespace(name) or self.target_namespace
-                if namespace == XSI_NAMESPACE:
+                if namespace == nm.XSI_NAMESPACE:
                     try:
                         xsd_attribute = self.maps.attributes[name]
                     except KeyError:

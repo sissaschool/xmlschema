@@ -18,10 +18,8 @@ from typing import TYPE_CHECKING, cast, Any, Optional, Union
 from elementpath import select
 from elementpath.etree import etree_tostring
 
+import xmlschema.names as nm
 from xmlschema.exceptions import XMLSchemaTypeError
-from xmlschema.names import XSD_ANNOTATION, XSD_APPINFO, XSD_DOCUMENTATION, \
-    XSD_ANY_TYPE, XSD_BOOLEAN, XSD_ID, XSD_QNAME, XSD_OVERRIDE, XSD_NOTATION_TYPE, \
-    XSD_DECIMAL, XMLNS_NAMESPACE
 from xmlschema.aliases import ElementType, NsmapType, SchemaType, BaseXsdType, \
     ComponentClassType, DecodedValueType, ModelParticleType
 from xmlschema.translation import gettext as _
@@ -329,7 +327,7 @@ class XsdComponent(XsdValidator):
         """Returns `True` if the instance is an override of a global component."""
         if self.parent is not None:
             return False
-        return any(self.elem in x for x in self.schema.root if x.tag == XSD_OVERRIDE)
+        return any(self.elem in x for x in self.schema.root if x.tag == nm.XSD_OVERRIDE)
 
     @property
     def schema_elem(self) -> ElementType:
@@ -372,7 +370,7 @@ class XsdComponent(XsdValidator):
                     annotations.append(self.annotation)
             elif elem in components:
                 break
-            elif elem.tag == XSD_ANNOTATION:
+            elif elem.tag == nm.XSD_ANNOTATION:
                 parent_elem = parent_map[elem]
                 if parent_elem is not self.elem:
                     annotations.append(XsdAnnotation(elem, self.schema, self, parent_elem))
@@ -444,7 +442,7 @@ class XsdComponent(XsdValidator):
             -> Optional[ElementType]:
         child = None
         for e in elem:
-            if e.tag == XSD_ANNOTATION or callable(e.tag):
+            if e.tag == nm.XSD_ANNOTATION or callable(e.tag):
                 continue
             elif not strict:
                 return e
@@ -464,9 +462,9 @@ class XsdComponent(XsdValidator):
             return
 
         target_namespace = self.elem.attrib['targetNamespace'].strip()
-        if target_namespace == XMLNS_NAMESPACE:
+        if target_namespace == nm.XMLNS_NAMESPACE:
             # https://www.w3.org/TR/xmlschema11-1/#sec-nss-special
-            msg = _(f"The namespace {XMLNS_NAMESPACE} cannot be used as 'targetNamespace'")
+            msg = _(f"The namespace {nm.XMLNS_NAMESPACE} cannot be used as 'targetNamespace'")
             raise XMLSchemaValueError(msg)
 
         if 'name' not in self.elem.attrib:
@@ -486,7 +484,7 @@ class XsdComponent(XsdValidator):
             if xsd_type is None or xsd_type.parent is not None:
                 pass
             elif xsd_type.derivation != 'restriction' or \
-                    getattr(xsd_type.base_type, 'name', None) == XSD_ANY_TYPE:
+                    getattr(xsd_type.base_type, 'name', None) == nm.XSD_ANY_TYPE:
                 msg = _("a declaration contained in a global complexType "
                         "must have the same namespace as its parent schema")
                 self.parse_error(msg)
@@ -679,7 +677,7 @@ class XsdAnnotation(XsdComponent):
           Content: ({any})*
         </documentation>
     """
-    _ADMITTED_TAGS = XSD_ANNOTATION,
+    _ADMITTED_TAGS = nm.XSD_ANNOTATION,
 
     annotation = None
     annotations = ()
@@ -707,9 +705,9 @@ class XsdAnnotation(XsdComponent):
         self.appinfo = []
         self.documentation = []
         for child in self.elem:
-            if child.tag == XSD_APPINFO:
+            if child.tag == nm.XSD_APPINFO:
                 self.appinfo.append(child)
-            elif child.tag == XSD_DOCUMENTATION:
+            elif child.tag == nm.XSD_DOCUMENTATION:
                 self.documentation.append(child)
 
 
@@ -865,19 +863,19 @@ class XsdType(XsdComponent):
         raise NotImplementedError()
 
     def is_key(self) -> bool:
-        return self.is_derived(self.maps.types[XSD_ID])
+        return self.is_derived(self.maps.types[nm.XSD_ID])
 
     def is_qname(self) -> bool:
-        return self.is_derived(self.maps.types[XSD_QNAME])
+        return self.is_derived(self.maps.types[nm.XSD_QNAME])
 
     def is_notation(self) -> bool:
-        return self.is_derived(self.maps.types[XSD_NOTATION_TYPE])
+        return self.is_derived(self.maps.types[nm.XSD_NOTATION_TYPE])
 
     def is_decimal(self) -> bool:
-        return self.is_derived(self.maps.types[XSD_DECIMAL])
+        return self.is_derived(self.maps.types[nm.XSD_DECIMAL])
 
     def is_boolean(self) -> bool:
-        return self.is_derived(self.maps.types[XSD_BOOLEAN])
+        return self.is_derived(self.maps.types[nm.XSD_BOOLEAN])
 
     def text_decode(self, text: str, validation: str = 'skip',
                     context: Optional[DecodeContext] = None) -> DecodedValueType:

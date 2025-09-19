@@ -13,11 +13,8 @@ from typing import cast, Any, Optional, Union
 
 from elementpath.datatypes import AnyAtomicType
 
+import xmlschema.names as nm
 from xmlschema.exceptions import XMLSchemaValueError
-from xmlschema.names import XSD_GROUP, XSD_ATTRIBUTE_GROUP, XSD_SEQUENCE, XSD_OVERRIDE, \
-    XSD_ALL, XSD_CHOICE, XSD_ANY_ATTRIBUTE, XSD_ATTRIBUTE, XSD_COMPLEX_CONTENT, \
-    XSD_RESTRICTION, XSD_COMPLEX_TYPE, XSD_EXTENSION, XSD_ANY_TYPE, XSD_ASSERT, \
-    XSD_SIMPLE_CONTENT, XSD_OPEN_CONTENT, XSD_ANNOTATION
 from xmlschema.aliases import ElementType, NsmapType, SchemaType, ComponentClassType, \
     DecodeType, BaseXsdType, DecodedValueType, ExtraValidatorType, ValidationHookType
 from xmlschema.translation import gettext as _
@@ -32,8 +29,6 @@ from .assertions import XsdAssert
 from .simple_types import FacetsValueType, XsdSimpleType, XsdUnion, XsdAtomic
 from .groups import XsdGroup
 from .wildcards import XsdAnyElement, XsdOpenContent, XsdDefaultOpenContent
-
-XSD_MODEL_GROUP_TAGS = frozenset([XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE])
 
 
 class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], Any]):
@@ -66,8 +61,10 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
     open_content: Optional[XsdOpenContent] = None
     _block: Optional[str] = None
 
-    _ADMITTED_TAGS = (XSD_COMPLEX_TYPE, XSD_RESTRICTION)
-    _CONTENT_TAIL_TAGS = {XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ANY_ATTRIBUTE}
+    _ADMITTED_TAGS = (nm.XSD_COMPLEX_TYPE, nm.XSD_RESTRICTION)
+    _CONTENT_TAIL_TAGS = frozenset(
+        (nm.XSD_ATTRIBUTE, nm.XSD_ATTRIBUTE_GROUP, nm.XSD_ANY_ATTRIBUTE)
+    )
 
     @staticmethod
     def normalize(text: Union[str, bytes]) -> str:
@@ -106,7 +103,7 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
             )
 
     def _parse(self) -> None:
-        if self.elem.tag == XSD_RESTRICTION:
+        if self.elem.tag == nm.XSD_RESTRICTION:
             return  # a local restriction is already parsed by the caller
 
         if 'abstract' in self.elem.attrib:
@@ -152,7 +149,7 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
                     (self.mixed or self.content or default_open_content.applies_to_empty):
                 self.open_content = default_open_content
 
-        elif content_elem.tag in (XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE):
+        elif content_elem.tag in nm.MODEL_GROUP_TAGS:
             self.content = self.builders.group_class(content_elem, self.schema, self)
             default_open_content = self.default_open_content
             if default_open_content is not None and \
@@ -160,7 +157,7 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
                 self.open_content = default_open_content
             self._parse_content_tail(self.elem)
 
-        elif content_elem.tag == XSD_SIMPLE_CONTENT:
+        elif content_elem.tag == nm.XSD_SIMPLE_CONTENT:
             if 'mixed' in content_elem.attrib:
                 msg = _("'mixed' attribute not allowed with simpleContent")
                 self.parse_error(msg, content_elem)
@@ -170,7 +167,7 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
                 return
 
             self.base_type = base_type = self._parse_base_type(derivation_elem)
-            if derivation_elem.tag == XSD_RESTRICTION:
+            if derivation_elem.tag == nm.XSD_RESTRICTION:
                 self._parse_simple_content_restriction(derivation_elem, base_type)
             else:
                 self._parse_simple_content_extension(derivation_elem, base_type)
@@ -180,7 +177,7 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
                 msg = _("unexpected tag %r after simpleContent declaration:")
                 self.parse_error(msg % self.elem[k].tag)
 
-        elif content_elem.tag == XSD_COMPLEX_CONTENT:
+        elif content_elem.tag == nm.XSD_COMPLEX_CONTENT:
             #
             # complexType with complexContent restriction/extension
             if 'mixed' in content_elem.attrib:
@@ -201,7 +198,7 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
                 self.base_type = self.redefine
                 self.open_content = None
 
-            if derivation_elem.tag == XSD_RESTRICTION:
+            if derivation_elem.tag == nm.XSD_RESTRICTION:
                 self._parse_complex_content_restriction(derivation_elem, self.base_type)
             else:
                 self._parse_complex_content_extension(derivation_elem, self.base_type)
@@ -211,7 +208,7 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
                 msg = _("unexpected tag %r after complexContent declaration")
                 self.parse_error(msg % self.elem[k].tag)
 
-        elif content_elem.tag == XSD_OPEN_CONTENT and self.xsd_version > '1.0':
+        elif content_elem.tag == nm.XSD_OPEN_CONTENT and self.xsd_version > '1.0':
             self.open_content = XsdOpenContent(content_elem, self.schema, self)
 
             if content_elem is self.elem[-1]:
@@ -220,8 +217,7 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
                 for index, child in enumerate(self.elem):
                     if content_elem is not child:
                         continue
-                    elif (self.elem[index + 1].tag in
-                          (XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE)):
+                    elif self.elem[index + 1].tag in nm.MODEL_GROUP_TAGS:
                         self.content = self.builders.group_class(
                             self.elem[index + 1], self.schema, self
                         )
@@ -254,7 +250,8 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
 
     def _parse_derivation_elem(self, elem: ElementType) -> Optional[ElementType]:
         derivation_elem = self._parse_child_component(elem)
-        if derivation_elem is None or derivation_elem.tag not in (XSD_RESTRICTION, XSD_EXTENSION):
+        if derivation_elem is None or \
+                derivation_elem.tag not in (nm.XSD_RESTRICTION, nm.XSD_EXTENSION):
             msg = _("restriction or extension tag expected")
             self.parse_error(msg, derivation_elem)
             self.content = self.builders.create_any_content_group(self)
@@ -377,10 +374,10 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
 
         # complexContent restriction: the base type must be a complexType with a complex content.
         for child in elem:
-            if child.tag == XSD_OPEN_CONTENT and self.xsd_version > '1.0':
+            if child.tag == nm.XSD_OPEN_CONTENT and self.xsd_version > '1.0':
                 self.open_content = XsdOpenContent(child, self.schema, self)
                 continue
-            elif child.tag in XSD_MODEL_GROUP_TAGS:
+            elif child.tag in nm.MODEL_GROUP_TAGS:
                 content = self.builders.group_class(child, self.schema, self)
                 if not base_type.content.admits_restriction(content.model):
                     msg = _("restriction of an xs:{0} with more than "
@@ -423,7 +420,7 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
 
         group_elem: Optional[ElementType]
         for group_elem in elem:
-            if group_elem.tag != XSD_ANNOTATION and not callable(group_elem.tag):
+            if group_elem.tag != nm.XSD_ANNOTATION and not callable(group_elem.tag):
                 break
         else:
             group_elem = None
@@ -431,7 +428,7 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
         if base_type.is_empty():
             if not base_type.mixed:
                 # Empty element-only model extension: don't create a nested group.
-                if group_elem is not None and group_elem.tag in XSD_MODEL_GROUP_TAGS:
+                if group_elem is not None and group_elem.tag in nm.MODEL_GROUP_TAGS:
                     self.content = self.builders.group_class(
                         group_elem, self.schema, self
                     )
@@ -446,7 +443,7 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
                 self.content = self.builders.create_empty_content_group(self)
                 self.content.append(self.builders.create_empty_content_group(self.content))
 
-                if group_elem is not None and group_elem.tag in XSD_MODEL_GROUP_TAGS:
+                if group_elem is not None and group_elem.tag in nm.MODEL_GROUP_TAGS:
                     group = self.builders.group_class(
                         group_elem, self.schema, self.content
                     )
@@ -461,7 +458,7 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
                 self.content.elem.append(base_type.content.elem)
                 self.content.elem.append(group.elem)
 
-        elif group_elem is not None and group_elem.tag in XSD_MODEL_GROUP_TAGS:
+        elif group_elem is not None and group_elem.tag in nm.MODEL_GROUP_TAGS:
             # Derivation from a simple content is forbidden if base type is not empty.
             if base_type.is_simple() or base_type.has_simple_content():
                 msg = _("base %r is simple or has a simple content")
@@ -540,7 +537,7 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
     @cached_property
     def root_type(self) -> BaseXsdType:
         if self.attributes or self.base_type is None:
-            return cast('XsdComplexType', self.maps.types[XSD_ANY_TYPE])
+            return cast('XsdComplexType', self.maps.types[nm.XSD_ANY_TYPE])
         else:
             return self.base_type.root_type
 
@@ -607,7 +604,7 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
         return isinstance(self.content, XsdSimpleType) and self.content.is_list()
 
     def is_dynamic_consistent(self, other: Any) -> bool:
-        return other.name == XSD_ANY_TYPE or self.is_derived(other) or \
+        return other.name == nm.XSD_ANY_TYPE or self.is_derived(other) or \
             isinstance(other, XsdUnion) and any(self.is_derived(mt) for mt in other.member_types)
 
     def validate(self, obj: Union[ElementType, str, bytes],
@@ -660,7 +657,7 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
 
         if self is other or self.ref is other:
             return True
-        elif other.name == XSD_ANY_TYPE:
+        elif other.name == nm.XSD_ANY_TYPE:
             return derivation != 'extension'
         elif self.base_type is other:
             return derivation is None
@@ -815,7 +812,7 @@ class Xsd11ComplexType(XsdComplexType):
     """
     default_attributes_apply = True
 
-    _CONTENT_TAIL_TAGS = {XSD_ATTRIBUTE_GROUP, XSD_ATTRIBUTE, XSD_ANY_ATTRIBUTE, XSD_ASSERT}
+    _CONTENT_TAIL_TAGS = nm.CONTENT_TAIL_TAGS
 
     @property
     def default_attributes(self) -> Optional[XsdAttributeGroup]:
@@ -823,7 +820,7 @@ class Xsd11ComplexType(XsdComplexType):
             default_attributes = self.schema.default_attributes
         else:
             for child in self.schema.root:
-                if child.tag == XSD_OVERRIDE and self.elem in child:
+                if child.tag == nm.XSD_OVERRIDE and self.elem in child:
                     schema = self.schema.includes[child.attrib['schemaLocation']]
                     if schema.override is self.schema:
                         default_attributes = schema.default_attributes
@@ -841,7 +838,7 @@ class Xsd11ComplexType(XsdComplexType):
             return self.schema.default_open_content
 
         for child in self.schema.root:
-            if child.tag == XSD_OVERRIDE and self.elem in child:
+            if child.tag == nm.XSD_OVERRIDE and self.elem in child:
                 schema = self.schema.includes[child.attrib['schemaLocation']]
                 if schema.override is self.schema:
                     return schema.default_open_content
@@ -912,9 +909,9 @@ class Xsd11ComplexType(XsdComplexType):
         # Parse openContent
         group_elem: Any
         for group_elem in elem:
-            if group_elem.tag == XSD_ANNOTATION or callable(group_elem.tag):
+            if group_elem.tag == nm.XSD_ANNOTATION or callable(group_elem.tag):
                 continue
-            elif group_elem.tag != XSD_OPEN_CONTENT:
+            elif group_elem.tag != nm.XSD_OPEN_CONTENT:
                 break
             self.open_content = XsdOpenContent(group_elem, self.schema, self)
             try:
@@ -928,7 +925,7 @@ class Xsd11ComplexType(XsdComplexType):
         if not base_type.content:
             if not base_type.mixed:
                 # Empty element-only model extension: don't create a nested sequence group.
-                if group_elem is not None and group_elem.tag in XSD_MODEL_GROUP_TAGS:
+                if group_elem is not None and group_elem.tag in nm.MODEL_GROUP_TAGS:
                     self.content = self.builders.group_class(
                         group_elem, self.schema, self
                     )
@@ -946,7 +943,7 @@ class Xsd11ComplexType(XsdComplexType):
                 self.content = self.builders.create_empty_content_group(self)
                 self.content.append(self.builders.create_empty_content_group(self.content))
 
-                if group_elem is not None and group_elem.tag in XSD_MODEL_GROUP_TAGS:
+                if group_elem is not None and group_elem.tag in nm.MODEL_GROUP_TAGS:
                     group = self.builders.group_class(
                         group_elem, self.schema, self.content
                     )
@@ -964,7 +961,7 @@ class Xsd11ComplexType(XsdComplexType):
                 self.content.elem.append(base_type.content.elem)
                 self.content.elem.append(group.elem)
 
-        elif group_elem is not None and group_elem.tag in XSD_MODEL_GROUP_TAGS:
+        elif group_elem is not None and group_elem.tag in nm.MODEL_GROUP_TAGS:
             group = self.builders.group_class(group_elem, self.schema, self)
 
             if base_type.content.model != 'all':
@@ -1050,7 +1047,7 @@ class Xsd11ComplexType(XsdComplexType):
         )
 
         self.assertions = [XsdAssert(e, self.schema, self, self)
-                           for e in elem if e.tag == XSD_ASSERT]
+                           for e in elem if e.tag == nm.XSD_ASSERT]
         if isinstance(self.base_type, XsdComplexType):
             self.assertions.extend(
                 XsdAssert(assertion.elem, self.schema, self, self)

@@ -22,17 +22,14 @@ from elementpath import XPathContext, ElementPathError, \
     translate_pattern, RegexError, ElementNode
 from elementpath.datatypes import AbstractQName
 
-from xmlschema.names import XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_ENUMERATION, \
-    XSD_INTEGER, XSD_WHITE_SPACE, XSD_PATTERN, XSD_MAX_INCLUSIVE, XSD_MAX_EXCLUSIVE, \
-    XSD_MIN_INCLUSIVE, XSD_MIN_EXCLUSIVE, XSD_TOTAL_DIGITS, XSD_FRACTION_DIGITS, \
-    XSD_ASSERTION, XSD_DECIMAL, XSD_EXPLICIT_TIMEZONE, XSD_NOTATION_TYPE, XSD_QNAME, \
-    XSD_ANNOTATION
+import xmlschema.names as nm
 from xmlschema.aliases import ElementType, SchemaType, AtomicValueType, BaseXsdType
 from xmlschema.translation import gettext as _
 from xmlschema.utils.decoding import count_digits
 from xmlschema.utils.qnames import local_name
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaDecodeError
+from .helpers import get_xsd_annotation
 from .xsdbase import XsdComponent, XsdAnnotation
 
 if TYPE_CHECKING:
@@ -127,7 +124,7 @@ class XsdWhiteSpaceFacet(XsdFacet):
         </whiteSpace>
     """
     value: str
-    _ADMITTED_TAGS = XSD_WHITE_SPACE,
+    _ADMITTED_TAGS = nm.XSD_WHITE_SPACE,
 
     def _parse_value(self, elem: ElementType) -> None:
         self.value = elem.attrib['value']
@@ -176,7 +173,7 @@ class XsdLengthFacet(XsdFacet):
     value: int
     base_type: BaseXsdType
     base_value: Optional[int]
-    _ADMITTED_TAGS = XSD_LENGTH,
+    _ADMITTED_TAGS = nm.XSD_LENGTH,
 
     def _parse_value(self, elem: ElementType) -> None:
         self.value = int(elem.attrib['value'])
@@ -185,7 +182,7 @@ class XsdLengthFacet(XsdFacet):
             self.parse_error(msg.format(self.base_value))
 
         primitive_type = getattr(self.base_type, 'primitive_type', None)
-        if primitive_type is None or primitive_type.name not in (XSD_QNAME, XSD_NOTATION_TYPE):
+        if primitive_type is None or primitive_type.name not in nm.QNAME_TAGS:
             # See: https://www.w3.org/Bugs/Public/show_bug.cgi?id=4009
             self.validate = self.length_validator
 
@@ -214,7 +211,7 @@ class XsdMinLengthFacet(XsdFacet):
     value: int
     base_type: BaseXsdType
     base_value: Optional[int]
-    _ADMITTED_TAGS = XSD_MIN_LENGTH,
+    _ADMITTED_TAGS = nm.XSD_MIN_LENGTH,
 
     def _parse_value(self, elem: ElementType) -> None:
         self.value = int(elem.attrib['value'])
@@ -223,7 +220,7 @@ class XsdMinLengthFacet(XsdFacet):
             self.parse_error(msg.format(self.base_value))
 
         primitive_type = getattr(self.base_type, 'primitive_type', None)
-        if primitive_type is None or primitive_type.name not in (XSD_QNAME, XSD_NOTATION_TYPE):
+        if primitive_type is None or primitive_type.name not in nm.QNAME_TAGS:
             # See: https://www.w3.org/Bugs/Public/show_bug.cgi?id=4009
             self.validate = self.min_length_validator
 
@@ -252,7 +249,7 @@ class XsdMaxLengthFacet(XsdFacet):
     value: int
     base_type: BaseXsdType
     base_value: Optional[int]
-    _ADMITTED_TAGS = XSD_MAX_LENGTH,
+    _ADMITTED_TAGS = nm.XSD_MAX_LENGTH,
 
     def _parse_value(self, elem: ElementType) -> None:
         self.value = int(elem.attrib['value'])
@@ -261,7 +258,7 @@ class XsdMaxLengthFacet(XsdFacet):
             self.parse_error(msg.format(self.base_value))
 
         primitive_type = getattr(self.base_type, 'primitive_type', None)
-        if primitive_type is None or primitive_type.name not in (XSD_QNAME, XSD_NOTATION_TYPE):
+        if primitive_type is None or primitive_type.name not in nm.QNAME_TAGS:
             # See: https://www.w3.org/Bugs/Public/show_bug.cgi?id=4009
             self.validate = self.max_length_validator
 
@@ -288,7 +285,7 @@ class XsdMinInclusiveFacet(XsdFacet):
         </minInclusive>
     """
     base_type: BaseXsdType
-    _ADMITTED_TAGS = XSD_MIN_INCLUSIVE,
+    _ADMITTED_TAGS = nm.XSD_MIN_INCLUSIVE,
 
     def _parse_value(self, elem: ElementType) -> None:
         self.schema.validation_context.clear()
@@ -328,7 +325,7 @@ class XsdMinExclusiveFacet(XsdFacet):
         </minExclusive>
     """
     base_type: BaseXsdType
-    _ADMITTED_TAGS = XSD_MIN_EXCLUSIVE,
+    _ADMITTED_TAGS = nm.XSD_MIN_EXCLUSIVE,
 
     def _parse_value(self, elem: ElementType) -> None:
         self.schema.validation_context.clear()
@@ -345,7 +342,7 @@ class XsdMinExclusiveFacet(XsdFacet):
             if not isinstance(e.validator, self.__class__) or e.validator.value != self.value:
                 self.parse_error(_("invalid restriction: {}").format(e.reason))
 
-        facet: Any = self.base_type.get_facet(XSD_MAX_INCLUSIVE)
+        facet: Any = self.base_type.get_facet(nm.XSD_MAX_INCLUSIVE)
         if facet is not None and facet.value == self.value:
             msg = _("invalid restriction: {} is also the maximum")
             self.parse_error(msg.format(self.value))
@@ -372,7 +369,7 @@ class XsdMaxInclusiveFacet(XsdFacet):
         </maxInclusive>
     """
     base_type: BaseXsdType
-    _ADMITTED_TAGS = XSD_MAX_INCLUSIVE,
+    _ADMITTED_TAGS = nm.XSD_MAX_INCLUSIVE,
 
     def _parse_value(self, elem: ElementType) -> None:
         self.schema.validation_context.clear()
@@ -410,7 +407,7 @@ class XsdMaxExclusiveFacet(XsdFacet):
         </maxExclusive>
     """
     base_type: BaseXsdType
-    _ADMITTED_TAGS = XSD_MAX_EXCLUSIVE,
+    _ADMITTED_TAGS = nm.XSD_MAX_EXCLUSIVE,
 
     def _parse_value(self, elem: ElementType) -> None:
         self.schema.validation_context.clear()
@@ -427,7 +424,7 @@ class XsdMaxExclusiveFacet(XsdFacet):
             if not isinstance(e.validator, self.__class__) or e.validator.value != self.value:
                 self.parse_error(_("invalid restriction: {}").format(e.reason))
 
-        facet: Any = self.base_type.get_facet(XSD_MIN_INCLUSIVE)
+        facet: Any = self.base_type.get_facet(nm.XSD_MIN_INCLUSIVE)
         if facet is not None and facet.value == self.value:
             msg = _("invalid restriction: {} is also the minimum")
             self.parse_error(msg.format(self.value))
@@ -455,7 +452,7 @@ class XsdTotalDigitsFacet(XsdFacet):
     """
     value: int
     base_type: BaseXsdType
-    _ADMITTED_TAGS = XSD_TOTAL_DIGITS,
+    _ADMITTED_TAGS = nm.XSD_TOTAL_DIGITS,
 
     def _parse_value(self, elem: ElementType) -> None:
         # Errors are detected by meta-schema validation. For schemas with
@@ -470,7 +467,7 @@ class XsdTotalDigitsFacet(XsdFacet):
             if self.value < 1:
                 self.value = 9999
 
-            facet: Any = self.base_type.get_facet(XSD_TOTAL_DIGITS)
+            facet: Any = self.base_type.get_facet(nm.XSD_TOTAL_DIGITS)
             if facet is not None and facet.value < self.value:
                 msg = _("invalid restriction: base value is lower ({})")
                 self.parse_error(msg.format(facet.value))
@@ -504,7 +501,7 @@ class XsdFractionDigitsFacet(XsdFacet):
     """
     value: int
     base_type: BaseXsdType
-    _ADMITTED_TAGS = XSD_FRACTION_DIGITS,
+    _ADMITTED_TAGS = nm.XSD_FRACTION_DIGITS,
 
     def __init__(self, elem: ElementType,
                  schema: SchemaType,
@@ -512,7 +509,7 @@ class XsdFractionDigitsFacet(XsdFacet):
                  base_type: BaseXsdType) -> None:
 
         super().__init__(elem, schema, parent, base_type)
-        if not base_type.is_derived(self.maps.types[XSD_DECIMAL]):
+        if not base_type.is_derived(self.maps.types[nm.XSD_DECIMAL]):
             msg = _("fractionDigits facet can be applied only to types derived from xs:decimal")
             self.parse_error(msg)
 
@@ -528,11 +525,11 @@ class XsdFractionDigitsFacet(XsdFacet):
         else:
             if self.value < 0:
                 self.value = 9999
-            elif self.value > 0 and self.base_type.is_derived(self.maps.types[XSD_INTEGER]):
+            elif self.value > 0 and self.base_type.is_derived(self.maps.types[nm.XSD_INTEGER]):
                 msg = _("fractionDigits facet value must be 0 for types derived from xs:integer")
                 raise ValueError(msg)
 
-            facet: Any = self.base_type.get_facet(XSD_FRACTION_DIGITS)
+            facet: Any = self.base_type.get_facet(nm.XSD_FRACTION_DIGITS)
             if facet is not None and facet.value < self.value:
                 msg = _("invalid restriction: base value is lower ({})")
                 self.parse_error(msg.format(facet.value))
@@ -565,7 +562,7 @@ class XsdExplicitTimezoneFacet(XsdFacet):
     """
     value: str
     base_type: BaseXsdType
-    _ADMITTED_TAGS = XSD_EXPLICIT_TIMEZONE,
+    _ADMITTED_TAGS = nm.XSD_EXPLICIT_TIMEZONE,
 
     def _parse_value(self, elem: ElementType) -> None:
         self.value = elem.attrib['value']
@@ -574,7 +571,7 @@ class XsdExplicitTimezoneFacet(XsdFacet):
         elif self.value == 'required':
             self.validate = self.required_timezone_validator
 
-        facet: Any = self.base_type.get_facet(XSD_EXPLICIT_TIMEZONE)
+        facet: Any = self.base_type.get_facet(nm.XSD_EXPLICIT_TIMEZONE)
         if facet is not None and facet.value != self.value and facet.value != 'optional':
             msg = _("invalid restriction from {!r}")
             self.parse_error(msg.format(facet.value))
@@ -608,7 +605,7 @@ class XsdEnumerationFacets(XsdFacet, MutableSequence[ElementType]):
         </enumeration>
     """
     base_type: BaseXsdType
-    _ADMITTED_TAGS = XSD_ENUMERATION,
+    _ADMITTED_TAGS = nm.XSD_ENUMERATION,
 
     __slots__ = ('_elements', 'enumeration')
 
@@ -634,7 +631,7 @@ class XsdEnumerationFacets(XsdFacet, MutableSequence[ElementType]):
         except XMLSchemaValidationError as err:
             self.parse_error(err, elem)
         else:
-            if self.base_type.name == XSD_NOTATION_TYPE:
+            if self.base_type.name == nm.XSD_NOTATION_TYPE:
                 assert isinstance(value, str)
                 try:
                     notation_qname = self.schema.resolve_qname(value)
@@ -710,10 +707,7 @@ class XsdEnumerationFacets(XsdFacet, MutableSequence[ElementType]):
         :param i: an integer index.
         :returns: an XsdAnnotation object or `None`.
         """
-        for child in self._elements[i]:
-            if child.tag == XSD_ANNOTATION:
-                return XsdAnnotation(child, self.schema, self)
-        return None
+        return get_xsd_annotation(self._elements[i], self.schema, self)
 
 
 class XsdPatternFacets(XsdFacet, MutableSequence[ElementType]):
@@ -727,7 +721,7 @@ class XsdPatternFacets(XsdFacet, MutableSequence[ElementType]):
           Content: (annotation?)
         </pattern>
     """
-    _ADMITTED_TAGS = XSD_PATTERN,
+    _ADMITTED_TAGS = nm.XSD_PATTERN,
     patterns: list[re.Pattern[str]]
 
     # XSD pattern translation options
@@ -826,10 +820,7 @@ class XsdPatternFacets(XsdFacet, MutableSequence[ElementType]):
         :param i: an integer index.
         :returns: an XsdAnnotation object or `None`.
         """
-        for child in self._elements[i]:
-            if child.tag == XSD_ANNOTATION:
-                return XsdAnnotation(child, self.schema, self)
-        return None
+        return get_xsd_annotation(self._elements[i], self.schema, self)
 
 
 class XsdAssertionFacet(XsdFacet):
@@ -844,7 +835,7 @@ class XsdAssertionFacet(XsdFacet):
           Content: (annotation?)
         </assertion>
     """
-    _ADMITTED_TAGS = XSD_ASSERTION,
+    _ADMITTED_TAGS = nm.XSD_ASSERTION,
     _root = ElementNode(elem=Element('root'))
 
     def __repr__(self) -> str:
@@ -894,24 +885,24 @@ class XsdAssertionFacet(XsdFacet):
 
 
 XSD_10_FACETS_CLASSES: dict[str, Type[XsdFacet]] = {
-    XSD_WHITE_SPACE: XsdWhiteSpaceFacet,
-    XSD_LENGTH: XsdLengthFacet,
-    XSD_MIN_LENGTH: XsdMinLengthFacet,
-    XSD_MAX_LENGTH: XsdMaxLengthFacet,
-    XSD_MIN_INCLUSIVE: XsdMinInclusiveFacet,
-    XSD_MIN_EXCLUSIVE: XsdMinExclusiveFacet,
-    XSD_MAX_INCLUSIVE: XsdMaxInclusiveFacet,
-    XSD_MAX_EXCLUSIVE: XsdMaxExclusiveFacet,
-    XSD_TOTAL_DIGITS: XsdTotalDigitsFacet,
-    XSD_FRACTION_DIGITS: XsdFractionDigitsFacet,
-    XSD_ENUMERATION: XsdEnumerationFacets,
-    XSD_PATTERN: XsdPatternFacets
+    nm.XSD_WHITE_SPACE: XsdWhiteSpaceFacet,
+    nm.XSD_LENGTH: XsdLengthFacet,
+    nm.XSD_MIN_LENGTH: XsdMinLengthFacet,
+    nm.XSD_MAX_LENGTH: XsdMaxLengthFacet,
+    nm.XSD_MIN_INCLUSIVE: XsdMinInclusiveFacet,
+    nm.XSD_MIN_EXCLUSIVE: XsdMinExclusiveFacet,
+    nm.XSD_MAX_INCLUSIVE: XsdMaxInclusiveFacet,
+    nm.XSD_MAX_EXCLUSIVE: XsdMaxExclusiveFacet,
+    nm.XSD_TOTAL_DIGITS: XsdTotalDigitsFacet,
+    nm.XSD_FRACTION_DIGITS: XsdFractionDigitsFacet,
+    nm.XSD_ENUMERATION: XsdEnumerationFacets,
+    nm.XSD_PATTERN: XsdPatternFacets
 }
 
 XSD_11_FACETS_CLASSES: dict[str, Type[XsdFacet]] = XSD_10_FACETS_CLASSES.copy()
 XSD_11_FACETS_CLASSES.update({
-    XSD_ASSERTION: XsdAssertionFacet,
-    XSD_EXPLICIT_TIMEZONE: XsdExplicitTimezoneFacet
+    nm.XSD_ASSERTION: XsdAssertionFacet,
+    nm.XSD_EXPLICIT_TIMEZONE: XsdExplicitTimezoneFacet
 })
 
 FACETS_CLASSES = {
@@ -922,9 +913,9 @@ FACETS_CLASSES = {
 XSD_10_FACETS = set(XSD_10_FACETS_CLASSES)
 XSD_11_FACETS = set(XSD_11_FACETS_CLASSES)
 
-XSD_10_LIST_FACETS = {XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_PATTERN,
-                      XSD_ENUMERATION, XSD_WHITE_SPACE}
-XSD_11_LIST_FACETS = XSD_10_LIST_FACETS | {XSD_ASSERTION}
+XSD_10_LIST_FACETS = {nm.XSD_LENGTH, nm.XSD_MIN_LENGTH, nm.XSD_MAX_LENGTH, nm.XSD_PATTERN,
+                      nm.XSD_ENUMERATION, nm.XSD_WHITE_SPACE}
+XSD_11_LIST_FACETS = XSD_10_LIST_FACETS | {nm.XSD_ASSERTION}
 
-XSD_10_UNION_FACETS = {XSD_PATTERN, XSD_ENUMERATION}
-XSD_11_UNION_FACETS = MULTIPLE_FACETS = {XSD_PATTERN, XSD_ENUMERATION, XSD_ASSERTION}
+XSD_10_UNION_FACETS = {nm.XSD_PATTERN, nm.XSD_ENUMERATION}
+XSD_11_UNION_FACETS = MULTIPLE_FACETS = {nm.XSD_PATTERN, nm.XSD_ENUMERATION, nm.XSD_ASSERTION}

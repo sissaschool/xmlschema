@@ -13,10 +13,8 @@ from typing import Any, Optional, Union
 
 from elementpath import SchemaElementNode, build_schema_node_tree
 
+import xmlschema.names as nm
 from xmlschema.exceptions import XMLSchemaValueError
-from xmlschema.names import XSI_NAMESPACE, XSD_ANY, XSD_ANY_ATTRIBUTE, \
-    XSD_OPEN_CONTENT, XSD_DEFAULT_OPEN_CONTENT, XSI_TYPE
-
 from xmlschema.aliases import ElementType, SchemaType, SchemaElementType, SchemaAttributeType, \
     ModelGroupType, ModelParticleType, AtomicValueType, DecodedValueType, OccursCounterType
 from xmlschema.translation import gettext as _
@@ -178,7 +176,7 @@ class XsdWildcard(XsdComponent):
     def is_namespace_allowed(self, namespace: str) -> bool:
         if self.not_namespace:
             return namespace not in self.not_namespace
-        elif '##any' in self.namespace or namespace == XSI_NAMESPACE:
+        elif '##any' in self.namespace or namespace == nm.XSI_NAMESPACE:
             return True
         elif '##other' in self.namespace:
             if not namespace:
@@ -405,7 +403,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
           Content: (annotation?)
         </any>
     """
-    _ADMITTED_TAGS = XSD_ANY,
+    _ADMITTED_TAGS = nm.XSD_ANY,
     precedences: dict[ModelGroupType, list[ModelParticleType]]
     copy: Callable[['XsdAnyElement'], 'XsdAnyElement']
 
@@ -516,7 +514,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
             else:
                 return xsd_element.raw_decode(obj, validation, context)
 
-        if XSI_TYPE in obj.attrib:
+        if nm.XSI_TYPE in obj.attrib:
             if self.process_contents == 'strict':
                 xsd_element = self.builders.create_element(
                     obj.tag, self.maps.validator, parent=self, form='unqualified'
@@ -575,7 +573,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
             if validation != 'skip' and self.process_contents == 'strict':
                 context.validation_error(validation, self, err, value)
         else:
-            if XSI_TYPE in element_data.attributes:
+            if nm.XSI_TYPE in element_data.attributes:
                 return xsd_element.raw_encode(value, validation, context)
 
         if validation != 'skip' and self.process_contents == 'strict':
@@ -633,7 +631,7 @@ class XsdAnyAttribute(XsdWildcard, ValidationMixin[tuple[str, str], DecodedValue
         </anyAttribute>
     """
     copy: Callable[['XsdAnyAttribute'], 'XsdAnyAttribute']
-    _ADMITTED_TAGS = XSD_ANY_ATTRIBUTE,
+    _ADMITTED_TAGS = nm.XSD_ANY_ATTRIBUTE,
 
     # Added for compatibility with protocol of XSD attributes
     use = None
@@ -855,7 +853,7 @@ class XsdOpenContent(XsdComponent):
           Content: (annotation?), (any?)
         </openContent>
     """
-    _ADMITTED_TAGS = XSD_OPEN_CONTENT,
+    _ADMITTED_TAGS = nm.XSD_OPEN_CONTENT,
     mode = 'interleave'
     any_element = None  # type: Xsd11AnyElement
 
@@ -877,11 +875,11 @@ class XsdOpenContent(XsdComponent):
 
         child = self._parse_child_component(self.elem)
         if self.mode == 'none':
-            if child is not None and child.tag == XSD_ANY:
+            if child is not None and child.tag == nm.XSD_ANY:
                 msg = _("an openContent with mode='none' cannot "
                         "have an <xs:any> child declaration")
                 self.parse_error(msg)
-        elif child is None or child.tag != XSD_ANY:
+        elif child is None or child.tag != nm.XSD_ANY:
             self.parse_error(_("an <xs:any> child declaration is required"))
         else:
             self.any_element = Xsd11AnyElement(child, self.schema, self)
@@ -907,7 +905,7 @@ class XsdDefaultOpenContent(XsdOpenContent):
           Content: (annotation?, any)
         </defaultOpenContent>
     """
-    _ADMITTED_TAGS = XSD_DEFAULT_OPEN_CONTENT,
+    _ADMITTED_TAGS = nm.XSD_DEFAULT_OPEN_CONTENT,
     applies_to_empty = False
 
     def __init__(self, elem: ElementType, schema: SchemaType) -> None:

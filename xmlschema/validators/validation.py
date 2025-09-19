@@ -43,7 +43,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger('xmlschema')
 
-XSD_VALIDATION_MODES = {'strict', 'lax', 'skip'}
+XSD_VALIDATION_MODES = frozenset(('strict', 'lax', 'skip'))
 """
 XML Schema validation modes
 Ref.: https://www.w3.org/TR/xmlschema11-1/#key-va

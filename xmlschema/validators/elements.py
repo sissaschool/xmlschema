@@ -23,11 +23,9 @@ from elementpath import XPath2Parser, ElementPathError, XPathContext, XPathToken
 from elementpath.datatypes import AbstractDateTime, Duration
 from elementpath.xpath_nodes import EtreeElementNode
 
+import xmlschema.names as nm
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError, \
     XMLResourceParseError
-from xmlschema.names import XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE, XSD_ALTERNATIVE, \
-    XSD_ELEMENT, XSD_ANY_TYPE, XSI_NIL, XSI_TYPE, XSD_ERROR, XSD_NOTATION_TYPE, \
-    XSD_ANNOTATION
 from xmlschema.aliases import ElementType, BaseXsdType, SchemaElementType, \
     ModelParticleType, ComponentClassType, DecodeType, DecodedValueType
 from xmlschema.translation import gettext as _
@@ -131,7 +129,7 @@ class XsdElement(XsdComponent, ParticleMixin,
     alternatives: Union[tuple[()], list['XsdAlternative']] = ()
     inheritable: Union[tuple[()], dict[str, XsdAttribute]] = ()
 
-    _ADMITTED_TAGS = XSD_ELEMENT,
+    _ADMITTED_TAGS = nm.XSD_ELEMENT,
     _block: Optional[str] = None
     _final: Optional[str] = None
 
@@ -283,7 +281,7 @@ class XsdElement(XsdComponent, ParticleMixin,
                 self.parse_error(err)
                 self._set_type(self.maps.any_type)
             else:
-                if extended_name == XSD_ANY_TYPE:
+                if extended_name == nm.XSD_ANY_TYPE:
                     self._set_type(self.maps.any_type)
                 else:
                     try:
@@ -293,7 +291,7 @@ class XsdElement(XsdComponent, ParticleMixin,
                         self._set_type(self.maps.any_type)
             finally:
                 child = self._parse_child_component(self.elem, strict=False)
-                if child is not None and child.tag in (XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE):
+                if child is not None and child.tag in nm.GLOBAL_TYPES_TAGS:
                     msg = _("the attribute 'type' and a xs:{} local "
                             "declaration are mutually exclusive")
                     self.parse_error(msg.format(child.tag.split('}')[-1]))
@@ -336,31 +334,24 @@ class XsdElement(XsdComponent, ParticleMixin,
         # Identity constraints
         self.identities = []
         for child in self.elem:
-            if child.tag in (XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE, XSD_ANNOTATION):
-                continue
-
-            try:
+            if child.tag in nm.IDENTITY_TAGS:
                 identity = self.builders.identities[child.tag](child, self.schema, self)
-            except KeyError:
-                # Invalid tags already caught by validation against the meta-schema
-                continue
+                if identity.ref:
+                    if any(identity.name == x.name for x in self.identities):
+                        msg = _("duplicated identity constraint %r:")
+                        self.parse_error(msg % identity.name, child)
 
-            if identity.ref:
-                if any(identity.name == x.name for x in self.identities):
-                    msg = _("duplicated identity constraint %r:")
-                    self.parse_error(msg % identity.name, child)
+                    self.identities.append(identity)
+                    continue
 
-                self.identities.append(identity)
-                continue
-
-            try:
-                if child != self.maps.identities[identity.name].elem:
-                    msg = _("duplicated identity constraint %r:")
-                    self.parse_error(msg % identity.name, child)
-            except KeyError:
-                self.maps.identities[identity.name] = identity
-            finally:
-                self.identities.append(identity)
+                try:
+                    if child != self.maps.identities[identity.name].elem:
+                        msg = _("duplicated identity constraint %r:")
+                        self.parse_error(msg % identity.name, child)
+                except KeyError:
+                    self.maps.identities[identity.name] = identity
+                finally:
+                    self.identities.append(identity)
 
     def _parse_substitution_group(self, substitution_group: str) -> None:
         try:
@@ -389,8 +380,8 @@ class XsdElement(XsdComponent, ParticleMixin,
                 return
 
         final = head_element.final
-        if self.type.name == XSD_ANY_TYPE and 'type' not in self.elem.attrib:
-            if head_element.type.name != XSD_ANY_TYPE:
+        if self.type.name == nm.XSD_ANY_TYPE and 'type' not in self.elem.attrib:
+            if head_element.type.name != nm.XSD_ANY_TYPE:
                 # Set the type with head element's type for validate content
                 # ref: https://www.w3.org/TR/xmlschema-1/#cElement_Declarations
                 self.type = head_element.type
@@ -660,9 +651,9 @@ class XsdElement(XsdComponent, ParticleMixin,
 
         # Get the instance effective type
         xsd_type = self.get_type(obj, inherited)
-        if XSI_TYPE in obj.attrib and self.schema.meta_schema is not None:
+        if nm.XSI_TYPE in obj.attrib and self.schema.meta_schema is not None:
             # Meta-schema elements ignore xsi:type (issue #350)
-            type_name = obj.attrib[XSI_TYPE].strip()
+            type_name = obj.attrib[nm.XSI_TYPE].strip()
             namespaces = converter.namespaces
             try:
                 xsd_type = self.maps.get_instance_type(type_name, xsd_type, namespaces)
@@ -713,8 +704,8 @@ class XsdElement(XsdComponent, ParticleMixin,
             context.inherited = inherited
 
         # Checks the xsi:nil attribute of the instance
-        if XSI_NIL in obj.attrib:
-            xsi_nil = obj.attrib[XSI_NIL].strip()
+        if nm.XSI_NIL in obj.attrib:
+            xsi_nil = obj.attrib[nm.XSI_NIL].strip()
             if not self.nillable:
                 reason = _("element is not nillable")
                 context.validation_error(validation, self, reason, obj)
@@ -784,7 +775,7 @@ class XsdElement(XsdComponent, ParticleMixin,
                     value = text
 
             elif xsd_type.is_notation():
-                if xsd_type.name == XSD_NOTATION_TYPE:
+                if xsd_type.name == nm.XSD_NOTATION_TYPE:
                     msg = _("cannot validate against xs:NOTATION directly, "
                             "only against a subtype with an enumeration facet")
                     context.validation_error(validation, self, msg, text)
@@ -976,8 +967,8 @@ class XsdElement(XsdComponent, ParticleMixin,
         elem = context.create_element(element_data.tag)
 
         xsd_type = self.get_type(element_data)
-        if XSI_TYPE in element_data.attributes and self.schema.meta_schema is not None:
-            type_name = element_data.attributes[XSI_TYPE].strip()
+        if nm.XSI_TYPE in element_data.attributes and self.schema.meta_schema is not None:
+            type_name = element_data.attributes[nm.XSI_TYPE].strip()
             try:
                 xsd_type = self.maps.get_instance_type(
                     type_name, xsd_type, context.converter
@@ -1018,8 +1009,8 @@ class XsdElement(XsdComponent, ParticleMixin,
         finally:
             context.level -= 1
 
-        if XSI_NIL in element_data.attributes:
-            xsi_nil = element_data.attributes[XSI_NIL].strip()
+        if nm.XSI_NIL in element_data.attributes:
+            xsi_nil = element_data.attributes[nm.XSI_NIL].strip()
             if not self.nillable:
                 errors.append("element is not nillable.")
             elif xsi_nil not in ('0', '1', 'true', 'false'):
@@ -1305,7 +1296,7 @@ class Xsd11Element(XsdElement):
         alternatives = []
         has_test = True
         for child in self.elem:
-            if child.tag == XSD_ALTERNATIVE:
+            if child.tag == nm.XSD_ALTERNATIVE:
                 alternatives.append(XsdAlternative(child, self.schema, self))
                 if not has_test:
                     msg = _("test attribute missing in non-final alternative")
@@ -1470,7 +1461,7 @@ class XsdAlternative(XsdComponent):
     type: BaseXsdType
     path: Optional[str]
     token: Optional[XPathToken]
-    _ADMITTED_TAGS = XSD_ALTERNATIVE,
+    _ADMITTED_TAGS = nm.XSD_ALTERNATIVE,
 
     __slots__ = ('xpath_default_namespace', 'path', 'token', 'type')
 
@@ -1544,12 +1535,12 @@ class XsdAlternative(XsdComponent):
                 self.parse_error(_("unknown type {!r}").format(attrib['type']))
                 self.type = self.maps.any_type
             else:
-                if self.type.name != XSD_ERROR and not self.type.is_derived(self.parent.type):
+                if self.type.name != nm.XSD_ERROR and not self.type.is_derived(self.parent.type):
                     msg = _("type {0!r} is not derived from {1!r}")
                     self.parse_error(msg.format(attrib['type'], self.parent.type))
 
                 child = self._parse_child_component(self.elem, strict=False)
-                if child is not None and child.tag in (XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE):
+                if child is not None and child.tag in nm.GLOBAL_TYPES_TAGS:
                     msg = _("the attribute 'type' and the xs:%s local "
                             "declaration are mutually exclusive")
                     self.parse_error(msg % child.tag.split('}')[-1])

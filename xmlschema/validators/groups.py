@@ -17,10 +17,9 @@ from operator import attrgetter
 from typing import TYPE_CHECKING, cast, overload, Any, Optional, Union
 from xml.etree import ElementTree
 
+import xmlschema.names as nm
 from xmlschema import limits
 from xmlschema.exceptions import XMLSchemaValueError
-from xmlschema.names import XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ELEMENT, \
-    XSD_ANY, XSI_TYPE, XSD_ANY_TYPE, XSD_ANNOTATION
 from xmlschema.aliases import ElementType, NsmapType, SchemaType, ModelParticleType, \
     SchemaElementType, ComponentClassType, OccursCounterType
 from xmlschema.converters import ElementData
@@ -46,7 +45,7 @@ get_occurs = attrgetter('min_occurs', 'max_occurs')
 
 
 ANY_ELEMENT = ElementTree.Element(
-    XSD_ANY,
+    nm.XSD_ANY,
     attrib={
         'namespace': '##any',
         'processContents': 'lax',
@@ -108,7 +107,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
     # For XSD 1.1 openContent processing
     open_content: Optional[XsdOpenContent] = None
 
-    _ADMITTED_TAGS = (XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE)
+    _ADMITTED_TAGS = (nm.XSD_GROUP, nm.XSD_SEQUENCE, nm.XSD_ALL, nm.XSD_CHOICE)
 
     __slots__ = ('_group', 'content', 'oid', 'model', 'min_occurs', 'max_occurs')
 
@@ -489,7 +488,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         if self.parent is not None and self.parent.mixed:
             self.mixed = self.parent.mixed
 
-        if self.elem.tag != XSD_GROUP:
+        if self.elem.tag != nm.XSD_GROUP:
             # Local group (sequence|all|choice)
             if 'name' in self.elem.attrib:
                 msg = _("attribute 'name' not allowed in a local group")
@@ -552,7 +551,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                             msg = _("attribute 'maxOccurs' not allowed in a global group")
                             self.parse_error(msg, content_model)
 
-                    if content_model.tag in (XSD_SEQUENCE, XSD_ALL, XSD_CHOICE):
+                    if content_model.tag in nm.MODEL_TAGS:
                         self._parse_content_model(content_model)
                     else:
                         msg = _('unexpected tag %r')
@@ -571,17 +570,17 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
 
         child: ElementType
         for child in content_model:
-            if child.tag == XSD_ANNOTATION or callable(child.tag):
+            if child.tag == nm.XSD_ANNOTATION or callable(child.tag):
                 continue
-            elif child.tag == XSD_ELEMENT:
+            elif child.tag == nm.XSD_ELEMENT:
                 self.append(self.builders.element_class(child, self.schema, self))
-            elif content_model.tag == XSD_ALL:
+            elif content_model.tag == nm.XSD_ALL:
                 self.parse_error(_("'all' model can contain only elements"))
-            elif child.tag == XSD_ANY:
+            elif child.tag == nm.XSD_ANY:
                 self._group.append(self.builders.any_element_class(child, self.schema, self))
-            elif child.tag in (XSD_SEQUENCE, XSD_CHOICE):
+            elif child.tag in (nm.XSD_SEQUENCE, nm.XSD_CHOICE):
                 self._group.append(XsdGroup(child, self.schema, self))
-            elif child.tag == XSD_GROUP:
+            elif child.tag == nm.XSD_GROUP:
                 try:
                     ref = self.schema.resolve_qname(child.attrib['ref'])
                 except (KeyError, ValueError, RuntimeError) as err:
@@ -848,7 +847,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                     return
 
                 try:
-                    type_name = elem.attrib[XSI_TYPE].strip()
+                    type_name = elem.attrib[nm.XSI_TYPE].strip()
                 except KeyError:
                     return
                 else:
@@ -858,7 +857,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
             else:
                 alternatives = xsd_element.alternatives
                 try:
-                    type_name = elem.attrib[XSI_TYPE].strip()
+                    type_name = elem.attrib[nm.XSI_TYPE].strip()
                 except KeyError:
                     xsd_type = xsd_element.type
                 else:
@@ -867,12 +866,12 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                     )
 
         else:
-            if XSI_TYPE not in elem.attrib or self.schema.meta_schema is None:
+            if nm.XSI_TYPE not in elem.attrib or self.schema.meta_schema is None:
                 xsd_type = xsd_element.type
             else:
                 alternatives = xsd_element.alternatives
                 try:
-                    type_name = elem.attrib[XSI_TYPE].strip()
+                    type_name = elem.attrib[nm.XSI_TYPE].strip()
                 except KeyError:
                     xsd_type = xsd_element.type
                 else:
@@ -889,7 +888,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                                    "head element").format(xsd_element, derivation)
                         raise XMLSchemaValidationError(self, elem, reason)
 
-            if XSI_TYPE not in elem.attrib or self.schema.meta_schema is None:
+            if nm.XSI_TYPE not in elem.attrib or self.schema.meta_schema is None:
                 return
 
         # If it's a restriction the context is the base_type's group
@@ -1232,13 +1231,13 @@ class Xsd11Group(XsdGroup):
                 self.parse_error(msg)
 
         for child in content_model:
-            if child.tag == XSD_ELEMENT:
+            if child.tag == nm.XSD_ELEMENT:
                 self.append(self.builders.element_class(child, self.schema, self))
-            elif child.tag == XSD_ANY:
+            elif child.tag == nm.XSD_ANY:
                 self._group.append(self.builders.any_element_class(child, self.schema, self))
-            elif child.tag in (XSD_SEQUENCE, XSD_CHOICE, XSD_ALL):
+            elif child.tag in nm.MODEL_TAGS:
                 self._group.append(Xsd11Group(child, self.schema, self))
-            elif child.tag == XSD_GROUP:
+            elif child.tag == nm.XSD_GROUP:
                 try:
                     ref = self.schema.resolve_qname(child.attrib['ref'])
                 except (KeyError, ValueError, RuntimeError) as err:
@@ -1406,7 +1405,7 @@ class Xsd11Group(XsdGroup):
                 else:
                     if self.model == 'all' and restriction_wildcards:
                         if not isinstance(other_item, XsdGroup) and other_item.type \
-                                and other_item.type.name != XSD_ANY_TYPE:
+                                and other_item.type.name != nm.XSD_ANY_TYPE:
 
                             for w in restriction_wildcards:
                                 if w.is_matching(other_item.name, self.target_namespace):
