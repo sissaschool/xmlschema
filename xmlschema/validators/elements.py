@@ -40,7 +40,7 @@ from .exceptions import XMLSchemaValidationError, XMLSchemaParseError, \
     XMLSchemaStopValidation, XMLSchemaTypeTableWarning
 from .validation import XSD_VALIDATION_MODES, DecodeContext, \
     EncodeContext, ValidationMixin
-from .helpers import parse_xsd_derivation
+from .helpers import parse_xsd_derivation, parse_xpath_default_namespace
 from .xsdbase import XSD_TYPE_DERIVATIONS, XSD_ELEMENT_DERIVATIONS, XsdComponent
 from .particles import ParticleMixin, OccursCalculator
 from .identities import XsdIdentity, XsdKeyref, KeyrefCounter, FieldValueSelector
@@ -1277,7 +1277,8 @@ class Xsd11Element(XsdElement):
                 for substitution_group in self.elem.attrib['substitutionGroup'].split():
                     self._parse_substitution_group(substitution_group)
 
-        self._parse_target_namespace()
+        if 'targetNamespace' in self.elem.attrib:
+            self._parse_target_namespace()
 
         if any(v.inheritable for v in self.attributes.values()):
             self.inheritable = {}
@@ -1478,7 +1479,7 @@ class XsdAlternative(XsdComponent):
         attrib = self.elem.attrib
 
         if 'xpathDefaultNamespace' in attrib:
-            self.xpath_default_namespace = self._parse_xpath_default_namespace(self.elem)
+            self.xpath_default_namespace = parse_xpath_default_namespace(self)
         else:
             self.xpath_default_namespace = self.schema.xpath_default_namespace
 

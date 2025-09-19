@@ -25,6 +25,7 @@ from xmlschema.validators import XsdValidator, XsdComponent, XMLSchema10, XMLSch
     XMLSchemaParseError, XsdAnnotation, XsdGroup, XsdSimpleType, XMLSchemaNotBuiltError
 from xmlschema.validators.xsdbase import check_validation_mode
 from xmlschema.names import XSD_NAMESPACE, XSD_ELEMENT, XSD_ANNOTATION, XSD_ANY_TYPE
+from xmlschema.validators.helpers import parse_xpath_default_namespace
 
 CASES_DIR = os.path.join(os.path.dirname(__file__), '../test_cases')
 
@@ -168,14 +169,10 @@ class TestXsdValidator(unittest.TestCase):
         </xs:schema>"""
 
         schema = XMLSchema11(xsd_text)
-        elem = ElementTree.Element('A')
-        self.assertEqual(schema._parse_xpath_default_namespace(elem), '')
-        elem = ElementTree.Element('A', xpathDefaultNamespace='##local')
-        self.assertEqual(schema._parse_xpath_default_namespace(elem), '')
-        elem = ElementTree.Element('A', xpathDefaultNamespace='##defaultNamespace')
-        self.assertEqual(schema._parse_xpath_default_namespace(elem), '')
-        elem = ElementTree.Element('A', xpathDefaultNamespace='##targetNamespace')
-        self.assertEqual(schema._parse_xpath_default_namespace(elem), '')
+        self.assertEqual(parse_xpath_default_namespace(schema), '')
+        for ns in ('##local', '##defaultNamespace', '##targetNamespace'):
+            schema.root.attrib['xpathDefaultNamespace'] = ns
+            self.assertEqual(parse_xpath_default_namespace(schema), '')
 
         xsd_text = """<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
                 xmlns="tns0" targetNamespace="tns0">
@@ -183,20 +180,17 @@ class TestXsdValidator(unittest.TestCase):
         </xs:schema>"""
 
         schema = XMLSchema11(xsd_text, validation='lax')
-        elem = ElementTree.Element('A')
-        self.assertEqual(schema._parse_xpath_default_namespace(elem), '')
-        elem = ElementTree.Element('A', xpathDefaultNamespace='##local')
-        self.assertEqual(schema._parse_xpath_default_namespace(elem), '')
-        elem = ElementTree.Element('A', xpathDefaultNamespace='##defaultNamespace')
-        self.assertEqual(schema._parse_xpath_default_namespace(elem), 'tns0')
-        elem = ElementTree.Element('A', xpathDefaultNamespace='##targetNamespace')
-        self.assertEqual(schema._parse_xpath_default_namespace(elem), 'tns0')
-
-        elem = ElementTree.Element('A', xpathDefaultNamespace='tns1')
-        self.assertEqual(schema._parse_xpath_default_namespace(elem), 'tns1')
-
-        elem = ElementTree.Element('A', xpathDefaultNamespace='tns0 tns1')
-        self.assertEqual(schema._parse_xpath_default_namespace(elem), '')
+        self.assertEqual(parse_xpath_default_namespace(schema), '')
+        schema.root.attrib['xpathDefaultNamespace'] = '##local'
+        self.assertEqual(parse_xpath_default_namespace(schema), '')
+        schema.root.attrib['xpathDefaultNamespace'] = '##defaultNamespace'
+        self.assertEqual(parse_xpath_default_namespace(schema), 'tns0')
+        schema.root.attrib['xpathDefaultNamespace'] = '##targetNamespace'
+        self.assertEqual(parse_xpath_default_namespace(schema), 'tns0')
+        schema.root.attrib['xpathDefaultNamespace'] = 'tns1'
+        self.assertEqual(parse_xpath_default_namespace(schema), 'tns1')
+        schema.root.attrib['xpathDefaultNamespace'] = 'tns0 tns1'
+        self.assertEqual(parse_xpath_default_namespace(schema), '')
         self.assertIn('tns0 tns1', schema.errors[-1].message)
 
 

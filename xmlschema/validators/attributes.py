@@ -321,7 +321,8 @@ class Xsd11Attribute(XsdAttribute):
         if 'inheritable' in self.elem.attrib:
             if self.elem.attrib['inheritable'].strip() in ('true', '1'):
                 self.inheritable = True
-        self._parse_target_namespace()
+        if 'targetNamespace' in self.elem.attrib:
+            self._parse_target_namespace()
 
 
 class XsdAttributeGroup(

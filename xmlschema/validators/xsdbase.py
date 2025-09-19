@@ -31,7 +31,7 @@ from xmlschema.resources import XMLResource
 
 from .validation import check_validation_mode, DecodeContext
 from .exceptions import XMLSchemaParseError, XMLSchemaNotBuiltError
-from .helpers import get_xsd_annotation
+from .helpers import get_xsd_annotation, parse_target_namespace
 
 if TYPE_CHECKING:
     from xmlschema.validators import XsdSimpleType, XsdElement, XsdGroup, XsdGlobals  # noqa: F401
@@ -212,35 +212,6 @@ class XsdValidator:
         else:
             raise error
 
-    def _parse_xpath_default_namespace(self, elem: ElementType) -> str:
-        """
-        Parse XSD 1.1 xpathDefaultNamespace attribute for schema, alternative, assert, assertion
-        and selector declarations, checking if the value is conforming to the specification. In
-        case the attribute is missing or for wrong attribute values defaults to ''.
-        """
-        try:
-            value = elem.attrib['xpathDefaultNamespace']
-        except KeyError:
-            return ''
-
-        value = value.strip()
-        if value == '##local':
-            return ''
-        elif value == '##defaultNamespace':
-            default_namespace = getattr(self, 'default_namespace', None)
-            return default_namespace if isinstance(default_namespace, str) else ''
-        elif value == '##targetNamespace':
-            target_namespace = getattr(self, 'target_namespace', '')
-            return target_namespace if isinstance(target_namespace, str) else ''
-        elif len(value.split()) == 1:
-            return value
-        else:
-            admitted_values = ('##defaultNamespace', '##targetNamespace', '##local')
-            msg = _("wrong value {0!r} for 'xpathDefaultNamespace' "
-                    "attribute, can be (anyURI | {1}).")
-            self.parse_error(msg.format(value, ' | '.join(admitted_values)), elem)
-            return ''
-
 
 class XsdComponent(XsdValidator):
     """
@@ -270,6 +241,7 @@ class XsdComponent(XsdValidator):
 
     ref: Optional['XsdComponent']
     redefine: Optional['XsdComponent']
+    target_namespace: str
 
     __slots__ = ('name', 'parent', 'schema', 'xsd_version', 'target_namespace', 'maps',
                  'builders', 'elem', 'validation', 'errors', 'ref', 'redefine', '_built')
@@ -340,9 +312,9 @@ class XsdComponent(XsdValidator):
         return self.schema.source
 
     @property
-    def default_namespace(self) -> Optional[str]:
+    def default_namespace(self) -> str:
         """Property that references to schema's default namespaces."""
-        return self.schema.namespaces.get('')
+        return self.schema.namespaces['']
 
     @property
     def namespaces(self) -> NsmapType:
@@ -458,15 +430,7 @@ class XsdComponent(XsdValidator):
         """
         XSD 1.1 targetNamespace attribute in elements and attributes declarations.
         """
-        if 'targetNamespace' not in self.elem.attrib:
-            return
-
-        target_namespace = self.elem.attrib['targetNamespace'].strip()
-        if target_namespace == nm.XMLNS_NAMESPACE:
-            # https://www.w3.org/TR/xmlschema11-1/#sec-nss-special
-            msg = _(f"The namespace {nm.XMLNS_NAMESPACE} cannot be used as 'targetNamespace'")
-            raise XMLSchemaValueError(msg)
-
+        target_namespace = parse_target_namespace(self)
         if 'name' not in self.elem.attrib:
             msg = _("attribute 'name' must be present when "
                     "'targetNamespace' attribute is provided")

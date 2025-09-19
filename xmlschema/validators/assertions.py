@@ -20,6 +20,7 @@ from xmlschema.translation import gettext as _
 from xmlschema.xpath import ElementPathMixin, XMLSchemaProxy
 
 from .exceptions import XMLSchemaNotBuiltError, XMLSchemaAssertPathWarning
+from .helpers import parse_xpath_default_namespace
 from .validation import DecodeContext
 from .xsdbase import XsdComponent
 from .groups import XsdGroup
@@ -80,7 +81,7 @@ class XsdAssert(XsdComponent, ElementPathMixin[Union['XsdAssert', SchemaElementT
             self.parse_error(_("missing required attribute 'test'"))
 
         if 'xpathDefaultNamespace' in self.elem.attrib:
-            self.xpath_default_namespace = self._parse_xpath_default_namespace(self.elem)
+            self.xpath_default_namespace = parse_xpath_default_namespace(self)
         else:
             self.xpath_default_namespace = self.schema.xpath_default_namespace
 

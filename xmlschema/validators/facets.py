@@ -29,7 +29,7 @@ from xmlschema.utils.decoding import count_digits
 from xmlschema.utils.qnames import local_name
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaDecodeError
-from .helpers import get_xsd_annotation
+from .helpers import get_xsd_annotation, parse_xpath_default_namespace
 from .xsdbase import XsdComponent, XsdAnnotation
 
 if TYPE_CHECKING:
@@ -855,7 +855,7 @@ class XsdAssertionFacet(XsdFacet):
             value = self.maps.any_simple_type.prefixed_name
 
         if 'xpathDefaultNamespace' in self.elem.attrib:
-            self.xpath_default_namespace = self._parse_xpath_default_namespace(self.elem)
+            self.xpath_default_namespace = parse_xpath_default_namespace(self)
         else:
             self.xpath_default_namespace = self.schema.xpath_default_namespace
 

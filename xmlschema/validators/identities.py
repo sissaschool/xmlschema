@@ -28,6 +28,7 @@ from xmlschema.translation import gettext as _
 from xmlschema.utils.qnames import get_qname, get_extended_qname
 from xmlschema.aliases import ElementType, SchemaType, NsmapType, AtomicValueType, \
     BaseXsdType, SchemaElementType, SchemaAttributeType
+from .helpers import parse_xpath_default_namespace
 from ..xpath import IdentityXPathParser, XPathElement, XMLSchemaProxy
 
 from .exceptions import XMLSchemaNotBuiltError
@@ -107,7 +108,7 @@ class XsdSelector(XsdComponent):
         # XSD 1.1 xpathDefaultNamespace attribute
         if self.schema.XSD_VERSION > '1.0':
             if 'xpathDefaultNamespace' in self.elem.attrib:
-                self.xpath_default_namespace = self._parse_xpath_default_namespace(self.elem)
+                self.xpath_default_namespace = parse_xpath_default_namespace(self)
             else:
                 self.xpath_default_namespace = self.schema.xpath_default_namespace
 

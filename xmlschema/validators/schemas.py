@@ -55,7 +55,8 @@ from xmlschema import dataobjects
 from .exceptions import XMLSchemaValidationError, XMLSchemaEncodeError, \
     XMLSchemaStopValidation
 from .validation import DecodeContext, EncodeContext, check_validation_mode
-from .helpers import parse_xsd_derivation, get_schema_annotations, qname_validator
+from .helpers import parse_xsd_derivation, get_schema_annotations, qname_validator, \
+    parse_xpath_default_namespace, parse_target_namespace
 from .xsdbase import XSD_ELEMENT_DERIVATIONS, XsdValidator, XsdComponent, XsdAnnotation
 from .notations import XsdNotation
 from .identities import XsdIdentity, XsdKeyref, KeyrefCounter
@@ -330,12 +331,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         logger.debug("Schema namespaces: %r", self.namespaces)
 
         if 'targetNamespace' in root.attrib:
-            self.target_namespace = root.attrib['targetNamespace'].strip()
-            if not self.target_namespace:
-                # https://www.w3.org/TR/2004/REC-xmlschema-1-20041028/structures.html#element-schema
-                msg = _("the attribute 'targetNamespace' cannot be an empty string")
-                self.parse_error(msg)
-            elif namespace is not None and self.target_namespace != namespace:
+            self.target_namespace = parse_target_namespace(self)
+            if namespace is not None and self.target_namespace != namespace:
                 msg = _("targetNamespace of XSD resource {} differs from what expected "
                         "(found {!r} instead of {!r})")
                 self.parse_error(msg.format(self.url, self.target_namespace, namespace))
@@ -348,11 +345,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             self.target_namespace = ''
 
         logger.debug("Schema targetNamespace is %r", self.target_namespace)
-
-        if self.target_namespace == nm.XMLNS_NAMESPACE:
-            # https://www.w3.org/TR/xmlschema11-1/#sec-nss-special
-            msg = _(f"The namespace {nm.XMLNS_NAMESPACE} cannot be used as 'targetNamespace'")
-            raise XMLSchemaValueError(msg)
 
         # Parses the schema defaults
         if 'attributeFormDefault' in root.attrib:
@@ -428,7 +420,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         # Parse XSD 1.1 default declarations (defaultAttributes, defaultOpenContent,
         # xpathDefaultNamespace) after all imports/includes.
         if self.XSD_VERSION > '1.0':
-            self.xpath_default_namespace = self._parse_xpath_default_namespace(root)
+            self.xpath_default_namespace = parse_xpath_default_namespace(self)
             if 'defaultAttributes' in root.attrib:
                 try:
                     self.default_attributes = self.resolve_qname(root.attrib['defaultAttributes'])
@@ -724,9 +716,9 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         return None
 
     @property
-    def default_namespace(self) -> Optional[str]:
+    def default_namespace(self) -> str:
         """The namespace associated to the empty prefix ''."""
-        return self.namespaces.get('')
+        return self.namespaces['']
 
     @cached_property
     def target_prefix(self) -> str:

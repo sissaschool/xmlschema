@@ -76,8 +76,9 @@ def parse_xsd_derivation(elem: Element,
     :param validator: optional schema or a component (element or type) to report \
     a parse error instead of raising a `ValueError`.
     """
-    value = elem.get(name)
-    if value is None:
+    try:
+        value = elem.attrib[name]
+    except KeyError:
         return ''
 
     if choices is None:
@@ -93,6 +94,55 @@ def parse_xsd_derivation(elem: Element,
         validator.parse_error(msg)
         return ''
     return value
+
+
+def parse_xpath_default_namespace(validator: Union[SchemaType, 'XsdComponent']) -> str:
+    """
+    Parse XSD 1.1 xpathDefaultNamespace attribute for schema, alternative, assert, assertion
+    and selector declarations, checking if the value is conforming to the specification. In
+    case the attribute is missing or for wrong attribute values defaults to ''.
+    """
+    try:
+        value = validator.elem.attrib['xpathDefaultNamespace']
+    except KeyError:
+        return ''
+
+    value = value.strip()
+    if value == '##local':
+        return ''
+    elif value == '##defaultNamespace':
+        return validator.default_namespace
+    elif value == '##targetNamespace':
+        return validator.target_namespace
+    elif len(value.split()) == 1:
+        return value
+    else:
+        admitted_values = ('##defaultNamespace', '##targetNamespace', '##local')
+        msg = _("wrong value {0!r} for 'xpathDefaultNamespace' "
+                "attribute, can be (anyURI | {1}).")
+        validator.parse_error(msg.format(value, ' | '.join(admitted_values)))
+        return ''
+
+
+def parse_target_namespace(validator: Union[SchemaType, 'XsdComponent']) -> str:
+    """
+    XSD 1.1 targetNamespace attribute in schema, elements and attributes declarations.
+    """
+    try:
+        target_namespace = validator.elem.attrib['targetNamespace'].strip()
+    except KeyError:
+        return ''
+
+    if target_namespace == nm.XMLNS_NAMESPACE:
+        # https://www.w3.org/TR/xmlschema11-1/#sec-nss-special
+        msg = _(f"The namespace {nm.XMLNS_NAMESPACE} cannot be used as 'targetNamespace'")
+        raise XMLSchemaValueError(msg)
+    elif not target_namespace:
+        # https://www.w3.org/TR/2004/REC-xmlschema-1-20041028/structures.html#element-schema
+        msg = _("the attribute 'targetNamespace' cannot be an empty string")
+        validator.parse_error(msg)
+
+    return target_namespace
 
 
 #
