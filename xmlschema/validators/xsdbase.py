@@ -38,8 +38,8 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger('xmlschema')
 
-XSD_TYPE_DERIVATIONS = {'extension', 'restriction'}
-XSD_ELEMENT_DERIVATIONS = {'extension', 'restriction', 'substitution'}
+XSD_TYPE_DERIVATIONS = ('extension', 'restriction')
+XSD_ELEMENT_DERIVATIONS = ('extension', 'restriction', 'substitution')
 
 
 class XsdValidator:

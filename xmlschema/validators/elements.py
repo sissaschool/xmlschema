@@ -40,7 +40,7 @@ from .exceptions import XMLSchemaValidationError, XMLSchemaParseError, \
     XMLSchemaStopValidation, XMLSchemaTypeTableWarning
 from .validation import XSD_VALIDATION_MODES, DecodeContext, \
     EncodeContext, ValidationMixin
-from .helpers import get_xsd_derivation_attribute
+from .helpers import parse_xsd_derivation
 from .xsdbase import XSD_TYPE_DERIVATIONS, XSD_ELEMENT_DERIVATIONS, XsdComponent
 from .particles import ParticleMixin, OccursCalculator
 from .identities import XsdIdentity, XsdKeyref, KeyrefCounter, FieldValueSelector
@@ -243,24 +243,18 @@ class XsdElement(XsdComponent, ParticleMixin,
                 self.abstract = True
 
         if 'block' in attrib:
-            try:
-                self._block = get_xsd_derivation_attribute(
-                    self.elem, 'block', XSD_ELEMENT_DERIVATIONS
-                )
-            except ValueError as err:
-                self.parse_error(err)
+            self._block = parse_xsd_derivation(
+                self.elem, 'block', XSD_ELEMENT_DERIVATIONS, self
+            )
 
         if 'nillable' in attrib and attrib['nillable'].strip() in ('true', '1'):
             self.nillable = True
 
         if self.parent is None:
             if 'final' in attrib:
-                try:
-                    self._final = get_xsd_derivation_attribute(
-                        self.elem, 'final', XSD_TYPE_DERIVATIONS
-                    )
-                except ValueError as err:
-                    self.parse_error(err)
+                self._final = parse_xsd_derivation(
+                    self.elem, 'final', XSD_TYPE_DERIVATIONS, self
+                )
 
             for attr_name in ('ref', 'form', 'minOccurs', 'maxOccurs'):
                 if attr_name in attrib:

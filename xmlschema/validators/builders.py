@@ -24,7 +24,7 @@ from xmlschema.exceptions import XMLSchemaAttributeError, XMLSchemaKeyError, \
 from xmlschema.translation import gettext as _
 from xmlschema.utils.qnames import local_name, get_qname
 
-from .helpers import get_xsd_derivation_attribute
+from .helpers import parse_xsd_derivation
 from .exceptions import XMLSchemaCircularityError
 from .xsdbase import XsdComponent, XsdAnnotation
 from .builtins import BUILTIN_TYPES
@@ -356,10 +356,7 @@ class XsdBuilders:
                 xsd_type.name = None
 
         if 'final' in elem.attrib:
-            try:
-                xsd_type._final = get_xsd_derivation_attribute(elem, 'final')
-            except ValueError as err:
-                xsd_type.parse_error(err, elem)
+            xsd_type._final = parse_xsd_derivation(elem, 'final', validator=xsd_type)
 
         return xsd_type
 

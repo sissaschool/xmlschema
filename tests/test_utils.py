@@ -38,7 +38,7 @@ from xmlschema.utils.misc import deprecated, will_change
 from xmlschema.testing import iter_nested_items, etree_elements_assert_equal, \
     run_xmlschema_tests
 from xmlschema.validators.exceptions import XMLSchemaValidationError
-from xmlschema.validators.helpers import get_xsd_derivation_attribute, \
+from xmlschema.validators.helpers import parse_xsd_derivation, \
     decimal_validator, qname_validator, \
     base64_binary_validator, hex_binary_validator, \
     int_validator, long_validator, unsigned_byte_validator, \
@@ -67,21 +67,21 @@ class TestUtils(unittest.TestCase):
             'a5': 'restriction extension restriction ', 'a6': 'other restriction'
         })
         values = {'extension', 'restriction'}
-        self.assertEqual(get_xsd_derivation_attribute(elem, 'a1', values), 'extension')
-        self.assertEqual(get_xsd_derivation_attribute(elem, 'a2', values), ' restriction')
+        self.assertEqual(parse_xsd_derivation(elem, 'a1', values), 'extension')
+        self.assertEqual(parse_xsd_derivation(elem, 'a2', values), ' restriction')
 
-        result = get_xsd_derivation_attribute(elem, 'a3', values)
+        result = parse_xsd_derivation(elem, 'a3', values)
         self.assertSetEqual(set(result.strip().split()),
                             set('extension restriction'.split()))
 
-        self.assertRaises(ValueError, get_xsd_derivation_attribute, elem, 'a4', values)
+        self.assertRaises(ValueError, parse_xsd_derivation, elem, 'a4', values)
 
-        result = get_xsd_derivation_attribute(elem, 'a5', values)
+        result = parse_xsd_derivation(elem, 'a5', values)
         self.assertEqual(set(result.strip().split()),
                          set('restriction extension restriction'.split()))
 
-        self.assertRaises(ValueError, get_xsd_derivation_attribute, elem, 'a6', values)
-        self.assertEqual(get_xsd_derivation_attribute(elem, 'a7', values), '')
+        self.assertRaises(ValueError, parse_xsd_derivation, elem, 'a6', values)
+        self.assertEqual(parse_xsd_derivation(elem, 'a7', values), '')
 
     def test_parse_component(self):
         component = XMLSchema.meta_schema.types['anyType']

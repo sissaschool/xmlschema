@@ -55,7 +55,7 @@ from xmlschema import dataobjects
 from .exceptions import XMLSchemaValidationError, XMLSchemaEncodeError, \
     XMLSchemaStopValidation
 from .validation import DecodeContext, EncodeContext, check_validation_mode
-from .helpers import get_xsd_derivation_attribute, get_schema_annotations, qname_validator
+from .helpers import parse_xsd_derivation, get_schema_annotations, qname_validator
 from .xsdbase import XSD_ELEMENT_DERIVATIONS, XsdValidator, XsdComponent, XsdAnnotation
 from .notations import XsdNotation
 from .identities import XsdIdentity, XsdKeyref, KeyrefCounter
@@ -363,28 +363,17 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         # Parses the schema defaults
         if 'attributeFormDefault' in root.attrib:
             self.attribute_form_default = root.attrib['attributeFormDefault']
-
         if 'elementFormDefault' in root.attrib:
             self.element_form_default = root.attrib['elementFormDefault']
-
+        if 'finalDefault' in root.attrib:
+            self.final_default = parse_xsd_derivation(root, 'finalDefault', validator=self)
         if 'blockDefault' in root.attrib:
-            if self.target_namespace == nm.XSD_NAMESPACE and self.name == 'XMLSchema.xsd':
+            if self.target_namespace != nm.XSD_NAMESPACE or self.name != 'XMLSchema.xsd':
                 # Skip for XSD 1.0 meta-schema that has blockDefault="#all"
                 # Ref: https://www.w3.org/Bugs/Public/show_bug.cgi?id=6120
-                pass
-            else:
-                try:
-                    self.block_default = get_xsd_derivation_attribute(
-                        root, 'blockDefault', XSD_ELEMENT_DERIVATIONS
-                    )
-                except ValueError as err:
-                    self.parse_error(err, root, namespaces=namespaces)
-
-        if 'finalDefault' in root.attrib:
-            try:
-                self.final_default = get_xsd_derivation_attribute(root, 'finalDefault')
-            except ValueError as err:
-                self.parse_error(err, root, namespaces=namespaces)
+                self.block_default = parse_xsd_derivation(
+                    root, 'blockDefault', XSD_ELEMENT_DERIVATIONS, self
+                )
 
         # Create or set the XSD global maps instance and the loader
         if global_maps is not None:
@@ -629,6 +618,10 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     @property
     def root(self) -> Element:
         """Root element of the schema."""
+        return self.source.root
+
+    @property
+    def elem(self) -> Element:
         return self.source.root
 
     def get_text(self) -> str:

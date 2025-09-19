@@ -29,7 +29,6 @@ XSD_BOOLEAN_MAP = {
 }
 
 
-
 def get_xsd_annotation(elem: ElementType,
                        schema: SchemaType,
                        parent: Optional['XsdComponent'] = None) -> Optional['XsdAnnotation']:
@@ -63,28 +62,36 @@ def get_schema_annotations(schema: SchemaType) -> list['XsdAnnotation']:
     return annotations
 
 
-def get_xsd_derivation_attribute(elem: Element, attribute: str,
-                                 values: Optional[set[str]] = None) -> str:
+def parse_xsd_derivation(elem: Element,
+                         name: str,
+                         choices: Union[None, set[str], tuple[str, ...]] = None,
+                         validator: Union[None, SchemaType, 'XsdComponent'] = None) -> str:
     """
     Get a derivation attribute (maybe 'block', 'blockDefault', 'final' or 'finalDefault')
     checking the items with the values arguments. Returns a string.
 
     :param elem: the Element instance.
-    :param attribute: the attribute name.
-    :param values: a set of admitted values when the attribute value is not '#all'.
+    :param name: the attribute name.
+    :param choices: a set of admitted values when the attribute value is not '#all'.
+    :param validator: optional schema or a component (element or type) to report \
+    a parse error instead of raising a `ValueError`.
     """
-    value = elem.get(attribute)
+    value = elem.get(name)
     if value is None:
         return ''
 
-    if values is None:
-        values = XSD_FINAL_ATTRIBUTE_VALUES
+    if choices is None:
+        choices = XSD_FINAL_ATTRIBUTE_VALUES
 
     items = value.split()
     if len(items) == 1 and items[0] == '#all':
-        return ' '.join(values)
-    elif not all(s in values for s in items):
-        raise ValueError(_("wrong value %r for attribute %r") % (value, attribute))
+        return ' '.join(choices)
+    elif not all(s in choices for s in items):
+        msg = _("wrong value {!r} for attribute {!r}").format(value, name)
+        if validator is None:
+            raise ValueError(msg)
+        validator.parse_error(msg)
+        return ''
     return value
 
 

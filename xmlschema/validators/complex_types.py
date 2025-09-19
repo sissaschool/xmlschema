@@ -22,7 +22,7 @@ from xmlschema.utils.qnames import get_qname, local_name
 
 from .exceptions import XMLSchemaCircularityError, XMLSchemaDecodeError
 from .validation import DecodeContext, EncodeContext, ValidationMixin
-from .helpers import get_xsd_derivation_attribute
+from .helpers import parse_xsd_derivation
 from .xsdbase import XSD_TYPE_DERIVATIONS, XsdComponent, XsdType
 from .attributes import XsdAttributeGroup
 from .assertions import XsdAssert
@@ -111,16 +111,10 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
                 self.abstract = True
 
         if 'block' in self.elem.attrib:
-            try:
-                self._block = get_xsd_derivation_attribute(self.elem, 'block', XSD_TYPE_DERIVATIONS)
-            except ValueError as err:
-                self.parse_error(err)
+            self._block = parse_xsd_derivation(self.elem, 'block', XSD_TYPE_DERIVATIONS, self)
 
         if 'final' in self.elem.attrib:
-            try:
-                self._final = get_xsd_derivation_attribute(self.elem, 'final', XSD_TYPE_DERIVATIONS)
-            except ValueError as err:
-                self.parse_error(err)
+            self._final = parse_xsd_derivation(self.elem, 'final', XSD_TYPE_DERIVATIONS, self)
 
         if 'mixed' in self.elem.attrib:
             if self.elem.attrib['mixed'].strip() in ('true', '1'):
