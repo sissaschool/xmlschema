@@ -8,6 +8,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from collections.abc import Callable, Iterable
+from dataclasses import is_dataclass
 from threading import Lock
 from typing import Any, cast, Generic, Optional, overload, TypeVar, TYPE_CHECKING, Union
 
@@ -17,7 +18,8 @@ from xmlschema.translation import gettext as _
 if TYPE_CHECKING:
     from xmlschema.validators.xsdbase import XsdValidator  # noqa
 
-__all__ = ['validator_property', 'Attribute', 'Option', 'Argument']
+__all__ = ['validator_property', 'Attribute', 'Option', 'Argument',
+           'StringOption', 'BooleanOption', 'IntOption']
 
 
 VT = TypeVar('VT', bound='XsdValidator')
@@ -73,7 +75,7 @@ T = TypeVar('T')
 
 class Attribute(Generic[T]):
     """
-    A validated descriptor for handling protected attributes
+    A descriptor for handling validated protected attributes.
     """
     __slots__ = ('_name', '_owner')
 
@@ -95,8 +97,6 @@ class Attribute(Generic[T]):
             raise XMLSchemaAttributeError(msg) from None
 
     def __set__(self, instance: Any, value: Any) -> None:
-        if hasattr(instance, self._name):
-            raise XMLSchemaAttributeError(_("can't change {}").format(self))
         setattr(instance, self._name, self.validated_value(value))
 
     def __delete__(self, instance: Any) -> None:
@@ -117,23 +117,38 @@ class Attribute(Generic[T]):
 
 
 class Argument(Attribute[T]):
-    """Descriptor for an XML schema positional arguments."""
+    """
+    A descriptor for positional arguments. An argument can't be changed nor deleted.
+    """
     def __str__(self) -> str:
         return _('argument {!r}').format(self._name[1:])
+
+    def __set__(self, instance: Any, value: Any) -> None:
+        if hasattr(instance, self._name):
+            raise XMLSchemaAttributeError(_("can't change {}").format(self))
+        setattr(instance, self._name, self.validated_value(value))
 
 
 class Option(Argument[T]):
     """
-    Descriptor for handling XML schema optional arguments and settings options.
+    A descriptor for handling optional arguments and settings options. If bound
+    to a dataclass it's considered an option and can be changed, otherwise it's
+    considered to be an optional argument and cannot be changed.
+
+    :param default: The default value for the option/optional argument.
     """
     __slots__ = ('_default',)
 
     def __init__(self, *, default: T) -> None:
         self._default = default
 
+    def __set_name__(self, owner: type[Any], name: str) -> None:
+        self._name = f'_{name}'
+        self._owner = owner
+
     def __str__(self) -> str:
-        if 'Settings' in self._owner.__name__:
-            return _('settings option {!r}').format(self._name[1:])
+        if is_dataclass(self._owner):
+            return _('option {!r}').format(self._name[1:])
         return _('optional argument {!r}').format(self._name[1:])
 
     def __get__(self, instance: Any, owner: type[Any]) -> T:
@@ -141,3 +156,40 @@ class Option(Argument[T]):
             return cast(T, getattr(instance, self._name))
         except AttributeError:
             return self._default
+
+    def __set__(self, instance: Any, value: Any) -> None:
+        if hasattr(instance, self._name) and not is_dataclass(self._owner):
+            raise XMLSchemaAttributeError(_("can't change {}").format(self))
+        setattr(instance, self._name, self.validated_value(value))
+
+
+class BooleanOption(Option[bool]):
+    def validated_value(self, value: Any) -> bool:
+        if isinstance(value, bool):
+            return value
+        msg = _("invalid type {!r} for {}, must be of type {!r}")
+        raise XMLSchemaTypeError(msg.format(type(value), self, bool))
+
+
+class StringOption(Option[str]):
+    def validated_value(self, value: Any) -> str:
+        if isinstance(value, str):
+            return value
+        msg = _("invalid type {!r} for {}, must be of type {!r}")
+        raise XMLSchemaTypeError(msg.format(type(value), self, str))
+
+
+class IntOption(Option[int]):
+    __slots__ = ('_min_value',)
+
+    def __init__(self, *, default: int, min_value: Optional[int] = None) -> None:
+        self._min_value = min_value
+        super().__init__(default=default)
+
+    def validated_value(self, value: Any) -> int:
+        if not isinstance(value, int):
+            msg = _("invalid type {!r} for {}, must be of type {!r}")
+            raise XMLSchemaTypeError(msg.format(type(value), self, int))
+        elif self._min_value is not None:
+            self._validate_minimum(value, self._min_value)
+        return value

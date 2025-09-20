@@ -8,84 +8,90 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """Package settings for setup protection defaults."""
-from dataclasses import dataclass
-from typing import Optional, Union
-from urllib.request import OpenerDirector
+import dataclasses as dc
+from typing import cast, Optional, Any, Union
 
-from xmlschema.aliases import SourceType, UriMapperType, LocationsType, \
-    IterParseType, SelectorType
-from xmlschema.utils.descriptors import Option
-from xmlschema.options import BaseUrlOption, AllowOption, DefuseOption, \
-    TimeoutOption, LazyOption, OpenerOption, UriMapperOption, SelectorOption, \
-    IterParseOption, LogLevelOption, BooleanOption
-from xmlschema.converters import ConverterType, ConverterOption
-from xmlschema.locations import LocationsOption
-from xmlschema.resources import XMLResource
-from xmlschema.loaders import SchemaLoader, LoaderClassOption
-from xmlschema.xpath import ElementSelector
+from xmlschema.aliases import LocationsType
+from xmlschema.exceptions import XMLSchemaTypeError
+from xmlschema.translation import gettext as _
+from xmlschema.utils.descriptors import Option, BooleanOption
+from xmlschema.utils.misc import is_subclass
+
+from xmlschema.locations import NamespaceResourcesMap
+from xmlschema.resources import ResourceSettings
+from xmlschema.loaders import SchemaLoader
+from xmlschema.converters import ConverterType, XMLSchemaConverter
+
+LOG_LEVELS = ('DEBUG', 'INFO', 'WARN', 'ERROR', 'CRITICAL', 10, 20, 30, 40, 50)
 
 
-@dataclass
-class CommonSettings:
-    """
-    Settings for schemas and XML instances that uses a specific configuration.
-    """
-    locations: Option[Optional[LocationsType]] = LocationsOption(default=None)
+class ConverterOption(Option[Optional[ConverterType]]):
+    def validated_value(self, value: Any) -> Optional[ConverterType]:
+        if value is None or isinstance(value, XMLSchemaConverter) \
+                or is_subclass(value, XMLSchemaConverter):
+            return cast(ConverterType, value)
+        msg = _("invalid type {!r} for {}, must be a {!r} instance/subclass or None")
+        raise XMLSchemaTypeError(msg.format(type(value), self, XMLSchemaConverter))
+
+
+class LocationsOption(Option[Optional[LocationsType]]):
+    def validated_value(self, value: Any) -> Optional[LocationsType]:
+        if value is None or isinstance(value, (tuple, dict, list, NamespaceResourcesMap)):
+            return value
+        msg = _("invalid type {!r} for {}, must be of type {!r} or None")
+        raise XMLSchemaTypeError(msg.format(
+            type(value), self, (tuple, dict, list, NamespaceResourcesMap)
+        ))
+
+
+class LoaderClassOption(Option[type['SchemaLoader']]):
+    def validated_value(self, value: Any) -> type[SchemaLoader]:
+        if value is None:
+            return self._default
+        elif is_subclass(value, SchemaLoader):
+            return cast(type[SchemaLoader], value)
+        else:
+            msg = _("invalid type {!r} for {}, must be a subclass of {!r}")
+            raise XMLSchemaTypeError(msg.format(value, self, SchemaLoader))
+
+
+class LogLevelOption(Option[Union[None, str, int]]):
+    def validated_value(self, value: Any) -> Union[None, str, int]:
+        if value is None:
+            return self._default
+        elif isinstance(value, (int, str)):
+            self._validate_choice(value, LOG_LEVELS)
+            return value
+        else:
+            msg = _("invalid type {!r} for {}, must be of type {!r}")
+            raise XMLSchemaTypeError(msg.format(type(value), self, (str, int)))
+
+
+@dc.dataclass
+class SchemaSettings(ResourceSettings):
+    """Settings for schemas."""
     converter: Option[Optional[ConverterType]] = ConverterOption(default=None)
+    """The converter to use for decoding/encoding XML data."""
 
-    base_url: Option[Optional[str]] = BaseUrlOption(default=None)
-    """The effective base URL used for completing relative locations."""
+    locations: Option[Optional[LocationsType]] = LocationsOption(default=None)
+    """Optional schema extra location hints with additional namespaces to import."""
 
-    allow: Option[str] = AllowOption(default='all')
-    """The security mode for accessing resource locations."""
-
-    defuse: Option[str] = DefuseOption(default='remote')
-    """When to defuse XML data."""
-
-    timeout: Option[int] = TimeoutOption(default=300)
-    """The timeout in seconds for accessing remote resources."""
-
-    uri_mapper: Option[Optional[UriMapperType]] = UriMapperOption(default=None)
-    opener: Option[Optional[OpenerDirector]] = OpenerOption(default=None)
-
-
-@dataclass
-class SchemaSettings(CommonSettings):
-    """
-    Settings for schemas and XML instances that uses a specific configuration.
-    """
     loader_class: Option[type[SchemaLoader]] = LoaderClassOption(default=SchemaLoader)
-    iterparse: Option[Optional[IterParseType]] = IterParseOption(default=None)
+
     use_fallback: Option[bool] = BooleanOption(default=True)
     use_xpath3: Option[bool] = BooleanOption(default=True)
     use_meta: Option[bool] = BooleanOption(default=True)
     loglevel: Option[Union[None, int, str]] = LogLevelOption(default=None)
 
-    def create_xsd_resource(self, cls: type[XMLResource], source: SourceType, base_url=None) -> XMLResource:
-        return cls(
-            source=source,
-            base_url=base_url,
-            allow=self.allow,
-            defuse=self.defuse,
-            timeout=self.timeout,
-            uri_mapper=self.uri_mapper,
-            opener=self.opener,
-        )
 
-
-@dataclass
-class DocumentSettings(CommonSettings):
+@dc.dataclass
+class DocumentSettings(ResourceSettings):
     """
     Settings for XML instances that uses a specific configuration.
     """
-    lazy: Option[Union[bool, int]] = LazyOption(default=False)
-    thin_lazy: Option[bool] = BooleanOption(default=True)
-    selector: Option[SelectorType] = SelectorOption(default=ElementSelector)
+    use_location_hints: Option[bool] = BooleanOption(default=True)
+    dummy_schema: Option[bool] = BooleanOption(default=False)
 
 
-DEFAULT_SETTINGS = SchemaSettings()
-_ACTIVE_SETTINGS = DEFAULT_SETTINGS
-
-
-def install_settings(settings: SchemaSettings) -> SchemaSettings:
-    return DEFAULT_SETTINGS
+schema_settings = SchemaSettings()
+document_settings = DocumentSettings()

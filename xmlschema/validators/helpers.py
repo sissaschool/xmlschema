@@ -137,7 +137,7 @@ def parse_target_namespace(validator: Union[SchemaType, 'XsdComponent']) -> str:
         # https://www.w3.org/TR/xmlschema11-1/#sec-nss-special
         msg = _(f"The namespace {nm.XMLNS_NAMESPACE} cannot be used as 'targetNamespace'")
         raise XMLSchemaValueError(msg)
-    elif not target_namespace:
+    elif not target_namespace and validator.elem.tag == nm.XSD_SCHEMA:
         # https://www.w3.org/TR/2004/REC-xmlschema-1-20041028/structures.html#element-schema
         msg = _("the attribute 'targetNamespace' cannot be an empty string")
         validator.parse_error(msg)

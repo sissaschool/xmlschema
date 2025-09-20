@@ -15,7 +15,6 @@ from xmlschema.aliases import LocationsMapType, LocationsType
 from xmlschema.exceptions import XMLSchemaTypeError
 from xmlschema.translation import gettext as _
 from xmlschema.utils.urls import normalize_locations
-from xmlschema.utils.descriptors import Option
 import xmlschema.names as nm
 
 T = TypeVar('T', bound=object)
@@ -84,16 +83,6 @@ def get_locations(locations: Optional[LocationsType], base_url: Optional[str] = 
         raise XMLSchemaTypeError(msg.format(type(locations)))
     else:
         return NamespaceResourcesMap(normalize_locations(locations, base_url))
-
-
-class LocationsOption(Option[Optional[LocationsType]]):
-    def validated_value(self, value: Any) -> Optional[LocationsType]:
-        if value is None or isinstance(value, (tuple, dict, list, NamespaceResourcesMap)):
-            return value
-        msg = _("invalid type {!r} for {}, must be of type {!r} or None")
-        raise XMLSchemaTypeError(msg.format(
-            type(value), self, (tuple, dict, list, NamespaceResourcesMap)
-        ))
 
 
 SCHEMAS_DIR = os.path.join(os.path.dirname(__file__), 'schemas/')

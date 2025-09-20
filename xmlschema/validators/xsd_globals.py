@@ -23,8 +23,6 @@ from xmlschema.aliases import SchemaType, BaseXsdType, SchemaGlobalType, \
     SchemaSourceType, NsmapType, StagedItemType, ComponentClassType
 from xmlschema.exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, \
     XMLSchemaValueError, XMLSchemaWarning, XMLSchemaNamespaceError, XMLSchemaException
-from xmlschema import limits
-from xmlschema.settings import SchemaSettings
 from xmlschema.translation import gettext as _
 from xmlschema.utils.misc import deprecated
 from xmlschema.utils.qnames import get_extended_qname
@@ -32,6 +30,7 @@ from xmlschema.utils.urls import get_url, normalize_url
 from xmlschema.locations import NamespaceResourcesMap
 from xmlschema.resources import XMLResource
 from xmlschema.xpath import XsdAssertionXPathParser
+from xmlschema.settings import SchemaSettings
 
 from .exceptions import XMLSchemaValidatorError, XMLSchemaModelError, \
     XMLSchemaModelDepthError, XMLSchemaParseError
@@ -41,6 +40,9 @@ from . import XsdAttribute, XsdSimpleType, XsdComplexType, XsdElement, \
     XsdGroup, XsdIdentity, XsdUnion, XsdAtomicRestriction, \
     XsdAtomic, XsdAtomicBuiltin, XsdNotation, XsdAttributeGroup
 from .builders import GLOBAL_MAP_ATTRIBUTE, GlobalMaps
+
+_MAX_SCHEMA_SOURCES = 1000  # Value can be changed by xmlschema.limits module
+
 
 # Default placeholder for deprecation of argument 'validation' in XsdGlobals
 _strict = type('str', (str,), {})('strict')
@@ -448,7 +450,7 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
                 f"another schema loaded from {source_ref!r} is already registered"
             )
 
-        if limits.MAX_SCHEMA_SOURCES < len(self._schemas):
+        if _MAX_SCHEMA_SOURCES < len(self._schemas):
             raise XMLSchemaValidatorError(
                 self, f"number of schema sources loaded by {self!r} exceeded"
             )

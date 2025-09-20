@@ -55,11 +55,6 @@ ANY_ATTRIB = {
     'maxOccurs': 'unbounded'
 }
 
-GLOBAL_TAGS = frozenset((
-    nm.XSD_NOTATION, nm.XSD_SIMPLE_TYPE, nm.XSD_COMPLEX_TYPE,
-    nm.XSD_ATTRIBUTE, nm.XSD_ATTRIBUTE_GROUP, nm.XSD_GROUP, nm.XSD_ELEMENT
-))
-
 GLOBAL_MAP_INDEX = MappingProxyType({
     nm.XSD_SIMPLE_TYPE: 0,
     nm.XSD_COMPLEX_TYPE: 0,
@@ -735,7 +730,7 @@ class GlobalMaps(NamedTuple):
                             if schema.partial:
                                 redefinitions.append((qname, elem, child, schema, schema))
 
-                elif tag in GLOBAL_TAGS:
+                elif tag in nm.GLOBAL_TAGS:
                     try:
                         qname = ns_prefix + elem.attrib['name']
                     except KeyError:

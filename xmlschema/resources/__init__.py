@@ -7,10 +7,12 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+from .settings import ResourceSettings, resource_settings
 from .xml_resource import XMLResourceManager, XMLResource
 from .parsers import iterfind_parser, limited_parser
 from .fetchers import fetch_resource, fetch_namespaces, \
     fetch_schema_locations, fetch_schema
 
-__all__ = ['XMLResourceManager', 'XMLResource', 'iterfind_parser', 'limited_parser',
-           'fetch_resource', 'fetch_namespaces', 'fetch_schema_locations', 'fetch_schema']
+__all__ = ['resource_settings', 'ResourceSettings', 'XMLResourceManager', 'XMLResource',
+           'iterfind_parser', 'limited_parser', 'fetch_resource',
+           'fetch_namespaces', 'fetch_schema_locations', 'fetch_schema']

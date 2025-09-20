@@ -808,11 +808,6 @@ class TestDecoding(XsdValidatorTestCase):
              '@xmlns:xsi': 'http://www.w3.org/2001/XMLSchema-instance',
              '@xsi:schemaLocation': 'http://example.com/ns/collection collection.xsd'})
 
-        xmlschema.limits.MAX_XML_DEPTH = 1
-        with self.assertRaises(XMLSchemaValidationError):
-            schema.decode(self.col_xml_file)
-        xmlschema.limits.MAX_XML_DEPTH = 9999
-
         self.assertEqual(
             schema.decode(self.col_xml_file, max_depth=2),
             {'@xmlns:col': 'http://example.com/ns/collection',

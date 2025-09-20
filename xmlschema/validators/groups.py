@@ -18,7 +18,6 @@ from typing import TYPE_CHECKING, cast, overload, Any, Optional, Union
 from xml.etree import ElementTree
 
 import xmlschema.names as nm
-from xmlschema import limits
 from xmlschema.exceptions import XMLSchemaValueError
 from xmlschema.aliases import ElementType, NsmapType, SchemaType, ModelParticleType, \
     SchemaElementType, ComponentClassType, OccursCounterType
@@ -43,6 +42,7 @@ if TYPE_CHECKING:
 
 get_occurs = attrgetter('min_occurs', 'max_occurs')
 
+_MAX_MODEL_DEPTH = 15  # Value can be changed by xmlschema.limits module
 
 ANY_ELEMENT = ElementTree.Element(
     nm.XSD_ANY,
@@ -330,7 +330,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                 if isinstance(item, XsdGroup) and item.is_pointless(parent=self):
                     iterators.append(particles)
                     particles = iter(item)
-                    if len(iterators) > limits.MAX_MODEL_DEPTH:
+                    if len(iterators) > _MAX_MODEL_DEPTH:
                         raise XMLSchemaModelDepthError(self)
                     break
                 else:
@@ -360,7 +360,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
 
                     iterators.append(particles)
                     particles = iter(item.content)
-                    if len(iterators) > limits.MAX_MODEL_DEPTH:
+                    if len(iterators) > _MAX_MODEL_DEPTH:
                         raise XMLSchemaModelDepthError(self)
                     break
                 else:
@@ -398,7 +398,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                     _subgroups.append(group)
                     yield _subgroups
                 elif isinstance(child, XsdGroup):
-                    if len(subgroups) > limits.MAX_MODEL_DEPTH:
+                    if len(subgroups) > _MAX_MODEL_DEPTH:
                         raise XMLSchemaModelDepthError(self)
                     subgroups.append((group, children))
                     group, children = child, iter(child if child.ref is None else child.ref)
@@ -970,9 +970,6 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                 cdata_index += 1
 
         over_max_depth = context.max_depth is not None and context.max_depth <= context.level
-        if context.level > limits.MAX_XML_DEPTH:
-            reason = _("XML data depth exceeded (MAX_XML_DEPTH=%r)") % limits.MAX_XML_DEPTH
-            context.validation_error('strict', self, reason, obj)
 
         errors: list[tuple[int, ModelParticleType, int, Optional[list[SchemaElementType]]]]
         xsd_element: Optional[SchemaElementType]

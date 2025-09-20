@@ -57,6 +57,10 @@ class XMLResourceParseError(XMLResourceError, ParseError):
     """Raised when an error is found parsing an XML resource."""
 
 
+class XMLResourceExceeded(XMLResourceError):
+    """Raised when the parsing of an XML resource exceeds a safety limit."""
+
+
 class XMLResourceBlocked(XMLResourceError):
     """Raised when an XML resource access is blocked by security settings."""
 

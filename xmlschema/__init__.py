@@ -7,8 +7,8 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from . import limits
 from . import translation
+from . import limits
 from .exceptions import XMLSchemaException, XMLResourceError, XMLSchemaNamespaceError
 from .resources import fetch_resource, fetch_namespaces, fetch_schema_locations, \
     fetch_schema, XMLResource

@@ -7,12 +7,10 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from typing import Any, Optional, Type, Union, cast
+from typing import Any, Optional, Type, Union
 
 from xmlschema.exceptions import XMLSchemaTypeError
 from xmlschema.translation import gettext as _
-from xmlschema.utils.misc import is_subclass
-from xmlschema.utils.descriptors import Option
 
 from .base import ElementData, XMLSchemaConverter
 from .unordered import UnorderedConverter
@@ -26,8 +24,7 @@ from .columnar import ColumnarConverter
 __all__ = ['XMLSchemaConverter', 'UnorderedConverter', 'ParkerConverter',
            'BadgerFishConverter', 'AbderaConverter', 'JsonMLConverter',
            'ColumnarConverter', 'ElementData', 'GDataConverter',
-           'ConverterType', 'check_converter_argument', 'ConverterOption',
-           'get_converter']
+           'ConverterType', 'check_converter_argument', 'get_converter']
 
 
 ConverterType = Union[Type[XMLSchemaConverter], XMLSchemaConverter]
@@ -39,15 +36,6 @@ def check_converter_argument(converter: Any) -> None:
             and not isinstance(converter, XMLSchemaConverter):
         msg = _("'converter' argument must be a {0!r} subclass or instance: {1!r}")
         raise XMLSchemaTypeError(msg.format(XMLSchemaConverter, converter))
-
-
-class ConverterOption(Option[Optional[ConverterType]]):
-    def validated_value(self, value: Any) -> Optional[ConverterType]:
-        if value is None or isinstance(value, XMLSchemaConverter) \
-                or is_subclass(value, XMLSchemaConverter):
-            return cast(ConverterType, value)
-        msg = _("invalid type {!r} for {}, must be a {!r} instance/subclass or None")
-        raise XMLSchemaTypeError(msg.format(type(value), self, XMLSchemaConverter))
 
 
 def get_converter(converter: Optional[ConverterType] = None,

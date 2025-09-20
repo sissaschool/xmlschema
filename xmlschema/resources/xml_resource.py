@@ -23,7 +23,7 @@ from xml.etree import ElementTree
 
 from xmlschema.aliases import ElementType, EtreeType, NsmapType, \
     NormalizedLocationsType, LocationsType, XMLSourceType, IOType, \
-    LazyType, IterParseType, UriMapperType
+    LazyType, IterParseType, UriMapperType, BaseUrlType
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError, \
     XMLResourceError, XMLResourceOSError, XMLResourceBlocked
 from xmlschema.utils.paths import LocationPath
@@ -35,9 +35,9 @@ from xmlschema.utils.urls import is_url, is_remote_url, is_local_url, normalize_
     normalize_locations
 from xmlschema.utils.descriptors import Argument, Option
 from xmlschema.xpath import ElementSelector
-from xmlschema.options import SourceArgument, BaseUrlOption, AllowOption, \
-    DefuseOption, TimeoutOption, UriMapperOption, OpenerOption, SelectorOption
 
+from .settings import SourceArgument, BaseUrlOption, AllowOption, DefuseOption, \
+    TimeOutOption, UriMapperOption, OpenerOption, SelectorOption, resource_settings
 from .sax import defuse_xml
 from .xml_loader import XMLResourceLoader
 
@@ -79,7 +79,7 @@ class XMLResource(XMLResourceLoader):
     it defuses unparsed data except local files. With 'never' no XML data source is defused.
     :param timeout: the timeout in seconds for the connection attempt in case of remote data.
     :param lazy: if a value `False` or 0 is provided the XML data is fully loaded into and \
-    processed from memory. When a resource is lazy only the root element of the source is \
+    processed in memory. When a resource is lazy only the root element of the source is \
     loaded. A positive integer also defines the depth at which the lazy resource can be \
     better iterated (`True` means 1).
     :param thin_lazy: for default, in order to reduce the memory usage, during the \
@@ -101,7 +101,7 @@ class XMLResource(XMLResourceLoader):
     base_url = BaseUrlOption(default=None)
     allow = AllowOption(default='all')
     defuse = DefuseOption(default='remote')
-    timeout = TimeoutOption(default=300)
+    timeout = TimeOutOption(default=300)
     uri_mapper = UriMapperOption(default=None)
     opener = OpenerOption(default=None)
     selector = SelectorOption(default=ElementSelector)
@@ -130,7 +130,7 @@ class XMLResource(XMLResourceLoader):
     _context_lock: threading.Lock = threading.Lock()
 
     def __init__(self, source: XMLSourceType,
-                 base_url: Union[None, str, Path, bytes] = None,
+                 base_url: Optional[BaseUrlType] = None,
                  allow: str = 'all',
                  defuse: str = 'remote',
                  timeout: int = 300,
@@ -176,13 +176,21 @@ class XMLResource(XMLResourceLoader):
             self.fp = cast(IOType, source)
             self.access_control(getattr(source, 'url', None))
         else:
-            super().__init__(
-                cast(EtreeType, source), lazy, thin_lazy, iterparse
-            )
+            super().__init__(cast(EtreeType, source), lazy, thin_lazy, iterparse)
             return
 
         with XMLResourceManager(self) as cm:
             super().__init__(cm.fp, lazy, thin_lazy, iterparse)
+
+    def __repr__(self) -> str:
+        if self.url:
+            return '%s(url=%r)' % (self.__class__.__name__, self.url)
+        return super().__repr__()
+
+    @classmethod
+    def from_settings(cls, source: XMLSourceType,
+                      base_url: Optional[BaseUrlType] = None) -> 'XMLResource':
+        return resource_settings.get_resource(cls, source, base_url)
 
     @property
     def name(self) -> Optional[str]:

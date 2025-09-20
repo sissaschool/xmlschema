@@ -40,7 +40,7 @@ __all__ = ['ElementType', 'ElementTreeType', 'XMLSourceType', 'NsmapType',
            'SerializerType', 'OccursCounterType', 'LazyType', 'SourceType',
            'UriMapperType', 'IterParseType', 'SelectorType', 'EtreeType',
            'IOType', 'ClassInfoType', 'ResourceNodeType', 'NsmapsMapType',
-           'XmlnsMapType', 'ErrorsType', 'LocationsMapType']
+           'XmlnsMapType', 'ErrorsType', 'LocationsMapType', 'BaseUrlType']
 
 if TYPE_CHECKING:
     from xmlschema.resources import XMLResource  # noqa: F401
@@ -76,6 +76,7 @@ SourceType = Union[str, bytes, Path, IO[str], IO[bytes]]
 XMLSourceType = Union[SourceType, EtreeType]
 
 ResourceNodeType = Union[ElementNode, LazyElementNode, DocumentNode]
+BaseUrlType = Union[str, bytes, Path]
 LazyType = Union[bool, int]
 UriMapperType = Union[MutableMapping[str, str], Callable[[str], str]]
 IterParseType = Callable[[IOType, Optional[Sequence[str]]], Iterator[tuple[str, Any]]]

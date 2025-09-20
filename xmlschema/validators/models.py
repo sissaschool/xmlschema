@@ -21,7 +21,6 @@ from xmlschema.aliases import ModelGroupType, ModelParticleType, SchemaElementTy
     OccursCounterType
 from xmlschema.exceptions import XMLSchemaRuntimeError, XMLSchemaTypeError, XMLSchemaValueError
 from xmlschema.translation import gettext as _
-from xmlschema import limits
 
 from .exceptions import XMLSchemaModelError, XMLSchemaModelDepthError
 from .wildcards import XsdAnyElement, Xsd11AnyElement
@@ -31,6 +30,8 @@ AdvanceYieldedType = tuple[ModelParticleType, int, list[SchemaElementType]]
 ContentItemType = tuple[Union[int, str], Any]
 EncodedContentType = Union[MutableMapping[Union[int, str], Any], Iterable[ContentItemType]]
 StepType = Union[str, SchemaElementType, tuple[Union[str, SchemaElementType], int]]
+
+_MAX_MODEL_DEPTH = 15  # Value can be changed by xmlschema.limits module
 
 
 def distinguishable_paths(path1: list[ModelParticleType], path2: list[ModelParticleType]) -> bool:
@@ -116,7 +117,7 @@ def check_model(group: ModelGroupType) -> None:
                     current_path.append(item)
                     iterators.append(particles)
                     particles = iter(item)
-                    if len(iterators) > limits.MAX_MODEL_DEPTH:
+                    if len(iterators) > _MAX_MODEL_DEPTH:
                         raise XMLSchemaModelDepthError(group)
                     break
                 else:
@@ -130,6 +131,7 @@ def check_model(group: ModelGroupType) -> None:
 
     paths: Any = {}
     current_path: list[ModelParticleType] = [group]
+
     try:
         any_element = group.parent.open_content.any_element  # type: ignore[union-attr]
     except AttributeError:
@@ -440,7 +442,7 @@ class ModelVisitor:
                     stack.append((group, particles))
                     group = item
                     particles = iter(item.content)
-                    if len(stack) > limits.MAX_MODEL_DEPTH:
+                    if len(stack) > _MAX_MODEL_DEPTH:
                         raise XMLSchemaModelDepthError(self.group)
                     break
 

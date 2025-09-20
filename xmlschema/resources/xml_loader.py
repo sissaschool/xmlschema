@@ -20,11 +20,15 @@ from elementpath.protocols import LxmlElementProtocol
 
 from xmlschema.aliases import ElementType, ElementTreeType, \
     EtreeType, IOType, IterParseType, ParentMapType
-from xmlschema.exceptions import XMLResourceError, XMLResourceParseError
+from xmlschema.exceptions import XMLResourceError, XMLResourceParseError, XMLResourceExceeded
 from xmlschema.utils.misc import iter_class_slots
 from xmlschema.utils.qnames import get_namespace
 
-from xmlschema.options import LazyOption, ThinLazyOption, IterParseOption
+from .settings import LazyOption, ThinLazyOption, IterParseOption
+
+# These values can be changed by xmlschema.limits module
+_MAX_XML_DEPTH = 1000
+_MAX_XML_ELEMENTS = 10 ** 5
 
 LazyLockType = RLock if platform.python_implementation() == 'PyPy' else Lock
 
@@ -52,8 +56,8 @@ class XMLResourceLoader:
     root: ElementType
     """The XML tree root Element."""
 
-    __slots__ = ('root', '_nsmaps', '_xmlns', '_lazy', '_thin_lazy', '_iterparse',
-                 '_xpath_root', '_parent_map', '__dict__')
+    __slots__ = ('root', '_nsmaps', '_xmlns', '_lazy', '_thin_lazy',
+                 '_iterparse', '_xpath_root', '_parent_map', '__dict__')
 
     def __init__(self, source: Union[IOType, EtreeType],
                  lazy: Union[bool, int] = False,
@@ -225,6 +229,7 @@ class XMLResourceLoader:
         start_ns: list[tuple[str, str]] = []
         end_ns = False
         nsmap_stack: list[dict[str, str]] = [{}]
+        remaining_levels = _MAX_XML_DEPTH
 
         self._nsmaps.clear()
         self._xmlns.clear()
@@ -236,6 +241,11 @@ class XMLResourceLoader:
         try:
             for event, node in self._iterparse(fp, events):
                 if event == 'start':
+                    remaining_levels -= 1
+                    if not remaining_levels:
+                        msg = "maximum XML depth reached (max_xml_depth={}) for {}"
+                        raise XMLResourceExceeded(msg.format(_MAX_XML_DEPTH, self))
+
                     if end_ns:
                         nsmap_stack.pop()
                         end_ns = False
@@ -257,6 +267,7 @@ class XMLResourceLoader:
                     yield event, node
 
                 elif event == 'end':
+                    remaining_levels += 1
                     if end_ns:
                         nsmap_stack.pop()
                         end_ns = False
@@ -281,12 +292,23 @@ class XMLResourceLoader:
         end_ns = False
         nsmaps = self._nsmaps
         xmlns = self._xmlns
-        events = 'start-ns', 'end-ns', 'start', 'comment', 'pi'
+        events = 'start-ns', 'end-ns', 'start', 'comment', 'pi', 'end'
         nsmap_stack: list[dict[str, str]] = [{}]
+        remaining_levels = _MAX_XML_DEPTH
+        remaining_elements = _MAX_XML_ELEMENTS
 
         try:
             for event, node in self._iterparse(fp, events):
                 if event == 'start':
+                    remaining_levels -= 1
+                    remaining_elements -= 1
+                    if not remaining_levels:
+                        msg = "maximum XML depth reached (max_xml_depth={}) for {!r}"
+                        raise XMLResourceExceeded(msg.format(_MAX_XML_DEPTH, self))
+                    if not remaining_elements:
+                        msg = "maximum XML elements reached (max_xml_elements={} for {!r})"
+                        raise XMLResourceExceeded(msg.format(_MAX_XML_ELEMENTS, self))
+
                     if not root_started:
                         self.root = node
                         root_started = True
@@ -303,6 +325,8 @@ class XMLResourceLoader:
                     start_ns.append(node)
                 elif event == 'end-ns':
                     end_ns = True
+                elif event == 'end':
+                    remaining_levels += 1
         except SyntaxError as err:
             raise XMLResourceParseError("invalid XML syntax: {}".format(err)) from err
 

@@ -26,6 +26,7 @@ class ModelGroup(XsdGroup):
             raise XMLSchemaValueError(f"invalid model {model!r} for a group")
         self._group: List[Union[ParticleMixin, 'ModelGroup']] = []
         self.content = self._group
+        self.max_model_depth = 15
         self.model: str = model
         self.ref = None
 

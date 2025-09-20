@@ -50,6 +50,7 @@ from xmlschema.namespaces import NamespaceView
 from xmlschema.locations import SCHEMAS_DIR
 from xmlschema.loaders import SchemaLoader
 from xmlschema.exports import export_schema
+from xmlschema.settings import SchemaSettings
 from xmlschema import dataobjects
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaEncodeError, \
@@ -67,7 +68,7 @@ from .complex_types import XsdComplexType
 from .groups import XsdGroup
 from .elements import XsdElement
 from .wildcards import XsdAnyElement, XsdDefaultOpenContent
-from .builders import GLOBAL_TAGS, XsdBuilders
+from .builders import XsdBuilders
 from .xsd_globals import XsdGlobals
 
 logger = logging.getLogger('xmlschema')
@@ -296,6 +297,25 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         self.includes = {}
         self.warnings = []
 
+        if isinstance(global_maps, XsdGlobals):
+            settings = global_maps.settings
+        else:
+            settings = SchemaSettings.get_settings(
+                loader_class=loader_class,
+                locations=locations,
+                converter=converter,
+                base_url=base_url,
+                allow=allow,
+                defuse=defuse,
+                timeout=timeout,
+                uri_mapper=uri_mapper,
+                opener=opener,
+                iterparse=iterparse,
+                use_fallback=use_fallback,
+                use_xpath3=use_xpath3,
+                loglevel=loglevel,
+            )
+
         if loglevel is not None:
             set_logging_level(loglevel)
         elif build and global_maps is None:
@@ -362,7 +382,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 )
 
         # Create or set the XSD global maps instance and the loader
-        if global_maps is not None:
+        if isinstance(global_maps, XsdGlobals):
             self.maps = global_maps
         else:
             if parent is None and use_meta:
@@ -374,7 +394,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 loader_class=loader_class,
                 locations=locations,
                 converter=converter,
-                base_url=self.source.base_url,
+                base_url=base_url,
                 allow=allow,
                 defuse=defuse,
                 timeout=timeout,
@@ -894,8 +914,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             return 'partial'
         elif any(c.schema is self for c in self.maps.global_maps.iter_globals()):
             return 'full'
-        elif any(child.tag in GLOBAL_TAGS for child in self.source.root) or \
-                any(e.tag in GLOBAL_TAGS for child in self.source.root for e in child):
+        elif any(child.tag in nm.GLOBAL_TAGS for child in self.source.root) or \
+                any(e.tag in nm.GLOBAL_TAGS for child in self.source.root for e in child):
             return 'none'
         else:
             return 'full'

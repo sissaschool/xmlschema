@@ -194,9 +194,7 @@ class TestResources(XMLSchemaTestCase):
     # Tests on XMLResource instances
     def test_xml_resource_representation(self):
         resource = XMLResource(self.vh_xml_file)
-        self.assertTrue(str(resource).startswith(
-            "XMLResource(root=<Element '{http://example.com/vehicles}vehicles'"
-        ))
+        self.assertTrue(repr(resource).startswith("XMLResource(url='file:///"))
 
     def test_xml_resource_from_url(self):
         resource = XMLResource(self.vh_xml_file, lazy=True)
