@@ -18,6 +18,7 @@ from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError, \
     XMLResourceBlocked, XMLResourceForbidden, XMLResourceError, XMLResourceParseError
 from xmlschema.translation import gettext as _
 from xmlschema.utils.urls import normalize_url
+from xmlschema.utils.etree import iter_schema_declarations
 from xmlschema.locations import NamespaceResourcesMap, get_locations, \
     LOCATIONS, FALLBACK_LOCATIONS
 from xmlschema.resources import XMLResource
@@ -91,12 +92,7 @@ class SchemaLoader:
         schema.imported_namespaces.clear()
         base_url = schema.base_url
 
-        for elem in schema.source.root:
-            if elem.tag in nm.XSD_ANNOTATION:
-                continue
-            elif elem.tag not in nm.SCHEMA_DECLARATION_TAGS:
-                break
-
+        for elem in iter_schema_declarations(schema.source.root):
             location = elem.get('schemaLocation')
             if elem.tag == nm.XSD_IMPORT:
                 namespace = elem.get('namespace', '').strip()

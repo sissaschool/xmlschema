@@ -27,7 +27,7 @@ from xmlschema.aliases import ElementType, EtreeType, NsmapType, \
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError, \
     XMLResourceError, XMLResourceOSError, XMLResourceBlocked
 from xmlschema.utils.paths import LocationPath
-from xmlschema.utils.etree import is_etree_element, etree_tostring, etree_iter_location_hints
+from xmlschema.utils.etree import is_etree_element, etree_tostring, iter_schema_location_hints
 from xmlschema.utils.misc import iter_class_slots
 from xmlschema.utils.streams import is_file_object
 from xmlschema.utils.qnames import update_namespaces, get_namespace_map
@@ -554,7 +554,7 @@ class XMLResource(XMLResourceLoader):
         equals tag are returned from the iterator.
         """
         for elem in self.iter(tag):
-            yield from etree_iter_location_hints(elem)
+            yield from iter_schema_location_hints(elem)
 
     def iter_depth(self, mode: int = 1, ancestors: Optional[list[ElementType]] = None) \
             -> Iterator[ElementType]:
@@ -773,7 +773,7 @@ class XMLResource(XMLResourceLoader):
         if root_only:
             location_hints.extend([
                 (ns, normalize_url(url, self.base_url))
-                for ns, url in etree_iter_location_hints(self.root)
+                for ns, url in iter_schema_location_hints(self.root)
             ])
         else:
             try:

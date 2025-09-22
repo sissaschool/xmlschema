@@ -40,7 +40,8 @@ from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaKeyError, \
     XMLSchemaAttributeError
 from xmlschema.translation import gettext as _
 from xmlschema.utils.decoding import Empty
-from xmlschema.utils.etree import prune_etree, is_etree_element
+from xmlschema.utils.etree import prune_etree, is_etree_element, \
+    iter_schema_declarations, iter_schema_open_content
 from xmlschema.utils.qnames import get_namespace_ext
 from xmlschema.resources import XMLResource
 from xmlschema.converters import XMLSchemaConverter, ConverterType, get_converter
@@ -60,7 +61,6 @@ from .helpers import parse_xsd_derivation, get_schema_annotations, qname_validat
 from .xsdbase import XSD_ELEMENT_DERIVATIONS, XsdValidator, XsdComponent, XsdAnnotation
 from .notations import XsdNotation
 from .identities import XsdIdentity, XsdKeyref, KeyrefCounter
-from .facets import XSD_10_FACETS, XSD_11_FACETS
 from .simple_types import XsdSimpleType
 from .attributes import XsdAttribute, XsdAttributeGroup
 from .complex_types import XsdComplexType
@@ -400,12 +400,11 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 self.parse_error(e.reason or e, elem=e.elem)
 
         if partial:
-            self.partial = any(e.tag in nm.SCHEMA_DECLARATION_TAGS for e in root)
-            if self.partial:
-                for child in root:
-                    if child.tag == nm.XSD_IMPORT:
-                        namespace = child.get('namespace', '').strip()
-                        self.imported_namespaces.append(namespace)
+            for child in iter_schema_declarations(root):
+                self.partial = True
+                if child.tag == nm.XSD_IMPORT:
+                    namespace = child.get('namespace', '').strip()
+                    self.imported_namespaces.append(namespace)
             return
 
         self.maps.loader.load_declared_schemas(self, other_sources)
@@ -420,12 +419,9 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 except (ValueError, KeyError, RuntimeError) as err:
                     self.parse_error(err, root)
 
-            for child in root:
-                if child.tag in nm.GLOBAL_TAGS:
-                    break
-                elif child.tag == nm.XSD_DEFAULT_OPEN_CONTENT:
-                    self.default_open_content = XsdDefaultOpenContent(child, self)
-                    break
+            for child in iter_schema_open_content(root):
+                self.default_open_content = XsdDefaultOpenContent(child, self)
+                break
 
         try:
             if build:
@@ -1170,10 +1166,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 except (KeyError, ValueError) as err:
                     self.parse_error(str(err), elem)
                 else:
-                    if self.XSD_VERSION == '1.0':
-                        if facet_name not in XSD_10_FACETS:
-                            return False
-                    elif facet_name not in XSD_11_FACETS:
+                    if facet_name not in self.builders.facets:
                         return False
 
         if nm.VC_FACET_UNAVAILABLE in elem.attrib:
@@ -1185,10 +1178,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 except (KeyError, ValueError) as err:
                     self.parse_error(err, elem)
                 else:
-                    if self.XSD_VERSION == '1.0':
-                        if facet_name not in XSD_10_FACETS:
-                            break
-                    elif facet_name not in XSD_11_FACETS:
+                    if facet_name not in self.builders.facets:
                         break
             else:
                 return False

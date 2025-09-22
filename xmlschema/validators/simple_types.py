@@ -33,9 +33,7 @@ from .exceptions import XMLSchemaValidationError, XMLSchemaParseError, \
 from .validation import DecodeContext, EncodeContext, ValidationMixin
 from .xsdbase import XsdComponent, XsdType
 from .facets import XsdFacet, XsdWhiteSpaceFacet, XsdPatternFacets, \
-    XsdEnumerationFacets, XsdAssertionFacet, XSD_10_FACETS, XSD_11_FACETS, \
-    XSD_10_LIST_FACETS, XSD_11_LIST_FACETS, XSD_10_UNION_FACETS, \
-    XSD_11_UNION_FACETS, MULTIPLE_FACETS
+    XsdEnumerationFacets, XsdAssertionFacet, MULTIPLE_FACETS
 
 FacetsValueType = Union[XsdFacet, Callable[[Any], None], list[XsdAssertionFacet]]
 PythonTypeClasses = Union[Type[Any], tuple[Type[Any]]]
@@ -347,8 +345,8 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
         return None
 
     @property
-    def admitted_facets(self) -> set[str]:
-        return XSD_10_FACETS if self.xsd_version == '1.0' else XSD_11_FACETS
+    def admitted_facets(self) -> frozenset[str]:
+        return self.builders.admitted_facets
 
     @staticmethod
     def is_simple() -> bool:
@@ -584,9 +582,9 @@ class XsdAtomic(XsdSimpleType):
         return 'atomic'
 
     @property
-    def admitted_facets(self) -> set[str]:
+    def admitted_facets(self) -> frozenset[str]:
         if self.primitive_type.is_complex():
-            return XSD_10_FACETS if self.xsd_version == '1.0' else XSD_11_FACETS
+            return self.builders.admitted_facets
         return self.primitive_type.admitted_facets
 
     def is_datetime(self) -> bool:
@@ -681,7 +679,7 @@ class XsdAtomicBuiltin(XsdAtomic):
         if base_type is None and not admitted_facets and name != nm.XSD_ERROR:
             raise XMLSchemaValueError("argument 'admitted_facets' must be "
                                       "a not empty set of a primitive type")
-        self._admitted_facets = admitted_facets
+        self._admitted_facets = frozenset(admitted_facets) if admitted_facets else None
 
         super().__init__(elem, schema, None, name, facets, base_type)
         self.datatype = datatype
@@ -695,7 +693,7 @@ class XsdAtomicBuiltin(XsdAtomic):
         return '%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
 
     @property
-    def admitted_facets(self) -> set[str]:
+    def admitted_facets(self) -> frozenset[str]:
         return self._admitted_facets or self.primitive_type.admitted_facets
 
     def raw_decode(self, obj: Union[str, bytes], validation: str,
@@ -944,8 +942,8 @@ class XsdList(XsdSimpleType):
         return 'list'
 
     @property
-    def admitted_facets(self) -> set[str]:
-        return XSD_10_LIST_FACETS if self.xsd_version == '1.0' else XSD_11_LIST_FACETS
+    def admitted_facets(self) -> frozenset[str]:
+        return self.builders.admitted_list_facets
 
     @property
     def root_type(self) -> BaseXsdType:
@@ -1124,8 +1122,8 @@ class XsdUnion(XsdSimpleType):
         return 'union'
 
     @property
-    def admitted_facets(self) -> set[str]:
-        return XSD_10_UNION_FACETS if self.xsd_version == '1.0' else XSD_11_UNION_FACETS
+    def admitted_facets(self) -> frozenset[str]:
+        return self.builders.admitted_union_facets
 
     def is_atomic(self) -> bool:
         return all(mt.is_atomic() for mt in self.member_types)

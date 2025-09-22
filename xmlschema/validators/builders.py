@@ -28,7 +28,8 @@ from .helpers import parse_xsd_derivation
 from .exceptions import XMLSchemaCircularityError
 from .xsdbase import XsdComponent, XsdAnnotation
 from .builtins import BUILTIN_TYPES
-from .facets import XsdFacet, FACETS_CLASSES
+from .facets import XsdFacet, FACETS_CLASSES, XSD_10_FACETS, XSD_11_FACETS, \
+    XSD_11_LIST_FACETS, XSD_10_LIST_FACETS, XSD_11_UNION_FACETS, XSD_10_UNION_FACETS
 from .identities import XsdIdentity, XsdUnique, XsdKey, XsdKeyref, Xsd11Unique, \
     Xsd11Key, Xsd11Keyref
 from .simple_types import XsdSimpleType, XsdAtomicBuiltin, XsdAtomicRestriction, \
@@ -94,7 +95,8 @@ class XsdBuilders:
                  'attribute_class', 'group_class', 'element_class', 'any_element_class',
                  'any_attribute_class', 'atomic_restriction_class', 'list_class',
                  'union_class', 'unique_class', 'key_class', 'keyref_class',
-                 'annotation_class')
+                 'annotation_class', 'admitted_facets', 'admitted_union_facets',
+                 'admitted_list_facets')
 
     def __init__(self, xsd_version: Optional[str] = None,
                  *facets_classes: Type[XsdFacet],
@@ -144,6 +146,9 @@ class XsdBuilders:
             self.unique_class = XsdUnique
             self.key_class = XsdKey
             self.keyref_class = XsdKeyref
+            self.admitted_facets = XSD_10_FACETS
+            self.admitted_union_facets = XSD_10_UNION_FACETS
+            self.admitted_list_facets = XSD_10_LIST_FACETS
         else:
             self.complex_type_class = Xsd11ComplexType
             self.attribute_class = Xsd11Attribute
@@ -156,6 +161,9 @@ class XsdBuilders:
             self.unique_class = Xsd11Unique
             self.key_class = Xsd11Key
             self.keyref_class = Xsd11Keyref
+            self.admitted_facets = XSD_11_FACETS
+            self.admitted_union_facets = XSD_11_UNION_FACETS
+            self.admitted_list_facets = XSD_11_LIST_FACETS
 
         self.identities = {
             nm.XSD_UNIQUE: self.unique_class,

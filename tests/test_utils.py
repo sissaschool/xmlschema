@@ -26,7 +26,7 @@ from xmlschema import XMLSchema, XMLSchemaParseError
 from xmlschema.names import XSD_NAMESPACE, XSI_NAMESPACE, XSD_SCHEMA, \
     XSD_ELEMENT, XSD_SIMPLE_TYPE, XSD_ANNOTATION, XSI_TYPE
 from xmlschema.utils.etree import prune_etree, etree_get_ancestors, etree_getpath, \
-    etree_iter_location_hints, etree_tostring
+    iter_schema_location_hints, etree_tostring
 from xmlschema.utils.qnames import get_namespace, get_qname, local_name, \
     get_prefixed_qname, get_extended_qname, update_namespaces
 from xmlschema.utils.logger import set_logging_level, logged, format_xmlschema_stack, \
@@ -479,7 +479,7 @@ class TestUtils(unittest.TestCase):
             xsi:schemaLocation="http://example.com/xmlschema/ns-A import-case4a.xsd"/>"""
         )
         self.assertListEqual(
-            list(etree_iter_location_hints(elem)),
+            list(iter_schema_location_hints(elem)),
             [('http://example.com/xmlschema/ns-A', 'import-case4a.xsd')]
         )
         elem = ElementTree.XML(
@@ -487,7 +487,7 @@ class TestUtils(unittest.TestCase):
             xsi:noNamespaceSchemaLocation="schema.xsd"/>"""
         )
         self.assertListEqual(
-            list(etree_iter_location_hints(elem)), [('', 'schema.xsd')]
+            list(iter_schema_location_hints(elem)), [('', 'schema.xsd')]
         )
 
     def test_prune_etree_function(self):

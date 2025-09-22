@@ -63,7 +63,7 @@ class LogLevelOption(Option[Union[None, str, int]]):
         elif isinstance(value, (int, str)):
             self._validate_choice(value, LOG_LEVELS)
             if isinstance(value, str):
-                return getattr(logging, value.upper())
+                return cast(int, getattr(logging, value.upper()))
             return value
         else:
             msg = _("invalid type {!r} for {}, must be of type {!r}")
@@ -85,6 +85,10 @@ class SchemaSettings(ResourceSettings):
     use_xpath3: Option[bool] = BooleanOption(default=True)
     use_meta: Option[bool] = BooleanOption(default=True)
     loglevel: Option[Union[None, int, str]] = LogLevelOption(default=None)
+
+    @classmethod
+    def get_settings(cls, **kwargs: Any) -> 'SchemaSettings':
+        return cls(**kwargs)
 
 
 @dc.dataclass

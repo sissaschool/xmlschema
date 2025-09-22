@@ -13,7 +13,7 @@ from textwrap import indent
 from xml.etree import ElementTree
 
 from xmlschema.utils.etree import etree_getpath  # noqa
-from xmlschema.utils.etree import etree_iter_namespaces, prune_etree  # noqa
+from xmlschema.utils.etree import iter_schema_namespaces, prune_etree  # noqa
 
 
 def run_timeit(stmt='pass', setup='pass', number=1000):

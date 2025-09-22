@@ -13,7 +13,8 @@ from collections.abc import Callable, Iterator
 from typing import Any, Optional, Union
 from xml.etree import ElementTree
 
-from xmlschema.names import XSI_SCHEMA_LOCATION, XSI_NONS_SCHEMA_LOCATION
+from xmlschema.names import XSI_SCHEMA_LOCATION, XSI_NONS_SCHEMA_LOCATION, \
+    SCHEMA_DECLARATION_TAGS, GLOBAL_TAGS, XSD_DEFAULT_OPEN_CONTENT
 from xmlschema.aliases import ElementType, NsmapType
 from xmlschema.utils.qnames import get_namespace, get_prefixed_qname
 
@@ -124,7 +125,7 @@ def etree_getpath(elem: ElementType,
     return '/'.join(parts)
 
 
-def etree_iter_location_hints(elem: ElementType) -> Iterator[tuple[Any, Any]]:
+def iter_schema_location_hints(elem: ElementType) -> Iterator[tuple[Any, Any]]:
     """Yields schema location hints contained in the attributes of an element."""
     if XSI_SCHEMA_LOCATION in elem.attrib:
         locations = elem.attrib[XSI_SCHEMA_LOCATION].split()
@@ -136,8 +137,8 @@ def etree_iter_location_hints(elem: ElementType) -> Iterator[tuple[Any, Any]]:
             yield '', url
 
 
-def etree_iter_namespaces(root: ElementType,
-                          elem: Optional[ElementType] = None) -> Iterator[str]:
+def iter_schema_namespaces(root: ElementType,
+                           elem: Optional[ElementType] = None) -> Iterator[str]:
     """
     Yields namespaces of an ElementTree structure. If an *elem* is
     provided stops when found if during the iteration.
@@ -155,6 +156,22 @@ def etree_iter_namespaces(root: ElementType,
             for name in e.attrib:
                 if name[0] == '{':
                     yield get_namespace(name)
+
+
+def iter_schema_declarations(root: ElementType) -> Iterator[ElementType]:
+    for elem in root:
+        if elem.tag in SCHEMA_DECLARATION_TAGS:
+            yield elem
+        elif elem.tag in GLOBAL_TAGS:
+            return
+
+
+def iter_schema_open_content(root: ElementType) -> Iterator[ElementType]:
+    for elem in root:
+        if elem.tag in XSD_DEFAULT_OPEN_CONTENT:
+            yield elem
+        elif elem.tag in GLOBAL_TAGS:
+            return
 
 
 def prune_etree(root: ElementType, selector: Callable[[ElementType], bool]) \

@@ -29,7 +29,7 @@ from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError, \
 from xmlschema.aliases import ElementType, BaseXsdType, SchemaElementType, \
     ModelParticleType, ComponentClassType, DecodeType, DecodedValueType
 from xmlschema.translation import gettext as _
-from xmlschema.utils.etree import etree_iter_location_hints, etree_iter_namespaces
+from xmlschema.utils.etree import iter_schema_location_hints, iter_schema_namespaces
 from xmlschema.utils.decoding import Empty, raw_encode_attributes, strictly_equal
 from xmlschema.utils.qnames import get_qname
 from xmlschema import dataobjects
@@ -559,11 +559,11 @@ class XsdElement(XsdComponent, ParticleMixin,
 
     def check_dynamic_context(self, elem: ElementType, validation: str,
                               context: DecodeContext) -> None:
-        for ns, url in etree_iter_location_hints(elem):
+        for ns, url in iter_schema_location_hints(elem):
             if self.maps.get_schema(ns, url, context.source.base_url) is not None:
                 continue
 
-            if ns in etree_iter_namespaces(context.source.root, elem):
+            if ns in iter_schema_namespaces(context.source.root, elem):
                 reason = _("schemaLocation declaration after namespace start")
                 context.validation_error(validation, self, reason, elem)
 
@@ -1404,7 +1404,7 @@ class Xsd11Element(XsdElement):
 
     def check_dynamic_context(self, elem: ElementType, validation: str,
                               context: DecodeContext) -> None:
-        for ns, url in etree_iter_location_hints(elem):
+        for ns, url in iter_schema_location_hints(elem):
             if self.maps.get_schema(ns, url, context.source.base_url) is not None:
                 continue
 
