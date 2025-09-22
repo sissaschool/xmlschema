@@ -377,7 +377,7 @@ class TestXMLSchema10(XsdValidatorTestCase):
         # With string argument
         with self.assertRaises(ValueError) as ctx:
             self.schema_class(self.vh_xsd_file, loglevel='all')
-        self.assertIn("invalid value 'all' for settings option 'loglevel'",
+        self.assertIn("invalid value 'all' for optional argument 'loglevel'",
                       str(ctx.exception))
 
         with self.assertLogs('xmlschema', level='INFO') as ctx:
@@ -386,7 +386,7 @@ class TestXMLSchema10(XsdValidatorTestCase):
 
         with self.assertRaises(ValueError) as ctx:
             self.schema_class(self.vh_xsd_file, loglevel='  Info ')
-        self.assertIn("invalid value '  Info ' for settings option 'loglevel'",
+        self.assertIn("invalid value '  Info ' for optional argument 'loglevel'",
                       str(ctx.exception))
 
     def test_target_namespace(self):

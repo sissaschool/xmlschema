@@ -8,11 +8,10 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """Descriptors for XML schema options and arguments."""
-import dataclasses
 import io
 import os
 from collections.abc import MutableMapping
-from dataclasses import dataclass
+from dataclasses import dataclass, InitVar, asdict
 from pathlib import Path
 from typing import Optional, Any, Union, cast, TYPE_CHECKING, TypeVar
 from urllib.request import OpenerDirector
@@ -207,6 +206,11 @@ class ResourceSettings:
 
     selector: Option[SelectorType] = SelectorOption(default=ElementSelector)
 
+    frozen: InitVar[bool] = True
+
+    def __post_init__(self, frozen: bool) -> None:
+        self._frozen = frozen
+
     def get_resource(self, cls: type['XMLResource'],
                      source: XMLSourceType,
                      base_url: Optional[BaseUrlType] = None) -> 'XMLResource':
@@ -224,6 +228,19 @@ class ResourceSettings:
             selector=self.selector,
         )
 
+    def get_schema_resource(self, cls: type['XMLResource'],
+                            source: XMLSourceType,
+                            base_url: Optional[BaseUrlType] = None) -> 'XMLResource':
+        return cls(
+            source=source,
+            base_url=base_url or self.base_url,
+            allow=self.allow,
+            defuse=self.defuse,
+            timeout=self.timeout,
+            uri_mapper=self.uri_mapper,
+            opener=self.opener,
+        )
+
     @classmethod
     def get_settings(cls, **kwargs: Any) -> 'ResourceSettings':
         return cls(**kwargs)
@@ -236,7 +253,7 @@ class ResourceSettings:
 
     def reset(self) -> None:
         """Reset settings to default values."""
-        self.set_options(**dataclasses.asdict(type(self)()))
+        self.set_options(**asdict(type(self)()))
 
 
-resource_settings = ResourceSettings()  # Active settings for XMLResource
+resource_settings = ResourceSettings(frozen=False)  # Active settings for XMLResource

@@ -8,7 +8,6 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from collections.abc import Callable, Iterable
-from dataclasses import is_dataclass
 from threading import Lock
 from typing import Any, cast, Generic, Optional, overload, TypeVar, TYPE_CHECKING, Union
 
@@ -81,7 +80,6 @@ class Attribute(Generic[T]):
 
     def __set_name__(self, owner: type[Any], name: str) -> None:
         self._name = f'_{name}'
-        self._owner = owner
 
     def __str__(self) -> str:
         return _('attribute {!r}').format(self._name[1:])
@@ -144,11 +142,8 @@ class Option(Argument[T]):
 
     def __set_name__(self, owner: type[Any], name: str) -> None:
         self._name = f'_{name}'
-        self._owner = owner
 
     def __str__(self) -> str:
-        if is_dataclass(self._owner):
-            return _('option {!r}').format(self._name[1:])
         return _('optional argument {!r}').format(self._name[1:])
 
     def __get__(self, instance: Any, owner: type[Any]) -> T:
@@ -158,7 +153,7 @@ class Option(Argument[T]):
             return self._default
 
     def __set__(self, instance: Any, value: Any) -> None:
-        if hasattr(instance, self._name) and not is_dataclass(self._owner):
+        if hasattr(instance, self._name) and getattr(instance, '_frozen', True):
             raise XMLSchemaAttributeError(_("can't change {}").format(self))
         setattr(instance, self._name, self.validated_value(value))
 

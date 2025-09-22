@@ -78,7 +78,8 @@ class SchemaLoader:
 
         return locations
 
-    def load_declared_schemas(self, schema: SchemaType) -> None:
+    def load_declared_schemas(self, schema: SchemaType,
+                              other_sources: Optional[list[SchemaSourceType]] = None) -> None:
         """
         Processes xs:include, xs:redefine, xs:override and xs:import statements,
         loading the schemas and/or the namespaced referred into declarations.
@@ -88,6 +89,7 @@ class SchemaLoader:
 
         logger.debug("Processes inclusions and imports of schema %r", self)
         schema.imported_namespaces.clear()
+        base_url = schema.base_url
 
         for elem in schema.source.root:
             if elem.tag in nm.XSD_ANNOTATION:
@@ -110,8 +112,8 @@ class SchemaLoader:
                     continue
 
                 schema.imported_namespaces.append(namespace)
-                url = normalize_url(location, schema.base_url) if location else None
-                if self.is_missing(namespace, location, schema.base_url):
+                url = normalize_url(location, base_url) if location else None
+                if self.is_missing(namespace, location, base_url):
                     self.import_namespace(schema, namespace, url)
 
             elif location is not None:
@@ -122,7 +124,7 @@ class SchemaLoader:
                 operation = elem.tag.split('}')[-1]
                 logger.info("Process xs:%s schema from %s", operation, location)
                 try:
-                    _schema = self.include_schema(schema, location, schema.base_url)
+                    _schema = self.include_schema(schema, location, base_url)
                 except OSError as err:
                     # It is not an error if the location fails to resolve:
                     #   https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/#compound-schema
@@ -173,6 +175,11 @@ class SchemaLoader:
             for ns in self.locations:
                 if ns not in self.maps.namespaces:
                     self.import_namespace(schema, ns)
+
+        # Add explicitly provided other schemas
+        if other_sources:
+            for other in other_sources:
+                schema.add_schema(other, base_url=base_url)
 
     def import_namespace(self, schema: SchemaType,
                          namespace: str,

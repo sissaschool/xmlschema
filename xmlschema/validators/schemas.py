@@ -40,7 +40,6 @@ from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaKeyError, \
     XMLSchemaAttributeError
 from xmlschema.translation import gettext as _
 from xmlschema.utils.decoding import Empty
-from xmlschema.utils.logger import set_logging_level
 from xmlschema.utils.etree import prune_etree, is_etree_element
 from xmlschema.utils.qnames import get_namespace_ext
 from xmlschema.resources import XMLResource
@@ -315,11 +314,10 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 use_xpath3=use_xpath3,
                 loglevel=loglevel,
             )
-
-        if loglevel is not None:
-            set_logging_level(loglevel)
-        elif build and global_maps is None:
-            logger.setLevel(logging.WARNING)
+            if settings.loglevel is not None:
+                logger.setLevel(settings.loglevel)
+            elif build:
+                logger.setLevel(logging.WARNING)
 
         if isinstance(source, list):
             other_sources: list[SchemaSourceType] = source[1:]
@@ -331,15 +329,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         if isinstance(source, XMLResource):
             self.source = source
         else:
-            self.source = XMLResource(
-                source=source,
-                base_url=base_url,
-                allow=allow,
-                defuse=defuse,
-                timeout=timeout,
-                uri_mapper=uri_mapper,
-                opener=opener,
-            )
+            self.source = settings.get_schema_resource(XMLResource, source, base_url)
 
         self.name = self.source.name
         root = self.source.root
@@ -384,27 +374,10 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         # Create or set the XSD global maps instance and the loader
         if isinstance(global_maps, XsdGlobals):
             self.maps = global_maps
+        elif parent is None and use_meta:
+            self.maps = XsdGlobals(self, parent=self.meta_schema, settings=settings)
         else:
-            if parent is None and use_meta:
-                parent = self.meta_schema
-
-            self.maps = XsdGlobals(
-                self,
-                parent=parent,
-                loader_class=loader_class,
-                locations=locations,
-                converter=converter,
-                base_url=base_url,
-                allow=allow,
-                defuse=defuse,
-                timeout=timeout,
-                uri_mapper=uri_mapper,
-                opener=opener,
-                iterparse=iterparse,
-                use_fallback=use_fallback,
-                use_xpath3=use_xpath3,
-                loglevel=loglevel,
-            )
+            self.maps = XsdGlobals(self, parent=parent, settings=settings)
 
         # Meta-schema maps creation (MetaXMLSchema10/11 classes)
         if self.meta_schema is None:
@@ -435,7 +408,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                         self.imported_namespaces.append(namespace)
             return
 
-        self.maps.loader.load_declared_schemas(self)
+        self.maps.loader.load_declared_schemas(self, other_sources)
 
         # Parse XSD 1.1 default declarations (defaultAttributes, defaultOpenContent,
         # xpathDefaultNamespace) after all imports/includes.
@@ -448,13 +421,11 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                     self.parse_error(err, root)
 
             for child in root:
-                if child.tag == nm.XSD_DEFAULT_OPEN_CONTENT:
+                if child.tag in nm.GLOBAL_TAGS:
+                    break
+                elif child.tag == nm.XSD_DEFAULT_OPEN_CONTENT:
                     self.default_open_content = XsdDefaultOpenContent(child, self)
                     break
-
-        # Add explicitly provided other schemas
-        for other in other_sources:
-            self.add_schema(other, base_url=base_url)
 
         try:
             if build:

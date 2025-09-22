@@ -9,6 +9,7 @@
 #
 """Package settings for setup protection defaults."""
 import dataclasses as dc
+import logging
 from typing import cast, Optional, Any, Union
 
 from xmlschema.aliases import LocationsType
@@ -61,6 +62,8 @@ class LogLevelOption(Option[Union[None, str, int]]):
             return self._default
         elif isinstance(value, (int, str)):
             self._validate_choice(value, LOG_LEVELS)
+            if isinstance(value, str):
+                return getattr(logging, value.upper())
             return value
         else:
             msg = _("invalid type {!r} for {}, must be of type {!r}")
@@ -93,5 +96,5 @@ class DocumentSettings(ResourceSettings):
     dummy_schema: Option[bool] = BooleanOption(default=False)
 
 
-schema_settings = SchemaSettings()
-document_settings = DocumentSettings()
+schema_settings = SchemaSettings(frozen=False)
+document_settings = DocumentSettings(frozen=False)

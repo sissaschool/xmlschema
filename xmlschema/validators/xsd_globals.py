@@ -86,6 +86,7 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
     def __init__(self, validator: SchemaType,
                  validation: str = _strict,
                  parent: Optional[SchemaType] = None,
+                 settings: Optional[SchemaSettings] = None,
                  **kwargs: Any) -> None:
 
         if not isinstance(validation, _strict.__class__):
@@ -108,7 +109,11 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
         self.substitution_groups = {}
         self.identities = {}
 
-        self.settings = SchemaSettings(**kwargs)
+        if isinstance(settings, SchemaSettings):
+            self.settings = settings
+        else:
+            self.settings = SchemaSettings(**kwargs)
+
         if self.settings.use_xpath3:
             module = importlib.import_module('xmlschema.xpath.xpath3')
             self.xpath_parser_class = module.XPath3Parser
