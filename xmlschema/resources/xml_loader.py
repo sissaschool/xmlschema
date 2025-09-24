@@ -21,10 +21,11 @@ from elementpath.protocols import LxmlElementProtocol
 from xmlschema.aliases import ElementType, ElementTreeType, \
     EtreeType, IOType, IterParseType, ParentMapType
 from xmlschema.exceptions import XMLResourceError, XMLResourceParseError, XMLResourceExceeded
+from xmlschema.utils.descriptors import BooleanOption
 from xmlschema.utils.misc import iter_class_slots
 from xmlschema.utils.qnames import get_namespace
 
-from .settings import LazyOption, ThinLazyOption, IterParseOption
+from .arguments import LazyOption, IterParseOption
 
 # These values can be changed by xmlschema.limits module
 _MAX_XML_DEPTH = 1000
@@ -39,7 +40,7 @@ class XMLResourceLoader:
     """
     # Descriptor-based attributes for arguments
     lazy = LazyOption(default=False)
-    thin_lazy = ThinLazyOption(default=True)
+    thin_lazy = BooleanOption(default=True)
     iterparse = IterParseOption(default=ElementTree.iterparse)
 
     # Private attributes for arguments

@@ -13,7 +13,7 @@ from operator import attrgetter
 from types import MappingProxyType
 from typing import Any, Optional, TYPE_CHECKING
 
-from xmlschema.aliases import SchemaType, SchemaSourceType, XMLSourceType, LocationsType
+from xmlschema.aliases import SchemaType, SchemaSourceType, LocationsType
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError, \
     XMLResourceBlocked, XMLResourceForbidden, XMLResourceError, XMLResourceParseError
 from xmlschema.translation import gettext as _
@@ -21,7 +21,7 @@ from xmlschema.utils.urls import normalize_url
 from xmlschema.utils.etree import iter_schema_declarations
 from xmlschema.locations import NamespaceResourcesMap, get_locations, \
     LOCATIONS, FALLBACK_LOCATIONS
-from xmlschema.resources import XMLResource
+
 import xmlschema.names as nm
 
 from xmlschema.validators import GlobalMaps, XMLSchemaParseError, XMLSchemaIncludeWarning, \
@@ -312,13 +312,7 @@ class SchemaLoader:
             namespace=namespace,
             validation=self.maps.validation,
             global_maps=self.maps,
-            converter=self.maps.settings.converter,
-            base_url=base_url,
-            allow=self.maps.settings.allow,
-            defuse=self.maps.settings.defuse,
-            timeout=self.maps.settings.timeout,
-            uri_mapper=self.maps.settings.uri_mapper,
-            opener=self.maps.settings.opener,
+            base_url=base_url or self.maps.settings.base_url,
             build=build,
             partial=partial,
         )
@@ -360,17 +354,6 @@ class SchemaLoader:
             self.maps.build()
 
         return namespace in self.namespaces
-
-    def load_resource(self, source: XMLSourceType,
-                      cls: Optional[type[XMLResource]] = None) -> XMLResource:
-        """Loads an XML resource using the loader settings."""
-        return (cls or XMLResource)(
-            source=source,
-            defuse=self.maps.settings.defuse,
-            timeout=self.maps.settings.timeout,
-            opener=self.maps.settings.opener,
-            iterparse=self.maps.settings.iterparse,
-        )
 
     def is_missing(self, namespace: str, location: Optional[str] = None,
                    base_url: Optional[str] = None) -> bool:

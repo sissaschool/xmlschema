@@ -36,8 +36,8 @@ from xmlschema.utils.urls import is_url, is_remote_url, is_local_url, normalize_
 from xmlschema.utils.descriptors import Argument, Option
 from xmlschema.xpath import ElementSelector
 
-from .settings import SourceArgument, BaseUrlOption, AllowOption, BlockOption, DefuseOption, \
-    TimeOutOption, UriMapperOption, OpenerOption, SelectorOption, resource_settings
+from .arguments import SourceArgument, BaseUrlOption, AllowOption, BlockOption, \
+    DefuseOption, TimeOutOption, UriMapperOption, OpenerOption, SelectorOption
 from .sax import defuse_xml
 from .xml_loader import XMLResourceLoader
 
@@ -207,11 +207,6 @@ class XMLResource(XMLResourceLoader):
         if self.url:
             return '%s(url=%r)' % (self.__class__.__name__, self.url)
         return super().__repr__()
-
-    @classmethod
-    def from_settings(cls, source: XMLSourceType,
-                      base_url: Optional[BaseUrlType] = None) -> 'XMLResource':
-        return resource_settings.get_resource(cls, source, base_url)
 
     @property
     def name(self) -> Optional[str]:

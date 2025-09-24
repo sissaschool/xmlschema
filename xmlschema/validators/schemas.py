@@ -175,24 +175,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     normalized.
     :param base_url: is an optional base URL, used for the normalization of relative paths \
     when the URL of the schema resource can't be obtained from the source argument.
-    :param allow: the security mode for accessing resource locations. Can be \
-    'all', 'remote', 'local' or 'sandbox'. Default is 'all' that means all types of \
-    URLs are allowed. With 'remote' only remote resource URLs are allowed. With 'local' \
-    only file paths and URLs are allowed. With 'sandbox' only file paths and URLs that \
-    are under the directory path identified by source or by the *base_url* argument \
-    are allowed.
-    :param defuse: defines when to defuse XML data using a `SafeXMLParser`. Can be \
-    'always', 'remote' or 'never'. For default defuses only remote XML data.
-    :param timeout: the timeout in seconds for fetching resources. Default is `300`.
-    :param uri_mapper: an optional URI mapper for using relocated or URN-addressed \
-    resources. Can be a dictionary or a function that takes the URI string and returns \
-    a URL, or the argument if there is no mapping for it.
-    :param opener: an optional :class:`OpenerDirector` instance used for opening XML \
-    resources. For default uses the opener installed globally for *urlopen*.
-    :param iterparse: an optional callable that returns an iterator parser instance \
-    used for building the XML trees. For default *ElementTree.iterparse* is used. \
-    XSD schemas are built using only *ElementTree.iterparse*, because *lxml* is \
-    unsuitable for multitree structures.
     :param use_fallback: if `True` the schema processor uses the validator fallback \
     location hints to load well-known namespaces (e.g. xhtml).
     :param use_xpath3: if `True` an XSD 1.1 schema instance uses the XPath 3 processor \
@@ -206,6 +188,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     :param build: defines whether build the schema maps. Default is `True`.
     :param partial: if `True`, the schema is initialized without processing \
     imports/inclusions and the build phase is skipped.
+    :param kwargs: additional arguments for overriding default XMLResource settings \
+    or schema settings.
 
     :cvar XSD_VERSION: store the XSD version (1.0 or 1.1).
     :cvar BASE_SCHEMAS: a dictionary from namespace to schema resource for meta-schema bases.
@@ -275,19 +259,14 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                  converter: Optional[ConverterType] = None,
                  locations: Optional[LocationsType] = None,
                  base_url: Optional[str] = None,
-                 allow: str = 'all',
-                 defuse: str = 'remote',
-                 timeout: int = 300,
-                 uri_mapper: Optional[UriMapperType] = None,
-                 opener: Optional[OpenerDirector] = None,
-                 iterparse: Optional[IterParseType] = None,
                  loader_class: Optional[type[SchemaLoader]] = None,
                  use_fallback: bool = True,
                  use_xpath3: bool = False,
                  use_meta: bool = True,
                  loglevel: Optional[Union[str, int]] = None,
                  build: bool = True,
-                 partial: bool = False) -> None:
+                 partial: bool = False,
+                 **kwargs: Any) -> None:
 
         super().__init__(validation)
 
@@ -304,15 +283,10 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 locations=locations,
                 converter=converter,
                 base_url=base_url,
-                allow=allow,
-                defuse=defuse,
-                timeout=timeout,
-                uri_mapper=uri_mapper,
-                opener=opener,
-                iterparse=iterparse,
                 use_fallback=use_fallback,
                 use_xpath3=use_xpath3,
                 loglevel=loglevel,
+                **kwargs,
             )
             if settings.loglevel is not None:
                 logger.setLevel(settings.loglevel)
@@ -329,7 +303,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         if isinstance(source, XMLResource):
             self.source = source
         else:
-            self.source = settings.get_schema_resource(XMLResource, source, base_url)
+            self.source = settings.get_xsd_resource(source, base_url)
 
         self.name = self.source.name
         root = self.source.root
@@ -1330,7 +1304,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         if isinstance(source, XMLResource):
             resource: XMLResource = source
         else:
-            resource = self.maps.loader.load_resource(source)
+            resource = self.maps.settings.get_xml_resource(source)
 
         ancestors: list[Element] = []
         prev_ancestors: list[Element] = []
@@ -1571,7 +1545,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         if isinstance(source, XMLResource):
             resource: XMLResource = source
         else:
-            resource = self.maps.loader.load_resource(source)
+            resource = self.maps.settings.get_xml_resource(source)
 
         if converter is None:
             converter = self.maps.settings.converter
