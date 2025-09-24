@@ -29,7 +29,7 @@ from .arguments import LazyOption, IterParseOption
 
 # These values can be changed by xmlschema.limits module
 _MAX_XML_DEPTH = 1000
-_MAX_XML_ELEMENTS = 10 ** 5
+_MAX_XML_ELEMENTS = 10 ** 6
 
 LazyLockType = RLock if platform.python_implementation() == 'PyPy' else Lock
 
@@ -244,7 +244,7 @@ class XMLResourceLoader:
                 if event == 'start':
                     remaining_levels -= 1
                     if not remaining_levels:
-                        msg = "maximum XML depth reached (max_xml_depth={}) for {}"
+                        msg = "maximum XML depth reached (MAX_XML_DEPTH={}) for {}"
                         raise XMLResourceExceeded(msg.format(_MAX_XML_DEPTH, self))
 
                     if end_ns:
@@ -304,10 +304,12 @@ class XMLResourceLoader:
                     remaining_levels -= 1
                     remaining_elements -= 1
                     if not remaining_levels:
-                        msg = "maximum XML depth reached (max_xml_depth={}) for {!r}"
+                        msg = "maximum XML depth reached (MAX_XML_DEPTH={}) for {!r}"
                         raise XMLResourceExceeded(msg.format(_MAX_XML_DEPTH, self))
                     if not remaining_elements:
-                        msg = "maximum XML elements reached (max_xml_elements={} for {!r})"
+                        msg = ("maximum XML elements reached (MAX_XML_ELEMENTS={} for {!r}). "
+                               "Try to increase the limit or process the data using a lazy "
+                               "XMLResource, that has no limit.")
                         raise XMLResourceExceeded(msg.format(_MAX_XML_ELEMENTS, self))
 
                     if not root_started:

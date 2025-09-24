@@ -66,7 +66,7 @@ Maximum depth of XML data. An `XMLResourceExceeded` is raised if this limit is e
 The default value is related limits.MAX_XML_DEPTH effective value.
 """
 
-MAX_XML_ELEMENTS = 10 ** 5
+MAX_XML_ELEMENTS = 10 ** 6
 """
 Maximum number of XML elements allowed in a XML document. An `XMLResourceExceeded`
 is raised if this limit is exceeded. Not affects lazy resources.
