@@ -27,26 +27,11 @@ from elementpath import ElementNode, LazyElementNode, DocumentNode
 
 from .utils.protocols import IOProtocol
 
-__all__ = ['ElementType', 'ElementTreeType', 'XMLSourceType', 'NsmapType',
-           'NormalizedLocationsType', 'LocationsType', 'NsmapType', 'XmlnsType',
-           'ParentMapType', 'SchemaType', 'BaseXsdType', 'SchemaElementType',
-           'SchemaAttributeType', 'SchemaGlobalType', 'ModelGroupType',
-           'ModelParticleType', 'XPathElementType', 'AtomicValueType',
-           'NumericValueType', 'SchemaSourceType', 'ComponentClassType',
-           'LoadedItemType', 'StagedItemType', 'ExtraValidatorType',
-           'ValidationHookType', 'DecodeType', 'IterDecodeType', 'AncestorsType',
-           'JsonDecodeType', 'EncodeType', 'IterEncodeType', 'DecodedValueType',
-           'FillerType', 'DepthFillerType', 'ValueHookType', 'ElementHookType',
-           'SerializerType', 'OccursCounterType', 'LazyType', 'SourceType',
-           'UriMapperType', 'IterParseType', 'SelectorType', 'EtreeType',
-           'IOType', 'ClassInfoType', 'ResourceNodeType', 'NsmapsMapType',
-           'XmlnsMapType', 'ErrorsType', 'LocationsMapType', 'BaseUrlType']
-
 if TYPE_CHECKING:
     from xmlschema.resources import XMLResource  # noqa: F401
     from xmlschema.locations import NamespaceResourcesMap  # noqa: F401
     from xmlschema.converters import ElementData  # noqa: F401
-    from xmlschema.xpath import ElementSelector
+    from xmlschema.xpath import ElementSelector  # noqa: F401
 
     # noinspection PyUnresolvedReferences
     from xmlschema.validators import XMLSchemaValidationError, XsdComponent, \
@@ -78,6 +63,7 @@ XMLSourceType = Union[SourceType, EtreeType]
 ResourceNodeType = Union[ElementNode, LazyElementNode, DocumentNode]
 BaseUrlType = Union[str, bytes, Path]
 LazyType = Union[bool, int]
+BlockType = Union[str, tuple[str, ...], list[str]]
 UriMapperType = Union[MutableMapping[str, str], Callable[[str], str]]
 IterParseType = Callable[[IOType, Optional[Sequence[str]]], Iterator[tuple[str, Any]]]
 SelectorType = Optional[type['ElementSelector']]

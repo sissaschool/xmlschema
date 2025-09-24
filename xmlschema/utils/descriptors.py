@@ -152,11 +152,6 @@ class Option(Argument[T]):
         except AttributeError:
             return self._default
 
-    def __set__(self, instance: Any, value: Any) -> None:
-        if hasattr(instance, self._name) and getattr(instance, '_frozen', True):
-            raise XMLSchemaAttributeError(_("can't change {}").format(self))
-        setattr(instance, self._name, self.validated_value(value))
-
 
 class BooleanOption(Option[bool]):
     def validated_value(self, value: Any) -> bool:

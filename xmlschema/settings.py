@@ -100,5 +100,5 @@ class DocumentSettings(ResourceSettings):
     dummy_schema: Option[bool] = BooleanOption(default=False)
 
 
-schema_settings = SchemaSettings(frozen=False)
-document_settings = DocumentSettings(frozen=False)
+schema_settings = SchemaSettings()
+document_settings = DocumentSettings()

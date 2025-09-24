@@ -11,13 +11,13 @@
 import io
 import os
 from collections.abc import MutableMapping
-from dataclasses import dataclass, InitVar, asdict
+from dataclasses import dataclass, asdict
 from pathlib import Path
 from typing import Optional, Any, Union, cast, TYPE_CHECKING, TypeVar
 from urllib.request import OpenerDirector
 
 from xmlschema.aliases import XMLSourceType, UriMapperType, IterParseType, \
-    SelectorType, BaseUrlType
+    SelectorType, BaseUrlType, BlockType
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from xmlschema.translation import gettext as _
 from xmlschema.utils.descriptors import Argument, Option, StringOption, \
@@ -33,6 +33,7 @@ if TYPE_CHECKING:
 
 DEFUSE_MODES = frozenset(('never', 'remote', 'nonlocal', 'always'))
 SECURITY_MODES = frozenset(('all', 'remote', 'local', 'sandbox', 'none'))
+BLOCK_TYPES = frozenset(('text', 'file', 'io', 'url', 'tree'))
 
 T = TypeVar('T')
 
@@ -117,6 +118,27 @@ class ThinLazyOption(BooleanOption):
     """Defines if the resource is lazy and thin."""
 
 
+class BlockOption(Option[Optional[BlockType]]):
+    """The types blocked for XML source argument."""
+
+    def validated_value(self, value: Any) -> Optional[BlockType]:
+        if value is None:
+            return value
+        elif isinstance(value, str):
+            value = value.split()
+
+        if isinstance(value, (list, tuple)) and value:
+            for v in value:
+                if not isinstance(v, str):
+                    break
+                self._validate_choice(v, BLOCK_TYPES)
+            else:
+                return tuple(value)
+
+        msg = _("invalid type {!r} for {}, must be None or a tuple/list of strings")
+        raise XMLSchemaTypeError(msg.format(type(value), self, (str, tuple)))
+
+
 class UriMapperOption(Option[Optional[UriMapperType]]):
     """The optional URI mapper argument for relocating addressed resources."""
     def validated_value(self, value: Any) -> Optional[UriMapperType]:
@@ -195,6 +217,14 @@ class ResourceSettings:
     descendant elements are deleted at the depth defined by *lazy* option.
     """
 
+    block: Option[Optional[BlockType]] = BlockOption(default=None)
+    """
+    Defines which types of sources are blocked for security reasons. For default none
+    of possible types are blocked. Set with a space separated string of words, choosing
+    between 'text', 'file', 'io', 'url' and 'tree' or a tuple/list of them to select 
+    which types are blocked.
+    """
+
     uri_mapper: Option[Optional[UriMapperType]] = UriMapperOption(default=None)
     """Optional URI mapper for using relocated or URN-addressed resources."""
 
@@ -206,27 +236,13 @@ class ResourceSettings:
 
     selector: Option[SelectorType] = SelectorOption(default=ElementSelector)
 
-    frozen: InitVar[bool] = True
-
-    def __post_init__(self, frozen: bool) -> None:
-        self._frozen = frozen
-
     def get_resource(self, cls: type['XMLResource'],
                      source: XMLSourceType,
                      base_url: Optional[BaseUrlType] = None) -> 'XMLResource':
-        return cls(
-            source=source,
-            base_url=base_url or self.base_url,
-            allow=self.allow,
-            defuse=self.defuse,
-            lazy=self.lazy,
-            thin_lazy=self.thin_lazy,
-            timeout=self.timeout,
-            uri_mapper=self.uri_mapper,
-            opener=self.opener,
-            iterparse=self.iterparse,
-            selector=self.selector,
-        )
+        kwargs = asdict(self)
+        if base_url is not None:
+            kwargs['base_url'] = base_url
+        return cls(source, **kwargs)
 
     def get_schema_resource(self, cls: type['XMLResource'],
                             source: XMLSourceType,
@@ -256,4 +272,4 @@ class ResourceSettings:
         self.set_options(**asdict(type(self)()))
 
 
-resource_settings = ResourceSettings(frozen=False)  # Active settings for XMLResource
+resource_settings = ResourceSettings()  # Active settings for XMLResource

@@ -23,7 +23,7 @@ from xml.etree import ElementTree
 
 from xmlschema.aliases import ElementType, EtreeType, NsmapType, \
     NormalizedLocationsType, LocationsType, XMLSourceType, IOType, \
-    LazyType, IterParseType, UriMapperType, BaseUrlType
+    LazyType, IterParseType, UriMapperType, BaseUrlType, BlockType
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError, \
     XMLResourceError, XMLResourceOSError, XMLResourceBlocked
 from xmlschema.utils.paths import LocationPath
@@ -36,7 +36,7 @@ from xmlschema.utils.urls import is_url, is_remote_url, is_local_url, normalize_
 from xmlschema.utils.descriptors import Argument, Option
 from xmlschema.xpath import ElementSelector
 
-from .settings import SourceArgument, BaseUrlOption, AllowOption, DefuseOption, \
+from .settings import SourceArgument, BaseUrlOption, AllowOption, BlockOption, DefuseOption, \
     TimeOutOption, UriMapperOption, OpenerOption, SelectorOption, resource_settings
 from .sax import defuse_xml
 from .xml_loader import XMLResourceLoader
@@ -85,6 +85,10 @@ class XMLResource(XMLResourceLoader):
     :param thin_lazy: for default, in order to reduce the memory usage, during the \
     iteration of a lazy resource at *lazy_depth* level, deletes also the preceding \
     elements after the use.
+    :param block: defines which types of sources are blocked for security reasons. \
+    For default none of possible types are blocked. Provide a space separated string of \
+    words, choosing between 'text', 'file', 'io', 'url' and 'tree' or a tuple of them to \
+    select which types are blocked.
     :param uri_mapper: an optional URI mapper for using relocated or URN-addressed \
     resources. Can be a dictionary or a function that takes the URI string and returns \
     a URL, or the argument if there is no mapping for it.
@@ -102,6 +106,7 @@ class XMLResource(XMLResourceLoader):
     allow = AllowOption(default='all')
     defuse = DefuseOption(default='remote')
     timeout = TimeOutOption(default=300)
+    block = BlockOption(default=None)
     uri_mapper = UriMapperOption(default=None)
     opener = OpenerOption(default=None)
     selector = SelectorOption(default=ElementSelector)
@@ -112,6 +117,7 @@ class XMLResource(XMLResourceLoader):
     _allow: str
     _defuse: str
     _timeout: int
+    _block: Optional[tuple[str, ...]]
     _uri_mapper: Optional[UriMapperType]
     _opener: Optional[OpenerDirector]
     _selector: type[ElementSelector]
@@ -136,6 +142,7 @@ class XMLResource(XMLResourceLoader):
                  timeout: int = 300,
                  lazy: LazyType = False,
                  thin_lazy: bool = True,
+                 block: Optional[BlockType] = None,
                  uri_mapper: Optional[UriMapperType] = None,
                  opener: Optional[OpenerDirector] = None,
                  iterparse: Optional[IterParseType] = None,
@@ -154,6 +161,7 @@ class XMLResource(XMLResourceLoader):
         self.allow = allow
         self.defuse = defuse
         self.timeout = timeout
+        self.block = block
         self.uri_mapper = uri_mapper
         self.opener = opener
         self.selector = selector
@@ -175,9 +183,22 @@ class XMLResource(XMLResourceLoader):
             # source is a file-like object (remote resource or local file)
             self.fp = cast(IOType, source)
             self.access_control(getattr(source, 'url', None))
+        elif self._block is not None and 'tree' in self._block:
+            raise XMLResourceBlocked(f"block initialization from {type(source)!r}")
         else:
             super().__init__(cast(EtreeType, source), lazy, thin_lazy, iterparse)
             return
+
+        if self._block is not None:
+            # Block control
+            if 'file' in self._block and self.fp is not None:
+                raise XMLResourceBlocked("block initialization from file")
+            elif 'url' in self._block and self.url is not None:
+                raise XMLResourceBlocked("block initialization from URL")
+            elif 'text' in self._block and isinstance(source, (str, bytes)):
+                raise XMLResourceBlocked(f"block initialization from {type(source)!r}")
+            elif 'io' in self._block and isinstance(source, (StringIO, BytesIO)):
+                raise XMLResourceBlocked(f"block initialization from {type(source)!r}")
 
         with XMLResourceManager(self) as cm:
             super().__init__(cm.fp, lazy, thin_lazy, iterparse)
