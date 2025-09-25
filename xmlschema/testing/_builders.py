@@ -280,7 +280,7 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
                 print("\n##\n## Testing %r validation in debug mode.\n##" % xml_file)
                 pdb.set_trace()
 
-        def check_decode_encode(self, root, converter=None, **kwargs):
+        def check_decode_encode(self, root, converter=None, etree_element_class=None, **kwargs):
             lossy = converter in (ParkerConverter, AbderaConverter, ColumnarConverter)
             losslessly = converter is JsonMLConverter
             unordered = converter not in (AbderaConverter, JsonMLConverter) or \
@@ -297,7 +297,8 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
 
             try:
                 elem1 = self.schema.encode(
-                    decoded_data1, path=root.tag, converter=converter, **kwargs
+                    decoded_data1, path=root.tag, converter=converter,
+                    etree_element_class=etree_element_class, **kwargs
                 )
             except XMLSchemaValidationError as err:
                 raise AssertionError(msg_tmpl.format("error during re-encoding", str(err)))
@@ -353,7 +354,8 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
                         raise
 
                     elem2 = self.schema.encode(
-                        decoded_data2, path=root.tag, converter=converter, **kwargs
+                        decoded_data2, path=root.tag, converter=converter,
+                        etree_element_class=etree_element_class, **kwargs
                     )
                     if isinstance(elem2, tuple):
                         elem2 = elem2[0]
@@ -369,7 +371,8 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
                             msg_tmpl.format("encoded tree differs after second pass", str(err))
                         )
 
-        def check_json_serialization(self, root, converter=None, **kwargs):
+        def check_json_serialization(self, root, converter=None,
+                                     etree_element_class=None, **kwargs):
             lossy = converter in (ParkerConverter, AbderaConverter, ColumnarConverter)
             unordered = converter not in (AbderaConverter, JsonMLConverter) or \
                 kwargs.get('unordered', False)
@@ -385,7 +388,8 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
                 json_data1 = json_data1[0]
 
             elem1 = xmlschema.from_json(
-                json_data1, schema=self.schema, path=root.tag, converter=converter, **kwargs
+                json_data1, schema=self.schema, path=root.tag, converter=converter,
+                etree_element_class=etree_element_class, **kwargs
             )
             if isinstance(elem1, tuple):
                 elem1 = elem1[0]

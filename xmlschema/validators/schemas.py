@@ -1678,6 +1678,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                     process_skipped: bool = False,
                     max_depth: Optional[int] = None,
                     untyped_data: bool = False,
+                    etree_element_class: Optional[type[ElementType]] = None,
                     **kwargs: Any) -> Iterator[Union[Element, XMLSchemaValidationError]]:
         """
         Creates an iterator for encoding a data structure to an ElementTree's Element.
@@ -1700,6 +1701,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         :param untyped_data: for default xs:untypedAtomic datatype is not accepted as \
         a decoded value, set to true to extend the compatibility of with string and \
         untyped values to all builtin datatypes.
+        :param etree_element_class: the class to use for creating new XML elements, \
+        if not provided uses the ElementTree's Element class.
         :param kwargs: keyword arguments with other options for building the \
         converter instance.
         :return: yields an Element instance/s or validation/encoding errors.
@@ -1721,6 +1724,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             process_skipped=process_skipped,
             max_depth=max_depth,
             untyped_data=untyped_data,
+            etree_element_class=etree_element_class,
         )
         context = EncodeContext(obj, validation, **kwargs)
 

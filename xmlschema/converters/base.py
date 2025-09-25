@@ -7,6 +7,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+import warnings
 from collections import namedtuple
 from collections.abc import Callable, Iterator, Iterable, MutableMapping, MutableSequence
 from typing import TYPE_CHECKING, Any, Optional, Type, TypeVar, Union
@@ -16,6 +17,7 @@ from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from xmlschema.aliases import NsmapType, BaseXsdType, XmlnsType
 from xmlschema.resources import XMLResource
 from xmlschema.utils.qnames import get_namespace
+from xmlschema.utils.misc import deprecated
 from xmlschema.namespaces import NamespaceMapper
 
 if TYPE_CHECKING:
@@ -60,7 +62,7 @@ class XMLSchemaConverter(NamespaceMapper):
     :param namespaces: map from namespace prefixes to URI.
     :param dict_class: dictionary class to use for decoded data. Default is `dict`.
     :param list_class: list class to use for decoded data. Default is `list`.
-    :param etree_element_class: the class that has to be used to create new XML elements, \
+    :param etree_element_class: the class to use for creating new XML elements, \
     if not provided uses the ElementTree's Element class.
     :param text_key: is the key to apply to element's decoded text data.
     :param attr_prefix: controls the mapping of XML attributes, to the same name or \
@@ -138,6 +140,9 @@ class XMLSchemaConverter(NamespaceMapper):
             self.list = list
 
         if etree_element_class is not None:
+            msg = ("'etree_element_class' argument is now handled by encoding context "
+                   "and will be removed in converters from version v5.0.")
+            warnings.warn(msg, DeprecationWarning)
             self.etree_element_class = etree_element_class
         else:
             self.etree_element_class = Element
@@ -233,7 +238,6 @@ class XMLSchemaConverter(NamespaceMapper):
             namespaces=namespaces,
             dict_class=kwargs.get('dict_class', self.dict),
             list_class=kwargs.get('list_class', self.list),
-            etree_element_class=kwargs.get('etree_element_class', self.etree_element_class),
             text_key=kwargs.get('text_key', self.text_key),
             attr_prefix=kwargs.get('attr_prefix', self.attr_prefix),
             cdata_prefix=kwargs.get('cdata_prefix', self.cdata_prefix),
@@ -279,6 +283,7 @@ class XMLSchemaConverter(NamespaceMapper):
                 else:
                     yield name, value, xsd_child
 
+    @deprecated('5.0')
     def etree_element(self, tag: str,
                       text: Optional[str] = None,
                       children: Optional[list[Element]] = None,

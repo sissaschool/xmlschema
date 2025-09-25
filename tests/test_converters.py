@@ -9,6 +9,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import unittest
+import warnings
 from pathlib import Path
 from typing import cast, MutableMapping, Optional, Type
 from xml.etree.ElementTree import Element, parse as etree_parse
@@ -69,14 +70,17 @@ class TestConverters(unittest.TestCase):
         converter = XMLSchemaConverter()
         self.assertIs(converter.etree_element_class, Element)
 
-        converter = XMLSchemaConverter(etree_element_class=Element)
-        self.assertIs(converter.etree_element_class, Element)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
 
-        if lxml_etree is not None:
-            converter = XMLSchemaConverter(
-                etree_element_class=cast(Type[Element], lxml_etree.Element)
-            )
-            self.assertIs(converter.etree_element_class, lxml_etree.Element)
+            converter = XMLSchemaConverter(etree_element_class=Element)
+            self.assertIs(converter.etree_element_class, Element)
+
+            if lxml_etree is not None:
+                converter = XMLSchemaConverter(
+                    etree_element_class=cast(Type[Element], lxml_etree.Element)
+                )
+                self.assertIs(converter.etree_element_class, lxml_etree.Element)
 
     def test_prefix_arguments(self):
         converter = XMLSchemaConverter(cdata_prefix='#')
@@ -197,11 +201,15 @@ class TestConverters(unittest.TestCase):
 
     def test_etree_element_method(self):
         converter = XMLSchemaConverter()
-        elem = converter.etree_element('A')
-        self.assertIsNone(etree_elements_assert_equal(elem, Element('A')))
 
-        elem = converter.etree_element('A', attrib={})
-        self.assertIsNone(etree_elements_assert_equal(elem, Element('A')))
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+
+            elem = converter.etree_element('A')
+            self.assertIsNone(etree_elements_assert_equal(elem, Element('A')))
+
+            elem = converter.etree_element('A', attrib={})
+            self.assertIsNone(etree_elements_assert_equal(elem, Element('A')))
 
     def test_columnar_converter(self):
         col_schema = XMLSchema(self.col_xsd_filename, converter=ColumnarConverter)
