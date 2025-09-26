@@ -33,11 +33,11 @@ from xmlschema.utils.streams import is_file_object
 from xmlschema.utils.qnames import update_namespaces, get_namespace_map
 from xmlschema.utils.urls import is_url, is_remote_url, is_local_url, normalize_url, \
     normalize_locations
-from xmlschema.utils.descriptors import Argument, Option
 from xmlschema.xpath import ElementSelector
+from xmlschema.arguments import Argument, SourceArgument, BaseUrlOption, \
+    AllowOption, BlockOption, DefuseOption, TimeOutOption, UriMapperOption, \
+    OpenerOption, SelectorOption
 
-from .arguments import SourceArgument, BaseUrlOption, AllowOption, BlockOption, \
-    DefuseOption, TimeOutOption, UriMapperOption, OpenerOption, SelectorOption
 from .sax import defuse_xml
 from .xml_loader import XMLResourceLoader
 
@@ -327,7 +327,7 @@ class XMLResource(XMLResourceLoader):
     def get_arguments(self) -> dict[str, Any]:
         """Returns keyword arguments for rebuilding the XML resource."""
         return {k: getattr(self, k) for k, v in self.__class__.__dict__.items()
-                if isinstance(v, (Argument, Option))}
+                if isinstance(v, Argument)}
 
     def get_text(self) -> str:
         """

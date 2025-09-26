@@ -10,7 +10,7 @@
 import warnings
 from collections import namedtuple
 from collections.abc import Callable, Iterator, Iterable, MutableMapping, MutableSequence
-from typing import TYPE_CHECKING, Any, Optional, Type, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Optional, TypeVar, Union
 from xml.etree.ElementTree import Element
 
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError
@@ -103,16 +103,16 @@ class XMLSchemaConverter(NamespaceMapper):
     :ivar force_list: force list for child elements
     """
     ns_prefix: str
-    etree_element_class: Type[Element]
+    etree_element_class: type[Element]
 
     __slots__ = ('dict', 'list', 'etree_element_class',
                  'text_key', 'ns_prefix', 'attr_prefix', 'cdata_prefix',
                  'indent', 'preserve_root', 'force_dict', 'force_list')
 
     def __init__(self, namespaces: Optional[NsmapType] = None,
-                 dict_class: Optional[Type[dict[str, Any]]] = None,
-                 list_class: Optional[Type[list[Any]]] = None,
-                 etree_element_class: Optional[Type[Element]] = None,
+                 dict_class: Optional[type[dict[str, Any]]] = None,
+                 list_class: Optional[type[list[Any]]] = None,
+                 etree_element_class: Optional[type[Element]] = None,
                  text_key: Optional[str] = '$',
                  attr_prefix: Optional[str] = '@',
                  cdata_prefix: Optional[str] = None,
@@ -126,8 +126,8 @@ class XMLSchemaConverter(NamespaceMapper):
                  force_list: bool = False,
                  **kwargs: Any) -> None:
 
-        self.dict: Type[dict[str, Any]]
-        self.list: Type[list[Any]]
+        self.dict: type[dict[str, Any]]
+        self.list: type[list[Any]]
 
         if dict_class is not None:
             self.dict = dict_class

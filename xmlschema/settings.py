@@ -14,10 +14,13 @@ from typing import cast, Optional, Any, Union
 from urllib.request import OpenerDirector
 
 from xmlschema.aliases import LocationsType, BlockType, IterParseType, SelectorType, \
-    XMLSourceType, BaseUrlType, UriMapperType
+    XMLSourceType, BaseUrlType, UriMapperType, NsmapType, DepthFillerType, \
+    ExtraValidatorType, ValidationHookType, ValueHookType, ElementHookType, \
+    ElementType, FillerType
 from xmlschema.exceptions import XMLSchemaTypeError
 from xmlschema.translation import gettext as _
-from xmlschema.utils.descriptors import Option, BooleanOption
+from xmlschema.utils.descriptors import Option, BooleanOption, IntOption, \
+    NillableStringOption, NillableOption, OptionalCallable
 from xmlschema.utils.misc import is_subclass
 
 from xmlschema.locations import NamespaceResourcesMap
@@ -62,11 +65,9 @@ class LoaderClassOption(Option[type['SchemaLoader']]):
             raise XMLSchemaTypeError(msg.format(value, self, SchemaLoader))
 
 
-class LogLevelOption(Option[Union[None, str, int]]):
-    def validated_value(self, value: Any) -> Union[None, str, int]:
-        if value is None:
-            return self._default
-        elif isinstance(value, (int, str)):
+class LogLevelOption(NillableOption[Union[str, int]]):
+    def validated_value(self, value: Any) -> Union[str, int]:
+        if isinstance(value, (int, str)):
             self._validate_choice(value, LOG_LEVELS)
             if isinstance(value, str):
                 return cast(int, getattr(logging, value.upper()))
@@ -209,6 +210,13 @@ class SchemaSettings(ResourceSettings):
     locations: Option[Optional[LocationsType]] = LocationsOption(default=None)
     """Optional schema extra location hints with additional namespaces to import."""
 
+    use_location_hints: Option[bool] = BooleanOption(default=False)
+    """
+    Schema locations hints provided within XML data for dynamic schema loading.
+    For default these hints are ignored by schemas in order to avoid the change of
+    schema instance. Set this option to `True` to activate dynamic schema loading.
+    """
+
     loader_class: Option[type[SchemaLoader]] = LoaderClassOption(default=SchemaLoader)
 
     use_fallback: Option[bool] = BooleanOption(default=True)
@@ -238,12 +246,77 @@ class SchemaSettings(ResourceSettings):
 
 
 @dc.dataclass
+class ConverterSettings:
+    namespaces: Optional[NsmapType] = None
+    dict_class: Optional[type[dict[str, Any]]] = None
+    list_class: Optional[type[list[Any]]] = None
+    text_key: Option[Optional[str]] = NillableStringOption(default='$')
+    attr_prefix: Option[Optional[str]] = NillableStringOption(default='@')
+    cdata_prefix: Option[Optional[str]] = NillableStringOption(default=None)
+    indent: Option[int] = IntOption(default=4, min_value=0)
+    process_namespaces: Option[bool] = BooleanOption(default=True)
+    strip_namespaces: Option[bool] = BooleanOption(default=False)
+    xmlns_processing: Option[Optional[str]] = NillableStringOption(default=None)
+    source: Optional[XMLResource] = None
+    preserve_root: Option[bool] = BooleanOption(default=False)
+    force_dict: Option[bool] = BooleanOption(default=False)
+    force_list: Option[bool] = BooleanOption(default=False)
+
+
+@dc.dataclass
+class DecodingSettings(ConverterSettings):
+    """Settings for decoding XML data."""
+    use_defaults: Option[bool] = BooleanOption(default=True)
+    use_location_hints: Option[bool] = BooleanOption(default=False)
+
+
+
+    decimal_type: Optional[type[Any]] = None
+    datetime_types: Option[bool] = BooleanOption(default=False)
+    binary_types: Option[bool] = BooleanOption(default=False)
+    converter: Optional[ConverterType] = None
+    filler: Optional[FillerType] = None
+    fill_missing: Option[bool] = BooleanOption(default=False)
+    keep_empty: Option[bool] = BooleanOption(default=False)
+    keep_unknown: Option[bool] = BooleanOption(default=False)
+    process_skipped: Option[bool] = BooleanOption(default=False)
+    max_depth: Optional[int] = None
+    depth_filler: Option[DepthFillerType] = OptionalCallable(default=None)
+    extra_validator: Optional[ExtraValidatorType] = OptionalCallable(default=None)
+    validation_hook: Optional[ValidationHookType] = OptionalCallable(default=None)
+    value_hook: Optional[ValueHookType] = None
+    element_hook: Optional[ElementHookType] = None
+
+
+@dc.dataclass
+class EncodingSettings(ConverterSettings):
+    """Settings for encoding XML data."""
+    use_defaults: Option[bool] = BooleanOption(default=False)
+    converter: Optional[ConverterType] = None
+    unordered: Option[bool] = BooleanOption(default=False)
+    process_skipped: Option[bool] = BooleanOption(default=False)
+    max_depth: Optional[int] = None
+    untyped_data: Option[bool] = BooleanOption(default=False)
+    etree_element_class: Optional[type[ElementType]] = None
+
+
+@dc.dataclass
 class DocumentSettings(SchemaSettings):
     """
     Settings for XML instances that uses a specific configuration.
     """
     use_location_hints: Option[bool] = BooleanOption(default=True)
+    """
+    Schema locations hints provided within XML data for dynamic schema loading.
+    Disabled at schema level, for default these hints are enabled at document level.
+    """
+
     dummy_schema: Option[bool] = BooleanOption(default=False)
+    max_depth: Optional[int] = None,
+
+    extra_validator: Optional[ExtraValidatorType] = None,
+    validation_hook: Optional[ValidationHookType] = None
+    allow_empty: Option[bool] = BooleanOption(default=True)
 
     @classmethod
     def get_settings(cls, **kwargs: Any) -> 'DocumentSettings':

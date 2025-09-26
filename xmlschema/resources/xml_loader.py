@@ -21,11 +21,9 @@ from elementpath.protocols import LxmlElementProtocol
 from xmlschema.aliases import ElementType, ElementTreeType, \
     EtreeType, IOType, IterParseType, ParentMapType
 from xmlschema.exceptions import XMLResourceError, XMLResourceParseError, XMLResourceExceeded
-from xmlschema.utils.descriptors import BooleanOption
 from xmlschema.utils.misc import iter_class_slots
 from xmlschema.utils.qnames import get_namespace
-
-from .arguments import LazyOption, IterParseOption
+from xmlschema.arguments import BooleanOption, LazyOption, IterParseOption
 
 # These values can be changed by xmlschema.limits module
 _MAX_XML_DEPTH = 1000
