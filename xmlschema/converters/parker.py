@@ -62,7 +62,7 @@ class ParkerConverter(XMLSchemaConverter):
 
         if xsd_type.model_group is None or not data.content:
             if preserve_root:
-                return self.dict([(self.map_qname(data.tag), data.text)])
+                return self.dict(((self.map_qname(data.tag), data.text),))
             else:
                 return data.text
         else:
@@ -79,11 +79,11 @@ class ParkerConverter(XMLSchemaConverter):
                     result_dict[name].append(value)
                 except KeyError:
                     if isinstance(value, MutableSequence):
-                        result_dict[name] = self.list([value])
+                        result_dict[name] = self.list((value,))
                     else:
                         result_dict[name] = value
                 except AttributeError:
-                    result_dict[name] = self.list([result_dict[name], value])
+                    result_dict[name] = self.list((result_dict[name], value))
 
             for k, v in result_dict.items():
                 if isinstance(v, MutableSequence) and len(v) == 1:
@@ -91,7 +91,7 @@ class ParkerConverter(XMLSchemaConverter):
                     v.extend(value)
 
             if preserve_root:
-                return self.dict([(self.map_qname(data.tag), result_dict)])
+                return self.dict(((self.map_qname(data.tag), result_dict),))
             else:
                 return result_dict if result_dict else None
 

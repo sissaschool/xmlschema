@@ -65,7 +65,7 @@ class JsonMLConverter(XMLSchemaConverter):
     def element_decode(self, data: ElementData, xsd_element: 'XsdElement',
                        xsd_type: Optional[BaseXsdType] = None, level: int = 0) -> Any:
         xsd_type = xsd_type or xsd_element.type
-        result_list = self.list()
+        result_list = [] if self.list is list else self.list()
         xmlns = self.get_effective_xmlns(data.xmlns, level, xsd_element)
 
         result_list.append(self.map_qname(data.tag))
@@ -82,10 +82,10 @@ class JsonMLConverter(XMLSchemaConverter):
             result_list.append(data.text)
 
         if xsd_type.model_group is not None:
-            result_list.extend([
-                value if value is not None else self.list([name])
+            result_list.extend(
+                value if value is not None else self.list((name,))
                 for name, value, _ in self.map_content(data.content)
-            ])
+            )
 
         return result_list
 

@@ -79,20 +79,22 @@ class BadgerFishConverter(XMLSchemaConverter):
                 if name in result_dict:
                     other = result_dict[name]
                     if not isinstance(other, MutableSequence) or not other:
-                        result_dict[name] = self.list([other, item])
+                        result_dict[name] = self.list((other, item))
                     elif isinstance(other[0], MutableSequence) or \
                             not isinstance(item, MutableSequence):
                         other.append(item)
                     else:
-                        result_dict[name] = self.list([other, item])
+                        result_dict[name] = self.list((other, item))
                 else:
                     if xsd_type.name == XSD_ANY_TYPE or \
                             has_single_group and xsd_child.is_single():
                         result_dict[name] = item
                     else:
-                        result_dict[name] = self.list([item])
+                        result_dict[name] = self.list((item,))
 
-        return self.dict([(tag, result_dict)])
+        if self.dict is dict:
+            return {tag: result_dict}
+        return self.dict(((tag, result_dict),))
 
     @stackable
     def element_encode(self, obj: Any, xsd_element: 'XsdElement', level: int = 0) -> ElementData:

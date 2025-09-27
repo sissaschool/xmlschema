@@ -68,11 +68,11 @@ class AbderaConverter(XMLSchemaConverter):
                     children[name].append(value)
                 except KeyError:
                     if isinstance(value, MutableSequence) and value:
-                        children[name] = self.list([value])
+                        children[name] = self.list((value,))
                     else:
                         children[name] = value
                 except AttributeError:
-                    children[name] = self.list([children[name], value])
+                    children[name] = self.list((children[name], value))
             if not children:
                 children = data.text
 
@@ -83,14 +83,18 @@ class AbderaConverter(XMLSchemaConverter):
                  self.dict((k, v) for k, v in self.map_attributes(data.attributes)))
             ])
             if children is not None and children != []:
-                result['children'] = self.list([children])
+                result['children'] = self.list((children,))
 
         elif children is not None:
             result = children
         else:
             result = self.list()
 
-        return result if level else self.dict([(self.map_qname(data.tag), result)])
+        if level:
+            return result
+        elif self.dict is dict:
+            return {self.map_qname(data.tag): result}
+        return self.dict(((self.map_qname(data.tag), result),))
 
     def element_encode(self, obj: Any, xsd_element: 'XsdElement', level: int = 0) -> ElementData:
         if not isinstance(obj, MutableMapping):

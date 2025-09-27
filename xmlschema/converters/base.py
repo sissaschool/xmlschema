@@ -410,7 +410,7 @@ class XMLSchemaConverter(NamespaceMapper):
                 if data.text is not None and self.text_key is not None:
                     result_dict[self.text_key] = data.text
             elif not level and self.preserve_root:
-                return self.dict([(self.map_qname(data.tag), data.text)])
+                return self.dict(((self.map_qname(data.tag), data.text),))
             else:
                 return data.text
         else:
@@ -423,20 +423,20 @@ class XMLSchemaConverter(NamespaceMapper):
                     result = result_dict[name]
                 except KeyError:
                     if xsd_child is None or has_single_group and xsd_child.is_single():
-                        result_dict[name] = self.list([value]) if self.force_list else value
+                        result_dict[name] = self.list((value,)) if self.force_list else value
                     else:
-                        result_dict[name] = self.list([value])
+                        result_dict[name] = self.list((value,))
                 else:
                     if not isinstance(result, MutableSequence) or not result:
-                        result_dict[name] = self.list([result, value])
+                        result_dict[name] = self.list((result, value))
                     elif isinstance(result[0], MutableSequence) or \
                             not isinstance(value, MutableSequence):
                         result.append(value)
                     else:
-                        result_dict[name] = self.list([result, value])
+                        result_dict[name] = self.list((result, value))
 
         if not level and self.preserve_root:
-            return self.dict([(self.map_qname(data.tag), result_dict or None)])
+            return self.dict(((self.map_qname(data.tag), result_dict or None),))
         return result_dict or None
 
     @stackable
