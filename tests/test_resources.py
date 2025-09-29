@@ -491,7 +491,7 @@ class TestResources(XMLSchemaTestCase):
             XMLResource("https://xmlschema.test/vehicles.xsd", allow=None)
         self.assertEqual(str(ctx.exception),
                          "invalid type <class 'NoneType'> for optional argument "
-                         "'allow', must be of type <class 'str'>")
+                         "'allow', must be a <class 'str'> instance")
 
         with self.assertRaises(XMLSchemaValueError) as ctx:
             XMLResource("https://xmlschema.test/vehicles.xsd", allow='any')

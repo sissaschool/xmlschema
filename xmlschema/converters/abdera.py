@@ -43,7 +43,7 @@ class AbderaConverter(XMLSchemaConverter):
 
     @property
     def xmlns_processing_default(self) -> str:
-        return 'stacked' if isinstance(self.source, XMLResource) else 'none'
+        return 'stacked' if isinstance(self._source, XMLResource) else 'none'
 
     @property
     def lossy(self) -> bool:

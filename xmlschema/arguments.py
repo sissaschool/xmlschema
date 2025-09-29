@@ -8,15 +8,20 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import io
+import logging
 import os
-from collections.abc import Callable, Iterable, MutableMapping
+from collections.abc import Callable, Iterable, MutableMapping, MutableSequence
 from functools import partial
 from pathlib import Path
 from typing import Any, cast, Generic, Optional, TypeVar, Union
 from urllib.request import OpenerDirector
+from xml.etree.ElementTree import Element
 
-from xmlschema.aliases import XMLSourceType, UriMapperType, IterParseType, BlockType
-from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError, XMLSchemaAttributeError
+from xmlschema.aliases import XMLSourceType, UriMapperType, IterParseType, BlockType, \
+    FillerType, DepthFillerType, ExtraValidatorType, ValidationHookType, ValueHookType, \
+    ElementHookType, ElementType, LogLevelType
+from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError, \
+    XMLSchemaAttributeError
 from xmlschema.translation import gettext as _
 from xmlschema.utils.etree import is_etree_element, is_etree_document
 from xmlschema.utils.misc import is_subclass
@@ -24,9 +29,12 @@ from xmlschema.utils.streams import is_file_object
 from xmlschema.utils.urls import is_url
 from xmlschema.xpath import ElementSelector
 
+# Sets of values for arguments with choices
 DEFUSE_MODES = frozenset(('never', 'remote', 'nonlocal', 'always'))
 SECURITY_MODES = frozenset(('all', 'remote', 'local', 'sandbox', 'none'))
 BLOCK_TYPES = frozenset(('text', 'file', 'io', 'url', 'tree'))
+LOG_LEVELS = frozenset(('DEBUG', 'INFO', 'WARN', 'ERROR', 'CRITICAL', 10, 20, 30, 40, 50))
+XMLNS_PROCESSING_MODES = frozenset(('stacked', 'collapsed', 'root-only', 'none'))
 
 T = TypeVar('T')
 
@@ -91,7 +99,7 @@ class Option(Argument[T]):
 # Validation helpers for arguments and options
 
 def validate_type(attr: Argument[T], value: T,
-                  types: Union[None, type[T], tuple[type[T]]] = None,
+                  types: Union[None, type[T], tuple[type[T], ...]] = None,
                   none: bool = False,
                   call: bool = False) -> None:
     """
@@ -121,18 +129,23 @@ def validate_type(attr: Argument[T], value: T,
         raise XMLSchemaTypeError(msg.format(type(value), attr))
 
     elif none and call:
-        msg = _("invalid type {!r} for {}, must be None, a {!r} or a callable")
+        msg = _("invalid type {!r} for {}, must be None, a {!r} instance or a callable")
     elif call:
-        msg = _("invalid type {!r} for {}, must be a {!r} or a callable")
+        msg = _("invalid type {!r} for {}, must be a {!r} instance or a callable")
     elif none:
-        msg = _("invalid type {!r} for {}, must be None or a {!r}")
+        msg = _("invalid type {!r} for {}, must be None or a {!r} instance")
     else:
-        msg = _("invalid type {!r} for {}, must be a {!r}")
+        msg = _("invalid type {!r} for {}, must be a {!r} instance")
 
     raise XMLSchemaTypeError(msg.format(type(value), attr, types))
 
 
-def validate_subclass(attr: Argument[T], value: T, cls: type[T], none: bool = False) -> None:
+def validate_subclass(attr: Argument[T], value: type[Any],
+                      cls: type[Any], none: bool = False) -> None:
+    if cls is dict:
+        cls = MutableMapping
+    elif cls is list:
+        cls = MutableSequence
     if none and value is None or is_subclass(value, cls):
         return None
     elif none:
@@ -144,21 +157,22 @@ def validate_subclass(attr: Argument[T], value: T, cls: type[T], none: bool = Fa
 
 
 def validate_choice(attr: Argument[T], value: T, choices: Iterable[T]) -> None:
-    if value not in choices:
+    if value is not None and value not in choices:
         msg = _("invalid value {!r} for {}: must be one of {}")
         raise XMLSchemaValueError(msg.format(value, attr, tuple(choices)))
 
 
 def validate_minimum(attr: Argument[int], value: int, min_value: int) -> None:
-    if value < min_value:
+    if value is not None and value < min_value:
         msg = _("the value of {} must be greater or equal than {}")
         raise XMLSchemaValueError(msg.format(attr, min_value))
 
 
 bool_validator = partial(validate_type, types=bool)
-bool_int_validator = partial(validate_type, types=(bool, int))
+bool_int_validator = partial(validate_type, types=int)
 str_validator = partial(validate_type, types=str)
 none_str_validator = partial(validate_type, types=str, none=True)
+none_int_validator = partial(validate_type, types=int, none=True)
 pos_int_validator = partial(validate_minimum, min_value=1)
 non_neg_int_validator = partial(validate_minimum, min_value=0)
 callable_validator = partial(validate_type, call=True)
@@ -166,14 +180,27 @@ opt_callable_validator = partial(validate_type, none=True, call=True)
 
 
 class BooleanOption(Option[bool]):
-    _validators = (bool_validator,)
+    _validators = bool_validator,
 
 
 class StringOption(Option[str]):
-    _validators = (str_validator,)
+    _validators = str_validator,
+
+
+class NillableStringOption(Option[Optional[str]]):
+    _validators = none_str_validator,
+
+
+class PositiveIntOption(Option[int]):
+    _validators = pos_int_validator,
+
+
+class NonNegIntOption(Option[int]):
+    _validators = non_neg_int_validator,
+
 
 ###
-# XMLResource arguments
+# XMLResource arguments/settings
 
 class SourceArgument(Argument[XMLSourceType]):
     def validated_value(self, value: Any) -> XMLSourceType:
@@ -193,6 +220,7 @@ class SourceArgument(Argument[XMLSourceType]):
 
 
 class BaseUrlOption(Option[Optional[str]]):
+    """Base URL option test."""
     def __get__(self, instance: Any, owner: type[Any]) -> Optional[str]:
         if instance is None:
             return self._default
@@ -223,10 +251,6 @@ class AllowOption(Option[str]):
 
 class DefuseOption(Option[str]):
     _validators = str_validator, partial(validate_choice, choices=DEFUSE_MODES)
-
-
-class TimeOutOption(Option[int]):
-    _validators = pos_int_validator,
 
 
 class LazyOption(Option[Union[bool, int]]):
@@ -272,6 +296,64 @@ class SelectorOption(Option[Optional[type[ElementSelector]]]):
     def validated_value(self, value: Any) -> Optional[type[ElementSelector]]:
         if value is None:
             return self._default
-        validate_subclass(self, value, cls=ElementSelector, none=True)
-        return cast(type[ElementSelector], value)
+        elif not is_subclass(value, ElementSelector):
+            msg = _("invalid type {!r} for {}, must be subclass of ElementSelector or None")
+            raise XMLSchemaTypeError(msg.format(value, self))
+        return cast(Optional[type[ElementSelector]], value)
 
+
+###
+# Other options for schema settings, NamespaceMapper, decoding/encoding context
+
+class LogLevelOption(Option[LogLevelType]):
+    _validators = (partial(validate_type, types=(str, int), none=True),
+                   partial(validate_choice, choices=LOG_LEVELS))
+
+    def validated_value(self, value: Any) -> Optional[int]:
+        super().validated_value(value)
+        if isinstance(value, str):
+            return cast(int, getattr(logging, value.upper()))
+        return cast(Optional[int], value)
+
+
+class ElementTypeOption(Option[Optional[ElementType]]):
+    def validated_value(self, value: Any) -> Optional[ElementType]:
+        if value is None or is_subclass(value, Element) or \
+                is_subclass(value, object) and hasattr(value, '__iter__') \
+                and hasattr(value, '__len__') and hasattr(value, 'makeelement'):
+            return cast(ElementType, value)
+
+        msg = _("invalid type {!r} for {}, must be an Element class or None")
+        raise XMLSchemaTypeError(msg.format(value, self, MutableSequence))
+
+
+class XmlNsProcessingOption(Option[str]):
+    _validators = str_validator, partial(validate_choice, choices=XMLNS_PROCESSING_MODES)
+
+
+class MaxDepthOption(Option[Optional[int]]):
+    _validators = none_int_validator, pos_int_validator
+
+
+class FillerOption(Option[Optional[FillerType]]):
+    _validators = opt_callable_validator,
+
+
+class DepthFillerOption(Option[Optional[DepthFillerType]]):
+    _validators = opt_callable_validator,
+
+
+class ExtraValidatorOption(Option[Optional[ExtraValidatorType]]):
+    _validators = opt_callable_validator,
+
+
+class ValidationHookOption(Option[Optional[ValidationHookType]]):
+    _validators = opt_callable_validator,
+
+
+class ValueHookOption(Option[Optional[ValueHookType]]):
+    _validators = opt_callable_validator,
+
+
+class ElementHookOption(Option[Optional[ElementHookType]]):
+    _validators = opt_callable_validator,

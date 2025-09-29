@@ -72,6 +72,9 @@ NsmapsMapType = dict[ElementType, dict[str, str]]
 XmlnsMapType = dict[ElementType, list[tuple[str, str]]]
 AncestorsType = Optional[list[ElementType]]
 
+LogLevelType = Union[int, str, None]
+
+
 ##
 # Type aliases for XSD components
 SchemaSourceType = Union[

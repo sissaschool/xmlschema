@@ -25,6 +25,7 @@ from xmlschema.converters import ElementData
 from xmlschema.translation import gettext as _
 from xmlschema.utils.decoding import Empty, raw_encode_value
 from xmlschema.utils.qnames import get_qname, local_name
+from xmlschema import _limits
 
 from .exceptions import XMLSchemaModelError, XMLSchemaModelDepthError, \
     XMLSchemaValidationError, XMLSchemaTypeTableWarning, XMLSchemaCircularityError
@@ -42,7 +43,7 @@ if TYPE_CHECKING:
 
 get_occurs = attrgetter('min_occurs', 'max_occurs')
 
-_MAX_MODEL_DEPTH = 15  # Value can be changed by xmlschema.limits module
+_limits.MAX_MODEL_DEPTH = 15  # Value can be changed by xmlschema.limits module
 
 ANY_ELEMENT = ElementTree.Element(
     nm.XSD_ANY,
@@ -330,7 +331,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                 if isinstance(item, XsdGroup) and item.is_pointless(parent=self):
                     iterators.append(particles)
                     particles = iter(item)
-                    if len(iterators) > _MAX_MODEL_DEPTH:
+                    if len(iterators) > _limits.MAX_MODEL_DEPTH:
                         raise XMLSchemaModelDepthError(self)
                     break
                 else:
@@ -360,7 +361,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
 
                     iterators.append(particles)
                     particles = iter(item.content)
-                    if len(iterators) > _MAX_MODEL_DEPTH:
+                    if len(iterators) > _limits.MAX_MODEL_DEPTH:
                         raise XMLSchemaModelDepthError(self)
                     break
                 else:
@@ -398,7 +399,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                     _subgroups.append(group)
                     yield _subgroups
                 elif isinstance(child, XsdGroup):
-                    if len(subgroups) > _MAX_MODEL_DEPTH:
+                    if len(subgroups) > _limits.MAX_MODEL_DEPTH:
                         raise XMLSchemaModelDepthError(self)
                     subgroups.append((group, children))
                     group, children = child, iter(child if child.ref is None else child.ref)

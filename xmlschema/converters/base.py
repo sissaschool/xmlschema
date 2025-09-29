@@ -47,6 +47,10 @@ def stackable(method: Callable[..., T]) -> Callable[..., T]:
     return method
 
 
+# Default placeholder for deprecation of argument 'indent' of XMLSchemaConverter
+_indent = type('int', (int,), {})(4)
+
+
 class XMLSchemaConverter(NamespaceMapper):
     """
     Generic XML Schema based converter class. A converter is used to compose
@@ -63,14 +67,17 @@ class XMLSchemaConverter(NamespaceMapper):
     :param dict_class: dictionary class to use for decoded data. Default is `dict`.
     :param list_class: list class to use for decoded data. Default is `list`.
     :param etree_element_class: the class to use for creating new XML elements, \
-    if not provided uses the ElementTree's Element class.
-    :param text_key: is the key to apply to element's decoded text data.
+    if not provided uses the ElementTree's Element class. Deprecated, it's now \
+    applied to encoding contexts.
+    :param text_key: The dictionary key of the item containing the text of the element, \
+    if present and if expected by the converter.
     :param attr_prefix: controls the mapping of XML attributes, to the same name or \
     with a prefix. If `None` the converter ignores attributes.
     :param cdata_prefix: is used for including and prefixing the character data parts \
     of a mixed content, that are labeled with an integer instead of a string. \
     Character data parts are ignored if this argument is `None`.
-    :param indent: number of spaces for XML indentation (default is 4).
+    :param indent: number of spaces for XML indentation (default is 4). Deprecated in \
+    converters, it's now an option of the encoding contexts.
     :param process_namespaces: whether to use namespace information in name mapping \
     methods. If set to `False` then the name mapping methods simply return the \
     provided name.
@@ -116,7 +123,7 @@ class XMLSchemaConverter(NamespaceMapper):
                  text_key: Optional[str] = '$',
                  attr_prefix: Optional[str] = '@',
                  cdata_prefix: Optional[str] = None,
-                 indent: int = 4,
+                 indent: int = _indent,
                  process_namespaces: bool = True,
                  strip_namespaces: bool = False,
                  xmlns_processing: Optional[str] = None,
@@ -140,8 +147,8 @@ class XMLSchemaConverter(NamespaceMapper):
             self.list = list
 
         if etree_element_class is not None:
-            msg = ("'etree_element_class' argument is now handled by encoding context "
-                   "and will be removed in converters from version v5.0.")
+            msg = ("'etree_element_class' argument is now handled by the encoding context "
+                   "and will be removed from converters starting with version v5.0.")
             warnings.warn(msg, DeprecationWarning)
             self.etree_element_class = etree_element_class
         else:
@@ -151,6 +158,12 @@ class XMLSchemaConverter(NamespaceMapper):
         self.attr_prefix = attr_prefix
         self.cdata_prefix = cdata_prefix
         self.ns_prefix = 'xmlns' if attr_prefix is None else f'{attr_prefix}xmlns'
+
+        if indent is not _indent:
+            msg = ("'indent' argument is now handled by the encoding context and"
+                   "will be removed from converters starting with version v5.0.")
+            warnings.warn(msg, DeprecationWarning)
+            raise TypeError(msg)
 
         self.indent = indent
         self.preserve_root = preserve_root
@@ -162,19 +175,14 @@ class XMLSchemaConverter(NamespaceMapper):
         )
 
     def __setattr__(self, name: str, value: Any) -> None:
-        if name in {'attr_prefix', 'text_key', 'cdata_prefix'}:
+        if name in ('attr_prefix', 'text_key', 'cdata_prefix'):
             if value is not None and not isinstance(value, str):
                 msg = "%(name)r must be a <class 'str'> instance or None, not %(type)r"
                 raise XMLSchemaTypeError(msg % {'name': name, 'type': type(value)})
 
-        elif name in {'strip_namespaces', 'preserve_root', 'force_dict', 'force_list'}:
+        elif name in ('strip_namespaces', 'preserve_root', 'force_dict', 'force_list'):
             if not isinstance(value, bool):
                 msg = "%(name)r must be a <class 'bool'> instance, not %(type)r"
-                raise XMLSchemaTypeError(msg % {'name': name, 'type': type(value)})
-
-        elif name == 'indent':
-            if isinstance(value, bool) or not isinstance(value, int):
-                msg = "%(name)r must be a <class 'int'> instance, not %(type)r"
                 raise XMLSchemaTypeError(msg % {'name': name, 'type': type(value)})
 
         elif name == 'dict':
@@ -194,7 +202,7 @@ class XMLSchemaConverter(NamespaceMapper):
         """
         Returns the default of the xmlns processing mode, used if `None` is provided.
         """
-        if isinstance(self.source, XMLResource):
+        if isinstance(self._source, XMLResource):
             if getattr(self.element_decode, 'stackable', False):
                 return 'stacked'
             else:
@@ -241,14 +249,13 @@ class XMLSchemaConverter(NamespaceMapper):
             text_key=kwargs.get('text_key', self.text_key),
             attr_prefix=kwargs.get('attr_prefix', self.attr_prefix),
             cdata_prefix=kwargs.get('cdata_prefix', self.cdata_prefix),
-            indent=kwargs.get('indent', self.indent),
+            preserve_root=kwargs.get('preserve_root', self.preserve_root),
+            force_dict=kwargs.get('force_dict', self.force_dict),
+            force_list=kwargs.get('force_list', self.force_list),
             process_namespaces=kwargs.get('process_namespaces', self.process_namespaces),
             strip_namespaces=kwargs.get('strip_namespaces', self.strip_namespaces),
             xmlns_processing=kwargs.get('xmlns_processing', xmlns_processing),
             source=kwargs.get('source', self.source),
-            preserve_root=kwargs.get('preserve_root', self.preserve_root),
-            force_dict=kwargs.get('force_dict', self.force_dict),
-            force_list=kwargs.get('force_list', self.force_list),
         )
 
     def map_attributes(self, attributes: Iterable[tuple[str, Any]]) \

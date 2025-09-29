@@ -24,10 +24,7 @@ from xmlschema.exceptions import XMLResourceError, XMLResourceParseError, XMLRes
 from xmlschema.utils.misc import iter_class_slots
 from xmlschema.utils.qnames import get_namespace
 from xmlschema.arguments import BooleanOption, LazyOption, IterParseOption
-
-# These values can be changed by xmlschema.limits module
-_MAX_XML_DEPTH = 1000
-_MAX_XML_ELEMENTS = 10 ** 6
+from xmlschema import _limits
 
 LazyLockType = RLock if platform.python_implementation() == 'PyPy' else Lock
 
@@ -228,7 +225,7 @@ class XMLResourceLoader:
         start_ns: list[tuple[str, str]] = []
         end_ns = False
         nsmap_stack: list[dict[str, str]] = [{}]
-        remaining_levels = _MAX_XML_DEPTH
+        remaining_levels = _limits.MAX_XML_DEPTH
 
         self._nsmaps.clear()
         self._xmlns.clear()
@@ -243,7 +240,7 @@ class XMLResourceLoader:
                     remaining_levels -= 1
                     if not remaining_levels:
                         msg = "maximum XML depth reached (MAX_XML_DEPTH={}) for {}"
-                        raise XMLResourceExceeded(msg.format(_MAX_XML_DEPTH, self))
+                        raise XMLResourceExceeded(msg.format(_limits.MAX_XML_DEPTH, self))
 
                     if end_ns:
                         nsmap_stack.pop()
@@ -293,8 +290,8 @@ class XMLResourceLoader:
         xmlns = self._xmlns
         events = 'start-ns', 'end-ns', 'start', 'comment', 'pi', 'end'
         nsmap_stack: list[dict[str, str]] = [{}]
-        remaining_levels = _MAX_XML_DEPTH
-        remaining_elements = _MAX_XML_ELEMENTS
+        remaining_levels = _limits.MAX_XML_DEPTH
+        remaining_elements = _limits.MAX_XML_ELEMENTS
 
         try:
             for event, node in self._iterparse(fp, events):
@@ -303,12 +300,12 @@ class XMLResourceLoader:
                     remaining_elements -= 1
                     if not remaining_levels:
                         msg = "maximum XML depth reached (MAX_XML_DEPTH={}) for {!r}"
-                        raise XMLResourceExceeded(msg.format(_MAX_XML_DEPTH, self))
+                        raise XMLResourceExceeded(msg.format(_limits.MAX_XML_DEPTH, self))
                     if not remaining_elements:
                         msg = ("maximum XML elements reached (MAX_XML_ELEMENTS={} for {!r}). "
                                "Try to increase the limit or process the data using a lazy "
                                "XMLResource, that has no limit.")
-                        raise XMLResourceExceeded(msg.format(_MAX_XML_ELEMENTS, self))
+                        raise XMLResourceExceeded(msg.format(_limits.MAX_XML_ELEMENTS, self))
 
                     if not root_started:
                         self.root = node

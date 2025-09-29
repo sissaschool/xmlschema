@@ -9,12 +9,12 @@
 #
 """Package protection limits. Values can be changed after import to set different limits."""
 import sys
-from importlib import import_module
 from types import ModuleType
 from typing import Any
 
 from xmlschema.translation import gettext as _
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError
+from xmlschema import _limits
 
 
 class LimitsModule(ModuleType):
@@ -27,20 +27,15 @@ class LimitsModule(ModuleType):
         elif attr == 'MAX_MODEL_DEPTH':
             if value < 5:
                 raise XMLSchemaValueError(_('{} limit must be at least 5').format(attr))
-            module = import_module('xmlschema.validators.models')
-            setattr(module, f'_{attr}', value)
-            module = import_module('xmlschema.validators.groups')
-            setattr(module, f'_{attr}', value)
+            _limits.MAX_MODEL_DEPTH = value
         elif attr == 'MAX_SCHEMA_SOURCES':
             if value < 10:
                 raise XMLSchemaValueError(_('{} limit must be at least 10').format(attr))
-            module = import_module('xmlschema.validators.xsd_globals')
-            setattr(module, f'_{attr}', value)
+            _limits.MAX_SCHEMA_SOURCES = value
         elif value < 1:
             raise XMLSchemaValueError(_('{} limit must be at least 1').format(attr))
         else:
-            module = import_module('xmlschema.resources.xml_loader')
-            setattr(module, f'_{attr}', value)
+            setattr(_limits, attr, value)
 
         super().__setattr__(attr, value)
 

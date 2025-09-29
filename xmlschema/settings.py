@@ -9,30 +9,27 @@
 #
 """Package settings for setup protection defaults."""
 import dataclasses as dc
-import logging
-from typing import cast, Optional, Any, Union
-from urllib.request import OpenerDirector
+from functools import partial
+from typing import cast, Optional, Any
 
-from xmlschema.aliases import LocationsType, BlockType, IterParseType, SelectorType, \
-    XMLSourceType, BaseUrlType, UriMapperType, NsmapType, DepthFillerType, \
-    ExtraValidatorType, ValidationHookType, ValueHookType, ElementHookType, \
-    ElementType, FillerType
+from xmlschema.aliases import LocationsType, XMLSourceType, BaseUrlType
+from xmlschema.arguments import FillerOption, DepthFillerOption, ExtraValidatorOption, \
+    ValidationHookOption, ValueHookOption, ElementHookOption, ElementTypeOption, LogLevelOption
 from xmlschema.exceptions import XMLSchemaTypeError
 from xmlschema.translation import gettext as _
-from xmlschema.utils.descriptors import Option, BooleanOption, IntOption, \
-    NillableStringOption, NillableOption, OptionalCallable
+from xmlschema.arguments import Option, BooleanOption, BaseUrlOption, AllowOption, \
+    DefuseOption, LazyOption, BlockOption, UriMapperOption, IterParseOption, \
+    SelectorOption, OpenerOption, PositiveIntOption, validate_type, validate_subclass, \
+    MaxDepthOption
 from xmlschema.utils.misc import is_subclass
 
 from xmlschema.locations import NamespaceResourcesMap
 from xmlschema.resources import XMLResource
-from xmlschema.resources.arguments import BaseUrlOption, AllowOption, DefuseOption, \
-    TimeOutOption, LazyOption, BlockOption, UriMapperOption, \
-    IterParseOption, SelectorOption, OpenerOption
 from xmlschema.loaders import SchemaLoader
 from xmlschema.converters import ConverterType, XMLSchemaConverter
 from xmlschema.xpath import ElementSelector
 
-LOG_LEVELS = ('DEBUG', 'INFO', 'WARN', 'ERROR', 'CRITICAL', 10, 20, 30, 40, 50)
+LOCATIONS_TYPES = (tuple, dict, list, NamespaceResourcesMap)
 
 
 class ConverterOption(Option[Optional[ConverterType]]):
@@ -45,64 +42,46 @@ class ConverterOption(Option[Optional[ConverterType]]):
 
 
 class LocationsOption(Option[Optional[LocationsType]]):
-    def validated_value(self, value: Any) -> Optional[LocationsType]:
-        if value is None or isinstance(value, (tuple, dict, list, NamespaceResourcesMap)):
-            return value
-        msg = _("invalid type {!r} for {}, must be of type {!r} or None")
-        raise XMLSchemaTypeError(msg.format(
-            type(value), self, (tuple, dict, list, NamespaceResourcesMap)
-        ))
+    _validators = partial(validate_type, types=LOCATIONS_TYPES, none=True),
 
 
-class LoaderClassOption(Option[type['SchemaLoader']]):
+class LoaderClassOption(Option[type[SchemaLoader]]):
+    _validators = partial(validate_subclass, cls=SchemaLoader, none=True),
+
     def validated_value(self, value: Any) -> type[SchemaLoader]:
         if value is None:
             return self._default
-        elif is_subclass(value, SchemaLoader):
-            return cast(type[SchemaLoader], value)
-        else:
-            msg = _("invalid type {!r} for {}, must be a subclass of {!r}")
-            raise XMLSchemaTypeError(msg.format(value, self, SchemaLoader))
+        return super().validated_value(value)
 
-
-class LogLevelOption(NillableOption[Union[str, int]]):
-    def validated_value(self, value: Any) -> Union[str, int]:
-        if isinstance(value, (int, str)):
-            self._validate_choice(value, LOG_LEVELS)
-            if isinstance(value, str):
-                return cast(int, getattr(logging, value.upper()))
-            return value
-        else:
-            msg = _("invalid type {!r} for {}, must be of type {!r}")
-            raise XMLSchemaTypeError(msg.format(type(value), self, (str, int)))
+        return cast(type[SchemaLoader], value)
 
 
 @dc.dataclass
 class ResourceSettings:
     """Settings for accessing XML resources."""
 
-    base_url: Option[Optional[str]] = BaseUrlOption(default=None)
+    base_url: BaseUrlOption = BaseUrlOption(default=None)
     """The effective base URL used for completing relative locations."""
 
-    allow: Option[str] = AllowOption(default='all')
+    allow: AllowOption = AllowOption(default='all')
     """
-    The security mode for accessing resource locations.  Can be 'all', 'remote',
+    The security mode for accessing resource locations. Can be 'all', 'remote',
     'local' or 'sandbox'. Default is 'all' that means all types of URLs are allowed.
     With 'remote' only remote resource URLs are allowed. With 'local' only file paths
     and URLs are allowed. With 'sandbox' only file paths and URLs that are under the
     directory path identified by source or by the *base_url* argument are allowed.
     """
 
-    defuse: Option[str] = DefuseOption(default='remote')
+    defuse: DefuseOption = DefuseOption(default='remote')
     """
     Defines when to defuse XML data using a `SafeXMLParser`. Can be 'always',
     'remote' or 'never'. For default defuses only remote XML data.
     """
 
-    timeout: Option[int] = TimeOutOption(default=300)
+    timeout: PositiveIntOption = PositiveIntOption(default=300)
     """The timeout in seconds for accessing remote resources. Default is `300` seconds."""
 
-    lazy: Option[Union[bool, int]] = LazyOption(default=False)
+    lazy: LazyOption = LazyOption(default=False)
     """
     Defines if the XML data is fully loaded and processed in memory, that is for default.
     Setting `True` or a positive integer only the root element of the source is loaded
@@ -111,14 +90,14 @@ class ResourceSettings:
     (`True` means 1).
     """
 
-    thin_lazy: Option[bool] = BooleanOption(default=True)
+    thin_lazy: BooleanOption = BooleanOption(default=True)
     """
     For default, in order to reduce the memory usage, during the iteration of a lazy
     resource deletes also the preceding elements after the use. Setting `False` only
     descendant elements are deleted at the depth defined by *lazy* option.
     """
 
-    block: Option[Optional[BlockType]] = BlockOption(default=None)
+    block: BlockOption = BlockOption(default=None)
     """
     Defines which types of sources are blocked for security reasons. For default none
     of possible types are blocked. Set with a space separated string of words, choosing
@@ -126,20 +105,20 @@ class ResourceSettings:
     which types are blocked.
     """
 
-    uri_mapper: Option[Optional[UriMapperType]] = UriMapperOption(default=None)
+    uri_mapper: UriMapperOption = UriMapperOption(default=None)
     """
     Optional URI mapper for using relocated or URN-addressed resources. Can be a
     dictionary or a function that takes the URI string and returns a URL, or the
     argument if there is no mapping for it.
     """
 
-    opener: Option[Optional[OpenerDirector]] = OpenerOption(default=None)
+    opener: OpenerOption = OpenerOption(default=None)
     """
     Optional :class:`OpenerDirector` to use for open XML resources.
     For default the opener installed globally for *urlopen* is used.
     """
 
-    iterparse: Option[Optional[IterParseType]] = IterParseOption(default=None)
+    iterparse: IterParseOption = IterParseOption(default=None)
     """
     Optional callable that returns an iterator parser used for building the
     XML trees. For default *ElementTree.iterparse* is used. XSD schemas are
@@ -147,7 +126,7 @@ class ResourceSettings:
     for multitree structures and for pruning.
     """
 
-    selector: Option[SelectorType] = SelectorOption(default=ElementSelector)
+    selector: SelectorOption = SelectorOption(default=ElementSelector)
     """The selector class to use for XPath element selectors."""
 
     @classmethod
@@ -204,25 +183,25 @@ class ResourceSettings:
 @dc.dataclass
 class SchemaSettings(ResourceSettings):
     """Settings for schemas."""
-    converter: Option[Optional[ConverterType]] = ConverterOption(default=None)
+    converter: ConverterOption = ConverterOption(default=None)
     """The converter to use for decoding/encoding XML data."""
 
-    locations: Option[Optional[LocationsType]] = LocationsOption(default=None)
+    locations: LocationsOption = LocationsOption(default=None)
     """Optional schema extra location hints with additional namespaces to import."""
 
-    use_location_hints: Option[bool] = BooleanOption(default=False)
+    use_location_hints: BooleanOption = BooleanOption(default=False)
     """
     Schema locations hints provided within XML data for dynamic schema loading.
     For default these hints are ignored by schemas in order to avoid the change of
     schema instance. Set this option to `True` to activate dynamic schema loading.
     """
 
-    loader_class: Option[type[SchemaLoader]] = LoaderClassOption(default=SchemaLoader)
+    loader_class: LoaderClassOption = LoaderClassOption(default=SchemaLoader)
 
-    use_fallback: Option[bool] = BooleanOption(default=True)
-    use_xpath3: Option[bool] = BooleanOption(default=True)
-    use_meta: Option[bool] = BooleanOption(default=True)
-    loglevel: Option[Union[None, int, str]] = LogLevelOption(default=None)
+    use_fallback: BooleanOption = BooleanOption(default=True)
+    use_xpath3: BooleanOption = BooleanOption(default=True)
+    use_meta: BooleanOption = BooleanOption(default=True)
+    loglevel: LogLevelOption = LogLevelOption(default=None)
 
     @classmethod
     def get_settings(cls, **kwargs: Any) -> 'SchemaSettings':
@@ -246,77 +225,55 @@ class SchemaSettings(ResourceSettings):
 
 
 @dc.dataclass
-class ConverterSettings:
-    namespaces: Optional[NsmapType] = None
-    dict_class: Optional[type[dict[str, Any]]] = None
-    list_class: Optional[type[list[Any]]] = None
-    text_key: Option[Optional[str]] = NillableStringOption(default='$')
-    attr_prefix: Option[Optional[str]] = NillableStringOption(default='@')
-    cdata_prefix: Option[Optional[str]] = NillableStringOption(default=None)
-    indent: Option[int] = IntOption(default=4, min_value=0)
-    process_namespaces: Option[bool] = BooleanOption(default=True)
-    strip_namespaces: Option[bool] = BooleanOption(default=False)
-    xmlns_processing: Option[Optional[str]] = NillableStringOption(default=None)
-    source: Optional[XMLResource] = None
-    preserve_root: Option[bool] = BooleanOption(default=False)
-    force_dict: Option[bool] = BooleanOption(default=False)
-    force_list: Option[bool] = BooleanOption(default=False)
-
-
-@dc.dataclass
-class DecodingSettings(ConverterSettings):
+class DecodingSettings:
     """Settings for decoding XML data."""
-    use_defaults: Option[bool] = BooleanOption(default=True)
-    use_location_hints: Option[bool] = BooleanOption(default=False)
-
-
+    use_defaults: BooleanOption = BooleanOption(default=True)
+    use_location_hints: BooleanOption = BooleanOption(default=False)
 
     decimal_type: Optional[type[Any]] = None
-    datetime_types: Option[bool] = BooleanOption(default=False)
-    binary_types: Option[bool] = BooleanOption(default=False)
-    converter: Optional[ConverterType] = None
-    filler: Optional[FillerType] = None
-    fill_missing: Option[bool] = BooleanOption(default=False)
-    keep_empty: Option[bool] = BooleanOption(default=False)
-    keep_unknown: Option[bool] = BooleanOption(default=False)
-    process_skipped: Option[bool] = BooleanOption(default=False)
-    max_depth: Optional[int] = None
-    depth_filler: Option[DepthFillerType] = OptionalCallable(default=None)
-    extra_validator: Optional[ExtraValidatorType] = OptionalCallable(default=None)
-    validation_hook: Optional[ValidationHookType] = OptionalCallable(default=None)
-    value_hook: Optional[ValueHookType] = None
-    element_hook: Optional[ElementHookType] = None
+    datetime_types: BooleanOption = BooleanOption(default=False)
+    binary_types: BooleanOption = BooleanOption(default=False)
+    converter: ConverterOption = ConverterOption(default=None)
+    filler: FillerOption = FillerOption(default=None)
+    fill_missing: BooleanOption = BooleanOption(default=False)
+    keep_empty: BooleanOption = BooleanOption(default=False)
+    keep_unknown: BooleanOption = BooleanOption(default=False)
+    process_skipped: BooleanOption = BooleanOption(default=False)
+    max_depth: MaxDepthOption = MaxDepthOption(default=None)
+    depth_filler: DepthFillerOption = DepthFillerOption(default=None)
+    extra_validator: ExtraValidatorOption = ExtraValidatorOption(default=None)
+    validation_hook: ValidationHookOption = ValidationHookOption(default=None)
+    value_hook: ValueHookOption = ValueHookOption(default=None)
+    element_hook: ElementHookOption = ElementHookOption(default=None)
 
 
 @dc.dataclass
-class EncodingSettings(ConverterSettings):
+class EncodingSettings:
     """Settings for encoding XML data."""
-    use_defaults: Option[bool] = BooleanOption(default=False)
-    converter: Optional[ConverterType] = None
-    unordered: Option[bool] = BooleanOption(default=False)
-    process_skipped: Option[bool] = BooleanOption(default=False)
-    max_depth: Optional[int] = None
-    untyped_data: Option[bool] = BooleanOption(default=False)
-    etree_element_class: Optional[type[ElementType]] = None
+    use_defaults: BooleanOption = BooleanOption(default=False)
+    converter: ConverterOption = ConverterOption(default=None)
+    unordered: BooleanOption = BooleanOption(default=False)
+    process_skipped: BooleanOption = BooleanOption(default=False)
+    max_depth: MaxDepthOption = MaxDepthOption(default=None)
+    untyped_data: BooleanOption = BooleanOption(default=False)
+    etree_element_class: ElementTypeOption = ElementTypeOption(default=None)
 
 
 @dc.dataclass
 class DocumentSettings(SchemaSettings):
-    """
-    Settings for XML instances that uses a specific configuration.
-    """
-    use_location_hints: Option[bool] = BooleanOption(default=True)
+    """Settings for XML instances that uses a specific configuration."""
+
+    use_location_hints: BooleanOption = BooleanOption(default=True)
     """
     Schema locations hints provided within XML data for dynamic schema loading.
     Disabled at schema level, for default these hints are enabled at document level.
     """
 
-    dummy_schema: Option[bool] = BooleanOption(default=False)
-    max_depth: Optional[int] = None,
-
-    extra_validator: Optional[ExtraValidatorType] = None,
-    validation_hook: Optional[ValidationHookType] = None
-    allow_empty: Option[bool] = BooleanOption(default=True)
+    dummy_schema: BooleanOption = BooleanOption(default=False)
+    max_depth: MaxDepthOption = MaxDepthOption(default=None)
+    extra_validator: ExtraValidatorOption = ExtraValidatorOption(default=None)
+    validation_hook: ValidationHookOption = ValidationHookOption(default=None)
+    allow_empty: BooleanOption = BooleanOption(default=True)
 
     @classmethod
     def get_settings(cls, **kwargs: Any) -> 'DocumentSettings':

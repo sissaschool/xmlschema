@@ -35,7 +35,7 @@ from xmlschema.utils.urls import is_url, is_remote_url, is_local_url, normalize_
     normalize_locations
 from xmlschema.xpath import ElementSelector
 from xmlschema.arguments import Argument, SourceArgument, BaseUrlOption, \
-    AllowOption, BlockOption, DefuseOption, TimeOutOption, UriMapperOption, \
+    AllowOption, BlockOption, DefuseOption, PositiveIntOption, UriMapperOption, \
     OpenerOption, SelectorOption
 
 from .sax import defuse_xml
@@ -105,7 +105,7 @@ class XMLResource(XMLResourceLoader):
     base_url = BaseUrlOption(default=None)
     allow = AllowOption(default='all')
     defuse = DefuseOption(default='remote')
-    timeout = TimeOutOption(default=300)
+    timeout = PositiveIntOption(default=300)
     block = BlockOption(default=None)
     uri_mapper = UriMapperOption(default=None)
     opener = OpenerOption(default=None)

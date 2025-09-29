@@ -263,7 +263,7 @@ class TestNamespaceMapper(unittest.TestCase):
         self.assertEqual(mapper.unmap_qname('element'), '{foo}element')
         self.assertEqual(mapper.unmap_qname('element', name_table=['element']), 'element')
 
-        mapper.strip_namespaces = True  # don't do tricks, create a new instance ...
+        mapper._strip_namespaces = True
         self.assertEqual(mapper.unmap_qname('element'), '{foo}element')
 
         mapper = NamespaceMapper(namespaces, process_namespaces=False)

@@ -40,8 +40,7 @@ from . import XsdAttribute, XsdSimpleType, XsdComplexType, XsdElement, \
     XsdGroup, XsdIdentity, XsdUnion, XsdAtomicRestriction, \
     XsdAtomic, XsdAtomicBuiltin, XsdNotation, XsdAttributeGroup
 from .builders import GLOBAL_MAP_ATTRIBUTE, GlobalMaps
-
-_MAX_SCHEMA_SOURCES = 1000  # Value can be changed by xmlschema.limits module
+from xmlschema import _limits
 
 
 # Default placeholder for deprecation of argument 'validation' in XsdGlobals
@@ -455,7 +454,7 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
                 f"another schema loaded from {source_ref!r} is already registered"
             )
 
-        if _MAX_SCHEMA_SOURCES < len(self._schemas):
+        if _limits.MAX_SCHEMA_SOURCES < len(self._schemas):
             raise XMLSchemaValidatorError(
                 self, f"number of schema sources loaded by {self!r} exceeded"
             )

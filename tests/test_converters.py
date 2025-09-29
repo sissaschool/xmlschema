@@ -123,12 +123,6 @@ class TestConverters(unittest.TestCase):
         )
 
         with self.assertRaises(TypeError) as ctx:
-            XMLSchemaConverter(indent='no')
-        self.assertTrue(str(ctx.exception).startswith(
-            "'indent' must be a <class 'int'> instance")
-        )
-
-        with self.assertRaises(TypeError) as ctx:
             XMLSchemaConverter(dict_class=list)
         self.assertTrue(str(ctx.exception).startswith(
             "'dict_class' must be a MutableMapping object")

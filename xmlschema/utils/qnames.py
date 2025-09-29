@@ -195,7 +195,10 @@ def update_namespaces(namespaces: NsmapType,
 
 def get_namespace_map(namespaces: Optional[NsmapType]) -> NsmapType:
     """Returns a new and checked namespace map."""
-    namespaces = {k: v for k, v in namespaces.items()} if namespaces else {}
+    if namespaces is None:
+        return {}
+
+    namespaces = {k: v for k, v in namespaces.items()}
     if namespaces.get('xml', XML_NAMESPACE) != XML_NAMESPACE:
         msg = f"reserved prefix 'xml' can be used only for {XML_NAMESPACE!r} namespace"
         raise XMLSchemaValueError(msg)

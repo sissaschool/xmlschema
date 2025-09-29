@@ -488,16 +488,20 @@ class DataElementConverter(XMLSchemaConverter):
 
     def get_namespaces(self, namespaces: Optional[NsmapType] = None,
                        root_only: bool = True) -> NsmapType:
-        if not isinstance(self.source, DataElement) or self._xmlns_getter is None:
+        if self._xmlns_getter is None:
+            return get_namespace_map(namespaces)
+        elif not isinstance(self._source, DataElement):
             return super().get_namespaces(namespaces, root_only)
 
         namespaces = get_namespace_map(namespaces)
-        for obj in self.source.iter():
-            xmlns = self.get_xmlns_from_data(obj)
-            if xmlns:
-                update_namespaces(namespaces, xmlns, obj is self.source)
-            if root_only:
-                break
+        iter_elements = self._source.iter()
+        if xmlns := next(iter_elements).xmlns:
+            update_namespaces(namespaces, xmlns, True)
+
+        if not root_only:
+            for element in iter_elements:
+                if element.xmlns:
+                    update_namespaces(namespaces, element.xmlns)
 
         return namespaces
 
