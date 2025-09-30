@@ -203,28 +203,29 @@ class TestWsdlDocuments(XMLSchemaTestCase):
 
     def test_validation_mode(self):
         wsdl_document = Wsdl11Document(WSDL_DOCUMENT_EXAMPLE)
-        self.assertEqual(wsdl_document.validation, 'strict')
+        self.assertEqual(wsdl_document._validation, 'strict')
 
         with self.assertRaises(WsdlParseError) as ctx:
             wsdl_document.parse_error('wrong syntax')
         self.assertIn("wrong syntax", str(ctx.exception))
 
         wsdl_document = Wsdl11Document(WSDL_DOCUMENT_EXAMPLE, validation='lax')
-        self.assertEqual(wsdl_document.validation, 'lax')
+        self.assertEqual(wsdl_document._validation, 'lax')
 
         wsdl_document.parse_error('wrong syntax')
         self.assertEqual(len(wsdl_document.errors), 1)
         self.assertIn("wrong syntax", str(wsdl_document.errors[0]))
 
         wsdl_document = Wsdl11Document(WSDL_DOCUMENT_EXAMPLE, validation='skip')
-        self.assertEqual(wsdl_document.validation, 'skip')
+        self.assertEqual(wsdl_document._validation, 'skip')
         wsdl_document.parse_error('wrong syntax')
         self.assertEqual(len(wsdl_document.errors), 0)
 
         with self.assertRaises(ValueError) as ctx:
             Wsdl11Document(WSDL_DOCUMENT_EXAMPLE, validation='invalid')
-        self.assertEqual("validation mode can be 'strict', 'lax' or 'skip': 'invalid'",
-                         str(ctx.exception))
+        self.assertTrue(str(ctx.exception).startswith(
+            "invalid value 'invalid' for optional argument 'validation'"
+        ))
 
     def test_example3(self):
         original_example3_file = self.casepath('features/wsdl/wsdl11_example3.wsdl')

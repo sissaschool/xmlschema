@@ -85,6 +85,10 @@ class XMLSchemaValidatorError(XMLSchemaException):
     def msg(self) -> str:
         return self.__str__()
 
+    @msg.setter
+    def msg(self, msg: str) -> None:
+        return
+
     def __setattr__(self, name: str, value: Any) -> None:
         if name == 'elem' and value is not None:
             if not is_etree_element(value):
@@ -210,7 +214,7 @@ class XMLSchemaNotBuiltError(XMLSchemaValidatorError, RuntimeError):
         )
 
 
-class XMLSchemaParseError(XMLSchemaValidatorError, SyntaxError):  # type: ignore[misc]
+class XMLSchemaParseError(XMLSchemaValidatorError, SyntaxError):
     """
     Raised when an error is found during the building of an XSD validator.
 

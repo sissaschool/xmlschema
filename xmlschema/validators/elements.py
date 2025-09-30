@@ -32,14 +32,14 @@ from xmlschema.translation import gettext as _
 from xmlschema.utils.etree import iter_schema_location_hints, iter_schema_namespaces
 from xmlschema.utils.decoding import Empty, raw_encode_attributes, strictly_equal
 from xmlschema.utils.qnames import get_qname
+from xmlschema.arguments import XSD_VALIDATION_MODES
 from xmlschema import dataobjects
 from xmlschema.converters import ElementData, XMLSchemaConverter
 from xmlschema.xpath import XMLSchemaProxy, ElementPathMixin, XPathElement
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaParseError, \
     XMLSchemaStopValidation, XMLSchemaTypeTableWarning
-from .validation import XSD_VALIDATION_MODES, DecodeContext, \
-    EncodeContext, ValidationMixin
+from .validation import DecodeContext, EncodeContext, ValidationMixin
 from .helpers import parse_xsd_derivation, parse_xpath_default_namespace
 from .xsdbase import XSD_TYPE_DERIVATIONS, XSD_ELEMENT_DERIVATIONS, XsdComponent
 from .particles import ParticleMixin, OccursCalculator

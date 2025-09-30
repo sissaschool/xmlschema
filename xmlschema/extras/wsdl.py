@@ -574,9 +574,9 @@ class Wsdl11Document(XmlDocument):
         return self.maps.services
 
     def parse_error(self, message):
-        if self.validation == 'strict':
+        if self._validation == 'strict':
             raise WsdlParseError(message)
-        elif self.validation == 'lax':
+        elif self._validation == 'lax':
             self.errors.append(WsdlParseError(message))
 
     def _parse_types(self):
@@ -663,7 +663,7 @@ class Wsdl11Document(XmlDocument):
             source=url,
             maps=self.maps,
             namespaces=self._init_namespaces,
-            validation=self.validation,
+            validation=self._validation,
             base_url=self.base_url,
             allow=self.allow,
             defuse=self.defuse,

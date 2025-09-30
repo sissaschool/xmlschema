@@ -80,7 +80,7 @@ class XMLResourceLoader:
             if hasattr(source, 'tag'):
                 self.root = cast(ElementType, source)
             else:
-                self.root = cast(ElementTreeType, source).getroot()
+                self.root = cast(ElementType, cast(ElementTreeType, source).getroot())
 
             if self._lazy:
                 msg = f"a {self.__class__.__name__} created from an ElementTree can't be lazy"

@@ -25,7 +25,6 @@ from .validation import DecodeContext
 from .xsdbase import XsdComponent
 from .groups import XsdGroup
 
-
 if TYPE_CHECKING:
     from elementpath import XPath2Parser
     from elementpath.xpath3 import XPath3Parser
@@ -173,7 +172,7 @@ class XsdAssert(XsdComponent, ElementPathMixin[Union['XsdAssert', SchemaElementT
             return node
 
         return build_schema_node_tree(
-            root=self,
+            root=self,  # type: ignore[arg-type, unused-ignore] # FIXME: update protocols
             uri=schema_node.uri,
             elements=schema_node.elements,
             global_elements=schema_node.children,

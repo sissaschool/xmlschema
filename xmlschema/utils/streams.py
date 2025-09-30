@@ -109,6 +109,8 @@ class DefusableReader(BufferedIOBase):
             return self._read_unlocked(size)
 
     def _read_unlocked(self, size: Optional[int] = None) -> bytes:
+        data: Union[bytes, bytearray]
+
         if self._pos >= self._buffer_size:
             data = self._fp.read(size)
             self._pos += len(data)
@@ -135,6 +137,8 @@ class DefusableReader(BufferedIOBase):
             data = b"".join(chunks)
 
         self._pos += len(data)
+        if isinstance(data, bytearray):
+            return bytes(data)
         return data
 
     def read1(self, size: int = -1) -> bytes:

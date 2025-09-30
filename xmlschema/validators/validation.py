@@ -10,7 +10,7 @@
 import copy
 import decimal
 import logging
-from abc import abstractmethod
+from abc import abstractmethod, ABCMeta
 from collections import Counter
 from collections.abc import Iterable, Iterator, MutableMapping
 from typing import Any, cast, Generic, Optional, Type, TYPE_CHECKING, TypeVar, Union
@@ -18,7 +18,7 @@ from xml.etree.ElementTree import Element
 
 from elementpath.datatypes import AnyAtomicType, AbstractDateTime, AbstractBinary, Duration
 
-from xmlschema.exceptions import XMLSchemaValueError, XMLSchemaTypeError
+from xmlschema.exceptions import XMLSchemaTypeError
 from xmlschema.aliases import DecodeType, DepthFillerType, ElementType, \
     ElementHookType, EncodeType, ExtraValidatorType, FillerType, IterDecodeType, \
     IterEncodeType, ModelParticleType, NsmapType, SchemaElementType, \
@@ -42,26 +42,6 @@ if TYPE_CHECKING:
     from .identities import XsdIdentity, IdentityCounter  # noqa: F401
 
 logger = logging.getLogger('xmlschema')
-
-XSD_VALIDATION_MODES = frozenset(('strict', 'lax', 'skip'))
-"""
-XML Schema validation modes
-Ref.: https://www.w3.org/TR/xmlschema11-1/#key-va
-"""
-
-
-def check_validation_mode(validation: str) -> None:
-    try:
-        if validation in XSD_VALIDATION_MODES:
-            return
-    except TypeError:
-        pass
-
-    if not isinstance(validation, str):
-        raise XMLSchemaTypeError(_("validation mode must be a string"))
-    else:
-        raise XMLSchemaValueError(_("validation mode can be 'strict', "
-                                    "'lax' or 'skip': %r") % validation)
 
 
 class ValidationContext:
@@ -450,7 +430,7 @@ ST = TypeVar('ST')
 DT = TypeVar('DT')
 
 
-class ValidationMixin(Generic[ST, DT]):
+class ValidationMixin(Generic[ST, DT], metaclass=ABCMeta):
     """
     Mixin for implementing XML data validators/decoders on XSD components.
     A derived class must implement the methods `raw_decode` and `raw_encode`.

@@ -9,9 +9,10 @@
 #
 import logging
 import warnings
+import functools
 from operator import attrgetter
 from types import MappingProxyType
-from typing import Any, Optional, TYPE_CHECKING
+from typing import Any, Optional, TYPE_CHECKING, cast
 
 from xmlschema.aliases import SchemaType, SchemaSourceType, LocationsType
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError, \
@@ -19,6 +20,7 @@ from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError, \
 from xmlschema.translation import gettext as _
 from xmlschema.utils.urls import normalize_url
 from xmlschema.utils.etree import iter_schema_declarations
+from xmlschema.arguments import Option, validate_subclass
 from xmlschema.locations import NamespaceResourcesMap, get_locations, \
     LOCATIONS, FALLBACK_LOCATIONS
 
@@ -429,3 +431,14 @@ class SafeSchemaLoader(SchemaLoader):
             self.namespaces[namespace].pop()
             self.maps.schemas.remove(schema)
             return True
+
+
+class LoaderClassOption(Option[type[SchemaLoader]]):
+    _validators = functools.partial(validate_subclass, cls=SchemaLoader, none=True),
+
+    def validated_value(self, value: Any) -> type[SchemaLoader]:
+        if value is None:
+            return self._default
+        return super().validated_value(value)
+
+        return cast(type[SchemaLoader], value)

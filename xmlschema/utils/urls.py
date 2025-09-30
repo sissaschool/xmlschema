@@ -35,7 +35,7 @@ def is_url(obj: object) -> bool:
         return isinstance(obj, Path)
 
     try:
-        urlsplit(obj.strip())  # type: ignore
+        urlsplit(obj.strip())
     except ValueError:  # pragma: no cover
         return False
     else:

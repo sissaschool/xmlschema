@@ -44,18 +44,19 @@ from xmlschema.utils.etree import prune_etree, is_etree_element, \
     iter_schema_declarations, iter_schema_open_content
 from xmlschema.utils.qnames import get_namespace_ext
 from xmlschema.resources import XMLResource
+from xmlschema.arguments import check_validation_mode
 from xmlschema.converters import XMLSchemaConverter, ConverterType, get_converter
 from xmlschema.xpath import XMLSchemaProxy, ElementPathMixin
 from xmlschema.namespaces import NamespaceView
 from xmlschema.locations import SCHEMAS_DIR
 from xmlschema.loaders import SchemaLoader
 from xmlschema.exports import export_schema
-from xmlschema.settings import SchemaSettings
+from xmlschema.settings import SchemaSettings, DecodingSettings
 from xmlschema import dataobjects
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaEncodeError, \
     XMLSchemaStopValidation
-from .validation import DecodeContext, EncodeContext, check_validation_mode
+from .validation import DecodeContext, EncodeContext
 from .helpers import parse_xsd_derivation, get_schema_annotations, qname_validator, \
     parse_xpath_default_namespace, parse_target_namespace
 from .xsdbase import XSD_ELEMENT_DERIVATIONS, XsdValidator, XsdComponent, XsdAnnotation
@@ -279,6 +280,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             settings = global_maps.settings
         else:
             settings = SchemaSettings.get_settings(
+                validation=validation,
                 loader_class=loader_class,
                 locations=locations,
                 converter=converter,
@@ -303,7 +305,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         if isinstance(source, XMLResource):
             self.source = source
         else:
-            self.source = settings.get_xsd_resource(source, base_url)
+            self.source = settings.get_schema_resource(source, base_url)
 
         self.name = self.source.name
         root = self.source.root

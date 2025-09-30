@@ -474,7 +474,7 @@ class FieldValueSelector:
         :param namespaces: is an optional mapping from namespace prefix to URI.
         """
         value: Union[AtomicValueType, list[Optional[AtomicValueType]], None] = None
-        element_node.schema = None
+        element_node.schema = None  # type: ignore[assignment]
         context = XPathContext(
             element_node,
             namespaces=namespaces,

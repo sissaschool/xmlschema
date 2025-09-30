@@ -8,65 +8,77 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import json
+import dataclasses as dc
 from io import IOBase, TextIOBase
 from collections.abc import Iterator
+from functools import partial
 from typing import Any, BinaryIO, IO, Optional, TextIO, Union
 from xml.etree import ElementTree
 
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError, XMLResourceError
 from xmlschema.names import XSD_NAMESPACE, XSI_TYPE, XSD_SCHEMA
 from xmlschema.aliases import ElementType, NsmapType, LocationsType, SchemaSourceType, \
-    DecodeType, EncodeType, JsonDecodeType, XMLSourceType
+    DecodeType, EncodeType, JsonDecodeType, XMLSourceType, SchemaType
 from xmlschema.translation import gettext as _
+from xmlschema.arguments import Argument, validate_type, BooleanOption, ValidationOption
 from xmlschema.utils.etree import is_etree_document, etree_tostring
 from xmlschema.utils.qnames import get_extended_qname, update_namespaces, get_namespace_map
 from xmlschema.resources import fetch_schema_locations, XMLResource
 from xmlschema.converters import ConverterType
-from xmlschema.validators import check_validation_mode, XMLSchema10, XMLSchemaBase, \
-    XMLSchemaValidationError
+from xmlschema.validators import XMLSchema10, XMLSchemaBase, XMLSchemaValidationError
+from xmlschema.arguments import LocationsOption
+from xmlschema.settings import ResourceSettings, SchemaSettings
 
 __all__ = ('from_json', 'is_valid', 'iter_errors', 'iter_decode', 'to_dict',
            'to_etree', 'to_json', 'validate', 'XmlDocument')
 
-# Allowed keyword arguments for building schema and resource instances, if necessary.
-COMMON_KWARGS = frozenset(
-    ('base_url', 'allow', 'defuse', 'timeout', 'uri_mapper', 'opener', 'iterparse')
-)
-RESOURCE_KWARGS = COMMON_KWARGS.union(('lazy', 'thin_lazy', 'selector'))
-SCHEMA_KWARGS = COMMON_KWARGS.union(
-    ('loader_class', 'use_fallback', 'use_xpath3', 'use_meta', 'loglevel')
-)
+RESOURCE_KWARGS = frozenset(fld.name for fld in dc.fields(ResourceSettings))
+SCHEMA_KWARGS = frozenset(fld.name for fld in dc.fields(SchemaSettings))
+
+
+class SchemaArgument(Argument[SchemaType]):
+    _validators = partial(validate_type, types=XMLSchemaBase),
+
+    def __set__(self, instance: Any, value: Any) -> None:
+        setattr(instance, self._name, self.validated_value(value))
 
 
 def get_context(xml_document: Union[XMLSourceType, XMLResource],
                 schema: Optional[Union[XMLSchemaBase, SchemaSourceType]] = None,
                 cls: Optional[type[XMLSchemaBase]] = None,
-                locations: Optional[LocationsType] = None,
-                use_location_hints: bool = True,
-                dummy_schema: bool = False,
-                **kwargs: Any) -> tuple[XMLResource, XMLSchemaBase]:
+                **kwargs: Any) -> tuple[XMLResource, SchemaType]:
     """
     Get the XML document validation/decode context.
 
     :return: an XMLResource instance and a schema instance.
     """
     resource: XMLResource
+    if not isinstance(xml_document, XMLResource):
+        _kwargs = {k: kwargs[k] for k in kwargs if k in RESOURCE_KWARGS}
+        resource = XMLResource(xml_document, **_kwargs)
+    elif not isinstance(xml_document, XmlDocument):
+        resource = xml_document
+    else:
+        return xml_document, xml_document.schema
 
+    _kwargs = {k: kwargs[k] for k in kwargs if k in SCHEMA_KWARGS}
+    return resource, get_resource_schema(resource, schema, cls, **_kwargs)
+
+
+def get_resource_schema(resource: XMLResource,
+                        schema: Optional[Union[XMLSchemaBase, SchemaSourceType]] = None,
+                        cls: Optional[type[XMLSchemaBase]] = None,
+                        validation: str = 'strict',
+                        locations: Optional[LocationsType] = None,
+                        use_location_hints: bool = True,
+                        **kwargs: Any) -> SchemaType:
     if cls is None:
         cls = XMLSchema10
     elif not issubclass(cls, XMLSchemaBase):
         raise XMLSchemaTypeError(_("invalid schema class {!r}").format(cls))
 
-    if isinstance(xml_document, XMLResource):
-        resource = xml_document
-    else:
-        resource_kwargs = {k: v for k, v in kwargs.items() if k in RESOURCE_KWARGS}
-        resource = XMLResource(xml_document, **resource_kwargs)
-
     if isinstance(schema, XMLSchemaBase) and resource.namespace in schema.maps.namespaces:
-        return resource, schema
-    if isinstance(resource, XmlDocument) and hasattr(resource, 'schema'):
-        return resource, resource.schema
+        return schema
 
     if use_location_hints:
         try:
@@ -74,24 +86,21 @@ def get_context(xml_document: Union[XMLSourceType, XMLResource],
         except ValueError:
             pass
         else:
-            schema_kwargs = {k: v for k, v in kwargs.items() if k in SCHEMA_KWARGS}
-            schema_kwargs['locations'] = locations
-
+            kwargs['locations'] = locations
             if schema is None or isinstance(schema, XMLSchemaBase):
-                return resource, cls(schema_location, **schema_kwargs)
+                return cls(schema_location, **kwargs)
             else:
-                return resource, cls(schema, **schema_kwargs)
+                return cls(schema, **kwargs)
 
     if isinstance(schema, XMLSchemaBase):
-        return resource, schema  # fallback to a schema for a different namespace
+        return schema  # fallback to a schema for a different namespace
     elif schema is not None:
-        schema_kwargs = {k: v for k, v in kwargs.items() if k in SCHEMA_KWARGS}
-        return resource, cls(schema, locations=locations, **schema_kwargs)
+        return cls(schema, locations=locations, **kwargs)
     elif XSD_NAMESPACE == resource.namespace:
         assert cls.meta_schema is not None
-        return resource, cls.meta_schema
-    elif dummy_schema or XSI_TYPE in resource.root.attrib:
-        return resource, get_dummy_schema(resource.root.tag, cls)
+        return cls.meta_schema
+    elif validation == 'skip' or XSI_TYPE in resource.root.attrib:
+        return get_dummy_schema(resource.root.tag, cls)
     else:
         msg = _("cannot get a schema for XML data, provide a schema argument")
         raise XMLSchemaValueError(msg)
@@ -172,9 +181,8 @@ def validate(xml_document: Union[XMLSourceType, XMLResource],
     :param kwargs: other optional arguments for building :class:`XMLResource` or \
     :class:`XMLSchema` instances provided as keyword arguments.
     """
-    source, schema = get_context(
-        xml_document, schema, cls, locations, use_location_hints, **kwargs
-    )
+    kwargs.update(locations=locations, use_location_hints=use_location_hints)
+    source, schema = get_context(xml_document, schema, cls, **kwargs)
     schema.validate(source, path, schema_path, use_defaults, namespaces,
                     use_location_hints=use_location_hints)
 
@@ -193,9 +201,8 @@ def is_valid(xml_document: Union[XMLSourceType, XMLResource],
     Like :meth:`validate` except that do not raise an exception but returns ``True`` if
     the XML document is valid, ``False`` if it's invalid.
     """
-    source, schema = get_context(
-        xml_document, schema, cls, locations, use_location_hints, **kwargs
-    )
+    kwargs.update(validation='lax', locations=locations, use_location_hints=use_location_hints)
+    source, schema = get_context(xml_document, schema, cls, **kwargs)
     return schema.is_valid(source, path, schema_path, use_defaults, namespaces,
                            use_location_hints=use_location_hints)
 
@@ -214,9 +221,8 @@ def iter_errors(xml_document: Union[XMLSourceType, XMLResource],
     Creates an iterator for the errors generated by the validation of an XML document.
     Takes the same arguments of the function :meth:`validate`.
     """
-    source, schema = get_context(
-        xml_document, schema, cls, locations, use_location_hints, **kwargs
-    )
+    kwargs.update(validation='lax', locations=locations, use_location_hints=use_location_hints)
+    source, schema = get_context(xml_document, schema, cls, **kwargs)
     return schema.iter_errors(source, path, schema_path, use_defaults, namespaces,
                               use_location_hints=use_location_hints)
 
@@ -257,11 +263,13 @@ def iter_decode(xml_document: Union[XMLSourceType, XMLResource],
     :raises: :exc:`XMLSchemaValidationError` if the XML document is invalid and \
     ``validation='strict'`` is provided.
     """
-    source, _schema = get_context(
-        xml_document, schema, cls, locations, use_location_hints, **kwargs
+    kwargs.update(
+        validation=validation,
+        locations=locations,
+        use_location_hints=use_location_hints
     )
-    yield from _schema.iter_decode(source, path=path, validation=validation,
-                                   use_location_hints=use_location_hints, **kwargs)
+    source, _schema = get_context(xml_document, schema, cls, **kwargs)
+    yield from _schema.iter_decode(source, path=path, **kwargs)
 
 
 def to_dict(xml_document: Union[XMLSourceType, XMLResource],
@@ -281,11 +289,13 @@ def to_dict(xml_document: Union[XMLSourceType, XMLResource],
     :raises: :exc:`XMLSchemaValidationError` if the XML document is invalid and \
     ``validation='strict'`` is provided.
     """
-    source, _schema = get_context(
-        xml_document, schema, cls, locations, use_location_hints, **kwargs
+    kwargs.update(
+        validation=validation,
+        locations=locations,
+        use_location_hints=use_location_hints
     )
-    return _schema.decode(source, path=path, validation=validation,
-                          use_location_hints=use_location_hints, **kwargs)
+    source, _schema = get_context(xml_document, schema, cls, **kwargs)
+    return _schema.decode(source, path=path, **kwargs)
 
 
 def to_json(xml_document: Union[XMLSourceType, XMLResource],
@@ -330,10 +340,12 @@ def to_json(xml_document: Union[XMLSourceType, XMLResource],
     :raises: :exc:`XMLSchemaValidationError` if the object is not decodable by \
     the XSD component, or also if it's invalid when ``validation='strict'`` is provided.
     """
-    dummy_schema = validation == 'skip'
-    source, _schema = get_context(
-        xml_document, schema, cls, locations, use_location_hints, dummy_schema, **kwargs
+    kwargs.update(
+        validation=validation,
+        locations=locations,
+        use_location_hints=use_location_hints
     )
+    source, _schema = get_context(xml_document, schema, cls, **kwargs)
     if json_options is None:
         json_options = {}
     if 'decimal_type' not in kwargs:
@@ -344,8 +356,7 @@ def to_json(xml_document: Union[XMLSourceType, XMLResource],
     if path is None and source.is_lazy() and 'cls' not in json_options:
         json_options['cls'] = get_lazy_json_encoder(errors)
 
-    obj = _schema.decode(source, path=path, validation=validation,
-                         use_location_hints=use_location_hints, **kwargs)
+    obj = _schema.decode(source, path=path, **kwargs)
 
     if isinstance(obj, tuple):
         errors.extend(obj[1])
@@ -528,6 +539,13 @@ class XmlDocument(XMLResource):
     """
     errors: Union[tuple[()], list[XMLSchemaValidationError]] = ()
 
+    # Additional arguments
+    schema: SchemaArgument = SchemaArgument()
+    _schema: SchemaType
+    validation: ValidationOption = ValidationOption(default='strict')
+    locations: LocationsOption = LocationsOption(default=None)
+    use_location_hints: BooleanOption = BooleanOption(default=True)
+
     def __init__(self, source: XMLSourceType,
                  schema: Optional[Union[XMLSchemaBase, SchemaSourceType]] = None,
                  cls: Optional[type[XMLSchemaBase]] = None,
@@ -537,23 +555,26 @@ class XmlDocument(XMLResource):
                  use_location_hints: bool = True,
                  **kwargs: Any) -> None:
 
-        check_validation_mode(validation)
-        resource_kwargs = {k: v for k, v in kwargs.items() if k in RESOURCE_KWARGS}
-        super().__init__(source, **resource_kwargs)
+        super().__init__(source, **{k: kwargs[k] for k in kwargs if k in RESOURCE_KWARGS})
 
         self.validation = validation
+        self.use_location_hints = use_location_hints
         self._init_namespaces = get_namespace_map(namespaces)
         self.namespaces = super().get_namespaces(namespaces, root_only=True)
-
-        _self, self.schema = get_context(
-            self, schema, cls, locations, use_location_hints,
-            dummy_schema=validation == 'skip', **kwargs
+        self.schema = get_resource_schema(
+            resource=self,
+            schema=schema,
+            cls=cls,
+            validation=validation,
+            locations=locations,
+            use_location_hints=use_location_hints,
+            **{k: kwargs[k] for k in kwargs if k in SCHEMA_KWARGS}
         )
 
         if validation == 'strict':
-            self.schema.validate(self, namespaces=self.namespaces)
+            self._schema.validate(self, namespaces=self.namespaces)
         elif validation == 'lax':
-            self.errors = [e for e in self.schema.iter_errors(self, namespaces=self.namespaces)]
+            self.errors = [e for e in self._schema.iter_errors(self, namespaces=self.namespaces)]
         elif validation != 'skip':
             raise XMLSchemaValueError("%r is not a validation mode" % validation)
 
@@ -604,7 +625,7 @@ class XmlDocument(XMLResource):
         if 'namespaces' not in kwargs:
             kwargs['namespaces'] = self.namespaces
 
-        obj = self.schema.to_dict(self, **kwargs)
+        obj = self._schema.to_dict(self, **kwargs)
         return obj[0] if isinstance(obj, tuple) else obj
 
     def to_json(self, fp: Optional[IO[str]] = None,
@@ -633,7 +654,7 @@ class XmlDocument(XMLResource):
             json_options['cls'] = get_lazy_json_encoder(errors)
             kwargs['lazy_decode'] = True
 
-        obj = self.schema.decode(self, path=path, **kwargs)
+        obj = self._schema.decode(self, path=path, **kwargs)
         if isinstance(obj, tuple):
             if fp is not None:
                 json.dump(obj[0], fp, **json_options)

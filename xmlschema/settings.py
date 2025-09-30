@@ -9,51 +9,21 @@
 #
 """Package settings for setup protection defaults."""
 import dataclasses as dc
-from functools import partial
 from typing import cast, Optional, Any
 
-from xmlschema.aliases import LocationsType, XMLSourceType, BaseUrlType
-from xmlschema.arguments import FillerOption, DepthFillerOption, ExtraValidatorOption, \
-    ValidationHookOption, ValueHookOption, ElementHookOption, ElementTypeOption, LogLevelOption
+from xmlschema.aliases import XMLSourceType, BaseUrlType
 from xmlschema.exceptions import XMLSchemaTypeError
 from xmlschema.translation import gettext as _
-from xmlschema.arguments import Option, BooleanOption, BaseUrlOption, AllowOption, \
+from xmlschema.arguments import BooleanOption, BaseUrlOption, AllowOption, \
     DefuseOption, LazyOption, BlockOption, UriMapperOption, IterParseOption, \
-    SelectorOption, OpenerOption, PositiveIntOption, validate_type, validate_subclass, \
-    MaxDepthOption
-from xmlschema.utils.misc import is_subclass
-
-from xmlschema.locations import NamespaceResourcesMap
+    SelectorOption, OpenerOption, PositiveIntOption, MaxDepthOption, LocationsOption, \
+    ValidationOption, NillableStringOption, FillerOption, DepthFillerOption, \
+    ExtraValidatorOption, ValidationHookOption, ValueHookOption, ElementHookOption, ElementTypeOption, \
+    LogLevelOption
 from xmlschema.resources import XMLResource
-from xmlschema.loaders import SchemaLoader
-from xmlschema.converters import ConverterType, XMLSchemaConverter
+from xmlschema.converters import ConverterOption
+from xmlschema.loaders import SchemaLoader, LoaderClassOption
 from xmlschema.xpath import ElementSelector
-
-LOCATIONS_TYPES = (tuple, dict, list, NamespaceResourcesMap)
-
-
-class ConverterOption(Option[Optional[ConverterType]]):
-    def validated_value(self, value: Any) -> Optional[ConverterType]:
-        if value is None or isinstance(value, XMLSchemaConverter) \
-                or is_subclass(value, XMLSchemaConverter):
-            return cast(ConverterType, value)
-        msg = _("invalid type {!r} for {}, must be a {!r} instance/subclass or None")
-        raise XMLSchemaTypeError(msg.format(type(value), self, XMLSchemaConverter))
-
-
-class LocationsOption(Option[Optional[LocationsType]]):
-    _validators = partial(validate_type, types=LOCATIONS_TYPES, none=True),
-
-
-class LoaderClassOption(Option[type[SchemaLoader]]):
-    _validators = partial(validate_subclass, cls=SchemaLoader, none=True),
-
-    def validated_value(self, value: Any) -> type[SchemaLoader]:
-        if value is None:
-            return self._default
-        return super().validated_value(value)
-
-        return cast(type[SchemaLoader], value)
 
 
 @dc.dataclass
@@ -129,26 +99,6 @@ class ResourceSettings:
     selector: SelectorOption = SelectorOption(default=ElementSelector)
     """The selector class to use for XPath element selectors."""
 
-    @classmethod
-    def get_settings(cls, **kwargs: Any) -> 'ResourceSettings':
-        if 'settings' not in kwargs:
-            return dc.replace(_DEFAULT_SCHEMA_SETTINGS, **kwargs)
-
-        settings = kwargs.pop('settings')
-        if not isinstance(settings, cls):
-            raise XMLSchemaTypeError('settings is not an instance of SchemaSettings')
-        return dc.replace(settings, **kwargs)
-
-    @classmethod
-    def update_defaults(cls, **kwargs: Any) -> None:
-        global _DEFAULT_DOCUMENT_SETTINGS
-        _DEFAULT_DOCUMENT_SETTINGS = cls.get_settings(**kwargs)
-
-    @classmethod
-    def reset_defaults(cls) -> None:
-        global _DEFAULT_DOCUMENT_SETTINGS
-        _DEFAULT_DOCUMENT_SETTINGS = cls.get_settings()
-
     def get_xml_resource(self, source: XMLSourceType,
                          base_url: Optional[BaseUrlType] = None) -> XMLResource:
         return XMLResource(
@@ -166,8 +116,8 @@ class ResourceSettings:
             selector=self.selector,
         )
 
-    def get_xsd_resource(self, source: XMLSourceType,
-                         base_url: Optional[BaseUrlType] = None) -> XMLResource:
+    def get_schema_resource(self, source: XMLSourceType,
+                            base_url: Optional[BaseUrlType] = None) -> XMLResource:
         return XMLResource(
             source=source,
             base_url=base_url or self.base_url,
@@ -183,6 +133,8 @@ class ResourceSettings:
 @dc.dataclass
 class SchemaSettings(ResourceSettings):
     """Settings for schemas."""
+    validation: ValidationOption = ValidationOption(default='strict')
+
     converter: ConverterOption = ConverterOption(default=None)
     """The converter to use for decoding/encoding XML data."""
 
@@ -205,12 +157,10 @@ class SchemaSettings(ResourceSettings):
 
     @classmethod
     def get_settings(cls, **kwargs: Any) -> 'SchemaSettings':
-        if 'settings' not in kwargs:
-            return dc.replace(_DEFAULT_SCHEMA_SETTINGS, **kwargs)
-
-        settings = kwargs.pop('settings')
-        if not isinstance(settings, cls):
-            raise XMLSchemaTypeError('settings is not an instance of SchemaSettings')
+        settings = kwargs.pop('settings', _DEFAULT_SCHEMA_SETTINGS)
+        if not isinstance(settings, SchemaSettings):
+            msg = _("expected a SchemaSettings instance for 'settings', got {!r}'")
+            raise XMLSchemaTypeError(msg.format(settings))
         return dc.replace(settings, **kwargs)
 
     @classmethod
@@ -225,11 +175,24 @@ class SchemaSettings(ResourceSettings):
 
 
 @dc.dataclass
-class DecodingSettings:
-    """Settings for decoding XML data."""
-    use_defaults: BooleanOption = BooleanOption(default=True)
+class ValidationSettings:
+    """Settings for XML instances that uses a specific configuration."""
+    path: Optional[str] = None
+    schema_path: Optional[str] = None
+    use_defaults: BooleanOption = BooleanOption(default=False)
+    #namespaces: Optional[NsmapType] = None,
+    max_depth: MaxDepthOption = MaxDepthOption(default=None)
+    extra_validator: ExtraValidatorOption = ExtraValidatorOption(default=None)
+    validation_hook: ValidationHookOption = ValidationHookOption(default=None)
+    allow_empty: BooleanOption = BooleanOption(default=True)
     use_location_hints: BooleanOption = BooleanOption(default=False)
 
+
+@dc.dataclass
+class DecodingSettings(ValidationSettings):
+    """Settings for decoding XML data."""
+    validation: str = 'lax'
+    process_namespaces: bool = True
     decimal_type: Optional[type[Any]] = None
     datetime_types: BooleanOption = BooleanOption(default=False)
     binary_types: BooleanOption = BooleanOption(default=False)
@@ -245,12 +208,11 @@ class DecodingSettings:
     validation_hook: ValidationHookOption = ValidationHookOption(default=None)
     value_hook: ValueHookOption = ValueHookOption(default=None)
     element_hook: ElementHookOption = ElementHookOption(default=None)
-
+    # errors: Optional[list[XMLSchemaValidationError]] = None
 
 @dc.dataclass
-class EncodingSettings:
+class EncodingSettings(ValidationSettings):
     """Settings for encoding XML data."""
-    use_defaults: BooleanOption = BooleanOption(default=False)
     converter: ConverterOption = ConverterOption(default=None)
     unordered: BooleanOption = BooleanOption(default=False)
     process_skipped: BooleanOption = BooleanOption(default=False)
@@ -259,44 +221,6 @@ class EncodingSettings:
     etree_element_class: ElementTypeOption = ElementTypeOption(default=None)
 
 
-@dc.dataclass
-class DocumentSettings(SchemaSettings):
-    """Settings for XML instances that uses a specific configuration."""
-
-    use_location_hints: BooleanOption = BooleanOption(default=True)
-    """
-    Schema locations hints provided within XML data for dynamic schema loading.
-    Disabled at schema level, for default these hints are enabled at document level.
-    """
-
-    dummy_schema: BooleanOption = BooleanOption(default=False)
-    max_depth: MaxDepthOption = MaxDepthOption(default=None)
-    extra_validator: ExtraValidatorOption = ExtraValidatorOption(default=None)
-    validation_hook: ValidationHookOption = ValidationHookOption(default=None)
-    allow_empty: BooleanOption = BooleanOption(default=True)
-
-    @classmethod
-    def get_settings(cls, **kwargs: Any) -> 'DocumentSettings':
-        if 'settings' not in kwargs:
-            return cast(DocumentSettings, dc.replace(_DEFAULT_DOCUMENT_SETTINGS, **kwargs))
-
-        settings = kwargs.pop('settings')
-        if not isinstance(settings, cls):
-            raise XMLSchemaTypeError('settings is not an instance of SchemaSettings')
-        return dc.replace(settings, **kwargs)
-
-    @classmethod
-    def update_defaults(cls, **kwargs: Any) -> None:
-        global _DEFAULT_DOCUMENT_SETTINGS
-        _DEFAULT_DOCUMENT_SETTINGS = cls.get_settings(**kwargs)
-
-    @classmethod
-    def reset_defaults(cls) -> None:
-        global _DEFAULT_DOCUMENT_SETTINGS
-        _DEFAULT_DOCUMENT_SETTINGS = cls.get_settings()
-
-
 # Default package settings
-_DEFAULT_RESOURCE_SETTINGS = ResourceSettings()
 _DEFAULT_SCHEMA_SETTINGS = SchemaSettings()
-_DEFAULT_DOCUMENT_SETTINGS = DocumentSettings()
+_DEFAULT_VALIDATION_SETTINGS = ValidationSettings()

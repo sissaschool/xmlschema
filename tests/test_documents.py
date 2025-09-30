@@ -232,7 +232,7 @@ class TestXmlDocuments(XMLSchemaTestCase):
         self.assertEqual(str(ctx.exception),
                          "cannot get a schema for XML data, provide a schema argument")
 
-        source, schema = get_context('<empty/>', dummy_schema=True)
+        source, schema = get_context('<empty/>', validation='skip')
         self.assertEqual(source.root.tag, 'empty')
         self.assertIsInstance(schema, XMLSchema10)
 
@@ -333,8 +333,9 @@ class TestXmlDocuments(XMLSchemaTestCase):
 
         with self.assertRaises(ValueError) as ctx:
             XmlDocument(xml_file, validation='foo')
-        self.assertEqual("validation mode can be 'strict', 'lax' or 'skip': 'foo'",
-                         str(ctx.exception))
+        self.assertTrue(str(ctx.exception).startswith(
+            "invalid value 'foo' for optional argument 'validation'"
+        ))
 
     def test_xml_document_init_without_schema(self):
         with self.assertRaises(ValueError) as ctx:

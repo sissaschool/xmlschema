@@ -27,9 +27,10 @@ from xmlschema.exceptions import XMLSchemaValueError
 from xmlschema.utils.qnames import get_qname, local_name, get_prefixed_qname
 from xmlschema.utils.etree import is_etree_element
 from xmlschema.utils.logger import format_xmlschema_stack, dump_data
+from xmlschema.arguments import check_validation_mode
 from xmlschema.resources import XMLResource
 
-from .validation import check_validation_mode, DecodeContext
+from .validation import DecodeContext
 from .exceptions import XMLSchemaParseError, XMLSchemaNotBuiltError
 from .helpers import get_xsd_annotation, parse_target_namespace
 

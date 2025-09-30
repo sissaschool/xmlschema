@@ -27,7 +27,7 @@ BaseElementType = Union['XsdElement', 'XsdAnyElement', 'XsdAssert', 'XPathElemen
 class XMLSchemaProxy(AbstractSchemaProxy):
     """XPath schema proxy for the *xmlschema* library."""
     _schema: SchemaType
-    _base_element: BaseElementType
+    _base_element: BaseElementType   # type: ignore[assignment, unused-ignore]
 
     def __init__(self, schema: Optional[SchemaType] = None,
                  base_element: Optional[BaseElementType] = None) -> None:
@@ -37,7 +37,7 @@ class XMLSchemaProxy(AbstractSchemaProxy):
             schema = getattr(XMLSchema10, 'meta_schema', None)
             assert schema is not None
 
-        super().__init__(schema, base_element)
+        super().__init__(schema, base_element)  # type: ignore[arg-type, unused-ignore]
 
         if base_element is not None:
             try:

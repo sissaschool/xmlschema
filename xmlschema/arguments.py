@@ -19,10 +19,11 @@ from xml.etree.ElementTree import Element
 
 from xmlschema.aliases import XMLSourceType, UriMapperType, IterParseType, BlockType, \
     FillerType, DepthFillerType, ExtraValidatorType, ValidationHookType, ValueHookType, \
-    ElementHookType, ElementType, LogLevelType
+    ElementHookType, ElementType, LogLevelType, LocationsType, NsmapType
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError, \
     XMLSchemaAttributeError
 from xmlschema.translation import gettext as _
+from xmlschema.locations import NamespaceResourcesMap
 from xmlschema.utils.etree import is_etree_element, is_etree_document
 from xmlschema.utils.misc import is_subclass
 from xmlschema.utils.streams import is_file_object
@@ -34,7 +35,16 @@ DEFUSE_MODES = frozenset(('never', 'remote', 'nonlocal', 'always'))
 SECURITY_MODES = frozenset(('all', 'remote', 'local', 'sandbox', 'none'))
 BLOCK_TYPES = frozenset(('text', 'file', 'io', 'url', 'tree'))
 LOG_LEVELS = frozenset(('DEBUG', 'INFO', 'WARN', 'ERROR', 'CRITICAL', 10, 20, 30, 40, 50))
+VALIDATION_MODES = frozenset(('strict', 'lax', 'skip'))
 XMLNS_PROCESSING_MODES = frozenset(('stacked', 'collapsed', 'root-only', 'none'))
+
+XSD_VALIDATION_MODES = frozenset(('strict', 'lax', 'skip'))
+"""
+XML Schema validation modes
+Ref.: https://www.w3.org/TR/xmlschema11-1/#key-va
+"""
+
+LOCATIONS_TYPES = (tuple, dict, list, NamespaceResourcesMap)
 
 T = TypeVar('T')
 
@@ -305,6 +315,28 @@ class SelectorOption(Option[Optional[type[ElementSelector]]]):
 ###
 # Other options for schema settings, NamespaceMapper, decoding/encoding context
 
+def check_validation_mode(validation: str) -> None:
+    try:
+        if validation in XSD_VALIDATION_MODES:
+            return
+    except TypeError:
+        pass
+
+    if not isinstance(validation, str):
+        raise XMLSchemaTypeError(_("validation mode must be a string"))
+    else:
+        raise XMLSchemaValueError(_("validation mode can be 'strict', "
+                                    "'lax' or 'skip': %r") % validation)
+
+
+class ValidationOption(Option[str]):
+    _validators = str_validator, partial(validate_choice, choices=XSD_VALIDATION_MODES),
+
+
+class NamespacesOption(Option[Optional[NsmapType]]):
+    _validators = str_validator, partial(validate_type, types=MutableMapping, none=True),
+
+
 class LogLevelOption(Option[LogLevelType]):
     _validators = (partial(validate_type, types=(str, int), none=True),
                    partial(validate_choice, choices=LOG_LEVELS))
@@ -314,6 +346,10 @@ class LogLevelOption(Option[LogLevelType]):
         if isinstance(value, str):
             return cast(int, getattr(logging, value.upper()))
         return cast(Optional[int], value)
+
+
+class LocationsOption(Option[Optional[LocationsType]]):
+    _validators = partial(validate_type, types=LOCATIONS_TYPES, none=True),
 
 
 class ElementTypeOption(Option[Optional[ElementType]]):
