@@ -33,7 +33,6 @@ from .simple_types import XsdSimpleType
 from .wildcards import XsdAnyAttribute
 
 AttributeGroupDecodeType = Optional[list[tuple[str, DecodedValueType]]]
-AttributeGroupEncodeType = Optional[list[tuple[str, str]]]
 
 
 class XsdAttribute(XsdComponent, ValidationMixin[Optional[str], DecodedValueType]):
@@ -730,7 +729,7 @@ class XsdAttributeGroup(
         return result
 
     def raw_encode(self, obj: MutableMapping[str, Any],
-                   validation: str, context: EncodeContext) -> AttributeGroupEncodeType:
+                   validation: str, context: EncodeContext) -> list[tuple[str, str]]:
 
         if not obj and not self:
             return []
@@ -739,8 +738,7 @@ class XsdAttributeGroup(
             reason = _("missing required attribute {!r}").format(name)
             context.validation_error(validation, self, reason, obj)
 
-        result: AttributeGroupEncodeType
-        result = None if context.validation_only else []
+        result: list[tuple[str, str]] = []
         for name, value in obj.items():
             try:
                 xsd_attribute = self._attribute_group[name]

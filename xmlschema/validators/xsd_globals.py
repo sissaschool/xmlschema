@@ -131,12 +131,7 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
             self.identities.update(ancestor.maps.identities)
 
         self.validator.maps = self
-        self.loader = self.settings.loader_class(
-            maps=self,
-            locations=self.settings.locations,
-            use_fallback=self.settings.use_fallback
-        )
-        assert not len(self.__dict__)
+        self.loader = self.settings.get_loader(self)
 
     @property
     def schemas(self) -> set[SchemaType]:
@@ -198,9 +193,8 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
         other = type(self)(
             validator=copy.copy(self.validator),
             parent=self._parent,
-            loader_class=self.loader.__class__,
+            settings=self.settings
         )
-        other.settings = self.settings
         other.loader.__dict__.update(self.loader.__dict__)
         other.loader.locations = self.loader.locations.copy()
         other.loader.missing_locations.update(self.loader.missing_locations)

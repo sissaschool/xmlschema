@@ -1082,11 +1082,9 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         :return: returns a couple with the text of the Element and a list of child \
         elements.
         """
-        children: Optional[list[ElementType]]
-
         errors = []
         text = raw_encode_value(obj.text)
-        children = None if context.validation_only else []
+        children: list[ElementType] = []
         padding = context.padding
         default_namespace = context.namespaces.get('')
 

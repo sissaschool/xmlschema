@@ -51,6 +51,10 @@ def get_converter(converter: Optional[ConverterType] = None,
     :param kwargs: optional arguments for initialize the converter instance.
     :return: a converter instance.
     """
+    if 'etree_element_class' in kwargs:
+        kwargs.pop('etree_element_class')
+    if 'indent' in kwargs:
+        kwargs.pop('indent')
     if converter is None:
         return XMLSchemaConverter(**kwargs)
 

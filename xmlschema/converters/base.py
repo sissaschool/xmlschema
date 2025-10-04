@@ -160,7 +160,7 @@ class XMLSchemaConverter(NamespaceMapper):
         self.ns_prefix = 'xmlns' if attr_prefix is None else f'{attr_prefix}xmlns'
 
         if indent is not _indent:
-            msg = ("'indent' argument is now handled by the encoding context and"
+            msg = ("'indent' argument is now handled by the encoding context and "
                    "will be removed from converters starting with version v5.0.")
             warnings.warn(msg, DeprecationWarning)
             raise TypeError(msg)

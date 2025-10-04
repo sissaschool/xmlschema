@@ -37,7 +37,7 @@ if TYPE_CHECKING:
     from xmlschema.validators import XMLSchemaValidationError, XsdComponent, \
         XsdComplexType, XsdSimpleType, XsdElement, XsdAnyElement, XsdAttribute, \
         XsdAnyAttribute, XsdAssert, XsdGroup, XsdAttributeGroup, XsdNotation, \
-        ParticleMixin, XMLSchemaBase  # noqa: F401
+        ParticleMixin, XMLSchemaBase, XsdGlobals  # noqa: F401
 
 ##
 # Type aliases for ElementTree
@@ -81,6 +81,7 @@ SchemaSourceType = Union[
     str, bytes, Path, IO[str], IO[bytes], Element, ElementTree, 'XMLResource'
 ]
 SchemaType = Union['XMLSchemaBase']
+GlobalMapsType = Union['XsdGlobals']
 BaseXsdType = Union['XsdSimpleType', 'XsdComplexType']
 SchemaElementType = Union['XsdElement', 'XsdAnyElement']
 SchemaAttributeType = Union['XsdAttribute', 'XsdAnyAttribute']
