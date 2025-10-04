@@ -11,7 +11,8 @@ import copy
 import logging
 from abc import abstractmethod, ABCMeta
 from collections import Counter
-from collections.abc import Iterable, Iterator, MutableMapping, MutableSequence
+from collections.abc import Iterable, Iterator, MutableMapping
+from dataclasses import asdict, dataclass, field
 from typing import Any, Generic, Optional, Type, TYPE_CHECKING, TypeVar, Union
 from xml.etree.ElementTree import Element
 
@@ -39,47 +40,40 @@ if TYPE_CHECKING:
 logger = logging.getLogger('xmlschema')
 
 
-class ValidationContext(metaclass=ABCMeta):
+@dataclass(slots=True)
+class ValidationContext:
     """
     A context class for handling validated decoding process. It stores together
     status-related fields, that are updated or set during the validation process,
     and parameters, as specific values or functions. Parameters can be provided
     as keyword-only arguments.
     """
-    # Required arguments
     source: Union[XMLResource, Any]
 
-    # Common validation status
+    # Overall validation status
     namespaces: MutableMapping[str, str]
     converter: Union[XMLSchemaConverter, NamespaceMapper]
     errors: ErrorsType
-    level: int
-    id_map: Counter[str]
-    identities: dict['XsdIdentity', 'IdentityCounter']
+    level: int = 0
+    id_map: Counter[str] = field(default_factory=Counter)
+    identities: dict['XsdIdentity', 'IdentityCounter'] = field(default_factory=dict)
+    inherited: dict[str, str] = field(default_factory=dict)
 
-    elem: Optional[ElementType]
-    attribute: Optional[str]
-    id_list: Optional[list[Any]]
-    inherited: dict[str, str]
-    patterns: Optional['XsdPatternFacets']
-
-    __slots__ = ('source', 'settings', 'namespaces', 'converter', 'errors', 'level',
-                 'id_map', 'identities', 'elem', 'attribute', 'id_list', 'inherited',
-                 'patterns')
-
-    @abstractmethod
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        """ValidationContext objects are not instantiated directly."""
+    # Local validation status
+    id_list: Optional[list[Any]] = None
+    elem: Optional[ElementType] = None
+    attribute: Optional[str] = None
+    patterns: Optional['XsdPatternFacets'] = None
 
     def __copy__(self) -> 'ValidationContext':
-        context = object.__new__(self.__class__)
-        context.__dict__.update(self.__dict__)
-        for attr in self.__slots__:
-            value = getattr(self, attr)
-            if isinstance(value, (MutableMapping, MutableSequence)):
-                setattr(context, attr, copy.copy(value))
-            else:
-                setattr(context, attr, value)
+        context = self.__class__(**asdict(self))
+        context.converter = copy.copy(self.converter)
+        context.namespaces = context.converter.namespaces
+        context.errors = self.errors.copy()
+        context.id_map = self.id_map.copy()
+        context.identities = self.identities.copy()
+        context.inherited = self.inherited.copy()
+        context.id_list = self.id_list if self.id_list is None else self.id_list.copy()
         return context
 
     def clear(self) -> None:
@@ -188,11 +182,12 @@ class ValidationContext(metaclass=ABCMeta):
         return self.raise_or_collect(validation, error)
 
 
+@dataclass(slots=True)
 class DecodeContext(ValidationContext):
     """A context for handling validated decoding processes."""
     source: XMLResource
 
-    keep_datatypes: tuple[type[DecodedValueType], ...]
+    keep_datatypes: tuple[type[DecodedValueType], ...] = (list, int, str)
     validation_only: bool = False
     check_identities: bool = False
     use_defaults: bool = True
@@ -213,29 +208,6 @@ class DecodeContext(ValidationContext):
     value_hook: Optional[ValueHookType] = None
     element_hook: Optional[ElementHookType] = None
 
-    def __init__(self,
-                 source: XMLResource,
-                 converter: Union[NamespaceMapper, XMLSchemaConverter],
-                 level: int = 0,
-                 errors: Optional[list[XMLSchemaValidationError]] = None,
-                 **kwargs: Any) -> None:
-
-        for k, v in kwargs.items():
-            setattr(self, k, v)
-
-        self.source = source
-        self.converter = converter
-        self.namespaces = converter.namespaces
-        self.errors = [] if errors is None else errors
-        self.id_map = Counter[str]()
-        self.identities = {}
-        self.inherited = {}
-        self.level = level
-        self.elem = None
-        self.attribute = None
-        self.id_list = None
-        self.patterns = None
-
     def decode_error(self,
                      validation: str,
                      validator: 'XsdValidator',
@@ -254,11 +226,11 @@ class DecodeContext(ValidationContext):
         return self.raise_or_collect(validation, error)
 
 
+@dataclass(slots=True)
 class EncodeContext(ValidationContext):
     """A context for handling validated encoding processes."""
     source: Any
     converter: XMLSchemaConverter
-
     indent: int = 4
     etree_element_class: Optional[Type[ElementType]] = None
     check_identities: bool = False
@@ -268,30 +240,6 @@ class EncodeContext(ValidationContext):
     process_skipped: bool = False
     max_depth: Optional[int] = None
     untyped_data: bool = False
-
-    def __init__(self,
-                 source: Any,
-                 converter: XMLSchemaConverter,
-                 namespaces: Optional[MutableMapping[str, str]] = None,
-                 level: int = 0,
-                 errors: Optional[list[XMLSchemaValidationError]] = None,
-                 **kwargs: Any) -> None:
-
-        for k, v in kwargs.items():
-            setattr(self, k, v)
-
-        self.source = source
-        self.converter = converter
-        self.namespaces = self.converter.namespaces
-        self.errors = [] if errors is None else errors
-        self.id_map = Counter[str]()
-        self.identities = {}
-        self.inherited = {}
-        self.level = level
-        self.elem = None
-        self.attribute = None
-        self.id_list = None
-        self.patterns = None
 
     def encode_error(self,
                      validation: str,

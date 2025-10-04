@@ -254,12 +254,14 @@ class SchemaSettings(ResourceSettings):
         kwargs['keep_datatypes'] = tuple(keep_datatypes)
 
         if kwargs.get('validation_only'):
-            kwargs['converter'] = NamespaceMapper(namespaces, source=kwargs['source'])
+            converter = NamespaceMapper(namespaces, source=kwargs['source'])
         else:
-            kwargs['converter'] = self.get_converter(namespaces=namespaces, **kwargs)
+            converter = self.get_converter(namespaces=namespaces, **kwargs)
         kwargs['validation_only'] = kwargs.get('validation_only', False)
+        kwargs['converter'] = converter
+        kwargs['namespaces'] = converter.namespaces
         kwargs['errors'] = errors if errors is not None else []
-        return DecodeContext(**kwargs)
+        return DecodeContext(**{k: kwargs[k] for k in kwargs if k in DecodeContext.__dataclass_fields__})
 
     def get_encode_context(self,
                            source: Optional[Any] = None,
@@ -268,9 +270,10 @@ class SchemaSettings(ResourceSettings):
                            **kwargs: Any) -> EncodeContext:
 
         kwargs['source'] = source
-        kwargs['converter'] = self.get_converter(namespaces=namespaces, **kwargs)
+        kwargs['converter'] = converter = self.get_converter(namespaces=namespaces, **kwargs)
+        kwargs['namespaces'] = converter.namespaces
         kwargs['errors'] = errors if errors is not None else []
-        return EncodeContext(**kwargs)
+        return EncodeContext(**{k: kwargs[k] for k in kwargs if k in EncodeContext.__dataclass_fields__})
 
 
 @dc.dataclass
