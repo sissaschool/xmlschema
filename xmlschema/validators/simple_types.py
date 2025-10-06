@@ -30,7 +30,7 @@ from xmlschema.utils.decoding import raw_encode_value
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaParseError, \
     XMLSchemaCircularityError, XMLSchemaDecodeError, XMLSchemaEncodeError
-from .validation import DecodeContext, EncodeContext, ValidationMixin
+from .validation import ValidationContext, EncodeContext, ValidationMixin
 from .xsdbase import XsdComponent, XsdType
 from .facets import XsdFacet, XsdWhiteSpaceFacet, XsdPatternFacets, \
     XsdEnumerationFacets, XsdAssertionFacet, MULTIPLE_FACETS
@@ -458,13 +458,13 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
             return text
 
     def text_decode(self, text: str, validation: str = 'skip',
-                    context: Optional[DecodeContext] = None) -> DecodedValueType:
+                    context: Optional[ValidationContext] = None) -> DecodedValueType:
         if context is None:
             self.schema.validation_context.clear()
             return self.raw_decode(text, validation, self.schema.validation_context)
         return self.raw_decode(text, validation, context)
 
-    def text_is_valid(self, text: str, context: Optional[DecodeContext] = None) -> bool:
+    def text_is_valid(self, text: str, context: Optional[ValidationContext] = None) -> bool:
         if context is None:
             self.schema.validation_context.clear()
             self.raw_decode(text, 'lax', self.schema.validation_context)
@@ -483,7 +483,7 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
         return value
 
     def raw_decode(self, obj: Union[str, bytes], validation: str,
-                   context: DecodeContext) -> DecodedValueType:
+                   context: ValidationContext) -> DecodedValueType:
         text = self.normalize(obj)
         if self.patterns is not None:
             try:
@@ -697,7 +697,7 @@ class XsdAtomicBuiltin(XsdAtomic):
         return self._admitted_facets or self.primitive_type.admitted_facets
 
     def raw_decode(self, obj: Union[str, bytes], validation: str,
-                   context: DecodeContext) -> DecodedValueType:
+                   context: ValidationContext) -> DecodedValueType:
         if isinstance(obj, (str, bytes)):
             obj = self.normalize(obj)
         elif not isinstance(obj, self.instance_types):
@@ -984,7 +984,7 @@ class XsdList(XsdSimpleType):
                          strict: bool = False) -> AtomicValueType:
         return self.item_type.get_atomic_value(value, namespaces=namespaces, strict=strict)
 
-    def raw_decode(self, obj: Union[str, bytes], validation: str, context: DecodeContext) \
+    def raw_decode(self, obj: Union[str, bytes], validation: str, context: ValidationContext) \
             -> list[Optional[AtomicValueType]]:
         items = []
         for chunk in self.normalize(obj).split():
@@ -995,6 +995,8 @@ class XsdList(XsdSimpleType):
                 context.validation_error(validation, self, reason, obj)
                 items.extend(result)
                 continue
+            elif isinstance(context, ValidationContext):
+                pass
             elif isinstance(result, context.keep_datatypes) or result is None:
                 pass
             elif isinstance(result, str):
@@ -1169,7 +1171,7 @@ class XsdUnion(XsdSimpleType):
         else:
             return values[0]
 
-    def raw_decode(self, obj: Union[str, bytes], validation: str, context: DecodeContext) \
+    def raw_decode(self, obj: Union[str, bytes], validation: str, context: ValidationContext) \
             -> DecodedValueType:
         patterns = context.patterns  # Use and clean pushed patterns
         context.patterns = None
@@ -1441,7 +1443,7 @@ class XsdAtomicRestriction(XsdAtomic):
             yield from self.base_type.iter_components(xsd_classes)
 
     def raw_decode(self, obj: Union[str, bytes], validation: str,
-                   context: DecodeContext) -> DecodedValueType:
+                   context: ValidationContext) -> DecodedValueType:
 
         if isinstance(obj, (str, bytes)):
             obj = self.normalize(obj)

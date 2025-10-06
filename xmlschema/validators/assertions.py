@@ -21,7 +21,7 @@ from xmlschema.xpath import ElementPathMixin, XMLSchemaProxy
 
 from .exceptions import XMLSchemaNotBuiltError, XMLSchemaAssertPathWarning
 from .helpers import parse_xpath_default_namespace
-from .validation import DecodeContext
+from .validation import ValidationContext
 from .xsdbase import XsdComponent
 from .groups import XsdGroup
 
@@ -119,7 +119,7 @@ class XsdAssert(XsdComponent, ElementPathMixin[Union['XsdAssert', SchemaElementT
     def __call__(self,
                  obj: ElementType,
                  validation: str,
-                 context: DecodeContext,
+                 context: ValidationContext,
                  value: Any = None) -> None:
 
         if not hasattr(self, 'parser') or not hasattr(self, 'token'):

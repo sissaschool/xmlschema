@@ -490,11 +490,11 @@ class DataElementConverter(XMLSchemaConverter):
                        root_only: bool = True) -> NsmapType:
         if self._xmlns_getter is None:
             return get_namespace_map(namespaces)
-        elif not isinstance(self._source, DataElement):
+        elif not isinstance(self.source, DataElement):
             return super().get_namespaces(namespaces, root_only)
 
         namespaces = get_namespace_map(namespaces)
-        iter_elements = self._source.iter()
+        iter_elements = self.source.iter()
         if xmlns := next(iter_elements).xmlns:
             update_namespaces(namespaces, xmlns, True)
 
@@ -526,7 +526,7 @@ class DataElementConverter(XMLSchemaConverter):
         return self.data_element_class(
             tag=data.tag,
             value=data.text,
-            nsmap=self._namespaces if self._use_namespaces else None,
+            nsmap=self.namespaces if self._use_namespaces else None,
             xmlns=xmlns,
             xsd_element=xsd_element,
             xsd_type=xsd_type
@@ -596,7 +596,7 @@ class DataBindingConverter(DataElementConverter):
         return cls(
             tag=data.tag,
             value=data.text,
-            nsmap=self._namespaces if self._use_namespaces else None,
+            nsmap=self.namespaces if self._use_namespaces else None,
             xmlns=xmlns,
             xsd_type=xsd_type
         )

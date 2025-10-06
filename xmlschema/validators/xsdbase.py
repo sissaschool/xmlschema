@@ -30,7 +30,7 @@ from xmlschema.utils.logger import format_xmlschema_stack, dump_data
 from xmlschema.arguments import check_validation_mode
 from xmlschema.resources import XMLResource
 
-from .validation import DecodeContext
+from .validation import ValidationContext
 from .exceptions import XMLSchemaParseError, XMLSchemaNotBuiltError
 from .helpers import get_xsd_annotation, parse_target_namespace
 
@@ -843,10 +843,10 @@ class XsdType(XsdComponent):
         return self.is_derived(self.maps.types[nm.XSD_BOOLEAN])
 
     def text_decode(self, text: str, validation: str = 'skip',
-                    context: Optional[DecodeContext] = None) -> DecodedValueType:
+                    context: Optional[ValidationContext] = None) -> DecodedValueType:
         raise NotImplementedError()
 
-    def text_is_valid(self, text: str, context: Optional[DecodeContext] = None) -> bool:
+    def text_is_valid(self, text: str, context: Optional[ValidationContext] = None) -> bool:
         raise NotImplementedError()
 
     def overall_min_occurs(self, particle: ModelParticleType) -> int:

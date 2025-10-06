@@ -22,7 +22,7 @@ from xmlschema.utils.qnames import get_namespace
 from xmlschema.utils.decoding import EmptyType, Empty, raw_encode_value
 from xmlschema.xpath import XMLSchemaProxy, ElementPathMixin
 
-from .validation import DecodeContext, EncodeContext, ValidationMixin
+from .validation import ValidationContext, EncodeContext, ValidationMixin
 from .xsdbase import XsdComponent
 
 from .particles import ParticleMixin
@@ -494,7 +494,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
     def iter_substitutes() -> Iterator[Any]:
         return iter(())
 
-    def raw_decode(self, obj: ElementType, validation: str, context: DecodeContext) -> Any:
+    def raw_decode(self, obj: ElementType, validation: str, context: ValidationContext) -> Any:
 
         if not self.is_matching(obj.tag):
             reason = _("element {!r} is not allowed here").format(obj)
@@ -664,7 +664,7 @@ class XsdAnyAttribute(XsdWildcard, ValidationMixin[tuple[str, str], DecodedValue
             return None
 
     def raw_decode(self, obj: tuple[str, str], validation: str,
-                   context: DecodeContext) -> Union[DecodedValueType, EmptyType]:
+                   context: ValidationContext) -> Union[DecodedValueType, EmptyType]:
         name, value = obj
 
         if not self.is_matching(name):

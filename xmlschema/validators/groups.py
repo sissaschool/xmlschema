@@ -29,7 +29,7 @@ from xmlschema import _limits
 
 from .exceptions import XMLSchemaModelError, XMLSchemaModelDepthError, \
     XMLSchemaValidationError, XMLSchemaTypeTableWarning, XMLSchemaCircularityError
-from .validation import DecodeContext, EncodeContext, ValidationMixin
+from .validation import ValidationContext, DecodeContext, EncodeContext, ValidationMixin
 from .xsdbase import XsdComponent, XsdType
 from .particles import ParticleMixin
 from .elements import XsdElement, XsdAlternative
@@ -930,7 +930,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                 return xsd_element
         return None
 
-    def raw_decode(self, obj: ElementType, validation: str, context: DecodeContext) \
+    def raw_decode(self, obj: ElementType, validation: str, context: ValidationContext) \
             -> GroupDecodeType:
         """
         Decoding an Element content.
@@ -1019,14 +1019,16 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                     broken_model = True
 
             # Optional checks on matched XSD child
-            if xsd_element is None:
+            if not isinstance(context, DecodeContext):
+                if xsd_element is None or over_max_depth:
+                    continue
+            elif xsd_element is None:
                 if context.keep_unknown:
                     result_item = self.maps.any_type.raw_decode(child, validation, context)
                     if result is not None:
                         result.append((name, result_item, None))
                 continue
-
-            if over_max_depth:
+            elif over_max_depth:
                 if context.depth_filler is not None and isinstance(xsd_element, XsdElement):
                     func = context.depth_filler
                     if result is not None:

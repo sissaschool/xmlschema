@@ -25,7 +25,7 @@ from xmlschema.arguments import BooleanOption, BaseUrlOption, AllowOption, \
     SelectorOption, OpenerOption, PositiveIntOption, MaxDepthOption, LocationsOption, \
     ValidationOption, FillerOption, DepthFillerOption, ExtraValidatorOption, \
     ValidationHookOption, ValueHookOption, ElementHookOption, ElementTypeOption, \
-    LogLevelOption
+    LogLevelOption, ValidationArguments
 from xmlschema.utils.decoding import raw_encode_value
 from xmlschema.utils.etree import is_etree_element, is_etree_document
 from xmlschema.resources import XMLResource
@@ -34,7 +34,7 @@ from xmlschema.converters import XMLSchemaConverter, ConverterOption, ConverterT
 from xmlschema.loaders import SchemaLoader, LoaderClassOption
 from xmlschema.xpath import ElementSelector
 
-from xmlschema.validators.validation import DecodeContext, EncodeContext
+from xmlschema.validators.validation import ValidationContext, DecodeContext, EncodeContext
 
 
 @dc.dataclass
@@ -221,11 +221,41 @@ class SchemaSettings(ResourceSettings):
             use_fallback=self.use_fallback
         )
 
+    def get_validation_context(self,
+                               source: Any = None,
+                               namespaces: Optional[MutableMapping[str, str]] = None,
+                               errors: Optional[ErrorsType] = None,
+                               **kwargs: Any) -> ValidationContext:
+
+        if isinstance(source, XMLResource):
+            kwargs['source'] = source
+        elif is_etree_element(source) or is_etree_document(source):
+            kwargs['source'] = self.get_xml_resource(source)
+        elif isinstance(source, dict):
+            root = Element('root', attrib=source)
+            kwargs['source'] = self.get_xml_resource(root)
+        elif source is None or isinstance(source, (AnyAtomicType, bytes)):
+            root = Element('root')
+            root.text = raw_encode_value(cast(DecodedValueType, source))
+            kwargs['source'] = self.get_xml_resource(root)
+        else:
+            raise XMLSchemaTypeError(
+                "incompatible type {!r} for source argument".format(type(source))
+            )
+
+        converter = NamespaceMapper(namespaces, source=kwargs['source'])
+        kwargs['converter'] = converter
+        kwargs['namespaces'] = converter.namespaces
+        kwargs['errors'] = errors if errors is not None else []
+        kwargs = {k: kwargs[k] for k in kwargs if k in ValidationContext.__dataclass_fields__}
+        ValidationArguments.validate_kwargs(**kwargs)
+        return ValidationContext(**kwargs)
+
     def get_decode_context(self,
-                    source: Any = None,
-                    namespaces: Optional[MutableMapping[str, str]] = None,
-                    errors: Optional[ErrorsType] = None,
-                    **kwargs: Any) -> DecodeContext:
+                           source: Any = None,
+                           namespaces: Optional[MutableMapping[str, str]] = None,
+                           errors: Optional[ErrorsType] = None,
+                           **kwargs: Any) -> DecodeContext:
 
         if isinstance(source, XMLResource):
             kwargs['source'] = source
@@ -253,15 +283,13 @@ class SchemaSettings(ResourceSettings):
             keep_datatypes.append(AbstractBinary)
         kwargs['keep_datatypes'] = tuple(keep_datatypes)
 
-        if kwargs.get('validation_only'):
-            converter = NamespaceMapper(namespaces, source=kwargs['source'])
-        else:
-            converter = self.get_converter(namespaces=namespaces, **kwargs)
-        kwargs['validation_only'] = kwargs.get('validation_only', False)
+        converter = self.get_converter(namespaces=namespaces, **kwargs)
         kwargs['converter'] = converter
         kwargs['namespaces'] = converter.namespaces
         kwargs['errors'] = errors if errors is not None else []
-        return DecodeContext(**{k: kwargs[k] for k in kwargs if k in DecodeContext.__dataclass_fields__})
+        return DecodeContext(
+            **{k: kwargs[k] for k in kwargs if k in DecodeContext.__dataclass_fields__}
+        )
 
     def get_encode_context(self,
                            source: Optional[Any] = None,
@@ -273,7 +301,9 @@ class SchemaSettings(ResourceSettings):
         kwargs['converter'] = converter = self.get_converter(namespaces=namespaces, **kwargs)
         kwargs['namespaces'] = converter.namespaces
         kwargs['errors'] = errors if errors is not None else []
-        return EncodeContext(**{k: kwargs[k] for k in kwargs if k in EncodeContext.__dataclass_fields__})
+        return EncodeContext(
+            **{k: kwargs[k] for k in kwargs if k in EncodeContext.__dataclass_fields__}
+        )
 
 
 @dc.dataclass
@@ -282,7 +312,7 @@ class ValidationSettings:
     path: Optional[str] = None
     schema_path: Optional[str] = None
     use_defaults: BooleanOption = BooleanOption(default=False)
-    #namespaces: Optional[NsmapType] = None,
+    # namespaces: Optional[NsmapType] = None,
     max_depth: MaxDepthOption = MaxDepthOption(default=None)
     extra_validator: ExtraValidatorOption = ExtraValidatorOption(default=None)
     validation_hook: ValidationHookOption = ValidationHookOption(default=None)
@@ -311,6 +341,7 @@ class DecodingSettings(ValidationSettings):
     value_hook: ValueHookOption = ValueHookOption(default=None)
     element_hook: ElementHookOption = ElementHookOption(default=None)
     # errors: Optional[list[XMLSchemaValidationError]] = None
+
 
 @dc.dataclass
 class EncodingSettings(ValidationSettings):

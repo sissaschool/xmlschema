@@ -112,27 +112,19 @@ class TestConverters(unittest.TestCase):
 
         with self.assertRaises(TypeError) as ctx:
             XMLSchemaConverter(cdata_prefix=1)
-        self.assertTrue(str(ctx.exception).startswith(
-            "'cdata_prefix' must be a <class 'str'> instance or None")
-        )
+        self.assertTrue(str(ctx.exception).startswith("invalid type <class 'int'>"))
 
         with self.assertRaises(TypeError) as ctx:
             XMLSchemaConverter(preserve_root=1)
-        self.assertTrue(str(ctx.exception).startswith(
-            "'preserve_root' must be a <class 'bool'> instance")
-        )
+        self.assertTrue(str(ctx.exception).startswith("invalid type <class 'int'>"))
 
         with self.assertRaises(TypeError) as ctx:
             XMLSchemaConverter(dict_class=list)
-        self.assertTrue(str(ctx.exception).startswith(
-            "'dict_class' must be a MutableMapping object")
-        )
+        self.assertTrue(str(ctx.exception).startswith("invalid <class 'list'>"))
 
         with self.assertRaises(TypeError) as ctx:
             XMLSchemaConverter(list_class=dict)
-        self.assertTrue(str(ctx.exception).startswith(
-            "'list_class' must be a MutableSequence object")
-        )
+        self.assertTrue(str(ctx.exception).startswith("invalid <class 'dict'>"))
 
     def test_lossy_property(self):
         self.assertTrue(XMLSchemaConverter().lossy)

@@ -59,42 +59,42 @@ class AbderaConverter(XMLSchemaConverter):
         if xsd_type.simple_type is not None:
             children = data.text
         else:
-            children = self.dict()
+            children = self.dict_class()
             for name, value, xsd_child in self.map_content(data.content):
                 if value is None:
-                    value = self.list()
+                    value = self.list_class()
 
                 try:
                     children[name].append(value)
                 except KeyError:
                     if isinstance(value, MutableSequence) and value:
-                        children[name] = self.list((value,))
+                        children[name] = self.list_class((value,))
                     else:
                         children[name] = value
                 except AttributeError:
-                    children[name] = self.list((children[name], value))
+                    children[name] = self.list_class((children[name], value))
             if not children:
                 children = data.text
 
         result: Union[list[Any], dict[str, Any]]
         if data.attributes:
-            result = self.dict([
+            result = self.dict_class([
                 ('attributes',
-                 self.dict((k, v) for k, v in self.map_attributes(data.attributes)))
+                 self.dict_class((k, v) for k, v in self.map_attributes(data.attributes)))
             ])
             if children is not None and children != []:
-                result['children'] = self.list((children,))
+                result['children'] = self.list_class((children,))
 
         elif children is not None:
             result = children
         else:
-            result = self.list()
+            result = self.list_class()
 
         if level:
             return result
-        elif self.dict is dict:
+        elif self.dict_class is dict:
             return {self.map_qname(data.tag): result}
-        return self.dict(((self.map_qname(data.tag), result),))
+        return self.dict_class(((self.map_qname(data.tag), result),))
 
     def element_encode(self, obj: Any, xsd_element: 'XsdElement', level: int = 0) -> ElementData:
         if not isinstance(obj, MutableMapping):

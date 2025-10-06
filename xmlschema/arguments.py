@@ -133,7 +133,7 @@ def validate_type(attr: Argument[T], value: T,
     """
     if none and value is None \
             or types is not None and isinstance(value, types) \
-            or call:  # and callable(value):
+            or call and callable(value):
         return None
 
     if types is None:
@@ -162,16 +162,19 @@ def validate_type(attr: Argument[T], value: T,
 
 def validate_subclass(attr: Argument[T], value: type[Any],
                       cls: type[Any], none: bool = False) -> None:
-    if cls is dict:
+    if value is None and none:
+        return None
+    elif cls is dict:
         cls = MutableMapping
     elif cls is list:
         cls = MutableSequence
-    if none and value is None or is_subclass(value, cls):
+    if is_subclass(value, cls):
         return None
-    elif none:
-        msg = _("invalid type {!r} for {}, must be None or a subclass of {!r}")
+
+    if none:
+        msg = _("invalid {!r} for {}, must be None or a subclass of {!r}")
     else:
-        msg = _("invalid type {!r} for {}, must be a subclass {!r}")
+        msg = _("invalid {!r} for {}, must be a subclass {!r}")
 
     raise XMLSchemaTypeError(msg.format(value, attr, cls))
 
@@ -384,6 +387,14 @@ class XmlNsProcessingOption(Option[str]):
     _validators = str_validator, partial(validate_choice, choices=XMLNS_PROCESSING_MODES)
 
 
+class DictClassOption(Option[Optional[type[dict[str, Any]]]]):
+    _validators = partial(validate_subclass, cls=dict, none=True),
+
+
+class ListClassOption(Option[Optional[type[list[Any]]]]):
+    _validators = partial(validate_subclass, cls=list, none=True),
+
+
 class MaxDepthOption(Option[Optional[int]]):
     _validators = none_int_validator, pos_int_validator
 
@@ -423,12 +434,22 @@ class Arguments:
             if attr[0] != '_' and isinstance(value, Argument):
                 value.validated_value(getattr(instance, attr))
 
+    @classmethod
+    def validate_kwargs(cls, **kwargs: Any) -> None:
+        for attr, value in cls.__dict__.items():
+            getattr(cls, attr).validate_value(value)
 
-class ConverterArguments(Arguments):
+
+class NamespaceMapperArguments(Arguments):
     namespaces = NamespacesOption(default=None)
     process_namespaces = BooleanOption(default=True)
     strip_namespaces = BooleanOption(default=False)
     xmlns_processing = XmlNsProcessingOption(default='stacked')
+
+
+class ConverterArguments(Arguments):
+    dict_class = DictClassOption(default=None)
+    list_class = ListClassOption(default=None)
     text_key = NillableStringOption(default='$')
     attr_prefix = NillableStringOption(default='@')
     cdata_prefix = NillableStringOption(default=None)

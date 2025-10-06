@@ -52,7 +52,7 @@ class ValidationContext:
 
     # Overall validation status
     namespaces: MutableMapping[str, str]
-    converter: Union[XMLSchemaConverter, NamespaceMapper]
+    converter: NamespaceMapper
     errors: ErrorsType
     level: int = 0
     id_map: Counter[str] = field(default_factory=Counter)
@@ -64,6 +64,17 @@ class ValidationContext:
     elem: Optional[ElementType] = None
     attribute: Optional[str] = None
     patterns: Optional['XsdPatternFacets'] = None
+
+    # Validation options
+    validation_only: bool = True
+    check_identities: bool = False
+    use_defaults: bool = True
+    preserve_mixed: bool = False
+    process_skipped: bool = False
+    max_depth: Optional[int] = None
+    extra_validator: Optional[ExtraValidatorType] = None
+    validation_hook: Optional[ValidationHookType] = None
+    use_location_hints: bool = False
 
     def __copy__(self) -> 'ValidationContext':
         context = self.__class__(**asdict(self))
@@ -181,33 +192,6 @@ class ValidationContext:
         error = XMLSchemaValidationError(validator, elem, reason, self.source, self.namespaces)
         return self.raise_or_collect(validation, error)
 
-
-@dataclass(slots=True)
-class DecodeContext(ValidationContext):
-    """A context for handling validated decoding processes."""
-    source: XMLResource
-
-    keep_datatypes: tuple[type[DecodedValueType], ...] = (list, int, str)
-    validation_only: bool = False
-    check_identities: bool = False
-    use_defaults: bool = True
-    preserve_mixed: bool = False
-    process_skipped: bool = False
-    max_depth: Optional[int] = None
-    extra_validator: Optional[ExtraValidatorType] = None
-    validation_hook: Optional[ValidationHookType] = None
-    use_location_hints: bool = False
-    decimal_type: Optional[Union[Type[str], Type[float]]] = None
-    datetime_types: bool = False
-    binary_types: bool = False
-    filler: Optional[FillerType] = None
-    fill_missing: bool = False
-    keep_empty: bool = False
-    keep_unknown: bool = False
-    depth_filler: Optional[DepthFillerType] = None
-    value_hook: Optional[ValueHookType] = None
-    element_hook: Optional[ElementHookType] = None
-
     def decode_error(self,
                      validation: str,
                      validator: 'XsdValidator',
@@ -227,18 +211,32 @@ class DecodeContext(ValidationContext):
 
 
 @dataclass(slots=True)
+class DecodeContext(ValidationContext):
+    """A context for handling validated decoding processes."""
+    source: XMLResource
+    converter: XMLSchemaConverter
+    keep_datatypes: tuple[type[DecodedValueType], ...] = (list, int, str)
+    validation_only: bool = False
+    decimal_type: Optional[Union[Type[str], Type[float]]] = None
+    datetime_types: bool = False
+    binary_types: bool = False
+    filler: Optional[FillerType] = None
+    fill_missing: bool = False
+    keep_empty: bool = False
+    keep_unknown: bool = False
+    depth_filler: Optional[DepthFillerType] = None
+    value_hook: Optional[ValueHookType] = None
+    element_hook: Optional[ElementHookType] = None
+
+
+@dataclass(slots=True)
 class EncodeContext(ValidationContext):
     """A context for handling validated encoding processes."""
     source: Any
     converter: XMLSchemaConverter
     indent: int = 4
     etree_element_class: Optional[Type[ElementType]] = None
-    check_identities: bool = False
-    use_defaults: bool = True
-    preserve_mixed: bool = False
     unordered: bool = False
-    process_skipped: bool = False
-    max_depth: Optional[int] = None
     untyped_data: bool = False
 
     def encode_error(self,

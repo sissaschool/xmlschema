@@ -37,7 +37,8 @@ if TYPE_CHECKING:
     from xmlschema.validators import XMLSchemaValidationError, XsdComponent, \
         XsdComplexType, XsdSimpleType, XsdElement, XsdAnyElement, XsdAttribute, \
         XsdAnyAttribute, XsdAssert, XsdGroup, XsdAttributeGroup, XsdNotation, \
-        ParticleMixin, XMLSchemaBase, XsdGlobals  # noqa: F401
+        ParticleMixin, XMLSchemaBase, XsdGlobals, ValidationContext, \
+        DecodeContext  # noqa: F401
 
 ##
 # Type aliases for ElementTree
@@ -111,6 +112,7 @@ NumericValueType = Union[str, bytes, int, float, Decimal]
 
 ##
 # Type aliases for validation/decoding/encoding
+DecodeContextType = Union['ValidationContext', 'DecodeContext']
 ErrorsType = list['XMLSchemaValidationError']
 ExtraValidatorType = Callable[[ElementType, 'XsdElement'],
                               Optional[Iterator['XMLSchemaValidationError']]]

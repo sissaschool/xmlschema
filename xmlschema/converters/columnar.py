@@ -75,9 +75,9 @@ class ColumnarConverter(XMLSchemaConverter):
                 pfx = xsd_element.local_name + self.attr_prefix
             else:
                 pfx = xsd_element.local_name
-            result_dict = self.dict((pfx + self.map_qname(k), v) for k, v in data.attributes)
+            result_dict = self.dict_class((pfx + self.map_qname(k), v) for k, v in data.attributes)
         else:
-            result_dict = self.dict()
+            result_dict = self.dict_class()
 
         if xsd_type.simple_type is not None:
             result_dict[xsd_element.local_name] = data.text
@@ -104,24 +104,24 @@ class ColumnarConverter(XMLSchemaConverter):
                             try:
                                 result_dict.append(list(value.values())[0])
                             except AttributeError:
-                                result_dict = self.list(value.values())
+                                result_dict = self.list_class(value.values())
                         else:
                             try:
                                 result_dict[name].append(list(value.values())[0])
                             except KeyError:
-                                result_dict[name] = self.list(value.values())
+                                result_dict[name] = self.list_class(value.values())
                             except AttributeError:
-                                result_dict[name] = self.list(value.values())
+                                result_dict[name] = self.list_class(value.values())
                     else:
                         try:
                             result_dict[name].append(value)
                         except KeyError:
-                            result_dict[name] = self.list([value])
+                            result_dict[name] = self.list_class([value])
                         except AttributeError:
-                            result_dict[name] = self.list([value])
+                            result_dict[name] = self.list_class([value])
 
         if level == 0:
-            return self.dict([(xsd_element.local_name, result_dict)])
+            return self.dict_class([(xsd_element.local_name, result_dict)])
         else:
             return result_dict
 

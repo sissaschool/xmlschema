@@ -56,7 +56,7 @@ from xmlschema import dataobjects
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaEncodeError, \
     XMLSchemaStopValidation
-from .validation import DecodeContext
+from .validation import ValidationContext
 from .helpers import parse_xsd_derivation, get_schema_annotations, qname_validator, \
     parse_xpath_default_namespace, parse_target_namespace
 from .xsdbase import XSD_ELEMENT_DERIVATIONS, XsdValidator, XsdComponent, XsdAnnotation
@@ -906,11 +906,10 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 yield from xsd_global.iter_components(xsd_classes)
 
     @cached_property
-    def validation_context(self) -> DecodeContext:
+    def validation_context(self) -> ValidationContext:
         """Returns a validation context instance used for decoding schema simple values."""
-        return self.maps.settings.get_decode_context(
+        return self.maps.settings.get_validation_context(
             source=self.source,
-            validation_only=True,
             namespaces=self.namespaces,
             xmlns_processing='none'
         )
@@ -1310,7 +1309,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         kwargs: dict[Any, Any] = {
             'level': resource.lazy_depth or bool(path),
             'namespaces': namespaces,
-            'validation_only': True,
             'check_identities': True,
             'use_defaults': use_defaults,
             'use_location_hints': use_location_hints,
@@ -1318,7 +1316,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             'extra_validator': extra_validator,
             'validation_hook': validation_hook,
         }
-        context = self.maps.settings.get_decode_context(resource, **kwargs)
+        context = self.maps.settings.get_validation_context(resource, **kwargs)
         namespaces = context.namespaces
         identities = context.identities
 
@@ -1395,7 +1393,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
         yield from self._validate_references(validation, context)
 
-    def _validate_references(self, validation: str, context: DecodeContext) \
+    def _validate_references(self, validation: str, context: ValidationContext) \
             -> Iterator[XMLSchemaValidationError]:
         # Check unresolved IDREF values
         for k, v in context.id_map.items():
@@ -1735,7 +1733,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             root_elements = self.root_elements
             if len(root_elements) == 1:
                 xsd_element = root_elements[0]
-            elif isinstance(obj, (context.converter.dict, dict)) and len(obj) == 1:
+            elif isinstance(obj, (context.converter.dict_class, dict)) and len(obj) == 1:
                 for key in obj:
                     match = re.search(r'[{\w]', key)
                     if match:

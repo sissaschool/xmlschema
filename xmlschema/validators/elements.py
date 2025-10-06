@@ -34,12 +34,12 @@ from xmlschema.utils.decoding import Empty, raw_encode_attributes, strictly_equa
 from xmlschema.utils.qnames import get_qname
 from xmlschema.arguments import XSD_VALIDATION_MODES
 from xmlschema import dataobjects
-from xmlschema.converters import ElementData, XMLSchemaConverter
+from xmlschema.converters import ElementData
 from xmlschema.xpath import XMLSchemaProxy, ElementPathMixin, XPathElement
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaParseError, \
     XMLSchemaStopValidation, XMLSchemaTypeTableWarning
-from .validation import DecodeContext, EncodeContext, ValidationMixin
+from .validation import ValidationContext, DecodeContext, EncodeContext, ValidationMixin
 from .helpers import parse_xsd_derivation, parse_xpath_default_namespace
 from .xsdbase import XSD_TYPE_DERIVATIONS, XSD_ELEMENT_DERIVATIONS, XsdComponent
 from .particles import ParticleMixin, OccursCalculator
@@ -558,7 +558,7 @@ class XsdElement(XsdComponent, ParticleMixin,
         return self.type.text_decode(text)
 
     def check_dynamic_context(self, elem: ElementType, validation: str,
-                              context: DecodeContext) -> None:
+                              context: ValidationContext) -> None:
         for ns, url in iter_schema_location_hints(elem):
             if self.maps.get_schema(ns, url, context.source.base_url) is not None:
                 continue
@@ -585,7 +585,7 @@ class XsdElement(XsdComponent, ParticleMixin,
             except OSError:
                 continue
 
-    def raw_decode(self, obj: ElementType, validation: str, context: DecodeContext) -> Any:
+    def raw_decode(self, obj: ElementType, validation: str, context: ValidationContext) -> Any:
         """
         Decode an Element instance.
 
@@ -638,7 +638,6 @@ class XsdElement(XsdComponent, ParticleMixin,
             # Use location hints for dynamic schema load
             self.check_dynamic_context(obj, validation, context)
 
-        converter = context.converter
         inherited = context.inherited
         value = content = None
         nilled = False
@@ -648,7 +647,7 @@ class XsdElement(XsdComponent, ParticleMixin,
         if nm.XSI_TYPE in obj.attrib and self.schema.meta_schema is not None:
             # Meta-schema elements ignore xsi:type (issue #350)
             type_name = obj.attrib[nm.XSI_TYPE].strip()
-            namespaces = converter.namespaces
+            namespaces = context.converter.namespaces
             try:
                 xsd_type = self.maps.get_instance_type(type_name, xsd_type, namespaces)
             except (KeyError, TypeError) as err:
@@ -778,36 +777,41 @@ class XsdElement(XsdComponent, ParticleMixin,
                     context.validation_error(validation, self, msg, text)
 
             result = content_decoder.raw_decode(text or '', validation, context)
-            if result is None and context.filler is not None:
-                value = context.filler(self)
-            elif text or context.keep_empty:
+            if not isinstance(context, DecodeContext):
                 value = result
-
-            if context.value_hook is not None:
-                value = context.value_hook(value, xsd_type)
-            elif isinstance(value, context.keep_datatypes) or value is None:
-                pass
-            elif isinstance(value, str):
-                if value[:1] == '{' and xsd_type.is_qname():
-                    value = text
-            elif isinstance(value, Decimal):
-                if context.decimal_type is not None:
-                    value = context.decimal_type(value)
-            elif isinstance(value, (AbstractDateTime, Duration)):
-                value = str(value) if text is None else text.strip()
             else:
-                value = str(value)
+                if result is None and context.filler is not None:
+                    value = context.filler(self)
+                elif text or context.keep_empty:
+                    value = result
+
+                if context.value_hook is not None:
+                    value = context.value_hook(value, xsd_type)
+                elif isinstance(value, context.keep_datatypes) or value is None:
+                    pass
+                elif isinstance(value, str):
+                    if value[:1] == '{' and xsd_type.is_qname():
+                        value = text
+                elif isinstance(value, Decimal):
+                    if context.decimal_type is not None:
+                        value = context.decimal_type(value)
+                elif isinstance(value, (AbstractDateTime, Duration)):
+                    value = str(value) if text is None else text.strip()
+                else:
+                    value = str(value)
 
         context.id_list = id_list
-        xmlns = converter.set_context(obj, context.level)  # Purge existing sub-contexts
+        xmlns = context.converter.set_context(obj, context.level)  # Purge existing sub-contexts
 
-        if isinstance(converter, XMLSchemaConverter):
+        if isinstance(context, DecodeContext):
             element_data = ElementData(obj.tag, value, content, attributes, xmlns)
             if context.element_hook is not None:
                 element_data = context.element_hook(element_data, self, xsd_type)
 
             try:
-                result = converter.element_decode(element_data, self, xsd_type, context.level)
+                result = context.converter.element_decode(
+                    element_data, self, xsd_type, context.level
+                )
             except (ValueError, TypeError) as err:
                 context.validation_error(validation, self, err, obj)
                 result = None
@@ -849,7 +853,7 @@ class XsdElement(XsdComponent, ParticleMixin,
         return result
 
     def collect_key_fields(self, obj: ElementType, xsd_type: BaseXsdType,
-                           validation: str, nilled: bool, context: DecodeContext) -> None:
+                           validation: str, nilled: bool, context: ValidationContext) -> None:
 
         element_node: Union[EtreeElementNode, LazyElementNode]
         element_node = cast(EtreeElementNode, context.source.get_xpath_node(obj))
@@ -1403,7 +1407,7 @@ class Xsd11Element(XsdElement):
         return True
 
     def check_dynamic_context(self, elem: ElementType, validation: str,
-                              context: DecodeContext) -> None:
+                              context: ValidationContext) -> None:
         for ns, url in iter_schema_location_hints(elem):
             if self.maps.get_schema(ns, url, context.source.base_url) is not None:
                 continue

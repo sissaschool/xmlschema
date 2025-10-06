@@ -113,7 +113,7 @@ class XMLSchemaConverter(NamespaceMapper):
     ns_prefix: str
     etree_element_class: type[Element]
 
-    __slots__ = ('dict', 'list', 'etree_element_class',
+    __slots__ = ('dict_class', 'list_class', 'etree_element_class',
                  'text_key', 'ns_prefix', 'attr_prefix', 'cdata_prefix',
                  'indent', 'preserve_root', 'force_dict', 'force_list')
 
@@ -134,18 +134,18 @@ class XMLSchemaConverter(NamespaceMapper):
                  force_list: bool = False,
                  **kwargs: Any) -> None:
 
-        self.dict: type[dict[str, Any]]
-        self.list: type[list[Any]]
+        self.dict_class: type[dict[str, Any]]
+        self.list_class: type[list[Any]]
 
         if dict_class is not None:
-            self.dict = dict_class
+            self.dict_class = dict_class
         else:
-            self.dict = dict
+            self.dict_class = dict
 
         if list_class is not None:
-            self.list = list_class
+            self.list_class = list_class
         else:
-            self.list = list
+            self.list_class = list
 
         if etree_element_class is not None:
             msg = ("'etree_element_class' argument is now handled by the encoding context "
@@ -223,8 +223,8 @@ class XMLSchemaConverter(NamespaceMapper):
 
         return type(self)(
             namespaces=namespaces,
-            dict_class=kwargs.get('dict_class', self.dict),
-            list_class=kwargs.get('list_class', self.list),
+            dict_class=kwargs.get('dict_class', self.dict_class),
+            list_class=kwargs.get('list_class', self.list_class),
             text_key=kwargs.get('text_key', self.text_key),
             attr_prefix=kwargs.get('attr_prefix', self.attr_prefix),
             cdata_prefix=kwargs.get('cdata_prefix', self.cdata_prefix),
@@ -354,7 +354,7 @@ class XMLSchemaConverter(NamespaceMapper):
         :return: a data structure containing the decoded data.
         """
         _xsd_type = xsd_type or xsd_element.type
-        result_dict = self.dict()
+        result_dict = self.dict_class()
         xmlns = self.get_effective_xmlns(data.xmlns, level, xsd_element)
 
         def keep_result_dict() -> bool:
@@ -396,7 +396,7 @@ class XMLSchemaConverter(NamespaceMapper):
                 if data.text is not None and self.text_key is not None:
                     result_dict[self.text_key] = data.text
             elif not level and self.preserve_root:
-                return self.dict(((self.map_qname(data.tag), data.text),))
+                return self.dict_class(((self.map_qname(data.tag), data.text),))
             else:
                 return data.text
         else:
@@ -409,20 +409,20 @@ class XMLSchemaConverter(NamespaceMapper):
                     result = result_dict[name]
                 except KeyError:
                     if xsd_child is None or has_single_group and xsd_child.is_single():
-                        result_dict[name] = self.list((value,)) if self.force_list else value
+                        result_dict[name] = self.list_class((value,)) if self.force_list else value
                     else:
-                        result_dict[name] = self.list((value,))
+                        result_dict[name] = self.list_class((value,))
                 else:
                     if not isinstance(result, MutableSequence) or not result:
-                        result_dict[name] = self.list((result, value))
+                        result_dict[name] = self.list_class((result, value))
                     elif isinstance(result[0], MutableSequence) or \
                             not isinstance(value, MutableSequence):
                         result.append(value)
                     else:
-                        result_dict[name] = self.list((result, value))
+                        result_dict[name] = self.list_class((result, value))
 
         if not level and self.preserve_root:
-            return self.dict(((self.map_qname(data.tag), result_dict or None),))
+            return self.dict_class(((self.map_qname(data.tag), result_dict or None),))
         return result_dict or None
 
     @stackable

@@ -21,7 +21,7 @@ from xmlschema.translation import gettext as _
 from xmlschema.utils.qnames import get_qname, local_name
 
 from .exceptions import XMLSchemaCircularityError, XMLSchemaDecodeError
-from .validation import DecodeContext, EncodeContext, ValidationMixin
+from .validation import ValidationContext, EncodeContext, ValidationMixin
 from .helpers import parse_xsd_derivation
 from .xsdbase import XSD_TYPE_DERIVATIONS, XsdComponent, XsdType
 from .attributes import XsdAttributeGroup
@@ -702,13 +702,13 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
         return self.derivation == 'extension'
 
     def text_decode(self, text: str, validation: str = 'skip',
-                    context: Optional[DecodeContext] = None) -> DecodedValueType:
+                    context: Optional[ValidationContext] = None) -> DecodedValueType:
         if isinstance(self.content, XsdSimpleType):
             return self.content.text_decode(text, validation, context)
         else:
             return text
 
-    def text_is_valid(self, text: str, context: Optional[DecodeContext] = None) -> bool:
+    def text_is_valid(self, text: str, context: Optional[ValidationContext] = None) -> bool:
         if isinstance(self.content, XsdSimpleType):
             return self.content.text_is_valid(text, context)
         elif self.mixed or not text.strip():
@@ -729,7 +729,7 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
             )
 
     def raw_decode(self, obj: Union[ElementType, str, bytes],
-                   validation: str, context: DecodeContext) -> Any:
+                   validation: str, context: ValidationContext) -> Any:
         """
         Decodes an Element instance using a dummy XSD element. Typically used
         for decoding with xs:anyType when an XSD element is not available.

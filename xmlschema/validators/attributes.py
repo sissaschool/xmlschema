@@ -27,7 +27,7 @@ from xmlschema.utils.decoding import EmptyType
 from xmlschema.utils.qnames import get_namespace, get_qname
 
 from .exceptions import XMLSchemaCircularityError
-from .validation import DecodeContext, EncodeContext, ValidationMixin
+from .validation import ValidationContext, DecodeContext, EncodeContext, ValidationMixin
 from .xsdbase import XsdComponent, XsdAnnotation
 from .simple_types import XsdSimpleType
 from .wildcards import XsdAnyAttribute
@@ -236,7 +236,7 @@ class XsdAttribute(XsdComponent, ValidationMixin[Optional[str], DecodedValueType
         """Returns the decoded data value of the provided text as XPath fn:data()."""
         return cast(AtomicValueType, self.decode(text, validation='skip'))
 
-    def raw_decode(self, obj: Optional[str], validation: str, context: DecodeContext) \
+    def raw_decode(self, obj: Optional[str], validation: str, context: ValidationContext) \
             -> DecodedValueType:
         if obj is None and self.default is not None:
             obj = self.default
@@ -265,6 +265,8 @@ class XsdAttribute(XsdComponent, ValidationMixin[Optional[str], DecodedValueType
             return None
 
         value = self.type.raw_decode(obj, validation, context)
+        if not isinstance(context, DecodeContext):
+            return value
 
         if context.value_hook is not None:
             return context.value_hook(value, self.type)  # type:ignore[arg-type]
@@ -653,7 +655,7 @@ class XsdAttributeGroup(
                 yield from attr.iter_components(xsd_classes)
 
     def raw_decode(self, obj: MutableMapping[str, str], validation: str,
-                   context: DecodeContext) -> AttributeGroupDecodeType:
+                   context: ValidationContext) -> AttributeGroupDecodeType:
 
         if not obj and not self:
             return []
@@ -714,8 +716,9 @@ class XsdAttributeGroup(
             context.attribute = None
 
         context.id_list = id_list
-
-        if result is not None and context.fill_missing:
+        if not isinstance(context, DecodeContext):
+            return result
+        elif result is not None and context.fill_missing:
             if context.filler is None:
                 result.extend(
                     (k, None) for k in self._attribute_group
