@@ -19,6 +19,7 @@ from xmlschema.resources import XMLResource
 from xmlschema.utils.qnames import get_namespace
 from xmlschema.utils.misc import deprecated
 from xmlschema.namespaces import NamespaceMapper
+from xmlschema.arguments import ConverterArguments
 
 if TYPE_CHECKING:
     from xmlschema.validators import XsdElement  # noqa: F401
@@ -173,36 +174,14 @@ class XMLSchemaConverter(NamespaceMapper):
         super().__init__(
             namespaces, process_namespaces, strip_namespaces, xmlns_processing, source
         )
-
-    def __setattr__(self, name: str, value: Any) -> None:
-        if name in ('attr_prefix', 'text_key', 'cdata_prefix'):
-            if value is not None and not isinstance(value, str):
-                msg = "%(name)r must be a <class 'str'> instance or None, not %(type)r"
-                raise XMLSchemaTypeError(msg % {'name': name, 'type': type(value)})
-
-        elif name in ('strip_namespaces', 'preserve_root', 'force_dict', 'force_list'):
-            if not isinstance(value, bool):
-                msg = "%(name)r must be a <class 'bool'> instance, not %(type)r"
-                raise XMLSchemaTypeError(msg % {'name': name, 'type': type(value)})
-
-        elif name == 'dict':
-            if not issubclass(value, MutableMapping):
-                msg = "%(name)r must be a MutableMapping object, not %(type)r"
-                raise XMLSchemaTypeError(msg % {'name': 'dict_class', 'type': type(value)})
-
-        elif name == 'list':
-            if not issubclass(value, MutableSequence):
-                msg = "%(name)r must be a MutableSequence object, not %(type)r"
-                raise XMLSchemaTypeError(msg % {'name': 'list_class', 'type': type(value)})
-
-        super().__setattr__(name, value)
+        ConverterArguments.validate(self)
 
     @property
     def xmlns_processing_default(self) -> str:
         """
         Returns the default of the xmlns processing mode, used if `None` is provided.
         """
-        if isinstance(self._source, XMLResource):
+        if isinstance(self.source, XMLResource):
             if getattr(self.element_decode, 'stackable', False):
                 return 'stacked'
             else:
@@ -239,7 +218,7 @@ class XMLSchemaConverter(NamespaceMapper):
         :param keep_namespaces: whether to keep the namespaces of the converter \
         if they are not replaced by a keyword argument.
         """
-        namespaces = kwargs.get('namespaces', self._namespaces if keep_namespaces else None)
+        namespaces = kwargs.get('namespaces', self.namespaces if keep_namespaces else None)
         xmlns_processing = None if 'source' in kwargs else self.xmlns_processing
 
         return type(self)(
@@ -311,7 +290,7 @@ class XMLSchemaConverter(NamespaceMapper):
             elem = self.etree_element_class(tag)
         else:
             nsmap = {prefix if prefix else None: uri
-                     for prefix, uri in self._namespaces.items() if uri}
+                     for prefix, uri in self.namespaces.items() if uri}
             elem = self.etree_element_class(tag, nsmap=nsmap)  # type: ignore[arg-type]
 
         if attrib is not None:
@@ -345,7 +324,7 @@ class XMLSchemaConverter(NamespaceMapper):
         elif xsd_element is None or not xsd_element.is_global():
             return None
         else:
-            return [x for x in self._namespaces.items()]
+            return [x for x in self.namespaces.items()]
 
     def get_xmlns_from_data(self, obj: Any) -> Optional[list[tuple[str, str]]]:
         """Returns the XML declarations from decoded element data."""

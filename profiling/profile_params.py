@@ -23,9 +23,11 @@ if __name__ == '__main__':
     print("*** Decoder profile for xmlschema package ***")
     print('*' * 50)
     print()
+    from xmlschema.arguments import BooleanOption
 
-    @dataclass
+    @dataclass(slots=True)
     class DataParams:
+        boolean_option: bool
         converter: None
         errors: list
         source: str
@@ -42,13 +44,17 @@ if __name__ == '__main__':
         j: None = None
 
     class Params:
+        boolean_option: BooleanOption = BooleanOption(default=False)
+
         def __init__(self, **kwargs):
             self.__dict__.update(kwargs)
 
     class SlotParams:
-        __slots__ = ('converter', 'errors', 'source', 'namespaces')
+        boolean_option: BooleanOption = BooleanOption(default=False)
+        __slots__ = ('_boolean_option', 'converter', 'errors', 'source', 'namespaces')
 
         def __init__(self):
+            self._boolean_option = False
             self.converter = None
             self.errors = []
             self.source = 'data'
@@ -58,6 +64,7 @@ if __name__ == '__main__':
     tuple_params = ParamTup(None, [], 'data', {})
 
     dict_params = {
+        'boolean_option': True,
         'converter': None,
         'errors': [],
         'source': 'data',
@@ -79,6 +86,9 @@ if __name__ == '__main__':
     setup = 'from __main__ import params'
     run_timeit("params.converter", setup=setup, number=NUMBER)
 
+    setup = 'from __main__ import params'
+    run_timeit("params.boolean_option", setup=setup, number=NUMBER)
+
     setup = 'from __main__ import tuple_params'
     run_timeit("tuple_params.converter", setup=setup, number=NUMBER)
 
@@ -87,3 +97,5 @@ if __name__ == '__main__':
 
     setup = 'from __main__ import slot_params'
     run_timeit("slot_params.converter", setup=setup, number=NUMBER)
+    run_timeit("slot_params._boolean_option", setup=setup, number=NUMBER)
+    run_timeit("slot_params.boolean_option", setup=setup, number=NUMBER)

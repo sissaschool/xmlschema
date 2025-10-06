@@ -13,7 +13,7 @@ import os
 from collections.abc import Callable, Iterable, MutableMapping, MutableSequence
 from functools import partial
 from pathlib import Path
-from typing import Any, cast, Generic, Optional, TypeVar, Union
+from typing import Any, cast, Generic, Optional, overload, TypeVar, Union
 from urllib.request import OpenerDirector
 from xml.etree.ElementTree import Element
 
@@ -55,20 +55,30 @@ class Argument(Generic[T]):
     Arguments are validated with a sequence of validation functions tha are called by the base
     *validated_value* method.
     """
-    __slots__ = ('_name', '_default')
+    __slots__ = ('_name', '_check_only', '_default')
 
     _default: T
     _validators: tuple[Callable[['Argument[T]', T], None], ...] = ()
 
     def __set_name__(self, owner: type[Any], name: str) -> None:
         self._name = f'_{name}'
+        self._check_only = issubclass(owner, Arguments)
 
     def __str__(self) -> str:
         if hasattr(self, '_default'):
             return _('optional argument {!r}').format(self._name[1:])
-        return _('argument {!r}').format(self._name[1:])
+        return _('non-default argument {!r}').format(self._name[1:])
 
-    def __get__(self, instance: Optional[Any], owner: type[Any]) -> T:
+    @overload
+    def __get__(self, instance: None, owner: type[Any]) -> 'Argument[T]': ...
+
+    @overload
+    def __get__(self, instance: Any, owner: type[Any]) -> T: ...
+
+    def __get__(self, instance: Optional[Any], owner: type[Any]) -> Union['Argument[T]', T]:
+        if instance is None and self._check_only:
+            return self
+
         try:
             return cast(T, getattr(instance, self._name))
         except AttributeError:
@@ -123,7 +133,7 @@ def validate_type(attr: Argument[T], value: T,
     """
     if none and value is None \
             or types is not None and isinstance(value, types) \
-            or call and callable(value):
+            or call:  # and callable(value):
         return None
 
     if types is None:
@@ -231,7 +241,14 @@ class SourceArgument(Argument[XMLSourceType]):
 
 class BaseUrlOption(Option[Optional[str]]):
     """Base URL option test."""
-    def __get__(self, instance: Any, owner: type[Any]) -> Optional[str]:
+    @overload
+    def __get__(self, instance: None, owner: type[Any]) -> 'Argument[Optional[str]]': ...
+
+    @overload
+    def __get__(self, instance: Any, owner: type[Any]) -> Optional[str]: ...
+
+    def __get__(self, instance: Any, owner: type[Any]) -> \
+            Union['Argument[Optional[str]]', Optional[str]]:
         if instance is None:
             return self._default
         if isinstance(url := getattr(instance, 'url', None), str):
@@ -334,7 +351,7 @@ class ValidationOption(Option[str]):
 
 
 class NamespacesOption(Option[Optional[NsmapType]]):
-    _validators = str_validator, partial(validate_type, types=MutableMapping, none=True),
+    _validators = partial(validate_type, types=MutableMapping, none=True),
 
 
 class LogLevelOption(Option[LogLevelType]):
@@ -393,3 +410,39 @@ class ValueHookOption(Option[Optional[ValueHookType]]):
 
 class ElementHookOption(Option[Optional[ElementHookType]]):
     _validators = opt_callable_validator,
+
+
+###
+# Validation-only classes for arguments check
+
+class Arguments:
+    """Base class for arguments validation-only classes."""
+    @classmethod
+    def validate(cls, instance: Any) -> None:
+        for attr, value in cls.__dict__.items():
+            if attr[0] != '_' and isinstance(value, Argument):
+                value.validated_value(getattr(instance, attr))
+
+
+class ConverterArguments(Arguments):
+    namespaces = NamespacesOption(default=None)
+    process_namespaces = BooleanOption(default=True)
+    strip_namespaces = BooleanOption(default=False)
+    xmlns_processing = XmlNsProcessingOption(default='stacked')
+    text_key = NillableStringOption(default='$')
+    attr_prefix = NillableStringOption(default='@')
+    cdata_prefix = NillableStringOption(default=None)
+    preserve_root = BooleanOption(default=False)
+    force_dict = BooleanOption(default=False)
+    force_list = BooleanOption(default=False)
+
+
+class ValidationArguments(Arguments):
+    check_identities = BooleanOption(default=False)
+    use_defaults = BooleanOption(default=True)
+    preserve_mixed = BooleanOption(default=False)
+    process_skipped = BooleanOption(default=False)
+    max_depth = MaxDepthOption(default=None)
+    extra_validator = ExtraValidatorOption(default=None)
+    validation_hook = ValidationHookOption(default=None)
+    use_location_hints = BooleanOption(default=False)
