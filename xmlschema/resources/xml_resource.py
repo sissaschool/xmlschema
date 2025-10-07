@@ -727,7 +727,7 @@ class XMLResource(XMLResourceLoader):
 
     def get_namespaces(self, namespaces: Optional[NsmapType] = None,
                        root_only: bool = True,
-                       root_default: bool = False) -> NsmapType:
+                       root_default: bool = False) -> dict[str, str]:
         """
         Extracts namespaces with related prefixes from the XML resource.
         If a duplicate prefix is encountered in a xmlns declaration, and

@@ -20,7 +20,7 @@ from xmlschema.utils.decoding import iter_decoded_data
 from xmlschema.utils.qnames import get_namespace_map, update_namespaces, local_name
 from xmlschema.resources import XMLResource
 from xmlschema.locations import NamespaceResourcesMap
-from xmlschema.arguments import NamespaceMapperArguments
+from xmlschema.arguments import NsMapperArguments
 
 if TYPE_CHECKING:
     from xmlschema.validators import XsdComponent, XsdElement  # noqa: F401
@@ -61,9 +61,11 @@ class NamespaceMapper(MutableMapping[str, str]):
     :param source: the origin of XML data. Con be an `XMLResource` instance, an XML \
     decoded data or `None`.
     """
-    __slots__ = ('namespaces', 'process_namespaces', 'strip_namespaces', 'xmlns_processing',
-                 'source', '_use_namespaces', '_xmlns_getter', '_xmlns_contexts', '_reverse')
+    __slots__ = ('namespaces', 'process_namespaces', 'strip_namespaces',
+                 'xmlns_processing', 'source', 'level', '_use_namespaces',
+                 '_xmlns_getter', '_xmlns_contexts', '_reverse')
 
+    _arguments = NsMapperArguments
     _xmlns_getter: Optional[Callable[[ElementType], XmlnsType]]
     _xmlns_contexts: list[NamespaceMapperContext]
 
@@ -71,11 +73,13 @@ class NamespaceMapper(MutableMapping[str, str]):
                  process_namespaces: bool = True,
                  strip_namespaces: bool = False,
                  xmlns_processing: Optional[str] = None,
-                 source: Optional[Any] = None) -> None:
+                 source: Optional[Any] = None,
+                 level: int = 0) -> None:
 
         self.process_namespaces = process_namespaces
         self.strip_namespaces = strip_namespaces
         self.source = source
+        self.level = level
 
         if xmlns_processing is None:
             self.xmlns_processing = self.xmlns_processing_default
@@ -91,11 +95,9 @@ class NamespaceMapper(MutableMapping[str, str]):
 
         self._use_namespaces = bool(process_namespaces and not strip_namespaces)
         self.namespaces = self.get_namespaces(namespaces)
-        self._reverse = {
-            v: k for k, v in reversed(self.namespaces.items())  # type: ignore[call-overload]
-        }
+        self._reverse = {v: k for k, v in reversed(self.namespaces.items())}
         self._xmlns_contexts = []
-        NamespaceMapperArguments.validate(self)
+        self._arguments.validate(self)
 
     def __getitem__(self, prefix: str) -> str:
         return self.namespaces[prefix]
@@ -108,7 +110,7 @@ class NamespaceMapper(MutableMapping[str, str]):
         uri = self.namespaces.pop(prefix)
         del self._reverse[uri]
 
-        for k in reversed(self.namespaces.keys()):   # type: ignore[call-overload]
+        for k in reversed(self.namespaces.keys()):
             if self.namespaces[k] == uri:
                 self._reverse[uri] = k
                 break
@@ -151,7 +153,7 @@ class NamespaceMapper(MutableMapping[str, str]):
         return None
 
     def get_namespaces(self, namespaces: Optional[NsmapType] = None,
-                       root_only: bool = True) -> NsmapType:
+                       root_only: bool = True) -> dict[str, str]:
         """
         Extracts namespaces with related prefixes from the XML source. It the XML
         source is an `XMLResource` instance delegates the extraction to it.

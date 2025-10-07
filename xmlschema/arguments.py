@@ -191,6 +191,12 @@ def validate_minimum(attr: Argument[int], value: int, min_value: int) -> None:
         raise XMLSchemaValueError(msg.format(attr, min_value))
 
 
+def validate_instance(attr: Argument[T], value: T) -> None:
+    if isinstance(value, type):
+        msg = _("invalid value {!r} for {}, must be an object instance, not a type")
+        raise XMLSchemaTypeError(msg.format(value, attr))
+
+
 bool_validator = partial(validate_type, types=bool)
 bool_int_validator = partial(validate_type, types=int)
 str_validator = partial(validate_type, types=str)
@@ -387,6 +393,10 @@ class XmlNsProcessingOption(Option[str]):
     _validators = str_validator, partial(validate_choice, choices=XMLNS_PROCESSING_MODES)
 
 
+class SourceOption(Option[Any]):
+    _validators = validate_instance,
+
+
 class DictClassOption(Option[Optional[type[dict[str, Any]]]]):
     _validators = partial(validate_subclass, cls=dict, none=True),
 
@@ -430,24 +440,29 @@ class Arguments:
     """Base class for arguments validation-only classes."""
     @classmethod
     def validate(cls, instance: Any) -> None:
-        for attr, value in cls.__dict__.items():
-            if attr[0] != '_' and isinstance(value, Argument):
-                value.validated_value(getattr(instance, attr))
+        for c in cls.__mro__:
+            for attr, value in c.__dict__.items():
+                if attr[0] != '_' and isinstance(value, Argument):
+                    value.validated_value(getattr(instance, attr))
 
     @classmethod
     def validate_kwargs(cls, **kwargs: Any) -> None:
-        for attr, value in cls.__dict__.items():
-            getattr(cls, attr).validate_value(value)
+        for c in cls.__mro__:
+            for attr, value in c.__dict__.items():
+                if attr in kwargs and isinstance(value, Argument):
+                    value.validated_value(kwargs[attr])
 
 
-class NamespaceMapperArguments(Arguments):
+class NsMapperArguments(Arguments):
     namespaces = NamespacesOption(default=None)
     process_namespaces = BooleanOption(default=True)
     strip_namespaces = BooleanOption(default=False)
     xmlns_processing = XmlNsProcessingOption(default='stacked')
+    source = SourceOption(default=None)
+    level = NonNegIntOption(default=0)
 
 
-class ConverterArguments(Arguments):
+class ConverterArguments(NsMapperArguments):
     dict_class = DictClassOption(default=None)
     list_class = ListClassOption(default=None)
     text_key = NillableStringOption(default='$')

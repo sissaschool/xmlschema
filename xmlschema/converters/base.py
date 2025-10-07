@@ -13,13 +13,13 @@ from collections.abc import Callable, Iterator, Iterable, MutableMapping, Mutabl
 from typing import TYPE_CHECKING, Any, Optional, TypeVar, Union
 from xml.etree.ElementTree import Element
 
-from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from xmlschema.aliases import NsmapType, BaseXsdType, XmlnsType
-from xmlschema.resources import XMLResource
-from xmlschema.utils.qnames import get_namespace
-from xmlschema.utils.misc import deprecated
+from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from xmlschema.namespaces import NamespaceMapper
 from xmlschema.arguments import ConverterArguments
+from xmlschema.resources import XMLResource
+from xmlschema.utils.misc import deprecated
+from xmlschema.utils.qnames import get_namespace
 
 if TYPE_CHECKING:
     from xmlschema.validators import XsdElement  # noqa: F401
@@ -99,8 +99,8 @@ class XMLSchemaConverter(NamespaceMapper):
     :param force_list: if set to `True` child elements are decoded within a list in any case. \
     Applicable only to default converter and to :class:`UnorderedConverter`. Defaults to `False`.
 
-    :ivar dict: dictionary class to use for decoded data.
-    :ivar list: list class to use for decoded data.
+    :ivar dict_class: dictionary class to use for decoded data.
+    :ivar list_class: list class to use for decoded data.
     :ivar etree_element_class: Element class to use
     :ivar text_key: key for decoded Element text
     :ivar attr_prefix: prefix for attribute names
@@ -110,12 +110,12 @@ class XMLSchemaConverter(NamespaceMapper):
     :ivar force_dict: force dictionary for complex elements with simple content
     :ivar force_list: force list for child elements
     """
+    _arguments = ConverterArguments
     ns_prefix: str
     etree_element_class: type[Element]
 
-    __slots__ = ('dict_class', 'list_class', 'etree_element_class',
-                 'text_key', 'ns_prefix', 'attr_prefix', 'cdata_prefix',
-                 'indent', 'preserve_root', 'force_dict', 'force_list')
+    __slots__ = ('dict_class', 'list_class', 'text_key', 'ns_prefix', 'attr_prefix',
+                 'cdata_prefix', 'preserve_root', 'force_dict', 'force_list', '__dict__')
 
     def __init__(self, namespaces: Optional[NsmapType] = None,
                  dict_class: Optional[type[dict[str, Any]]] = None,
@@ -129,6 +129,7 @@ class XMLSchemaConverter(NamespaceMapper):
                  strip_namespaces: bool = False,
                  xmlns_processing: Optional[str] = None,
                  source: Optional[XMLResource] = None,
+                 level: int = 0,
                  preserve_root: bool = False,
                  force_dict: bool = False,
                  force_list: bool = False,
@@ -146,6 +147,10 @@ class XMLSchemaConverter(NamespaceMapper):
             self.list_class = list_class
         else:
             self.list_class = list
+
+        self.dict = self.dict_class
+        self.list = self.list_class
+        # Deprecated attributes: will be removed in v5.0
 
         if etree_element_class is not None:
             msg = ("'etree_element_class' argument is now handled by the encoding context "
@@ -172,9 +177,8 @@ class XMLSchemaConverter(NamespaceMapper):
         self.force_list = force_list
 
         super().__init__(
-            namespaces, process_namespaces, strip_namespaces, xmlns_processing, source
+            namespaces, process_namespaces, strip_namespaces, xmlns_processing, source, level
         )
-        ConverterArguments.validate(self)
 
     @property
     def xmlns_processing_default(self) -> str:

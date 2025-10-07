@@ -589,7 +589,7 @@ class XmlDocument(XMLResource):
         return kwargs
 
     def get_namespaces(self, namespaces: Optional[NsmapType] = None,
-                       root_only: bool = True, root_default: bool = False) -> NsmapType:
+                       root_only: bool = True, root_default: bool = False) -> dict[str, str]:
         namespaces = get_namespace_map(namespaces)
         update_namespaces(namespaces, self.namespaces.items(), root_declarations=True)
         return super().get_namespaces(namespaces, root_only, root_default)

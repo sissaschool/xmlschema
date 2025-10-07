@@ -8,7 +8,6 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from abc import ABCMeta
-from copy import copy
 from itertools import count
 from collections.abc import Iterator, MutableMapping, MutableSequence
 from typing import TYPE_CHECKING, cast, overload, Any, Optional, Union, Type
@@ -228,7 +227,7 @@ class DataElement(MutableSequence['DataElement']):
                 yield child
 
     def get_namespaces(self, namespaces: Optional[NsmapType] = None,
-                       root_only: bool = True) -> NsmapType:
+                       root_only: bool = True) -> dict[str, str]:
         """
         Returns an overall namespace map for DetaElement, resolving prefix redefinitions.
 
@@ -236,7 +235,11 @@ class DataElement(MutableSequence['DataElement']):
         :param root_only: if `True` processes only the namespaces declared in the data \
         element, otherwise precesses also other namespaces declared in its descendants.
         """
-        namespaces = copy(namespaces) if namespaces is not None else {}
+        if namespaces is None:
+            namespaces = {}
+        else:
+            namespaces = {k: v for k, v in namespaces.items()}
+
         if root_only:
             update_namespaces(namespaces, self.nsmap.items(), root_declarations=True)
         else:
@@ -487,7 +490,7 @@ class DataElementConverter(XMLSchemaConverter):
         return obj.xmlns if isinstance(obj, DataElement) else None
 
     def get_namespaces(self, namespaces: Optional[NsmapType] = None,
-                       root_only: bool = True) -> NsmapType:
+                       root_only: bool = True) -> dict[str, str]:
         if self._xmlns_getter is None:
             return get_namespace_map(namespaces)
         elif not isinstance(self.source, DataElement):
