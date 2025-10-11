@@ -52,7 +52,7 @@ from xmlschema.locations import SCHEMAS_DIR
 from xmlschema.loaders import SchemaLoader
 from xmlschema.exports import export_schema
 from xmlschema.settings import SchemaSettings
-from xmlschema import dataobjects, limits
+from xmlschema import dataobjects
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaEncodeError, \
     XMLSchemaStopValidation
@@ -1750,10 +1750,15 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             raise XMLSchemaEncodeError(self, obj, self.elements, reason, namespaces=namespaces)
         else:
             result = xsd_element.raw_encode(obj, validation, context)
-            yield from context.errors
-            context.errors.clear()
-            if result is not None:
+            if result is None:
+                yield from context.errors
+            else:
+                for e in context.errors:
+                    e.root = result
+                    yield e
                 yield result
+
+            context.errors.clear()
 
     def encode(self, obj: Any, path: Optional[str] = None, validation: str = 'strict',
                *args: Any, **kwargs: Any) -> EncodeType[Any]:

@@ -1090,9 +1090,8 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         default_namespace = context.namespaces.get('')
 
         if (elem := context.elem) is None:
-            elem = context.create_element(
-                tag=obj.tag, attrib=raw_encode_attributes(obj.attributes)
-            )
+            context.elem = elem = context.create_element(tag=obj.tag)
+            elem.attrib.update(raw_encode_attributes(obj.attributes))
 
         index = cdata_index = 0
         wrong_content_type = False

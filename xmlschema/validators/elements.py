@@ -944,7 +944,7 @@ class XsdElement(XsdComponent, ParticleMixin,
             return None
 
         tag, text, content, attributes, xmlns = element_data
-        context.elem = None
+        context.elem = elem = context.create_element(tag)
 
         if self.abstract:
             if self.name == tag and context.converter.losslessly:
@@ -1000,16 +1000,12 @@ class XsdElement(XsdComponent, ParticleMixin,
         attribute_group = self.get_attributes(xsd_type)
         context.level += 1
         try:
-            attrib = {
-                k: v for k, v in attribute_group.raw_encode(attributes, validation, context)
-            }
+            elem.attrib.update(attribute_group.raw_encode(attributes, validation, context))
         except XMLSchemaValidationError as err:
-            errors.append(err)
-            attrib = raw_encode_attributes(attributes)
-        finally:
-            context.level -= 1
+            elem.attrib.update(raw_encode_attributes(attributes))
+            raise
 
-        context.elem = elem = context.create_element(tag, attrib)
+        context.level -= 1
 
         if nm.XSI_NIL in attributes:
             xsi_nil = attributes[nm.XSI_NIL].strip()
@@ -1062,14 +1058,9 @@ class XsdElement(XsdComponent, ParticleMixin,
                 elem.text = self.default
 
         else:
-            element_data = ElementData(tag, text, content, attrib, xmlns)
             context.level += 1
-            try:
-                xsd_type.content.raw_encode(element_data, validation, context)
-            except XMLSchemaValidationError as err:
-                errors.append(err)
-            finally:
-                context.level -= 1
+            xsd_type.content.raw_encode(element_data, validation, context)
+            context.level -= 1
 
         if errors:
             for e in errors:

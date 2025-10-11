@@ -16,7 +16,6 @@ from dataclasses import asdict, dataclass, field
 from typing import Any, Generic, Optional, Type, TYPE_CHECKING, TypeVar, Union
 from xml.etree.ElementTree import Element
 
-from xmlschema import ElementData
 from xmlschema.aliases import DecodeType, DepthFillerType, ElementType, \
     ElementHookType, EncodeType, ExtraValidatorType, FillerType, IterDecodeType, \
     IterEncodeType, ModelParticleType, NsmapType, SchemaElementType, \
@@ -24,6 +23,7 @@ from xmlschema.aliases import DecodeType, DepthFillerType, ElementType, \
     GlobalMapsType
 from xmlschema.translation import gettext as _
 from xmlschema.utils.decoding import EmptyType, raw_encode_value
+from xmlschema.utils.etree import is_etree_element
 from xmlschema.utils.logger import format_xmlschema_stack
 from xmlschema.utils.qnames import get_prefixed_qname
 from xmlschema.namespaces import NamespaceMapper
@@ -258,27 +258,22 @@ class EncodeContext(ValidationContext):
         )
         return self.raise_or_collect(validation, error)
 
-    def create_element(self, tag: str, attrib: Optional[dict[str, str]] = None) -> ElementType:
+    def create_element(self, tag: str) -> ElementType:
         """
-        Create an ElementTree's Element using converter settings.
+        Create an ElementTree's Element using converter setting.
 
         :param tag: the Element tag string.
         :param attrib: an optional dictionary with Element attributes.
         """
         if self.etree_element_class is None:
-            return Element(tag) if attrib is None else Element(tag, attrib)
+            return Element(tag)
         else:
             nsmap = {prefix if prefix else None: uri
                      for prefix, uri in self.namespaces.items() if uri}
             try:
-                return self.etree_element_class(
-                    tag, attrib, nsmap   # type: ignore[call-arg, arg-type]
-                )
+                return self.etree_element_class(tag, nsmap=nsmap)  # type: ignore[arg-type]
             except TypeError:
-                if attrib is not None:
-                    return self.etree_element_class(tag, attrib)
-                else:
-                    return self.etree_element_class(tag)
+                return self.etree_element_class(tag)
 
     def set_element_content(self, elem: ElementType,
                             text: Optional[str] = None,
@@ -470,7 +465,14 @@ class ValidationMixin(Generic[ST, DT], metaclass=ABCMeta):
         """
         context = self.maps.settings.get_encode_context(obj, **kwargs)
         result = self.raw_encode(obj, validation, context)
-        yield from context.errors
+
+        if is_etree_element(result):
+            for err in context.errors:
+                err.root = result
+                yield err
+        else:
+            yield from context.errors
+
         context.errors.clear()
         if not isinstance(result, EmptyType):
             yield result
