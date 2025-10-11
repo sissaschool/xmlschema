@@ -204,7 +204,7 @@ class SchemaSettings(ResourceSettings):
         if converter is None:
             return XMLSchemaConverter(**kwargs)
         elif isinstance(converter, XMLSchemaConverter):
-            return converter.copy(keep_namespaces=False, **kwargs)
+            return converter.replace(**kwargs)
         elif isinstance(converter, type) and issubclass(converter, XMLSchemaConverter):
             return converter(**kwargs)  # noqa
         else:

@@ -9,6 +9,7 @@
 #
 from collections import namedtuple
 from collections.abc import Callable, Iterator, Iterable, MutableMapping, MutableSequence
+from itertools import chain
 from typing import TYPE_CHECKING, Any, Optional, TypeVar, Union
 from xml.etree.ElementTree import Element
 
@@ -17,7 +18,7 @@ from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from xmlschema.namespaces import NamespaceMapper
 from xmlschema.arguments import ConverterArguments
 from xmlschema.resources import XMLResource
-from xmlschema.utils.misc import deprecated
+from xmlschema.utils.misc import iter_class_slots, deprecated
 from xmlschema.utils.qnames import get_namespace
 
 if TYPE_CHECKING:
@@ -110,7 +111,7 @@ class XMLSchemaConverter(NamespaceMapper):
     ns_prefix: str
 
     __slots__ = ('dict_class', 'list_class', 'text_key', 'ns_prefix', 'attr_prefix',
-                 'cdata_prefix', 'preserve_root', 'force_dict', 'force_list', '__dict__')
+                 'cdata_prefix', 'preserve_root', 'force_dict', 'force_list')
 
     def __init__(self, namespaces: Optional[NsmapType] = None,
                  dict_class: Optional[type[dict[str, Any]]] = None,
@@ -143,6 +144,11 @@ class XMLSchemaConverter(NamespaceMapper):
         else:
             self.list_class = list
 
+        if etree_element_class is not None:
+            self.etree_element_class = etree_element_class
+        else:
+            self.etree_element_class = Element
+
         self.dict = self.dict_class
         self.list = self.list_class
         # Deprecated attributes: will be removed in v5.0
@@ -151,12 +157,6 @@ class XMLSchemaConverter(NamespaceMapper):
         self.attr_prefix = attr_prefix
         self.cdata_prefix = cdata_prefix
         self.ns_prefix = 'xmlns' if attr_prefix is None else f'{attr_prefix}xmlns'
-
-        if etree_element_class is not None:
-            self.etree_element_class = etree_element_class
-        else:
-            self.etree_element_class = Element
-
         self.indent = indent
         self.preserve_root = preserve_root
         self.force_dict = force_dict
@@ -200,38 +200,35 @@ class XMLSchemaConverter(NamespaceMapper):
         """The converter ignores XML namespace information during decoding/encoding."""
         return not self._use_namespaces
 
-    def copy(self, keep_namespaces: bool = True, **kwargs: Any) -> 'XMLSchemaConverter':
+    def replace(self, /, **kwargs: Any) -> 'XMLSchemaConverter':
         """
         Creates a new converter instance from the existing, replacing options provided
         with keyword arguments.
-
-        :param keep_namespaces: whether to keep the namespaces of the converter \
-        if they are not replaced by a keyword argument.
         """
-        namespaces = kwargs.get('namespaces', self.namespaces if keep_namespaces else None)
-        xmlns_processing = None if 'source' in kwargs else self.xmlns_processing
-        if 'indent' not in kwargs or kwargs['indent'] != self.indent:
-            indent = self.indent
-        else:
-            indent = kwargs['indent']
+        if 'source' in kwargs:
+            kwargs['xmlns_processing'] = None
 
-        return type(self)(
-            namespaces=namespaces,
-            dict_class=kwargs.get('dict_class', self.dict_class),
-            list_class=kwargs.get('list_class', self.list_class),
-            text_key=kwargs.get('text_key', self.text_key),
-            attr_prefix=kwargs.get('attr_prefix', self.attr_prefix),
-            cdata_prefix=kwargs.get('cdata_prefix', self.cdata_prefix),
-            preserve_root=kwargs.get('preserve_root', self.preserve_root),
-            etree_element_class=kwargs.get('etree_element_class', self.etree_element_class),
-            indent=indent,
-            force_dict=kwargs.get('force_dict', self.force_dict),
-            force_list=kwargs.get('force_list', self.force_list),
-            process_namespaces=kwargs.get('process_namespaces', self.process_namespaces),
-            strip_namespaces=kwargs.get('strip_namespaces', self.strip_namespaces),
-            xmlns_processing=kwargs.get('xmlns_processing', xmlns_processing),
-            source=kwargs.get('source', self.source),
-        )
+        for attr in chain(iter_class_slots(self), self.__dict__):
+            if attr[0] == '_':
+                continue
+            elif attr not in kwargs:
+                kwargs[attr] = getattr(self, attr)
+            elif attr == 'indent':
+                if self.indent != 4:
+                    kwargs['indent'] = self.indent
+            elif attr == 'etree_element_class':
+                if self.etree_element_class is not Element:
+                    kwargs['etree_element_class'] = self.etree_element_class
+
+        return type(self)(**kwargs)
+
+    @deprecated('5.0')
+    def copy(self, keep_namespaces: bool = True, **kwargs: Any) -> 'XMLSchemaConverter':
+        if keep_namespaces:
+            kwargs.pop('namespaces', None)
+        else:
+            kwargs['namespaces'] = None
+        return self.replace(**kwargs)
 
     def map_attributes(self, attributes: Iterable[tuple[str, Any]]) \
             -> Iterator[tuple[str, Any]]:

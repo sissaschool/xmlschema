@@ -516,11 +516,6 @@ class DataElementConverter(XMLSchemaConverter):
     def losslessly(self) -> bool:
         return True
 
-    def copy(self, keep_namespaces: bool = True, **kwargs: Any) -> 'DataElementConverter':
-        obj = cast(DataElementConverter, super().copy(keep_namespaces, **kwargs))
-        obj.data_element_class = kwargs.get('data_element_class', self.data_element_class)
-        return obj
-
     def get_data_element(self, data: ElementData,
                          xsd_element: 'XsdElement',
                          xsd_type: Optional[BaseXsdType] = None,

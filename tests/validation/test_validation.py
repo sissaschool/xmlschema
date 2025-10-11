@@ -27,7 +27,7 @@ from xmlschema import XMLSchema10, XMLSchemaValidationError, XMLSchemaStopValida
 from xmlschema.validators import XMLSchema11
 from xmlschema.testing import XsdValidatorTestCase
 from xmlschema import DataElement, XMLResource
-from xmlschema.converters import XMLSchemaConverter, JsonMLConverter, get_converter
+from xmlschema.converters import XMLSchemaConverter, JsonMLConverter
 from xmlschema.settings import SchemaSettings
 
 CASES_DIR = os.path.join(os.path.dirname(__file__), '../test_cases')
@@ -50,12 +50,13 @@ class TestValidationContext(unittest.TestCase):
         namespaces = {'tns': 'http://example.test/ns0'}
         obj = {'root': {'@xmlns:tns="http://example.test/ns1'}}
 
+        settings = SchemaSettings()
         kwargs = {
             'source': resource,
             'preserve_root': True,
             'namespaces': namespaces
         }
-        converter = get_converter(**kwargs)
+        converter = settings.get_converter(**kwargs)
         self.assertIsInstance(converter, XMLSchemaConverter)
         self.assertIsNot(converter.namespaces, kwargs['namespaces'])
         self.assertDictEqual(
@@ -68,11 +69,11 @@ class TestValidationContext(unittest.TestCase):
         self.assertTrue(converter.preserve_root)
         self.assertIs(resource, kwargs['source'])
 
-        converter = get_converter(JsonMLConverter, source=resource)
+        converter = settings.get_converter(JsonMLConverter, source=resource)
         self.assertIsInstance(converter, JsonMLConverter)
 
         kwargs = {'preserve_root': True, 'source': obj}
-        converter = get_converter(**kwargs)
+        converter = settings.get_converter(**kwargs)
         self.assertIs(converter.source, obj)
 
         converter = schema.get_converter(source=resource)

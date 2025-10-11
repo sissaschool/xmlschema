@@ -17,7 +17,7 @@ from typing import Any, NamedTuple, Optional, Union, TypeVar, TYPE_CHECKING, cas
 from xmlschema.aliases import NsmapType, ElementType, XmlnsType, SchemaType
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from xmlschema.utils.decoding import iter_decoded_data
-from xmlschema.utils.misc import deprecated
+from xmlschema.utils.misc import iter_class_slots, deprecated
 from xmlschema.utils.qnames import get_namespace_map, update_namespaces, local_name
 from xmlschema.resources import XMLResource
 from xmlschema.locations import NamespaceResourcesMap
@@ -62,8 +62,9 @@ class NamespaceMapper(MutableMapping[str, str]):
     :param source: the origin of XML data. Con be an `XMLResource` instance, an XML \
     decoded data or `None`.
     """
-    __slots__ = ('namespaces', 'process_namespaces', 'strip_namespaces', 'xmlns_processing',
-                 'source', '_use_namespaces', '_xmlns_getter', '_xmlns_contexts', '_reverse')
+    __slots__ = ('namespaces', 'process_namespaces', 'strip_namespaces',
+                 'xmlns_processing', 'source', '__dict__', '_use_namespaces',
+                 '_xmlns_getter', '_xmlns_contexts', '_reverse')
 
     _arguments = NsMapperArguments
     _xmlns_getter: Optional[Callable[[ElementType], XmlnsType]]
@@ -130,14 +131,12 @@ class NamespaceMapper(MutableMapping[str, str]):
     def __copy__(self) -> 'NamespaceMapper':
         mapper: 'NamespaceMapper' = object.__new__(self.__class__)
 
-        for cls in self.__class__.__mro__:
-            if hasattr(cls, '__slots__'):
-                for attr in cls.__slots__:
-                    value = getattr(self, attr)
-                    if isinstance(value, (dict, list)):
-                        setattr(mapper, attr, value.copy())
-                    else:
-                        setattr(mapper, attr, value)
+        for attr in iter_class_slots(self):
+            value = getattr(self, attr)
+            if isinstance(value, (dict, list)):
+                setattr(mapper, attr, value.copy())
+            else:
+                setattr(mapper, attr, value)
 
         return mapper
 

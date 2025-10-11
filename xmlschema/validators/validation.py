@@ -247,6 +247,7 @@ class EncodeContext(ValidationContext):
                      obj: Any,
                      encoder: Any,
                      error: Union[str, Exception]) -> XMLSchemaValidationError:
+
         error = XMLSchemaEncodeError(
             validator=validator,
             obj=obj,
