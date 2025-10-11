@@ -14,7 +14,8 @@ from typing import TYPE_CHECKING, Any, cast, Optional, Union
 
 from elementpath.etree import etree_tostring
 
-from xmlschema.exceptions import XMLSchemaException, XMLSchemaWarning, XMLSchemaValueError
+from xmlschema.exceptions import XMLSchemaException, XMLSchemaWarning, XMLSchemaValueError, XMLSchemaAttributeError, \
+    XMLSchemaTypeError
 from xmlschema.aliases import ElementType, NsmapType, SchemaType, SchemaElementType, \
     ModelParticleType
 from xmlschema.translation import gettext as _
@@ -40,6 +41,7 @@ class XMLSchemaValidatorError(XMLSchemaException):
     :param source: the XML resource or the decoded data that contains the error.
     :param namespaces: is an optional mapping from namespace prefix to URI.
     """
+    _root: Optional[ElementType] = None
     _path: Optional[str] = None
     _sourceline: Optional[int] = None
 
@@ -90,25 +92,32 @@ class XMLSchemaValidatorError(XMLSchemaException):
         return
 
     def __setattr__(self, name: str, value: Any) -> None:
-        if name == 'elem' and value is not None:
+        if name == 'elem':
+            if value is None:
+                self._sourceline = None
+                self._path = None
+                super().__setattr__(name, value)
+                return
+
             if not is_etree_element(value):
-                raise XMLSchemaValueError(
-                    "'elem' attribute requires an Element, not %r." % type(value)
-                )
+                msg = _("{!r} attribute requires an Element, not {!r}.")
+                raise XMLSchemaValueError(msg.format(name, value))
 
             self._sourceline = getattr(value, 'sourceline', self._sourceline)
-            if isinstance(self.source, XMLResource):
-                if self.source.is_lazy():
-                    # Don't save the element of a lazy resource but save the path
-                    # and sourceline (if it's a lxml Element)
-                    self._path = etree_getpath(
-                        elem=value,
-                        root=self.source.root,
-                        namespaces=self.namespaces,
-                        relative=False,
-                        add_position=True
-                    )
-                    value = None
+            self._path = None
+            if isinstance(self.source, XMLResource) and self.source.is_lazy():
+                # Don't save the element of a lazy resource but set the path
+                self._path = etree_getpath(
+                    elem=value,
+                    root=self.source.root,
+                    namespaces=self.namespaces,
+                    relative=False,
+                    add_position=True
+                )
+                value = None
+
+        elif name == 'source' and isinstance(value, XMLResource):
+            self._path = None
 
         super().__setattr__(name, value)
 
@@ -123,7 +132,19 @@ class XMLSchemaValidatorError(XMLSchemaException):
         if isinstance(self.source, XMLResource):
             return self.source.root
         else:
-            return None
+            return self._root
+
+    @root.setter
+    def root(self, value: ElementType) -> None:
+        if isinstance(self.source, XMLResource):
+            msg = _("can't set the 'root' attribute if an XMLResource source is set")
+            raise XMLSchemaAttributeError(msg)
+        elif not is_etree_element(value):
+            msg = _("{!r} attribute requires an Element, not {!r}.")
+            raise XMLSchemaTypeError(msg.format('root', type(value)))
+        elif self._root is not value:
+            self._root = value
+            self._path = None
 
     @property
     def schema_url(self) -> Optional[str]:
@@ -150,17 +171,14 @@ class XMLSchemaValidatorError(XMLSchemaException):
     @property
     def path(self) -> Optional[str]:
         """The XPath of the element, if it's not `None` and the XML resource is set."""
-        if self._path is None:
-            if self.elem is not None \
-                    and isinstance(self.source, XMLResource) \
-                    and not self.source.is_lazy():
-                self._path = etree_getpath(
-                    elem=self.elem,
-                    root=self.source.root,
-                    namespaces=self.namespaces,
-                    relative=False,
-                    add_position=True
-                )
+        if self._path is None and self.elem is not None and self.root is not None:
+            self._path = etree_getpath(
+                elem=self.elem,
+                root=self.root,
+                namespaces=self.namespaces,
+                relative=False,
+                add_position=True
+            )
         return self._path
 
     def get_elem_as_string(self, indent: str = '', max_lines: Optional[int] = None) -> str:
