@@ -69,7 +69,7 @@ class UnorderedConverter(XMLSchemaConverter):
         # unordered mode generator function of the ModelVisitor class.
         content_lu: dict[Union[int, str], Any] = {}
 
-        xmlns = self.set_context(obj, level)
+        xmlns = self.set_xmlns_context(obj, level)
 
         if element_name is None:
             tag = xsd_element.name

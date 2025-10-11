@@ -289,7 +289,7 @@ class TestNamespaceMapper(unittest.TestCase):
         self.assertEqual(mapper.xmlns_processing, 'stacked')
         self.assertEqual(len(mapper._xmlns_contexts), 0)
 
-        xmlns = mapper.set_context(resource.root, 0)
+        xmlns = mapper.set_xmlns_context(resource.root, 0)
         self.assertEqual(len(mapper._xmlns_contexts), 1)
         self.assertIs(mapper._xmlns_contexts[-1].obj, resource.root)
         self.assertEqual(mapper._xmlns_contexts[-1].level, 0)
@@ -300,16 +300,16 @@ class TestNamespaceMapper(unittest.TestCase):
                          {'http://example.test/foo': ''})
         self.assertListEqual(xmlns, [('', 'http://example.test/foo')])
 
-        xmlns = mapper.set_context(resource.root, 0)
+        xmlns = mapper.set_xmlns_context(resource.root, 0)
         self.assertEqual(len(mapper._xmlns_contexts), 1)
         self.assertIs(mapper._xmlns_contexts[-1].obj, resource.root)
         self.assertListEqual(xmlns, [('', 'http://example.test/foo')])
 
-        mapper.set_context(resource.root[0], 1)
+        mapper.set_xmlns_context(resource.root[0], 1)
         self.assertEqual(len(mapper._xmlns_contexts), 2)
         self.assertIs(mapper._xmlns_contexts[-1].obj, resource.root[0])
 
-        mapper.set_context(resource.root[1], 1)
+        mapper.set_xmlns_context(resource.root[1], 1)
         self.assertEqual(len(mapper._xmlns_contexts), 2)
         self.assertIs(mapper._xmlns_contexts[-1].obj, resource.root[1])
 
@@ -319,7 +319,7 @@ class TestNamespaceMapper(unittest.TestCase):
         self.assertEqual(mapper.xmlns_processing, 'stacked')
         self.assertEqual(len(mapper._xmlns_contexts), 0)
 
-        xmlns = mapper.set_context(resource.root, 0)
+        xmlns = mapper.set_xmlns_context(resource.root, 0)
         self.assertEqual(len(mapper._xmlns_contexts), 0)
         self.assertIsNone(xmlns)
 
@@ -329,36 +329,36 @@ class TestNamespaceMapper(unittest.TestCase):
         mapper = NamespaceMapper(source=resource, xmlns_processing='collapsed')
         self.assertEqual(mapper.xmlns_processing, 'collapsed')
 
-        xmlns = mapper.set_context(resource.root, 0)
+        xmlns = mapper.set_xmlns_context(resource.root, 0)
         self.assertEqual(len(mapper._xmlns_contexts), 0)
         self.assertIsNone(xmlns)
         self.assertEqual(mapper.namespaces, {'': 'http://example.test/foo'})
 
-        mapper.set_context(resource.root[0], 1)
+        mapper.set_xmlns_context(resource.root[0], 1)
         self.assertEqual(mapper.namespaces,
                          {'': 'http://example.test/foo',
                           'default': 'http://example.test/bar'})
 
-        mapper.set_context(resource.root[1], 1)
+        mapper.set_xmlns_context(resource.root[1], 1)
         self.assertEqual(mapper.namespaces,
                          {'': 'http://example.test/foo',
                           'default': 'http://example.test/bar',
                           'bar': 'http://example.test/bar'})
 
-        mapper.set_context(resource.root[2], 1)
+        mapper.set_xmlns_context(resource.root[2], 1)
         self.assertEqual(mapper.namespaces,
                          {'': 'http://example.test/foo',
                           'default': 'http://example.test/bar',
                           'bar': 'http://example.test/bar'})
 
-        mapper.set_context(resource.root[3], 1)
+        mapper.set_xmlns_context(resource.root[3], 1)
         self.assertEqual(mapper.namespaces,
                          {'': 'http://example.test/foo',
                           'default': 'http://example.test/bar',
                           'bar': 'http://example.test/bar',
                           'foo': 'http://example.test/foo'})
 
-        mapper.set_context(resource.root[4], 1)
+        mapper.set_xmlns_context(resource.root[4], 1)
         self.assertEqual(mapper.namespaces,
                          {'': 'http://example.test/foo',
                           'default': 'http://example.test/bar',
@@ -366,7 +366,7 @@ class TestNamespaceMapper(unittest.TestCase):
                           'foo': 'http://example.test/foo',
                           'foo0': 'http://example.test/bar'})
 
-        mapper.set_context(resource.root[4], 1)
+        mapper.set_xmlns_context(resource.root[4], 1)
         self.assertEqual(mapper.namespaces,
                          {'': 'http://example.test/foo',
                           'default': 'http://example.test/bar',
@@ -374,7 +374,7 @@ class TestNamespaceMapper(unittest.TestCase):
                           'foo': 'http://example.test/foo',
                           'foo0': 'http://example.test/bar'})
 
-        mapper.set_context(resource.root[5], 1)
+        mapper.set_xmlns_context(resource.root[5], 1)
         self.assertEqual(mapper.namespaces,
                          {'': 'http://example.test/foo',
                           'default': 'http://example.test/bar',
@@ -383,7 +383,7 @@ class TestNamespaceMapper(unittest.TestCase):
                           'foo0': 'http://example.test/bar',
                           'foo1': 'http://example.test/foo2'})
 
-        mapper.set_context(resource.root[6], 1)
+        mapper.set_xmlns_context(resource.root[6], 1)
         self.assertEqual(mapper.namespaces,
                          {'': 'http://example.test/foo',
                           'default': 'http://example.test/bar',
@@ -401,19 +401,19 @@ class TestNamespaceMapper(unittest.TestCase):
         resource = XMLResource(io.StringIO(xml_data))
 
         mapper = NamespaceMapper(source=resource, xmlns_processing='collapsed')
-        mapper.set_context(resource.root[0], 1)
+        mapper.set_xmlns_context(resource.root[0], 1)
         self.assertEqual(mapper.namespaces,
                          {'foo': 'http://example.test/foo',
                           'default': 'http://example.test/bar'})
 
         mapper = NamespaceMapper(source=resource, xmlns_processing='collapsed')
-        mapper.set_context(resource.root[0], 0)
+        mapper.set_xmlns_context(resource.root[0], 0)
         self.assertEqual(mapper.namespaces,
                          {'foo': 'http://example.test/foo',
                           '': 'http://example.test/bar'})
 
         mapper = NamespaceMapper(source=resource, xmlns_processing='collapsed')
-        mapper.set_context(resource.root[1], 0)
+        mapper.set_xmlns_context(resource.root[1], 0)
         self.assertEqual(mapper.namespaces,
                          {'foo': 'http://example.test/foo',
                           '': 'http://example.test/foo'})
@@ -424,12 +424,12 @@ class TestNamespaceMapper(unittest.TestCase):
         mapper = NamespaceMapper(source=resource, xmlns_processing='root-only')
         self.assertEqual(mapper.xmlns_processing, 'root-only')
 
-        xmlns = mapper.set_context(resource.root, 0)
+        xmlns = mapper.set_xmlns_context(resource.root, 0)
         self.assertEqual(len(mapper._xmlns_contexts), 0)
         self.assertIsNone(xmlns)
         self.assertEqual(mapper.namespaces, {'': 'http://example.test/foo'})
 
-        mapper.set_context(resource.root[0], 1)
+        mapper.set_xmlns_context(resource.root[0], 1)
         self.assertEqual(mapper.namespaces, {'': 'http://example.test/foo'})
 
     def test_set_context_with_none_xmlns_processing(self):
@@ -438,13 +438,13 @@ class TestNamespaceMapper(unittest.TestCase):
 
         mapper = NamespaceMapper(source=resource, xmlns_processing='none')
         self.assertEqual(mapper.xmlns_processing, 'none')
-        xmlns = mapper.set_context(resource.root, 0)
+        xmlns = mapper.set_xmlns_context(resource.root, 0)
         self.assertEqual(len(mapper._xmlns_contexts), 0)
         self.assertIsNone(xmlns)
         self.assertEqual(mapper.namespaces, {})
 
         mapper = NamespaceMapper(namespaces, source=resource, xmlns_processing='none')
-        xmlns = mapper.set_context(resource.root, 0)
+        xmlns = mapper.set_xmlns_context(resource.root, 0)
         self.assertEqual(mapper.namespaces, namespaces)
         self.assertIsNone(xmlns)
 
@@ -452,7 +452,7 @@ class TestNamespaceMapper(unittest.TestCase):
         mapper = NamespaceMapper()
         obj = {'@xmlns:foo': 'http://example.test/foo'}
 
-        xmlns = mapper.set_context(obj, level=0)
+        xmlns = mapper.set_xmlns_context(obj, level=0)
         self.assertEqual(len(mapper._xmlns_contexts), 0)
         self.assertIsNone(xmlns)
 

@@ -17,6 +17,7 @@ from typing import Any, NamedTuple, Optional, Union, TypeVar, TYPE_CHECKING, cas
 from xmlschema.aliases import NsmapType, ElementType, XmlnsType, SchemaType
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from xmlschema.utils.decoding import iter_decoded_data
+from xmlschema.utils.misc import deprecated
 from xmlschema.utils.qnames import get_namespace_map, update_namespaces, local_name
 from xmlschema.resources import XMLResource
 from xmlschema.locations import NamespaceResourcesMap
@@ -61,9 +62,8 @@ class NamespaceMapper(MutableMapping[str, str]):
     :param source: the origin of XML data. Con be an `XMLResource` instance, an XML \
     decoded data or `None`.
     """
-    __slots__ = ('namespaces', 'process_namespaces', 'strip_namespaces',
-                 'xmlns_processing', 'source', 'level', '_use_namespaces',
-                 '_xmlns_getter', '_xmlns_contexts', '_reverse')
+    __slots__ = ('namespaces', 'process_namespaces', 'strip_namespaces', 'xmlns_processing',
+                 'source', '_use_namespaces', '_xmlns_getter', '_xmlns_contexts', '_reverse')
 
     _arguments = NsMapperArguments
     _xmlns_getter: Optional[Callable[[ElementType], XmlnsType]]
@@ -73,13 +73,11 @@ class NamespaceMapper(MutableMapping[str, str]):
                  process_namespaces: bool = True,
                  strip_namespaces: bool = False,
                  xmlns_processing: Optional[str] = None,
-                 source: Optional[Any] = None,
-                 level: int = 0) -> None:
+                 source: Optional[Any] = None) -> None:
 
         self.process_namespaces = process_namespaces
         self.strip_namespaces = strip_namespaces
         self.source = source
-        self.level = level
 
         if xmlns_processing is None:
             self.xmlns_processing = self.xmlns_processing_default
@@ -181,11 +179,15 @@ class NamespaceMapper(MutableMapping[str, str]):
 
         return namespaces
 
+    @deprecated('5.0')
     def set_context(self, obj: Any, level: int) -> XmlnsType:
+        return self.set_xmlns_context(obj, level)
+
+    def set_xmlns_context(self, obj: Any, level: int) -> XmlnsType:
         """
-                set the right context for the XML data and its level, updating the namespace
-                map if necessary. Returns the xmlns declarations of the provided XML data.
-                """
+        Set the right context for the XML data and its level, updating the namespace
+        map if necessary. Returns the xmlns declarations of the provided XML data.
+        """
         xmlns = None
 
         if self._xmlns_contexts:

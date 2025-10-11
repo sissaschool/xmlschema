@@ -557,7 +557,7 @@ class DataElementConverter(XMLSchemaConverter):
 
     def element_encode(self, data_element: 'DataElement', xsd_element: 'XsdElement',
                        level: int = 0) -> ElementData:
-        xmlns = self.set_context(data_element, level)
+        xmlns = self.set_xmlns_context(data_element, level)
         if not xsd_element.is_matching(data_element.tag):
             raise XMLSchemaValueError("Unmatched tag")
 

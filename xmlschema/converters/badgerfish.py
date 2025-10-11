@@ -116,7 +116,7 @@ class BadgerFishConverter(XMLSchemaConverter):
         content: list[tuple[Union[str, int], Any]] = []
         attributes = {}
 
-        xmlns = self.set_context(obj, level)
+        xmlns = self.set_xmlns_context(obj, level)
 
         for name, value in obj.items():
             if name == '@xmlns':

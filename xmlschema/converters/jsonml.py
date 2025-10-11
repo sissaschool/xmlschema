@@ -16,7 +16,7 @@ from xmlschema.aliases import NsmapType, BaseXsdType
 from .base import ElementData, stackable, XMLSchemaConverter
 
 if TYPE_CHECKING:
-    from xmlschema.validators import XsdElement
+    from xmlschema.validators import XsdElement  # noqa: F401
 
 
 class JsonMLConverter(XMLSchemaConverter):
@@ -97,7 +97,7 @@ class JsonMLConverter(XMLSchemaConverter):
         elif not obj:
             raise XMLSchemaValueError("The first argument is an empty sequence")
 
-        xmlns = self.set_context(obj, level)
+        xmlns = self.set_xmlns_context(obj, level)
 
         tag = self.unmap_qname(obj[0])
         if not xsd_element.is_matching(tag):

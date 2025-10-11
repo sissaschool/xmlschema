@@ -944,7 +944,6 @@ class XsdElement(XsdComponent, ParticleMixin,
             return None
 
         tag, text, content, attributes, xmlns = element_data
-        context.elem = None
 
         if self.abstract:
             if self.name == tag and context.converter.losslessly:
@@ -997,6 +996,8 @@ class XsdElement(XsdComponent, ParticleMixin,
                             attributes[local_name] = attributes[k]
                             del attributes[k]
 
+        context.elem = context.converter.etree_element(tag)
+
         attribute_group = self.get_attributes(xsd_type)
         context.level += 1
         try:
@@ -1008,8 +1009,6 @@ class XsdElement(XsdComponent, ParticleMixin,
             attrib = raw_encode_attributes(attributes)
         finally:
             context.level -= 1
-
-        context.elem = elem = context.create_element(tag, attrib)
 
         if nm.XSI_NIL in attributes:
             xsi_nil = attributes[nm.XSI_NIL].strip()
@@ -1024,6 +1023,7 @@ class XsdElement(XsdComponent, ParticleMixin,
             elif text not in (None, '') or content:
                 errors.append("xsi:nil='true' but the element is not empty.")
             else:
+                elem = context.converter.etree_element(tag, attrib=attrib)
                 for e in errors:
                     context.validation_error(validation, self, e, elem)
                 return elem
@@ -1034,42 +1034,48 @@ class XsdElement(XsdComponent, ParticleMixin,
 
             if text is not None:
                 try:
-                    elem.text = xsd_type.raw_encode(text, validation, context)
+                    text = xsd_type.raw_encode(text, validation, context)
                 except XMLSchemaValidationError as err:
                     if err.elem is not None:
                         raise
                     errors.append(err)
 
             elif self.fixed is not None:
-                elem.text = self.fixed
+                text = self.fixed
             elif self.default is not None and context.use_defaults:
-                elem.text = self.default
+                text = self.default
+
+            elem = context.converter.etree_element(tag, text, attrib=attrib)
 
         elif isinstance(xsd_type.content, XsdSimpleType):
             if xsd_type.content.max_length == 0:
                 pass
             elif text is not None:
                 try:
-                    elem.text = xsd_type.content.raw_encode(text, validation, context)
+                    text = xsd_type.content.raw_encode(text, validation, context)
                 except XMLSchemaValidationError as err:
                     if err.elem is not None:
                         raise
                     errors.append(err)
 
             elif self.fixed is not None:
-                elem.text = self.fixed
+                text = self.fixed
             elif self.default is not None and context.use_defaults:
-                elem.text = self.default
+                text = self.default
 
+            elem = context.converter.etree_element(tag, text, attrib=attrib)
         else:
             element_data = ElementData(tag, text, content, attrib, xmlns)
             context.level += 1
             try:
-                xsd_type.content.raw_encode(element_data, validation, context)
+                elem = xsd_type.content.raw_encode(element_data, validation, context)
             except XMLSchemaValidationError as err:
                 errors.append(err)
+                elem = context.converter.etree_element(tag, text, attrib=attrib)
             finally:
                 context.level -= 1
+
+        context.elem = elem
 
         if errors:
             for e in errors:

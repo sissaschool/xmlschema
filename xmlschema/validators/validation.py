@@ -16,6 +16,7 @@ from dataclasses import asdict, dataclass, field
 from typing import Any, Generic, Optional, Type, TYPE_CHECKING, TypeVar, Union
 from xml.etree.ElementTree import Element
 
+from xmlschema import ElementData
 from xmlschema.aliases import DecodeType, DepthFillerType, ElementType, \
     ElementHookType, EncodeType, ExtraValidatorType, FillerType, IterDecodeType, \
     IterEncodeType, ModelParticleType, NsmapType, SchemaElementType, \
@@ -238,6 +239,7 @@ class EncodeContext(ValidationContext):
     etree_element_class: Optional[Type[ElementType]] = None
     unordered: bool = False
     untyped_data: bool = False
+    tag: Optional[str] = None
 
     def encode_error(self,
                      validation: str,
@@ -255,36 +257,59 @@ class EncodeContext(ValidationContext):
         )
         return self.raise_or_collect(validation, error)
 
-    @property
-    def padding(self) -> str:
-        return '\n' + ' ' * self.indent * self.level
-
-    def create_element(self, tag: str) -> ElementType:
+    def create_element(self, tag: str, attrib: Optional[dict[str, str]] = None) -> ElementType:
         """
-        Builds an ElementTree/lxml Element.
+        Create an ElementTree's Element using converter settings.
 
         :param tag: the Element tag string.
+        :param attrib: an optional dictionary with Element attributes.
         """
         if self.etree_element_class is None:
-            self.elem = Element(tag)
+            return Element(tag) if attrib is None else Element(tag, attrib)
         else:
             nsmap = {prefix if prefix else None: uri
                      for prefix, uri in self.namespaces.items() if uri}
-            self.elem = self.etree_element_class(tag, nsmap=nsmap)  # type: ignore[arg-type]
-        return self.elem
+            try:
+                return self.etree_element_class(
+                    tag, attrib, nsmap   # type: ignore[call-arg, arg-type]
+                )
+            except TypeError:
+                if attrib is not None:
+                    return self.etree_element_class(tag, attrib)
+                else:
+                    return self.etree_element_class(tag)
 
-    def set_element_content(self, elem: Element, text: Optional[str],
-                            children: list[Element]) -> None:
+    def set_element_content(self, elem: ElementType,
+                            text: Optional[str] = None,
+                            children: Optional[list[Element]] = None,
+                            level: int = 0,
+                            mixed: bool = False) -> None:
+        """
+        Set the content of an Element.
+
+        :param elem: the target Element.
+        :param text: the Element text.
+        :param children: the list of Element children/subelements.
+        :param level: the level related to the encoding process (0 means the root).
+        :param mixed: whether to add custom indentation to children. For default \
+        the element content is considered to be element-only.
+        """
+        elem.text = text
         if children:
-            if children[-1].tail is None:
-                children[-1].tail = self.padding
-            else:
-                children[-1].tail = children[-1].tail.strip() + self.padding
+            elem[:] = children
+            if not mixed:
+                padding = '\n' + ' ' * self.indent * level
+                elem.text = padding if not elem.text else padding + elem.text  # FIXME? + padding
 
-            elem.text = text or self.padding
-            elem.extend(children)
-        else:
-            elem.text = text
+                for child in elem:
+                    if not child.tail:
+                        child.tail = padding
+                    else:
+                        child.tail = padding + child.tail + padding
+
+                if self.indent:
+                    assert children[-1].tail is not None
+                    children[-1].tail = children[-1].tail[:-self.indent]
 
 
 ST = TypeVar('ST')

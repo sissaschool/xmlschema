@@ -381,6 +381,7 @@ class LocationsOption(Option[Optional[LocationsType]]):
 class ElementTypeOption(Option[Optional[ElementType]]):
     def validated_value(self, value: Any) -> Optional[ElementType]:
         if value is None or is_subclass(value, Element) or \
+                callable(value) and value.__name__ == 'Element' or \
                 is_subclass(value, object) and hasattr(value, '__iter__') \
                 and hasattr(value, '__len__') and hasattr(value, 'makeelement'):
             return cast(ElementType, value)
@@ -459,12 +460,12 @@ class NsMapperArguments(Arguments):
     strip_namespaces = BooleanOption(default=False)
     xmlns_processing = XmlNsProcessingOption(default='stacked')
     source = SourceOption(default=None)
-    level = NonNegIntOption(default=0)
 
 
 class ConverterArguments(NsMapperArguments):
     dict_class = DictClassOption(default=None)
     list_class = ListClassOption(default=None)
+    etree_element_class = ElementTypeOption(default=None)
     text_key = NillableStringOption(default='$')
     attr_prefix = NillableStringOption(default='@')
     cdata_prefix = NillableStringOption(default=None)
@@ -474,6 +475,7 @@ class ConverterArguments(NsMapperArguments):
 
 
 class ValidationArguments(Arguments):
+    level = NonNegIntOption(default=0)
     check_identities = BooleanOption(default=False)
     use_defaults = BooleanOption(default=True)
     preserve_mixed = BooleanOption(default=False)

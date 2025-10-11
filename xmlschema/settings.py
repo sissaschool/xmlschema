@@ -33,6 +33,7 @@ from xmlschema.namespaces import NamespaceMapper
 from xmlschema.converters import XMLSchemaConverter, ConverterOption, ConverterType
 from xmlschema.loaders import SchemaLoader, LoaderClassOption
 from xmlschema.xpath import ElementSelector
+from xmlschema import limits
 
 from xmlschema.validators.validation import ValidationContext, DecodeContext, EncodeContext
 
@@ -197,10 +198,6 @@ class SchemaSettings(ResourceSettings):
         :param kwargs: optional arguments to initialize the converter instance.
         :return: a converter instance.
         """
-        if 'etree_element_class' in kwargs:
-            kwargs.pop('etree_element_class')
-        if 'indent' in kwargs:
-            kwargs.pop('indent')
         if converter is None:
             converter = self.converter
 
@@ -296,10 +293,13 @@ class SchemaSettings(ResourceSettings):
                            namespaces: Optional[MutableMapping[str, str]] = None,
                            errors: Optional[ErrorsType] = None,
                            **kwargs: Any) -> EncodeContext:
-
         kwargs['source'] = source
         kwargs['converter'] = converter = self.get_converter(namespaces=namespaces, **kwargs)
         kwargs['namespaces'] = converter.namespaces
+        if converter.etree_element_class is Element:
+            kwargs.pop('etree_element_class', None)
+        if converter.indent != 4:
+            kwargs['indent'] = converter.indent
         kwargs['errors'] = errors if errors is not None else []
         return EncodeContext(
             **{k: kwargs[k] for k in kwargs if k in EncodeContext.__dataclass_fields__}

@@ -7,7 +7,6 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-import warnings
 from collections import namedtuple
 from collections.abc import Callable, Iterator, Iterable, MutableMapping, MutableSequence
 from typing import TYPE_CHECKING, Any, Optional, TypeVar, Union
@@ -68,8 +67,7 @@ class XMLSchemaConverter(NamespaceMapper):
     :param dict_class: dictionary class to use for decoded data. Default is `dict`.
     :param list_class: list class to use for decoded data. Default is `list`.
     :param etree_element_class: the class to use for creating new XML elements, \
-    if not provided uses the ElementTree's Element class. Deprecated, it's now \
-    applied to encoding contexts.
+    if not provided uses the ElementTree's Element class.
     :param text_key: The dictionary key of the item containing the text of the element, \
     if present and if expected by the converter.
     :param attr_prefix: controls the mapping of XML attributes, to the same name or \
@@ -77,8 +75,7 @@ class XMLSchemaConverter(NamespaceMapper):
     :param cdata_prefix: is used for including and prefixing the character data parts \
     of a mixed content, that are labeled with an integer instead of a string. \
     Character data parts are ignored if this argument is `None`.
-    :param indent: number of spaces for XML indentation (default is 4). Deprecated in \
-    converters, it's now an option of the encoding contexts.
+    :param indent: number of spaces for XML indentation (default is 4).
     :param process_namespaces: whether to use namespace information in name mapping \
     methods. If set to `False` then the name mapping methods simply return the \
     provided name.
@@ -101,7 +98,6 @@ class XMLSchemaConverter(NamespaceMapper):
 
     :ivar dict_class: dictionary class to use for decoded data.
     :ivar list_class: list class to use for decoded data.
-    :ivar etree_element_class: Element class to use
     :ivar text_key: key for decoded Element text
     :ivar attr_prefix: prefix for attribute names
     :ivar cdata_prefix: prefix for character data parts
@@ -112,7 +108,6 @@ class XMLSchemaConverter(NamespaceMapper):
     """
     _arguments = ConverterArguments
     ns_prefix: str
-    etree_element_class: type[Element]
 
     __slots__ = ('dict_class', 'list_class', 'text_key', 'ns_prefix', 'attr_prefix',
                  'cdata_prefix', 'preserve_root', 'force_dict', 'force_list', '__dict__')
@@ -152,24 +147,15 @@ class XMLSchemaConverter(NamespaceMapper):
         self.list = self.list_class
         # Deprecated attributes: will be removed in v5.0
 
-        if etree_element_class is not None:
-            msg = ("'etree_element_class' argument is now handled by the encoding context "
-                   "and will be removed from converters starting with version v5.0.")
-            warnings.warn(msg, DeprecationWarning)
-            self.etree_element_class = etree_element_class
-        else:
-            self.etree_element_class = Element
-
         self.text_key = text_key
         self.attr_prefix = attr_prefix
         self.cdata_prefix = cdata_prefix
         self.ns_prefix = 'xmlns' if attr_prefix is None else f'{attr_prefix}xmlns'
 
-        if indent is not _indent:
-            msg = ("'indent' argument is now handled by the encoding context and "
-                   "will be removed from converters starting with version v5.0.")
-            warnings.warn(msg, DeprecationWarning)
-            raise TypeError(msg)
+        if etree_element_class is not None:
+            self.etree_element_class = etree_element_class
+        else:
+            self.etree_element_class = Element
 
         self.indent = indent
         self.preserve_root = preserve_root
@@ -177,7 +163,7 @@ class XMLSchemaConverter(NamespaceMapper):
         self.force_list = force_list
 
         super().__init__(
-            namespaces, process_namespaces, strip_namespaces, xmlns_processing, source, level
+            namespaces, process_namespaces, strip_namespaces, xmlns_processing, source
         )
 
     @property
@@ -224,6 +210,10 @@ class XMLSchemaConverter(NamespaceMapper):
         """
         namespaces = kwargs.get('namespaces', self.namespaces if keep_namespaces else None)
         xmlns_processing = None if 'source' in kwargs else self.xmlns_processing
+        if 'indent' not in kwargs or kwargs['indent'] != self.indent:
+            indent = self.indent
+        else:
+            indent = kwargs['indent']
 
         return type(self)(
             namespaces=namespaces,
@@ -233,6 +223,8 @@ class XMLSchemaConverter(NamespaceMapper):
             attr_prefix=kwargs.get('attr_prefix', self.attr_prefix),
             cdata_prefix=kwargs.get('cdata_prefix', self.cdata_prefix),
             preserve_root=kwargs.get('preserve_root', self.preserve_root),
+            etree_element_class=kwargs.get('etree_element_class', self.etree_element_class),
+            indent=indent,
             force_dict=kwargs.get('force_dict', self.force_dict),
             force_list=kwargs.get('force_list', self.force_list),
             process_namespaces=kwargs.get('process_namespaces', self.process_namespaces),
@@ -460,7 +452,7 @@ class XMLSchemaConverter(NamespaceMapper):
         content: list[tuple[Union[int, str], Any]] = []
         attributes = {}
 
-        xmlns = self.set_context(obj, level)
+        xmlns = self.set_xmlns_context(obj, level)
 
         if element_name is None:
             tag = xsd_element.name

@@ -52,7 +52,7 @@ from xmlschema.locations import SCHEMAS_DIR
 from xmlschema.loaders import SchemaLoader
 from xmlschema.exports import export_schema
 from xmlschema.settings import SchemaSettings
-from xmlschema import dataobjects
+from xmlschema import dataobjects, limits
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaEncodeError, \
     XMLSchemaStopValidation
