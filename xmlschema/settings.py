@@ -33,7 +33,6 @@ from xmlschema.namespaces import NamespaceMapper
 from xmlschema.converters import XMLSchemaConverter, ConverterOption, ConverterType
 from xmlschema.loaders import SchemaLoader, LoaderClassOption
 from xmlschema.xpath import ElementSelector
-from xmlschema import limits
 
 from xmlschema.validators.validation import ValidationContext, DecodeContext, EncodeContext
 

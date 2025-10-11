@@ -25,7 +25,7 @@ from elementpath.datatypes import NormalizedString, QName, Float10, Integer, \
 from elementpath.protocols import ElementProtocol, DocumentProtocol
 from elementpath import ElementNode, LazyElementNode, DocumentNode
 
-from .utils.protocols import IOProtocol
+from xmlschema.utils.protocols import IOProtocol
 
 if TYPE_CHECKING:
     from xmlschema.resources import XMLResource  # noqa: F401
@@ -123,7 +123,7 @@ DecodeType = Union[Optional[D], tuple[Optional[D], ErrorsType]]
 IterDecodeType = Iterator[Union[D, 'XMLSchemaValidationError']]
 
 E = TypeVar('E')
-EncodeType = Union[E, tuple[E, ErrorsType]]
+EncodeType = Union[Optional[E], tuple[Optional[E], ErrorsType]]
 IterEncodeType = Iterator[Union[E, 'XMLSchemaValidationError']]
 
 JsonDecodeType = Union[str, None, tuple['XMLSchemaValidationError', ...],

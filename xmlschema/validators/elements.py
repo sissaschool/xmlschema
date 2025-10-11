@@ -803,7 +803,7 @@ class XsdElement(XsdComponent, ParticleMixin,
                     value = str(value)
 
         context.id_list = id_list
-        xmlns = context.converter.set_xmlns_context(obj, context.level)  # Purge existing sub-contexts
+        xmlns = context.converter.set_xmlns_context(obj, context.level)  # Purge sub-contexts
 
         if isinstance(context, DecodeContext):
             element_data = ElementData(obj.tag, value, content, attributes, xmlns)
@@ -1001,7 +1001,7 @@ class XsdElement(XsdComponent, ParticleMixin,
         context.level += 1
         try:
             elem.attrib.update(attribute_group.raw_encode(attributes, validation, context))
-        except XMLSchemaValidationError as err:
+        except XMLSchemaValidationError:
             elem.attrib.update(raw_encode_attributes(attributes))
             raise
 

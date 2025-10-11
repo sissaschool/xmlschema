@@ -17,7 +17,8 @@ from elementpath.etree import etree_tostring
 
 from xmlschema.exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, \
     XMLSchemaValueError
-from xmlschema.aliases import ElementType, XMLSourceType, NsmapType, BaseXsdType, DecodeType
+from xmlschema.aliases import ElementType, XMLSourceType, NsmapType, BaseXsdType, \
+    DecodeType, EncodeType
 from xmlschema.converters import ElementData, XMLSchemaConverter
 from xmlschema.resources import XMLResource
 from xmlschema.utils.qnames import get_namespace, get_prefixed_qname, \
@@ -304,8 +305,7 @@ class DataElement(MutableSequence['DataElement']):
             else:
                 del result
 
-    def encode(self, validation: str = 'strict', **kwargs: Any) \
-            -> Union[ElementType, tuple[ElementType, list['XMLSchemaValidationError']]]:
+    def encode(self, validation: str = 'strict', **kwargs: Any) -> EncodeType[ElementType]:
         """
         Encodes the data object to XML.
 
@@ -355,7 +355,9 @@ class DataElement(MutableSequence['DataElement']):
         :param method: is either "xml" (the default), "html" or "text".
         :return: a Unicode string.
         """
-        root, _ = self.encode(validation='lax')
+        root, _ = self.encode(validation='lax')  # type: ignore[misc]
+        if root is None:
+            return ''
         if not hasattr(root, 'nsmap'):
             namespaces = self.get_namespaces(namespaces, root_only=False)
 

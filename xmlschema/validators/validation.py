@@ -263,7 +263,6 @@ class EncodeContext(ValidationContext):
         Create an ElementTree's Element using converter setting.
 
         :param tag: the Element tag string.
-        :param attrib: an optional dictionary with Element attributes.
         """
         if self.etree_element_class is None:
             return Element(tag)

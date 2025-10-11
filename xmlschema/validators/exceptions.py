@@ -14,8 +14,8 @@ from typing import TYPE_CHECKING, Any, cast, Optional, Union
 
 from elementpath.etree import etree_tostring
 
-from xmlschema.exceptions import XMLSchemaException, XMLSchemaWarning, XMLSchemaValueError, XMLSchemaAttributeError, \
-    XMLSchemaTypeError
+from xmlschema.exceptions import XMLSchemaException, XMLSchemaWarning, \
+    XMLSchemaValueError, XMLSchemaAttributeError, XMLSchemaTypeError
 from xmlschema.aliases import ElementType, NsmapType, SchemaType, SchemaElementType, \
     ModelParticleType
 from xmlschema.translation import gettext as _
