@@ -12,8 +12,9 @@ import decimal
 import logging
 from abc import abstractmethod, ABCMeta
 from collections import Counter
-from collections.abc import Iterable, Iterator, MutableMapping
+from collections.abc import Iterable, Iterator, MutableMapping, MutableSequence
 from dataclasses import asdict, dataclass, field
+from functools import partial
 from typing import Any, Generic, Optional, Type, TYPE_CHECKING, TypeVar, Union
 from xml.etree.ElementTree import Element
 
@@ -24,15 +25,19 @@ from xmlschema.aliases import DecodeType, DepthFillerType, ElementType, \
     IterEncodeType, ModelParticleType, NsmapType, SchemaElementType, \
     SchemaType, ValidationHookType, ValueHookType, ErrorsType, DecodedValueType, \
     GlobalMapsType
+from xmlschema.exceptions import XMLSchemaTypeError
 from xmlschema.translation import gettext as _
 from xmlschema.utils.decoding import EmptyType, raw_encode_value
-from xmlschema.utils.etree import is_etree_element
+from xmlschema.utils.etree import is_etree_element, is_etree_document
 from xmlschema.utils.logger import format_xmlschema_stack
 from xmlschema.utils.qnames import get_prefixed_qname
 from xmlschema.namespaces import NamespaceMapper
 from xmlschema.converters import XMLSchemaConverter
 from xmlschema.resources import XMLResource
-from xmlschema.arguments import ValidationArguments
+from xmlschema.arguments import Arguments, BooleanOption, NonNegIntOption, \
+    validate_type, Argument, MaxDepthOption, ExtraValidatorOption, \
+    ValidationHookOption, FillerOption, ElementHookOption, DepthFillerOption, \
+    ValueHookOption, DecimalTypeOption, ElementTypeOption, KeepDatatypesArgument
 
 from .exceptions import XMLSchemaValidationError, \
     XMLSchemaChildrenValidationError, XMLSchemaDecodeError, XMLSchemaEncodeError
@@ -43,6 +48,70 @@ if TYPE_CHECKING:
     from .identities import XsdIdentity, IdentityCounter  # noqa: F401
 
 logger = logging.getLogger('xmlschema')
+
+
+###
+# Arguments for validation contexts
+
+class ValidationSourceArgument(Argument[Any]):
+    _validators = partial(validate_type, types=XMLResource),
+
+
+class EncodeSourceArgument(Argument[Any]):
+    def validated_value(self, value: Any) -> Any:
+        if isinstance(value, XMLResource) or is_etree_document(value) or \
+                (is_etree_element(value) and not isinstance(value, MutableSequence)):
+            msg = _("invalid type {!r} for {}")
+            raise XMLSchemaTypeError(msg.format(type(value), self))
+        return value
+
+
+class NamespaceMapperArgument(Argument[NamespaceMapper]):
+    _validators = partial(validate_type, types=NamespaceMapper),
+
+
+class ConverterArgument(Argument[XMLSchemaConverter]):
+    _validators = partial(validate_type, types=XMLSchemaConverter),
+
+
+class ErrorsArgument(Argument[list['XMLSchemaValidationError']]):
+    _validators = partial(validate_type, types=list),
+
+
+class ValidationArguments(Arguments):
+    source = ValidationSourceArgument()
+    converter = NamespaceMapperArgument()
+    errors = ErrorsArgument()
+    level = NonNegIntOption(default=0)
+    max_depth = MaxDepthOption(default=None)
+    extra_validator = ExtraValidatorOption(default=None)
+    validation_hook = ValidationHookOption(default=None)
+
+    validation_only = use_defaults = BooleanOption(default=True)
+    check_identities = preserve_mixed = process_skipped = \
+        use_location_hints = BooleanOption(default=False)
+
+
+class DecodeArguments(ValidationArguments):
+    converter = ConverterArgument()
+    keep_datatypes = KeepDatatypesArgument()
+    decimal_type = DecimalTypeOption(default=None)
+    filler = FillerOption(default=None)
+    depth_filler = DepthFillerOption(default=None)
+    value_hook = ValueHookOption(default=None)
+    element_hook = ElementHookOption(default=None)
+
+    datetime_types = binary_types = fill_missing = \
+        keep_empty = keep_unknown = BooleanOption(default=False)
+
+
+class EncodeArguments(ValidationArguments):
+    source = EncodeSourceArgument()
+    converter = ConverterArgument()
+    indent = NonNegIntOption(default=4)
+    etree_element_class = ElementTypeOption(default=None)
+
+    unordered = untyped_data = BooleanOption(default=False)
 
 
 @dataclass(slots=True)
@@ -240,6 +309,8 @@ class DecodeContext(ValidationContext):
     value_hook: Optional[ValueHookType] = None
     element_hook: Optional[ElementHookType] = None
 
+    _arguments = DecodeArguments
+
     @classmethod
     def from_kwargs(cls, **kwargs: Any) -> 'DecodeContext':
         converter = kwargs.get('converter')
@@ -270,7 +341,8 @@ class EncodeContext(ValidationContext):
     etree_element_class: Optional[Type[ElementType]] = None
     unordered: bool = False
     untyped_data: bool = False
-    tag: Optional[str] = None
+
+    _arguments = EncodeArguments
 
     @classmethod
     def from_kwargs(cls, **kwargs: Any) -> 'EncodeContext':

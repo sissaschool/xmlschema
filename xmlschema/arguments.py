@@ -19,7 +19,7 @@ from xml.etree.ElementTree import Element
 
 from xmlschema.aliases import XMLSourceType, UriMapperType, IterParseType, BlockType, \
     FillerType, DepthFillerType, ExtraValidatorType, ValidationHookType, ValueHookType, \
-    ElementHookType, ElementType, LogLevelType, LocationsType, NsmapType
+    ElementHookType, ElementType, LogLevelType, LocationsType, NsmapType, DecodedValueType
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError, \
     XMLSchemaAttributeError
 from xmlschema.translation import gettext as _
@@ -294,7 +294,7 @@ class LazyOption(Option[Union[bool, int]]):
 
 
 class BlockOption(Option[Optional[BlockType]]):
-    def validator(self, value: Any) -> Optional[BlockType]:
+    def validated_value(self, value: Any) -> Optional[BlockType]:
         if value is None:
             return value
         elif isinstance(value, str):
@@ -406,6 +406,33 @@ class ListClassOption(Option[Optional[type[list[Any]]]]):
     _validators = partial(validate_subclass, cls=list, none=True),
 
 
+class KeepDatatypesArgument(Argument[tuple[type[DecodedValueType], ...]]):
+    def validated_value(self, value: Any) -> tuple[type[DecodedValueType], ...]:
+        if isinstance(value, tuple) and all(is_subclass(x, object) for x in value):
+            return cast(tuple[type[DecodedValueType], ...], value)
+
+        msg = _("invalid type {!r} for {}, must be a type or None")
+        raise XMLSchemaTypeError(msg.format(value, self, str, float))
+
+
+class DecimalTypeOption(Option[Union[None, type[str], type[float]]]):
+    def validated_value(self, value: Any) -> Union[None, type[str], type[float]]:
+        if value is None or is_subclass(value, object):
+            return cast(Union[None, type[str], type[float]], value)
+
+        msg = _("invalid type {!r} for {}, must be a type or None")
+        raise XMLSchemaTypeError(msg.format(value, self, str, float))
+
+
+class ElementClassOption(Option[Optional[type[ElementType]]]):
+    def validated_value(self, value: Any) -> Optional[type[ElementType]]:
+        if value is None or is_subclass(value, object) or callable(value):
+            return cast(Optional[type[ElementType]], value)
+
+        msg = _("invalid type {!r} for {}, must be a type, a callable or None")
+        raise XMLSchemaTypeError(msg.format(value, self, str, float))
+
+
 class MaxDepthOption(Option[Optional[int]]):
     _validators = none_int_validator, non_neg_int_validator
 
@@ -441,17 +468,9 @@ class Arguments:
     """Base class for arguments validation-only classes."""
     @classmethod
     def validate(cls, instance: Any) -> None:
-        for c in cls.__mro__:
-            for attr, value in c.__dict__.items():
-                if attr[0] != '_' and isinstance(value, Argument):
-                    value.validated_value(getattr(instance, attr))
-
-    @classmethod
-    def validate_kwargs(cls, **kwargs: Any) -> None:
-        for c in cls.__mro__:
-            for attr, value in c.__dict__.items():
-                if attr in kwargs and isinstance(value, Argument):
-                    value.validated_value(kwargs[attr])
+        for attr in dir(cls):
+            if attr[0] != '_' and isinstance(value := getattr(cls, attr), Argument):
+                value.validated_value(getattr(instance, attr))
 
 
 class NsMapperArguments(Arguments):
@@ -472,15 +491,3 @@ class ConverterArguments(NsMapperArguments):
     preserve_root = BooleanOption(default=False)
     force_dict = BooleanOption(default=False)
     force_list = BooleanOption(default=False)
-
-
-class ValidationArguments(Arguments):
-    level = NonNegIntOption(default=0)
-    check_identities = BooleanOption(default=False)
-    use_defaults = BooleanOption(default=True)
-    preserve_mixed = BooleanOption(default=False)
-    process_skipped = BooleanOption(default=False)
-    max_depth = MaxDepthOption(default=None)
-    extra_validator = ExtraValidatorOption(default=None)
-    validation_hook = ValidationHookOption(default=None)
-    use_location_hints = BooleanOption(default=False)
