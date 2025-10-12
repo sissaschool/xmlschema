@@ -407,7 +407,7 @@ class ListClassOption(Option[Optional[type[list[Any]]]]):
 
 
 class MaxDepthOption(Option[Optional[int]]):
-    _validators = none_int_validator, pos_int_validator
+    _validators = none_int_validator, non_neg_int_validator
 
 
 class FillerOption(Option[Optional[FillerType]]):

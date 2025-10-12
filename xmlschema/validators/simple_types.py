@@ -736,8 +736,7 @@ class XsdAtomicBuiltin(XsdAtomic):
         if self.post_decode:
             if self.name == nm.XSD_QNAME:
                 if ':' not in obj:
-                    default_namespace = context.namespaces.get('')
-                    if default_namespace:
+                    if default_namespace := context.converter.get(''):
                         result = f"{{{default_namespace}}}{obj}"
                 else:
                     try:
@@ -746,7 +745,7 @@ class XsdAtomicBuiltin(XsdAtomic):
                         pass
                     else:
                         try:
-                            result = f"{{{context.namespaces[prefix]}}}{name}"
+                            result = f"{{{context.converter.namespaces[prefix]}}}{name}"
                         except (TypeError, KeyError):
                             if context.root_namespace != nm.XSD_NAMESPACE:
                                 # For a schema is already found by meta-schema validation
@@ -1506,9 +1505,9 @@ class XsdAtomicRestriction(XsdAtomic):
         if self.validators:
             value: DecodedValueType
             if isinstance(obj, list):
-                value = [self.get_atomic_value(x, context.namespaces) for x in obj]
+                value = [self.get_atomic_value(x, context.converter.namespaces) for x in obj]
             else:
-                value = self.get_atomic_value(obj, context.namespaces)
+                value = self.get_atomic_value(obj, context.converter.namespaces)
 
             for validator in self.validators:
                 try:

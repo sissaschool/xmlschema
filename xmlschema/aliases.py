@@ -21,7 +21,7 @@ from typing import Any, AnyStr, IO, Optional, TYPE_CHECKING, TypeVar, Union
 from xml.etree.ElementTree import Element, ElementTree
 
 from elementpath.datatypes import NormalizedString, QName, Float10, Integer, \
-    AnyURI, Duration, AbstractDateTime, AbstractBinary
+    AnyURI, Duration, AbstractDateTime, AbstractBinary, AnyAtomicType
 from elementpath.protocols import ElementProtocol, DocumentProtocol
 from elementpath import ElementNode, LazyElementNode, DocumentNode
 
@@ -58,8 +58,9 @@ XmlnsType = Optional[list[tuple[str, str]]]
 # Type aliases for XML resources
 IOType = Union[IOProtocol[str], IOProtocol[bytes]]
 EtreeType = Union[Element, ElementTree, ElementProtocol, DocumentProtocol]
-SourceType = Union[str, bytes, Path, IO[str], IO[bytes]]
-XMLSourceType = Union[SourceType, EtreeType]
+XMLSourceType = Union[EtreeType, str, bytes, Path, IO[str], IO[bytes]]
+SourceArgType = Union[XMLSourceType, 'XMLResource']
+SourceDataArgType = Union[SourceArgType, dict[str, str], None, AnyAtomicType, bytes]
 
 ResourceNodeType = Union[ElementNode, LazyElementNode, DocumentNode]
 BaseUrlType = Union[str, bytes, Path]
@@ -78,9 +79,6 @@ LogLevelType = Union[int, str, None]
 
 ##
 # Type aliases for XSD components
-SchemaSourceType = Union[
-    str, bytes, Path, IO[str], IO[bytes], Element, ElementTree, 'XMLResource'
-]
 SchemaType = Union['XMLSchemaBase']
 GlobalMapsType = Union['XsdGlobals']
 BaseXsdType = Union['XsdSimpleType', 'XsdComplexType']

@@ -9,38 +9,32 @@
 #
 """Package settings for setup protection defaults."""
 import dataclasses as dc
-import decimal
-from collections.abc import MutableMapping
 from typing import cast, Optional, Any
 from xml.etree.ElementTree import Element
 
-from elementpath.datatypes import AnyAtomicType, AbstractDateTime, Duration, AbstractBinary
+from elementpath.datatypes import AnyAtomicType
 
 from xmlschema.aliases import XMLSourceType, BaseUrlType, DecodedValueType, \
-    ErrorsType, GlobalMapsType
-from xmlschema.exceptions import XMLSchemaTypeError
+    GlobalMapsType, SourceArgType
+from xmlschema.exceptions import XMLSchemaTypeError, XMLResourceError
 from xmlschema.translation import gettext as _
 from xmlschema.arguments import BooleanOption, BaseUrlOption, AllowOption, \
     DefuseOption, LazyOption, BlockOption, UriMapperOption, IterParseOption, \
     SelectorOption, OpenerOption, PositiveIntOption, MaxDepthOption, LocationsOption, \
     ValidationOption, FillerOption, DepthFillerOption, ExtraValidatorOption, \
     ValidationHookOption, ValueHookOption, ElementHookOption, ElementTypeOption, \
-    LogLevelOption, ValidationArguments
-from xmlschema.utils.decoding import raw_encode_value
+    LogLevelOption
+from xmlschema.utils.decoding import raw_encode_value, raw_encode_attributes
 from xmlschema.utils.etree import is_etree_element, is_etree_document
 from xmlschema.resources import XMLResource
-from xmlschema.namespaces import NamespaceMapper
 from xmlschema.converters import XMLSchemaConverter, ConverterOption, ConverterType
 from xmlschema.loaders import SchemaLoader, LoaderClassOption
 from xmlschema.xpath import ElementSelector
-
-from xmlschema.validators.validation import ValidationContext, DecodeContext, EncodeContext
 
 
 @dc.dataclass
 class ResourceSettings:
     """Settings for accessing XML resources."""
-    # resource_class: type[XMLResource] = XMLResource
 
     base_url: BaseUrlOption = BaseUrlOption(default=None)
     """The effective base URL used for completing relative locations."""
@@ -111,11 +105,16 @@ class ResourceSettings:
     selector: SelectorOption = SelectorOption(default=ElementSelector)
     """The selector class to use for XPath element selectors."""
 
-    def get_xml_resource(self, source: XMLSourceType,
-                         base_url: Optional[BaseUrlType] = None) -> XMLResource:
+    def get_xml_resource(self, source: SourceArgType) -> XMLResource:
+        """
+        Returns a :class:`XMLResource` instance for the given XML source using schema settings.
+        """
+        if isinstance(source, XMLResource):
+            return source
+
         return XMLResource(
             source=source,
-            base_url=base_url or self.base_url,
+            base_url=self.base_url,
             allow=self.allow,
             defuse=self.defuse,
             timeout=self.timeout,
@@ -128,8 +127,42 @@ class ResourceSettings:
             selector=self.selector,
         )
 
+    def get_resource_from_data(self, obj: Any, tag: Optional[str] = None) -> XMLResource:
+        """
+        Returns a :class:`XMLResource` instance from XML data. Build a dummy
+        Element if the source is a dictionary or an atomic value. Do not load
+        XML data from locations or local streams.
+
+        :param obj: XML source data.
+        :param tag: XML tag to use for building the dummy element, if necessary.
+        """
+        if isinstance(obj, XMLResource):
+            if obj.is_lazy():
+                msg = _("component validation/decoding doesn't support lazy mode")
+                raise XMLResourceError(msg)
+            return obj
+        elif is_etree_element(obj) or is_etree_document(obj):
+            return self.get_xml_resource(obj)
+        elif isinstance(obj, dict):
+            attrib = raw_encode_attributes(obj)
+            root = Element(tag or 'root', attrib=attrib)
+            return self.get_xml_resource(root)
+        elif obj is None or isinstance(obj, (AnyAtomicType, bytes)):
+            root = Element(tag or 'root')
+            root.text = raw_encode_value(cast(DecodedValueType, obj))
+            return self.get_xml_resource(root)
+        else:
+            msg = _("incompatible source type {!r}")
+            raise TypeError(msg.format(type(obj)))
+
     def get_schema_resource(self, source: XMLSourceType,
                             base_url: Optional[BaseUrlType] = None) -> XMLResource:
+        """
+        Returns a :class:`XMLResource` instance suitable for building schemas.
+        Use only ElementTree library and fully loaded resources. The `lxml.etree`
+        library cannot be used because components definitions sometimes require
+        the build of additional elements that share a child.
+        """
         return XMLResource(
             source=source,
             base_url=base_url or self.base_url,
@@ -217,93 +250,6 @@ class SchemaSettings(ResourceSettings):
             use_fallback=self.use_fallback
         )
 
-    def get_validation_context(self,
-                               source: Any = None,
-                               namespaces: Optional[MutableMapping[str, str]] = None,
-                               errors: Optional[ErrorsType] = None,
-                               **kwargs: Any) -> ValidationContext:
-
-        if isinstance(source, XMLResource):
-            kwargs['source'] = source
-        elif is_etree_element(source) or is_etree_document(source):
-            kwargs['source'] = self.get_xml_resource(source)
-        elif isinstance(source, dict):
-            root = Element('root', attrib=source)
-            kwargs['source'] = self.get_xml_resource(root)
-        elif source is None or isinstance(source, (AnyAtomicType, bytes)):
-            root = Element('root')
-            root.text = raw_encode_value(cast(DecodedValueType, source))
-            kwargs['source'] = self.get_xml_resource(root)
-        else:
-            raise XMLSchemaTypeError(
-                "incompatible type {!r} for source argument".format(type(source))
-            )
-
-        converter = NamespaceMapper(namespaces, source=kwargs['source'])
-        kwargs['converter'] = converter
-        kwargs['namespaces'] = converter.namespaces
-        kwargs['errors'] = errors if errors is not None else []
-        kwargs = {k: kwargs[k] for k in kwargs if k in ValidationContext.__dataclass_fields__}
-        ValidationArguments.validate_kwargs(**kwargs)
-        return ValidationContext(**kwargs)
-
-    def get_decode_context(self,
-                           source: Any = None,
-                           namespaces: Optional[MutableMapping[str, str]] = None,
-                           errors: Optional[ErrorsType] = None,
-                           **kwargs: Any) -> DecodeContext:
-
-        if isinstance(source, XMLResource):
-            kwargs['source'] = source
-        elif is_etree_element(source) or is_etree_document(source):
-            kwargs['source'] = self.get_xml_resource(source)
-        elif isinstance(source, dict):
-            root = Element('root', attrib=source)
-            kwargs['source'] = self.get_xml_resource(root)
-        elif source is None or isinstance(source, (AnyAtomicType, bytes)):
-            root = Element('root')
-            root.text = raw_encode_value(cast(DecodedValueType, source))
-            kwargs['source'] = self.get_xml_resource(root)
-        else:
-            raise XMLSchemaTypeError(
-                "incompatible type {!r} for source argument".format(type(source))
-            )
-
-        keep_datatypes: list[type[DecodedValueType]] = [int, float, list]
-        if kwargs.get('decimal_type') is None:
-            keep_datatypes.append(decimal.Decimal)
-        if kwargs.get('datetime_types'):
-            keep_datatypes.append(AbstractDateTime)
-            keep_datatypes.append(Duration)
-        if kwargs.get('binary_types'):
-            keep_datatypes.append(AbstractBinary)
-        kwargs['keep_datatypes'] = tuple(keep_datatypes)
-
-        converter = self.get_converter(namespaces=namespaces, **kwargs)
-        kwargs['converter'] = converter
-        kwargs['namespaces'] = converter.namespaces
-        kwargs['errors'] = errors if errors is not None else []
-        return DecodeContext(
-            **{k: kwargs[k] for k in kwargs if k in DecodeContext.__dataclass_fields__}
-        )
-
-    def get_encode_context(self,
-                           source: Optional[Any] = None,
-                           namespaces: Optional[MutableMapping[str, str]] = None,
-                           errors: Optional[ErrorsType] = None,
-                           **kwargs: Any) -> EncodeContext:
-        kwargs['source'] = source
-        kwargs['converter'] = converter = self.get_converter(namespaces=namespaces, **kwargs)
-        kwargs['namespaces'] = converter.namespaces
-        if converter.etree_element_class is Element:
-            kwargs.pop('etree_element_class', None)
-        if converter.indent != 4:
-            kwargs['indent'] = converter.indent
-        kwargs['errors'] = errors if errors is not None else []
-        return EncodeContext(
-            **{k: kwargs[k] for k in kwargs if k in EncodeContext.__dataclass_fields__}
-        )
-
 
 @dc.dataclass
 class ValidationSettings:
@@ -311,7 +257,6 @@ class ValidationSettings:
     path: Optional[str] = None
     schema_path: Optional[str] = None
     use_defaults: BooleanOption = BooleanOption(default=False)
-    # namespaces: Optional[NsmapType] = None,
     max_depth: MaxDepthOption = MaxDepthOption(default=None)
     extra_validator: ExtraValidatorOption = ExtraValidatorOption(default=None)
     validation_hook: ValidationHookOption = ValidationHookOption(default=None)

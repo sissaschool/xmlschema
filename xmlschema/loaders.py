@@ -14,7 +14,7 @@ from operator import attrgetter
 from types import MappingProxyType
 from typing import Any, Optional, TYPE_CHECKING, cast
 
-from xmlschema.aliases import SchemaType, SchemaSourceType, LocationsType
+from xmlschema.aliases import SchemaType, SourceArgType, LocationsType
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError, \
     XMLResourceBlocked, XMLResourceForbidden, XMLResourceError, XMLResourceParseError
 from xmlschema.translation import gettext as _
@@ -82,7 +82,7 @@ class SchemaLoader:
         return locations
 
     def load_declared_schemas(self, schema: SchemaType,
-                              other_sources: Optional[list[SchemaSourceType]] = None) -> None:
+                              other_sources: Optional[list[SourceArgType]] = None) -> None:
         """
         Processes xs:include, xs:redefine, xs:override and xs:import statements,
         loading the schemas and/or the namespaced referred into declarations.
@@ -286,7 +286,7 @@ class SchemaLoader:
             target_schema.includes[location] = schema
         return schema
 
-    def load_schema(self, source: SchemaSourceType,
+    def load_schema(self, source: SourceArgType,
                     namespace: Optional[str] = None,
                     base_url: Optional[str] = None,
                     build: bool = False,

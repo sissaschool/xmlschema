@@ -17,7 +17,7 @@ from xml.etree import ElementTree
 
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError, XMLResourceError
 from xmlschema.names import XSD_NAMESPACE, XSI_TYPE, XSD_SCHEMA
-from xmlschema.aliases import ElementType, NsmapType, LocationsType, SchemaSourceType, \
+from xmlschema.aliases import ElementType, NsmapType, LocationsType, SourceArgType, \
     DecodeType, EncodeType, JsonDecodeType, XMLSourceType, SchemaType
 from xmlschema.translation import gettext as _
 from xmlschema.arguments import Argument, validate_type, BooleanOption, ValidationOption
@@ -44,7 +44,7 @@ class SchemaArgument(Argument[SchemaType]):
 
 
 def get_context(xml_document: Union[XMLSourceType, XMLResource],
-                schema: Optional[Union[XMLSchemaBase, SchemaSourceType]] = None,
+                schema: Optional[Union[XMLSchemaBase, SourceArgType]] = None,
                 cls: Optional[type[XMLSchemaBase]] = None,
                 **kwargs: Any) -> tuple[XMLResource, SchemaType]:
     """
@@ -66,7 +66,7 @@ def get_context(xml_document: Union[XMLSourceType, XMLResource],
 
 
 def get_resource_schema(resource: XMLResource,
-                        schema: Optional[Union[XMLSchemaBase, SchemaSourceType]] = None,
+                        schema: Optional[Union[XMLSchemaBase, SourceArgType]] = None,
                         cls: Optional[type[XMLSchemaBase]] = None,
                         validation: str = 'strict',
                         locations: Optional[LocationsType] = None,
@@ -375,7 +375,7 @@ def to_json(xml_document: Union[XMLSourceType, XMLResource],
 
 
 def to_etree(obj: Any,
-             schema: Optional[Union[XMLSchemaBase, SchemaSourceType]] = None,
+             schema: Optional[Union[XMLSchemaBase, SourceArgType]] = None,
              cls: Optional[type[XMLSchemaBase]] = None,
              path: Optional[str] = None,
              validation: str = 'strict',
@@ -454,7 +454,7 @@ def to_etree(obj: Any,
 
 
 def from_json(source: Union[str, bytes, IO[str]],
-              schema: Optional[Union[XMLSchemaBase, SchemaSourceType]] = None,
+              schema: Optional[Union[XMLSchemaBase, SourceArgType]] = None,
               cls: Optional[type[XMLSchemaBase]] = None,
               path: Optional[str] = None,
               validation: str = 'strict',
@@ -547,7 +547,7 @@ class XmlDocument(XMLResource):
     use_location_hints: BooleanOption = BooleanOption(default=True)
 
     def __init__(self, source: XMLSourceType,
-                 schema: Optional[Union[XMLSchemaBase, SchemaSourceType]] = None,
+                 schema: Optional[Union[XMLSchemaBase, SourceArgType]] = None,
                  cls: Optional[type[XMLSchemaBase]] = None,
                  validation: str = 'strict',
                  namespaces: Optional[NsmapType] = None,

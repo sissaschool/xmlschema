@@ -24,7 +24,7 @@ import xmlschema
 from xmlschema import XMLSchema10, XMLSchemaValidationError, XMLSchemaStopValidation, \
     XMLSchemaChildrenValidationError
 
-from xmlschema.validators import XMLSchema11
+from xmlschema.validators import XMLSchema11, ValidationContext
 from xmlschema.testing import XsdValidatorTestCase
 from xmlschema import DataElement, XMLResource
 from xmlschema.converters import XMLSchemaConverter, JsonMLConverter
@@ -85,8 +85,7 @@ class TestValidationContext(unittest.TestCase):
 
     def test_validation_error(self):
         elem = ElementTree.XML('<foo/>')
-        settings = SchemaSettings()
-        context = settings.get_validation_context(elem=elem)
+        context = ValidationContext(source=XMLResource(elem))
 
         with self.assertRaises(XMLSchemaValidationError):
             context.validation_error('strict', self.schema, 'Test error', obj=elem)

@@ -31,7 +31,7 @@ from elementpath import XPathToken, SchemaElementNode, build_schema_node_tree
 
 import xmlschema.names as nm
 from xmlschema.aliases import XMLSourceType, NsmapType, LocationsType, UriMapperType, \
-    SchemaType, SchemaSourceType, ComponentClassType, DecodeType, EncodeType, \
+    SchemaType, SourceArgType, ComponentClassType, DecodeType, EncodeType, \
     BaseXsdType, ExtraValidatorType, ValidationHookType, SchemaGlobalType, \
     FillerType, DepthFillerType, ValueHookType, ElementHookType, ElementType, \
     StagedItemType, IterParseType
@@ -47,7 +47,7 @@ from xmlschema.resources import XMLResource
 from xmlschema.arguments import check_validation_mode
 from xmlschema.converters import XMLSchemaConverter, ConverterType
 from xmlschema.xpath import XMLSchemaProxy, ElementPathMixin
-from xmlschema.namespaces import NamespaceView
+from xmlschema.namespaces import NamespaceView, NamespaceMapper
 from xmlschema.locations import SCHEMAS_DIR
 from xmlschema.loaders import SchemaLoader
 from xmlschema.exports import export_schema
@@ -56,7 +56,7 @@ from xmlschema import dataobjects
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaEncodeError, \
     XMLSchemaStopValidation
-from .validation import ValidationContext
+from .validation import ValidationContext, DecodeContext, EncodeContext
 from .helpers import parse_xsd_derivation, get_schema_annotations, qname_validator, \
     parse_xpath_default_namespace, parse_target_namespace
 from .xsdbase import XSD_ELEMENT_DERIVATIONS, XsdValidator, XsdComponent, XsdAnnotation
@@ -252,7 +252,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
     __slots__ = ('validation', 'errors', 'maps', 'target_namespace', 'source', 'namespaces')
 
-    def __init__(self, source: Union[SchemaSourceType, list[SchemaSourceType]],
+    def __init__(self, source: Union[SourceArgType, list[SourceArgType]],
                  namespace: Optional[str] = None,
                  validation: str = 'strict',
                  global_maps: Optional[XsdGlobals] = None,
@@ -296,7 +296,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 logger.setLevel(logging.WARNING)
 
         if isinstance(source, list):
-            other_sources: list[SchemaSourceType] = source[1:]
+            other_sources: list[SourceArgType] = source[1:]
             source = source[0]
         else:
             other_sources = []
@@ -908,10 +908,9 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     @cached_property
     def validation_context(self) -> ValidationContext:
         """Returns a validation context instance used for decoding schema simple values."""
-        return self.maps.settings.get_validation_context(
+        return ValidationContext(
             source=self.source,
-            namespaces=self.namespaces,
-            xmlns_processing='none'
+            converter=NamespaceMapper(self.namespaces),
         )
 
     def get_converter(self, converter: Optional[ConverterType] = None,
@@ -1017,7 +1016,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         else:
             return self.maps.loader.load_schema(location, namespace, base_url, build, partial)
 
-    def add_schema(self, source: SchemaSourceType,
+    def add_schema(self, source: SourceArgType,
                    namespace: Optional[str] = None,
                    base_url: Optional[str] = None,
                    build: bool = False,
@@ -1299,26 +1298,23 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         the XSD schema/component instance. Accepts the same arguments of :meth:`validate`.
         """
         self.check_validator(validation='lax')
-        if isinstance(source, XMLResource):
-            resource: XMLResource = source
-        else:
-            resource = self.maps.settings.get_xml_resource(source)
+        resource = self.maps.settings.get_xml_resource(source)
+        context = ValidationContext(
+            source=resource,
+            converter=NamespaceMapper(namespaces, source=resource),
+            level=resource.lazy_depth or bool(path),
+            check_identities=True,
+            use_defaults=use_defaults,
+            use_location_hints=use_location_hints,
+            max_depth=max_depth,
+            extra_validator=extra_validator,
+            validation_hook=validation_hook,
+        )
 
+        namespaces = context.converter.namespaces
+        identities = context.identities
         ancestors: list[Element] = []
         prev_ancestors: list[Element] = []
-        kwargs: dict[Any, Any] = {
-            'level': resource.lazy_depth or bool(path),
-            'namespaces': namespaces,
-            'check_identities': True,
-            'use_defaults': use_defaults,
-            'use_location_hints': use_location_hints,
-            'max_depth': max_depth,
-            'extra_validator': extra_validator,
-            'validation_hook': validation_hook,
-        }
-        context = self.maps.settings.get_validation_context(resource, **kwargs)
-        namespaces = context.namespaces
-        identities = context.identities
 
         namespace = resource.namespace or namespaces.get('', '')
         try:
@@ -1413,14 +1409,15 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                     validation: str = 'lax',
                     **kwargs: Any) -> Iterator[Union[Any, XMLSchemaValidationError]]:
         """Returns a generator for decoding a resource."""
-        context = self.maps.settings.get_decode_context(source, **kwargs)
+        kwargs['source'] = self.maps.settings.get_xml_resource(source)
+        context = DecodeContext.from_kwargs(**kwargs)
         if path:
-            selector = context.source.iterfind(path, context.namespaces)
+            selector = context.source.iterfind(path, context.converter.namespaces)
         else:
             selector = context.source.iter_depth(mode=2)
 
         for elem in selector:
-            xsd_element = self.get_element(elem.tag, schema_path, context.namespaces)
+            xsd_element = self.get_element(elem.tag, schema_path, context.converter.namespaces)
             if xsd_element is None:
                 if nm.XSI_TYPE in elem.attrib:
                     xsd_element = self.builders.create_element(elem.tag, self)
@@ -1539,11 +1536,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         validation or decoding errors.
         """
         self.check_validator(validation)
-        if isinstance(source, XMLResource):
-            resource: XMLResource = source
-        else:
-            resource = self.maps.settings.get_xml_resource(source)
-
+        resource = self.maps.settings.get_xml_resource(source)
         kwargs.update(
             process_namespaces=process_namespaces,
             namespaces=namespaces,
@@ -1567,8 +1560,9 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             element_hook=element_hook,
             errors=errors
         )
-        context = self.maps.settings.get_decode_context(resource, **kwargs)
-        namespaces = context.namespaces
+        kwargs['converter'] = self.maps.settings.get_converter(source=resource, **kwargs)
+        context = DecodeContext.from_kwargs(source=resource, **kwargs)
+        namespaces = context.converter.namespaces
 
         namespace = resource.namespace or namespaces.get('', '')
         schema = self.get_schema(namespace)
@@ -1707,6 +1701,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             raise XMLSchemaValueError(msg)
 
         kwargs.update(
+            source=obj,
             namespaces=namespaces,
             check_identities=True,
             use_defaults=use_defaults,
@@ -1717,15 +1712,17 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             untyped_data=untyped_data,
             etree_element_class=etree_element_class,
         )
-        context = self.maps.settings.get_encode_context(obj, **kwargs)
+        kwargs['converter'] = self.maps.settings.get_converter(**kwargs)
+        context = EncodeContext.from_kwargs(**kwargs)
+        namespaces = context.converter.namespaces
 
         xsd_element = None
         if path is not None:
             match = re.search(r'[{\w]', path)
             if match:
-                namespace = get_namespace_ext(path[match.start():], context.namespaces)
+                namespace = get_namespace_ext(path[match.start():], namespaces)
                 schema = self.get_schema(namespace)
-                xsd_element = schema.find(path, context.namespaces)
+                xsd_element = schema.find(path, namespaces)
 
         elif len(self.elements) == 1:
             xsd_element = list(self.elements.values())[0]
@@ -1737,9 +1734,9 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 for key in obj:
                     match = re.search(r'[{\w]', key)
                     if match:
-                        namespace = get_namespace_ext(key[match.start():], context.namespaces)
+                        namespace = get_namespace_ext(key[match.start():], namespaces)
                         schema = self.get_schema(namespace)
-                        xsd_element = schema.find(key, context.namespaces)
+                        xsd_element = schema.find(key, namespaces)
 
         if not isinstance(xsd_element, XsdElement):
             if path is not None:

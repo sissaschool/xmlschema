@@ -978,7 +978,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
 
         errors = []
         broken_model = False
-        namespaces = context.namespaces
+        namespaces = context.converter.namespaces
         model = self.get_model_visitor()
 
         for index, child in enumerate(obj):
@@ -1087,7 +1087,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         errors = []
         text = raw_encode_value(obj.text)
         children: list[ElementType] = []
-        default_namespace = context.namespaces.get('')
+        default_namespace = context.converter.get('')
 
         if (elem := context.elem) is None:
             context.elem = elem = context.create_element(tag=obj.tag)

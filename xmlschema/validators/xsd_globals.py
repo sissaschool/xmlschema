@@ -20,7 +20,7 @@ from elementpath import XPathToken, XPath2Parser
 
 import xmlschema.names as nm
 from xmlschema.aliases import SchemaType, BaseXsdType, SchemaGlobalType, \
-    SchemaSourceType, NsmapType, StagedItemType, ComponentClassType
+    SourceArgType, NsmapType, StagedItemType, ComponentClassType
 from xmlschema.exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, \
     XMLSchemaValueError, XMLSchemaWarning, XMLSchemaNamespaceError, XMLSchemaException
 from xmlschema.translation import gettext as _
@@ -388,7 +388,7 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
         yield from reversed(ancestors)
 
     def get_schema(self, namespace: Optional[str] = None,
-                   source: Optional[SchemaSourceType] = None,
+                   source: Optional[SourceArgType] = None,
                    base_url: Optional[str] = None) -> Optional[SchemaType]:
         schemas: Optional[list[SchemaType]]
 

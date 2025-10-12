@@ -8,6 +8,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import copy
+import decimal
 import logging
 from abc import abstractmethod, ABCMeta
 from collections import Counter
@@ -15,6 +16,8 @@ from collections.abc import Iterable, Iterator, MutableMapping
 from dataclasses import asdict, dataclass, field
 from typing import Any, Generic, Optional, Type, TYPE_CHECKING, TypeVar, Union
 from xml.etree.ElementTree import Element
+
+from elementpath.datatypes import AbstractDateTime, Duration, AbstractBinary
 
 from xmlschema.aliases import DecodeType, DepthFillerType, ElementType, \
     ElementHookType, EncodeType, ExtraValidatorType, FillerType, IterDecodeType, \
@@ -29,6 +32,7 @@ from xmlschema.utils.qnames import get_prefixed_qname
 from xmlschema.namespaces import NamespaceMapper
 from xmlschema.converters import XMLSchemaConverter
 from xmlschema.resources import XMLResource
+from xmlschema.arguments import ValidationArguments
 
 from .exceptions import XMLSchemaValidationError, \
     XMLSchemaChildrenValidationError, XMLSchemaDecodeError, XMLSchemaEncodeError
@@ -52,10 +56,9 @@ class ValidationContext:
     source: Union[XMLResource, Any]
 
     # Overall validation status
-    namespaces: MutableMapping[str, str]
-    converter: NamespaceMapper
-    errors: ErrorsType
+    converter: NamespaceMapper = field(default_factory=NamespaceMapper)
     level: int = 0
+    errors: ErrorsType = field(default_factory=list)
     id_map: Counter[str] = field(default_factory=Counter)
     identities: dict['XsdIdentity', 'IdentityCounter'] = field(default_factory=dict)
     inherited: dict[str, str] = field(default_factory=dict)
@@ -77,10 +80,14 @@ class ValidationContext:
     validation_hook: Optional[ValidationHookType] = None
     use_location_hints: bool = False
 
+    _arguments = ValidationArguments
+
+    def __post_init__(self) -> None:
+        self._arguments.validate(self)
+
     def __copy__(self) -> 'ValidationContext':
         context = self.__class__(**asdict(self))
         context.converter = copy.copy(self.converter)
-        context.namespaces = context.converter.namespaces
         context.errors = self.errors.copy()
         context.id_map = self.id_map.copy()
         context.identities = self.identities.copy()
@@ -98,6 +105,10 @@ class ValidationContext:
         self.attribute = None
         self.id_list = None
         self.patterns = None
+
+    @property
+    def namespaces(self) -> MutableMapping[str, str]:
+        return self.converter.namespaces
 
     @property
     def root_namespace(self) -> Optional[str]:
@@ -229,6 +240,26 @@ class DecodeContext(ValidationContext):
     value_hook: Optional[ValueHookType] = None
     element_hook: Optional[ElementHookType] = None
 
+    @classmethod
+    def from_kwargs(cls, **kwargs: Any) -> 'DecodeContext':
+        converter = kwargs.get('converter')
+        if not isinstance(converter, XMLSchemaConverter):
+            kwargs['converter'] = XMLSchemaConverter(**kwargs)
+
+        keep_datatypes: list[type[DecodedValueType]] = [int, float, list]
+        if kwargs.get('decimal_type') is None:
+            keep_datatypes.append(decimal.Decimal)
+        if kwargs.get('datetime_types'):
+            keep_datatypes.append(AbstractDateTime)
+            keep_datatypes.append(Duration)
+        if kwargs.get('binary_types'):
+            keep_datatypes.append(AbstractBinary)
+        kwargs['keep_datatypes'] = tuple(keep_datatypes)
+
+        if kwargs.get('errors') is None:
+            kwargs['errors'] = []
+        return cls(**{k: kwargs[k] for k in kwargs if k in cls.__dataclass_fields__})  # noqa
+
 
 @dataclass(slots=True)
 class EncodeContext(ValidationContext):
@@ -240,6 +271,22 @@ class EncodeContext(ValidationContext):
     unordered: bool = False
     untyped_data: bool = False
     tag: Optional[str] = None
+
+    @classmethod
+    def from_kwargs(cls, **kwargs: Any) -> 'EncodeContext':
+        converter = kwargs.get('converter')
+        if not isinstance(converter, XMLSchemaConverter):
+            kwargs['converter'] = XMLSchemaConverter(**kwargs)
+        else:
+            if converter.etree_element_class is Element:
+                kwargs.pop('etree_element_class', None)
+            if converter.indent != 4:
+                kwargs['indent'] = converter.indent
+
+        if kwargs.get('errors') is None:
+            kwargs['errors'] = []
+
+        return cls(**{k: kwargs[k] for k in kwargs if k in cls.__dataclass_fields__})  # noqa
 
     def encode_error(self,
                      validation: str,
@@ -270,7 +317,9 @@ class EncodeContext(ValidationContext):
             nsmap = {prefix if prefix else None: uri
                      for prefix, uri in self.namespaces.items() if uri}
             try:
-                return self.etree_element_class(tag, nsmap=nsmap)  # type: ignore[arg-type]
+                return self.etree_element_class(
+                    tag, None, nsmap  # type: ignore[call-arg, arg-type]
+                )
             except TypeError:
                 return self.etree_element_class(tag)
 
@@ -378,9 +427,12 @@ class ValidationMixin(Generic[ST, DT], metaclass=ABCMeta):
         Creates an iterator for the errors generated by the validation of an XML data against
         the XSD schema/component instance. Accepts the same arguments of :meth:`validate`.
         """
-        context = self.maps.settings.get_decode_context(
-            source=obj,
-            namespaces=namespaces,
+        tag = getattr(self, 'tag', None)
+        source = self.maps.settings.get_resource_from_data(obj, tag)
+        converter = NamespaceMapper(namespaces, source=source)
+        context = ValidationContext(
+            source=source,
+            converter=converter,
             validation_only=True,
             use_defaults=use_defaults,
             max_depth=max_depth,
@@ -407,7 +459,11 @@ class ValidationMixin(Generic[ST, DT], metaclass=ABCMeta):
         :raises: :exc:`xmlschema.XMLSchemaValidationError` if the object is not decodable by \
         the XSD component, or also if it's invalid when ``validation='strict'`` is provided.
         """
-        context = self.maps.settings.get_decode_context(obj, **kwargs)
+        tag = getattr(self, 'tag', None)
+        kwargs['source'] = self.maps.settings.get_resource_from_data(obj, tag)
+        kwargs['converter'] = self.maps.settings.get_converter(**kwargs)
+        context = DecodeContext.from_kwargs(**kwargs)
+
         result = self.raw_decode(obj, validation, context)
         if isinstance(result, EmptyType):
             return (None, context.errors) if validation == 'lax' else None
@@ -427,7 +483,10 @@ class ValidationMixin(Generic[ST, DT], metaclass=ABCMeta):
         :raises: :exc:`xmlschema.XMLSchemaValidationError` if the object is not encodable by \
         the XSD component, or also if it's invalid when ``validation='strict'`` is provided.
         """
-        context = self.maps.settings.get_encode_context(obj, **kwargs)
+        kwargs['source'] = obj
+        kwargs['converter'] = self.maps.settings.get_converter(**kwargs)
+        context = EncodeContext.from_kwargs(**kwargs)
+
         result = self.raw_encode(obj, validation, context)
         if isinstance(result, EmptyType):
             return (None, context.errors) if validation == 'lax' else None
@@ -444,7 +503,11 @@ class ValidationMixin(Generic[ST, DT], metaclass=ABCMeta):
         :return: Yields a decoded object, eventually preceded by a sequence of \
         validation or decoding errors.
         """
-        context = self.maps.settings.get_decode_context(obj, **kwargs)
+        tag = getattr(self, 'tag', None)
+        kwargs['source'] = self.maps.settings.get_resource_from_data(obj, tag)
+        kwargs['converter'] = self.maps.settings.get_converter(**kwargs)
+        context = DecodeContext.from_kwargs(**kwargs)
+
         result = self.raw_decode(obj, validation, context)
         yield from context.errors
         context.errors.clear()
@@ -462,9 +525,11 @@ class ValidationMixin(Generic[ST, DT], metaclass=ABCMeta):
         :return: Yields an Element, eventually preceded by a sequence of validation \
         or encoding errors.
         """
-        context = self.maps.settings.get_encode_context(obj, **kwargs)
-        result = self.raw_encode(obj, validation, context)
+        kwargs['source'] = obj
+        kwargs['converter'] = self.maps.settings.get_converter(**kwargs)
+        context = EncodeContext.from_kwargs(**kwargs)
 
+        result = self.raw_encode(obj, validation, context)
         if is_etree_element(result):
             for err in context.errors:
                 err.root = result
@@ -477,7 +542,7 @@ class ValidationMixin(Generic[ST, DT], metaclass=ABCMeta):
             yield result
 
     @abstractmethod
-    def raw_decode(self, obj: ST, validation: str, context: DecodeContext) \
+    def raw_decode(self, obj: ST, validation: str, context: ValidationContext) \
             -> Union[DT, EmptyType]:
         """
         Internal decode method. Takes the same arguments as *decode*, but keyword arguments

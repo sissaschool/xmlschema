@@ -651,7 +651,9 @@ class XsdElement(XsdComponent, ParticleMixin,
             # Meta-schema elements ignore xsi:type (issue #350)
             type_name = obj.attrib[nm.XSI_TYPE].strip()
             try:
-                xsd_type = self.maps.get_instance_type(type_name, xsd_type, context.namespaces)
+                xsd_type = self.maps.get_instance_type(
+                    type_name, xsd_type, context.converter.namespaces
+                )
             except (KeyError, TypeError) as err:
                 context.validation_error(validation, self, err, obj)
             else:
@@ -859,7 +861,6 @@ class XsdElement(XsdComponent, ParticleMixin,
 
         element_node: Union[EtreeElementNode, LazyElementNode]
         element_node = cast(EtreeElementNode, context.source.get_xpath_node(obj))
-        namespaces = context.namespaces
 
         xsd_element = self if self.ref is None else self.ref
         if xsd_element.type is not xsd_type:
@@ -895,7 +896,9 @@ class XsdElement(XsdComponent, ParticleMixin,
                 selectors = [FieldValueSelector(f, xsd_element) for f in identity.fields]
 
             try:
-                fields = tuple(s.get_value(element_node, namespaces) for s in selectors)
+                fields = tuple(
+                    s.get_value(element_node, context.converter.namespaces) for s in selectors
+                )
             except (XMLSchemaValueError, XMLSchemaTypeError) as err:
                 context.validation_error(validation, self, err, obj)
             else:
@@ -976,12 +979,12 @@ class XsdElement(XsdComponent, ParticleMixin,
             type_name = attributes[nm.XSI_TYPE].strip()
             try:
                 xsd_type = self.maps.get_instance_type(
-                    type_name, xsd_type, context.namespaces
+                    type_name, xsd_type, context.converter.namespaces
                 )
             except (KeyError, TypeError) as err:
                 errors.append(err)
             else:
-                default_namespace = context.namespaces.get('')
+                default_namespace = context.converter.get('')
                 if default_namespace and not isinstance(xsd_type, XsdSimpleType):
                     # Adjust attributes mapped into default namespace
 

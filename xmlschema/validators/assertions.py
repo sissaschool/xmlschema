@@ -26,12 +26,9 @@ from .xsdbase import XsdComponent
 from .groups import XsdGroup
 
 if TYPE_CHECKING:
-    from elementpath import XPath2Parser
-    from elementpath.xpath3 import XPath3Parser
-    from .attributes import XsdAttributeGroup
-    from .complex_types import XsdComplexType
-    from .elements import XsdElement
-    from .wildcards import XsdAnyElement
+    from elementpath import XPath2Parser  # noqa
+    from elementpath.xpath3 import XPath3Parser  # noqa
+    from . import XsdAttributeGroup, XsdComplexType, XsdElement, XsdAnyElement  # noqa
 
 warnings.filterwarnings(action="always", category=XMLSchemaAssertPathWarning)
 
@@ -133,7 +130,7 @@ class XsdAssert(XsdComponent, ElementPathMixin[Union['XsdAssert', SchemaElementT
 
         xpath_context = XPathContext(
             root=context.source.get_xpath_node(obj),
-            namespaces=context.namespaces,
+            namespaces=context.converter.namespaces,
             uri=context.source.url,
             fragment=True,
             variables={'value': value},
