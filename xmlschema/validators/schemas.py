@@ -51,7 +51,7 @@ from xmlschema.namespaces import NamespaceView, NamespaceMapper
 from xmlschema.locations import SCHEMAS_DIR
 from xmlschema.loaders import SchemaLoader
 from xmlschema.exports import export_schema
-from xmlschema.settings import SchemaSettings
+from xmlschema.settings import SchemaSettings, ResourceSettings
 from xmlschema import dataobjects
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaEncodeError, \
@@ -189,8 +189,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     :param build: defines whether build the schema maps. Default is `True`.
     :param partial: if `True`, the schema is initialized without processing \
     imports/inclusions and the build phase is skipped.
-    :param kwargs: additional arguments for overriding default XMLResource settings \
-    or schema settings.
+    :param kwargs: additional arguments for overriding default XMLResource settings.
 
     :cvar XSD_VERSION: store the XSD version (1.0 or 1.1).
     :cvar BASE_SCHEMAS: a dictionary from namespace to schema resource for meta-schema bases.
@@ -252,6 +251,22 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
     __slots__ = ('validation', 'errors', 'maps', 'target_namespace', 'source', 'namespaces')
 
+    @classmethod
+    def from_settings(cls, settings: SchemaSettings,
+                      source: Union[SourceArgType, list[SourceArgType]],
+                      **kwargs: Any) -> SchemaType:
+        """
+        Returns a new schema instance from schema settings. Optional keyword arguments
+        must be options for schema initialization and can be passed also to override
+        some settings. If a `global_map` argument is provided, it will be removed and
+        used to provide a `parent` argument.
+
+        :param settings: schema settings.
+        :param source: the schema source.
+        :param kwargs: additional arguments for schema initialization.
+        """
+        return settings.get_schema(cls, source, **kwargs)
+
     def __init__(self, source: Union[SourceArgType, list[SourceArgType]],
                  namespace: Optional[str] = None,
                  validation: str = 'strict',
@@ -277,6 +292,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         self.warnings = []
 
         if isinstance(global_maps, XsdGlobals):
+            if kwargs:
+                ResourceSettings(**kwargs)
             settings = global_maps.settings
         else:
             settings = SchemaSettings.get_settings(
@@ -302,10 +319,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             other_sources = []
 
         logger.debug("Load schema from %r", source)
-        if isinstance(source, XMLResource):
-            self.source = source
-        else:
-            self.source = settings.get_schema_resource(source, base_url)
+        self.source = settings.get_schema_resource(source, base_url)
 
         self.name = self.source.name
         root = self.source.root
@@ -349,6 +363,9 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
         # Create or set the XSD global maps instance and the loader
         if isinstance(global_maps, XsdGlobals):
+            if parent is not None:
+                msg = _("'global_maps' and 'parent' arguments are mutually exclusive")
+                raise XMLSchemaValueError(msg)
             self.maps = global_maps
         elif parent is None and use_meta:
             self.maps = XsdGlobals(self, parent=self.meta_schema, settings=settings)

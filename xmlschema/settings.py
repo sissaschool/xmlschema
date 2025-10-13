@@ -7,23 +7,20 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-"""Package settings for setup protection defaults."""
-import dataclasses as dc
-from typing import cast, Optional, Any
+from dataclasses import asdict, dataclass, replace
+from typing import cast, Optional, Any, Union
 from xml.etree.ElementTree import Element
 
 from elementpath.datatypes import AnyAtomicType
 
-from xmlschema.aliases import XMLSourceType, BaseUrlType, DecodedValueType, \
-    GlobalMapsType, SourceArgType
-from xmlschema.exceptions import XMLSchemaTypeError, XMLResourceError
+from xmlschema.aliases import BaseUrlType, DecodedValueType, \
+    GlobalMapsType, SourceArgType, SchemaType
+from xmlschema.exceptions import XMLSchemaTypeError, XMLResourceError, XMLSchemaValueError
 from xmlschema.translation import gettext as _
 from xmlschema.arguments import BooleanOption, BaseUrlOption, AllowOption, \
     DefuseOption, LazyOption, BlockOption, UriMapperOption, IterParseOption, \
-    SelectorOption, OpenerOption, PositiveIntOption, MaxDepthOption, LocationsOption, \
-    ValidationOption, FillerOption, DepthFillerOption, ExtraValidatorOption, \
-    ValidationHookOption, ValueHookOption, ElementHookOption, ElementTypeOption, \
-    LogLevelOption
+    SelectorOption, OpenerOption, PositiveIntOption, LocationsOption, \
+    ValidationOption, LogLevelOption
 from xmlschema.utils.decoding import raw_encode_value, raw_encode_attributes
 from xmlschema.utils.etree import is_etree_element, is_etree_document
 from xmlschema.resources import XMLResource
@@ -32,12 +29,15 @@ from xmlschema.loaders import SchemaLoader, LoaderClassOption
 from xmlschema.xpath import ElementSelector
 
 
-@dc.dataclass
+@dataclass
 class ResourceSettings:
     """Settings for accessing XML resources."""
 
     base_url: BaseUrlOption = BaseUrlOption(default=None)
-    """The effective base URL used for completing relative locations."""
+    """
+    An optional base URL, used for the normalization of relative paths when the URL
+    of the XML resource can't be obtained from the source argument.
+    """
 
     allow: AllowOption = AllowOption(default='all')
     """
@@ -127,35 +127,35 @@ class ResourceSettings:
             selector=self.selector,
         )
 
-    def get_resource_from_data(self, obj: Any, tag: Optional[str] = None) -> XMLResource:
+    def get_resource_from_data(self, source: Any, tag: Optional[str] = None) -> XMLResource:
         """
         Returns a :class:`XMLResource` instance from XML data. Build a dummy
         Element if the source is a dictionary or an atomic value. Do not load
         XML data from locations or local streams.
 
-        :param obj: XML source data.
+        :param source: XML source data.
         :param tag: XML tag to use for building the dummy element, if necessary.
         """
-        if isinstance(obj, XMLResource):
-            if obj.is_lazy():
+        if isinstance(source, XMLResource):
+            if source.is_lazy():
                 msg = _("component validation/decoding doesn't support lazy mode")
                 raise XMLResourceError(msg)
-            return obj
-        elif is_etree_element(obj) or is_etree_document(obj):
-            return self.get_xml_resource(obj)
-        elif isinstance(obj, dict):
-            attrib = raw_encode_attributes(obj)
+            return source
+        elif is_etree_element(source) or is_etree_document(source):
+            return self.get_xml_resource(source)
+        elif isinstance(source, dict):
+            attrib = raw_encode_attributes(source)
             root = Element(tag or 'root', attrib=attrib)
             return self.get_xml_resource(root)
-        elif obj is None or isinstance(obj, (AnyAtomicType, bytes)):
+        elif source is None or isinstance(source, (AnyAtomicType, bytes)):
             root = Element(tag or 'root')
-            root.text = raw_encode_value(cast(DecodedValueType, obj))
+            root.text = raw_encode_value(cast(DecodedValueType, source))
             return self.get_xml_resource(root)
         else:
             msg = _("incompatible source type {!r}")
-            raise TypeError(msg.format(type(obj)))
+            raise TypeError(msg.format(type(source)))
 
-    def get_schema_resource(self, source: XMLSourceType,
+    def get_schema_resource(self, source: SourceArgType,
                             base_url: Optional[BaseUrlType] = None) -> XMLResource:
         """
         Returns a :class:`XMLResource` instance suitable for building schemas.
@@ -163,6 +163,15 @@ class ResourceSettings:
         library cannot be used because components definitions sometimes require
         the build of additional elements that share a child.
         """
+        if isinstance(source, XMLResource):
+            if source.is_lazy():
+                msg = _("schemas don't support lazy mode")
+                raise XMLResourceError(msg)
+            elif 'lxml' in source.iterparse.__module__:
+                msg = _("schemas can't be built using lxml.etree library")
+                raise XMLResourceError(msg)
+            return source
+
         return XMLResource(
             source=source,
             base_url=base_url or self.base_url,
@@ -175,11 +184,14 @@ class ResourceSettings:
         )
 
 
-@dc.dataclass
+@dataclass
 class SchemaSettings(ResourceSettings):
     """Settings for schemas."""
 
     validation: ValidationOption = ValidationOption(default='strict')
+    """
+    The XSD validation mode to use for build the schema. Can be 'strict', 'lax' or 'skip'.
+    """
 
     converter: ConverterOption = ConverterOption(default=None)
     """The converter to use for decoding/encoding XML data."""
@@ -195,19 +207,39 @@ class SchemaSettings(ResourceSettings):
     """
 
     loader_class: LoaderClassOption = LoaderClassOption(default=SchemaLoader)
+    """
+    An optional subclass of :class:`SchemaLoader` to use for creating the loader instance.
+    """
 
     use_fallback: BooleanOption = BooleanOption(default=True)
-    use_xpath3: BooleanOption = BooleanOption(default=True)
+    """
+    If `True` the schema processor uses the validator fallback location hints
+    to load well-known namespaces (e.g. xhtml).
+    """
+
+    use_xpath3: BooleanOption = BooleanOption(default=False)
+    """
+    If `True` an XSD 1.1 schema instance uses the XPath 3 processor for assertions.
+    For default a full XPath 2.0 processor is used.
+    """
+
     use_meta: BooleanOption = BooleanOption(default=True)
+    """
+    If `True` the schema processor uses the validator meta-schema as parent schema.
+    Ignored if either *global_maps* or *parent* argument is provided.
+    """
+
     loglevel: LogLevelOption = LogLevelOption(default=None)
+    """
+    Used for setting a different logging level for schema initialization and building.
+    For default is the logging level is set to WARNING (30). For INFO level set it
+    with 20, for DEBUG level with 10. The default loglevel is restored after schema
+    building, when exiting the initialization method.
+    """
 
     @classmethod
     def get_settings(cls, **kwargs: Any) -> 'SchemaSettings':
-        settings = kwargs.pop('settings', _DEFAULT_SCHEMA_SETTINGS)
-        if not isinstance(settings, SchemaSettings):
-            msg = _("expected a SchemaSettings instance for 'settings', got {!r}'")
-            raise XMLSchemaTypeError(msg.format(settings))
-        return dc.replace(settings, **kwargs)
+        return replace(_DEFAULT_SCHEMA_SETTINGS, **kwargs)
 
     @classmethod
     def update_defaults(cls, **kwargs: Any) -> None:
@@ -244,60 +276,35 @@ class SchemaSettings(ResourceSettings):
             raise XMLSchemaTypeError(msg.format(XMLSchemaConverter, converter))
 
     def get_loader(self, maps: GlobalMapsType) -> SchemaLoader:
+        """Returns a new :class:`SchemaLoader` instance for the given maps."""
         return self.loader_class(
             maps=maps,
             locations=self.locations,
             use_fallback=self.use_fallback
         )
 
+    def get_schema(self, cls: type[SchemaType],
+                   source: Union[SourceArgType, list[SourceArgType]],
+                   **kwargs: Any) -> SchemaType:
+        """
+        Returns a new schema instance from schema settings. Optional keyword arguments
+        must be options for schema initialization and can be passed also to override
+        some settings. If a `global_map` argument is provided, it will be removed and
+        used to provide a `parent` argument.
 
-@dc.dataclass
-class ValidationSettings:
-    """Settings for XML instances that uses a specific configuration."""
-    path: Optional[str] = None
-    schema_path: Optional[str] = None
-    use_defaults: BooleanOption = BooleanOption(default=False)
-    max_depth: MaxDepthOption = MaxDepthOption(default=None)
-    extra_validator: ExtraValidatorOption = ExtraValidatorOption(default=None)
-    validation_hook: ValidationHookOption = ValidationHookOption(default=None)
-    allow_empty: BooleanOption = BooleanOption(default=True)
-    use_location_hints: BooleanOption = BooleanOption(default=False)
+        :param cls: schema class.
+        :param source: the schema source.
+        :param kwargs: optional arguments to initialize the schema instance.
+        """
+        maps: Optional[GlobalMapsType] = kwargs.pop('maps', None)
+        if maps is not None:
+            if kwargs.get('parent') is not None:
+                msg = _("'global_maps' and 'parent' arguments are mutually exclusive")
+                raise XMLSchemaValueError(msg)
+            kwargs['parent'] = maps.validator
 
-
-@dc.dataclass
-class DecodingSettings(ValidationSettings):
-    """Settings for decoding XML data."""
-    validation: str = 'lax'
-    process_namespaces: bool = True
-    decimal_type: Optional[type[Any]] = None
-    datetime_types: BooleanOption = BooleanOption(default=False)
-    binary_types: BooleanOption = BooleanOption(default=False)
-    converter: ConverterOption = ConverterOption(default=None)
-    filler: FillerOption = FillerOption(default=None)
-    fill_missing: BooleanOption = BooleanOption(default=False)
-    keep_empty: BooleanOption = BooleanOption(default=False)
-    keep_unknown: BooleanOption = BooleanOption(default=False)
-    process_skipped: BooleanOption = BooleanOption(default=False)
-    max_depth: MaxDepthOption = MaxDepthOption(default=None)
-    depth_filler: DepthFillerOption = DepthFillerOption(default=None)
-    extra_validator: ExtraValidatorOption = ExtraValidatorOption(default=None)
-    validation_hook: ValidationHookOption = ValidationHookOption(default=None)
-    value_hook: ValueHookOption = ValueHookOption(default=None)
-    element_hook: ElementHookOption = ElementHookOption(default=None)
-    # errors: Optional[list[XMLSchemaValidationError]] = None
+        return cls(source, **{**asdict(self), **kwargs})
 
 
-@dc.dataclass
-class EncodingSettings(ValidationSettings):
-    """Settings for encoding XML data."""
-    converter: ConverterOption = ConverterOption(default=None)
-    unordered: BooleanOption = BooleanOption(default=False)
-    process_skipped: BooleanOption = BooleanOption(default=False)
-    max_depth: MaxDepthOption = MaxDepthOption(default=None)
-    untyped_data: BooleanOption = BooleanOption(default=False)
-    etree_element_class: ElementTypeOption = ElementTypeOption(default=None)
-
-
-# Default package settings
+# Default package settings for schemas
 _DEFAULT_SCHEMA_SETTINGS = SchemaSettings()
-_DEFAULT_VALIDATION_SETTINGS = ValidationSettings()
