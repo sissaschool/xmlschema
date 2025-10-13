@@ -70,7 +70,7 @@ def main() -> None:
 
     check_xsd_schema(schema)
 
-    a = cast(BaseXsdType, schema.types['type1'])
+    a = schema.types['type1']
     check_simple_type(a)
 
     b = schema.attributes['attr1']
@@ -80,7 +80,7 @@ def main() -> None:
 
     attribute_group = schema.maps.attribute_groups['{http://www.w3.org/2001/XMLSchema}occurs']
     if not isinstance(attribute_group, tuple):
-        get_attribute(attribute_group, 'foo')
+        get_attribute(attribute_group, 'foo')  # type: ignore[arg-type]
 
     schema11 = XMLSchema11("""
         <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
@@ -97,7 +97,7 @@ def main() -> None:
     if type1.assertions:
         assertion = type1.assertions[0]
 
-    check_elem_type(assertion)
+    check_elem_type(assertion)  # type: ignore[arg-type]
 
 
 if __name__ == '__main__':
