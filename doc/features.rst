@@ -181,7 +181,7 @@ none
 Processing limits
 =================
 
-From release v1.0.16 a module has been added in order to group constants that define
+Since release v1.0.16 a module has been added in order to group constants that define
 processing limits, generally to protect against attacks prepared to exhaust system
 resources. These limits usually don't need to be changed, but this possibility has
 been left at the module level for situations where a different setting is needed.
@@ -206,7 +206,7 @@ module:
 Limit on XML data depth
 -----------------------
 
-A limit of 9999 on maximum depth is set for XML validation/decoding/encoding to avoid
+A limit of 1000 on maximum depth is set for XML validation/decoding/encoding to avoid
 attacks based on extremely deep XML data. To increase or decrease this limit change the
 value of ``MAX_XML_DEPTH`` in the module *limits* after the import of the package:
 
@@ -214,6 +214,33 @@ value of ``MAX_XML_DEPTH`` in the module *limits* after the import of the packag
 
     >>> import xmlschema
     >>> xmlschema.limits.MAX_XML_DEPTH = 1000
+
+
+Limit on parsable XML elements
+------------------------------
+
+A limit of 1,000,000 on maximum number of elements parsable by a non-lazy
+:class:`xmlschema.XMLResource` instance is set to avoid attacks based on heavy loads
+of XML data. Lazy resources are not bounded to this limit. To increase or decrease this
+limit change the value of ``MAX_XML_ELEMENTS`` in the module *limits* after the import
+of the package:
+
+.. doctest::
+
+    >>> import xmlschema
+    >>> xmlschema.limits.MAX_XML_ELEMENTS = 10 ** 8
+
+
+Limit on loadable schema sources
+--------------------------------
+
+A limit of 1,000 schemas per global map is set. To increase or decrease this limit change
+the value of ``MAX_SCHEMA_SOURCES`` in the module *limits* after the import of the package:
+
+.. doctest::
+
+    >>> import xmlschema
+    >>> xmlschema.limits.MAX_SCHEMA_SOURCES = 1500
 
 
 Translations of parsing/validation error messages
@@ -255,3 +282,25 @@ by others. If you need a loader that import any declared location you can provid
 For the same strategy you can provide :class:`xmlschema.SafeSchemaLoader`, that try all
 the unloaded locations without raising in case of collision, but in this case the
 loading phase could be slower.
+
+
+Schema settings
+===============
+
+From v4.2 each composition of schema instances is based on not changeable
+:class:`xmlschema.settings.SchemaSettings` instance stored in global maps,
+in order to handle schema and XML resource options in a secure way.
+
+These setting are created at when a new schema instance is created, basing on
+default schema settings, that are stored at package level, overridden by provided
+arguments for :class:`xmlschema.XMLResource`, now included as optional keyword arguments.
+
+Also a new schema instances can be created with :meth:`xmlschema.XMLSchemaBase.from_settings`,
+to have a more flexible way for creating schemas that match the same settings.
+
+Default schema settings can be changes after package import using the class method
+:meth:`xmlschema.settings.SchemaSettings.update_defaults` and restored to library
+default with :meth:`xmlschema.settings.SchemaSettings.reset_defaults`. This way
+of managing settings would be sharpened in future releases, and anyway these methods
+can be aldready used for building configuration management in applications that use
+this library, if needed.

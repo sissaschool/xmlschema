@@ -455,7 +455,10 @@ namespace information is associated within each node of the trees:
                             {'@make': 'Porsche', '@model': '911'}]}}
 
 With the version v4.0.0 of the library the optional argument *iterparse* has been
-added for processing XML data using a dependency injection:
+added for processing XML data using a dependency injection. This options is not
+applied to schema resources, because the `lxml.etree` library is not supported for
+XSD schemas, due to the stricly tree enforcement that this library do on parsed
+schema components.
 
 .. doctest::
 
@@ -464,9 +467,9 @@ added for processing XML data using a dependency injection:
     >>> xml_data = 'tests/test_cases/examples/vehicles/vehicles.xml'
     >>> xs = xmlschema.XMLSchema(schema_file, iterparse=etree.iterparse)
     >>> type(xs.root)
-    <class 'lxml.etree._Element'>
+    <class 'xml.etree.ElementTree.Element'>
 
-that option is applied also for creating :class:`xmlschema.XMLResource`
+that option is applied only for creating :class:`xmlschema.XMLResource`
 instances when validation/decode is called using a schema API:
 
     >>> xs.is_valid('tests/test_cases/examples/vehicles/vehicles-ns-mix.xml')

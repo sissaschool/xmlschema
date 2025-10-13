@@ -13,11 +13,11 @@ import os
 from collections.abc import Callable, Iterable, MutableMapping, MutableSequence
 from functools import partial
 from pathlib import Path
-from typing import Any, cast, Generic, Optional, overload, TypeVar, Union
+from typing import Any, cast, Generic, Optional, overload, Union
 from urllib.request import OpenerDirector
 from xml.etree.ElementTree import Element
 
-from xmlschema.aliases import XMLSourceType, UriMapperType, IterParseType, BlockType, \
+from xmlschema.aliases import T, XMLSourceType, UriMapperType, IterParseType, BlockType, \
     FillerType, DepthFillerType, ExtraValidatorType, ValidationHookType, ValueHookType, \
     ElementHookType, ElementType, LogLevelType, LocationsType, NsmapType
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError, \
@@ -45,8 +45,6 @@ Ref.: https://www.w3.org/TR/xmlschema11-1/#key-va
 """
 
 LOCATIONS_TYPES = (tuple, dict, list, NamespaceResourcesMap)
-
-T = TypeVar('T')
 
 
 class Argument(Generic[T]):

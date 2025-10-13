@@ -296,7 +296,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 ResourceSettings(**kwargs)
             settings = global_maps.settings
         else:
-            settings = SchemaSettings.get_settings(
+            settings = cast(SchemaSettings, SchemaSettings.get_settings(
                 validation=validation,
                 loader_class=loader_class,
                 locations=locations,
@@ -306,7 +306,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 use_xpath3=use_xpath3,
                 loglevel=loglevel,
                 **kwargs,
-            )
+            ))
             if settings.loglevel is not None:
                 logger.setLevel(settings.loglevel)
             elif build:

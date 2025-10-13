@@ -32,6 +32,7 @@ if TYPE_CHECKING:
     from xmlschema.locations import NamespaceResourcesMap  # noqa: F401
     from xmlschema.converters import ElementData  # noqa: F401
     from xmlschema.xpath import ElementSelector  # noqa: F401
+    from xmlschema.settings import ResourceSettings, SchemaSettings  # noqa: F401
 
     # noinspection PyUnresolvedReferences
     from xmlschema.validators import XMLSchemaValidationError, XsdComponent, \
@@ -39,6 +40,11 @@ if TYPE_CHECKING:
         XsdAnyAttribute, XsdAssert, XsdGroup, XsdAttributeGroup, XsdNotation, \
         ParticleMixin, XMLSchemaBase, XsdGlobals, ValidationContext, \
         DecodeContext  # noqa: F401
+
+##
+# Generic and bounded type vars
+
+T = TypeVar('T')
 
 ##
 # Type aliases for ElementTree
@@ -56,6 +62,7 @@ XmlnsType = Optional[list[tuple[str, str]]]
 
 ##
 # Type aliases for XML resources
+SettingsType = Union['ResourceSettings']
 IOType = Union[IOProtocol[str], IOProtocol[bytes]]
 EtreeType = Union[Element, ElementTree, ElementProtocol, DocumentProtocol]
 XMLSourceType = Union[EtreeType, str, bytes, Path, IO[str], IO[bytes]]

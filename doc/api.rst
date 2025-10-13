@@ -67,6 +67,7 @@ Schema level API
 .. autoclass:: xmlschema.validators.XMLSchemaMeta
 .. autoclass:: xmlschema.XMLSchemaBase
 
+    .. automethod:: from_settings
     .. autoattribute:: meta_schema
     .. autoattribute:: builders
 
@@ -207,6 +208,7 @@ XML resources API
     .. autoattribute:: filepath
     .. autoattribute:: namespace
 
+    .. automethod:: from_settings
     .. automethod:: parse
     .. automethod:: tostring
     .. automethod:: open
@@ -258,6 +260,89 @@ Classes for converting namespace representation or for accessing namespace objec
 .. autoclass:: xmlschema.namespaces.NamespaceResourcesMap
 .. autoclass:: xmlschema.namespaces.NamespaceMapper
 .. autoclass:: xmlschema.namespaces.NamespaceView
+
+
+.. _settings-api:
+
+Settings for XML resources and schemas
+======================================
+
+Dataclasses with read-only fields for storing settings for XML resources and
+schema instances, in order to store common settings for schema compositions and
+a simple way to change default settings for imported package.
+
+.. autoclass:: xmlschema.settings.ResourceSettings
+
+    .. autoattribute:: base_url
+    .. autoattribute:: allow
+    .. autoattribute:: defuse
+    .. autoattribute:: timeout
+    .. autoattribute:: lazy
+    .. autoattribute:: thin_lazy
+    .. autoattribute:: block
+    .. autoattribute:: uri_mapper
+    .. autoattribute:: opener
+    .. autoattribute:: iterparse
+    .. autoattribute:: selector
+
+    .. automethod:: get_settings
+    .. automethod:: get_defaults
+    .. automethod:: update_defaults
+    .. automethod:: reset_defaults
+    .. automethod:: get_resource
+
+
+.. autoclass:: xmlschema.settings.SchemaSettings
+
+    .. autoattribute:: validation
+    .. autoattribute:: loader_class
+    .. autoattribute:: use_fallback
+    .. autoattribute:: use_xpath3
+    .. autoattribute:: use_meta
+    .. autoattribute:: loglevel
+
+    .. automethod:: get_settings
+    .. automethod:: get_defaults
+    .. automethod:: update_defaults
+    .. automethod:: reset_defaults
+
+    .. automethod:: get_xml_resource
+    .. automethod:: get_resource_from_data
+    .. automethod:: get_schema_resource
+    .. automethod:: get_converter
+    .. automethod:: get_loader
+    .. automethod:: get_schema
+
+
+.. _arguments-api:
+
+Arguments and options API
+=========================
+
+Descriptors classes for validating arguments and options:
+
+.. autoclass:: xmlschema.aliases.T
+
+.. autoclass:: xmlschema.arguments.Argument
+.. autoclass:: xmlschema.arguments.Option
+.. autoclass:: xmlschema.arguments.BooleanOption
+.. autoclass:: xmlschema.arguments.PositiveIntOption
+
+.. autoclass:: xmlschema.arguments.BaseUrlOption
+.. autoclass:: xmlschema.arguments.AllowOption
+.. autoclass:: xmlschema.arguments.DefuseOption
+.. autoclass:: xmlschema.arguments.LazyOption
+.. autoclass:: xmlschema.arguments.BlockOption
+.. autoclass:: xmlschema.arguments.UriMapperOption
+.. autoclass:: xmlschema.arguments.OpenerOption
+.. autoclass:: xmlschema.arguments.IterParseOption
+.. autoclass:: xmlschema.arguments.SelectorOption
+
+.. autoclass:: xmlschema.arguments.ValidationOption
+.. autoclass:: xmlschema.converters.ConverterOption
+.. autoclass:: xmlschema.loaders.LoaderClassOption
+
+.. autoclass:: xmlschema.arguments.LogLevelOption
 
 
 .. _xpath-api:

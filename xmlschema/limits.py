@@ -58,7 +58,6 @@ An `XMLSchemaValidatorError` is raised if this limit is exceeded.
 MAX_XML_DEPTH = 1000
 """
 Maximum depth of XML data. An `XMLResourceExceeded` is raised if this limit is exceeded.
-The default value is related limits.MAX_XML_DEPTH effective value.
 """
 
 MAX_XML_ELEMENTS = 10 ** 6

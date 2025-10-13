@@ -21,7 +21,7 @@ from urllib.parse import urlsplit, unquote
 from urllib.error import URLError
 from xml.etree import ElementTree
 
-from xmlschema.aliases import ElementType, EtreeType, NsmapType, \
+from xmlschema.aliases import SettingsType, ElementType, EtreeType, NsmapType, \
     NormalizedLocationsType, LocationsType, XMLSourceType, IOType, \
     LazyType, IterParseType, UriMapperType, BaseUrlType, BlockType
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError, \
@@ -44,7 +44,7 @@ from .xml_loader import XMLResourceLoader
 
 class XMLResourceManager:
     """A context manager for XML resources."""
-    def __init__(self, resource: 'XMLResource'):
+    def __init__(self, resource: 'XMLResource') -> None:
         self.resource = resource
 
     def __enter__(self) -> 'XMLResourceManager':
@@ -134,6 +134,21 @@ class XMLResource(XMLResourceLoader):
     _url_scheme: Optional[str] = None
     _context_fp: Optional[IOType] = None
     _context_lock: threading.Lock = threading.Lock()
+
+    @classmethod
+    def from_settings(cls,
+                      settings: SettingsType,
+                      source: XMLSourceType,
+                      **kwargs: Any) -> 'XMLResource':
+        """
+        Returns a new XMLResource instance from settings. Optional keyword arguments must
+        be options for resource initialization and can be passed to override settings.
+
+        :param settings: resource settings.
+        :param source: the XML source.
+        :param kwargs: additional arguments for resource initialization.
+        """
+        return settings.get_resource(cls, source, **kwargs)
 
     def __init__(self, source: XMLSourceType,
                  base_url: Optional[BaseUrlType] = None,

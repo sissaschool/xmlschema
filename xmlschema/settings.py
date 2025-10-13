@@ -7,14 +7,14 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from dataclasses import asdict, dataclass, replace
+from dataclasses import asdict, dataclass, replace, fields
 from typing import cast, Optional, Any, Union
 from xml.etree.ElementTree import Element
 
 from elementpath.datatypes import AnyAtomicType
 
-from xmlschema.aliases import BaseUrlType, DecodedValueType, \
-    GlobalMapsType, SourceArgType, SchemaType
+from xmlschema.aliases import SettingsType, BaseUrlType, DecodedValueType, \
+    GlobalMapsType, SourceArgType, SchemaType, XMLSourceType
 from xmlschema.exceptions import XMLSchemaTypeError, XMLResourceError, XMLSchemaValueError
 from xmlschema.translation import gettext as _
 from xmlschema.arguments import BooleanOption, BaseUrlOption, AllowOption, \
@@ -105,88 +105,45 @@ class ResourceSettings:
     selector: SelectorOption = SelectorOption(default=ElementSelector)
     """The selector class to use for XPath element selectors."""
 
-    def get_xml_resource(self, source: SourceArgType) -> XMLResource:
-        """
-        Returns a :class:`XMLResource` instance for the given XML source using schema settings.
-        """
-        if isinstance(source, XMLResource):
-            return source
+    _DEFAULT_SETTINGS = '_DEFAULT_RESOURCE_SETTINGS'
 
-        return XMLResource(
-            source=source,
-            base_url=self.base_url,
-            allow=self.allow,
-            defuse=self.defuse,
-            timeout=self.timeout,
-            lazy=self.lazy,
-            thin_lazy=self.thin_lazy,
-            block=self.block,
-            uri_mapper=self.uri_mapper,
-            opener=self.opener,
-            iterparse=self.iterparse,
-            selector=self.selector,
-        )
+    @classmethod
+    def get_settings(cls, **kwargs: Any) -> 'ResourceSettings':
+        """Returns settings from defaults, applying provided overrides."""
+        return cast(ResourceSettings, replace(globals()[cls._DEFAULT_SETTINGS], **kwargs))
 
-    def get_resource_from_data(self, source: Any, tag: Optional[str] = None) -> XMLResource:
-        """
-        Returns a :class:`XMLResource` instance from XML data. Build a dummy
-        Element if the source is a dictionary or an atomic value. Do not load
-        XML data from locations or local streams.
+    @classmethod
+    def get_defaults(cls) -> SettingsType:
+        """Returns the current default settings for XML resources."""
+        return cast(ResourceSettings, globals()[cls._DEFAULT_SETTINGS])
 
-        :param source: XML source data.
-        :param tag: XML tag to use for building the dummy element, if necessary.
-        """
-        if isinstance(source, XMLResource):
-            if source.is_lazy():
-                msg = _("component validation/decoding doesn't support lazy mode")
-                raise XMLResourceError(msg)
-            return source
-        elif is_etree_element(source) or is_etree_document(source):
-            return self.get_xml_resource(source)
-        elif isinstance(source, dict):
-            attrib = raw_encode_attributes(source)
-            root = Element(tag or 'root', attrib=attrib)
-            return self.get_xml_resource(root)
-        elif source is None or isinstance(source, (AnyAtomicType, bytes)):
-            root = Element(tag or 'root')
-            root.text = raw_encode_value(cast(DecodedValueType, source))
-            return self.get_xml_resource(root)
-        else:
-            msg = _("incompatible source type {!r}")
-            raise TypeError(msg.format(type(source)))
+    @classmethod
+    def update_defaults(cls, **kwargs: Any) -> None:
+        """Overrides the default settings for schemas."""
+        globals()[cls._DEFAULT_SETTINGS] = cls.get_settings(**kwargs)
 
-    def get_schema_resource(self, source: SourceArgType,
-                            base_url: Optional[BaseUrlType] = None) -> XMLResource:
-        """
-        Returns a :class:`XMLResource` instance suitable for building schemas.
-        Use only ElementTree library and fully loaded resources. The `lxml.etree`
-        library cannot be used because components definitions sometimes require
-        the build of additional elements that share a child.
-        """
-        if isinstance(source, XMLResource):
-            if source.is_lazy():
-                msg = _("schemas don't support lazy mode")
-                raise XMLResourceError(msg)
-            elif 'lxml' in source.iterparse.__module__:
-                msg = _("schemas can't be built using lxml.etree library")
-                raise XMLResourceError(msg)
-            return source
+    @classmethod
+    def reset_defaults(cls) -> None:
+        """Resets the default settings for to initial values."""
+        globals()[cls._DEFAULT_SETTINGS] = cls()
 
-        return XMLResource(
-            source=source,
-            base_url=base_url or self.base_url,
-            allow=self.allow,
-            defuse=self.defuse,
-            timeout=self.timeout,
-            block=self.block,
-            uri_mapper=self.uri_mapper,
-            opener=self.opener,
-        )
+    def get_resource(self, cls: type[XMLResource],
+                     source: XMLSourceType,
+                     **kwargs: Any) -> XMLResource:
+        """
+        Returns a :class:`xmlschema.XMLResource` instance from settings, overriding
+        defaults with provided keyword arguments.
+        """
+        options = {fld.name: getattr(self, fld.name) for fld in fields(ResourceSettings)}
+        return cls(source, **{**options, **kwargs})
 
 
 @dataclass
 class SchemaSettings(ResourceSettings):
-    """Settings for schemas."""
+    """
+    Settings for schemas. A :class:`xmlschema.settings.SchemaSettings` object
+    includes settings for XML resources.
+    """
 
     validation: ValidationOption = ValidationOption(default='strict')
     """
@@ -237,19 +194,86 @@ class SchemaSettings(ResourceSettings):
     building, when exiting the initialization method.
     """
 
-    @classmethod
-    def get_settings(cls, **kwargs: Any) -> 'SchemaSettings':
-        return replace(_DEFAULT_SCHEMA_SETTINGS, **kwargs)
+    _DEFAULT_SETTINGS = '_DEFAULT_SCHEMA_SETTINGS'
 
-    @classmethod
-    def update_defaults(cls, **kwargs: Any) -> None:
-        global _DEFAULT_SCHEMA_SETTINGS
-        _DEFAULT_SCHEMA_SETTINGS = SchemaSettings.get_settings(**kwargs)
+    def get_xml_resource(self, source: SourceArgType) -> XMLResource:
+        """
+        Returns a :class:`xmlschema.XMLResource` instance for the given XML source
+        using schema settings.
+        """
+        if isinstance(source, XMLResource):
+            return source
 
-    @classmethod
-    def reset_defaults(cls) -> None:
-        global _DEFAULT_SCHEMA_SETTINGS
-        _DEFAULT_SCHEMA_SETTINGS = SchemaSettings.get_settings()
+        return XMLResource(
+            source=source,
+            base_url=self.base_url,
+            allow=self.allow,
+            defuse=self.defuse,
+            timeout=self.timeout,
+            lazy=self.lazy,
+            thin_lazy=self.thin_lazy,
+            block=self.block,
+            uri_mapper=self.uri_mapper,
+            opener=self.opener,
+            iterparse=self.iterparse,
+            selector=self.selector,
+        )
+
+    def get_resource_from_data(self, source: Any, tag: Optional[str] = None) -> XMLResource:
+        """
+        Returns a :class:`xmlschema.XMLResource` instance from XML data. Build a dummy
+        Element if the source is a dictionary or an atomic value. Do not load
+        XML data from locations or local streams.
+
+        :param source: XML source data.
+        :param tag: XML tag to use for building the dummy element, if necessary.
+        """
+        if isinstance(source, XMLResource):
+            if source.is_lazy():
+                msg = _("component validation/decoding doesn't support lazy mode")
+                raise XMLResourceError(msg)
+            return source
+        elif is_etree_element(source) or is_etree_document(source):
+            return self.get_xml_resource(source)
+        elif isinstance(source, dict):
+            attrib = raw_encode_attributes(source)
+            root = Element(tag or 'root', attrib=attrib)
+            return self.get_xml_resource(root)
+        elif source is None or isinstance(source, (AnyAtomicType, bytes)):
+            root = Element(tag or 'root')
+            root.text = raw_encode_value(cast(DecodedValueType, source))
+            return self.get_xml_resource(root)
+        else:
+            msg = _("incompatible source type {!r}")
+            raise TypeError(msg.format(type(source)))
+
+    def get_schema_resource(self, source: SourceArgType,
+                            base_url: Optional[BaseUrlType] = None) -> XMLResource:
+        """
+        Returns a :class:`xmlschema.XMLResource` instance suitable for building schemas.
+        Use only ElementTree library and fully loaded resources. The `lxml.etree`
+        library cannot be used because components definitions sometimes require
+        the build of additional elements that share a child.
+        """
+        if isinstance(source, XMLResource):
+            if source.is_lazy():
+                msg = _("schemas don't support lazy mode")
+                raise XMLResourceError(msg)
+            elif 'lxml' in source.iterparse.__module__:
+                msg = _("schemas can't be built using lxml.etree library")
+                raise XMLResourceError(msg)
+            return source
+
+        return XMLResource(
+            source=source,
+            base_url=base_url or self.base_url,
+            allow=self.allow,
+            defuse=self.defuse,
+            timeout=self.timeout,
+            block=self.block,
+            uri_mapper=self.uri_mapper,
+            opener=self.opener,
+        )
 
     def get_converter(self, converter: Optional[ConverterType] = None,
                       **kwargs: Any) -> XMLSchemaConverter:
@@ -306,5 +330,6 @@ class SchemaSettings(ResourceSettings):
         return cls(source, **{**asdict(self), **kwargs})
 
 
-# Default package settings for schemas
+# Default package settings for resources and schemas
+_DEFAULT_RESOURCE_SETTINGS = ResourceSettings()
 _DEFAULT_SCHEMA_SETTINGS = SchemaSettings()

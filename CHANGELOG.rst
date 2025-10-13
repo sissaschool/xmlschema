@@ -2,6 +2,16 @@
 CHANGELOG
 *********
 
+`v4.2.0`_ (2025-10-13)
+======================
+* Add arguments validation for schemas and validation methods (by validation contexts)
+* Add `SchemaSettings` dataclass for storing read-only settings for schema instances
+  and for managing package default settings
+* Add *block* argument to `XMLResource` class (issue #464)
+* Add *MAX_SCHEMA_SOURCES* package limit (`1000`, applied to `XsdGlobals` global maps instances)
+* Add *MAX_XML_ELEMENTS* package limit (`1,000,000`, applied to non-lazy `XMLResource` instances)
+* Reduce *MAX_XML_DEPTH* limit to 1000 and apply it to all `XMLResource` instances
+
 `v4.1.0`_ (2025-06-05)
 ======================
 * Add XPath selectors: ElementSelector and ElementPathSelectors
@@ -772,3 +782,4 @@ v0.9.6 (2017-05-05)
 .. _v4.0.0: https://github.com/brunato/xmlschema/compare/v3.4.5...v4.0.0
 .. _v4.0.1: https://github.com/brunato/xmlschema/compare/v4.0.0...v4.0.1
 .. _v4.1.0: https://github.com/brunato/xmlschema/compare/v4.0.1...v4.1.0
+.. _v4.2.0: https://github.com/brunato/xmlschema/compare/v4.1.0...v4.2.0
