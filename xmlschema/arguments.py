@@ -19,7 +19,7 @@ from xml.etree.ElementTree import Element
 
 from xmlschema.aliases import XMLSourceType, UriMapperType, IterParseType, BlockType, \
     FillerType, DepthFillerType, ExtraValidatorType, ValidationHookType, ValueHookType, \
-    ElementHookType, ElementType, LogLevelType, LocationsType, NsmapType, DecodedValueType
+    ElementHookType, ElementType, LogLevelType, LocationsType, NsmapType
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError, \
     XMLSchemaAttributeError
 from xmlschema.translation import gettext as _
@@ -404,15 +404,6 @@ class DictClassOption(Option[Optional[type[dict[str, Any]]]]):
 
 class ListClassOption(Option[Optional[type[list[Any]]]]):
     _validators = partial(validate_subclass, cls=list, none=True),
-
-
-class KeepDatatypesArgument(Argument[tuple[type[DecodedValueType], ...]]):
-    def validated_value(self, value: Any) -> tuple[type[DecodedValueType], ...]:
-        if isinstance(value, tuple) and all(is_subclass(x, object) for x in value):
-            return cast(tuple[type[DecodedValueType], ...], value)
-
-        msg = _("invalid type {!r} for {}, must be a type or None")
-        raise XMLSchemaTypeError(msg.format(value, self, str, float))
 
 
 class DecimalTypeOption(Option[Union[None, type[str], type[float]]]):

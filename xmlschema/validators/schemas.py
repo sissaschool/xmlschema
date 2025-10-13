@@ -1311,7 +1311,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             validation_hook=validation_hook,
         )
 
-        namespaces = context.converter.namespaces
+        namespaces = context.namespaces
         identities = context.identities
         ancestors: list[Element] = []
         prev_ancestors: list[Element] = []
@@ -1410,14 +1410,14 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                     **kwargs: Any) -> Iterator[Union[Any, XMLSchemaValidationError]]:
         """Returns a generator for decoding a resource."""
         kwargs['source'] = self.maps.settings.get_xml_resource(source)
-        context = DecodeContext.from_kwargs(**kwargs)
+        context = DecodeContext(**kwargs)
         if path:
-            selector = context.source.iterfind(path, context.converter.namespaces)
+            selector = context.source.iterfind(path, context.namespaces)
         else:
             selector = context.source.iter_depth(mode=2)
 
         for elem in selector:
-            xsd_element = self.get_element(elem.tag, schema_path, context.converter.namespaces)
+            xsd_element = self.get_element(elem.tag, schema_path, context.namespaces)
             if xsd_element is None:
                 if nm.XSI_TYPE in elem.attrib:
                     xsd_element = self.builders.create_element(elem.tag, self)
@@ -1561,8 +1561,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             errors=errors
         )
         kwargs['converter'] = self.maps.settings.get_converter(source=resource, **kwargs)
-        context = DecodeContext.from_kwargs(source=resource, **kwargs)
-        namespaces = context.converter.namespaces
+        context = DecodeContext(source=resource, **kwargs)
+        namespaces = context.namespaces
 
         namespace = resource.namespace or namespaces.get('', '')
         schema = self.get_schema(namespace)
@@ -1713,8 +1713,8 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
             etree_element_class=etree_element_class,
         )
         kwargs['converter'] = self.maps.settings.get_converter(**kwargs)
-        context = EncodeContext.from_kwargs(**kwargs)
-        namespaces = context.converter.namespaces
+        context = EncodeContext(**kwargs)
+        namespaces = context.namespaces
 
         xsd_element = None
         if path is not None:

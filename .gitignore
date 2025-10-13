@@ -19,5 +19,6 @@ development/
 test_cases/
 !tests/test_cases/
 !tests/test_cases/serialization/*.json
+tests/test_cases/examples/vehicles/vehicles-test.*
 out/
 profiling/out/

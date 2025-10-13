@@ -12,8 +12,7 @@ import decimal
 import logging
 from abc import abstractmethod, ABCMeta
 from collections import Counter
-from collections.abc import Iterable, Iterator, MutableMapping, MutableSequence
-from dataclasses import asdict, dataclass, field
+from collections.abc import Iterable, Iterator, MutableSequence
 from functools import partial
 from typing import Any, Generic, Optional, Type, TYPE_CHECKING, TypeVar, Union
 from xml.etree.ElementTree import Element
@@ -30,6 +29,7 @@ from xmlschema.translation import gettext as _
 from xmlschema.utils.decoding import EmptyType, raw_encode_value
 from xmlschema.utils.etree import is_etree_element, is_etree_document
 from xmlschema.utils.logger import format_xmlschema_stack
+from xmlschema.utils.misc import iter_class_slots
 from xmlschema.utils.qnames import get_prefixed_qname
 from xmlschema.namespaces import NamespaceMapper
 from xmlschema.converters import XMLSchemaConverter
@@ -37,7 +37,7 @@ from xmlschema.resources import XMLResource
 from xmlschema.arguments import Arguments, BooleanOption, NonNegIntOption, \
     validate_type, Argument, MaxDepthOption, ExtraValidatorOption, \
     ValidationHookOption, FillerOption, ElementHookOption, DepthFillerOption, \
-    ValueHookOption, DecimalTypeOption, ElementTypeOption, KeepDatatypesArgument
+    ValueHookOption, DecimalTypeOption, ElementTypeOption
 
 from .exceptions import XMLSchemaValidationError, \
     XMLSchemaChildrenValidationError, XMLSchemaDecodeError, XMLSchemaEncodeError
@@ -87,14 +87,13 @@ class ValidationArguments(Arguments):
     extra_validator = ExtraValidatorOption(default=None)
     validation_hook = ValidationHookOption(default=None)
 
-    validation_only = use_defaults = BooleanOption(default=True)
+    use_defaults = BooleanOption(default=True)
     check_identities = preserve_mixed = process_skipped = \
         use_location_hints = BooleanOption(default=False)
 
 
 class DecodeArguments(ValidationArguments):
     converter = ConverterArgument()
-    keep_datatypes = KeepDatatypesArgument()
     decimal_type = DecimalTypeOption(default=None)
     filler = FillerOption(default=None)
     depth_filler = DepthFillerOption(default=None)
@@ -114,7 +113,6 @@ class EncodeArguments(ValidationArguments):
     unordered = untyped_data = BooleanOption(default=False)
 
 
-@dataclass(slots=True)
 class ValidationContext:
     """
     A context class for handling validated decoding process. It stores together
@@ -122,46 +120,79 @@ class ValidationContext:
     and parameters, as specific values or functions. Parameters can be provided
     as keyword-only arguments.
     """
-    source: Union[XMLResource, Any]
-
-    # Overall validation status
-    converter: NamespaceMapper = field(default_factory=NamespaceMapper)
-    level: int = 0
-    errors: ErrorsType = field(default_factory=list)
-    id_map: Counter[str] = field(default_factory=Counter)
-    identities: dict['XsdIdentity', 'IdentityCounter'] = field(default_factory=dict)
-    inherited: dict[str, str] = field(default_factory=dict)
-
-    # Local validation status
-    id_list: Optional[list[Any]] = None
-    elem: Optional[ElementType] = None
-    attribute: Optional[str] = None
-    patterns: Optional['XsdPatternFacets'] = None
-
-    # Validation options
-    validation_only: bool = True
-    check_identities: bool = False
-    use_defaults: bool = True
-    preserve_mixed: bool = False
-    process_skipped: bool = False
-    max_depth: Optional[int] = None
-    extra_validator: Optional[ExtraValidatorType] = None
-    validation_hook: Optional[ValidationHookType] = None
-    use_location_hints: bool = False
-
+    errors: ErrorsType
     _arguments = ValidationArguments
 
-    def __post_init__(self) -> None:
+    __slots__ = ('source', 'converter', 'namespaces', 'errors', 'level',
+                 'validation_only', 'check_identities', 'use_defaults',
+                 'preserve_mixed', 'process_skipped', 'max_depth',
+                 'extra_validator', 'validation_hook', 'use_location_hints',
+                 'inherited', 'id_map', 'identities', 'id_list', 'elem',
+                 'attribute', 'patterns')
+
+    def __init__(self,
+                 source: Union[XMLResource, Any],
+                 converter: Optional[NamespaceMapper] = None,
+                 errors: Optional[ErrorsType] = None,
+                 level: int = 0,
+                 check_identities: bool = False,
+                 use_defaults: bool = True,
+                 preserve_mixed: bool = False,
+                 process_skipped: bool = False,
+                 max_depth: Optional[int] = None,
+                 extra_validator: Optional[ExtraValidatorType] = None,
+                 validation_hook: Optional[ValidationHookType] = None,
+                 use_location_hints: bool = False,
+                 **kwargs: Any) -> None:
+
+        self.source = source
+        if converter is None:
+            converter = NamespaceMapper(kwargs.get('namespaces'), source=source)
+
+        self.converter = converter
+        self.namespaces = converter.namespaces
+
+        self.errors = errors if errors is not None else []
+        self.level = level
+        self.check_identities = check_identities
+        self.use_defaults = use_defaults
+        self.preserve_mixed = preserve_mixed
+        self.process_skipped = process_skipped
+        self.max_depth = max_depth
+        self.extra_validator = extra_validator
+        self.validation_hook = validation_hook
+        self.use_location_hints = use_location_hints
+
+        self.id_map: Counter[str] = Counter()
+        self.identities: dict['XsdIdentity', 'IdentityCounter'] = {}
+        self.inherited: dict[str, str] = {}
+
+        # Local validation status
+        self.id_list: Optional[list[Any]] = None
+        self.elem: Optional[ElementType] = None
+        self.attribute: Optional[str] = None
+        self.patterns: Optional['XsdPatternFacets'] = None
+
+        self.validation_only = self.__class__ is ValidationContext
         self._arguments.validate(self)
 
     def __copy__(self) -> 'ValidationContext':
-        context = self.__class__(**asdict(self))
-        context.converter = copy.copy(self.converter)
+        context = object.__new__(self.__class__)
+        for attr in iter_class_slots(self):
+            setattr(context, attr, getattr(self, attr))
+
         context.errors = self.errors.copy()
         context.id_map = self.id_map.copy()
         context.identities = self.identities.copy()
         context.inherited = self.inherited.copy()
         context.id_list = self.id_list if self.id_list is None else self.id_list.copy()
+
+        if self.converter.xmlns_processing == 'none':
+            context.converter = self.converter
+            context.namespaces = self.namespaces
+        else:
+            context.converter = copy.copy(self.converter)
+            context.namespaces = context.converter.namespaces
         return context
 
     def clear(self) -> None:
@@ -174,10 +205,6 @@ class ValidationContext:
         self.attribute = None
         self.id_list = None
         self.patterns = None
-
-    @property
-    def namespaces(self) -> MutableMapping[str, str]:
-        return self.converter.namespaces
 
     @property
     def root_namespace(self) -> Optional[str]:
@@ -291,74 +318,84 @@ class ValidationContext:
         return self.raise_or_collect(validation, error)
 
 
-@dataclass(slots=True)
 class DecodeContext(ValidationContext):
     """A context for handling validated decoding processes."""
     source: XMLResource
     converter: XMLSchemaConverter
-    keep_datatypes: tuple[type[DecodedValueType], ...] = (list, int, str)
-    validation_only: bool = False
-    decimal_type: Optional[Union[Type[str], Type[float]]] = None
-    datetime_types: bool = False
-    binary_types: bool = False
-    filler: Optional[FillerType] = None
-    fill_missing: bool = False
-    keep_empty: bool = False
-    keep_unknown: bool = False
-    depth_filler: Optional[DepthFillerType] = None
-    value_hook: Optional[ValueHookType] = None
-    element_hook: Optional[ElementHookType] = None
 
     _arguments = DecodeArguments
 
-    @classmethod
-    def from_kwargs(cls, **kwargs: Any) -> 'DecodeContext':
-        converter = kwargs.get('converter')
+    __slots__ = ('decimal_type', 'datetime_types', 'binary_types', 'filler',
+                 'fill_missing', 'keep_empty', 'keep_unknown', 'depth_filler',
+                 'value_hook', 'element_hook', 'keep_datatypes')
+
+    def __init__(self,
+                 source: XMLResource,
+                 converter: Optional[XMLSchemaConverter] = None,
+                 decimal_type: Optional[Union[Type[str], Type[float]]] = None,
+                 datetime_types: bool = False,
+                 binary_types: bool = False,
+                 filler: Optional[FillerType] = None,
+                 fill_missing: bool = False,
+                 keep_empty: bool = False,
+                 keep_unknown: bool = False,
+                 depth_filler: Optional[DepthFillerType] = None,
+                 value_hook: Optional[ValueHookType] = None,
+                 element_hook: Optional[ElementHookType] = None,
+                 **kwargs: Any) -> None:
+
         if not isinstance(converter, XMLSchemaConverter):
-            kwargs['converter'] = XMLSchemaConverter(**kwargs)
+            converter = XMLSchemaConverter(**kwargs)
+
+        self.decimal_type = decimal_type
+        self.datetime_types = datetime_types
+        self.binary_types = binary_types
+        self.filler = filler
+        self.fill_missing = fill_missing
+        self.keep_empty = keep_empty
+        self.keep_unknown = keep_unknown
+        self.depth_filler = depth_filler
+        self.value_hook = value_hook
+        self.element_hook = element_hook
 
         keep_datatypes: list[type[DecodedValueType]] = [int, float, list]
-        if kwargs.get('decimal_type') is None:
+        if decimal_type is None:
             keep_datatypes.append(decimal.Decimal)
-        if kwargs.get('datetime_types'):
+        if datetime_types:
             keep_datatypes.append(AbstractDateTime)
             keep_datatypes.append(Duration)
-        if kwargs.get('binary_types'):
+        if binary_types:
             keep_datatypes.append(AbstractBinary)
-        kwargs['keep_datatypes'] = tuple(keep_datatypes)
+        self.keep_datatypes = tuple(keep_datatypes)
 
-        if kwargs.get('errors') is None:
-            kwargs['errors'] = []
-        return cls(**{k: kwargs[k] for k in kwargs if k in cls.__dataclass_fields__})  # noqa
+        super().__init__(source, converter, **kwargs)
 
 
-@dataclass(slots=True)
 class EncodeContext(ValidationContext):
     """A context for handling validated encoding processes."""
     source: Any
     converter: XMLSchemaConverter
-    indent: int = 4
-    etree_element_class: Optional[Type[ElementType]] = None
-    unordered: bool = False
-    untyped_data: bool = False
 
     _arguments = EncodeArguments
 
-    @classmethod
-    def from_kwargs(cls, **kwargs: Any) -> 'EncodeContext':
-        converter = kwargs.get('converter')
+    __slots__ = ('unordered', 'untyped_data', 'indent', 'etree_element_class')
+
+    def __init__(self,
+                 source: Any,
+                 converter: Optional[XMLSchemaConverter] = None,
+                 unordered: bool = False,
+                 untyped_data: bool = False,
+                 **kwargs: Any) -> None:
+
         if not isinstance(converter, XMLSchemaConverter):
-            kwargs['converter'] = XMLSchemaConverter(**kwargs)
-        else:
-            if converter.etree_element_class is Element:
-                kwargs.pop('etree_element_class', None)
-            if converter.indent != 4:
-                kwargs['indent'] = converter.indent
+            converter = XMLSchemaConverter(**kwargs)
 
-        if kwargs.get('errors') is None:
-            kwargs['errors'] = []
+        self.unordered = unordered
+        self.untyped_data = untyped_data
+        self.indent = converter.indent
+        self.etree_element_class = converter.etree_element_class
 
-        return cls(**{k: kwargs[k] for k in kwargs if k in cls.__dataclass_fields__})  # noqa
+        super().__init__(source, converter, **kwargs)
 
     def encode_error(self,
                      validation: str,
@@ -383,7 +420,7 @@ class EncodeContext(ValidationContext):
 
         :param tag: the Element tag string.
         """
-        if self.etree_element_class is None:
+        if self.etree_element_class is Element:
             return Element(tag)
         else:
             nsmap = {prefix if prefix else None: uri
@@ -505,7 +542,6 @@ class ValidationMixin(Generic[ST, DT], metaclass=ABCMeta):
         context = ValidationContext(
             source=source,
             converter=converter,
-            validation_only=True,
             use_defaults=use_defaults,
             max_depth=max_depth,
             extra_validator=extra_validator,
@@ -534,7 +570,7 @@ class ValidationMixin(Generic[ST, DT], metaclass=ABCMeta):
         tag = getattr(self, 'tag', None)
         kwargs['source'] = self.maps.settings.get_resource_from_data(obj, tag)
         kwargs['converter'] = self.maps.settings.get_converter(**kwargs)
-        context = DecodeContext.from_kwargs(**kwargs)
+        context = DecodeContext(**kwargs)
 
         result = self.raw_decode(obj, validation, context)
         if isinstance(result, EmptyType):
@@ -557,7 +593,7 @@ class ValidationMixin(Generic[ST, DT], metaclass=ABCMeta):
         """
         kwargs['source'] = obj
         kwargs['converter'] = self.maps.settings.get_converter(**kwargs)
-        context = EncodeContext.from_kwargs(**kwargs)
+        context = EncodeContext(**kwargs)
 
         result = self.raw_encode(obj, validation, context)
         if isinstance(result, EmptyType):
@@ -578,7 +614,7 @@ class ValidationMixin(Generic[ST, DT], metaclass=ABCMeta):
         tag = getattr(self, 'tag', None)
         kwargs['source'] = self.maps.settings.get_resource_from_data(obj, tag)
         kwargs['converter'] = self.maps.settings.get_converter(**kwargs)
-        context = DecodeContext.from_kwargs(**kwargs)
+        context = DecodeContext(**kwargs)
 
         result = self.raw_decode(obj, validation, context)
         yield from context.errors
@@ -599,7 +635,7 @@ class ValidationMixin(Generic[ST, DT], metaclass=ABCMeta):
         """
         kwargs['source'] = obj
         kwargs['converter'] = self.maps.settings.get_converter(**kwargs)
-        context = EncodeContext.from_kwargs(**kwargs)
+        context = EncodeContext(**kwargs)
 
         result = self.raw_encode(obj, validation, context)
         if is_etree_element(result):

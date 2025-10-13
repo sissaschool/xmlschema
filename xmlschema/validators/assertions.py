@@ -130,7 +130,7 @@ class XsdAssert(XsdComponent, ElementPathMixin[Union['XsdAssert', SchemaElementT
 
         xpath_context = XPathContext(
             root=context.source.get_xpath_node(obj),
-            namespaces=context.converter.namespaces,
+            namespaces=context.namespaces,
             uri=context.source.url,
             fragment=True,
             variables={'value': value},

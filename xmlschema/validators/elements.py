@@ -652,7 +652,7 @@ class XsdElement(XsdComponent, ParticleMixin,
             type_name = obj.attrib[nm.XSI_TYPE].strip()
             try:
                 xsd_type = self.maps.get_instance_type(
-                    type_name, xsd_type, context.converter.namespaces
+                    type_name, xsd_type, context.namespaces
                 )
             except (KeyError, TypeError) as err:
                 context.validation_error(validation, self, err, obj)
@@ -897,7 +897,7 @@ class XsdElement(XsdComponent, ParticleMixin,
 
             try:
                 fields = tuple(
-                    s.get_value(element_node, context.converter.namespaces) for s in selectors
+                    s.get_value(element_node, context.namespaces) for s in selectors
                 )
             except (XMLSchemaValueError, XMLSchemaTypeError) as err:
                 context.validation_error(validation, self, err, obj)
@@ -979,7 +979,7 @@ class XsdElement(XsdComponent, ParticleMixin,
             type_name = attributes[nm.XSI_TYPE].strip()
             try:
                 xsd_type = self.maps.get_instance_type(
-                    type_name, xsd_type, context.converter.namespaces
+                    type_name, xsd_type, context.namespaces
                 )
             except (KeyError, TypeError) as err:
                 errors.append(err)

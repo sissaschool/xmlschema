@@ -978,7 +978,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
 
         errors = []
         broken_model = False
-        namespaces = context.converter.namespaces
+        namespaces = context.namespaces
         model = self.get_model_visitor()
 
         for index, child in enumerate(obj):

@@ -30,7 +30,7 @@ from xmlschema.utils.decoding import raw_encode_value
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaParseError, \
     XMLSchemaCircularityError, XMLSchemaDecodeError, XMLSchemaEncodeError
-from .validation import ValidationContext, EncodeContext, ValidationMixin
+from .validation import ValidationContext, EncodeContext, ValidationMixin, DecodeContext
 from .xsdbase import XsdComponent, XsdType
 from .facets import XsdFacet, XsdWhiteSpaceFacet, XsdPatternFacets, \
     XsdEnumerationFacets, XsdAssertionFacet, MULTIPLE_FACETS
@@ -745,7 +745,7 @@ class XsdAtomicBuiltin(XsdAtomic):
                         pass
                     else:
                         try:
-                            result = f"{{{context.converter.namespaces[prefix]}}}{name}"
+                            result = f"{{{context.namespaces[prefix]}}}{name}"
                         except (TypeError, KeyError):
                             if context.root_namespace != nm.XSD_NAMESPACE:
                                 # For a schema is already found by meta-schema validation
@@ -994,7 +994,7 @@ class XsdList(XsdSimpleType):
                 context.validation_error(validation, self, reason, obj)
                 items.extend(result)
                 continue
-            elif isinstance(context, ValidationContext):
+            elif not isinstance(context, DecodeContext):
                 pass
             elif isinstance(result, context.keep_datatypes) or result is None:
                 pass
@@ -1505,9 +1505,9 @@ class XsdAtomicRestriction(XsdAtomic):
         if self.validators:
             value: DecodedValueType
             if isinstance(obj, list):
-                value = [self.get_atomic_value(x, context.converter.namespaces) for x in obj]
+                value = [self.get_atomic_value(x, context.namespaces) for x in obj]
             else:
-                value = self.get_atomic_value(obj, context.converter.namespaces)
+                value = self.get_atomic_value(obj, context.namespaces)
 
             for validator in self.validators:
                 try:
