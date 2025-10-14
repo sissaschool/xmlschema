@@ -2,7 +2,7 @@
 CHANGELOG
 *********
 
-`v4.2.0`_ (2025-10-13)
+`v4.2.0`_ (2025-10-14)
 ======================
 * Add arguments validation for schemas and validation methods (by validation contexts)
 * Add `SchemaSettings` dataclass for storing read-only settings for schema instances
@@ -11,6 +11,7 @@ CHANGELOG
 * Add *MAX_SCHEMA_SOURCES* package limit (`1000`, applied to `XsdGlobals` global maps instances)
 * Add *MAX_XML_ELEMENTS* package limit (`1,000,000`, applied to non-lazy `XMLResource` instances)
 * Reduce *MAX_XML_DEPTH* limit to 1000 and apply it to all `XMLResource` instances
+* Fix for substitute match in case of unexpected child (issue #461)
 
 `v4.1.0`_ (2025-06-05)
 ======================
