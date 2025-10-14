@@ -43,8 +43,6 @@ if TYPE_CHECKING:
 
 get_occurs = attrgetter('min_occurs', 'max_occurs')
 
-_limits.MAX_MODEL_DEPTH = 15  # Value can be changed by xmlschema.limits module
-
 ANY_ELEMENT = ElementTree.Element(
     nm.XSD_ANY,
     attrib={
@@ -926,7 +924,13 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         matched element, or `None` if there is no match.
         """
         for xsd_element in self.iter_elements():
-            if xsd_element.is_matching(name, group=self):
+            if isinstance(xsd_element, XsdElement):
+                if name == xsd_element.name:
+                    return xsd_element
+                for substitute in xsd_element.iter_substitutes():
+                    if name == substitute.name:
+                        return substitute
+            elif xsd_element.is_matching(name, group=self):
                 return xsd_element
         return None
 
