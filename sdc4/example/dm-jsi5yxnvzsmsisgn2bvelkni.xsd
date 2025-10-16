@@ -1,0 +1,450 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xsd:schema
+  xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+  xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#"
+  xmlns:vc="http://www.w3.org/2007/XMLSchema-versioning"
+  xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+  xmlns:dc="http://purl.org/dc/elements/1.1/"
+  xmlns:sdc4="https://semanticdatacharter.com/ns/sdc4/"
+  xmlns:sdc4-meta="https://semanticdatacharter.com/ontology/sdc4-meta/"
+  targetNamespace="https://semanticdatacharter.com/ns/sdc4/"
+  vc:minVersion="1.1">
+  <!-- Dublin Core Metadata for the Data Model -->
+  <xsd:annotation>
+    <xsd:appinfo>
+      <rdf:RDF>
+        <rdf:Description
+          rdf:about="dm-jsi5yxnvzsmsisgn2bvelkni">
+          <dc:title>StatePopulation</dc:title>
+          <dc:creator>Tim Cook</dc:creator>
+          <dc:subject></dc:subject>
+          <dc:rights>CC-BY http://creativecommons.org/licenses/by/3.0/</dc:rights>
+          <dc:relation>None</dc:relation>
+          <dc:coverage>Universal</dc:coverage>
+          <dc:type>SDC Data Model (DM)</dc:type>
+          <dc:identifier>dm-jsi5yxnvzsmsisgn2bvelkni</dc:identifier>
+          <dc:description>The StatePopulation dataset contains information about the total population, adult population, and percentage of adult population for each state in the United States. The data can be used to analyze demographic trends, understand population growth patterns, and inform policy decisions.</dc:description>
+          <dc:publisher></dc:publisher>
+          <dc:date>2025-10-15 15:10:31.160267+00:00</dc:date>
+          <dc:format>text/xml</dc:format>
+          <dc:language>en-US</dc:language>
+        </rdf:Description>
+      </rdf:RDF>
+    </xsd:appinfo>
+  </xsd:annotation>
+
+<xsd:include schemaLocation="https://semanticdatacharter.com/ns/sdc4/sdc4.xsd"/>
+
+<!-- Schema for DM StatePopulation (jsi5yxnvzsmsisgn2bvelkni) -->
+
+<xsd:element name="dm-jsi5yxnvzsmsisgn2bvelkni" substitutionGroup="sdc4:DM" type="sdc4:mc-jsi5yxnvzsmsisgn2bvelkni"/>
+<xsd:complexType name="mc-jsi5yxnvzsmsisgn2bvelkni">
+  <xsd:annotation>
+    <xsd:appinfo>
+      <rdf:Description rdf:about="sdc4:mc-jsi5yxnvzsmsisgn2bvelkni">
+        <rdf:type rdf:resource="sdc4-meta:ModelComponent"/>
+        <sdc4-meta:isConstrainedByRmComponent rdf:resource="sdc4:DMType"/>
+        <rdfs:label>StatePopulation</rdfs:label>        <rdfs:isDefinedBy rdf:resource="https://w3id.org/semanticarts/ns/ontology/gist/CountryGeoRegion"/>
+        <rdfs:isDefinedBy rdf:resource="http://semanticscience.org/resource/SIO_001061"/>
+
+      </rdf:Description>
+    </xsd:appinfo>
+  </xsd:annotation>
+  <xsd:complexContent>
+    <xsd:restriction base="sdc4:DMType">
+      <xsd:sequence>
+        <xsd:element maxOccurs="1" minOccurs="1" name="dm-label" type="xsd:string" fixed="StatePopulation"/>
+        <xsd:element maxOccurs="1" minOccurs="1" name="dm-language" type="xsd:language" fixed="en-US"/>
+        <xsd:element maxOccurs="1" minOccurs="1" name="dm-encoding" type="xsd:string" fixed="utf-8"/>
+        <xsd:element maxOccurs="1" minOccurs="0" name="creation_timestamp" type="xsd:dateTime"/>
+        <xsd:element maxOccurs="1" minOccurs="0" name="instance_id" type="xsd:string"/>
+        <xsd:element maxOccurs="1" minOccurs="0" name="instance_version" type="xsd:string"/>
+        <xsd:element maxOccurs="1" minOccurs="0" name="current-state" type="xsd:string" default=""/>
+        <xsd:element maxOccurs="1" minOccurs="1" ref="sdc4:ms-wnpz4qyrk369gnsivfsmysdf"/>
+        <xsd:element maxOccurs="1" minOccurs="0" name="subject" type="sdc4:PartyType"/>
+        <xsd:element maxOccurs="unbounded" minOccurs="0" name="provider" type="sdc4:PartyType"/>
+        <xsd:element maxOccurs="unbounded" minOccurs="0" ref="sdc4:Participation"/>
+        <xsd:element maxOccurs="1" minOccurs="0" name="protocol" type="sdc4:XdStringType"/>
+        <xsd:element maxOccurs="1" minOccurs="0" name="workflow" type="sdc4:XdLinkType"/>
+        <xsd:element maxOccurs="1" minOccurs="0" name="acs" type="sdc4:XdLinkType"/>
+      </xsd:sequence>
+    </xsd:restriction>
+  </xsd:complexContent>
+</xsd:complexType>
+
+<!-- Schema for component State (cpq0lpgg887vpys05bucuep3) -->
+  <xsd:complexType name="mc-cpq0lpgg887vpys05bucuep3" xml:lang="en-US">
+    <xsd:annotation>
+      <xsd:appinfo>
+        <rdf:Description rdf:about="sdc4:mc-cpq0lpgg887vpys05bucuep3">
+          <rdf:type rdf:resource="sdc4-meta:ModelComponent"/>
+          <sdc4-meta:isConstrainedByRmComponent rdf:resource="sdc4:XdStringType"/>
+          <rdfs:label>State</rdfs:label>
+          <rdfs:comment>The 'State' column contains the names of U.S. states, each prefixed with a period and followed by an alias (e.g., .Alabama). The data represents geographical locations within the United States.
+Business Rules: The state names must be unique within the dataset, State abbreviations are optional and can vary in format (e.g., Alabama, Ala.)</rdfs:comment>
+          <sdc4-meta:ModelComponent rdf:about="sdc4:mc-cpq0lpgg887vpys05bucuep3"/>
+          <sdc4-meta:describesConceptualEntity rdf:resource="sdc4:concept-state"/>
+        </rdf:Description>
+      </xsd:appinfo>
+    </xsd:annotation>
+    <xsd:complexContent>
+      <xsd:restriction base="sdc4:XdStringType">
+        <xsd:sequence>
+          <xsd:element maxOccurs="1" minOccurs="1" name="label" type="xsd:string" fixed="State"/>
+          <xsd:element maxOccurs="1" minOccurs="0" name="act" type="xsd:string"/>
+          <xsd:element maxOccurs="1" minOccurs="0" ref="sdc4:ExceptionalValue"/>
+          <xsd:element maxOccurs="1" minOccurs="0" name="vtb" type="xsd:dateTime"/>
+          <xsd:element maxOccurs="1" minOccurs="0" name="vte" type="xsd:dateTime"/>
+          <xsd:element maxOccurs="1" minOccurs="0" name="tr" type="xsd:dateTime"/>
+          <xsd:element maxOccurs="1" minOccurs="0" name="modified" type="xsd:dateTime"/>
+          <xsd:element maxOccurs="1" minOccurs="0" name="latitude" type="sdc4:lattype" nillable="true"/>
+          <xsd:element maxOccurs="1" minOccurs="0" name="longitude" type="sdc4:lontype" nillable="true"/>
+          <xsd:element maxOccurs="1" minOccurs="1" name="xdstring-value">
+            <xsd:simpleType>
+              <xsd:restriction base="xsd:string">
+              </xsd:restriction>
+            </xsd:simpleType>
+          </xsd:element>
+          <xsd:element maxOccurs="1" minOccurs="0" name="xdstring-language" type="xsd:language" default="en-US"/>
+        </xsd:sequence>
+      </xsd:restriction>
+    </xsd:complexContent>
+  </xsd:complexType>
+
+
+<!-- Schema for component Adult Population (q1ey1sf5otsa97e76kb06hco) -->
+
+
+<xsd:complexType name="mc-q1ey1sf5otsa97e76kb06hco" xml:lang="en-US">
+    <xsd:annotation>
+      <xsd:appinfo>
+        <rdf:Description rdf:about="sdc4:mc-q1ey1sf5otsa97e76kb06hco">
+          <rdf:type rdf:resource="sdc4-meta:ModelComponent"/>
+          <sdc4-meta:isConstrainedByRmComponent rdf:resource="sdc4:XdCountType"/>
+          <rdfs:label>Adult Population</rdfs:label>
+          <rdfs:comment>The Adult Population column represents the count of adult individuals in a given sample or dataset, likely within specific geographic areas such as cities, states, or countries.</rdfs:comment>
+          <sdc4-meta:ModelComponent rdf:about="sdc4:mc-q1ey1sf5otsa97e76kb06hco"/>
+          <sdc4-meta:describesConceptualEntity rdf:resource="sdc4:concept-adult_population"/>
+          <sdc4-meta:hasUnit rdf:resource="sdc4:mc-cg17krmyl9q1yvpi9i5sham6"/>
+        </rdf:Description>
+      </xsd:appinfo>
+    </xsd:annotation>
+<xsd:complexContent><xsd:restriction base="sdc4:XdCountType">
+<xsd:sequence>
+    <xsd:element maxOccurs="1" minOccurs="1" name="label" type="xsd:string" fixed="Adult Population"/>
+    <xsd:element maxOccurs="1" minOccurs="0" name="act" type="xsd:string"/>
+    <xsd:element maxOccurs="1" minOccurs="0" ref="sdc4:ExceptionalValue"/>
+    <xsd:element maxOccurs="1" minOccurs="0" name="vtb" type="xsd:dateTime"/>
+    <xsd:element maxOccurs="1" minOccurs="0" name="vte" type="xsd:dateTime"/>
+    <xsd:element maxOccurs="1" minOccurs="0" name="tr" type="xsd:dateTime"/>
+    <xsd:element maxOccurs="1" minOccurs="0" name="modified" type="xsd:dateTime"/>
+    <xsd:element maxOccurs="1" minOccurs="0" name="latitude" type="sdc4:lattype" nillable="true"/>
+    <xsd:element maxOccurs="1" minOccurs="0" name="longitude" type="sdc4:lontype" nillable="true"/>
+    <xsd:element maxOccurs="unbounded" minOccurs="0" ref="sdc4:ReferenceRange"/>
+    <xsd:element maxOccurs="1" minOccurs="0" name="normal-status" type="xsd:string"/>
+    <xsd:element maxOccurs="1" minOccurs="0" name="magnitude-status" type="sdc4:MagnitudeStatus"/>
+    <xsd:element maxOccurs="1" minOccurs="0" name="accuracy_margin" type="xsd:decimal"/>
+    <xsd:element maxOccurs="1" minOccurs="0" name="precision_digits" type="xsd:nonNegativeInteger"/>
+    <xsd:element name="xdcount-value">
+      <xsd:simpleType>
+        <xsd:restriction base="xsd:integer">
+        </xsd:restriction>
+      </xsd:simpleType>
+    </xsd:element>
+    <xsd:element name="xdcount-units" type="sdc4:mc-cg17krmyl9q1yvpi9i5sham6"/>
+        </xsd:sequence>
+      </xsd:restriction></xsd:complexContent>
+</xsd:complexType>
+
+
+<!-- Schema for component Adult Population_units (cg17krmyl9q1yvpi9i5sham6) -->
+
+<xsd:complexType name="mc-cg17krmyl9q1yvpi9i5sham6" xml:lang="en-US">
+  <xsd:annotation>
+    <xsd:appinfo>
+      <rdf:Description rdf:about="sdc4:mc-cg17krmyl9q1yvpi9i5sham6">
+        <rdf:type rdf:resource="sdc4-meta:ModelComponent"/>
+        <sdc4-meta:isConstrainedByRmComponent rdf:resource="sdc4:XdStringType"/>
+        <rdfs:label>Adult Population_units</rdfs:label>        <rdfs:isDefinedBy rdf:resource="https%3A//schema.org/Integer"/>
+        <rdfs:isDefinedBy rdf:resource="https%3A//w3id.org/semanticarts/ns/ontology/gist/UnitGroup"/>
+
+      </rdf:Description>
+    </xsd:appinfo>
+  </xsd:annotation>
+  <xsd:complexContent>
+    <xsd:restriction base="sdc4:XdStringType">
+      <xsd:sequence>
+        <xsd:element maxOccurs="1" minOccurs="1" name="label" type="xsd:string" fixed="Adult Population_units"/>
+        <xsd:element maxOccurs="1" minOccurs="0" name="act" type="xsd:string"/>
+        <xsd:element maxOccurs="1" minOccurs="0" ref="sdc4:ExceptionalValue"/>
+        <xsd:element maxOccurs="1" minOccurs="0" name="vtb" type="xsd:dateTime"/>
+        <xsd:element maxOccurs="1" minOccurs="0" name="vte" type="xsd:dateTime"/>
+        <xsd:element maxOccurs="1" minOccurs="0" name="tr" type="xsd:dateTime"/>
+        <xsd:element maxOccurs="1" minOccurs="0" name="modified" type="xsd:dateTime"/>
+        <xsd:element maxOccurs="1" minOccurs="0" name="latitude" type="sdc4:lattype" nillable="true"/>
+        <xsd:element maxOccurs="1" minOccurs="0" name="longitude" type="sdc4:lontype" nillable="true"/>
+        <xsd:element maxOccurs="1" minOccurs="1" name="xdstring-value" type="xsd:string">
+          <xsd:annotation>
+            <xsd:documentation xml:lang="en-us">The units value for this component</xsd:documentation>
+          </xsd:annotation>
+        </xsd:element>
+      </xsd:sequence>
+    </xsd:restriction>
+  </xsd:complexContent>
+</xsd:complexType>
+
+<!-- Schema for component Total Population (wjhpeappmrlj8oscaxj61eft) -->
+
+
+<xsd:complexType name="mc-wjhpeappmrlj8oscaxj61eft" xml:lang="en-US">
+    <xsd:annotation>
+      <xsd:appinfo>
+        <rdf:Description rdf:about="sdc4:mc-wjhpeappmrlj8oscaxj61eft">
+          <rdf:type rdf:resource="sdc4-meta:ModelComponent"/>
+          <sdc4-meta:isConstrainedByRmComponent rdf:resource="sdc4:XdCountType"/>
+          <rdfs:label>Total Population</rdfs:label>
+          <rdfs:comment>The 'Total Population' column represents the number of individuals living in a specific area, such as a city or region.
+Business Rules: The total population should always be a non-negative integer., Population counts are typically rounded to the nearest whole number for simplicity and ease of understanding.</rdfs:comment>
+          <sdc4-meta:ModelComponent rdf:about="sdc4:mc-wjhpeappmrlj8oscaxj61eft"/>
+          <sdc4-meta:describesConceptualEntity rdf:resource="sdc4:concept-total_population"/>
+          <sdc4-meta:hasUnit rdf:resource="sdc4:mc-x0iha7li2o1w6719lh3knx36"/>
+        </rdf:Description>
+      </xsd:appinfo>
+    </xsd:annotation>
+<xsd:complexContent><xsd:restriction base="sdc4:XdCountType">
+<xsd:sequence>
+    <xsd:element maxOccurs="1" minOccurs="1" name="label" type="xsd:string" fixed="Total Population"/>
+    <xsd:element maxOccurs="1" minOccurs="0" name="act" type="xsd:string"/>
+    <xsd:element maxOccurs="1" minOccurs="0" ref="sdc4:ExceptionalValue"/>
+    <xsd:element maxOccurs="1" minOccurs="0" name="vtb" type="xsd:dateTime"/>
+    <xsd:element maxOccurs="1" minOccurs="0" name="vte" type="xsd:dateTime"/>
+    <xsd:element maxOccurs="1" minOccurs="0" name="tr" type="xsd:dateTime"/>
+    <xsd:element maxOccurs="1" minOccurs="0" name="modified" type="xsd:dateTime"/>
+    <xsd:element maxOccurs="1" minOccurs="0" name="latitude" type="sdc4:lattype" nillable="true"/>
+    <xsd:element maxOccurs="1" minOccurs="0" name="longitude" type="sdc4:lontype" nillable="true"/>
+    <xsd:element maxOccurs="unbounded" minOccurs="0" ref="sdc4:ReferenceRange"/>
+    <xsd:element maxOccurs="1" minOccurs="0" name="normal-status" type="xsd:string"/>
+    <xsd:element maxOccurs="1" minOccurs="0" name="magnitude-status" type="sdc4:MagnitudeStatus"/>
+    <xsd:element maxOccurs="1" minOccurs="0" name="accuracy_margin" type="xsd:decimal"/>
+    <xsd:element maxOccurs="1" minOccurs="0" name="precision_digits" type="xsd:nonNegativeInteger"/>
+    <xsd:element name="xdcount-value">
+      <xsd:simpleType>
+        <xsd:restriction base="xsd:integer">
+        </xsd:restriction>
+      </xsd:simpleType>
+    </xsd:element>
+    <xsd:element name="xdcount-units" type="sdc4:mc-x0iha7li2o1w6719lh3knx36"/>
+        </xsd:sequence>
+      </xsd:restriction></xsd:complexContent>
+</xsd:complexType>
+
+
+<!-- Schema for component Total Population_units (x0iha7li2o1w6719lh3knx36) -->
+
+<xsd:complexType name="mc-x0iha7li2o1w6719lh3knx36" xml:lang="en-US">
+  <xsd:annotation>
+    <xsd:appinfo>
+      <rdf:Description rdf:about="sdc4:mc-x0iha7li2o1w6719lh3knx36">
+        <rdf:type rdf:resource="sdc4-meta:ModelComponent"/>
+        <sdc4-meta:isConstrainedByRmComponent rdf:resource="sdc4:XdStringType"/>
+        <rdfs:label>Total Population_units</rdfs:label>        <rdfs:isDefinedBy rdf:resource="https%3A//schema.org/Integer"/>
+
+      </rdf:Description>
+    </xsd:appinfo>
+  </xsd:annotation>
+  <xsd:complexContent>
+    <xsd:restriction base="sdc4:XdStringType">
+      <xsd:sequence>
+        <xsd:element maxOccurs="1" minOccurs="1" name="label" type="xsd:string" fixed="Total Population_units"/>
+        <xsd:element maxOccurs="1" minOccurs="0" name="act" type="xsd:string"/>
+        <xsd:element maxOccurs="1" minOccurs="0" ref="sdc4:ExceptionalValue"/>
+        <xsd:element maxOccurs="1" minOccurs="0" name="vtb" type="xsd:dateTime"/>
+        <xsd:element maxOccurs="1" minOccurs="0" name="vte" type="xsd:dateTime"/>
+        <xsd:element maxOccurs="1" minOccurs="0" name="tr" type="xsd:dateTime"/>
+        <xsd:element maxOccurs="1" minOccurs="0" name="modified" type="xsd:dateTime"/>
+        <xsd:element maxOccurs="1" minOccurs="0" name="latitude" type="sdc4:lattype" nillable="true"/>
+        <xsd:element maxOccurs="1" minOccurs="0" name="longitude" type="sdc4:lontype" nillable="true"/>
+        <xsd:element maxOccurs="1" minOccurs="1" name="xdstring-value" type="xsd:string">
+          <xsd:annotation>
+            <xsd:documentation xml:lang="en-us">The units value for this component</xsd:documentation>
+          </xsd:annotation>
+        </xsd:element>
+      </xsd:sequence>
+    </xsd:restriction>
+  </xsd:complexContent>
+</xsd:complexType>
+
+<!-- Schema for component Adult Population Percentage (ncjwsf2l6tsba9qre5hjvbb1) -->
+
+
+<xsd:complexType name='mc-ncjwsf2l6tsba9qre5hjvbb1' xml:lang='en-US'>
+    <xsd:annotation>
+        <xsd:appinfo>
+            <rdf:Description rdf:about='sdc4:mc-ncjwsf2l6tsba9qre5hjvbb1'>
+                <rdf:type rdf:resource='sdc4-meta:ModelComponent'/>
+                <sdc4-meta:isConstrainedByRmComponent rdf:resource='sdc4:XdQuantityType'/>
+                <rdfs:label>Adult Population Percentage</rdfs:label>
+                <rdfs:comment>The Adult Population Percentage column represents the percentage (expressed as a decimal) of adults within different populations or regions, likely for demographic studies.
+Business Rules: Percentage values should range from 0 to 1 (or 0% to 100%)., Values must be consistent with the total adult population count., No negative or null percentage is allowed.</rdfs:comment>
+                <sdc4-meta:ModelComponent rdf:about='sdc4:mc-ncjwsf2l6tsba9qre5hjvbb1'/>
+            </rdf:Description>
+        </xsd:appinfo>
+    </xsd:annotation>
+<xsd:complexContent><xsd:restriction base="sdc4:XdQuantityType">
+<xsd:sequence>
+    <xsd:element maxOccurs="1" minOccurs="1" name="label" type="xsd:string" fixed="Adult Population Percentage"/>
+    <xsd:element maxOccurs="1" minOccurs="0" name="act" type="xsd:string"/>
+    <xsd:element maxOccurs="1" minOccurs="0" ref="sdc4:ExceptionalValue"/>
+    <xsd:element maxOccurs="1" minOccurs="0" name="vtb" type="xsd:dateTime"/>
+    <xsd:element maxOccurs="1" minOccurs="0" name="vte" type="xsd:dateTime"/>
+    <xsd:element maxOccurs="1" minOccurs="0" name="tr" type="xsd:dateTime"/>
+    <xsd:element maxOccurs="1" minOccurs="0" name="modified" type="xsd:dateTime"/>
+    <xsd:element maxOccurs="1" minOccurs="0" name="latitude" type="sdc4:lattype" nillable="true"/>
+    <xsd:element maxOccurs="1" minOccurs="0" name="longitude" type="sdc4:lontype" nillable="true"/>
+    <xsd:element maxOccurs="unbounded" minOccurs="0" ref="sdc4:ReferenceRange"/>
+    <xsd:element maxOccurs="1" minOccurs="0" name="normal-status" type="xsd:string"/>
+    <xsd:element maxOccurs="1" minOccurs="0" name="magnitude-status" type="sdc4:MagnitudeStatus"/>
+    <xsd:element maxOccurs="1" minOccurs="0" name="accuracy_margin" type="xsd:decimal"/>
+    <xsd:element maxOccurs="1" minOccurs="0" name="precision_digits" type="xsd:nonNegativeInteger"/>
+    <xsd:element name="xdquantity-value">
+      <xsd:simpleType><xsd:restriction base="xsd:decimal"/></xsd:simpleType>
+    </xsd:element>
+    <xsd:element name="xdquantity-units" type="sdc4:mc-ozsti3i7nk6sbhjfn2avnr20"/>
+        </xsd:sequence>
+      </xsd:restriction></xsd:complexContent>
+</xsd:complexType>
+
+
+<!-- Schema for component Adult Population Percentage_units (ozsti3i7nk6sbhjfn2avnr20) -->
+
+<xsd:complexType name="mc-ozsti3i7nk6sbhjfn2avnr20" xml:lang="en-US">
+  <xsd:annotation>
+    <xsd:appinfo>
+      <rdf:Description rdf:about="sdc4:mc-ozsti3i7nk6sbhjfn2avnr20">
+        <rdf:type rdf:resource="sdc4-meta:ModelComponent"/>
+        <sdc4-meta:isConstrainedByRmComponent rdf:resource="sdc4:XdStringType"/>
+        <rdfs:label>Adult Population Percentage_units</rdfs:label>        <rdfs:isDefinedBy rdf:resource="https%3A//schema.org/annualPercentageRate"/>
+        <rdfs:isDefinedBy rdf:resource="https%3A//w3id.org/semanticarts/ns/ontology/gist/UnitGroup"/>
+
+      </rdf:Description>
+    </xsd:appinfo>
+  </xsd:annotation>
+  <xsd:complexContent>
+    <xsd:restriction base="sdc4:XdStringType">
+      <xsd:sequence>
+        <xsd:element maxOccurs="1" minOccurs="1" name="label" type="xsd:string" fixed="Adult Population Percentage_units"/>
+        <xsd:element maxOccurs="1" minOccurs="0" name="act" type="xsd:string"/>
+        <xsd:element maxOccurs="1" minOccurs="0" ref="sdc4:ExceptionalValue"/>
+        <xsd:element maxOccurs="1" minOccurs="0" name="vtb" type="xsd:dateTime"/>
+        <xsd:element maxOccurs="1" minOccurs="0" name="vte" type="xsd:dateTime"/>
+        <xsd:element maxOccurs="1" minOccurs="0" name="tr" type="xsd:dateTime"/>
+        <xsd:element maxOccurs="1" minOccurs="0" name="modified" type="xsd:dateTime"/>
+        <xsd:element maxOccurs="1" minOccurs="0" name="latitude" type="sdc4:lattype" nillable="true"/>
+        <xsd:element maxOccurs="1" minOccurs="0" name="longitude" type="sdc4:lontype" nillable="true"/>
+        <xsd:element maxOccurs="1" minOccurs="1" name="xdstring-value" type="xsd:string">
+          <xsd:annotation>
+            <xsd:documentation xml:lang="en-us">The units value for this component</xsd:documentation>
+          </xsd:annotation>
+        </xsd:element>
+      </xsd:sequence>
+    </xsd:restriction>
+  </xsd:complexContent>
+</xsd:complexType>
+
+<!-- XdAdapterType Wrappers for XdAnyType Components in Clusters -->
+  <!-- Adapter wrapper for State (cpq0lpgg887vpys05bucuep3) -->
+  <xsd:complexType name="mc-iuikp1n1ydyfwncdqjd5wdoi">
+    <xsd:annotation>
+      <xsd:documentation>Adapter for: State</xsd:documentation>
+    </xsd:annotation>
+    <xsd:complexContent>
+      <xsd:restriction base="sdc4:XdAdapterType">
+        <xsd:sequence>
+          <!-- Reference the individual Xd* type in the XdAdapter-value substitution group -->
+          <xsd:element maxOccurs="1" minOccurs="1" ref="sdc4:ms-cpq0lpgg887vpys05bucuep3"/>
+        </xsd:sequence>
+      </xsd:restriction>
+    </xsd:complexContent>
+  </xsd:complexType>  <!-- Adapter wrapper for Adult Population (q1ey1sf5otsa97e76kb06hco) -->
+  <xsd:complexType name="mc-ahfdavxt7dpx960rqi1qtb0l">
+    <xsd:annotation>
+      <xsd:documentation>Adapter for: Adult Population</xsd:documentation>
+    </xsd:annotation>
+    <xsd:complexContent>
+      <xsd:restriction base="sdc4:XdAdapterType">
+        <xsd:sequence>
+          <!-- Reference the individual Xd* type in the XdAdapter-value substitution group -->
+          <xsd:element maxOccurs="1" minOccurs="1" ref="sdc4:ms-q1ey1sf5otsa97e76kb06hco"/>
+        </xsd:sequence>
+      </xsd:restriction>
+    </xsd:complexContent>
+  </xsd:complexType>  <!-- Adapter wrapper for Total Population (wjhpeappmrlj8oscaxj61eft) -->
+  <xsd:complexType name="mc-a6hs8a3or01fqv6j5zi7tl1w">
+    <xsd:annotation>
+      <xsd:documentation>Adapter for: Total Population</xsd:documentation>
+    </xsd:annotation>
+    <xsd:complexContent>
+      <xsd:restriction base="sdc4:XdAdapterType">
+        <xsd:sequence>
+          <!-- Reference the individual Xd* type in the XdAdapter-value substitution group -->
+          <xsd:element maxOccurs="1" minOccurs="1" ref="sdc4:ms-wjhpeappmrlj8oscaxj61eft"/>
+        </xsd:sequence>
+      </xsd:restriction>
+    </xsd:complexContent>
+  </xsd:complexType>  <!-- Adapter wrapper for Adult Population Percentage (ncjwsf2l6tsba9qre5hjvbb1) -->
+  <xsd:complexType name="mc-h5jp41w912rmg4snla4n7csf">
+    <xsd:annotation>
+      <xsd:documentation>Adapter for: Adult Population Percentage</xsd:documentation>
+    </xsd:annotation>
+    <xsd:complexContent>
+      <xsd:restriction base="sdc4:XdAdapterType">
+        <xsd:sequence>
+          <!-- Reference the individual Xd* type in the XdAdapter-value substitution group -->
+          <xsd:element maxOccurs="1" minOccurs="1" ref="sdc4:ms-ncjwsf2l6tsba9qre5hjvbb1"/>
+        </xsd:sequence>
+      </xsd:restriction>
+    </xsd:complexContent>
+  </xsd:complexType>
+<!-- Cluster Schemas -->
+<!-- Schema for component StatePopulation Data Cluster (wnpz4qyrk369gnsivfsmysdf) -->
+
+<xsd:complexType name="mc-wnpz4qyrk369gnsivfsmysdf" xml:lang="en-US">
+  <xsd:annotation>
+    <xsd:appinfo>
+      <rdf:Description rdf:about="sdc4:mc-wnpz4qyrk369gnsivfsmysdf">
+        <rdf:type rdf:resource="sdc4-meta:ModelComponent"/>
+        <sdc4-meta:isConstrainedByRmComponent rdf:resource="sdc4:ClusterType"/>
+        <rdfs:label>StatePopulation Data Cluster</rdfs:label>        <rdfs:isDefinedBy rdf:resource="https://schema.org/State"/>
+
+      </rdf:Description>
+    </xsd:appinfo>
+  </xsd:annotation>
+  <xsd:complexContent>
+    <xsd:restriction base="sdc4:ClusterType">
+      <xsd:sequence>
+        <xsd:element maxOccurs="1" minOccurs="1" name="label" type="xsd:string" fixed="StatePopulation Data Cluster"/>
+        <!-- XdAdapter wrappers for individual Xd* types -->
+        <xsd:element maxOccurs="1" minOccurs="0" ref="sdc4:ms-iuikp1n1ydyfwncdqjd5wdoi"/>
+        <xsd:element maxOccurs="1" minOccurs="0" ref="sdc4:ms-ahfdavxt7dpx960rqi1qtb0l"/>
+        <xsd:element maxOccurs="1" minOccurs="0" ref="sdc4:ms-a6hs8a3or01fqv6j5zi7tl1w"/>
+        <xsd:element maxOccurs="1" minOccurs="0" ref="sdc4:ms-h5jp41w912rmg4snla4n7csf"/>
+      </xsd:sequence>
+    </xsd:restriction>
+  </xsd:complexContent>
+</xsd:complexType>
+
+<!-- Substitution Groups -->
+  <xsd:element name="ms-cg17krmyl9q1yvpi9i5sham6" substitutionGroup="sdc4:XdAdapter-value" type="sdc4:mc-cg17krmyl9q1yvpi9i5sham6"/>
+  <xsd:element name="ms-ncjwsf2l6tsba9qre5hjvbb1" substitutionGroup="sdc4:XdAdapter-value" type="sdc4:mc-ncjwsf2l6tsba9qre5hjvbb1"/>
+  <xsd:element name="ms-ozsti3i7nk6sbhjfn2avnr20" substitutionGroup="sdc4:XdAdapter-value" type="sdc4:mc-ozsti3i7nk6sbhjfn2avnr20"/>
+  <xsd:element name="ms-q1ey1sf5otsa97e76kb06hco" substitutionGroup="sdc4:XdAdapter-value" type="sdc4:mc-q1ey1sf5otsa97e76kb06hco"/>
+  <xsd:element name="ms-cpq0lpgg887vpys05bucuep3" substitutionGroup="sdc4:XdAdapter-value" type="sdc4:mc-cpq0lpgg887vpys05bucuep3"/>
+  <xsd:element name="ms-x0iha7li2o1w6719lh3knx36" substitutionGroup="sdc4:XdAdapter-value" type="sdc4:mc-x0iha7li2o1w6719lh3knx36"/>
+  <xsd:element name="ms-wjhpeappmrlj8oscaxj61eft" substitutionGroup="sdc4:XdAdapter-value" type="sdc4:mc-wjhpeappmrlj8oscaxj61eft"/>
+  <xsd:element name="ms-wnpz4qyrk369gnsivfsmysdf" substitutionGroup="sdc4:Item" type="sdc4:mc-wnpz4qyrk369gnsivfsmysdf"/>
+  <xsd:element name="ms-a6hs8a3or01fqv6j5zi7tl1w" substitutionGroup="sdc4:Item" type="sdc4:mc-a6hs8a3or01fqv6j5zi7tl1w"/>
+  <xsd:element name="ms-ahfdavxt7dpx960rqi1qtb0l" substitutionGroup="sdc4:Item" type="sdc4:mc-ahfdavxt7dpx960rqi1qtb0l"/>
+  <xsd:element name="ms-h5jp41w912rmg4snla4n7csf" substitutionGroup="sdc4:Item" type="sdc4:mc-h5jp41w912rmg4snla4n7csf"/>
+  <xsd:element name="ms-iuikp1n1ydyfwncdqjd5wdoi" substitutionGroup="sdc4:Item" type="sdc4:mc-iuikp1n1ydyfwncdqjd5wdoi"/>
+
+</xsd:schema>

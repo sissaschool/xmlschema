@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<dm-jsi5yxnvzsmsisgn2bvelkni xmlns:sdc4="https://semanticdatacharter.com/ns/sdc4/">
+  <dm-language>en-US</dm-language>
+  <current-state></current-state>
+  <instance_version>1.0</instance_version>
+  <creation_timestamp>2025-10-15T15:10:31.298442</creation_timestamp>
+  <dm-label>StatePopulation</dm-label>
+  <instance_id>dm-jsi5yxnvzsmsisgn2bvelkni</instance_id>
+  <dm-encoding>utf-8</dm-encoding>
+  <sdc4:ms-wnpz4qyrk369gnsivfsmysdf>
+    <label>StatePopulation Data Cluster</label>
+  <sdc4:ms-iuikp1n1ydyfwncdqjd5wdoi>
+    <sdc4:ms-cpq0lpgg887vpys05bucuep3>
+      <label>State</label>
+      <xdstring-value>DefaultString</xdstring-value>
+    </sdc4:ms-cpq0lpgg887vpys05bucuep3>
+  </sdc4:ms-iuikp1n1ydyfwncdqjd5wdoi>
+  <sdc4:ms-ahfdavxt7dpx960rqi1qtb0l>
+    <sdc4:ms-q1ey1sf5otsa97e76kb06hco>
+      <label>Adult Population</label>
+      <xdcount-value>99</xdcount-value>
+      <xdcount-units>
+        <label>Count Units</label>
+        <xdstring-value>people</xdstring-value>
+      </xdcount-units>
+      <mc-cg17krmyl9q1yvpi9i5sham6>
+        <label>Component cg17krmyl9q1yvpi9i5sham6</label>
+        <xdstring-value>DefaultValue</xdstring-value>
+      </mc-cg17krmyl9q1yvpi9i5sham6>
+    </sdc4:ms-q1ey1sf5otsa97e76kb06hco>
+  </sdc4:ms-ahfdavxt7dpx960rqi1qtb0l>
+  <sdc4:ms-a6hs8a3or01fqv6j5zi7tl1w>
+    <sdc4:ms-wjhpeappmrlj8oscaxj61eft>
+      <label>Total Population</label>
+      <xdcount-value>3</xdcount-value>
+      <xdcount-units>
+        <label>Count Units</label>
+        <xdstring-value>people</xdstring-value>
+      </xdcount-units>
+      <mc-x0iha7li2o1w6719lh3knx36>
+        <label>Component x0iha7li2o1w6719lh3knx36</label>
+        <xdstring-value>DefaultValue</xdstring-value>
+      </mc-x0iha7li2o1w6719lh3knx36>
+    </sdc4:ms-wjhpeappmrlj8oscaxj61eft>
+  </sdc4:ms-a6hs8a3or01fqv6j5zi7tl1w>
+  <sdc4:ms-h5jp41w912rmg4snla4n7csf>
+    <sdc4:ms-ncjwsf2l6tsba9qre5hjvbb1>
+      <label>Adult Population Percentage</label>
+      <magnitude>
+        <value>0.0</value>
+      </magnitude>
+      <mc-ozsti3i7nk6sbhjfn2avnr20>
+        <label>Component ozsti3i7nk6sbhjfn2avnr20</label>
+        <xdstring-value>DefaultValue</xdstring-value>
+      </mc-ozsti3i7nk6sbhjfn2avnr20>
+      <units>
+        <label>Quantity Units</label>
+        <symbol>%</symbol>
+        <!-- Default to percentage for now -->
+        <system>ISO</system>
+      </units>
+    </sdc4:ms-ncjwsf2l6tsba9qre5hjvbb1>
+  </sdc4:ms-h5jp41w912rmg4snla4n7csf>
+  </sdc4:ms-wnpz4qyrk369gnsivfsmysdf>
+</dm-jsi5yxnvzsmsisgn2bvelkni>

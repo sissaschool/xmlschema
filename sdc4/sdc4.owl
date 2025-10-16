@@ -1,0 +1,2043 @@
+<?xml version="1.0"?>
+<rdf:RDF xmlns="https://semanticdatacharter.com/ns/sdc4#"
+     xml:base="https://semanticdatacharter.com/ns/sdc4"
+     xmlns:owl="http://www.w3.org/2002/07/owl#"
+     xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+     xmlns:xml="http://www.w3.org/XML/1998/namespace"
+     xmlns:xsd="http://www.w3.org/2001/XMLSchema#"
+     xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#"
+     xmlns:sdc4="https://semanticdatacharter.com/ns/sdc4/">
+    <owl:Ontology rdf:about="https://semanticdatacharter.com/ns/sdc4/">
+        <rdfs:comment xml:lang="en-us">This work is Copyright 2016 - 2026 Axius-SDC, Inc., All Rights Reserved. This ontology represents the Semantic Data Charter (SDC4) Reference Model (RM). It defines the classes and properties for building SDC4-compliant data models.</rdfs:comment>
+        <rdfs:label xml:lang="en-us">Semantic Data Charter (SDC4) Release 4.0.0; Reference Model Ontology</rdfs:label>
+        <owl:versionInfo>4.0.0</owl:versionInfo>
+    </owl:Ontology>
+    
+
+
+    <!-- 
+    ///////////////////////////////////////////////////////////////////////////////////////
+    //
+    // Datatypes
+    //
+    ///////////////////////////////////////////////////////////////////////////////////////
+     -->
+
+    
+
+
+    <!-- http://www.w3.org/2001/XMLSchema#date -->
+
+    <rdfs:Datatype rdf:about="http://www.w3.org/2001/XMLSchema#date"/>
+    
+
+
+    <!-- http://www.w3.org/2001/XMLSchema#duration -->
+
+    <rdfs:Datatype rdf:about="http://www.w3.org/2001/XMLSchema#duration"/>
+    
+
+
+    <!-- http://www.w3.org/2001/XMLSchema#gDay -->
+
+    <rdfs:Datatype rdf:about="http://www.w3.org/2001/XMLSchema#gDay"/>
+    
+
+
+    <!-- http://www.w3.org/2001/XMLSchema#gMonth -->
+
+    <rdfs:Datatype rdf:about="http://www.w3.org/2001/XMLSchema#gMonth"/>
+    
+
+
+    <!-- http://www.w3.org/2001/XMLSchema#gMonthDay -->
+
+    <rdfs:Datatype rdf:about="http://www.w3.org/2001/XMLSchema#gMonthDay"/>
+    
+
+
+    <!-- http://www.w3.org/2001/XMLSchema#gYear -->
+
+    <rdfs:Datatype rdf:about="http://www.w3.org/2001/XMLSchema#gYear"/>
+    
+
+
+    <!-- http://www.w3.org/2001/XMLSchema#gYearMonth -->
+
+    <rdfs:Datatype rdf:about="http://www.w3.org/2001/XMLSchema#gYearMonth"/>
+    
+
+
+    <!-- http://www.w3.org/2001/XMLSchema#time -->
+
+    <rdfs:Datatype rdf:about="http://www.w3.org/2001/XMLSchema#time"/>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/BooleanListSimpleType -->
+
+    <rdfs:Datatype rdf:about="https://semanticdatacharter.com/ns/sdc4/BooleanListSimpleType">
+        <rdfs:comment>A simple type for a white space-delimited list of boolean values.</rdfs:comment>
+    </rdfs:Datatype>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/DecimalListSimpleType -->
+
+    <rdfs:Datatype rdf:about="https://semanticdatacharter.com/ns/sdc4/DecimalListSimpleType">
+        <rdfs:comment>A simple type for a white space-delimited list of decimal values.</rdfs:comment>
+    </rdfs:Datatype>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/DoubleListSimpleType -->
+
+    <rdfs:Datatype rdf:about="https://semanticdatacharter.com/ns/sdc4/DoubleListSimpleType">
+        <rdfs:comment>A simple type for a white space-delimited list of double precision values.</rdfs:comment>
+    </rdfs:Datatype>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/IntegerListSimpleType -->
+
+    <rdfs:Datatype rdf:about="https://semanticdatacharter.com/ns/sdc4/IntegerListSimpleType">
+        <rdfs:comment>A simple type for a white space-delimited list of integer values.</rdfs:comment>
+    </rdfs:Datatype>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/NonNegativeIntegerListSimpleType -->
+
+    <rdfs:Datatype rdf:about="https://semanticdatacharter.com/ns/sdc4/NonNegativeIntegerListSimpleType">
+        <rdfs:comment>A simple type for a white space-delimited list of non-negative integer values.</rdfs:comment>
+    </rdfs:Datatype>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/PositiveIntegerListSimpleType -->
+
+    <rdfs:Datatype rdf:about="https://semanticdatacharter.com/ns/sdc4/PositiveIntegerListSimpleType">
+        <rdfs:comment>A simple type for a white space-delimited list of positive integer values.</rdfs:comment>
+    </rdfs:Datatype>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/StringListSimpleType -->
+
+    <rdfs:Datatype rdf:about="https://semanticdatacharter.com/ns/sdc4/StringListSimpleType">
+        <rdfs:comment>A simple type for a white space-delimited list of string values.</rdfs:comment>
+    </rdfs:Datatype>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/TokenListSimpleType -->
+
+    <rdfs:Datatype rdf:about="https://semanticdatacharter.com/ns/sdc4/TokenListSimpleType">
+        <rdfs:comment>A simple type for a white space-delimited list of normalized token values.</rdfs:comment>
+    </rdfs:Datatype>
+    
+
+
+    <!-- 
+    ///////////////////////////////////////////////////////////////////////////////////////
+    //
+    // Object Properties
+    //
+    ///////////////////////////////////////////////////////////////////////////////////////
+     -->
+
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/acs -->
+
+    <owl:ObjectProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/acs">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/DMType"/>
+        <rdfs:range rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdLinkType"/>
+        <rdfs:comment>Identifier of an externally held access control system. This URI can be an ontology, vocabulary or descriptive document URI link.</rdfs:comment>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/hasAttestation -->
+
+    <owl:ObjectProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/hasAttestation">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/DMType"/>
+        <rdfs:range rdf:resource="https://semanticdatacharter.com/ns/sdc4/AttestationType"/>
+        <rdfs:comment>Attestation record of an instance of data.</rdfs:comment>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/hasAudit -->
+
+    <owl:ObjectProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/hasAudit">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/DMType"/>
+        <rdfs:range rdf:resource="https://semanticdatacharter.com/ns/sdc4/AuditType"/>
+        <rdfs:comment>List of audits from the system of original commit of information forming the content, or from a conversion gateway which has processed this data.</rdfs:comment>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/hasCommitter -->
+
+    <owl:ObjectProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/hasCommitter">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/AttestationType"/>
+        <rdfs:range rdf:resource="https://semanticdatacharter.com/ns/sdc4/PartyType"/>
+        <rdfs:comment>Identity of person who committed the item.</rdfs:comment>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/hasDataItem -->
+
+    <owl:ObjectProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/hasDataItem">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/DMType"/>
+        <rdfs:range rdf:resource="https://semanticdatacharter.com/ns/sdc4/ClusterType"/>
+        <rdfs:comment>The data structure of the model.</rdfs:comment>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/hasExceptionalValue -->
+
+    <owl:ObjectProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/hasExceptionalValue">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdAnyType"/>
+        <rdfs:range rdf:resource="https://semanticdatacharter.com/ns/sdc4/ExceptionalValueType"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/hasFunction -->
+
+    <owl:ObjectProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/hasFunction">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/ParticipationType"/>
+        <rdfs:range rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdStringType"/>
+        <rdfs:comment>The function of the performer in this participation. In some applications this might be called a Role.</rdfs:comment>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/hasMode -->
+
+    <owl:ObjectProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/hasMode">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/ParticipationType"/>
+        <rdfs:range rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdStringType"/>
+        <rdfs:comment>The mode of the performer / activity interaction, e.g. present, by telephone, by email etc. If the participation is by device or software it may contain a protocol standard or interface definition.</rdfs:comment>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/hasInterval -->
+
+    <owl:ObjectProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/hasInterval">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/ReferenceRangeType"/>
+        <rdfs:range rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdIntervalType"/>
+        <rdfs:comment>The data range for this reference range.</rdfs:comment>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/hasIntervalUnits -->
+
+    <owl:ObjectProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/hasIntervalUnits">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdIntervalType"/>
+        <rdfs:range rdf:resource="https://semanticdatacharter.com/ns/sdc4/InvlUnits"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/hasItems -->
+
+    <owl:ObjectProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/hasItems">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/ClusterType"/>
+        <rdfs:range rdf:resource="https://semanticdatacharter.com/ns/sdc4/ItemType"/>
+        <rdfs:comment>List of ItemTypes which may be XdAdapterTypes and/or ClusterTypes.</rdfs:comment>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/hasLink -->
+
+    <owl:ObjectProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/hasLink">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/DMType"/>
+        <rdfs:range rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdLinkType"/>
+        <rdfs:comment>Optional link(s) to other locatable structures or external entities.</rdfs:comment>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/hasLocation -->
+
+    <owl:ObjectProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/hasLocation">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/AuditType"/>
+        <rdfs:range rdf:resource="https://semanticdatacharter.com/ns/sdc4/ClusterType"/>
+        <rdfs:comment>Location information of the particular site/facility within an organisation which handled the item.</rdfs:comment>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/hasLower -->
+
+    <owl:ObjectProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/hasLower">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdIntervalType"/>
+        <rdfs:range rdf:resource="https://semanticdatacharter.com/ns/sdc4/InvlType"/>
+        <rdfs:comment>The lower boundary of the interval. Must be of the same datatype as the &apos;upper&apos; boundary.</rdfs:comment>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/hasMagnitudeStatus -->
+
+    <owl:ObjectProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/hasMagnitudeStatus">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdQuantifiedType"/>
+        <rdfs:range rdf:resource="https://semanticdatacharter.com/ns/sdc4/MagnitudeStatus"/>
+        <rdfs:comment>An optional status that describes the relationship of this quantity&apos;s value to a contextual target or expected value.The target value itself is not defined here but is known from the context of the measurement, such as a process control limit, a clinical reference range, or a business rule.
+Example: A temperature sensor reports a value of 140C. If the system&apos;s target operational temperature is 160C,  the magnitude-status for the 140C reading would be &apos;less_than&apos;.</rdfs:comment>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/hasParticipation -->
+
+    <owl:ObjectProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/hasParticipation">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/DMType"/>
+        <rdfs:range rdf:resource="https://semanticdatacharter.com/ns/sdc4/ParticipationType"/>
+        <rdfs:comment>List of other participations in the data.</rdfs:comment>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/hasPartyDetails -->
+
+    <owl:ObjectProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/hasPartyDetails">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/PartyType"/>
+        <rdfs:range rdf:resource="https://semanticdatacharter.com/ns/sdc4/ClusterType"/>
+        <rdfs:comment>A structured element for details about the party.</rdfs:comment>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/hasPartyRef -->
+
+    <owl:ObjectProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/hasPartyRef">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/PartyType"/>
+        <rdfs:range rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdLinkType"/>
+        <rdfs:comment>Optional reference to more detailed demographic or identification information for this party, in an external system.</rdfs:comment>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/hasPerformer -->
+
+    <owl:ObjectProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/hasPerformer">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/ParticipationType"/>
+        <rdfs:range rdf:resource="https://semanticdatacharter.com/ns/sdc4/PartyType"/>
+        <rdfs:comment>The id and possibly demographic system link of the party that represents the primary provider of services in the activity.</rdfs:comment>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/hasProof -->
+
+    <owl:ObjectProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/hasProof">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/AttestationType"/>
+        <rdfs:range rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdFileType"/>
+        <rdfs:comment>Proof of attestation such as an GPG signature.</rdfs:comment>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/hasProvider -->
+
+    <owl:ObjectProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/hasProvider">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/DMType"/>
+        <rdfs:range rdf:resource="https://semanticdatacharter.com/ns/sdc4/PartyType"/>
+        <rdfs:comment>Optional identification of the source of the information, which might be: • a patient • a patient agent, e.g. parent, guardian • a clinician • a technician • a device or software</rdfs:comment>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/hasReason -->
+
+    <owl:ObjectProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/hasReason">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/AttestationType"/>
+        <rdfs:range rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdStringType"/>
+        <rdfs:comment>Reason of this attestation. Usually coded from a standardized vocabulary.</rdfs:comment>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/hasReferenceRange -->
+
+    <owl:ObjectProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/hasReferenceRange">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdOrderedType"/>
+        <rdfs:range rdf:resource="https://semanticdatacharter.com/ns/sdc4/ReferenceRangeType"/>
+        <rdfs:comment>Optional list of ReferenceRanges for this value in its particular measurement context.</rdfs:comment>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/hasSubject -->
+
+    <owl:ObjectProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/hasSubject">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/DMType"/>
+        <rdfs:range rdf:resource="https://semanticdatacharter.com/ns/sdc4/PartyType"/>
+        <rdfs:comment>Id of human subject of the data, e.g.: • subject of record (patient, customer, etc.) • a family member • another clinically relevant person.</rdfs:comment>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/hasSystemId -->
+
+    <owl:ObjectProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/hasSystemId">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/AuditType"/>
+        <rdfs:range rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdStringType"/>
+        <rdfs:comment>Identifier of systems which created or handled the information item. &apos;Systems&apos; can also be defined as an individual application or a data repository in which the data was manipulated.</rdfs:comment>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/hasSystemUser -->
+
+    <owl:ObjectProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/hasSystemUser">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/AuditType"/>
+        <rdfs:range rdf:resource="https://semanticdatacharter.com/ns/sdc4/PartyType"/>
+        <rdfs:comment>User(s) who created, committed, forwarded or otherwise handled the item.</rdfs:comment>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/hasUpper -->
+
+    <owl:ObjectProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/hasUpper">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdIntervalType"/>
+        <rdfs:range rdf:resource="https://semanticdatacharter.com/ns/sdc4/InvlType"/>
+        <rdfs:comment>The upper boundary of the interval. Must be of the same datatype as the &apos;lower&apos; boundary.</rdfs:comment>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/hasView -->
+
+    <owl:ObjectProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/hasView">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/AttestationType"/>
+        <rdfs:range rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdFileType"/>
+        <rdfs:comment>Optional visual representation of content attested e.g. screen image.</rdfs:comment>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/hasXdCountUnits -->
+
+    <owl:ObjectProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/hasXdCountUnits">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdCountType"/>
+        <rdfs:range rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdStringType"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/hasXdDoubleUnits -->
+
+    <owl:ObjectProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/hasXdDoubleUnits">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdDoubleType"/>
+        <rdfs:range rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdStringType"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/hasXdFloatUnits -->
+
+    <owl:ObjectProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/hasXdFloatUnits">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdFloatType"/>
+        <rdfs:range rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdStringType"/>
+        <rdfs:comment>The name or type of the float value. May or may not come from a standardized vocabulary.</rdfs:comment>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/hasXdQuantityUnits -->
+
+    <owl:ObjectProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/hasXdQuantityUnits">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdQuantityType"/>
+        <rdfs:range rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdStringType"/>
+        <rdfs:comment>The name or type of the quantity. Examples are &quot;kg&quot;, &quot;mmHg&quot;, &quot;ms-1&quot;, &quot;km/h&quot;. Should come from a standard terminology.</rdfs:comment>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/protocol -->
+
+    <owl:ObjectProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/protocol">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/DMType"/>
+        <rdfs:range rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdStringType"/>
+        <rdfs:comment>Optional external identifier of protocol used when collecting the data. This could be a clinical guideline, an operations protocol,etc.</rdfs:comment>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/workflow -->
+
+    <owl:ObjectProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/workflow">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/DMType"/>
+        <rdfs:range rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdLinkType"/>
+        <rdfs:comment>Identifier of externally held workflow engine (state machine) data for this workflow execution.</rdfs:comment>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- 
+    ///////////////////////////////////////////////////////////////////////////////////////
+    //
+    // Data properties
+    //
+    ///////////////////////////////////////////////////////////////////////////////////////
+     -->
+
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/accuracy_margin -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/accuracy_margin">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdQuantifiedType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#decimal"/>
+        <rdfs:comment>Models ACCURACY. Defines the margin of systematic error, representing how close a measurement is to the true value. 
+                This value is expressed as a plus-or-minus percentage of the magnitude. For example, a value of &apos;2.5&apos; indicates the true value is within +/- 2.5% of the stated magnitude.</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/act -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/act">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdAnyType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment xml:lang="en-us">Access Control Tag: 
+
+Descriptive name of this datatype model. Provides the semantic &apos;name&apos; for the model. Replaces what would be a global XML element name or class name in conventional modeling.</rdfs:comment>
+        <rdfs:label>act</rdfs:label>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/alt-text -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/alt-text">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdFileType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment>Text to display in lieu of multimedia display or execution.</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/committed -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/committed">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/AttestationType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#dateTime"/>
+        <rdfs:comment>Timestamp of committal of the item.</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/compression-type -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/compression-type">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdFileType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment>Compression/archiving mime-type. If this elements does not exist then it means there is no compression/archiving. For a list of common mime-types for compression/archiving see: http://en.wikipedia.org/wiki/List_of_archive_formats.</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/creation_timestamp -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/creation_timestamp">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/DMType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#dateTime"/>
+        <rdfs:comment>An optional run-time timestamp that indicates the exact moment this specific data instance was created or generated. 
+            This element provides a definitive point-in-time reference for the data payload itself. 
+            It is distinct from the design-time Dublin Core metadata which describes the model definition.
+            This timestamp is crucial for data versioning, caching, and synchronization in distributed systems.</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/current-state -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/current-state">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/DMType"/>
+        <rdfs:comment>The data structure of the model.</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/definition -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/definition">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/ReferenceRangeType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment>Term whose value indicates the meaning of this range, e.g. &apos;normal&apos;, &apos;critical&apos;, &apos;therapeutic&apos; etc.</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/dm-encoding -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/dm-encoding">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/DMType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment>Name of character set encoding in which text values in this DM are encoded. Default is utf-8.</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/dm-language -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/dm-language">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/DMType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#language"/>
+        <rdfs:comment>Mandatory indicator of the localised language in which this DM is written. The value space of language is the set of all strings that are valid language identifiers as defined [RFC 3066].</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/encoding -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/encoding">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdFileType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#short"/>
+        <rdfs:comment>Name of character encoding scheme in which this value is encoded. Coded from the IANA charcater set table: http://www.iana.org/assignments/character-sets Unicode is the default assumption in S3Model, with UTF-8 being the assumed encoding. This                element allows for variations from these assumptions.</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/end -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/end">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/ParticipationType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#dateTime"/>
+        <rdfs:comment>The ending datetime when the participation took place.</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/mode -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/mode">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/ParticipationType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment>The mode of the performer / activity interaction, e.g. present, by telephone, by email etc. If the participation is by device or software it may contain a protocol standard or interface definition.</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/ev-name -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/ev-name">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/ExceptionalValueType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment>A short title or phase for the exceptional type value.</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/false-value -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/false-value">
+        <rdfs:subPropertyOf rdf:resource="http://www.w3.org/2002/07/owl#topDataProperty"/>
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdBooleanType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment>A string that represents a boolean False in the implementation. These are constrained by a set of enumerations in the model.</rdfs:comment>
+        <rdfs:label>false-value</rdfs:label>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/formalism -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/formalism">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdFileType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment>Name of the formalism or syntax used to inform an application regarding a candidate parser to use on the content. Examples might include: &apos;ATL&apos;, &apos;MOLA&apos;, &apos;QVT&apos;, &apos;GDL&apos;, &apos;GLIF&apos;, etc.</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/hash-function -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/hash-function">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdFileType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment>Hash function used to compute hash-result. See: http://en.wikipedia.org/wiki/List_of_hash_functions#Cryptographic_hash_functions</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/hash-result -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/hash-result">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdFileType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment>Hash function result of the &apos;media-content&apos;. There must be a corresponding hash function type listed for this to have any meaning. See: http://en.wikipedia.org/wiki/List_of_hash_functions#Cryptographic_hash_functions</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/instance_id -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/instance_id">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/DMType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment>An optional, globally unique identifier for this specific data instance. It is strongly recommended to use a UUID (Universally Unique Identifier).
+            This ID provides a persistent identity for the data that is decoupled from any storage or transport mechanism (e.g., filename, database primary key). 
+            It is essential for reliably tracking, updating, and referencing data in distributed systems, message queues, and data aggregation platforms.</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/instance_version -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/instance_version">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/DMType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment>An optional identifier for the specific version of this data instance. 
+            When paired with instance_id, it allows for a complete version history of a single data record.
+            The type is a string to accommodate various versioning schemes, such as simple integers (&apos;1&apos;, &apos;2&apos;), semantic versioning (&apos;1.2.1&apos;), or timestamps.</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/invl-date -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/invl-date">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/InvlType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#date"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/invl-dateTime -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/invl-dateTime">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/InvlType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#dateTime"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/invl-decimal -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/invl-decimal">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/InvlType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#decimal"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/invl-double -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/invl-double">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/InvlType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#double"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/invl-duration -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/invl-duration">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/InvlType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#duration"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/invl-float -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/invl-float">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/InvlType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#float"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/invl-int -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/invl-int">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/InvlType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#integer"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/invl-time -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/invl-time">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/InvlType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#time"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/is-normal -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/is-normal">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/ReferenceRangeType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#boolean"/>
+        <rdfs:comment>True if this reference range defines values that are considered to be normal. In the context of the value in the definition element.</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/label -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/label">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/AttestationType"/>
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/AuditType"/>
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/ClusterType"/>
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/DMType"/>
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/ParticipationType"/>
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/PartyType"/>
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdAnyType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment xml:lang="en-us">Descriptive name of this datatype model. Provides the semantic &apos;name&apos; for the model.</rdfs:comment>
+        <rdfs:label>label</rdfs:label>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/latitude -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/latitude">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdAnyType"/>
+        <rdfs:range>
+            <rdfs:Datatype>
+                <owl:onDatatype rdf:resource="http://www.w3.org/2001/XMLSchema#decimal"/>
+                <owl:withRestrictions rdf:parseType="Collection">
+                    <rdf:Description>
+                        <xsd:minInclusive rdf:datatype="http://www.w3.org/2001/XMLSchema#decimal">-90.000000</xsd:minInclusive>
+                    </rdf:Description>
+                    <rdf:Description>
+                        <xsd:maxInclusive rdf:datatype="http://www.w3.org/2001/XMLSchema#decimal">90.000000</xsd:maxInclusive>
+                    </rdf:Description>
+                </owl:withRestrictions>
+            </rdfs:Datatype>
+        </rdfs:range>
+        <rdfs:comment xml:lang="en-us">Latitude in decimal format. Value range -90.000000 to 90.000000.</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/link -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/link">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdLinkType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#anyURI"/>
+        <rdfs:comment>A dereferenceable (or not) URL to another CMC or other model like entity.</rdfs:comment>
+        <rdfs:label>link</rdfs:label>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/longitude -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/longitude">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdAnyType"/>
+        <rdfs:range>
+            <rdfs:Datatype>
+                <owl:onDatatype rdf:resource="http://www.w3.org/2001/XMLSchema#decimal"/>
+                <owl:withRestrictions rdf:parseType="Collection">
+                    <rdf:Description>
+                        <xsd:minInclusive rdf:datatype="http://www.w3.org/2001/XMLSchema#decimal">-180.000000</xsd:minInclusive>
+                    </rdf:Description>
+                    <rdf:Description>
+                        <xsd:maxInclusive rdf:datatype="http://www.w3.org/2001/XMLSchema#decimal">180.000000</xsd:maxInclusive>
+                    </rdf:Description>
+                </owl:withRestrictions>
+            </rdfs:Datatype>
+        </rdfs:range>
+        <rdfs:comment xml:lang="en-us">Longitude in decimal format. Value range -180.000000 to 180.000000.</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/lower-bounded -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/lower-bounded">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdIntervalType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#boolean"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/lower-included -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/lower-included">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdIntervalType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#boolean"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/magnitude-status -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/magnitude-status">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdQuantifiedType"/>
+        <rdfs:comment>An optional status that describes the relationship of this quantity&apos;s value to a contextual target or expected value.
+The target value itself is not defined here but is known from the context of the measurement, such as a process control limit, a clinical reference range, or a business rule.
+Example: A temperature sensor reports a value of 140C. If the system&apos;s target operational temperature is 160C, the magnitude-status for the 140C reading would be &apos;less_than&apos;.</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/media-content -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/media-content">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdFileType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#base64Binary"/>
+        <rdfs:comment>The content, if stored locally. The CMC modeler chooses either a uri or local content element.</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/media-type -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/media-type">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdFileType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment>Media (MIME) type of the original media-content w/o any compression. See IANA registered types: http://www.iana.org/assignments/media-types/media-types.xhtml</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/modified -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/modified">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdAnyType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#dateTime"/>
+        <rdfs:comment xml:lang="en-us">Time Modified. If present this must be a valid date-time stamp. It is used to indicate the the actual date and time the data was last changed.</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/normal-status -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/normal-status">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdOrderedType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment>Optional normal status indicator of value with respect to normal range for this value. Often included by lab, even if the normal range itself is not included. Coded by ordinals in series HHH, HH, H, (nothing), L, LL, LLL, etc.</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/ordinal -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/ordinal">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdOrdinalType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#decimal"/>
+        <rdfs:comment>Value in ordered enumeration of values. The base integer is zero with any number of integer values used to order the symbols. Example 1: 0 = Trace, 1 = +, 2 = ++, 3 = +++, etc. Example 2: 0 = Mild, 1 = Moderate, 2 = Severe</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/party-name -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/party-name">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/PartyType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment>Optional human-readable name (in String form).</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/pending -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/pending">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/AttestationType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#boolean"/>
+        <rdfs:comment>True if this attestation is outstanding; &apos;false&apos; means it has been completed.</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/precision_digits -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/precision_digits">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdQuantifiedType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#nonNegativeInteger"/>
+        <rdfs:comment>Models PRECISION. Defines the resolution of the measurement by specifying the number of significant digits after the decimal point.
+                This is especially useful for decimal-based quantities where trailing zeros are significant. For example, a magnitude of &apos;10.50&apos; with a precision_digits of &apos;2&apos; indicates the measurement is precise to the hundredths place.</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/relation -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/relation">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdLinkType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment>A required term, normally drawn from a vocabulary or ontology such as the OBO RO.</rdfs:comment>
+        <rdfs:label>relation</rdfs:label>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/relation-uri -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/relation-uri">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdLinkType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#anyURI"/>
+        <rdfs:comment>A URI where the definition of the relation element term can be found. Normally points to an ontology such as the OBO RO http://purl.obolibrary.org/obo/ro.owl</rdfs:comment>
+        <rdfs:label>relation-uri</rdfs:label>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/size -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/size">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdFileType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#integer"/>
+        <rdfs:comment>Original size in bytes of unencoded encapsulated data. I.e. encodings such as base64, hexadecimal, etc. do not change the value of this element.</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/start -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/start">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/ParticipationType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#dateTime"/>
+        <rdfs:comment>The beginning datetime when the participation took place.</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/symbol -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/symbol">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdOrdinalType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment>Coded textual representation of this value in the enumeration, which may be strings made from &quot;+&quot; symbols, or other enumerations of terms such as &quot;mild&quot;, &quot;moderate&quot;, &quot;severe&quot;, or even the same number series as the values, e.g. &quot;1&quot;, &quot;2&quot;, &quot;3&quot;.</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/timestamp -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/timestamp">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/AuditType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#dateTime"/>
+        <rdfs:comment>Timestamp of handling the item.</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/tr -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/tr">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdAnyType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#dateTime"/>
+        <rdfs:comment xml:lang="en-us">Time Recorded. If present this must be a valid date-time. It is used to indicate the the actual date and time the data was recorded.</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/units-name -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/units-name">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/InvlUnits"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/units-uri -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/units-uri">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/InvlUnits"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#anyURI"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/upper-bounded -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/upper-bounded">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdIntervalType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#boolean"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/upper-included -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/upper-included">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdIntervalType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#boolean"/>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/uri -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/uri">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdFileType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#anyURI"/>
+        <rdfs:comment>URI reference to electronic information stored outside the record as a file, database entry etc, if supplied as a reference.</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/value -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/value">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdBooleanType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment>A string that represents a boolean True in the implementation. These are constrained by a set of enumerations in the datamodel.</rdfs:comment>
+        <rdfs:label>true-value</rdfs:label>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/vtb -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/vtb">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdAnyType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#dateTime"/>
+        <rdfs:comment xml:lang="en-us">Valid Time Begin. If present this must be a valid datetime including timezone. It is used to indicate the beginning time that information is considered valid.</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/vte -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/vte">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdAnyType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#dateTime"/>
+        <rdfs:comment xml:lang="en-us">Valid Time End. If present this must be a valid date-time including timezone. It is used to indicate the ending time that information is considered valid or the time the information expired or will expire.</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/xdcount-value -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/xdcount-value">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdCountType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#integer"/>
+        <rdfs:comment>Integer value of the counted items.</rdfs:comment>
+        <rdfs:label>xdcount-value</rdfs:label>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/xddouble-value -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/xddouble-value">
+        <rdfs:comment>Double value. This type accepts several &quot;special&quot; values: positive zero (0), negative zero (-0) (which is greater than positive 0 but less than any negative value), infinity (INF) (which is greater than any value), negative infinity (-INF) (which is less than any float, and &quot;not a number&quot; (NaN)</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/xdfile-language -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/xdfile-language">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdFileType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#language"/>
+        <rdfs:comment>Optional indicator of the localised language of the content. Typically remains optional in the CMC and used at runtime when the content is in a different language from the enclosing CMC.</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/xdfloat-value -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/xdfloat-value">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdFloatType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#float"/>
+        <rdfs:comment>Float value. This type accepts several &quot;special&quot; values: positive zero (0), negative zero (-0) (which is greater than positive 0 but less than any negative value), infinity (INF) (which is greater than any value), negative infinity (-INF) (which is less than any float, and &quot;not a number&quot; (NaN)</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/xdquantity-value -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/xdquantity-value">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdQuantityType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#decimal"/>
+        <rdfs:comment>Numeric decimal value of the quantity.</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/xdstring-language -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/xdstring-language">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdStringType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#language"/>
+        <rdfs:comment>Optional indicator of the localised language in which this data-type is written. Used when the language used here is different from the enclosing Data Model.</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/xdstring-value -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/xdstring-value">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdStringType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+        <rdfs:comment>The string value of the item.</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/xdtoken-value -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/xdtoken-value">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdTokenType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#token"/>
+        <rdfs:comment>The token value of the item. This is a normalized string where leading and trailing whitespace is removed and internal whitespace is normalized to single spaces.</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/xdtoken-language -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/xdtoken-language">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdTokenType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#language"/>
+        <rdfs:comment>Optional indicator of the localised language in which this data-type is written. Used when the language used here is different from the enclosing Data Model.</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/xdtemporal-date -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/xdtemporal-date">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdTemporalType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#date"/>
+        <rdfs:comment>Represents a specific calendar date (YYYY-MM-DD), with an optional timezone.</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/xdtemporal-datetime -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/xdtemporal-datetime">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdTemporalType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#dateTime"/>
+        <rdfs:comment>Represents a specific instant in time (YYYY-MM-DDThh:mm:ss.sss), with an optional timezone.</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/xdtemporal-day -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/xdtemporal-day">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdTemporalType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#gDay"/>
+        <rdfs:comment>Represents a recurring Gregorian day (---DD).</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/xdtemporal-duration -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/xdtemporal-duration">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdTemporalType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#duration"/>
+        <rdfs:comment>Represents a duration of time as defined by ISO 8601 (e.g., P1Y2M3D).</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/xdtemporal-month -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/xdtemporal-month">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdTemporalType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#gMonth"/>
+        <rdfs:comment>Represents a recurring Gregorian month (--MM--).</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/xdtemporal-month-day -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/xdtemporal-month-day">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdTemporalType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#gMonthDay"/>
+        <rdfs:comment>Represents a recurring Gregorian day in a recurring month (--MM-DD).</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/xdtemporal-time -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/xdtemporal-time">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdTemporalType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#time"/>
+        <rdfs:comment>Represents a recurring time of day (hh:mm:ss.sss), with an optional timezone.</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/xdtemporal-year -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/xdtemporal-year">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdTemporalType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#gYear"/>
+        <rdfs:comment>Represents a specific Gregorian calendar year (YYYY).</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/xdtemporal-year-month -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/xdtemporal-year-month">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdTemporalType"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#gYearMonth"/>
+        <rdfs:comment>Represents a specific Gregorian month in a specific year (YYYY-MM).</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/xdbooleanlist-value -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/xdbooleanlist-value">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdBooleanListType"/>
+        <rdfs:range rdf:resource="https://semanticdatacharter.com/ns/sdc4/BooleanListSimpleType"/>
+        <rdfs:comment>Space-delimited list of boolean values. Values should be 'true' or 'false' separated by single spaces.</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/xddecimallist-value -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/xddecimallist-value">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdDecimalListType"/>
+        <rdfs:range rdf:resource="https://semanticdatacharter.com/ns/sdc4/DecimalListSimpleType"/>
+        <rdfs:comment>Space-delimited list of decimal values. Values should be valid decimal numbers separated by single spaces.</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/xddoublelist-value -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/xddoublelist-value">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdDoubleListType"/>
+        <rdfs:range rdf:resource="https://semanticdatacharter.com/ns/sdc4/DoubleListSimpleType"/>
+        <rdfs:comment>Space-delimited list of double precision values. Values should be valid double numbers separated by single spaces.</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/xdintegerlist-value -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/xdintegerlist-value">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdIntegerListType"/>
+        <rdfs:range rdf:resource="https://semanticdatacharter.com/ns/sdc4/IntegerListSimpleType"/>
+        <rdfs:comment>Space-delimited list of integer values. Values should be valid integers separated by single spaces.</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/xdnonnegativeintegerlist-value -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/xdnonnegativeintegerlist-value">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdNonNegativeIntegerListType"/>
+        <rdfs:range rdf:resource="https://semanticdatacharter.com/ns/sdc4/NonNegativeIntegerListSimpleType"/>
+        <rdfs:comment>Space-delimited list of non-negative integer values. Values should be valid non-negative integers separated by single spaces.</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/xdpositiveintegerlist-value -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/xdpositiveintegerlist-value">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdPositiveIntegerListType"/>
+        <rdfs:range rdf:resource="https://semanticdatacharter.com/ns/sdc4/PositiveIntegerListSimpleType"/>
+        <rdfs:comment>Space-delimited list of positive integer values. Values should be valid positive integers separated by single spaces.</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/xdstringlist-value -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/xdstringlist-value">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdStringListType"/>
+        <rdfs:range rdf:resource="https://semanticdatacharter.com/ns/sdc4/StringListSimpleType"/>
+        <rdfs:comment>Space-delimited list of string values. Values should be valid strings separated by single spaces.</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/xdtokenlist-value -->
+
+    <owl:DatatypeProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/xdtokenlist-value">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdTokenListType"/>
+        <rdfs:range rdf:resource="https://semanticdatacharter.com/ns/sdc4/TokenListSimpleType"/>
+        <rdfs:comment>Space-delimited list of normalized token values. Values should be valid tokens separated by single spaces. Token values have leading and trailing whitespace removed and internal whitespace normalized to single spaces.</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/xddecimallist-units -->
+
+    <owl:ObjectProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/xddecimallist-units">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdDecimalListType"/>
+        <rdfs:range rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdStringType"/>
+        <rdfs:comment>The name or type of the decimal list values. Examples are "kg", "mmHg", "ms-1", "km/h". Should come from a standard terminology. All values in the list share these units.</rdfs:comment>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/xddoublelist-units -->
+
+    <owl:ObjectProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/xddoublelist-units">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdDoubleListType"/>
+        <rdfs:range rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdStringType"/>
+        <rdfs:comment>The name or type of the double list values. Examples are "kg", "mmHg", "ms-1", "km/h". Should come from a standard terminology. All values in the list share these units.</rdfs:comment>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/xdintegerlist-units -->
+
+    <owl:ObjectProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/xdintegerlist-units">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdIntegerListType"/>
+        <rdfs:range rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdStringType"/>
+        <rdfs:comment>The name or type of the integer list values. Examples are "items", "counts", "indices". Should come from a standard terminology. All values in the list share these units.</rdfs:comment>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/xdnonnegativeintegerlist-units -->
+
+    <owl:ObjectProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/xdnonnegativeintegerlist-units">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdNonNegativeIntegerListType"/>
+        <rdfs:range rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdStringType"/>
+        <rdfs:comment>The name or type of the non-negative integer list values. Examples are "items", "counts", "indices". Should come from a standard terminology. All values in the list share these units.</rdfs:comment>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/xdpositiveintegerlist-units -->
+
+    <owl:ObjectProperty rdf:about="https://semanticdatacharter.com/ns/sdc4/xdpositiveintegerlist-units">
+        <rdfs:domain rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdPositiveIntegerListType"/>
+        <rdfs:range rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdStringType"/>
+        <rdfs:comment>The name or type of the positive integer list values. Examples are "items", "counts", "indices". Should come from a standard terminology. All values in the list share these units.</rdfs:comment>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- 
+    ///////////////////////////////////////////////////////////////////////////////////////
+    //
+    // Classes
+    //
+    ///////////////////////////////////////////////////////////////////////////////////////
+     -->
+
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/ASKRType -->
+
+    <owl:Class rdf:about="https://semanticdatacharter.com/ns/sdc4/ASKRType">
+        <rdfs:subClassOf rdf:resource="https://semanticdatacharter.com/ns/sdc4/ExceptionalValueType"/>
+        <rdfs:comment>Asked and Refused : Information was sought but refused to be provided (e.g., patient was asked but refused to answer).</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/ASKUType -->
+
+    <owl:Class rdf:about="https://semanticdatacharter.com/ns/sdc4/ASKUType">
+        <rdfs:subClassOf rdf:resource="https://semanticdatacharter.com/ns/sdc4/ExceptionalValueType"/>
+        <rdfs:comment>Asked but Unknown : Information was sought but not found (e.g., patient was asked but did not know)</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/AttestationType -->
+
+    <owl:Class rdf:about="https://semanticdatacharter.com/ns/sdc4/AttestationType">
+        <rdfs:subClassOf rdf:resource="https://semanticdatacharter.com/ns/sdc4/CMC"/>
+        <rdfs:comment>Record an attestation by a party of the DM content. The type of attestation is recorded by the reason attribute, which my be coded.</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/AuditType -->
+
+    <owl:Class rdf:about="https://semanticdatacharter.com/ns/sdc4/AuditType">
+        <rdfs:subClassOf rdf:resource="https://semanticdatacharter.com/ns/sdc4/CMC"/>
+        <rdfs:comment>AuditType provides a mechanism to identify the who/where/when tracking of instances as they move from system to system.</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/CMC -->
+
+    <owl:Class rdf:about="https://semanticdatacharter.com/ns/sdc4/CMC">
+        <rdfs:comment xml:lang="en-us">The abstract superclass for all components in the SDC4 Reference Model. All SDC4 complexTypes are subclasses of CMC.</rdfs:comment>
+        <rdfs:label xml:lang="en-us">Conceptual Model Component</rdfs:label>
+    </owl:Class>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/ClusterType -->
+
+    <owl:Class rdf:about="https://semanticdatacharter.com/ns/sdc4/ClusterType">
+        <rdfs:subClassOf rdf:resource="https://semanticdatacharter.com/ns/sdc4/ItemType"/>
+        <rdfs:comment xml:lang="en-us">A structural component for grouping other items.
+The grouping component, which may contain further instances of itself or any eXtended datatype wrapped in an XdAdapterType, in an ordered list. This can serve as the root component for arbitrarily complex structures.</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/DERType -->
+
+    <owl:Class rdf:about="https://semanticdatacharter.com/ns/sdc4/DERType">
+        <rdfs:subClassOf rdf:resource="https://semanticdatacharter.com/ns/sdc4/ExceptionalValueType"/>
+        <rdfs:comment>Derived : An actual value may exist, but it must be derived from the provided information; usually an expression is provided directly.</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/DMType -->
+
+    <owl:Class rdf:about="https://semanticdatacharter.com/ns/sdc4/DMType">
+        <rdfs:subClassOf rdf:resource="https://semanticdatacharter.com/ns/sdc4/CMC"/>
+        <rdfs:comment xml:lang="en-us">The root node of a Data Model (DM) instance.</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/ExceptionalValueType -->
+
+    <owl:Class rdf:about="https://semanticdatacharter.com/ns/sdc4/ExceptionalValueType">
+        <rdfs:subClassOf rdf:resource="https://semanticdatacharter.com/ns/sdc4/CMC"/>
+        <rdfs:comment xml:lang="en-us">The superclass for all exceptional values used to explain missing or invalid data.
+Subtypes are used to indicate why a value is missing (Null) or is outside a measurable range. The element ev-name is fixed in restricted types to a descriptive string. The subtypes defined in the reference model are considered sufficiently generic to be
+        useful in many instances. Data Models may contain additional ExceptionalValueType restrictions to allow for domain related reasons for errant or missing data.</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/INVType -->
+
+    <owl:Class rdf:about="https://semanticdatacharter.com/ns/sdc4/INVType">
+        <rdfs:subClassOf rdf:resource="https://semanticdatacharter.com/ns/sdc4/ExceptionalValueType"/>
+        <rdfs:comment>Invalid : The value as represented in the instance is not a member of the set of permitted data values in the constrained value domain of a variable.</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/InvlType -->
+
+    <owl:Class rdf:about="https://semanticdatacharter.com/ns/sdc4/InvlType">
+        <rdfs:subClassOf rdf:resource="http://www.w3.org/2002/07/owl#Thing"/>
+        <rdfs:comment>Defines the set of permissible, comparable datatypes that can be used as the boundary for an interval. In a Data Model, this type is constrained to a single choice (e.g., only &apos;invl-decimal&apos;).</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/InvlUnits -->
+
+    <owl:Class rdf:about="https://semanticdatacharter.com/ns/sdc4/InvlUnits">
+        <rdfs:comment>The units designation for an Interval. This is composed of a units name and a URI because a ReferenceRange can contain intervals with different units (e.g., a temperature range in Celsius and another in Fahrenheit).</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/ItemType -->
+
+    <owl:Class rdf:about="https://semanticdatacharter.com/ns/sdc4/ItemType">
+        <rdfs:subClassOf rdf:resource="https://semanticdatacharter.com/ns/sdc4/CMC"/>
+        <rdfs:comment xml:lang="en-us">The abstract parent of ClusterType and XdAdapterType.</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/MSKType -->
+
+    <owl:Class rdf:about="https://semanticdatacharter.com/ns/sdc4/MSKType">
+        <rdfs:subClassOf rdf:resource="https://semanticdatacharter.com/ns/sdc4/ExceptionalValueType"/>
+        <rdfs:comment>Masked : There is information on this item available but it has not been provided by the sender due to security, privacy or other reasons. There may be an alternate mechanism for gaining access to this information. Warning: Using this exceptional value does provide information that may be a breach of confidentiality, even though no detail data is provided. Its primary purpose is for those circumstances where it is necessary to inform the receiver that the information does exist without providing any detail.</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/MagnitudeStatus -->
+
+    <owl:Class rdf:about="https://semanticdatacharter.com/ns/sdc4/MagnitudeStatus">
+        <rdfs:subClassOf rdf:resource="http://www.w3.org/2002/07/owl#Thing"/>
+        <rdfs:comment>MagnitudeStatus provides a general indication of the accuracy of the magnitude expressed in the XdQuantified subtypes. Should be used to inform users and not for decision support uses.</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/NASKType -->
+
+    <owl:Class rdf:about="https://semanticdatacharter.com/ns/sdc4/NASKType">
+        <rdfs:subClassOf rdf:resource="https://semanticdatacharter.com/ns/sdc4/ExceptionalValueType"/>
+        <rdfs:comment>Not Asked : This information has not been sought (e.g., patient was not asked)</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/NAType -->
+
+    <owl:Class rdf:about="https://semanticdatacharter.com/ns/sdc4/NAType">
+        <rdfs:subClassOf rdf:resource="https://semanticdatacharter.com/ns/sdc4/ExceptionalValueType"/>
+        <rdfs:comment>Not Applicable : No proper value is applicable in this context e.g.,the number of cigarettes smoked per day by a non-smoker subject.</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/NAVType -->
+
+    <owl:Class rdf:about="https://semanticdatacharter.com/ns/sdc4/NAVType">
+        <rdfs:subClassOf rdf:resource="https://semanticdatacharter.com/ns/sdc4/ExceptionalValueType"/>
+        <rdfs:comment>Not Available: This information is not available and the specific reason is not known.</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/NINFType -->
+
+    <owl:Class rdf:about="https://semanticdatacharter.com/ns/sdc4/NINFType">
+        <rdfs:subClassOf rdf:resource="https://semanticdatacharter.com/ns/sdc4/ExceptionalValueType"/>
+        <rdfs:comment>Negative Infinity : Negative infinity of numbers</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/NIType -->
+
+    <owl:Class rdf:about="https://semanticdatacharter.com/ns/sdc4/NIType">
+        <rdfs:subClassOf rdf:resource="https://semanticdatacharter.com/ns/sdc4/ExceptionalValueType"/>
+        <rdfs:comment>No Information : The value is exceptional (missing, omitted, incomplete, improper). No information as to the reason for being an exceptional value is provided. This is the most general exceptional value. It is also the default exceptional value.</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/OTHType -->
+
+    <owl:Class rdf:about="https://semanticdatacharter.com/ns/sdc4/OTHType">
+        <rdfs:subClassOf rdf:resource="https://semanticdatacharter.com/ns/sdc4/ExceptionalValueType"/>
+        <rdfs:comment>Other: The actual value is not a member of the permitted data values in the variable. (e.g., when the value of the variable is not by the coding system)</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/PINFType -->
+
+    <owl:Class rdf:about="https://semanticdatacharter.com/ns/sdc4/PINFType">
+        <rdfs:subClassOf rdf:resource="https://semanticdatacharter.com/ns/sdc4/ExceptionalValueType"/>
+        <rdfs:comment>Positive Infinity : Positive infinity of numbers</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/ParticipationType -->
+
+    <owl:Class rdf:about="https://semanticdatacharter.com/ns/sdc4/ParticipationType">
+        <rdfs:subClassOf rdf:resource="https://semanticdatacharter.com/ns/sdc4/CMC"/>
+        <rdfs:comment>Model of a participation of a Party (any Actor or Role) in an activity. Used to represent any participation of a Party in some activity, which is not explicitly in the model, e.g. assisting nurse. Can be used to record past or future participations.</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/PartyType -->
+
+    <owl:Class rdf:about="https://semanticdatacharter.com/ns/sdc4/PartyType">
+        <rdfs:subClassOf rdf:resource="https://semanticdatacharter.com/ns/sdc4/CMC"/>
+        <rdfs:comment>Description of a party, including an optional external link to data for this party in a demographic or other identity management system. An additional details element provides for the inclusion of information related to this party directly. If the party
+        information is to be anonymous then do not include the details element.</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/QSType -->
+
+    <owl:Class rdf:about="https://semanticdatacharter.com/ns/sdc4/QSType">
+        <rdfs:subClassOf rdf:resource="https://semanticdatacharter.com/ns/sdc4/ExceptionalValueType"/>
+        <rdfs:comment>Sufficient Quantity : The specific quantity is not known, but is known to non-zero and it is not specified because it makes up the bulk of the material; Add 10mg of ingredient X, 50mg of ingredient Y and sufficient quantity of water to 100mL.</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/ReferenceRangeType -->
+
+    <owl:Class rdf:about="https://semanticdatacharter.com/ns/sdc4/ReferenceRangeType">
+        <rdfs:subClassOf rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdAnyType"/>
+    </owl:Class>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/TRCType -->
+
+    <owl:Class rdf:about="https://semanticdatacharter.com/ns/sdc4/TRCType">
+        <rdfs:subClassOf rdf:resource="https://semanticdatacharter.com/ns/sdc4/ExceptionalValueType"/>
+        <rdfs:comment>Trace : The content is greater or less than zero but too small to be quantified.</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/UNCType -->
+
+    <owl:Class rdf:about="https://semanticdatacharter.com/ns/sdc4/UNCType">
+        <rdfs:subClassOf rdf:resource="https://semanticdatacharter.com/ns/sdc4/ExceptionalValueType"/>
+        <rdfs:comment>Unencoded : No attempt has been made to encode the information correctly but the raw source information is represented, usually in free text.</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/UNKType -->
+
+    <owl:Class rdf:about="https://semanticdatacharter.com/ns/sdc4/UNKType">
+        <rdfs:subClassOf rdf:resource="https://semanticdatacharter.com/ns/sdc4/ExceptionalValueType"/>
+        <rdfs:comment>Unknown : A proper value is applicable, but not known.</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/XdAdapterType -->
+
+    <owl:Class rdf:about="https://semanticdatacharter.com/ns/sdc4/XdAdapterType">
+        <rdfs:subClassOf rdf:resource="https://semanticdatacharter.com/ns/sdc4/ItemType"/>
+        <rdfs:comment xml:lang="en-us">A leaf node in a structure that holds a data-typed value.</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/XdAnyType -->
+
+    <owl:Class rdf:about="https://semanticdatacharter.com/ns/sdc4/XdAnyType">
+        <rdfs:subClassOf rdf:resource="https://semanticdatacharter.com/ns/sdc4/CMC"/>
+        <rdfs:comment xml:lang="en-us">Serves as the common ancestor of all eXtended data-types (Xd*) in the Semantic Data Charter. It is an abstract class and should not be instantiated directly.</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/XdBooleanType -->
+
+    <owl:Class rdf:about="https://semanticdatacharter.com/ns/sdc4/XdBooleanType">
+        <rdfs:subClassOf rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdAnyType"/>
+        <rdfs:comment>An enumerated type which represents boolean decisions. 
+Such as true/false or yes/no answers. Useful where it is essential to devise the meanings (often questions in subjective data) carefully so that the only allowed result values result in one the options; true or false but are presented to the user as a list of options. 
+The possible choices for True or False are enumerations in the DM. 
+The reference model defines &apos;true-value&apos; and &apos;false-value&apos; in an xsd:choice so only one or the other may be present in the instance data. 
+        
+The XdBooleanType should not be used as a replacement for enumerated choice types such as male/female, or similar choice sets. Such values should be modeled as XdStrings with enumerations and may reference a controlled vocabulary. In any case, the choice set often has more than two values. 
+        
+The elements, &apos;true-value&apos; and &apos;false-value&apos; are contained in an xsd:choice and only one or the other is instantiated in the instance data with its value coming from the enumerations defined in a Data Model.</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/XdCountType -->
+
+    <owl:Class rdf:about="https://semanticdatacharter.com/ns/sdc4/XdCountType">
+        <rdfs:subClassOf rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdQuantifiedType"/>
+        <rdfs:comment>Countable quantities. Used for countable types such as pregnancies and steps (taken by a physiotherapy patient), number of cigarettes smoked in a day, etc. The thing(s) being counted must be represented in the units element. Misuse:Not used for amounts of physical entities (which all have standardized units).</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/XdDoubleType -->
+
+    <owl:Class rdf:about="https://semanticdatacharter.com/ns/sdc4/XdDoubleType">
+        <rdfs:subClassOf rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdQuantifiedType"/>
+        <rdfs:comment>Quantified type representing specific a value as a 64 bit number and optional units. This is a xsd:double.</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/XdFileType -->
+
+    <owl:Class rdf:about="https://semanticdatacharter.com/ns/sdc4/XdFileType">
+        <rdfs:subClassOf rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdAnyType"/>
+        <rdfs:comment>A type to use for encapsulated content (aka. files) for image, audio and other media types with a defined MIME type. This type provides a choice of embedding the content into the data or using a URL to point to the content.</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/XdFloatType -->
+
+    <owl:Class rdf:about="https://semanticdatacharter.com/ns/sdc4/XdFloatType">
+        <rdfs:subClassOf rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdQuantifiedType"/>
+        <rdfs:comment>Quantified type representing specific a value as a floating point (32 bit) number and optional units. This is a xsd:float.</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/XdIntervalType -->
+
+    <owl:Class rdf:about="https://semanticdatacharter.com/ns/sdc4/XdIntervalType">
+        <rdfs:subClassOf rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdAnyType"/>
+        <rdfs:comment>A generic type for defining an interval (i.e., range) of ordered values. It is primarily used to define reference ranges for quantified data.</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/XdLinkType -->
+
+    <owl:Class rdf:about="https://semanticdatacharter.com/ns/sdc4/XdLinkType">
+        <rdfs:subClassOf rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdAnyType"/>
+        <rdfs:comment>Used to specify a Universal Resource Identifier. Set the pattern facet to accommodate your needs in the DM. Intended use is to provide a mechanism that can be used to link together Data Models. The relation element allows for the use of a descriptive term for the link with an optional URI pointing to the source vocabulary. In most usecases the modeler will define all three of these using the &apos;fixed&apos; attribute. Other usecases will have the &apos;relation&apos; and &apos;relation-uri&apos; elements fixed and the application will provide the &apos;link-value&apos;.</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/XdOrderedType -->
+
+    <owl:Class rdf:about="https://semanticdatacharter.com/ns/sdc4/XdOrderedType">
+        <rdfs:subClassOf rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdAnyType"/>
+        <rdfs:comment>Abstract type defining the concept of ordered values, which includes ordinals as well as true quantities. The implementations require the functions '&amp;lt;', '&apos;&gt;&apos; and is_strictly_comparable_to ('==').</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/XdOrdinalType -->
+
+    <owl:Class rdf:about="https://semanticdatacharter.com/ns/sdc4/XdOrdinalType">
+        <rdfs:subClassOf rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdOrderedType"/>
+        <rdfs:comment>Models rankings and scores, e.g., pain, Apgar values, educational level, and the Likert Scale where there is;
+        
+        * implied ordering,
+        * no implication that the distance between each value is constant, and
+        * the total number of values is finite.
+        
+        Note that the term 'ordinal' in mathematics means natural numbers only. In this case, any decimal is allowed since negative, and zero values are used by medical and other professionals for centering values around a neutral point. Also, decimal values are sometimes used such as 0.5 or .25
+        
+        Examples of sets of ordinal values are;
+        
+        * -3, -2, -1, 0, 1, 2, 3 -- reflex response values
+        * 0, 1, 2 -- Apgar values
+        
+        Also used for recording any clinical or other data which is customarily recorded using symbolic values. Examples;
+        
+        * the results on a urinalysis strip, e.g. {neg, trace, +, ++, +++} are used for leukocytes, protein, nitrites etc;
+        * for non-haemolysed blood {neg, trace, moderate};
+        * for haemolysed blood {neg, trace, small, moderate, large}.
+        
+        Elements *ordinal* and *symbol* MUST have the same number of enumerations in the RMC.</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/XdQuantifiedType -->
+
+    <owl:Class rdf:about="https://semanticdatacharter.com/ns/sdc4/XdQuantifiedType">
+        <rdfs:subClassOf rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdOrderedType"/>
+        <rdfs:comment>Abstract type defining the concept of true quantified values, i.e. values which are not only ordered, but which have a precise magnitude.</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/XdQuantityType -->
+
+    <owl:Class rdf:about="https://semanticdatacharter.com/ns/sdc4/XdQuantityType">
+        <rdfs:subClassOf rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdQuantifiedType"/>
+        <rdfs:comment>Quantified type representing specific quantities, i.e. quantities expressed as a magnitude and units. Can also be used for time durations, where it is more convenient to treat these as simply a number of individual seconds, minutes, hours, days, months, years, etc. when no temporal calculation is to be performed.</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/XdStringType -->
+
+    <owl:Class rdf:about="https://semanticdatacharter.com/ns/sdc4/XdStringType">
+        <rdfs:subClassOf rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdAnyType"/>
+        <rdfs:comment>The string data type can contain characters, line feeds, carriage returns, and tab characters. The use cases are for any free form text entry or for any enumerated lists. Additionally the minimum and maximum lengths may be set and regular expression patterns may be specified.</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/XdTokenType -->
+
+    <owl:Class rdf:about="https://semanticdatacharter.com/ns/sdc4/XdTokenType">
+        <rdfs:subClassOf rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdAnyType"/>
+        <rdfs:comment>The token data type represents normalized strings where leading and trailing whitespace is removed and internal whitespace is normalized to single spaces. This type is useful for identifiers, codes, and other normalized text values that should not contain excessive whitespace.</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/XdTemporalType -->
+
+    <owl:Class rdf:about="https://semanticdatacharter.com/ns/sdc4/XdTemporalType">
+        <rdfs:subClassOf rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdOrderedType"/>
+        <rdfs:comment>Type defining a temporal value. It allows for varying levels of precision by offering a choice of exactly one temporal representation, from a full dateTime to a partial date like a year-month.
+In a Data Model, this type is constrained via restriction to a subset of the choices, allowing the modeler to define precisely which temporal representations are permitted for a given field (e.g., allowing only xsd:date or xsd:gYearMonth for a date of birth).</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/XdBooleanListType -->
+
+    <owl:Class rdf:about="https://semanticdatacharter.com/ns/sdc4/XdBooleanListType">
+        <rdfs:subClassOf rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdAnyType"/>
+        <rdfs:comment>A data type for a white space-delimited list of boolean values. 
+        This type provides efficient storage and transmission of multiple boolean values in a single field.
+        Useful for scientific measurements, batch processing results, and other scenarios where multiple
+        related boolean values need to be transmitted together.</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/XdDecimalListType -->
+
+    <owl:Class rdf:about="https://semanticdatacharter.com/ns/sdc4/XdDecimalListType">
+        <rdfs:subClassOf rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdQuantifiedType"/>
+        <rdfs:comment>A data type for a white space-delimited list of decimal values. 
+        This type provides efficient storage and transmission of multiple decimal values in a single field.
+        Useful for scientific measurements, statistical data, and other scenarios where multiple related
+        decimal values need to be transmitted together. All values in the list share the same units.</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/XdDoubleListType -->
+
+    <owl:Class rdf:about="https://semanticdatacharter.com/ns/sdc4/XdDoubleListType">
+        <rdfs:subClassOf rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdQuantifiedType"/>
+        <rdfs:comment>A data type for a white space-delimited list of double precision values. 
+        This type provides efficient storage and transmission of multiple double values in a single field.
+        Useful for scientific measurements, mathematical computations, and other scenarios where multiple
+        related double precision values need to be transmitted together. All values in the list share the same units.</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/XdIntegerListType -->
+
+    <owl:Class rdf:about="https://semanticdatacharter.com/ns/sdc4/XdIntegerListType">
+        <rdfs:subClassOf rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdQuantifiedType"/>
+        <rdfs:comment>A data type for a white space-delimited list of integer values. 
+        This type provides efficient storage and transmission of multiple integer values in a single field.
+        Useful for counts, indices, and other scenarios where multiple related integer values need to be
+        transmitted together. All values in the list share the same units.</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/XdNonNegativeIntegerListType -->
+
+    <owl:Class rdf:about="https://semanticdatacharter.com/ns/sdc4/XdNonNegativeIntegerListType">
+        <rdfs:subClassOf rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdQuantifiedType"/>
+        <rdfs:comment>A data type for a white space-delimited list of non-negative integer values. 
+        This type provides efficient storage and transmission of multiple non-negative integer values in a single field.
+        Useful for counts, indices, and other scenarios where multiple related non-negative integer values need to be
+        transmitted together. All values in the list share the same units.</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/XdPositiveIntegerListType -->
+
+    <owl:Class rdf:about="https://semanticdatacharter.com/ns/sdc4/XdPositiveIntegerListType">
+        <rdfs:subClassOf rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdQuantifiedType"/>
+        <rdfs:comment>A data type for a white space-delimited list of positive integer values. 
+        This type provides efficient storage and transmission of multiple positive integer values in a single field.
+        Useful for counts, indices, and other scenarios where multiple related positive integer values need to be
+        transmitted together. All values in the list share the same units.</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/XdStringListType -->
+
+    <owl:Class rdf:about="https://semanticdatacharter.com/ns/sdc4/XdStringListType">
+        <rdfs:subClassOf rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdAnyType"/>
+        <rdfs:comment>A data type for a white space-delimited list of string values. 
+        This type provides efficient storage and transmission of multiple string values in a single field.
+        Useful for identifiers, codes, and other scenarios where multiple related string values need to be
+        transmitted together.</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/XdTokenListType -->
+
+    <owl:Class rdf:about="https://semanticdatacharter.com/ns/sdc4/XdTokenListType">
+        <rdfs:subClassOf rdf:resource="https://semanticdatacharter.com/ns/sdc4/XdAnyType"/>
+        <rdfs:comment>A data type for a white space-delimited list of normalized token values. 
+        This type provides efficient storage and transmission of multiple normalized token values in a single field.
+        Useful for identifiers, codes, and other scenarios where multiple related normalized token values need to be
+        transmitted together. Token values have leading and trailing whitespace removed and internal whitespace
+        normalized to single spaces.</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- 
+    ///////////////////////////////////////////////////////////////////////////////////////
+    //
+    // Individuals
+    //
+    ///////////////////////////////////////////////////////////////////////////////////////
+     -->
+
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/approximate -->
+
+    <owl:NamedIndividual rdf:about="https://semanticdatacharter.com/ns/sdc4/approximate">
+        <rdf:type rdf:resource="https://semanticdatacharter.com/ns/sdc4/MagnitudeStatus"/>
+        <rdfs:comment>value is the approximately the magnitude</rdfs:comment>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/equal -->
+
+    <owl:NamedIndividual rdf:about="https://semanticdatacharter.com/ns/sdc4/equal">
+        <rdf:type rdf:resource="https://semanticdatacharter.com/ns/sdc4/MagnitudeStatus"/>
+        <rdfs:comment>magnitude is a point value</rdfs:comment>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/greater_than -->
+
+    <owl:NamedIndividual rdf:about="https://semanticdatacharter.com/ns/sdc4/greater_than">
+        <rdf:type rdf:resource="https://semanticdatacharter.com/ns/sdc4/MagnitudeStatus"/>
+        <rdfs:comment>value is greater than the magnitude</rdfs:comment>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/greater_than_or_equal -->
+
+    <owl:NamedIndividual rdf:about="https://semanticdatacharter.com/ns/sdc4/greater_than_or_equal">
+        <rdf:type rdf:resource="https://semanticdatacharter.com/ns/sdc4/MagnitudeStatus"/>
+        <rdfs:comment>value is greater than or equal to the magnitude</rdfs:comment>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/less_than -->
+
+    <owl:NamedIndividual rdf:about="https://semanticdatacharter.com/ns/sdc4/less_than">
+        <rdf:type rdf:resource="https://semanticdatacharter.com/ns/sdc4/MagnitudeStatus"/>
+        <rdfs:comment>value is less than the magnitude</rdfs:comment>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- https://semanticdatacharter.com/ns/sdc4/less_than_or_equal -->
+
+    <owl:NamedIndividual rdf:about="https://semanticdatacharter.com/ns/sdc4/less_than_or_equal">
+        <rdf:type rdf:resource="https://semanticdatacharter.com/ns/sdc4/MagnitudeStatus"/>
+        <rdfs:comment>value is less than or equal to the magnitude</rdfs:comment>
+    </owl:NamedIndividual>
+</rdf:RDF>
+
+
+
+<!-- Generated by the OWL API (version 4.5.29.2024-05-13T12:11:03Z) https://github.com/owlcs/owlapi -->
+
