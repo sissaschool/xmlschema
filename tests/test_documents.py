@@ -24,15 +24,15 @@ try:
 except ImportError:
     lxml_etree = None
 
-from xmlschema import XMLSchema10, XMLSchema11, XmlDocument, XMLResourceError, \
+from sdcvalidator import XMLSchema10, XMLSchema11, XmlDocument, XMLResourceError, \
     XMLSchemaValidationError, XMLSchemaDecodeError, to_json, from_json, validate, \
     XMLSchemaParseError, is_valid, to_dict, to_etree, JsonMLConverter
 
-from xmlschema.names import XSD_NAMESPACE, XSI_NAMESPACE, XSD_SCHEMA
-from xmlschema.utils.etree import is_etree_element, is_etree_document, is_lxml_element
-from xmlschema.resources import XMLResource
-from xmlschema.documents import get_context
-from xmlschema.testing import etree_elements_assert_equal, SKIP_REMOTE_TESTS, \
+from sdcvalidator.names import XSD_NAMESPACE, XSI_NAMESPACE, XSD_SCHEMA
+from sdcvalidator.utils.etree import is_etree_element, is_etree_document, is_lxml_element
+from sdcvalidator.resources import XMLResource
+from sdcvalidator.documents import get_context
+from sdcvalidator.testing import etree_elements_assert_equal, SKIP_REMOTE_TESTS, \
     XMLSchemaTestCase, run_xmlschema_tests
 
 

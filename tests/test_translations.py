@@ -14,8 +14,8 @@ import gettext
 import warnings
 import pathlib
 
-from xmlschema import XMLSchema, translation
-from xmlschema.testing import SKIP_REMOTE_TESTS, run_xmlschema_tests
+from sdcvalidator import XMLSchema, translation
+from sdcvalidator.testing import SKIP_REMOTE_TESTS, run_xmlschema_tests
 
 
 class TestTranslations(unittest.TestCase):

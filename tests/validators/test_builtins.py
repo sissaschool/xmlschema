@@ -15,10 +15,10 @@ from textwrap import dedent
 from elementpath import datatypes
 from elementpath.datatypes import AbstractDateTime
 
-from xmlschema import XMLSchemaDecodeError, XMLSchemaEncodeError, \
+from sdcvalidator import XMLSchemaDecodeError, XMLSchemaEncodeError, \
     XMLSchemaValidationError, XMLSchema10, XMLSchema11
-from xmlschema.utils.etree import is_etree_element
-from xmlschema.validators.builtins import XSD_10_BUILTIN_TYPES, XSD_11_BUILTIN_TYPES
+from sdcvalidator.utils.etree import is_etree_element
+from sdcvalidator.validators.builtins import XSD_10_BUILTIN_TYPES, XSD_11_BUILTIN_TYPES
 
 
 class TestXsd10BuiltinTypes(unittest.TestCase):
@@ -352,5 +352,5 @@ class TestXsd11BuiltinTypes(TestXsd10BuiltinTypes):
 
 
 if __name__ == '__main__':
-    from xmlschema.testing import run_xmlschema_tests
+    from sdcvalidator.testing import run_xmlschema_tests
     run_xmlschema_tests('XSD builtin types')

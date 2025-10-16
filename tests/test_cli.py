@@ -19,9 +19,9 @@ import os
 import platform
 import sys
 
-import xmlschema
-from xmlschema.cli import get_loglevel, get_converter, validate, xml2json, json2xml
-from xmlschema.testing import run_xmlschema_tests
+import sdcvalidator
+from sdcvalidator.cli import get_loglevel, get_converter, validate, xml2json, json2xml
+from sdcvalidator.testing import run_xmlschema_tests
 
 WORK_DIRECTORY = os.getcwd()
 

@@ -17,10 +17,10 @@ from xml.etree import ElementTree
 
 from elementpath import XPath1Parser, XPath2Parser, Selector, LazyElementNode
 
-from xmlschema import XMLSchema10, XMLSchema11
-from xmlschema.names import XSD_NAMESPACE
-from xmlschema.xpath import XMLSchemaProxy, XPathElement, split_path, ElementSelector
-from xmlschema.validators import XsdAtomic, XsdAtomicRestriction
+from sdcvalidator import XMLSchema10, XMLSchema11
+from sdcvalidator.names import XSD_NAMESPACE
+from sdcvalidator.xpath import XMLSchemaProxy, XPathElement, split_path, ElementSelector
+from sdcvalidator.validators import XsdAtomic, XsdAtomicRestriction
 
 CASES_DIR = os.path.join(os.path.dirname(__file__), 'test_cases/')
 
@@ -436,5 +436,5 @@ class XPathSelectorsTest(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    from xmlschema.testing import run_xmlschema_tests
+    from sdcvalidator.testing import run_xmlschema_tests
     run_xmlschema_tests('XPath processor')

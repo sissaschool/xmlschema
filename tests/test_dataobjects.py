@@ -14,15 +14,15 @@ import xml.etree.ElementTree as ElementTree
 from pathlib import Path
 from typing import Dict
 
-from xmlschema import XMLSchema10, XMLSchema11, fetch_namespaces, etree_tostring, \
+from sdcvalidator import XMLSchema10, XMLSchema11, fetch_namespaces, etree_tostring, \
     XMLSchemaValidationError, DataElement, DataElementConverter, XMLResource, \
     XsdElement, XsdAttribute, XsdType
 
-from xmlschema.validators import XsdAttributeGroup
-from xmlschema.utils.etree import is_etree_element
-from xmlschema.names import XSI_TYPE
-from xmlschema.dataobjects import DataBindingMeta, DataBindingConverter
-from xmlschema.testing import etree_elements_assert_equal, run_xmlschema_tests
+from sdcvalidator.validators import XsdAttributeGroup
+from sdcvalidator.utils.etree import is_etree_element
+from sdcvalidator.names import XSI_TYPE
+from sdcvalidator.dataobjects import DataBindingMeta, DataBindingConverter
+from sdcvalidator.testing import etree_elements_assert_equal, run_xmlschema_tests
 
 
 class TestDataElementInterface(unittest.TestCase):

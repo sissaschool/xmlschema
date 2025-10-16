@@ -12,9 +12,9 @@ import unittest
 from textwrap import dedent
 from typing import Any, Union, List, Optional
 
-from xmlschema import XMLSchema, XMLSchemaModelError, XMLSchemaModelDepthError
-from xmlschema.exceptions import XMLSchemaValueError
-from xmlschema.validators import ParticleMixin, XsdGroup, XsdElement
+from sdcvalidator import XMLSchema, XMLSchemaModelError, XMLSchemaModelDepthError
+from sdcvalidator.exceptions import XMLSchemaValueError
+from sdcvalidator.validators import ParticleMixin, XsdGroup, XsdElement
 
 
 class ModelGroup(XsdGroup):
@@ -438,5 +438,5 @@ class TestXsdGroups(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    from xmlschema.testing import run_xmlschema_tests
+    from sdcvalidator.testing import run_xmlschema_tests
     run_xmlschema_tests('XSD groups')

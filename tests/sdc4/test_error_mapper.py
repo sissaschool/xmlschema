@@ -8,13 +8,13 @@ Unit tests for the SDC4 error mapper.
 """
 
 import unittest
-from xmlschema.validators.exceptions import (
+from sdcvalidator.core.exceptions import (
     XMLSchemaValidationError,
     XMLSchemaDecodeError,
     XMLSchemaChildrenValidationError
 )
-from xmlschema.sdc4.error_mapper import ErrorMapper
-from xmlschema.sdc4.constants import ExceptionalValueType
+from sdcvalidator.sdc4.error_mapper import ErrorMapper
+from sdcvalidator.sdc4.constants import ExceptionalValueType
 
 
 class TestErrorMapper(unittest.TestCase):

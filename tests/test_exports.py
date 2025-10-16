@@ -18,9 +18,9 @@ import platform
 import tempfile
 import warnings
 
-from xmlschema import XMLSchema10, XMLSchema11
-from xmlschema.exports import download_schemas
-from xmlschema.testing import SKIP_REMOTE_TESTS, XMLSchemaTestCase, run_xmlschema_tests
+from sdcvalidator import XMLSchema10, XMLSchema11
+from sdcvalidator.exports import download_schemas
+from sdcvalidator.testing import SKIP_REMOTE_TESTS, XMLSchemaTestCase, run_xmlschema_tests
 
 
 class TestExports(XMLSchemaTestCase):

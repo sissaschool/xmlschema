@@ -11,10 +11,10 @@
 import pathlib
 import xml.etree.ElementTree as ElementTree
 
-from xmlschema import XMLSchemaParseError, XMLSchemaValidationError
-from xmlschema.validators import XMLSchema11
-from xmlschema.validators.identities import IdentityCounter, KeyrefCounter, FieldValueSelector
-from xmlschema.testing import XsdValidatorTestCase
+from sdcvalidator import XMLSchemaParseError, XMLSchemaValidationError
+from sdcvalidator.validators import XMLSchema11
+from sdcvalidator.validators.identities import IdentityCounter, KeyrefCounter, FieldValueSelector
+from sdcvalidator.testing import XsdValidatorTestCase
 
 
 class TestXsdIdentities(XsdValidatorTestCase):
@@ -495,5 +495,5 @@ class TestXsd11Identities(TestXsdIdentities):
 
 
 if __name__ == '__main__':
-    from xmlschema.testing import run_xmlschema_tests
+    from sdcvalidator.testing import run_xmlschema_tests
     run_xmlschema_tests('identities')

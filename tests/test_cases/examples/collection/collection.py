@@ -10,8 +10,8 @@
 """
 Sample of XML data bindings for schema collection.xsd
 """
-import xmlschema
-from xmlschema.dataobjects import DataElement, DataBindingMeta
+import sdcvalidator
+from sdcvalidator.dataobjects import DataElement, DataBindingMeta
 
 __NAMESPACE__ = "http://example.com/ns/collection"
 

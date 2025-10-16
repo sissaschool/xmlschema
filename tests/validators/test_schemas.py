@@ -18,17 +18,17 @@ import os
 from textwrap import dedent
 from xml.etree.ElementTree import Element
 
-import xmlschema
-from xmlschema import XMLSchemaParseError, XMLSchemaIncludeWarning, XMLSchemaImportWarning
-from xmlschema.names import XML_NAMESPACE, XSD_ELEMENT, XSI_TYPE
-from xmlschema.locations import SCHEMAS_DIR
-from xmlschema.loaders import SchemaLoader
-from xmlschema.validators import XMLSchemaBase, XMLSchema10, XMLSchema11, \
+import sdcvalidator
+from sdcvalidator import XMLSchemaParseError, XMLSchemaIncludeWarning, XMLSchemaImportWarning
+from sdcvalidator.names import XML_NAMESPACE, XSD_ELEMENT, XSI_TYPE
+from sdcvalidator.locations import SCHEMAS_DIR
+from sdcvalidator.loaders import SchemaLoader
+from sdcvalidator.validators import XMLSchemaBase, XMLSchema10, XMLSchema11, \
     XsdGlobals, XsdComponent
-from xmlschema.testing import SKIP_REMOTE_TESTS, XsdValidatorTestCase
-from xmlschema.validators.schemas import logger
-from xmlschema.validators.builders import XsdBuilders
-from xmlschema.validators import XMLSchemaValidationError, XsdComplexType, \
+from sdcvalidator.testing import SKIP_REMOTE_TESTS, XsdValidatorTestCase
+from sdcvalidator.validators.schemas import logger
+from sdcvalidator.validators.builders import XsdBuilders
+from sdcvalidator.validators import XMLSchemaValidationError, XsdComplexType, \
     XsdAttributeGroup, XsdElement, XsdGroup
 
 
@@ -1168,5 +1168,5 @@ class TestXMLSchemaMeta(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    from xmlschema.testing import run_xmlschema_tests
+    from sdcvalidator.testing import run_xmlschema_tests
     run_xmlschema_tests('schema classes')

@@ -24,7 +24,7 @@ try:
 except ImportError:
     lxml_etree = None
 
-from xmlschema import validate, XMLSchema10, XMLSchema11, \
+from sdcvalidator import validate, XMLSchema10, XMLSchema11, \
     XMLSchemaException, XMLSchemaValidationError
 
 TEST_SUITE_NAMESPACE = "http://www.w3.org/XML/2004/xml-schema-test-suite/"
@@ -634,7 +634,7 @@ def w3c_tests_factory(argv=None):
 
 
 if __name__ == '__main__':
-    from xmlschema.testing import run_xmlschema_tests
+    from sdcvalidator.testing import run_xmlschema_tests
 
     globals().update(w3c_tests_factory())
     run_xmlschema_tests("running W3C XSD 1.0/1.1 tests")

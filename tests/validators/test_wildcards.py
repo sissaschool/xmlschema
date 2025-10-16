@@ -10,9 +10,9 @@
 #
 import pathlib
 
-from xmlschema import XMLSchemaParseError
-from xmlschema.validators import XMLSchema11, XsdDefaultOpenContent
-from xmlschema.testing import XsdValidatorTestCase
+from sdcvalidator import XMLSchemaParseError
+from sdcvalidator.validators import XMLSchema11, XsdDefaultOpenContent
+from sdcvalidator.testing import XsdValidatorTestCase
 
 
 class TestXsdWildcards(XsdValidatorTestCase):
@@ -805,5 +805,5 @@ class TestXsd11Wildcards(TestXsdWildcards):
 
 
 if __name__ == '__main__':
-    from xmlschema.testing import run_xmlschema_tests
+    from sdcvalidator.testing import run_xmlschema_tests
     run_xmlschema_tests('XSD wildcards')

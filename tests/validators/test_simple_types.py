@@ -10,10 +10,10 @@
 #
 import pathlib
 
-from xmlschema import XMLSchemaParseError, XMLSchemaValidationError
-from xmlschema.names import XSD_LIST, XSD_UNION
-from xmlschema.validators import XMLSchema11
-from xmlschema.testing import XsdValidatorTestCase
+from sdcvalidator import XMLSchemaParseError, XMLSchemaValidationError
+from sdcvalidator.names import XSD_LIST, XSD_UNION
+from sdcvalidator.validators import XMLSchema11
+from sdcvalidator.testing import XsdValidatorTestCase
 
 
 class TestXsdSimpleTypes(XsdValidatorTestCase):
@@ -316,5 +316,5 @@ class TestXsd11SimpleTypes(TestXsdSimpleTypes):
 
 
 if __name__ == '__main__':
-    from xmlschema.testing import run_xmlschema_tests
+    from sdcvalidator.testing import run_xmlschema_tests
     run_xmlschema_tests('simple types')

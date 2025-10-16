@@ -11,9 +11,9 @@
 import unittest
 from xml.etree import ElementTree
 
-from xmlschema import XMLSchemaParseError
-from xmlschema.names import XSD_NOTATION
-from xmlschema.validators import XMLSchema10, XMLSchema11, XsdNotation
+from sdcvalidator import XMLSchemaParseError
+from sdcvalidator.names import XSD_NOTATION
+from sdcvalidator.validators import XMLSchema10, XMLSchema11, XsdNotation
 
 
 class TestXsd10Notations(unittest.TestCase):
@@ -81,5 +81,5 @@ class TestXsd11Notations(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    from xmlschema.testing import run_xmlschema_tests
+    from sdcvalidator.testing import run_xmlschema_tests
     run_xmlschema_tests('XSD notations')

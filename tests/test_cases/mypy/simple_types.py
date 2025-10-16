@@ -2,9 +2,9 @@
 
 def main() -> None:
     from pathlib import Path
-    import xmlschema
-    from xmlschema.names import XSD_ENUMERATION
-    from xmlschema.validators import XsdAtomicRestriction
+    import sdcvalidator
+    from sdcvalidator.names import XSD_ENUMERATION
+    from sdcvalidator.validators import XsdAtomicRestriction
 
     case_dir = Path(__file__).parent.parent
 

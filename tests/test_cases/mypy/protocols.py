@@ -3,10 +3,10 @@
 def main() -> None:
     from typing import Union, cast, Any
 
-    from xmlschema import XMLSchema, XMLSchema11
-    from xmlschema.validators import XsdSimpleType, XsdComplexType, \
+    from sdcvalidator import XMLSchema, XMLSchema11
+    from sdcvalidator.validators import XsdSimpleType, XsdComplexType, \
         XsdAnyElement
-    from xmlschema.xpath import XPathElement
+    from sdcvalidator.xpath import XPathElement
 
     from elementpath.protocols import XsdTypeProtocol, XsdElementProtocol, \
         XsdAttributeProtocol, GlobalMapsProtocol, XsdSchemaProtocol, XsdAttributeGroupProtocol

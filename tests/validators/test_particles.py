@@ -14,8 +14,8 @@ from collections import Counter
 from textwrap import dedent
 from xml.etree import ElementTree
 
-from xmlschema import XMLSchema10, XMLSchema11, XMLSchemaParseError, XMLSchemaModelError
-from xmlschema.validators.particles import ParticleMixin, OccursCalculator
+from sdcvalidator import XMLSchema10, XMLSchema11, XMLSchemaParseError, XMLSchemaModelError
+from sdcvalidator.validators.particles import ParticleMixin, OccursCalculator
 
 CASES_DIR = os.path.join(os.path.dirname(__file__), '../test_cases')
 
@@ -364,5 +364,5 @@ class TestOccursCalculator(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    from xmlschema.testing import run_xmlschema_tests
+    from sdcvalidator.testing import run_xmlschema_tests
     run_xmlschema_tests('XSD particles')

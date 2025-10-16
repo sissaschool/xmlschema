@@ -11,11 +11,11 @@
 import pathlib
 import warnings
 
-from xmlschema import XMLSchema11
-from xmlschema import SchemaLoader, LocationSchemaLoader, SafeSchemaLoader
-from xmlschema.testing import XMLSchemaTestCase, run_xmlschema_tests
-from xmlschema import XMLSchemaParseError
-import xmlschema.names as nm
+from sdcvalidator import XMLSchema11
+from sdcvalidator import SchemaLoader, LocationSchemaLoader, SafeSchemaLoader
+from sdcvalidator.testing import XMLSchemaTestCase, run_xmlschema_tests
+from sdcvalidator import XMLSchemaParseError
+import sdcvalidator.names as nm
 
 
 class TestLoadersAPI(XMLSchemaTestCase):

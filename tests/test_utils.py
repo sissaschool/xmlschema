@@ -22,29 +22,29 @@ try:
 except ImportError:
     lxml_etree = None
 
-from xmlschema import XMLSchema, XMLSchemaParseError
-from xmlschema.names import XSD_NAMESPACE, XSI_NAMESPACE, XSD_SCHEMA, \
+from sdcvalidator import XMLSchema, XMLSchemaParseError
+from sdcvalidator.names import XSD_NAMESPACE, XSI_NAMESPACE, XSD_SCHEMA, \
     XSD_ELEMENT, XSD_SIMPLE_TYPE, XSD_ANNOTATION, XSI_TYPE
-from xmlschema.utils.etree import prune_etree, etree_get_ancestors, etree_getpath, \
+from sdcvalidator.utils.etree import prune_etree, etree_get_ancestors, etree_getpath, \
     iter_schema_location_hints, etree_tostring
-from xmlschema.utils.qnames import get_namespace, get_qname, local_name, \
+from sdcvalidator.utils.qnames import get_namespace, get_qname, local_name, \
     get_prefixed_qname, get_extended_qname, update_namespaces
-from xmlschema.utils.logger import set_logging_level, logged, format_xmlschema_stack, \
+from sdcvalidator.utils.logger import set_logging_level, logged, format_xmlschema_stack, \
     dump_data
-from xmlschema.utils.decoding import raw_encode_value, raw_encode_attributes, \
+from sdcvalidator.utils.decoding import raw_encode_value, raw_encode_attributes, \
     count_digits, strictly_equal
-from xmlschema.utils.misc import deprecated, will_change
+from sdcvalidator.utils.misc import deprecated, will_change
 
-from xmlschema.testing import iter_nested_items, etree_elements_assert_equal, \
+from sdcvalidator.testing import iter_nested_items, etree_elements_assert_equal, \
     run_xmlschema_tests
-from xmlschema.validators.exceptions import XMLSchemaValidationError
-from xmlschema.validators.helpers import parse_xsd_derivation, \
+from sdcvalidator.validators.exceptions import XMLSchemaValidationError
+from sdcvalidator.validators.helpers import parse_xsd_derivation, \
     decimal_validator, qname_validator, \
     base64_binary_validator, hex_binary_validator, \
     int_validator, long_validator, unsigned_byte_validator, \
     unsigned_short_validator, negative_int_validator, error_type_validator
-from xmlschema.validators.particles import OccursCalculator
-from xmlschema.resources import XMLResource
+from sdcvalidator.validators.particles import OccursCalculator
+from sdcvalidator.resources import XMLResource
 
 XML_WITH_NAMESPACES = '<pfa:root xmlns:pfa="http://xpath.test/nsa">\n' \
                       '  <pfb:elem xmlns:pfb="http://xpath.test/nsb"/>\n' \

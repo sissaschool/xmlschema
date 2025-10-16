@@ -21,14 +21,14 @@ except ImportError:
 
 from elementpath.etree import etree_tostring
 
-from xmlschema import XMLSchema, XMLSchemaValidationError, fetch_namespaces
-from xmlschema.dataobjects import DataElement
-from xmlschema.testing import etree_elements_assert_equal, run_xmlschema_tests
+from sdcvalidator import XMLSchema, XMLSchemaValidationError, fetch_namespaces
+from sdcvalidator.dataobjects import DataElement
+from sdcvalidator.testing import etree_elements_assert_equal, run_xmlschema_tests
 
-from xmlschema.converters import XMLSchemaConverter, UnorderedConverter, \
+from sdcvalidator.converters import XMLSchemaConverter, UnorderedConverter, \
     ParkerConverter, BadgerFishConverter, AbderaConverter, JsonMLConverter, \
     ColumnarConverter, GDataConverter
-from xmlschema.dataobjects import DataElementConverter
+from sdcvalidator.dataobjects import DataElementConverter
 
 
 class TestConverters(unittest.TestCase):

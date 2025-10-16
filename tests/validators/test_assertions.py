@@ -10,8 +10,8 @@
 #
 import pathlib
 from textwrap import dedent
-from xmlschema import XMLSchema11
-from xmlschema.testing import XsdValidatorTestCase
+from sdcvalidator import XMLSchema11
+from sdcvalidator.testing import XsdValidatorTestCase
 
 
 class TestXsdAssert(XsdValidatorTestCase):
@@ -159,5 +159,5 @@ class TestXsdAssert(XsdValidatorTestCase):
 
 
 if __name__ == '__main__':
-    from xmlschema.testing import run_xmlschema_tests
+    from sdcvalidator.testing import run_xmlschema_tests
     run_xmlschema_tests('XSD 1.1 assertions')

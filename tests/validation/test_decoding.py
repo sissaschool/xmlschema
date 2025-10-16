@@ -25,14 +25,14 @@ except ImportError:
     lxml_etree = None
 
 from elementpath import datatypes
-import xmlschema
-from xmlschema import XMLSchemaValidationError, ParkerConverter, BadgerFishConverter, \
+import sdcvalidator
+from sdcvalidator import XMLSchemaValidationError, ParkerConverter, BadgerFishConverter, \
     AbderaConverter, JsonMLConverter, ColumnarConverter, ElementData
 
-from xmlschema.names import XSD_STRING, XSI_NIL
-from xmlschema.converters import UnorderedConverter
-from xmlschema.validators import XMLSchema11, ModelVisitor
-from xmlschema.testing import XsdValidatorTestCase, etree_elements_assert_equal
+from sdcvalidator.names import XSD_STRING, XSI_NIL
+from sdcvalidator.converters import UnorderedConverter
+from sdcvalidator.validators import XMLSchema11, ModelVisitor
+from sdcvalidator.testing import XsdValidatorTestCase, etree_elements_assert_equal
 
 VEHICLES_DICT = {
     '@xmlns:vh': 'http://example.com/vehicles',
@@ -1868,5 +1868,5 @@ class TestDecoding11(TestDecoding):
 
 
 if __name__ == '__main__':
-    from xmlschema.testing import run_xmlschema_tests
+    from sdcvalidator.testing import run_xmlschema_tests
     run_xmlschema_tests('decoding')

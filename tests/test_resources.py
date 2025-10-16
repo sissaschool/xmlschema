@@ -29,16 +29,16 @@ try:
 except ImportError:
     lxml_etree = None
 
-from xmlschema import fetch_namespaces, fetch_resource, fetch_schema, \
+from sdcvalidator import fetch_namespaces, fetch_resource, fetch_schema, \
     fetch_schema_locations, XMLResource, XMLResourceError, XMLSchema
-from xmlschema.names import XSD_NAMESPACE
-from xmlschema.utils.etree import is_etree_element, is_lxml_element
-from xmlschema.testing import SKIP_REMOTE_TESTS, XMLSchemaTestCase, run_xmlschema_tests
-from xmlschema.utils.urls import normalize_url
-from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError, \
+from sdcvalidator.names import XSD_NAMESPACE
+from sdcvalidator.utils.etree import is_etree_element, is_lxml_element
+from sdcvalidator.testing import SKIP_REMOTE_TESTS, XMLSchemaTestCase, run_xmlschema_tests
+from sdcvalidator.utils.urls import normalize_url
+from sdcvalidator.exceptions import XMLSchemaTypeError, XMLSchemaValueError, \
     XMLResourceForbidden, XMLResourceBlocked, XMLResourceOSError
-from xmlschema.resources import XMLResourceManager, iterfind_parser
-from xmlschema.resources.sax import defuse_xml
+from sdcvalidator.resources import XMLResourceManager, iterfind_parser
+from sdcvalidator.resources.sax import defuse_xml
 
 DRIVE_REGEX = '(/[a-zA-Z]:|/)' if platform.system() == 'Windows' else ''
 

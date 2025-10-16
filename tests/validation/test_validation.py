@@ -20,15 +20,15 @@ try:
 except ImportError:
     lxml_etree = None
 
-import xmlschema
-from xmlschema import XMLSchema10, XMLSchemaValidationError, XMLSchemaStopValidation, \
+import sdcvalidator
+from sdcvalidator import XMLSchema10, XMLSchemaValidationError, XMLSchemaStopValidation, \
     XMLSchemaChildrenValidationError
 
-from xmlschema.validators import XMLSchema11, ValidationContext
-from xmlschema.testing import XsdValidatorTestCase
-from xmlschema import DataElement, XMLResource
-from xmlschema.converters import XMLSchemaConverter, JsonMLConverter
-from xmlschema.settings import SchemaSettings
+from sdcvalidator.validators import XMLSchema11, ValidationContext
+from sdcvalidator.testing import XsdValidatorTestCase
+from sdcvalidator import DataElement, XMLResource
+from sdcvalidator.converters import XMLSchemaConverter, JsonMLConverter
+from sdcvalidator.settings import SchemaSettings
 
 CASES_DIR = os.path.join(os.path.dirname(__file__), '../test_cases')
 
@@ -899,5 +899,5 @@ class TestValidation11(TestValidation):
 
 
 if __name__ == '__main__':
-    from xmlschema.testing import run_xmlschema_tests
+    from sdcvalidator.testing import run_xmlschema_tests
     run_xmlschema_tests('validation')

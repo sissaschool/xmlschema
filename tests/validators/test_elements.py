@@ -10,9 +10,9 @@
 #
 import pathlib
 
-from xmlschema import XMLSchemaParseError
-from xmlschema.validators import XMLSchema11
-from xmlschema.testing import XsdValidatorTestCase
+from sdcvalidator import XMLSchemaParseError
+from sdcvalidator.validators import XMLSchema11
+from sdcvalidator.testing import XsdValidatorTestCase
 
 
 class TestXsdElements(XsdValidatorTestCase):
@@ -115,5 +115,5 @@ class TestXsd11Elements(TestXsdElements):
 
 
 if __name__ == '__main__':
-    from xmlschema.testing import run_xmlschema_tests
+    from sdcvalidator.testing import run_xmlschema_tests
     run_xmlschema_tests('XSD elements')

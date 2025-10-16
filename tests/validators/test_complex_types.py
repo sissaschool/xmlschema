@@ -13,9 +13,9 @@ from pathlib import Path
 from textwrap import dedent
 from xml.etree.ElementTree import Element
 
-from xmlschema import XMLSchemaParseError, XMLSchemaModelError
-from xmlschema.validators import XMLSchema11
-from xmlschema.testing import XsdValidatorTestCase
+from sdcvalidator import XMLSchemaParseError, XMLSchemaModelError
+from sdcvalidator.validators import XMLSchema11
+from sdcvalidator.testing import XsdValidatorTestCase
 
 
 class TestXsdComplexType(XsdValidatorTestCase):
@@ -946,5 +946,5 @@ class TestXsd11ComplexType(TestXsdComplexType):
 
 
 if __name__ == '__main__':
-    from xmlschema.testing import run_xmlschema_tests
+    from sdcvalidator.testing import run_xmlschema_tests
     run_xmlschema_tests('XSD complex types')

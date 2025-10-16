@@ -14,11 +14,11 @@ import pathlib
 import warnings
 from xml.etree import ElementTree
 
-from xmlschema import XMLSchemaValidationError, XMLSchema10, XMLSchema11
-from xmlschema.extras.wsdl import WsdlParseError, WsdlComponent, WsdlMessage, \
+from sdcvalidator import XMLSchemaValidationError, XMLSchema10, XMLSchema11
+from sdcvalidator.extras.wsdl import WsdlParseError, WsdlComponent, WsdlMessage, \
     WsdlPortType, WsdlOperation, WsdlBinding, WsdlService, Wsdl11Document, \
     WsdlInput, SoapHeader
-from xmlschema.testing import XMLSchemaTestCase, run_xmlschema_tests
+from sdcvalidator.testing import XMLSchemaTestCase, run_xmlschema_tests
 
 
 WSDL_DOCUMENT_EXAMPLE = """<?xml version="1.0"?>

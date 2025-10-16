@@ -25,8 +25,8 @@ from xml.etree import ElementTree
 
 from elementpath import datatypes
 
-from xmlschema import XMLSchema10, XMLSchema11
-from xmlschema.names import XSD_ANY_TYPE, XSD_STRING, XSD_FLOAT
+from sdcvalidator import XMLSchema10, XMLSchema11
+from sdcvalidator.names import XSD_ANY_TYPE, XSD_STRING, XSD_FLOAT
 
 try:
     import jinja2
@@ -37,7 +37,7 @@ except ImportError:
     PythonGenerator = None
     DemoGenerator = None
 else:
-    from xmlschema.extras.codegen import filter_method, AbstractGenerator, PythonGenerator
+    from sdcvalidator.extras.codegen import filter_method, AbstractGenerator, PythonGenerator
 
     class DemoGenerator(AbstractGenerator):
         formal_language = 'Demo'
@@ -634,5 +634,5 @@ class TestPythonGenerator11(TestPythonGenerator):
 
 
 if __name__ == '__main__':
-    from xmlschema.testing import run_xmlschema_tests
+    from sdcvalidator.testing import run_xmlschema_tests
     run_xmlschema_tests('code generators')

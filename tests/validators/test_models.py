@@ -17,15 +17,15 @@ from itertools import zip_longest
 from textwrap import dedent
 from typing import Any, Union, List, Optional
 
-from xmlschema import XMLSchema11
-from xmlschema.exceptions import XMLSchemaValueError
-from xmlschema.validators.exceptions import XMLSchemaValidationError, XMLSchemaModelError
-from xmlschema.validators.particles import ParticleMixin
-from xmlschema.validators.models import distinguishable_paths, ModelVisitor, \
+from sdcvalidator import XMLSchema11
+from sdcvalidator.exceptions import XMLSchemaValueError
+from sdcvalidator.validators.exceptions import XMLSchemaValidationError, XMLSchemaModelError
+from sdcvalidator.validators.particles import ParticleMixin
+from sdcvalidator.validators.models import distinguishable_paths, ModelVisitor, \
     sort_content, iter_collapsed_content
-from xmlschema.validators.groups import XsdGroup
-from xmlschema.validators.elements import XsdElement
-from xmlschema.testing import XsdValidatorTestCase
+from sdcvalidator.validators.groups import XsdGroup
+from sdcvalidator.validators.elements import XsdElement
+from sdcvalidator.testing import XsdValidatorTestCase
 
 
 class ModelGroup(XsdGroup):
@@ -1734,5 +1734,5 @@ class TestModelPaths(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    from xmlschema.testing import run_xmlschema_tests
+    from sdcvalidator.testing import run_xmlschema_tests
     run_xmlschema_tests('XSD model groups')

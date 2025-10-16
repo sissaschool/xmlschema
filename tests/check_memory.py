@@ -67,7 +67,7 @@ def profile_memory(func):
 def import_package():
     # Imports of packages used by xmlschema that
     # have a significant memory usage impact.
-    import xmlschema
+    import sdcvalidator
     return xmlschema
 
 
@@ -201,7 +201,7 @@ if __name__ == '__main__':
     if args.test_num == 1 and args.xml_file is None:
         import_package()
     else:
-        import xmlschema
+        import sdcvalidator
 
         if args.test_num == 1:
             build_schema(args.xml_file)

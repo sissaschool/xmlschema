@@ -14,13 +14,13 @@ import pathlib
 from xml.etree import ElementTree
 from textwrap import dedent
 
-from xmlschema import XMLSchema10, XMLSchema11, XMLSchemaValidationError, \
+from sdcvalidator import XMLSchema10, XMLSchema11, XMLSchemaValidationError, \
     XMLSchemaParseError
-from xmlschema.names import XSD_NAMESPACE, XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, \
+from sdcvalidator.names import XSD_NAMESPACE, XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, \
     XSD_WHITE_SPACE, XSD_MIN_INCLUSIVE, XSD_MIN_EXCLUSIVE, XSD_MAX_INCLUSIVE, \
     XSD_MAX_EXCLUSIVE, XSD_TOTAL_DIGITS, XSD_FRACTION_DIGITS, XSD_ENUMERATION, \
     XSD_PATTERN, XSD_ASSERTION
-from xmlschema.validators import XsdEnumerationFacets, XsdPatternFacets, \
+from sdcvalidator.validators import XsdEnumerationFacets, XsdPatternFacets, \
     XsdAssertionFacet, XsdBuilders
 
 
@@ -1411,5 +1411,5 @@ class TestXsd11Identities(TestXsdFacets):
 
 
 if __name__ == '__main__':
-    from xmlschema.testing import run_xmlschema_tests
+    from sdcvalidator.testing import run_xmlschema_tests
     run_xmlschema_tests('XSD facets')

@@ -22,14 +22,14 @@ except ImportError:
 from elementpath import datatypes
 from elementpath.etree import etree_tostring
 
-from xmlschema import XMLSchemaEncodeError, XMLSchemaValidationError
-from xmlschema.converters import UnorderedConverter, JsonMLConverter
-from xmlschema.utils.etree import is_etree_element
-from xmlschema.utils.qnames import local_name
-from xmlschema.resources import XMLResource
-from xmlschema.validators.exceptions import XMLSchemaChildrenValidationError
-from xmlschema.validators import XMLSchema11
-from xmlschema.testing import XsdValidatorTestCase, etree_elements_assert_equal
+from sdcvalidator import XMLSchemaEncodeError, XMLSchemaValidationError
+from sdcvalidator.converters import UnorderedConverter, JsonMLConverter
+from sdcvalidator.utils.etree import is_etree_element
+from sdcvalidator.utils.qnames import local_name
+from sdcvalidator.resources import XMLResource
+from sdcvalidator.validators.exceptions import XMLSchemaChildrenValidationError
+from sdcvalidator.validators import XMLSchema11
+from sdcvalidator.testing import XsdValidatorTestCase, etree_elements_assert_equal
 
 
 class TestEncoding(XsdValidatorTestCase):
@@ -926,5 +926,5 @@ class TestEncoding11(TestEncoding):
 
 
 if __name__ == '__main__':
-    from xmlschema.testing import run_xmlschema_tests
+    from sdcvalidator.testing import run_xmlschema_tests
     run_xmlschema_tests('encoding')

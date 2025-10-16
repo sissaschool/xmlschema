@@ -12,9 +12,9 @@ import unittest
 import warnings
 from typing import Any
 
-from xmlschema import XMLSchema10, XMLSchema11
-from xmlschema.namespaces import NamespaceView
-import xmlschema.names as nm
+from sdcvalidator import XMLSchema10, XMLSchema11
+from sdcvalidator.namespaces import NamespaceView
+import sdcvalidator.names as nm
 
 
 class TestGlobalMapsViews(unittest.TestCase):
@@ -258,5 +258,5 @@ class TestXsd11GlobalsMaps(TestXsd10GlobalsMaps):
 
 
 if __name__ == '__main__':
-    from xmlschema.testing import run_xmlschema_tests
+    from sdcvalidator.testing import run_xmlschema_tests
     run_xmlschema_tests('global maps')

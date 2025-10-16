@@ -13,11 +13,11 @@ import unittest
 import copy
 from textwrap import dedent
 
-from xmlschema import XMLResource, XMLSchemaConverter
-from xmlschema.locations import get_locations
-from xmlschema.names import XSD_NAMESPACE, XSI_NAMESPACE
-from xmlschema.namespaces import NamespaceMapper
-from xmlschema.locations import NamespaceResourcesMap
+from sdcvalidator import XMLResource, XMLSchemaConverter
+from sdcvalidator.locations import get_locations
+from sdcvalidator.names import XSD_NAMESPACE, XSI_NAMESPACE
+from sdcvalidator.namespaces import NamespaceMapper
+from sdcvalidator.locations import NamespaceResourcesMap
 
 
 class TestNamespaceMapper(unittest.TestCase):
@@ -503,5 +503,5 @@ class TestNamespaceResourcesMap(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    from xmlschema.testing import run_xmlschema_tests
+    from sdcvalidator.testing import run_xmlschema_tests
     run_xmlschema_tests('helpers for namespaces')

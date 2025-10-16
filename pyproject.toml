@@ -3,15 +3,18 @@ requires = ["setuptools >= 77.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "xmlschema"
-version = "4.2.0"
-description = "An XML Schema validator and decoder"
+name = "sdcvalidator"
+version = "1.0.0"
+description = "SDC4 XML validation with ExceptionalValue recovery"
 readme = "README.rst"
 license = "MIT"
 license-files = ["LICENSE"]
 requires-python = ">=3.9"
 authors = [
-    { name = "Davide Brunato", email = "brunato@sissa.it" },
+    { name = "Axius-SDC, Inc." },
+]
+maintainers = [
+    { name = "Tim Cook", email = "tim@axius-sdc.com" },
 ]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
@@ -58,27 +61,32 @@ docs = [
 ]
 
 [project.scripts]
-xmlschema-json2xml = "xmlschema.cli:json2xml"
-xmlschema-validate = "xmlschema.cli:validate"
-xmlschema-xml2json = "xmlschema.cli:xml2json"
+sdcvalidate = "sdcvalidator.cli:validate"
+sdc-recover = "sdcvalidator.cli:recover"
+sdcvalidator-json2xml = "sdcvalidator.cli:json2xml"
+sdcvalidator-xml2json = "sdcvalidator.cli:xml2json"
 
 [project.urls]
-Homepage = "https://github.com/sissaschool/xmlschema"
+Homepage = "https://github.com/Axius-SDC/sdcvalidator"
+Repository = "https://github.com/Axius-SDC/sdcvalidator"
+Issues = "https://github.com/Axius-SDC/sdcvalidator/issues"
 
 [tool.setuptools]
 include-package-data = false
 
 [tool.setuptools.package-data]
-xmlschema = [
+sdcvalidator = [
     'py.typed',
     'locale/**/*.mo',
     'locale/**/*.po',
     'schemas/*/*.xsd',
-    'extras/templates/*/*.jinja'
+    'extras/templates/*/*.jinja',
+    'models/**/*.xsd',
+    'models/**/*.owl',
 ]
 
 [tool.setuptools.packages.find]
-include = ["xmlschema*"]
+include = ["sdcvalidator*"]
 namespaces = false
 
 [tool.mypy]
@@ -86,8 +94,8 @@ show_error_code_links = true
 
 [tool.coverage.run]
 branch = true
-source = ["xmlschema"]
-omit = ["xmlschema/testing/*", "xmlschema/utils/protocols.py"]
+source = ["sdcvalidator"]
+omit = ["sdcvalidator/testing/*", "sdcvalidator/utils/protocols.py"]
 
 [tool.coverage.report]
 exclude_lines = [

@@ -11,11 +11,11 @@
 """Tests concerning the parsing and the building of XSD schemas"""
 import sys
 from pathlib import Path
-from xmlschema.testing import xmlschema_tests_factory, make_schema_test_class
+from sdcvalidator.testing import sdcvalidator_tests_factory, make_schema_test_class
 
 if __name__ == '__main__':
     import random
-    from xmlschema.testing import parse_xmlschema_args, run_xmlschema_tests
+    from sdcvalidator.testing import parse_xmlschema_args, run_xmlschema_tests
 
     def load_tests(_loader, tests, _pattern):
         if args.random:

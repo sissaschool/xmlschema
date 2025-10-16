@@ -6,7 +6,7 @@ def main() -> None:
     from typing import cast, IO
     from xml.etree import ElementTree
 
-    import xmlschema
+    import sdcvalidator
 
     case_dir = Path(__file__).parent.parent
     col_xsd = case_dir.joinpath('examples/collection/collection.xsd')
@@ -54,7 +54,7 @@ def main() -> None:
     print(f"{schema} from ElementTree.Element")
 
     schema = xmlschema.XMLSchema10(xmlschema.XMLResource(str(col_xsd)))
-    print(f"{schema} from xmlschema.XMLResource()")
+    print(f"{schema} from sdcvalidator.XMLResource()")
 
 
 if __name__ == '__main__':

@@ -19,9 +19,9 @@ try:
 except ImportError:
     lxml_etree = None
 
-from xmlschema import XMLSchema, XMLResource, iter_errors
-from xmlschema.utils.etree import is_etree_element
-from xmlschema.validators.exceptions import XMLSchemaValidatorError, \
+from sdcvalidator import XMLSchema, XMLResource, iter_errors
+from sdcvalidator.utils.etree import is_etree_element
+from sdcvalidator.validators.exceptions import XMLSchemaValidatorError, \
     XMLSchemaNotBuiltError, XMLSchemaParseError, XMLSchemaModelDepthError, \
     XMLSchemaValidationError, XMLSchemaDecodeError, XMLSchemaEncodeError, \
     XMLSchemaChildrenValidationError
@@ -439,5 +439,5 @@ class TestValidatorExceptions(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    from xmlschema.testing import run_xmlschema_tests
+    from sdcvalidator.testing import run_xmlschema_tests
     run_xmlschema_tests('validator exceptions')

@@ -12,8 +12,8 @@ import tempfile
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
-from xmlschema.sdc4.validator import SDC4Validator
-from xmlschema.sdc4.constants import ExceptionalValueType
+from sdcvalidator.sdc4.validator import SDC4Validator
+from sdcvalidator.sdc4.constants import ExceptionalValueType
 
 
 class TestSDC4Integration(unittest.TestCase):

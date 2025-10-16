@@ -11,10 +11,10 @@
 import pathlib
 from textwrap import dedent
 
-from xmlschema import XMLSchemaParseError, XMLSchemaValidationError
-from xmlschema.validators import XMLSchema11, XsdAttribute, XsdAttributeGroup
-from xmlschema.testing import XsdValidatorTestCase
-from xmlschema.names import XSI_NAMESPACE, XSD_ANY_SIMPLE_TYPE, XSD_STRING
+from sdcvalidator import XMLSchemaParseError, XMLSchemaValidationError
+from sdcvalidator.validators import XMLSchema11, XsdAttribute, XsdAttributeGroup
+from sdcvalidator.testing import XsdValidatorTestCase
+from sdcvalidator.names import XSI_NAMESPACE, XSD_ANY_SIMPLE_TYPE, XSD_STRING
 
 
 class TestXsdAttributes(XsdValidatorTestCase):
@@ -569,5 +569,5 @@ class TestXsd11Attributes(TestXsdAttributes):
 
 
 if __name__ == '__main__':
-    from xmlschema.testing import run_xmlschema_tests
+    from sdcvalidator.testing import run_xmlschema_tests
     run_xmlschema_tests('XSD attributes')

@@ -12,7 +12,7 @@ if __name__ == '__main__':
     import os
     import random
 
-    from xmlschema.testing import make_schema_test_class, make_validation_test_class, \
+    from sdcvalidator.testing import make_schema_test_class, make_validation_test_class, \
         xmlschema_tests_factory, parse_xmlschema_args, run_xmlschema_tests
 
     def load_tests(loader, tests, pattern):

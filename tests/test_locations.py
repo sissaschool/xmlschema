@@ -20,13 +20,13 @@ from urllib.request import pathname2url
 from pathlib import Path, PurePath, PureWindowsPath, PurePosixPath
 from unittest.mock import patch, MagicMock
 
-from xmlschema.testing import XMLSchemaTestCase, run_xmlschema_tests
-from xmlschema.utils.paths import DRIVE_LETTERS, get_uri, get_uri_path, is_unc_path, \
+from sdcvalidator.testing import XMLSchemaTestCase, run_xmlschema_tests
+from sdcvalidator.utils.paths import DRIVE_LETTERS, get_uri, get_uri_path, is_unc_path, \
     is_drive_path, LocationPath, LocationPosixPath, LocationWindowsPath
-from xmlschema.utils.urls import is_url, is_local_url, is_remote_url, is_encoded_url, \
+from sdcvalidator.utils.urls import is_url, is_local_url, is_remote_url, is_encoded_url, \
     is_safe_url, encode_url, decode_url, location_is_file, normalize_url, normalize_locations, \
     match_location
-import xmlschema.utils.urls
+import sdcvalidator.utils.urls
 
 DRIVE_REGEX = '(/[a-zA-Z]:|)' if platform.system() == 'Windows' else ''
 

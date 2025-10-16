@@ -1,6 +1,6 @@
 from typing import Iterator, Optional
 from xml.etree import ElementTree
-import xmlschema
+import sdcvalidator
 
 document = ElementTree.fromstring("<id>http://example.org</id>")
 schema = xmlschema.XMLSchema11("""\

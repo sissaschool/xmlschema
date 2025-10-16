@@ -21,11 +21,11 @@ try:
 except ImportError:
     lxml_etree = None
 
-from xmlschema.validators import XsdValidator, XsdComponent, XMLSchema10, XMLSchema11, \
+from sdcvalidator.validators import XsdValidator, XsdComponent, XMLSchema10, XMLSchema11, \
     XMLSchemaParseError, XsdAnnotation, XsdGroup, XsdSimpleType, XMLSchemaNotBuiltError
-from xmlschema.validators.xsdbase import check_validation_mode
-from xmlschema.names import XSD_NAMESPACE, XSD_ELEMENT, XSD_ANNOTATION, XSD_ANY_TYPE
-from xmlschema.validators.helpers import parse_xpath_default_namespace
+from sdcvalidator.validators.xsdbase import check_validation_mode
+from sdcvalidator.names import XSD_NAMESPACE, XSD_ELEMENT, XSD_ANNOTATION, XSD_ANY_TYPE
+from sdcvalidator.validators.helpers import parse_xpath_default_namespace
 
 CASES_DIR = os.path.join(os.path.dirname(__file__), '../test_cases')
 
@@ -805,5 +805,5 @@ class TestXsdType(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    from xmlschema.testing import run_xmlschema_tests
+    from sdcvalidator.testing import run_xmlschema_tests
     run_xmlschema_tests('XSD base classes')
