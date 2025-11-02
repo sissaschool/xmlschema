@@ -9,9 +9,6 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from timeit import timeit
-from pathlib import Path
-
-import xmlschema
 
 
 def run_timeit(stmt='pass', setup='pass', number=1000):
@@ -25,13 +22,7 @@ if __name__ == '__main__':
     print('*' * 50)
     print()
 
-    project_dir = Path(__file__).absolute().parent.parent
-    collection_dir = project_dir.joinpath('tests/test_cases/examples/collection')
-
-    schema = xmlschema.XMLSchema(collection_dir.joinpath('collection.xsd'))
-    xml_file = collection_dir.joinpath('collection.xml').as_posix()
-
-    print(xml_file)
+    # print(xml_file)
 
     NUMBER = 1000
 

@@ -94,7 +94,7 @@ class NamespaceMapper(MutableMapping[str, str]):
 
         self._use_namespaces = bool(process_namespaces and not strip_namespaces)
         self.namespaces = self.get_namespaces(namespaces)
-        self._reverse = {v: k for k, v in reversed(self.namespaces.items())}
+        self._reverse = {v: k and k + ':' for k, v in reversed(self.namespaces.items())}
         self._xmlns_contexts = []
         self._arguments.validate(self)
 
@@ -103,7 +103,7 @@ class NamespaceMapper(MutableMapping[str, str]):
 
     def __setitem__(self, prefix: str, uri: str) -> None:
         self.namespaces[prefix] = uri
-        self._reverse[uri] = prefix
+        self._reverse[uri] = prefix and prefix + ':'
 
     def __delitem__(self, prefix: str) -> None:
         uri = self.namespaces.pop(prefix)
@@ -111,7 +111,7 @@ class NamespaceMapper(MutableMapping[str, str]):
 
         for k in reversed(self.namespaces.keys()):
             if self.namespaces[k] == uri:
-                self._reverse[uri] = k
+                self._reverse[uri] = k and k + ':'
                 break
 
     def __iter__(self) -> Iterator[str]:
@@ -226,9 +226,9 @@ class NamespaceMapper(MutableMapping[str, str]):
                 self._xmlns_contexts.append(context)
                 self.namespaces.update(xmlns)
                 if level:
-                    self._reverse.update((v, k) for k, v in xmlns)
+                    self._reverse.update((v, k and k + ':') for k, v in xmlns)
                 else:
-                    self._reverse.update((v, k) for k, v in reversed(xmlns)
+                    self._reverse.update((v, k and k + ':') for k, v in reversed(xmlns)
                                          if v not in self._reverse)
                 return xmlns
 
@@ -259,7 +259,7 @@ class NamespaceMapper(MutableMapping[str, str]):
                     else:
                         self.namespaces[prefix] = uri
                         if uri not in self._reverse:
-                            self._reverse[uri] = prefix
+                            self._reverse[uri] = prefix and prefix + ':'
         return None
 
     def map_qname(self, qname: str) -> str:
@@ -285,11 +285,9 @@ class NamespaceMapper(MutableMapping[str, str]):
             raise XMLSchemaTypeError("the argument 'qname' must be a string-like object")
 
         try:
-            prefix = self._reverse[namespace]
+            return self._reverse[namespace] + local_part
         except KeyError:
             return qname
-        else:
-            return f'{prefix}:{local_part}' if prefix else local_part
 
     def unmap_qname(self, qname: str,
                     name_table: Optional[Container[Optional[str]]] = None,

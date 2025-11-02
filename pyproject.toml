@@ -4,12 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "xmlschema"
-version = "4.2.0"
+version = "4.3.0"
 description = "An XML Schema validator and decoder"
 readme = "README.rst"
 license = "MIT"
 license-files = ["LICENSE"]
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 authors = [
     { name = "Davide Brunato", email = "brunato@sissa.it" },
 ]
@@ -22,7 +22,6 @@ classifiers = [
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -40,6 +39,9 @@ dependencies = [
 [project.optional-dependencies]
 codegen = [
     "jinja2",
+]
+pydantic = [
+    "pydantic",
 ]
 dev = [
     "coverage",
