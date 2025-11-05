@@ -1,4 +1,4 @@
-# Copyright (c), 2016-2020, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2025, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -40,8 +40,7 @@ from .schemas import XMLSchemaMeta, XMLSchemaBase, XMLSchema, XMLSchema10, XMLSc
 
 
 __all__ = [
-    'check_validation_mode', 'XSD_VALIDATION_MODES', 'ValidationContext',
-    'DecodeContext', 'EncodeContext', 'ValidationMixin',
+    'ValidationContext', 'DecodeContext', 'EncodeContext', 'ValidationMixin',
     'XMLSchemaValidatorError', 'XMLSchemaParseError', 'XMLSchemaModelError',
     'XMLSchemaModelDepthError', 'XMLSchemaValidationError', 'XMLSchemaDecodeError',
     'XMLSchemaEncodeError', 'XMLSchemaNotBuiltError', 'XMLSchemaChildrenValidationError',

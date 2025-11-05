@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# Copyright (c), 2018-2020, SISSA (International School for Advanced Studies).
+# Copyright (c), 2018-2025, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -16,6 +16,9 @@ import fileinput
 import os
 import re
 import importlib
+import platform
+import pathlib
+from itertools import chain
 
 
 class TestPackaging(unittest.TestCase):
@@ -27,6 +30,9 @@ class TestPackaging(unittest.TestCase):
         cls.source_dir = os.path.join(cls.package_dir, 'xmlschema')
         cls.missing_debug = re.compile(
             r"(\bimport\s+pdb\b|\bpdb\s*\.\s*set_trace\(\s*\)|\bprint\s*\()|\bbreakpoint\s*\("
+        )
+        cls.get_copyright_info = re.compile(
+            r"(Copyright\s\(c\),\s(?:\d{4}-)?(\d{4}), SISSA)"
         )
         cls.get_version = re.compile(r"(?:\brelease|__version__)\s*=\s*(\'[^\']*\'|\"[^\"]*\")")
 
@@ -55,6 +61,27 @@ class TestPackaging(unittest.TestCase):
             if match is None or match.group(0) in file_excluded:
                 continue
             self.assertIsNone(match, message % (lineno, filename, match.group(0)))
+
+    @unittest.skipIf(platform.system() == 'Windows', 'Skip on Windows platform')
+    def test_wrong_copyright_info(self):
+        message = "\nFound a wrong copyright info at line %d of file %r: %r"
+        source_files = chain(pathlib.Path(self.package_dir).glob('LICENSE'),
+                             pathlib.Path(self.source_dir).glob('**/*.py'),
+                             pathlib.Path(self.package_dir).glob('tests/*.py'))
+        package_dir = pathlib.Path(self.package_dir)
+        year = '2025'
+
+        wrong_copyright_count = 0
+        for line in fileinput.input(source_files):
+            match = self.get_copyright_info.search(line)
+            if match and match.groups()[1] != year:
+                filepath = pathlib.Path(fileinput.filename()).relative_to(package_dir)
+                lineno = fileinput.filelineno()
+                print(message % (lineno, str(filepath), match.groups()[0]), end='')
+                wrong_copyright_count += 1
+                continue
+        else:
+            self.assertEqual(wrong_copyright_count, 0, msg="Found wrong copyright info")
 
     def test_version(self):
         message = "\nFound a different version at line %d or file %r: %r (may be %r)."
