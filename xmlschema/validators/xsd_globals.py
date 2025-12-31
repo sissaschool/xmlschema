@@ -531,6 +531,13 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
             self.global_maps.load(schemas)
             self.types.build_builtins(self.validator)
             self.global_maps.build(schemas)
+
+            # Update substitutes of global elements
+            for name in self.substitution_groups:
+                xsd_element = self.elements[name]
+                assert not isinstance(xsd_element.substitutes, tuple)
+                xsd_element.substitutes.update(e.name for e in xsd_element.iter_substitutes())
+
             self.check(schemas)
 
             self._built = True
@@ -600,9 +607,8 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
             schemas = {s for s in self._schemas if s.maps is self}
 
         # Checks substitution groups circularity
-        for qname in self.substitution_groups:
-            xsd_element = self.elements[qname]
-            if any(e is xsd_element for e in xsd_element.iter_substitutes()):
+        for xsd_element in self.elements.values():
+            if xsd_element.name in xsd_element.substitutes:
                 msg = _("circularity found for substitution group with head element {}")
                 xsd_element.parse_error(msg.format(xsd_element))
 

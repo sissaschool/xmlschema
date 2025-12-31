@@ -25,7 +25,7 @@ from xmlschema.translation import gettext as _
 from xmlschema.utils.qnames import local_name, get_qname
 
 from .helpers import parse_xsd_derivation
-from .exceptions import XMLSchemaCircularityError
+from .exceptions import XMLSchemaCircularityError, XMLSchemaModelDepthError
 from .xsdbase import XsdComponent, XsdAnnotation
 from .builtins import BUILTIN_TYPES
 from .facets import XsdFacet, FACETS_CLASSES, XSD_10_FACETS, XSD_11_FACETS, \
@@ -446,7 +446,7 @@ class StagedMap(Mapping[str, CT]):
             obj = self._staging[qname]
 
             if len(obj) == 2 and isinstance(obj, tuple):
-                _elem, _schema = obj  # type:ignore[misc]
+                _elem, _schema = obj
                 if _elem is elem and _schema is schema:
                     return  # ignored: it's the same component
                 elif schema is _schema.override:
@@ -507,8 +507,7 @@ class StagedMap(Mapping[str, CT]):
                 raise XMLSchemaCircularityError(qname, *obj[0])
 
             # Encapsulate into a tuple to catch circular builds
-            self._staging[qname] = cast(LoadedItemType, (obj,))
-
+            self._staging[qname] = ((elem, schema),)
             self._store[qname] = self._factory_or_class(elem, schema)
             self._staging.pop(qname)
             return self._store[qname]
@@ -812,7 +811,10 @@ class GlobalMaps(NamedTuple):
         # Build element declarations inside model groups.
         for schema in schemas:
             for group in schema.iter_components(XsdGroup):
-                group.build()
+                try:
+                    group.build()
+                except XMLSchemaModelDepthError as e:
+                    schema.parse_error(error=e, elem=group.elem)
 
         # Build identity references and XSD 1.1 assertions
         for schema in schemas:

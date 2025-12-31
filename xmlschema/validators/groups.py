@@ -108,13 +108,14 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
 
     _ADMITTED_TAGS = (nm.XSD_GROUP, nm.XSD_SEQUENCE, nm.XSD_ALL, nm.XSD_CHOICE)
 
-    __slots__ = ('_group', 'content', 'oid', 'model', 'min_occurs', 'max_occurs')
+    __slots__ = ('_group', '_elements', 'content', 'oid', 'model', 'min_occurs', 'max_occurs')
 
     def __init__(self, elem: ElementType,
                  schema: SchemaType,
                  parent: Optional[Union['XsdComplexType', 'XsdGroup']] = None) -> None:
 
         self._group: list[ModelParticleType] = []
+        self._elements: list[XsdElement | XsdAnyElement] = []
         self.content = self._group
         self.oid = (self,)
         self.min_occurs = self.max_occurs = 1
@@ -147,15 +148,18 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
 
     def __setitem__(self, i: Union[int, slice], o: Any) -> None:
         self._group[i] = o
+        self._elements.clear()
 
     def __delitem__(self, i: Union[int, slice]) -> None:
         del self._group[i]
+        self._elements.clear()
 
     def __len__(self) -> int:
         return len(self._group)
 
     def insert(self, i: int, item: ModelParticleType) -> None:
         self._group.insert(i, item)
+        self._elements.clear()
 
     def is_emptiable(self) -> bool:
         if self.model == 'choice':
@@ -347,6 +351,9 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         """
         if self.max_occurs == 0:
             return
+        elif self._elements:
+            yield from self._elements
+            return
 
         iterators: list[Iterator[ModelParticleType]] = []
         particles = iter(self)
@@ -360,14 +367,16 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                     iterators.append(particles)
                     particles = iter(item.content)
                     if len(iterators) > _limits.MAX_MODEL_DEPTH:
+                        self._elements.clear()
                         raise XMLSchemaModelDepthError(self)
                     break
                 else:
-                    yield item
+                    self._elements.append(item)
             else:
                 try:
                     particles = iterators.pop()
                 except IndexError:
+                    yield from self._elements
                     return
 
     def get_subgroups(self, particle: ModelParticleType) -> list['XsdGroup']:
@@ -477,11 +486,15 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
     def _any_content_group_fallback(self) -> None:
         self.model = 'sequence'
         self.mixed = True
+        xsd_element = self.builders.any_element_class(ANY_ELEMENT, self.schema, self)
         self._group.clear()
-        self._group.append(self.builders.any_element_class(ANY_ELEMENT, self.schema, self))
+        self._group.append(xsd_element)
+        self._elements.clear()
+        self._elements.append(xsd_element)
 
     def _parse(self) -> None:
         self._group.clear()
+        self._elements.clear()
         self._parse_particle(self.elem)
 
         if self.parent is not None and self.parent.mixed:
@@ -897,14 +910,8 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         for e in group.iter_elements():
             if not isinstance(e, XsdElement):
                 continue
-            elif e.name == elem.tag:
-                other = e
-            else:
-                for other in e.iter_substitutes():
-                    if other.name == elem.tag:
-                        break
-                else:
-                    continue
+            elif (other := e.match(elem.tag)) is None:
+                continue
 
             if len(other.alternatives) != len(alternatives) or \
                     not xsd_type.is_dynamic_consistent(other.type):
@@ -924,13 +931,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         matched element, or `None` if there is no match.
         """
         for xsd_element in self.iter_elements():
-            if isinstance(xsd_element, XsdElement):
-                if name == xsd_element.name:
-                    return xsd_element
-                for substitute in xsd_element.iter_substitutes():
-                    if name == substitute.name:
-                        return substitute
-            elif xsd_element.is_matching(name, group=self):
+            if xsd_element.is_matching(name, group=self):
                 return xsd_element
         return None
 

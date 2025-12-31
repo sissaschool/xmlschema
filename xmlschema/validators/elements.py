@@ -52,7 +52,7 @@ if TYPE_CHECKING:
     from .attributes import XsdAttributeGroup  # noqa: F401
     from .groups import XsdGroup  # noqa: F401
 
-DataBindingType = Type['dataobjects.DataElement']
+DataBindingType = Union[type['dataobjects.DataElement'], 'dataobjects.DataBindingMeta']
 
 
 class XsdElement(XsdComponent, ParticleMixin,
@@ -123,6 +123,7 @@ class XsdElement(XsdComponent, ParticleMixin,
 
     substitution_group: Optional[str] = None
 
+    substitutes: set[str] | tuple[()] = ()
     identities: list[XsdIdentity]
     selected_by: set[XsdIdentity]
     xsi_types: set[BaseXsdType]
@@ -159,8 +160,7 @@ class XsdElement(XsdComponent, ParticleMixin,
                 self.content = value.content
 
     def __iter__(self) -> Iterator[SchemaElementType]:
-        if self.content:
-            yield from self.content.iter_elements()
+        return self.content.iter_elements() if self.content else iter(())
 
     def build(self) -> None:
         if not self._built:
@@ -184,8 +184,10 @@ class XsdElement(XsdComponent, ParticleMixin,
             self._parse_type()
             self._parse_constraints()
 
-            if self.parent is None and 'substitutionGroup' in self.elem.attrib:
-                self._parse_substitution_group(self.elem.attrib['substitutionGroup'])
+            if self.parent is None:
+                self.substitutes = set()
+                if 'substitutionGroup' in self.elem.attrib:
+                    self._parse_substitution_group(self.elem.attrib['substitutionGroup'])
 
         self._built = True
 
@@ -204,6 +206,7 @@ class XsdElement(XsdComponent, ParticleMixin,
                 self.abstract = xsd_element.abstract
                 self.nillable = xsd_element.nillable
                 self.qualified = xsd_element.qualified
+                self.substitutes = xsd_element.substitutes
                 self.form = xsd_element.form
                 self.default = xsd_element.default
                 self.fixed = xsd_element.fixed
@@ -483,8 +486,8 @@ class XsdElement(XsdComponent, ParticleMixin,
                 bases = (dataobjects.DataElement,)
             attrs['xsd_element'] = self
             class_name = '{}Binding'.format(self.local_name.title().replace('_', ''))
-            self.binding = cast(DataBindingType,
-                                dataobjects.DataBindingMeta(class_name, bases, attrs))
+            self.binding = dataobjects.DataBindingMeta(class_name, bases, attrs)
+
         return self.binding
 
     def get_alternative_type(self, elem: Union[ElementType, ElementData],
@@ -909,7 +912,7 @@ class XsdElement(XsdComponent, ParticleMixin,
                         context.validation_error(validation, self, err, obj)
 
     def to_objects(self, obj: ElementType, with_bindings: bool = False, **kwargs: Any) \
-            -> DecodeType['dataobjects.DataElement']:
+            -> DecodeType[dataobjects.DataElement]:
         """
         Decodes XML data to Python data objects.
 
@@ -1084,7 +1087,7 @@ class XsdElement(XsdComponent, ParticleMixin,
                 return (name == self.qualified_name or
                         any(name == e.qualified_name for e in self.iter_substitutes()))
 
-        return name == self.name or any(name == e.name for e in self.iter_substitutes())
+        return name == self.name or name in self.substitutes
 
     def match(self, name: Optional[str], default_namespace: Optional[str] = None,
               **kwargs: Any) -> Optional['XsdElement']:
@@ -1095,10 +1098,8 @@ class XsdElement(XsdComponent, ParticleMixin,
 
         if name == self.name:
             return self
-        else:
-            for xsd_element in self.iter_substitutes():
-                if name == xsd_element.name:
-                    return xsd_element
+        elif name in self.substitutes:
+            return self.maps.elements[name]
         return None
 
     def match_child(self, name: str) -> Optional['XsdElement']:
@@ -1274,9 +1275,11 @@ class Xsd11Element(XsdElement):
             self._parse_alternatives()
             self._parse_constraints()
 
-            if self.parent is None and 'substitutionGroup' in self.elem.attrib:
-                for substitution_group in self.elem.attrib['substitutionGroup'].split():
-                    self._parse_substitution_group(substitution_group)
+            if self.parent is None:
+                self.substitutes = set()
+                if 'substitutionGroup' in self.elem.attrib:
+                    for substitution_group in self.elem.attrib['substitutionGroup'].split():
+                        self._parse_substitution_group(substitution_group)
 
         if 'targetNamespace' in self.elem.attrib:
             self._parse_target_namespace()

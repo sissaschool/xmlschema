@@ -261,16 +261,8 @@ class ModelVisitor:
             raise XMLSchemaValueError(f"can't match the tag, {self!r} is ended!")
         elif self.element.max_occurs == 0:
             return None
-        elif self.element.name is None:
-            return self.element.match(tag, group=self.root, occurs=self.occurs)
-        elif tag == self.element.name:
-            return self.element
         else:
-            for xsd_element in self.element.iter_substitutes():
-                if tag == xsd_element.name:
-                    return xsd_element
-            else:
-                return None
+            return self.element.match(tag, group=self.root, occurs=self.occurs)
 
     def advance(self, match: bool = False) -> Iterator[AdvanceYieldedType]:
         """
