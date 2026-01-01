@@ -8,7 +8,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from collections.abc import MutableMapping, MutableSequence
-from typing import TYPE_CHECKING, Any, Optional, Type, Union
+from typing import TYPE_CHECKING, Any
 
 from xmlschema.aliases import NsmapType, BaseXsdType, XmlnsType
 from xmlschema.exceptions import XMLSchemaTypeError
@@ -34,9 +34,9 @@ class BadgerFishConverter(XMLSchemaConverter):
     """
     __slots__ = ()
 
-    def __init__(self, namespaces: Optional[NsmapType] = None,
-                 dict_class: Optional[Type[dict[str, Any]]] = None,
-                 list_class: Optional[Type[list[Any]]] = None,
+    def __init__(self, namespaces: NsmapType | None = None,
+                 dict_class: type[dict[str, Any]] | None = None,
+                 list_class: type[list[Any]] | None = None,
                  **kwargs: Any) -> None:
         kwargs.update(attr_prefix='@', text_key='$', cdata_prefix='$')
         super().__init__(namespaces, dict_class, list_class, **kwargs)
@@ -52,7 +52,7 @@ class BadgerFishConverter(XMLSchemaConverter):
 
     @stackable
     def element_decode(self, data: ElementData, xsd_element: 'XsdElement',
-                       xsd_type: Optional[BaseXsdType] = None, level: int = 0) -> Any:
+                       xsd_type: BaseXsdType | None = None, level: int = 0) -> Any:
         xsd_type = xsd_type or xsd_element.type
 
         tag = self.map_qname(data.tag)
@@ -113,7 +113,7 @@ class BadgerFishConverter(XMLSchemaConverter):
                 tag = xsd_element.name
 
         text = None
-        content: list[tuple[Union[str, int], Any]] = []
+        content: list[tuple[str | int, Any]] = []
         attributes = {}
 
         xmlns = self.set_xmlns_context(obj, level)

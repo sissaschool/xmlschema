@@ -609,8 +609,8 @@ class XmlDocument(XMLResource):
             raise XMLResourceError(
                 "cannot create an ElementTree instance from a lazy XML resource"
             )
-        elif hasattr(self.root, 'nsmap'):
-            return self.root.getroottree()  # type: ignore[attr-defined]
+        elif hasattr(self.root, 'getroottree'):
+            return self.root.getroottree()
         else:
             return ElementTree.ElementTree(self.root)
 
@@ -699,25 +699,26 @@ class XmlDocument(XMLResource):
 
         _string = etree_tostring(self.root, **kwargs)
 
-        if isinstance(file, str):
-            if isinstance(_string, str):
-                with open(file, 'w', encoding='utf-8') as fp:
-                    fp.write(_string)
-            else:
-                with open(file, 'wb') as _fp:
-                    _fp.write(_string)
+        match file:
+            case str():
+                if isinstance(_string, str):
+                    with open(file, 'w', encoding='utf-8') as fp:
+                        fp.write(_string)
+                else:
+                    with open(file, 'wb') as _fp:
+                        _fp.write(_string)
 
-        elif isinstance(file, TextIOBase):
-            if isinstance(_string, bytes):
-                file.write(_string.decode('utf-8'))
-            else:
-                file.write(_string)
+            case TextIOBase():
+                if isinstance(_string, bytes):
+                    file.write(_string.decode('utf-8'))
+                else:
+                    file.write(_string)
 
-        elif isinstance(file, IOBase):
-            if isinstance(_string, str):
-                file.write(_string.encode('utf-8'))
-            else:
-                file.write(_string)
-        else:
-            msg = "unexpected type %r for 'file' argument"
-            raise XMLSchemaTypeError(msg % type(file))
+            case IOBase():
+                if isinstance(_string, str):
+                    file.write(_string.encode('utf-8'))
+                else:
+                    file.write(_string)
+            case _:
+                msg = "unexpected type %r for 'file' argument"
+                raise XMLSchemaTypeError(msg % type(file))

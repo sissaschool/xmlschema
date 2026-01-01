@@ -15,7 +15,7 @@ from collections.abc import Collection, Iterator, Iterable
 from contextlib import contextmanager
 from functools import cached_property
 from itertools import dropwhile
-from typing import Any, cast, Optional, Type
+from typing import Any, cast, Optional
 from elementpath import XPathToken, XPath2Parser
 
 import xmlschema.names as nm
@@ -311,14 +311,14 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
             return 'valid'
 
     @cached_property
-    def xpath_constructors(self) -> dict[str, Type[XPathToken]]:
+    def xpath_constructors(self) -> dict[str, type[XPathToken]]:
         if not self._built:
             return {}
 
         xpath_parser = self.xpath_parser_class()
         xpath_parser.schema = self.validator.xpath_proxy
 
-        constructors: dict[str, Type[XPathToken]] = {}
+        constructors: dict[str, type[XPathToken]] = {}
         for name, xsd_type in self.types.items():
             if isinstance(xsd_type, XsdAtomic) and \
                     not isinstance(xsd_type, XsdAtomicBuiltin) and \
@@ -348,7 +348,7 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
     def total_errors(self) -> int:
         return sum(s.total_errors for s in self._schemas)
 
-    def create_bindings(self, *bases: Type[Any], **attrs: Any) -> None:
+    def create_bindings(self, *bases: type[Any], **attrs: Any) -> None:
         """Creates data object bindings for the XSD elements of built schemas."""
         for xsd_element in self.iter_components(xsd_classes=XsdElement):
             assert isinstance(xsd_element, XsdElement)

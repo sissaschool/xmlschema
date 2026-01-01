@@ -8,7 +8,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from collections.abc import MutableMapping, MutableSequence
-from typing import TYPE_CHECKING, Any, Optional, Type, Union
+from typing import TYPE_CHECKING, Any
 
 from xmlschema.exceptions import XMLSchemaValueError
 from xmlschema.aliases import NsmapType, BaseXsdType
@@ -34,9 +34,9 @@ class AbderaConverter(XMLSchemaConverter):
     """
     __slots__ = ()
 
-    def __init__(self, namespaces: Optional[NsmapType] = None,
-                 dict_class: Optional[Type[dict[str, Any]]] = None,
-                 list_class: Optional[Type[list[Any]]] = None,
+    def __init__(self, namespaces: NsmapType | None = None,
+                 dict_class: type[dict[str, Any]] | None = None,
+                 list_class: type[list[Any]] | None = None,
                  **kwargs: Any) -> None:
         kwargs.update(attr_prefix='', text_key='', cdata_prefix=None)
         super().__init__(namespaces, dict_class, list_class, **kwargs)
@@ -54,7 +54,7 @@ class AbderaConverter(XMLSchemaConverter):
         return True
 
     def element_decode(self, data: ElementData, xsd_element: 'XsdElement',
-                       xsd_type: Optional[BaseXsdType] = None, level: int = 0) -> Any:
+                       xsd_type: BaseXsdType | None = None, level: int = 0) -> Any:
         xsd_type = xsd_type or xsd_element.type
         if xsd_type.simple_type is not None:
             children = data.text
@@ -76,7 +76,7 @@ class AbderaConverter(XMLSchemaConverter):
             if not children:
                 children = data.text
 
-        result: Union[list[Any], dict[str, Any]]
+        result: list[Any] | dict[str, Any]
         if data.attributes:
             result = self.dict_class([
                 ('attributes',
@@ -114,7 +114,7 @@ class AbderaConverter(XMLSchemaConverter):
                 tag = xsd_element.name
 
         attributes: dict[str, Any] = {}
-        children: Union[list[Any], MutableMapping[str, Any]]
+        children: list[Any] | MutableMapping[str, Any]
 
         try:
             attributes.update((self.unmap_qname(k, xsd_element.attributes), v)

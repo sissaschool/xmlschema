@@ -8,7 +8,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from collections.abc import MutableMapping, MutableSequence
-from typing import TYPE_CHECKING, Any, Optional, Type
+from typing import TYPE_CHECKING, Any
 
 from xmlschema.aliases import NsmapType, BaseXsdType
 from xmlschema.resources import XMLResource
@@ -34,9 +34,9 @@ class ParkerConverter(XMLSchemaConverter):
     """
     __slots__ = ()
 
-    def __init__(self, namespaces: Optional[NsmapType] = None,
-                 dict_class: Optional[Type[dict[str, Any]]] = None,
-                 list_class: Optional[Type[list[Any]]] = None,
+    def __init__(self, namespaces: NsmapType | None = None,
+                 dict_class: type[dict[str, Any]] | None = None,
+                 list_class: type[list[Any]] | None = None,
                  preserve_root: bool = False, **kwargs: Any) -> None:
         kwargs.update(attr_prefix=None, text_key='', cdata_prefix=None)
         super().__init__(
@@ -56,7 +56,7 @@ class ParkerConverter(XMLSchemaConverter):
         return True
 
     def element_decode(self, data: ElementData, xsd_element: 'XsdElement',
-                       xsd_type: Optional[BaseXsdType] = None, level: int = 0) -> Any:
+                       xsd_type: BaseXsdType | None = None, level: int = 0) -> Any:
         xsd_type = xsd_type or xsd_element.type
         preserve_root = self.preserve_root
 

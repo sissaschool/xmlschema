@@ -14,7 +14,7 @@ import re
 from collections.abc import Callable, Iterator
 from decimal import DecimalException, Decimal
 from functools import cached_property
-from typing import cast, Any, Optional, Union, Type
+from typing import cast, Any, Optional, Union
 from xml.etree import ElementTree
 
 from elementpath.datatypes import AnyAtomicType, AbstractDateTime, AbstractQName, \
@@ -36,10 +36,10 @@ from .facets import XsdFacet, XsdWhiteSpaceFacet, XsdPatternFacets, \
     XsdEnumerationFacets, XsdAssertionFacet, MULTIPLE_FACETS
 
 FacetsValueType = Union[XsdFacet, Callable[[Any], None], list[XsdAssertionFacet]]
-PythonTypeClasses = Union[Type[Any], tuple[Type[Any]]]
+PythonTypeClasses = Union[type[Any], tuple[type[Any]]]
 
 
-class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType]):
+class XsdSimpleType(XsdType, ValidationMixin[str | bytes, DecodedValueType]):
     """
     Base class for simpleTypes definitions. Generally used only for
     instances of xs:anySimpleType.
@@ -64,14 +64,14 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
     max_length: Optional[int]
     white_space: Optional[str]
     patterns: Optional[XsdPatternFacets]
-    validators: Union[tuple[()], list[Union[XsdFacet, Callable[[Any], None]]]]
+    validators: tuple[()] | list[XsdFacet | Callable[[Any], None]]
     allow_empty: bool
 
-    datatype: Type[Any] = str  # Unicode string as default datatype for XSD simple types
-    python_type: Type[Any] = str
+    datatype: type[Any] = str  # Unicode string as default datatype for XSD simple types
+    python_type: type[Any] = str
     instance_types: PythonTypeClasses = str
-    to_python: Union[Type[Any], Callable[[Union[str, bytes]], AtomicValueType]] = str
-    from_python: Union[Type[str], Callable[[Any], str]] = str
+    to_python: type[Any] | Callable[[str | bytes], AtomicValueType] = str
+    from_python: type[str] | Callable[[Any], str] = str
 
     __slots__ = ('_facets', 'min_length', 'max_length', 'white_space', 'patterns',
                  'validators', 'allow_empty')
@@ -126,7 +126,7 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
             self.allow_empty = False
 
         if facets:
-            validators: list[Union[XsdFacet, Callable[[Any], None]]]
+            validators: list[XsdFacet | Callable[[Any], None]]
 
             if callable(func := facets.get(None)):
                 validators = [func]  # a validation function
@@ -440,7 +440,7 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
             or self.is_derived(other) or isinstance(other, XsdUnion) and \
             any(self.is_derived(mt) for mt in other.member_types)
 
-    def normalize(self, text: Union[str, bytes]) -> str:
+    def normalize(self, text: str | bytes) -> str:
         """
         Normalize and restrict value-space with pre-lexical and lexical facets.
 
@@ -450,12 +450,13 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
         if isinstance(text, bytes):
             text = text.decode('utf-8')
 
-        if self.white_space == 'replace':
-            return self._REGEX_SPACE.sub(' ', text)
-        elif self.white_space == 'collapse':
-            return self._REGEX_SPACES.sub(' ', text).strip()
-        else:
-            return text
+        match self.white_space:
+            case 'replace':
+                return self._REGEX_SPACE.sub(' ', text)
+            case 'collapse':
+                return self._REGEX_SPACES.sub(' ', text).strip()
+            case _:
+                return text
 
     def text_decode(self, text: str, validation: str = 'skip',
                     context: Optional[ValidationContext] = None) -> DecodedValueType:
@@ -482,7 +483,7 @@ class XsdSimpleType(XsdType, ValidationMixin[Union[str, bytes], DecodedValueType
                          strict: bool = False) -> AtomicValueType:
         return value
 
-    def raw_decode(self, obj: Union[str, bytes], validation: str,
+    def raw_decode(self, obj: str | bytes, validation: str,
                    context: ValidationContext) -> DecodedValueType:
         text = self.normalize(obj)
         if self.patterns is not None:
@@ -647,7 +648,7 @@ class XsdAtomicBuiltin(XsdAtomic):
     def __init__(self, elem: ElementType,
                  schema: SchemaType,
                  name: str,
-                 datatype: Type[AnyAtomicType],
+                 datatype: type[AnyAtomicType],
                  python_type: PythonTypeClasses,
                  base_type: Optional['XsdAtomicBuiltin'] = None,
                  admitted_facets: Optional[set[str]] = None,
@@ -696,7 +697,7 @@ class XsdAtomicBuiltin(XsdAtomic):
     def admitted_facets(self) -> frozenset[str]:
         return self._admitted_facets or self.primitive_type.admitted_facets
 
-    def raw_decode(self, obj: Union[str, bytes], validation: str,
+    def raw_decode(self, obj: str | bytes, validation: str,
                    context: ValidationContext) -> DecodedValueType:
         if isinstance(obj, (str, bytes)):
             obj = self.normalize(obj)
@@ -983,7 +984,7 @@ class XsdList(XsdSimpleType):
                          strict: bool = False) -> AtomicValueType:
         return self.item_type.get_atomic_value(value, namespaces=namespaces, strict=strict)
 
-    def raw_decode(self, obj: Union[str, bytes], validation: str, context: ValidationContext) \
+    def raw_decode(self, obj: str | bytes, validation: str, context: ValidationContext) \
             -> list[Optional[AtomicValueType]]:
         items = []
         for chunk in self.normalize(obj).split():
@@ -1170,7 +1171,7 @@ class XsdUnion(XsdSimpleType):
         else:
             return values[0]
 
-    def raw_decode(self, obj: Union[str, bytes], validation: str, context: ValidationContext) \
+    def raw_decode(self, obj: str | bytes, validation: str, context: ValidationContext) \
             -> DecodedValueType:
         patterns = context.patterns  # Use and clean pushed patterns
         context.patterns = None
@@ -1441,7 +1442,7 @@ class XsdAtomicRestriction(XsdAtomic):
         if self.base_type.parent is not None:
             yield from self.base_type.iter_components(xsd_classes)
 
-    def raw_decode(self, obj: Union[str, bytes], validation: str,
+    def raw_decode(self, obj: str | bytes, validation: str,
                    context: ValidationContext) -> DecodedValueType:
 
         if isinstance(obj, (str, bytes)):

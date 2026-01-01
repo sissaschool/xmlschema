@@ -10,7 +10,7 @@
 from abc import ABCMeta
 from itertools import count
 from collections.abc import Iterator, MutableMapping, MutableSequence
-from typing import TYPE_CHECKING, cast, overload, Any, Optional, Union, Type
+from typing import TYPE_CHECKING, cast, overload, Any, Optional, Union
 
 from elementpath import XPathContext, XPath2Parser, build_node_tree
 from elementpath.etree import etree_tostring
@@ -430,7 +430,7 @@ class DataBindingMeta(ABCMeta):
 
     xsd_element: 'XsdElement'
 
-    def __new__(mcs, name: str, bases: tuple[Type[Any], ...],
+    def __new__(mcs, name: str, bases: tuple[type[Any], ...],
                 attrs: dict[str, Any]) -> 'DataBindingMeta':
         try:
             xsd_element = attrs['xsd_element']
@@ -444,7 +444,7 @@ class DataBindingMeta(ABCMeta):
         attrs['__module__'] = None
         return super().__new__(mcs, name, bases, attrs)
 
-    def __init__(cls, name: str, bases: tuple[Type[Any], ...], attrs: dict[str, Any]) -> None:
+    def __init__(cls, name: str, bases: tuple[type[Any], ...], attrs: dict[str, Any]) -> None:
         super().__init__(name, bases, attrs)
         cls.xsd_version = cls.xsd_element.xsd_version
         cls.namespace = cls.xsd_element.target_namespace
@@ -472,7 +472,7 @@ class DataElementConverter(XMLSchemaConverter):
     __slots__ = 'data_element_class', 'map_attribute_names'
 
     def __init__(self, namespaces: Optional[NsmapType] = None,
-                 data_element_class: Optional[Type['DataElement']] = None,
+                 data_element_class: Optional[type['DataElement']] = None,
                  map_attribute_names: bool = True,
                  **kwargs: Any) -> None:
         if data_element_class is None:

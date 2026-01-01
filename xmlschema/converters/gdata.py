@@ -8,7 +8,7 @@
 # @author Mikhail Razgovorov <1338833@gmail.com>
 #
 from collections.abc import Container, MutableMapping, MutableSequence
-from typing import TYPE_CHECKING, Any, Optional, Type, Union
+from typing import TYPE_CHECKING, Any, Optional
 
 from xmlschema.exceptions import XMLSchemaTypeError
 from xmlschema.aliases import NsmapType, BaseXsdType
@@ -35,9 +35,9 @@ class GDataConverter(XMLSchemaConverter):
     """
     __slots__ = ()
 
-    def __init__(self, namespaces: Optional[NsmapType] = None,
-                 dict_class: Optional[Type[dict[str, Any]]] = None,
-                 list_class: Optional[Type[list[Any]]] = None,
+    def __init__(self, namespaces: NsmapType | None = None,
+                 dict_class: type[dict[str, Any]] | None = None,
+                 list_class: type[list[Any]] | None = None,
                  **kwargs: Any) -> None:
         kwargs.update(attr_prefix='', text_key='$t', cdata_prefix='$')
         super().__init__(namespaces, dict_class, list_class, **kwargs)
@@ -54,8 +54,8 @@ class GDataConverter(XMLSchemaConverter):
             return name.replace(':', '$')
 
     def unmap_qname(self, qname: str,
-                    name_table: Optional[Container[Optional[str]]] = None,
-                    xmlns: Optional[list[tuple[str, str]]] = None) -> str:
+                    name_table: Container[str | None] | None = None,
+                    xmlns: list[tuple[str, str]] | None = None) -> str:
         if '$' in qname and not qname.startswith('$'):
             qname = qname.replace('$', ':')
         return super().unmap_qname(qname, name_table, xmlns)
@@ -136,7 +136,7 @@ class GDataConverter(XMLSchemaConverter):
                     tag = xsd_element.name
 
         text = None
-        content: list[tuple[Union[str, int], Any]] = []
+        content: list[tuple[str | int, Any]] = []
         attributes = {}
 
         xmlns = self.set_xmlns_context(obj, level)

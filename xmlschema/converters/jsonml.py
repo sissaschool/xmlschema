@@ -8,7 +8,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from collections.abc import MutableMapping, MutableSequence
-from typing import TYPE_CHECKING, Any, Optional, Type
+from typing import TYPE_CHECKING, Any
 
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from xmlschema.aliases import NsmapType, BaseXsdType
@@ -32,9 +32,9 @@ class JsonMLConverter(XMLSchemaConverter):
     """
     __slots__ = ()
 
-    def __init__(self, namespaces: Optional[NsmapType] = None,
-                 dict_class: Optional[Type[dict[str, Any]]] = None,
-                 list_class: Optional[Type[list[Any]]] = None,
+    def __init__(self, namespaces: NsmapType | None = None,
+                 dict_class: type[dict[str, Any]] | None = None,
+                 list_class: type[list[Any]] | None = None,
                  **kwargs: Any) -> None:
         kwargs.update(attr_prefix='', text_key='', cdata_prefix='')
         super().__init__(namespaces, dict_class, list_class, **kwargs)
@@ -47,7 +47,7 @@ class JsonMLConverter(XMLSchemaConverter):
     def losslessly(self) -> bool:
         return True
 
-    def get_xmlns_from_data(self, obj: Any) -> Optional[list[tuple[str, str]]]:
+    def get_xmlns_from_data(self, obj: Any) -> list[tuple[str, str]] | None:
         if not self._use_namespaces or not isinstance(obj, MutableSequence) \
                 or len(obj) < 2 or not isinstance(obj[1], MutableMapping):
             return None
@@ -63,7 +63,7 @@ class JsonMLConverter(XMLSchemaConverter):
 
     @stackable
     def element_decode(self, data: ElementData, xsd_element: 'XsdElement',
-                       xsd_type: Optional[BaseXsdType] = None, level: int = 0) -> Any:
+                       xsd_type: BaseXsdType | None = None, level: int = 0) -> Any:
         xsd_type = xsd_type or xsd_element.type
         result_list = [] if self.list_class is list else self.list_class()
         xmlns = self.get_effective_xmlns(data.xmlns, level, xsd_element)

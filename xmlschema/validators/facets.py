@@ -15,7 +15,7 @@ import math
 import operator
 from abc import abstractmethod
 from collections.abc import MutableSequence
-from typing import TYPE_CHECKING, Any, cast, overload, Optional, Type, Union
+from typing import TYPE_CHECKING, Any, cast, overload, Optional, Union
 from xml.etree.ElementTree import Element
 
 from elementpath import XPathContext, ElementPathError, \
@@ -172,7 +172,7 @@ class XsdLengthFacet(XsdFacet):
     """
     value: int
     base_type: BaseXsdType
-    base_value: Optional[int]
+    base_value: int | None
     _ADMITTED_TAGS = nm.XSD_LENGTH,
 
     def _parse_value(self, elem: ElementType) -> None:
@@ -210,7 +210,7 @@ class XsdMinLengthFacet(XsdFacet):
     """
     value: int
     base_type: BaseXsdType
-    base_value: Optional[int]
+    base_value: int | None
     _ADMITTED_TAGS = nm.XSD_MIN_LENGTH,
 
     def _parse_value(self, elem: ElementType) -> None:
@@ -248,7 +248,7 @@ class XsdMaxLengthFacet(XsdFacet):
     """
     value: int
     base_type: BaseXsdType
-    base_value: Optional[int]
+    base_value: int | None
     _ADMITTED_TAGS = nm.XSD_MAX_LENGTH,
 
     def _parse_value(self, elem: ElementType) -> None:
@@ -884,7 +884,7 @@ class XsdAssertionFacet(XsdFacet):
             raise XMLSchemaValidationError(self, value, reason=str(err)) from None
 
 
-XSD_10_FACETS_CLASSES: dict[str, Type[XsdFacet]] = {
+XSD_10_FACETS_CLASSES: dict[str, type[XsdFacet]] = {
     nm.XSD_WHITE_SPACE: XsdWhiteSpaceFacet,
     nm.XSD_LENGTH: XsdLengthFacet,
     nm.XSD_MIN_LENGTH: XsdMinLengthFacet,
@@ -899,7 +899,7 @@ XSD_10_FACETS_CLASSES: dict[str, Type[XsdFacet]] = {
     nm.XSD_PATTERN: XsdPatternFacets
 }
 
-XSD_11_FACETS_CLASSES: dict[str, Type[XsdFacet]] = XSD_10_FACETS_CLASSES.copy()
+XSD_11_FACETS_CLASSES: dict[str, type[XsdFacet]] = XSD_10_FACETS_CLASSES.copy()
 XSD_11_FACETS_CLASSES.update({
     nm.XSD_ASSERTION: XsdAssertionFacet,
     nm.XSD_EXPLICIT_TIMEZONE: XsdExplicitTimezoneFacet

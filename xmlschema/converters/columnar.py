@@ -8,7 +8,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from collections.abc import MutableMapping, MutableSequence
-from typing import TYPE_CHECKING, Any, Optional, Type
+from typing import TYPE_CHECKING, Any
 
 from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from xmlschema.aliases import NsmapType, BaseXsdType
@@ -32,10 +32,10 @@ class ColumnarConverter(XMLSchemaConverter):
     """
     __slots__ = ()
 
-    def __init__(self, namespaces: Optional[NsmapType] = None,
-                 dict_class: Optional[Type[dict[str, Any]]] = None,
-                 list_class: Optional[Type[list[Any]]] = None,
-                 attr_prefix: Optional[str] = '',
+    def __init__(self, namespaces: NsmapType | None = None,
+                 dict_class: type[dict[str, Any]] | None = None,
+                 list_class: type[list[Any]] | None = None,
+                 attr_prefix: str | None = '',
                  **kwargs: Any) -> None:
         kwargs.update(text_key=None, cdata_prefix=None)
         super().__init__(namespaces, dict_class, list_class,
@@ -66,7 +66,7 @@ class ColumnarConverter(XMLSchemaConverter):
             super(XMLSchemaConverter, self).__setattr__(name, value)
 
     def element_decode(self, data: ElementData, xsd_element: 'XsdElement',
-                       xsd_type: Optional[BaseXsdType] = None, level: int = 0) -> Any:
+                       xsd_type: BaseXsdType | None = None, level: int = 0) -> Any:
         result_dict: Any
 
         xsd_type = xsd_type or xsd_element.type
@@ -144,7 +144,7 @@ class ColumnarConverter(XMLSchemaConverter):
                 return ElementData(xsd_element.name, None, obj, {}, None)
 
         text = None
-        content: list[tuple[Optional[str], MutableSequence[Any]]] = []
+        content: list[tuple[str | None, MutableSequence[Any]]] = []
         attributes = {}
         pfx = tag + self.attr_prefix if self.attr_prefix else tag
 

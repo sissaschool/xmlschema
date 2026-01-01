@@ -15,7 +15,7 @@ from copy import copy as _copy
 from decimal import Decimal
 from types import GeneratorType
 from collections.abc import Iterator
-from typing import TYPE_CHECKING, cast, Any, Optional, Type, Union
+from typing import TYPE_CHECKING, cast, Any, Optional, Union
 from xml.etree.ElementTree import Element, ParseError
 
 from elementpath import XPath2Parser, ElementPathError, XPathContext, XPathToken, \
@@ -89,9 +89,6 @@ class XsdElement(XsdComponent, ParticleMixin,
     parent: Optional['XsdGroup']
     ref: Optional['XsdElement']
 
-    type: BaseXsdType
-    """The XSD simpleType or complexType of the element."""
-
     attributes: 'XsdAttributeGroup'
     """The group of the attributes associated with the element."""
 
@@ -148,7 +145,9 @@ class XsdElement(XsdComponent, ParticleMixin,
         )
 
     def _set_type(self, value: BaseXsdType) -> None:
-        self.type = value
+        self.type: BaseXsdType = value
+        """The XSD simpleType or complexType of the element."""
+
         if isinstance(value, XsdSimpleType):
             self.attributes = self.builders.create_empty_attribute_group(self)
             self.content = ()
@@ -472,7 +471,7 @@ class XsdElement(XsdComponent, ParticleMixin,
         """
         return self.type.overall_max_occurs(particle)
 
-    def get_binding(self, *bases: Type[Any], replace_existing: bool = False, **attrs: Any) \
+    def get_binding(self, *bases: type[Any], replace_existing: bool = False, **attrs: Any) \
             -> DataBindingType:
         """
         Gets data object binding for XSD element, creating a new one if it doesn't exist.

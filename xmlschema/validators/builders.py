@@ -13,7 +13,7 @@ from collections import Counter
 from collections.abc import Callable, ItemsView, Iterator, Mapping, ValuesView, Iterable
 from operator import attrgetter
 from types import MappingProxyType
-from typing import Any, cast, NamedTuple, Optional, Union, Type, TypeVar
+from typing import Any, cast, NamedTuple, Optional, Union, TypeVar
 from xml.etree.ElementTree import Element
 
 import xmlschema.names as nm
@@ -82,11 +82,11 @@ class XsdBuilders:
     A descriptor that is bound to a schema class for providing versioned builders
     for XSD components.
     """
-    components: dict[str, Type[XsdComponent]]
-    facets: dict[str, Type[XsdFacet]]
-    identities: dict[str, Type[XsdIdentity]]
-    simple_types: dict[str, Type[XsdSimpleType]]
-    local_types: dict[str, Union[Type[BaseXsdType], BuilderType[XsdSimpleType]]]
+    components: dict[str, type[XsdComponent]]
+    facets: dict[str, type[XsdFacet]]
+    identities: dict[str, type[XsdIdentity]]
+    simple_types: dict[str, type[XsdSimpleType]]
+    local_types: dict[str, Union[type[BaseXsdType], BuilderType[XsdSimpleType]]]
     builtins: tuple[dict[str, Any], ...]
 
     __slots__ = ('_name', '_xsd_version', 'components', 'facets', 'identities',
@@ -99,8 +99,8 @@ class XsdBuilders:
                  'admitted_list_facets')
 
     def __init__(self, xsd_version: Optional[str] = None,
-                 *facets_classes: Type[XsdFacet],
-                 **classes: Type[XsdComponent]) -> None:
+                 *facets_classes: type[XsdFacet],
+                 **classes: type[XsdComponent]) -> None:
         if xsd_version is not None:
             self._xsd_version = xsd_version
 
@@ -115,7 +115,7 @@ class XsdBuilders:
             if k.endswith('_class'):
                 setattr(self, k, v)
 
-    def __set_name__(self, cls: Type[SchemaType], name: str) -> None:
+    def __set_name__(self, cls: type[SchemaType], name: str) -> None:
         self._name = name
         self._xsd_version = getattr(cls, 'XSD_VERSION', '1.0')
 

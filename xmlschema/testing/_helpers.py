@@ -9,7 +9,7 @@
 #
 import re
 from collections.abc import Iterator
-from typing import Any, Type, Union
+from typing import Any, Union
 from xml.etree.ElementTree import Element
 
 from xmlschema.utils.qnames import get_namespace, get_qname
@@ -18,8 +18,8 @@ _REGEX_SPACES = re.compile(r'\s+')
 
 
 def iter_nested_items(items: Union[dict[Any, Any], list[Any]],
-                      dict_class: Type[dict[Any, Any]] = dict,
-                      list_class: Type[list[Any]] = list) -> Iterator[Any]:
+                      dict_class: type[dict[Any, Any]] = dict,
+                      list_class: type[list[Any]] = list) -> Iterator[Any]:
     """Iterates a nested object composed by lists and dictionaries."""
     if isinstance(items, dict_class):
         for k, v in items.items():

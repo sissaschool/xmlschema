@@ -11,7 +11,7 @@
 This module contains classes for XML Schema model groups.
 """
 import warnings
-from collections.abc import Iterable, Iterator, MutableMapping, MutableSequence
+from collections.abc import Iterable, Iterator, MutableMapping, MutableSequence, Callable
 from copy import copy as _copy
 from operator import attrgetter
 from typing import TYPE_CHECKING, cast, overload, Any, Optional, Union
@@ -582,44 +582,47 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
 
         child: ElementType
         for child in content_model:
-            if child.tag == nm.XSD_ANNOTATION or callable(child.tag):
-                continue
-            elif child.tag == nm.XSD_ELEMENT:
-                self.append(self.builders.element_class(child, self.schema, self))
-            elif content_model.tag == nm.XSD_ALL:
-                self.parse_error(_("'all' model can contain only elements"))
-            elif child.tag == nm.XSD_ANY:
-                self._group.append(self.builders.any_element_class(child, self.schema, self))
-            elif child.tag in (nm.XSD_SEQUENCE, nm.XSD_CHOICE):
-                self._group.append(XsdGroup(child, self.schema, self))
-            elif child.tag == nm.XSD_GROUP:
-                try:
-                    ref = self.schema.resolve_qname(child.attrib['ref'])
-                except (KeyError, ValueError, RuntimeError) as err:
-                    if 'ref' not in child.attrib:
-                        msg = _("missing attribute 'ref' in local group")
-                        self.parse_error(msg, child)
-                    else:
-                        self.parse_error(err, child)
+            match child.tag:
+                case nm.XSD_ANNOTATION | Callable():
                     continue
+                case nm.XSD_ELEMENT:
+                    self.append(self.builders.element_class(child, self.schema, self))
+                case nm.XSD_ALL:
+                    self.parse_error(_("'all' model can contain only elements"))
+                case nm.XSD_ANY:
+                    self._group.append(
+                        self.builders.any_element_class(child, self.schema, self)
+                    )
+                case nm.XSD_SEQUENCE | nm.XSD_CHOICE:
+                    self._group.append(XsdGroup(child, self.schema, self))
+                case nm.XSD_GROUP:
+                    try:
+                        ref = self.schema.resolve_qname(child.attrib['ref'])
+                    except (KeyError, ValueError, RuntimeError) as err:
+                        if 'ref' not in child.attrib:
+                            msg = _("missing attribute 'ref' in local group")
+                            self.parse_error(msg, child)
+                        else:
+                            self.parse_error(err, child)
+                        continue
 
-                if ref != self.name:
-                    xsd_group = XsdGroup(child, self.schema, self)
-                    if xsd_group.model == 'all':
-                        msg = _("'all' model can appears only at 1st level of a model group")
-                        self.parse_error(msg)
+                    if ref != self.name:
+                        xsd_group = XsdGroup(child, self.schema, self)
+                        if xsd_group.model == 'all':
+                            msg = _("'all' model can appears only at 1st level of a model group")
+                            self.parse_error(msg)
+                        else:
+                            self._group.append(xsd_group)
+                    elif self.redefine is not None:
+                        self._group.append(self.redefine)
+                        if child.get('minOccurs', '1') != '1' \
+                                or child.get('maxOccurs', '1') != '1':
+                            msg = _("Redefined group reference can't have "
+                                    "minOccurs/maxOccurs other than 1")
+                            self.parse_error(msg)
                     else:
-                        self._group.append(xsd_group)
-                elif self.redefine is not None:
-                    self._group.append(self.redefine)
-                    if child.get('minOccurs', '1') != '1' \
-                            or child.get('maxOccurs', '1') != '1':
-                        msg = _("Redefined group reference can't have "
-                                "minOccurs/maxOccurs other than 1")
-                        self.parse_error(msg)
-                else:
-                    msg = _("Circular definition detected for group %r")
-                    self.parse_error(msg % self.name)
+                        msg = _("Circular definition detected for group %r")
+                        self.parse_error(msg % self.name)
 
     def build(self) -> None:
         if self._built:
@@ -1224,41 +1227,42 @@ class Xsd11Group(XsdGroup):
                 self.parse_error(msg)
 
         for child in content_model:
-            if child.tag == nm.XSD_ELEMENT:
-                self.append(self.builders.element_class(child, self.schema, self))
-            elif child.tag == nm.XSD_ANY:
-                self._group.append(self.builders.any_element_class(child, self.schema, self))
-            elif child.tag in nm.MODEL_TAGS:
-                self._group.append(Xsd11Group(child, self.schema, self))
-            elif child.tag == nm.XSD_GROUP:
-                try:
-                    ref = self.schema.resolve_qname(child.attrib['ref'])
-                except (KeyError, ValueError, RuntimeError) as err:
-                    if 'ref' not in child.attrib:
-                        msg = _("missing attribute 'ref' in local group")
-                        self.parse_error(msg, child)
+            match child.tag:
+                case nm.XSD_ELEMENT:
+                    self.append(self.builders.element_class(child, self.schema, self))
+                case nm.XSD_ANY:
+                    self._group.append(self.builders.any_element_class(child, self.schema, self))
+                case x if x in nm.MODEL_TAGS:
+                    self._group.append(Xsd11Group(child, self.schema, self))
+                case nm.XSD_GROUP:
+                    try:
+                        ref = self.schema.resolve_qname(child.attrib['ref'])
+                    except (KeyError, ValueError, RuntimeError) as err:
+                        if 'ref' not in child.attrib:
+                            msg = _("missing attribute 'ref' in local group")
+                            self.parse_error(msg, child)
+                        else:
+                            self.parse_error(err, child)
+                        continue
+
+                    if ref != self.name:
+                        xsd_group = Xsd11Group(child, self.schema, self)
+                        self._group.append(xsd_group)
+                        if (self.model != 'all') ^ (xsd_group.model != 'all'):
+                            msg = _("an xs:{0} group cannot include a reference to an "
+                                    "xs:{1} group").format(self.model, xsd_group.model)
+                            self.parse_error(msg)
+                            self.pop()
+
+                    elif self.redefine is not None:
+                        if child.get('minOccurs', '1') != '1' or child.get('maxOccurs', '1') != '1':
+                            msg = _("Redefined group reference cannot have "
+                                    "minOccurs/maxOccurs other than 1")
+                            self.parse_error(msg)
+                        self._group.append(self.redefine)
                     else:
-                        self.parse_error(err, child)
-                    continue
-
-                if ref != self.name:
-                    xsd_group = Xsd11Group(child, self.schema, self)
-                    self._group.append(xsd_group)
-                    if (self.model != 'all') ^ (xsd_group.model != 'all'):
-                        msg = _("an xs:{0} group cannot include a reference to an "
-                                "xs:{1} group").format(self.model, xsd_group.model)
-                        self.parse_error(msg)
-                        self.pop()
-
-                elif self.redefine is not None:
-                    if child.get('minOccurs', '1') != '1' or child.get('maxOccurs', '1') != '1':
-                        msg = _("Redefined group reference cannot have "
-                                "minOccurs/maxOccurs other than 1")
-                        self.parse_error(msg)
-                    self._group.append(self.redefine)
-                else:
-                    msg = _("Circular definition detected for group %r")
-                    self.parse_error(msg % self.name)
+                        msg = _("Circular definition detected for group %r")
+                        self.parse_error(msg % self.name)
 
     def admits_restriction(self, model: str) -> bool:
         if self.model == model or self.model == 'all':
