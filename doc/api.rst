@@ -126,8 +126,36 @@ Global maps API
 ===============
 
 .. autoclass:: xmlschema.XsdGlobals
-    :members: copy, register, iter_schemas, iter_globals, lookup,
-        clear, build, unbuilt, check
+
+    .. autoattribute:: types
+        :annotation:
+    .. autoattribute:: notations
+        :annotation:
+    .. autoattribute:: attributes
+        :annotation:
+    .. autoattribute:: attribute_groups
+        :annotation:
+    .. autoattribute:: elements
+        :annotation:
+    .. autoattribute:: groups
+        :annotation:
+
+    .. autoattribute:: substitution_groups
+    .. autoattribute:: identities
+
+    .. automethod:: get_schema
+    .. automethod:: register
+    .. automethod:: iter_schemas
+    .. automethod:: iter_globals
+    .. automethod:: lookup
+    .. automethod:: clear
+    .. automethod:: copy
+    .. automethod:: merge
+
+    .. automethod:: build
+    .. autoattribute:: built
+    .. autoattribute:: unbuilt
+    .. automethod:: check
 
 
 .. _converters-api:
@@ -451,7 +479,6 @@ Main XSD components
 
 
 .. autoclass:: xmlschema.XsdElement
-    :members: get_binding, get_path, match_child, overall_min_occurs, overall_max_occurs
 
     .. autoattribute:: type
     .. autoattribute:: attributes
@@ -463,6 +490,11 @@ Main XSD components
     .. autoattribute:: default
     .. autoattribute:: fixed
     .. autoattribute:: qualified
+    .. automethod:: get_binding(*bases: type[Any], replace_existing: bool = False, **attrs: Any)
+    .. automethod:: get_path
+    .. automethod:: match_child
+    .. automethod:: overall_min_occurs
+    .. automethod:: overall_max_occurs
 
 
 .. autoclass:: xmlschema.XsdAttribute

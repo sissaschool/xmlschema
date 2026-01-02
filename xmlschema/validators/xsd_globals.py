@@ -39,7 +39,8 @@ from .models import check_model
 from . import XsdAttribute, XsdSimpleType, XsdComplexType, XsdElement, \
     XsdGroup, XsdIdentity, XsdUnion, XsdAtomicRestriction, \
     XsdAtomic, XsdAtomicBuiltin, XsdNotation, XsdAttributeGroup
-from .builders import GLOBAL_MAP_ATTRIBUTE, GlobalMaps
+from .builders import GLOBAL_MAP_ATTRIBUTE, GlobalMaps, TypesMap, NotationsMap, \
+    AttributesMap, AttributeGroupsMap, ElementsMap, GroupsMap
 from xmlschema import _limits
 
 
@@ -69,10 +70,34 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
     :param kwargs: other keyword arguments passed to :class:`SchemaLoader`.
     """
     _schemas: set[SchemaType]
+
     settings: SchemaSettings
     namespaces: NamespaceResourcesMap[SchemaType]
+
+    types: TypesMap
+    """Global types map"""
+
+    notations: NotationsMap
+    """Notations map"""
+
+    attributes: AttributesMap
+    """Global attributes map"""
+
+    attribute_groups: AttributeGroupsMap
+    """Attribute groups map"""
+
+    elements: ElementsMap
+    """Global elements map"""
+
+    groups: GroupsMap
+    """Model groups map"""
+
     substitution_groups: dict[str, set[XsdElement]]
+    """Substitution groups map"""
+
     identities: dict[str, XsdIdentity]
+    """Identity constraints map"""
+
     xpath_parser_class: type[XPath2Parser]
     assertion_parser_class: type[XsdAssertionXPathParser]
 

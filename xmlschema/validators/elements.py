@@ -911,7 +911,7 @@ class XsdElement(XsdComponent, ParticleMixin,
                         context.validation_error(validation, self, err, obj)
 
     def to_objects(self, obj: ElementType, with_bindings: bool = False, **kwargs: Any) \
-            -> DecodeType[dataobjects.DataElement]:
+            -> DecodeType['dataobjects.DataElement']:
         """
         Decodes XML data to Python data objects.
 
