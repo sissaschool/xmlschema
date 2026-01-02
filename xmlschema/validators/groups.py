@@ -11,7 +11,7 @@
 This module contains classes for XML Schema model groups.
 """
 import warnings
-from collections.abc import Iterable, Iterator, MutableMapping, MutableSequence, Callable
+from collections.abc import Iterable, Iterator, MutableMapping, MutableSequence
 from copy import copy as _copy
 from operator import attrgetter
 from typing import TYPE_CHECKING, cast, overload, Any, Optional, Union
@@ -583,7 +583,9 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         child: ElementType
         for child in content_model:
             match child.tag:
-                case nm.XSD_ANNOTATION | Callable():
+                case x if callable(x):
+                    continue
+                case nm.XSD_ANNOTATION:
                     continue
                 case nm.XSD_ELEMENT:
                     self.append(self.builders.element_class(child, self.schema, self))

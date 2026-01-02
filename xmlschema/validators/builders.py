@@ -446,7 +446,7 @@ class StagedMap(Mapping[str, CT]):
             obj = self._staging[qname]
 
             if len(obj) == 2 and isinstance(obj, tuple):
-                _elem, _schema = obj
+                _elem, _schema = obj  # type: ignore[unused-ignore, misc]
                 if _elem is elem and _schema is schema:
                     return  # ignored: it's the same component
                 elif schema is _schema.override:
