@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# Copyright (c), 2016-2025, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2026, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present

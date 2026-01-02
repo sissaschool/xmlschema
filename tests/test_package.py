@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# Copyright (c), 2018-2025, SISSA (International School for Advanced Studies).
+# Copyright (c), 2018-2026, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -69,7 +69,7 @@ class TestPackaging(unittest.TestCase):
                              pathlib.Path(self.source_dir).glob('**/*.py'),
                              pathlib.Path(self.package_dir).glob('tests/*.py'))
         package_dir = pathlib.Path(self.package_dir)
-        year = '2025'
+        year = '2026'
 
         wrong_copyright_count = 0
         for line in fileinput.input(source_files):
