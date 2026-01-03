@@ -307,7 +307,7 @@ class TestLocations(XMLSchemaTestCase):
         self.assertEqual(normalize_url(r'\\host\share\file.xsd'),
                          url.replace('file://', 'file:////'))
 
-    def test_normalize_url_unc_paths__issue_268(self,):
+    def test_normalize_url_unc_paths__issue_268(self):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
 
@@ -347,6 +347,18 @@ class TestLocations(XMLSchemaTestCase):
                 self.assertEqual(str(path), unc_path)
                 self.assertNotEqual(path.as_uri(), url)
                 self.assertEqual(normalize_url(unc_path), url_host_in_path)
+
+    def test_normalize_url_unc_paths__issue_467(self):
+        init_path = r"\\path\to\some\UNC\folder\Lib\site-packages\xmlschema\__init__.py"
+        location_path = LocationWindowsPath(init_path)
+        pure_win_path = PureWindowsPath(init_path)
+
+        self.assertEqual(pure_win_path, location_path)
+        self.assertEqual(str(pure_win_path), str(location_path))
+
+        if sys.version_info < (3, 19):
+            self.assertNotEqual(uri_from_path(pure_win_path), location_path.as_uri())
+        self.assertEqual(normalize_url(init_path), location_path.as_uri())
 
     @unittest.skipIf(platform.system() != 'Windows', "Run only on Windows systems")
     def test_normalize_url_with_base_unc_path_on_windows(self,):
