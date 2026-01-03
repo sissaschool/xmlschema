@@ -21,8 +21,8 @@ XSD_IDENTITY_XPATH_SYMBOLS = frozenset((
 
 
 class IdentityXPathParser(XPath2Parser):
+    # noinspection PyTypeChecker
     symbol_table = {
         k: v for k, v in XPath2Parser.symbol_table.items()
         if k in XSD_IDENTITY_XPATH_SYMBOLS
     }
-    SYMBOLS = XSD_IDENTITY_XPATH_SYMBOLS

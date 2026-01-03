@@ -18,8 +18,8 @@ from xmlschema.aliases import SchemaType
 from xmlschema.names import XSD_NAMESPACE
 
 if TYPE_CHECKING:
-    from xmlschema.validators import XsdElement, XsdAnyElement, XsdAssert
-    from .mixin import XPathElement
+    from xmlschema.validators import XsdElement, XsdAnyElement, XsdAssert  # noqa:F401
+    from .mixin import XPathElement  # noqa:F401
 
 BaseElementType = Union['XsdElement', 'XsdAnyElement', 'XsdAssert', 'XPathElement']
 

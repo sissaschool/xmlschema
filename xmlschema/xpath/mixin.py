@@ -11,12 +11,14 @@ from abc import abstractmethod
 from collections.abc import Iterator, Sequence
 from typing import cast, overload, Any, Optional, TypeVar, Union, TYPE_CHECKING
 
-from elementpath import XPath2Parser, XPathSchemaContext, LazyElementNode, SchemaElementNode
+from elementpath import XPathSchemaContext, LazyElementNode, SchemaElementNode
 from elementpath.protocols import XsdElementProtocol
 
 from xmlschema.aliases import NsmapType, SchemaType, BaseXsdType
 from xmlschema.utils.qnames import get_qname, local_name, get_prefixed_qname
+
 from .proxy import XMLSchemaProxy
+from .find_parser import SchemaFindParser
 
 if TYPE_CHECKING:
     from ..validators import XsdGlobals
@@ -101,7 +103,7 @@ class ElementPathMixin(Sequence[E_co]):
         """
         if namespaces is None:
             namespaces = self.namespaces
-        parser = XPath2Parser(namespaces, strict=False)
+        parser = SchemaFindParser(namespaces, strict=False)
         context = XPathSchemaContext(self.xpath_node)
         return cast(Optional[E_co], next(parser.parse(path).select_results(context), None))
 
@@ -116,7 +118,7 @@ class ElementPathMixin(Sequence[E_co]):
         """
         if namespaces is None:
             namespaces = self.namespaces
-        parser = XPath2Parser(namespaces, strict=False)
+        parser = SchemaFindParser(namespaces, strict=False)
         context = XPathSchemaContext(self.xpath_node)
         return cast(list[E_co], parser.parse(path).get_results(context))
 
@@ -130,7 +132,7 @@ class ElementPathMixin(Sequence[E_co]):
         """
         if namespaces is None:
             namespaces = self.namespaces
-        parser = XPath2Parser(namespaces, strict=False)
+        parser = SchemaFindParser(namespaces, strict=False)
         context = XPathSchemaContext(self.xpath_node)
         return cast(Iterator[E_co], parser.parse(path).select_results(context))
 

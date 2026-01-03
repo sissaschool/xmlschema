@@ -358,30 +358,19 @@ expression using the *path* argument.
     An XPath expression for the schema *considers the schema as the root element
     with global elements as its children*.
 
-If you need to be selective on XML data, e.g. select the 2nd of a sequence od elements
-using a predicate, the provided *path* argument can't be used for selecting the matching
-XSD element:
+The decoder uses a custom parser for finding nodes on schemas. Usually these nodes
+are selectable using the same path applied on XML data, but with some differences
+on predicate selectors. Positional predicates on singleton sequence of nodes match
+also if the position is an index greater than 1, e.g.:
 
 .. doctest::
 
     >>> xs = xmlschema.XMLSchema('tests/test_cases/examples/vehicles/vehicles.xsd')
     >>> filepath = 'tests/test_cases/examples/vehicles/vehicles.xml'
     >>> pprint(xs.to_dict(filepath, path='//vh:bike[2]'))
-    Traceback (most recent call last):
-    ...
-    xmlschema.validators.exceptions.XMLSchemaValidationError: failed validating <Element '{http://example.com/vehicles}bike' at 0x...> with XMLSchema10(name='vehicles.xsd', namespace='http://example.com/vehicles'):
+    {'@make': 'Yamaha', '@model': 'XS650'}
 
-    Reason: path='//vh:bike[2]' doesn't select any '{http://example.com/vehicles}bike' element of the schema, maybe you have to provide a different path using the schema_path argument
-
-    Instance type: <class 'xml.etree.ElementTree.Element'>
-
-    Instance:
-
-      <vh:bike xmlns:vh="http://example.com/vehicles" make="Yamaha" model="XS650" />
-
-    Path: /vh:vehicles/vh:bikes/vh:bike[2]
-
-in these cases you must provide also an appropriate *schema_path* argument for finding the schema element:
+Anyway you can provide a specific *schema_path* argument for finding the schema element.
 
 .. doctest::
 
