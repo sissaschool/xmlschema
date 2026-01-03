@@ -10,6 +10,7 @@
 """
 This module contains classes for XML Schema model groups.
 """
+import threading
 import warnings
 from collections.abc import Iterable, Iterator, MutableMapping, MutableSequence
 from copy import copy as _copy
@@ -28,7 +29,8 @@ from xmlschema.utils.qnames import get_qname, local_name
 from xmlschema import _limits
 
 from .exceptions import XMLSchemaModelError, XMLSchemaModelDepthError, \
-    XMLSchemaValidationError, XMLSchemaTypeTableWarning, XMLSchemaCircularityError
+    XMLSchemaValidationError, XMLSchemaTypeTableWarning, XMLSchemaCircularityError, \
+    XMLSchemaValidatorError
 from .validation import ValidationContext, DecodeContext, EncodeContext, ValidationMixin
 from .xsdbase import XsdComponent, XsdType
 from .particles import ParticleMixin
@@ -105,20 +107,21 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
 
     # For XSD 1.1 openContent processing
     open_content: Optional[XsdOpenContent] = None
-
+    _model_particles: tuple[ModelParticleType, ...] | None = None
+    _elements: tuple[XsdElement | XsdAnyElement, ...] | None = None
     _ADMITTED_TAGS = (nm.XSD_GROUP, nm.XSD_SEQUENCE, nm.XSD_ALL, nm.XSD_CHOICE)
 
-    __slots__ = ('_group', '_elements', 'content', 'oid', 'model', 'min_occurs', 'max_occurs')
+    __slots__ = ('_group', 'content', 'oid', 'model', 'min_occurs', 'max_occurs', '_iter_lock')
 
     def __init__(self, elem: ElementType,
                  schema: SchemaType,
                  parent: Optional[Union['XsdComplexType', 'XsdGroup']] = None) -> None:
 
         self._group: list[ModelParticleType] = []
-        self._elements: list[XsdElement | XsdAnyElement] = []
         self.content = self._group
         self.oid = (self,)
         self.min_occurs = self.max_occurs = 1
+        self._iter_lock = threading.Lock()
         super().__init__(elem, schema, parent)
 
     def __repr__(self) -> str:
@@ -147,19 +150,35 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         return self._group[i]
 
     def __setitem__(self, i: Union[int, slice], o: Any) -> None:
+        if self._built:
+            raise XMLSchemaValidatorError(self, 'cannot modify an already built group')
         self._group[i] = o
-        self._elements.clear()
 
     def __delitem__(self, i: Union[int, slice]) -> None:
+        if self._built:
+            raise XMLSchemaValidatorError(self, 'cannot modify an already built group')
         del self._group[i]
-        self._elements.clear()
 
     def __len__(self) -> int:
         return len(self._group)
 
+    def __getstate__(self) -> dict[str, Any]:
+        state = {attr: getattr(self, attr) for attr in self._mro_slots()}
+        state.update(self.__dict__)
+        state.pop('_model_particles', None)
+        state.pop('_elements', None)
+        state.pop('_iter_lock', None)
+        return state
+
+    def __setstate__(self, state: dict[str, Any]) -> None:
+        for attr, value in state.items():
+            object.__setattr__(self, attr, value)
+        self._iter_lock = threading.Lock()
+
     def insert(self, i: int, item: ModelParticleType) -> None:
+        if self._built:
+            raise XMLSchemaValidatorError(self, 'cannot modify an already built group')
         self._group.insert(i, item)
-        self._elements.clear()
 
     def is_emptiable(self) -> bool:
         if self.model == 'choice':
@@ -325,6 +344,15 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         Raises `XMLSchemaModelDepthError` if the *depth* of the model is over
         `limits.MAX_MODEL_DEPTH` value.
         """
+        if self._model_particles is not None:
+            yield from self._model_particles
+            return
+        elif self._built and not self._iter_lock.locked():
+            with self._iter_lock:
+                self._model_particles = tuple(self.iter_model())
+                yield from self._model_particles
+                return
+
         iterators: list[Iterator[ModelParticleType]] = []
         particles = iter(self)
 
@@ -349,10 +377,15 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         A generator function iterating model's elements. Raises `XMLSchemaModelDepthError`
         if the overall depth of the model groups is over `limits.MAX_MODEL_DEPTH`.
         """
-        if self.max_occurs == 0:
-            return
-        elif self._elements:
+        if self._elements is not None:
             yield from self._elements
+            return
+        elif self._built and not self._iter_lock.locked():
+            with self._iter_lock:
+                self._elements = tuple(self.iter_elements())
+                yield from self._elements
+                return
+        elif self.max_occurs == 0:
             return
 
         iterators: list[Iterator[ModelParticleType]] = []
@@ -367,16 +400,14 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                     iterators.append(particles)
                     particles = iter(item.content)
                     if len(iterators) > _limits.MAX_MODEL_DEPTH:
-                        self._elements.clear()
                         raise XMLSchemaModelDepthError(self)
                     break
                 else:
-                    self._elements.append(item)
+                    yield item
             else:
                 try:
                     particles = iterators.pop()
                 except IndexError:
-                    yield from self._elements
                     return
 
     def get_subgroups(self, particle: ModelParticleType) -> list['XsdGroup']:
@@ -489,12 +520,11 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         xsd_element = self.builders.any_element_class(ANY_ELEMENT, self.schema, self)
         self._group.clear()
         self._group.append(xsd_element)
-        self._elements.clear()
-        self._elements.append(xsd_element)
+        self.__dict__.pop('elements', None)
 
     def _parse(self) -> None:
         self._group.clear()
-        self._elements.clear()
+        self.__dict__.pop('elements', None)
         self._parse_particle(self.elem)
 
         if self.parent is not None and self.parent.mixed:
@@ -588,7 +618,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                 case nm.XSD_ANNOTATION:
                     continue
                 case nm.XSD_ELEMENT:
-                    self.append(self.builders.element_class(child, self.schema, self))
+                    self._group.append(self.builders.element_class(child, self.schema, self))
                 case nm.XSD_ALL:
                     self.parse_error(_("'all' model can contain only elements"))
                 case nm.XSD_ANY:
@@ -627,17 +657,15 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                         self.parse_error(msg % self.name)
 
     def build(self) -> None:
-        if self._built:
-            return
-        self._built = True
+        if self._built is False:
+            with self._build_context():
+                for item in self._group:
+                    if isinstance(item, XsdElement):
+                        item.build()
 
-        for item in self._group:
-            if isinstance(item, XsdElement):
-                item.build()
-
-        if self.redefine is not None:
-            for group in self.redefine.iter_components(XsdGroup):
-                group.build()
+                if self.redefine is not None:
+                    for group in self.redefine.iter_components(XsdGroup):
+                        group.build()
 
     @property
     def schema_elem(self) -> ElementType:
@@ -1231,7 +1259,7 @@ class Xsd11Group(XsdGroup):
         for child in content_model:
             match child.tag:
                 case nm.XSD_ELEMENT:
-                    self.append(self.builders.element_class(child, self.schema, self))
+                    self._group.append(self.builders.element_class(child, self.schema, self))
                 case nm.XSD_ANY:
                     self._group.append(self.builders.any_element_class(child, self.schema, self))
                 case x if x in nm.MODEL_TAGS:
@@ -1254,7 +1282,7 @@ class Xsd11Group(XsdGroup):
                             msg = _("an xs:{0} group cannot include a reference to an "
                                     "xs:{1} group").format(self.model, xsd_group.model)
                             self.parse_error(msg)
-                            self.pop()
+                            self._group.pop()
 
                     elif self.redefine is not None:
                         if child.get('minOccurs', '1') != '1' or child.get('maxOccurs', '1') != '1':

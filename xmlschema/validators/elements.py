@@ -14,7 +14,7 @@ import warnings
 from copy import copy as _copy
 from decimal import Decimal
 from types import GeneratorType
-from collections.abc import Iterator
+from collections.abc import Iterator, MutableSequence
 from typing import TYPE_CHECKING, cast, Any, Optional, Union
 from xml.etree.ElementTree import Element, ParseError
 
@@ -130,7 +130,7 @@ class XsdElement(XsdComponent, ParticleMixin,
     _ADMITTED_TAGS = nm.XSD_ELEMENT,
     _block: Optional[str] = None
     _final: Optional[str] = None
-
+    _built: bool | None
     binding: Optional[DataBindingType] = None
 
     __slots__ = ('type', 'selected_by', 'xsi_types', 'identities',
@@ -162,14 +162,12 @@ class XsdElement(XsdComponent, ParticleMixin,
         return self.content.iter_elements() if self.content else iter(())
 
     def build(self) -> None:
-        if not self._built:
-            self._built = True
-            self._parse()
+        if self._built is False:
+            with self._build_context():
+                self._parse()
 
     def _parse(self) -> None:
-        if not hasattr(self.parent, '_group'):
-            self._built = True
-        elif not self._built:
+        if self._built is not None and isinstance(self.parent, MutableSequence):
             return
 
         self.min_occurs = self.max_occurs = 1
@@ -1258,9 +1256,7 @@ class Xsd11Element(XsdElement):
         </element>
     """
     def _parse(self) -> None:
-        if not hasattr(self.parent, '_group'):
-            self._built = True
-        elif not self._built:
+        if self._built is not None and isinstance(self.parent, MutableSequence):
             return
 
         self.min_occurs = self.max_occurs = 1
@@ -1289,6 +1285,8 @@ class Xsd11Element(XsdElement):
                 if k is not None and isinstance(v, XsdAttribute):
                     if v.inheritable:
                         self.inheritable[k] = v
+
+        self._built = True
 
     def _parse_alternatives(self) -> None:
         alternatives = []

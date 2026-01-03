@@ -128,7 +128,7 @@ class XMLSchemaMeta(ABCMeta):
                     meta_bases += bases[1:]
 
             meta_schema_class = cast(
-                SchemaType,
+                type[SchemaType],
                 super().__new__(mcs, meta_schema_class_name, meta_bases, dict_)
             )
             meta_schema_class.__qualname__ = meta_schema_class_name
@@ -485,19 +485,18 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         return len(self.elements)
 
     def __getstate__(self) -> dict[str, Any]:
-        state = self.__dict__.copy()
-        for attr in self._mro_slots():
-            if attr not in state:
-                state[attr] = getattr(self, attr)
+        state = {attr: getattr(self, attr) for attr in self._mro_slots()}
+        state.update(self.__dict__)
+        state.pop('components', None)
+        state.pop('root_elements', None)
+        state.pop('simple_types', None)
+        state.pop('complex_types', None)
         state.pop('validation_context', None)
         return state
 
     def __setstate__(self, state: dict[str, Any]) -> None:
-        for attr in self._mro_slots():
-            if attr in state:
-                object.__setattr__(self, attr, state.pop(attr))
-
-        self.__dict__.update(state)
+        for attr, value in state.items():
+            object.__setattr__(self, attr, value)
 
     def __copy__(self) -> SchemaType:
         schema: SchemaType = object.__new__(self.__class__)
@@ -847,13 +846,10 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
 
     def clear(self) -> None:
         """Clears the schema cache."""
-        self.__dict__.pop('xpath_node', None)
-        self.__dict__.pop('annotations', None)
         self.__dict__.pop('components', None)
         self.__dict__.pop('root_elements', None)
         self.__dict__.pop('simple_types', None)
         self.__dict__.pop('complex_types', None)
-        self.__dict__.pop('target_prefix', None)
         self.__dict__.pop('validation_attempted', None)
 
     def build(self) -> None:

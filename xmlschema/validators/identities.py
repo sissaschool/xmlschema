@@ -176,33 +176,33 @@ class XsdIdentity(XsdComponent):
         self.elements = {}
 
     def build(self) -> None:
-        if self._built:
+        if self._built is not False:
             return
-        self._built = True
 
-        if self.ref is self:
+        with self._build_context():
+            if self.ref is self:
+                try:
+                    ref = self.maps.identities[self.name]
+                except KeyError:
+                    self.fields = []
+                    self.elements = {}
+                    msg = _("unknown identity constraint {!r}")
+                    self.parse_error(msg.format(self.name))
+                    self.ref = None
+                    return
+                else:
+                    if not isinstance(ref, self.__class__):
+                        msg = _("attribute 'ref' points to a different kind constraint")
+                        self.parse_error(msg)
+                    self.selector = ref.selector
+                    self.fields = ref.fields
+                    self.elements = {}
+                    self.ref = ref
+
             try:
-                ref = self.maps.identities[self.name]
-            except KeyError:
-                self.fields = []
-                self.elements = {}
-                msg = _("unknown identity constraint {!r}")
-                self.parse_error(msg.format(self.name))
-                self.ref = None
-                return
-            else:
-                if not isinstance(ref, self.__class__):
-                    msg = _("attribute 'ref' points to a different kind constraint")
-                    self.parse_error(msg)
-                self.selector = ref.selector
-                self.fields = ref.fields
-                self.elements = {}
-                self.ref = ref
-
-        try:
-            self.update_elements(base_element=self.parent)
-        except TypeError as err:
-            self.parse_error(err)
+                self.update_elements(base_element=self.parent)
+            except TypeError as err:
+                self.parse_error(err)
 
     def update_elements(self, base_element: Union['XsdElement', XPathElement]) -> None:
         if self.selector is None:

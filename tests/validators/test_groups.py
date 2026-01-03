@@ -17,6 +17,10 @@ from xmlschema.exceptions import XMLSchemaValueError
 from xmlschema.validators import ParticleMixin, XsdGroup, XsdElement
 
 
+class GlobalsMaps:
+    built = False
+
+
 class ModelGroup(XsdGroup):
     """A subclass for testing XSD models, that disables element parsing and schema bindings."""
 
@@ -24,12 +28,16 @@ class ModelGroup(XsdGroup):
         ParticleMixin.__init__(self, min_occurs, max_occurs)
         if model not in {'sequence', 'choice', 'all'}:
             raise XMLSchemaValueError(f"invalid model {model!r} for a group")
+        self.maps = GlobalsMaps
+        self._built = None
         self._group: List[Union[ParticleMixin, 'ModelGroup']] = []
-        self._elements = []
         self.content = self._group
         self.max_model_depth = 15
         self.model: str = model
         self.ref = None
+
+    def clear(self) -> None:
+        self._model_particles = self._elements = None
 
     def __repr__(self) -> str:
         return '%s(model=%r, occurs=%r)' % (self.__class__.__name__, self.model, self.occurs)

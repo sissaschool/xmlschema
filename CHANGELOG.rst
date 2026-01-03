@@ -2,6 +2,11 @@
 CHANGELOG
 *********
 
+`v4.3.0`_ (2026-01-03)
+======================
+* Add arguments validation for schemas and validation methods (by validation contexts)
+
+
 `v4.2.0`_ (2025-10-14)
 ======================
 * Add arguments validation for schemas and validation methods (by validation contexts)
@@ -784,3 +789,4 @@ v0.9.6 (2017-05-05)
 .. _v4.0.1: https://github.com/brunato/xmlschema/compare/v4.0.0...v4.0.1
 .. _v4.1.0: https://github.com/brunato/xmlschema/compare/v4.0.1...v4.1.0
 .. _v4.2.0: https://github.com/brunato/xmlschema/compare/v4.1.0...v4.2.0
+.. _v4.3.0: https://github.com/brunato/xmlschema/compare/v4.2.0...v4.3.0

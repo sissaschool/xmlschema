@@ -12,6 +12,7 @@ This module contains base functions and classes XML Schema components.
 """
 import logging
 from collections.abc import Iterator, MutableMapping
+from contextlib import contextmanager
 from functools import cached_property
 from typing import TYPE_CHECKING, cast, Any, Optional, Union
 
@@ -234,15 +235,26 @@ class XsdComponent(XsdValidator):
             raise NotImplementedError(f"not available for {cls!r}")
 
     _ADMITTED_TAGS: Union[tuple[str, ...], tuple[()]] = ()
-
     maps: 'XsdGlobals'
     elem: ElementType
+    target_namespace: str
+
     qualified: bool = True
     """For name matching, unqualified matching may be admitted only for elements and attributes"""
 
     ref: Optional['XsdComponent']
+    """Defined if the component is a reference to a global component."""
+
     redefine: Optional['XsdComponent']
-    target_namespace: str
+    """Defined if the component is a redefinition/override of another component."""
+
+    _built: bool | None
+    """
+    A three-state flag for determining if a component is built or not. A `None`
+    value means that a component is under construction, to avoid to rebuild a
+    component more times for a circularity between elements and groups. The
+    lock for threads is on global map.
+    """
 
     __slots__ = ('name', 'parent', 'schema', 'xsd_version', 'target_namespace', 'maps',
                  'builders', 'elem', 'validation', 'errors', 'ref', 'redefine', '_built')
@@ -283,10 +295,20 @@ class XsdComponent(XsdValidator):
 
     @property
     def built(self) -> bool:
-        return self._built
+        return self._built is True
 
     def build(self) -> None:
         self._built = True
+
+    @contextmanager
+    def _build_context(self) -> Iterator['XsdComponent']:
+        self._built = None
+        try:
+            yield self
+            self._built = True
+        finally:
+            if self._built is None:
+                self._built = False
 
     @property
     def validation_attempted(self) -> str:
@@ -368,9 +390,8 @@ class XsdComponent(XsdValidator):
         if self.errors:
             self.errors.clear()
         self._parse()
-
-        if self.__class__.build is XsdComponent.build:
-            self._built = True
+        if not self._built:
+            self._built = self.__class__.build is XsdComponent.build
 
     def _parse(self) -> None:
         return
