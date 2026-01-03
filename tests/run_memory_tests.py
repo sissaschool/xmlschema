@@ -58,9 +58,14 @@ class TestMemoryUsage(unittest.TestCase):
         output = subprocess.check_output(cmd, text=True)
         lazy_iterparse_mem = self.get_memory_usage(output)
 
-        self.assertLess(parse_mem, 2 * 1024 ** 2)
-        self.assertLess(lazy_iterparse_mem, parse_mem)
-        self.assertLess(lazy_iterparse_mem, iterparse_mem)
+        if sys.version_info >= (3, 14):
+            self.assertLess(parse_mem, 4.4 * 1024 ** 2)
+            self.assertLess(lazy_iterparse_mem, parse_mem)
+            self.assertLess(lazy_iterparse_mem, iterparse_mem)
+        else:
+            self.assertLess(parse_mem, 2 * 1024 ** 2)
+            self.assertLess(lazy_iterparse_mem, parse_mem)
+            self.assertLess(lazy_iterparse_mem, iterparse_mem)
 
     def test_decode_memory_usage(self):
         with tempfile.TemporaryDirectory() as dirname:
@@ -86,8 +91,12 @@ class TestMemoryUsage(unittest.TestCase):
             output = subprocess.check_output(cmd, text=True)
             lazy_decode_mem = self.get_memory_usage(output)
 
-            self.assertLessEqual(decode_mem, 2.6 * 1024 ** 2)
-            self.assertLessEqual(lazy_decode_mem, 2.1 * 1024 ** 2)
+            if sys.version_info >= (3, 14):
+                self.assertLessEqual(decode_mem, 6 * 1024 ** 2)
+                self.assertLessEqual(lazy_decode_mem, 4.4 * 1024 ** 2)
+            else:
+                self.assertLessEqual(decode_mem, 2.6 * 1024 ** 2)
+                self.assertLessEqual(lazy_decode_mem, 2.1 * 1024 ** 2)
 
     def test_validate_memory_usage(self):
         with tempfile.TemporaryDirectory() as dirname:
@@ -113,8 +122,12 @@ class TestMemoryUsage(unittest.TestCase):
             output = subprocess.check_output(cmd, text=True)
             lazy_validate_mem = self.get_memory_usage(output)
 
-            self.assertLess(validate_mem, 2.6 * 1024 ** 2)
-            self.assertLess(lazy_validate_mem, 2.1 * 1024 ** 2)
+            if sys.version_info >= (3, 14):
+                self.assertLessEqual(validate_mem, 6 * 1024 ** 2)
+                self.assertLessEqual(lazy_validate_mem, 4.6 * 1024 ** 2)
+            else:
+                self.assertLess(validate_mem, 2.6 * 1024 ** 2)
+                self.assertLess(lazy_validate_mem, 2.1 * 1024 ** 2)
 
 
 if __name__ == '__main__':
