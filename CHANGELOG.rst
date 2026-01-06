@@ -5,7 +5,13 @@ CHANGELOG
 `v4.3.0`_ (2026-01-03)
 ======================
 * Add arguments validation for schemas and validation methods (by validation contexts)
-
+* Add custom XPath parser for find/findall/iterfind APIs on schemas for match
+  singleton sequence also if position is a number greater than 1 in predicate
+  expression (issue #468)
+* Improve build of XSD elements and groups, using a three-state built flag for
+  components
+* Extend and fix memory tests (Python 3.14+ seems to consume more memory)
+* Drop support for Python 3.9 and add development support for Python 3.15
 
 `v4.2.0`_ (2025-10-14)
 ======================
