@@ -12,6 +12,7 @@ import ntpath
 import platform
 import posixpath
 import string
+import warnings
 from pathlib import PurePath, PurePosixPath, PureWindowsPath
 from urllib.parse import urlsplit, unquote, quote_from_bytes
 
@@ -160,27 +161,36 @@ class LocationPath(PurePath):
         # Implementation that maps relative paths to not RFC 8089 compliant relative
         # file URIs because urlopen() doesn't accept simple paths. For UNC paths uses
         # the format with four slashes to let urlopen() works.
+        #
+        # Note: PurePath.as_uri() is deprecated in Python 3.14+ (scheduled for removal
+        # in Python 3.19). This custom implementation doesn't call the parent method
+        # and provides the necessary functionality. We suppress the deprecation warning
+        # since this is an intentional override with a valid use case.
 
-        drive = self.drive
-        if len(drive) == 2 and drive[1] == ':' and drive[0] in DRIVE_LETTERS:
-            # A Windows path with a drive: 'c:\dir\file' => 'file:///c:/dir/file'
-            prefix = 'file:///' + drive
-            path = self.as_posix()[2:]
-        elif drive:
-            # UNC format case: '\\host\dir\file' => 'file:////host/dir/file'
-            prefix = 'file://'
-            path = self.as_posix()
-        else:
-            path = self.as_posix()
-            if path.startswith('/'):
-                # A Windows relative path or an absolute posix path:
-                #  ('\dir\file' | '/dir/file') => 'file://dir/file'
+        with warnings.catch_warnings():
+            warnings.filterwarnings('ignore', category=DeprecationWarning,
+                                  message='.*PurePath.as_uri.*')
+
+            drive = self.drive
+            if len(drive) == 2 and drive[1] == ':' and drive[0] in DRIVE_LETTERS:
+                # A Windows path with a drive: 'c:\dir\file' => 'file:///c:/dir/file'
+                prefix = 'file:///' + drive
+                path = self.as_posix()[2:]
+            elif drive:
+                # UNC format case: '\\host\dir\file' => 'file:////host/dir/file'
                 prefix = 'file://'
+                path = self.as_posix()
             else:
-                # A relative posix path: 'dir/file' => 'file:dir/file'
-                prefix = 'file:'
+                path = self.as_posix()
+                if path.startswith('/'):
+                    # A Windows relative path or an absolute posix path:
+                    #  ('\dir\file' | '/dir/file') => 'file://dir/file'
+                    prefix = 'file://'
+                else:
+                    # A relative posix path: 'dir/file' => 'file:dir/file'
+                    prefix = 'file:'
 
-        return prefix + quote_from_bytes(os.fsencode(path))
+            return prefix + quote_from_bytes(os.fsencode(path))
 
     def normalize(self) -> 'LocationPath':
         normalized_path = self._path_module.normpath(str(self))
