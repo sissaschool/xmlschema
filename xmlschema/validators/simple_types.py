@@ -14,7 +14,7 @@ import re
 from collections.abc import Callable, Iterator
 from decimal import DecimalException, Decimal
 from functools import cached_property
-from typing import cast, Any, Optional, Union
+from typing import cast, Any, Union
 from xml.etree import ElementTree
 
 from elementpath.datatypes import AnyAtomicType, AbstractDateTime, AbstractQName, \
@@ -27,6 +27,7 @@ from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from xmlschema.translation import gettext as _
 from xmlschema.utils.qnames import local_name, get_extended_qname
 from xmlschema.utils.decoding import raw_encode_value
+from xmlschema.caching import schema_cache
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaParseError, \
     XMLSchemaCircularityError, XMLSchemaDecodeError, XMLSchemaEncodeError
@@ -60,10 +61,10 @@ class XsdSimpleType(XsdType, ValidationMixin[str | bytes, DecodedValueType]):
     abstract: bool = False
     block: str = ''
 
-    min_length: Optional[int]
-    max_length: Optional[int]
-    white_space: Optional[str]
-    patterns: Optional[XsdPatternFacets]
+    min_length: int | None
+    max_length: int | None
+    white_space: str | None
+    patterns: XsdPatternFacets | None
     validators: tuple[()] | list[XsdFacet | Callable[[Any], None]]
     allow_empty: bool
 
@@ -78,19 +79,19 @@ class XsdSimpleType(XsdType, ValidationMixin[str | bytes, DecodedValueType]):
 
     def __init__(self, elem: ElementType,
                  schema: SchemaType,
-                 parent: Optional[XsdComponent] = None,
-                 name: Optional[str] = None,
-                 facets: Optional[dict[Optional[str], FacetsValueType]] = None) -> None:
+                 parent: XsdComponent | None = None,
+                 name: str | None = None,
+                 facets: dict[str | None, FacetsValueType] | None = None) -> None:
         super().__init__(elem, schema, parent, name)
         if not hasattr(self, '_facets'):
             self.facets = facets if facets is not None else {}
 
     @property
-    def facets(self) -> dict[Optional[str], FacetsValueType]:
+    def facets(self) -> dict[str | None, FacetsValueType]:
         return self._facets
 
     @facets.setter
-    def facets(self, facets: dict[Optional[str], FacetsValueType]) -> None:
+    def facets(self, facets: dict[str | None, FacetsValueType]) -> None:
         self._facets = facets
         self.min_length = self.max_length = None
         self.patterns = None
@@ -286,7 +287,7 @@ class XsdSimpleType(XsdType, ValidationMixin[str | bytes, DecodedValueType]):
         self.max_length = max_length
 
     @property
-    def variety(self) -> Optional[str]:
+    def variety(self) -> str | None:
         return None
 
     @property
@@ -294,15 +295,15 @@ class XsdSimpleType(XsdType, ValidationMixin[str | bytes, DecodedValueType]):
         return self
 
     @cached_property
-    def min_value(self) -> Optional[AtomicValueType]:
-        min_exclusive: Optional['AtomicValueType']
-        min_inclusive: Optional['AtomicValueType']
+    def min_value(self) -> AtomicValueType | None:
+        min_exclusive: AtomicValueType | None
+        min_inclusive: AtomicValueType | None
         min_exclusive = cast(
-            Optional['AtomicValueType'],
+            AtomicValueType | None,
             getattr(self.get_facet(nm.XSD_MIN_EXCLUSIVE), 'value', None)
         )
         min_inclusive = cast(
-            Optional['AtomicValueType'],
+            AtomicValueType | None,
             getattr(self.get_facet(nm.XSD_MIN_INCLUSIVE), 'value', None)
         )
 
@@ -316,15 +317,15 @@ class XsdSimpleType(XsdType, ValidationMixin[str | bytes, DecodedValueType]):
             return min_inclusive
 
     @cached_property
-    def max_value(self) -> Optional[AtomicValueType]:
-        max_exclusive: Optional['AtomicValueType']
-        max_inclusive: Optional['AtomicValueType']
+    def max_value(self) -> AtomicValueType | None:
+        max_exclusive: AtomicValueType | None
+        max_inclusive: AtomicValueType | None
         max_exclusive = cast(
-            Optional['AtomicValueType'],
+            AtomicValueType | None,
             getattr(self.get_facet(nm.XSD_MAX_EXCLUSIVE), 'value', None)
         )
         max_inclusive = cast(
-            Optional['AtomicValueType'],
+            AtomicValueType | None,
             getattr(self.get_facet(nm.XSD_MAX_INCLUSIVE), 'value', None)
         )
 
@@ -338,7 +339,7 @@ class XsdSimpleType(XsdType, ValidationMixin[str | bytes, DecodedValueType]):
             return max_inclusive
 
     @cached_property
-    def enumeration(self) -> Optional[list[Optional[AtomicValueType]]]:
+    def enumeration(self) -> list[AtomicValueType | None] | None:
         enumeration = self.get_facet(nm.XSD_ENUMERATION)
         if isinstance(enumeration, XsdEnumerationFacets):
             return enumeration.enumeration
@@ -406,7 +407,8 @@ class XsdSimpleType(XsdType, ValidationMixin[str | bytes, DecodedValueType]):
     def is_element_only(self) -> bool:
         return False
 
-    def is_derived(self, other: BaseXsdType, derivation: Optional[str] = None) -> bool:
+    @schema_cache
+    def is_derived(self, other: BaseXsdType, derivation: str | None = None) -> bool:
         if derivation:
             if derivation == self.derivation:
                 derivation = None  # derivation mode checked
@@ -459,13 +461,13 @@ class XsdSimpleType(XsdType, ValidationMixin[str | bytes, DecodedValueType]):
                 return text
 
     def text_decode(self, text: str, validation: str = 'skip',
-                    context: Optional[ValidationContext] = None) -> DecodedValueType:
+                    context: ValidationContext | None = None) -> DecodedValueType:
         if context is None:
             self.schema.validation_context.clear()
             return self.raw_decode(text, validation, self.schema.validation_context)
         return self.raw_decode(text, validation, context)
 
-    def text_is_valid(self, text: str, context: Optional[ValidationContext] = None) -> bool:
+    def text_is_valid(self, text: str, context: ValidationContext | None = None) -> bool:
         if context is None:
             self.schema.validation_context.clear()
             self.raw_decode(text, 'lax', self.schema.validation_context)
@@ -479,7 +481,7 @@ class XsdSimpleType(XsdType, ValidationMixin[str | bytes, DecodedValueType]):
                 return True
 
     def get_atomic_value(self, value: AtomicValueType,
-                         namespaces: Optional[NsmapType] = None,
+                         namespaces: NsmapType | None = None,
                          strict: bool = False) -> AtomicValueType:
         return value
 
@@ -501,7 +503,7 @@ class XsdSimpleType(XsdType, ValidationMixin[str | bytes, DecodedValueType]):
         return text
 
     def raw_encode(self, obj: Any, validation: str, context: EncodeContext) \
-            -> Optional[str]:
+            -> str | None:
         if isinstance(obj, (str, bytes)):
             text = self.normalize(obj)
         else:
@@ -522,7 +524,7 @@ class XsdSimpleType(XsdType, ValidationMixin[str | bytes, DecodedValueType]):
 
         return text if obj is not None else None
 
-    def get_facet(self, tag: str) -> Optional[FacetsValueType]:
+    def get_facet(self, tag: str) -> FacetsValueType | None:
         return self.facets.get(tag)
 
 
@@ -543,10 +545,10 @@ class XsdAtomic(XsdSimpleType):
 
     def __init__(self, elem: ElementType,
                  schema: SchemaType,
-                 parent: Optional[XsdComponent] = None,
-                 name: Optional[str] = None,
-                 facets: Optional[dict[Optional[str], FacetsValueType]] = None,
-                 base_type: Optional[BaseXsdType] = None) -> None:
+                 parent: XsdComponent | None = None,
+                 name: str | None = None,
+                 facets: dict[str | None, FacetsValueType] | None = None,
+                 base_type: BaseXsdType | None = None) -> None:
 
         if base_type is None:
             self.primitive_type = self
@@ -579,7 +581,7 @@ class XsdAtomic(XsdSimpleType):
             self.primitive_type = base_type.content
 
     @property
-    def variety(self) -> Optional[str]:
+    def variety(self) -> str | None:
         return 'atomic'
 
     @property
@@ -591,7 +593,7 @@ class XsdAtomic(XsdSimpleType):
     def is_datetime(self) -> bool:
         return issubclass(self.primitive_type.python_type, AbstractDateTime)
 
-    def get_facet(self, tag: str) -> Optional[FacetsValueType]:
+    def get_facet(self, tag: str) -> FacetsValueType | None:
         facet = self.facets.get(tag)
         if facet is not None:
             return facet
@@ -601,7 +603,7 @@ class XsdAtomic(XsdSimpleType):
             return None
 
     def get_atomic_value(self, value: AtomicValueType,
-                         namespaces: Optional[NsmapType] = None,
+                         namespaces: NsmapType | None = None,
                          strict: bool = False) -> AtomicValueType:
         """
         Returns a full decoded atomic value for the given value. Used for ensuring
@@ -650,11 +652,11 @@ class XsdAtomicBuiltin(XsdAtomic):
                  name: str,
                  datatype: type[AnyAtomicType],
                  python_type: PythonTypeClasses,
-                 base_type: Optional['XsdAtomicBuiltin'] = None,
-                 admitted_facets: Optional[set[str]] = None,
-                 facets: Optional[dict[Optional[str], FacetsValueType]] = None,
-                 to_python: Optional[Callable[[Any], AtomicValueType]] = None,
-                 from_python: Optional[Callable[[Any], str]] = None) -> None:
+                 base_type: 'XsdAtomicBuiltin | None' = None,
+                 admitted_facets: set[str] | None = None,
+                 facets: dict[str | None, FacetsValueType] | None = None,
+                 to_python: Callable[[Any], AtomicValueType] | None = None,
+                 from_python: Callable[[Any], str] | None = None) -> None:
         """
         :param name: the XSD type's qualified name.
         :param datatype: the XSD datatype.
@@ -780,7 +782,7 @@ class XsdAtomicBuiltin(XsdAtomic):
         return result
 
     def raw_encode(self, obj: Any, validation: str, context: EncodeContext) \
-            -> Optional[str]:
+            -> str | None:
         if isinstance(obj, (str, bytes)):
             obj = self.normalize(obj)
 
@@ -859,9 +861,9 @@ class XsdList(XsdSimpleType):
 
     def __init__(self, elem: ElementType,
                  schema: SchemaType,
-                 parent: Optional[XsdComponent],
-                 name: Optional[str] = None) -> None:
-        facets: Optional[dict[Optional[str], FacetsValueType]] = {
+                 parent: XsdComponent | None,
+                 name: str | None = None) -> None:
+        facets: dict[str | None, FacetsValueType] | None = {
             nm.XSD_WHITE_SPACE: XsdWhiteSpaceFacet(self._white_space_elem, schema, self, self)
         }
         super().__init__(elem, schema, parent, name, facets)
@@ -938,7 +940,7 @@ class XsdList(XsdSimpleType):
             self.item_type = self.maps.any_atomic_type
 
     @property
-    def variety(self) -> Optional[str]:
+    def variety(self) -> str | None:
         return 'list'
 
     @property
@@ -955,7 +957,8 @@ class XsdList(XsdSimpleType):
     def is_list(self) -> bool:
         return True
 
-    def is_derived(self, other: BaseXsdType, derivation: Optional[str] = None) -> bool:
+    @schema_cache
+    def is_derived(self, other: BaseXsdType, derivation: str | None = None) -> bool:
         if other.ref is not None:
             other = other.ref
         if derivation and derivation == self.derivation:
@@ -980,12 +983,12 @@ class XsdList(XsdSimpleType):
             yield from self.item_type.iter_components(xsd_classes)
 
     def get_atomic_value(self, value: AtomicValueType,
-                         namespaces: Optional[NsmapType] = None,
+                         namespaces: NsmapType | None = None,
                          strict: bool = False) -> AtomicValueType:
         return self.item_type.get_atomic_value(value, namespaces=namespaces, strict=strict)
 
     def raw_decode(self, obj: str | bytes, validation: str, context: ValidationContext) \
-            -> list[Optional[AtomicValueType]]:
+            -> list[AtomicValueType | None]:
         items = []
         for chunk in self.normalize(obj).split():
             result = self.item_type.raw_decode(chunk, validation, context)
@@ -1014,7 +1017,7 @@ class XsdList(XsdSimpleType):
         else:
             return items
 
-    def raw_encode(self, obj: Any, validation: str, context: EncodeContext) -> Optional[str]:
+    def raw_encode(self, obj: Any, validation: str, context: EncodeContext) -> str | None:
         if not hasattr(obj, '__iter__') or isinstance(obj, (str, bytes)):
             obj = [obj]
 
@@ -1045,8 +1048,8 @@ class XsdUnion(XsdSimpleType):
 
     def __init__(self, elem: ElementType,
                  schema: SchemaType,
-                 parent: Optional[XsdComponent],
-                 name: Optional[str] = None) -> None:
+                 parent: XsdComponent | None,
+                 name: str | None = None) -> None:
         super().__init__(elem, schema, parent, name, facets=None)
 
     def __repr__(self) -> str:
@@ -1120,7 +1123,7 @@ class XsdUnion(XsdSimpleType):
                 self.allow_empty = False
 
     @property
-    def variety(self) -> Optional[str]:
+    def variety(self) -> str | None:
         return 'union'
 
     @property
@@ -1152,7 +1155,7 @@ class XsdUnion(XsdSimpleType):
             yield from mt.iter_components(xsd_classes)
 
     def get_atomic_value(self, value: AtomicValueType,
-                         namespaces: Optional[NsmapType] = None,
+                         namespaces: NsmapType | None = None,
                          strict: bool = False) -> AtomicValueType:
         values = []
         for mt in self.member_types:
@@ -1206,7 +1209,7 @@ class XsdUnion(XsdSimpleType):
         context.decode_error(validation, self, obj, self.member_types, msg)
         return None
 
-    def raw_encode(self, obj: Any, validation: str, context: EncodeContext) -> Optional[str]:
+    def raw_encode(self, obj: Any, validation: str, context: EncodeContext) -> str | None:
         patterns = context.patterns  # Use and clean pushed patterns
         context.patterns = None
 
@@ -1417,8 +1420,8 @@ class XsdAtomicRestriction(XsdAtomic):
         self.facets = facets
 
     @property
-    def variety(self) -> Optional[str]:
-        return cast(Optional[str], getattr(self.base_type, 'variety', None))
+    def variety(self) -> str | None:
+        return cast(str | None, getattr(self.base_type, 'variety', None))
 
     def iter_components(self, xsd_classes: ComponentClassType = None) \
             -> Iterator[XsdComponent]:
@@ -1478,7 +1481,7 @@ class XsdAtomicRestriction(XsdAtomic):
 
         return result
 
-    def raw_encode(self, obj: Any, validation: str, context: EncodeContext) -> Optional[str]:
+    def raw_encode(self, obj: Any, validation: str, context: EncodeContext) -> str | None:
         base_type: XsdSimpleType
         if isinstance(self.base_type, XsdSimpleType):
             base_type = self.base_type

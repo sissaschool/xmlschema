@@ -26,6 +26,7 @@ from xmlschema.utils.etree import is_etree_element, is_etree_document
 from xmlschema.resources import XMLResource
 from xmlschema.converters import XMLSchemaConverter, ConverterOption, ConverterType
 from xmlschema.loaders import SchemaLoader, LoaderClassOption
+from xmlschema.caching import SchemaCache
 from xmlschema.xpath import ElementSelector
 
 
@@ -186,6 +187,13 @@ class SchemaSettings(ResourceSettings):
     Ignored if either *global_maps* or *parent* argument is provided.
     """
 
+    use_cache: BooleanOption = BooleanOption(default=True)
+    """
+    If `True` the schemas processor creates a :class:`SchemaCache` for caching several
+    method calls component instances. For default the cache is enabled except for
+    predefined meta-schemas.
+    """
+
     loglevel: LogLevelOption = LogLevelOption(default=None)
     """
     Used for setting a different logging level for schema initialization and building.
@@ -306,6 +314,10 @@ class SchemaSettings(ResourceSettings):
             locations=self.locations,
             use_fallback=self.use_fallback
         )
+
+    def get_cache(self) -> SchemaCache:
+        """Returns a new :class:`SchemaCache` instance for schema settings."""
+        return SchemaCache(self.use_cache)
 
     def get_schema(self, cls: type[SchemaType],
                    source: Union[SourceArgType, list[SourceArgType]],

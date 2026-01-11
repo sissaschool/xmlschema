@@ -146,7 +146,7 @@ class XsdAssert(XsdComponent, ElementPathMixin[Union['XsdAssert', SchemaElementT
     # For implementing ElementPathMixin
     def __iter__(self) -> Iterator[Union['XsdElement', 'XsdAnyElement']]:
         if isinstance(self.parent.content, XsdGroup):
-            yield from self.parent.content.iter_elements()
+            yield from self.parent.content.elements
 
     @property
     def attrib(self) -> 'XsdAttributeGroup':

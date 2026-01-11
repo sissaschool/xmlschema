@@ -182,6 +182,9 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     for assertions. For default a full XPath 2.0 processor is used.
     :param use_meta: if `True` the schema processor uses the validator meta-schema as \
     parent schema. Ignored if either *global_maps* or *parent* argument is provided.
+    :param use_cache: if `True` the schema processor enable caching for components on \
+    a cache managed by global maps. For default caching is enabled except for predefined \
+    meta-schema maps.
     :param loglevel: for setting a different logging level for schema initialization \
     and building. For default is WARNING (30). For INFO level set it with 20, for \
     DEBUG level with 10. The default loglevel is restored after schema building, \
@@ -279,6 +282,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                  use_fallback: bool = True,
                  use_xpath3: bool = False,
                  use_meta: bool = True,
+                 use_cache: bool = True,
                  loglevel: Optional[Union[str, int]] = None,
                  build: bool = True,
                  partial: bool = False,
@@ -304,6 +308,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 base_url=base_url,
                 use_fallback=use_fallback,
                 use_xpath3=use_xpath3,
+                use_cache=use_cache,
                 loglevel=loglevel,
                 **kwargs,
             ))
@@ -727,10 +732,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     @cached_property
     def components(self) -> dict[ElementType, XsdComponent]:
         """A map from XSD ElementTree elements to their schema components."""
-        self.check_validator(self.validation)
-        return {
-            c.elem: c for c in self.iter_components() if isinstance(c, XsdComponent)
-        }
+        return {c.elem: c for c in self.iter_components(XsdComponent)}
 
     @cached_property
     def root_elements(self) -> list[XsdElement]:
@@ -794,6 +796,7 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
                 namespace=nm.XSD_NAMESPACE,
                 global_maps=global_maps,
                 defuse='never',
+                use_cache=False,
                 partial=True,
             )
 

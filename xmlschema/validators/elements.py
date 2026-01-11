@@ -36,6 +36,7 @@ from xmlschema.arguments import XSD_VALIDATION_MODES
 from xmlschema import dataobjects
 from xmlschema.converters import ElementData
 from xmlschema.xpath import XMLSchemaProxy, ElementPathMixin, XPathElement
+from xmlschema.caching import schema_cache
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaParseError, \
     XMLSchemaStopValidation, XMLSchemaTypeTableWarning
@@ -159,7 +160,8 @@ class XsdElement(XsdComponent, ParticleMixin,
                 self.content = value.content
 
     def __iter__(self) -> Iterator[SchemaElementType]:
-        return self.content.iter_elements() if self.content else iter(())
+        if self.content:
+            yield from self.content.elements
 
     def build(self) -> None:
         if self._built is False:
@@ -1099,6 +1101,7 @@ class XsdElement(XsdComponent, ParticleMixin,
             return self.maps.elements[name]
         return None
 
+    @schema_cache
     def match_child(self, name: str) -> Optional['XsdElement']:
         xsd_group = self.type.model_group
         if xsd_group is None:
@@ -1106,7 +1109,7 @@ class XsdElement(XsdComponent, ParticleMixin,
             xsd_group = self.maps.any_type.model_group
             assert xsd_group is not None
 
-        for xsd_child in xsd_group.iter_elements():
+        for xsd_child in xsd_group.elements:
             matched_element = xsd_child.match(name, resolve=True)
             if isinstance(matched_element, XsdElement):
                 return matched_element
@@ -1115,6 +1118,7 @@ class XsdElement(XsdComponent, ParticleMixin,
                 return self.maps.elements[name]
             return None
 
+    @schema_cache
     def is_restriction(self, other: ModelParticleType, check_occurs: bool = True) -> bool:
         e: ModelParticleType
 
@@ -1191,6 +1195,7 @@ class XsdElement(XsdComponent, ParticleMixin,
                     return False
             return True
 
+    @schema_cache
     def is_overlap(self, other: SchemaElementType) -> bool:
         if isinstance(other, XsdElement):
             if self.name == other.name:

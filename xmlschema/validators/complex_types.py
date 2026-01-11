@@ -19,6 +19,7 @@ from xmlschema.aliases import ElementType, NsmapType, SchemaType, ComponentClass
     DecodeType, BaseXsdType, DecodedValueType, ExtraValidatorType, ValidationHookType
 from xmlschema.translation import gettext as _
 from xmlschema.utils.qnames import get_qname, local_name
+from xmlschema.caching import schema_cache
 
 from .exceptions import XMLSchemaCircularityError, XMLSchemaDecodeError
 from .validation import ValidationContext, EncodeContext, ValidationMixin
@@ -642,6 +643,7 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
             return self.mixed or self.base_type is not None and \
                 self.base_type.is_valid(obj, **kwargs)
 
+    @schema_cache
     def is_derived(self, other: BaseXsdType, derivation: Optional[str] = None) -> bool:
         if derivation and derivation == self.derivation:
             derivation = None  # derivation mode checked

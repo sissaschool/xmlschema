@@ -762,7 +762,7 @@ class InterleavedModelVisitor(ModelVisitor):
         elif not self.wildcard.is_matching(tag, group=self.root, occurs=self.occurs):
             return None
 
-        for xsd_element in self.group.iter_elements():
+        for xsd_element in self.group.elements:
             if xsd_element.is_matching(tag, group=self.root, occurs=self.occurs):
                 if not xsd_element.is_over(self.occurs):
                     return None

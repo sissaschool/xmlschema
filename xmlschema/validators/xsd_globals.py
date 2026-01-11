@@ -105,7 +105,7 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
                  'errors', 'validator', 'namespaces', 'loader', 'global_maps',
                  'types', 'notations', 'attributes', 'attribute_groups',
                  'elements', 'groups', 'substitution_groups', 'identities',
-                 'xpath_parser_class', 'assertion_parser_class', 'settings')
+                 'xpath_parser_class', 'assertion_parser_class', 'settings', 'cache')
 
     def __init__(self, validator: SchemaType,
                  validation: str = _strict,
@@ -155,8 +155,9 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
             self.substitution_groups.update(ancestor.maps.substitution_groups)
             self.identities.update(ancestor.maps.identities)
 
-        self.validator.maps = self
         self.loader = self.settings.get_loader(self)
+        self.cache = self.settings.get_cache()
+        self.validator.maps = self
 
     @property
     def schemas(self) -> set[SchemaType]:
@@ -207,12 +208,15 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
         return obj in self._schemas
 
     def __getstate__(self) -> dict[str, Any]:
-        return {a: getattr(self, a) for a in self._mro_slots() if a != '_build_lock'}
+        return {
+            a: getattr(self, a) for a in self._mro_slots() if a not in ('_build_lock', 'cache')
+        }
 
     def __setstate__(self, state: dict[str, Any]) -> None:
         for attr, value in state.items():
             object.__setattr__(self, attr, value)
         self._build_lock = threading.Lock()
+        self.cache = self.settings.get_cache()
 
     def __copy__(self) -> 'XsdGlobals':
         other = type(self)(
@@ -509,6 +513,7 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
         self.global_maps.clear()
         self.substitution_groups.clear()
         self.identities.clear()
+        self.cache.clear()
 
         for schema in self._schemas:
             if schema.maps is self:

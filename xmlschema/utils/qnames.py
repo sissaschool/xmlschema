@@ -10,7 +10,7 @@
 """Helper functions for QNames and namespaces."""
 import re
 from collections.abc import Iterable, MutableMapping
-from typing import Optional
+from functools import cache
 
 from xmlschema.exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from xmlschema.names import XML_NAMESPACE
@@ -35,7 +35,7 @@ def get_namespace(qname: str) -> str:
         return namespace
 
 
-def get_namespace_ext(qname: str, namespaces: Optional[NsmapType] = None) -> str:
+def get_namespace_ext(qname: str, namespaces: NsmapType | None = None) -> str:
     """
     Returns the namespace URI associated with a QName. If a namespace map is
     provided tries to resolve a prefixed QName and then to extract the namespace.
@@ -49,7 +49,8 @@ def get_namespace_ext(qname: str, namespaces: Optional[NsmapType] = None) -> str
         return get_namespace(get_extended_qname(qname, namespaces))
 
 
-def get_qname(uri: Optional[str], name: str) -> str:
+@cache
+def get_qname(uri: str | None, name: str) -> str:
     """
     Returns an expanded QName from URI and local part. If any argument has boolean value
     `False` or if the name is already an expanded QName, returns the *name* argument.
@@ -69,6 +70,7 @@ def get_qname(uri: Optional[str], name: str) -> str:
         return f'{{{uri}}}{name}'
 
 
+@cache
 def local_name(qname: str) -> str:
     """
     Return the local part of an expanded QName or a prefixed name. If the name
@@ -92,7 +94,7 @@ def local_name(qname: str) -> str:
 
 
 def get_prefixed_qname(qname: str,
-                       namespaces: Optional[MutableMapping[str, str]],
+                       namespaces: MutableMapping[str, str] | None,
                        use_empty: bool = True) -> str:
     """
     Get the prefixed form of a QName, using a namespace map.
@@ -119,7 +121,7 @@ def get_prefixed_qname(qname: str,
         return qname
 
 
-def get_extended_qname(qname: str, namespaces: Optional[MutableMapping[str, str]]) -> str:
+def get_extended_qname(qname: str, namespaces: MutableMapping[str, str] | None) -> str:
     """
     Get the extended form of a QName, using a namespace map.
     Local names are mapped to the default namespace.
@@ -193,7 +195,7 @@ def update_namespaces(namespaces: dict[str, str],
             namespaces[prefix] = uri
 
 
-def get_namespace_map(namespaces: Optional[NsmapType]) -> dict[str, str]:
+def get_namespace_map(namespaces: NsmapType | None) -> dict[str, str]:
     """Returns a new and checked namespace map."""
     if namespaces is None:
         return {}

@@ -21,6 +21,7 @@ from xmlschema.translation import gettext as _
 from xmlschema.utils.qnames import get_namespace
 from xmlschema.utils.decoding import EmptyType, Empty, raw_encode_value
 from xmlschema.xpath import XMLSchemaProxy, ElementPathMixin
+from xmlschema.caching import schema_cache
 
 from .validation import ValidationContext, EncodeContext, ValidationMixin
 from .xsdbase import XsdComponent
@@ -210,6 +211,7 @@ class XsdWildcard(XsdComponent):
     def _has_occurs_restriction(self, other: 'XsdWildcard') -> bool:
         return True
 
+    @schema_cache
     def is_restriction(self, other: Union[ModelParticleType, 'XsdAnyAttribute'],
                        check_occurs: bool = True) -> bool:
         if not isinstance(other, self.__class__):
@@ -580,6 +582,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
 
         return self.maps.any_type.raw_encode(obj, validation, context)
 
+    @schema_cache
     def is_overlap(self, other: ModelParticleType) -> bool:
         if not isinstance(other, XsdAnyElement):
             if isinstance(other, elements.XsdElement):
@@ -883,6 +886,7 @@ class XsdOpenContent(XsdComponent):
         else:
             self.any_element = Xsd11AnyElement(child, self.schema, self)
 
+    @schema_cache
     def is_restriction(self, other: 'XsdOpenContent') -> bool:
         if other is None or other.mode == 'none':
             return self.mode == 'none'

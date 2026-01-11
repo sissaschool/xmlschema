@@ -33,10 +33,10 @@ from .validators import (
     XMLSchema, XMLSchema10, XMLSchema11, XsdComponent, XsdType, XsdElement, XsdAttribute
 )
 
-__version__ = '4.3.0'
+__version__ = '4.4.0'
 __author__ = "Davide Brunato"
 __contact__ = "brunato@sissa.it"
-__copyright__ = "Copyright 2016-2025, SISSA"
+__copyright__ = "Copyright 2016-2026, SISSA"
 __license__ = "MIT"
 __status__ = "Production/Stable"
 

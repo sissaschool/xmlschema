@@ -10,7 +10,6 @@
 """
 This module contains classes for XML Schema model groups.
 """
-import threading
 import warnings
 from collections.abc import Iterable, Iterator, MutableMapping, MutableSequence
 from copy import copy as _copy
@@ -27,6 +26,7 @@ from xmlschema.translation import gettext as _
 from xmlschema.utils.decoding import Empty, raw_encode_value, raw_encode_attributes
 from xmlschema.utils.qnames import get_qname, local_name
 from xmlschema import _limits
+from xmlschema.caching import schema_cache, schema_cached_property
 
 from .exceptions import XMLSchemaModelError, XMLSchemaModelDepthError, \
     XMLSchemaValidationError, XMLSchemaTypeTableWarning, XMLSchemaCircularityError, \
@@ -107,11 +107,9 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
 
     # For XSD 1.1 openContent processing
     open_content: Optional[XsdOpenContent] = None
-    _model_particles: tuple[ModelParticleType, ...] | None = None
-    _elements: tuple[XsdElement | XsdAnyElement, ...] | None = None
     _ADMITTED_TAGS = (nm.XSD_GROUP, nm.XSD_SEQUENCE, nm.XSD_ALL, nm.XSD_CHOICE)
 
-    __slots__ = ('_group', 'content', 'oid', 'model', 'min_occurs', 'max_occurs', '_iter_lock')
+    __slots__ = ('_group', 'content', 'oid', 'model', 'min_occurs', 'max_occurs')
 
     def __init__(self, elem: ElementType,
                  schema: SchemaType,
@@ -121,7 +119,6 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         self.content = self._group
         self.oid = (self,)
         self.min_occurs = self.max_occurs = 1
-        self._iter_lock = threading.Lock()
         super().__init__(elem, schema, parent)
 
     def __repr__(self) -> str:
@@ -161,19 +158,6 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
 
     def __len__(self) -> int:
         return len(self._group)
-
-    def __getstate__(self) -> dict[str, Any]:
-        state = {attr: getattr(self, attr) for attr in self._mro_slots()}
-        state.update(self.__dict__)
-        state.pop('_model_particles', None)
-        state.pop('_elements', None)
-        state.pop('_iter_lock', None)
-        return state
-
-    def __setstate__(self, state: dict[str, Any]) -> None:
-        for attr, value in state.items():
-            object.__setattr__(self, attr, value)
-        self._iter_lock = threading.Lock()
 
     def insert(self, i: int, item: ModelParticleType) -> None:
         if self._built:
@@ -344,15 +328,6 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         Raises `XMLSchemaModelDepthError` if the *depth* of the model is over
         `limits.MAX_MODEL_DEPTH` value.
         """
-        if self._model_particles is not None:
-            yield from self._model_particles
-            return
-        elif self._built and not self._iter_lock.locked():
-            with self._iter_lock:
-                self._model_particles = tuple(self.iter_model())
-                yield from self._model_particles
-                return
-
         iterators: list[Iterator[ModelParticleType]] = []
         particles = iter(self)
 
@@ -377,15 +352,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         A generator function iterating model's elements. Raises `XMLSchemaModelDepthError`
         if the overall depth of the model groups is over `limits.MAX_MODEL_DEPTH`.
         """
-        if self._elements is not None:
-            yield from self._elements
-            return
-        elif self._built and not self._iter_lock.locked():
-            with self._iter_lock:
-                self._elements = tuple(self.iter_elements())
-                yield from self._elements
-                return
-        elif self.max_occurs == 0:
+        if self.max_occurs == 0:
             return
 
         iterators: list[Iterator[ModelParticleType]] = []
@@ -409,6 +376,10 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                     particles = iterators.pop()
                 except IndexError:
                     return
+
+    @schema_cached_property
+    def elements(self) -> tuple[SchemaElementType, ...]:
+        return tuple(self.iter_elements())
 
     def get_subgroups(self, particle: ModelParticleType) -> list['XsdGroup']:
         """
@@ -494,7 +465,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         if self.is_over(occurs):
             return expected
 
-        for e in self.iter_elements():
+        for e in self.elements:
             if e not in expected and isinstance(e, XsdElement) and e.min_occurs > occurs[e]:
                 expected.append(e)
                 expected.extend(s for s in e.iter_substitutes())
@@ -699,6 +670,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
     def is_empty(self) -> bool:
         return not self.mixed and (not self._group or self.max_occurs == 0)
 
+    @schema_cache
     def is_restriction(self, other: ModelParticleType, check_occurs: bool = True) -> bool:
         if not self._group:
             return True
@@ -726,6 +698,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         else:  # other.model == 'choice':
             return self.is_choice_restriction(other)
 
+    @schema_cache
     def is_element_restriction(self, other: ModelParticleType) -> bool:
         if self.xsd_version == '1.0' and isinstance(other, XsdElement) and \
                 not other.ref and other.name not in self.maps.substitution_groups:
@@ -761,6 +734,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
             else:
                 return max_occurs <= other.max_occurs
 
+    @schema_cache
     def is_sequence_restriction(self, other: 'XsdGroup') -> bool:
         if not self.has_occurs_restriction(other):
             return False
@@ -793,6 +767,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                     return False
         return True
 
+    @schema_cache
     def is_all_restriction(self, other: 'XsdGroup') -> bool:
         if not self.has_occurs_restriction(other):
             return False
@@ -940,7 +915,7 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
         group = self.restriction if self.restriction is not None else self
 
         # Dynamic EDC check of matched element
-        for e in group.iter_elements():
+        for e in group.elements:
             if not isinstance(e, XsdElement):
                 continue
             elif (other := e.match(elem.tag)) is None:
@@ -958,12 +933,13 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                         "{0!r} and {1!r}.").format(self, xsd_element)
                 warnings.warn(msg, XMLSchemaTypeTableWarning, stacklevel=3)
 
+    @schema_cache
     def match_element(self, name: str) -> Optional[SchemaElementType]:
         """
         Try a model-less match of a child element. Returns the
         matched element, or `None` if there is no match.
         """
-        for xsd_element in self.iter_elements():
+        for xsd_element in self.elements:
             if xsd_element.is_matching(name, group=self):
                 return xsd_element
         return None

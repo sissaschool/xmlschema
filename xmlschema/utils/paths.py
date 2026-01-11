@@ -99,6 +99,7 @@ class LocationPath(PurePath):
     to the operating system.
     """
     _path_module = os.path
+    __slots__ = ()
 
     def __new__(cls, *args: str) -> 'LocationPath':
         if cls is LocationPath:

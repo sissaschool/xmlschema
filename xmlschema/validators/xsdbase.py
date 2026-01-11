@@ -30,6 +30,7 @@ from xmlschema.utils.etree import is_etree_element
 from xmlschema.utils.logger import format_xmlschema_stack, dump_data
 from xmlschema.arguments import check_validation_mode
 from xmlschema.resources import XMLResource
+from xmlschema.caching import schema_cache
 
 from .validation import ValidationContext
 from .exceptions import XMLSchemaParseError, XMLSchemaNotBuiltError
@@ -318,6 +319,7 @@ class XsdComponent(XsdValidator):
         """Returns `True` if the instance is a global component, `False` if it's local."""
         return self.parent is None
 
+    @schema_cache
     def is_override(self) -> bool:
         """Returns `True` if the instance is an override of a global component."""
         if self.parent is not None:
@@ -572,6 +574,7 @@ class XsdComponent(XsdValidator):
                 return mapping.get(self.local_name)  # type: ignore[arg-type]
             return None
 
+    @schema_cache
     def get_global(self) -> 'XsdComponent':
         """Returns the global XSD component that contains the component instance."""
         if self.parent is None:
@@ -585,6 +588,7 @@ class XsdComponent(XsdValidator):
             msg = _("parent circularity from {}")
             raise XMLSchemaValueError(msg.format(self))
 
+    @schema_cache
     def get_parent_type(self) -> Optional['XsdType']:
         """
         Returns the nearest XSD type that contains the component instance,
@@ -830,6 +834,7 @@ class XsdType(XsdComponent):
     def is_restriction(self) -> bool:
         return self.derivation == 'restriction'
 
+    @schema_cache
     def is_blocked(self, xsd_element: 'XsdElement') -> bool:
         """
         Returns `True` if the base type derivation is blocked, `False` otherwise.
@@ -870,6 +875,7 @@ class XsdType(XsdComponent):
     def text_is_valid(self, text: str, context: Optional[ValidationContext] = None) -> bool:
         raise NotImplementedError()
 
+    @schema_cache
     def overall_min_occurs(self, particle: ModelParticleType) -> int:
         """Returns the overall minimum for occurrences of a content model particle."""
         content = self.model_group
@@ -877,6 +883,7 @@ class XsdType(XsdComponent):
             raise XMLSchemaTypeError(_("content type must be 'element-only' or 'mixed'"))
         return content.overall_min_occurs(particle)
 
+    @schema_cache
     def overall_max_occurs(self, particle: ModelParticleType) -> Optional[int]:
         """Returns the overall maximum for occurrences of a content model particle."""
         content = self.model_group
