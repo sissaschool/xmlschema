@@ -178,8 +178,9 @@ class XsdIdentity(XsdComponent):
     def build(self) -> None:
         if self._built is not False:
             return
+        self._built = None
 
-        with self._build_context():
+        try:
             if self.ref is self:
                 try:
                     ref = self.maps.identities[self.name]
@@ -203,6 +204,11 @@ class XsdIdentity(XsdComponent):
                 self.update_elements(base_element=self.parent)
             except TypeError as err:
                 self.parse_error(err)
+
+            self._built = True
+        finally:
+            if self._built is None:
+                self._built = False
 
     def update_elements(self, base_element: Union['XsdElement', XPathElement]) -> None:
         if self.selector is None:

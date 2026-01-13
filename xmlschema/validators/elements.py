@@ -165,8 +165,13 @@ class XsdElement(XsdComponent, ParticleMixin,
 
     def build(self) -> None:
         if self._built is False:
-            with self._build_context():
+            self._built = None
+            try:
                 self._parse()
+                self._built = True
+            finally:
+                if self._built is None:
+                    self._built = False
 
     def _parse(self) -> None:
         if self._built is not None and isinstance(self.parent, MutableSequence):

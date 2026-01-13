@@ -12,7 +12,6 @@ This module contains base functions and classes XML Schema components.
 """
 import logging
 from collections.abc import Iterator, MutableMapping
-from contextlib import contextmanager
 from functools import cached_property
 from typing import TYPE_CHECKING, cast, Any, Optional, Union
 
@@ -69,6 +68,23 @@ class XsdValidator:
         for c in cls.__mro__:
             if hasattr(c, '__slots__'):
                 yield from c.__slots__
+
+    @classmethod
+    def _cached_properties(cls) -> Iterator[str]:
+        for k in dir(cls):
+            if isinstance(getattr(cls, k), cached_property):
+                yield k
+
+    def __getstate__(self) -> dict[str, Any]:
+        state = {attr: getattr(self, attr) for attr in self._mro_slots()}
+        state.update(self.__dict__)
+        for k in self._cached_properties():
+            state.pop(k, None)
+        return state
+
+    def __setstate__(self, state: dict[str, Any]) -> None:
+        for attr, value in state.items():
+            object.__setattr__(self, attr, value)
 
     @property
     def built(self) -> bool:
@@ -300,16 +316,6 @@ class XsdComponent(XsdValidator):
 
     def build(self) -> None:
         self._built = True
-
-    @contextmanager
-    def _build_context(self) -> Iterator['XsdComponent']:
-        self._built = None
-        try:
-            yield self
-            self._built = True
-        finally:
-            if self._built is None:
-                self._built = False
 
     @property
     def validation_attempted(self) -> str:
@@ -710,6 +716,7 @@ class XsdType(XsdComponent):
     derivation: Optional[str] = None
     _final: Optional[str] = None
     ref: Optional[BaseXsdType]
+
 
     @property
     def final(self) -> str:

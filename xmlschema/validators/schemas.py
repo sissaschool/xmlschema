@@ -489,20 +489,6 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     def __len__(self) -> int:
         return len(self.elements)
 
-    def __getstate__(self) -> dict[str, Any]:
-        state = {attr: getattr(self, attr) for attr in self._mro_slots()}
-        state.update(self.__dict__)
-        state.pop('components', None)
-        state.pop('root_elements', None)
-        state.pop('simple_types', None)
-        state.pop('complex_types', None)
-        state.pop('validation_context', None)
-        return state
-
-    def __setstate__(self, state: dict[str, Any]) -> None:
-        for attr, value in state.items():
-            object.__setattr__(self, attr, value)
-
     def __copy__(self) -> SchemaType:
         schema: SchemaType = object.__new__(self.__class__)
         schema.__dict__.update(
@@ -848,12 +834,9 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
         return self.builders.create_element(name, self, parent, text, **attrib)
 
     def clear(self) -> None:
-        """Clears the schema cache."""
-        self.__dict__.pop('components', None)
-        self.__dict__.pop('root_elements', None)
-        self.__dict__.pop('simple_types', None)
-        self.__dict__.pop('complex_types', None)
-        self.__dict__.pop('validation_attempted', None)
+        """ Clears the schema caches unloading components and schema node tree."""
+        for attr in self._cached_properties():
+            self.__dict__.pop(attr, None)
 
     def build(self) -> None:
         """Builds the schema's XSD global maps."""

@@ -87,31 +87,34 @@ class XsdAssert(XsdComponent, ElementPathMixin[Union['XsdAssert', SchemaElementT
         if self._built is not False:
             return
 
-        with self._build_context():
-            self.parser = self.maps.xpath_parser_class(
-                namespaces=self.schema.namespaces,
-                variable_types={'value': self.base_type.sequence_type},
-                strict=False,
-                default_namespace=self.xpath_default_namespace,
-                schema=self.xpath_proxy,
-            )
+        self._built = None
+        self.parser = self.maps.xpath_parser_class(
+            namespaces=self.schema.namespaces,
+            variable_types={'value': self.base_type.sequence_type},
+            strict=False,
+            default_namespace=self.xpath_default_namespace,
+            schema=self.xpath_proxy,
+        )
 
-            try:
-                self.token = self.parser.parse(self.path)
-            except ElementPathError as err:
-                self.token = self.parser.parse('true()')
-                self.parse_error(err)
-            else:
-                if any(len(tk) < 2 for tk in self.token.iter('/', '//')):
-                    msg = (
-                        f"The XPath expression of {self} contains absolute location paths "
-                        f"/ or //, but an assert XPath tree is rooted at a parentless elem"
-                        f"ent so these operators will return empty sequences."
-                    )
-                    warnings.warn(msg, category=XMLSchemaAssertPathWarning, stacklevel=4)
-            finally:
-                if self.parser.variable_types:
-                    self.parser.variable_types.clear()
+        try:
+            self.token = self.parser.parse(self.path)
+        except ElementPathError as err:
+            self.token = self.parser.parse('true()')
+            self.parse_error(err)
+        else:
+            if any(len(tk) < 2 for tk in self.token.iter('/', '//')):
+                msg = (
+                    f"The XPath expression of {self} contains absolute location paths "
+                    f"/ or //, but an assert XPath tree is rooted at a parentless elem"
+                    f"ent so these operators will return empty sequences."
+                )
+                warnings.warn(msg, category=XMLSchemaAssertPathWarning, stacklevel=4)
+            self._built = True
+        finally:
+            if self.parser.variable_types:
+                self.parser.variable_types.clear()
+            if self._built is None:
+                self._built = False
 
     def __call__(self,
                  obj: ElementType,

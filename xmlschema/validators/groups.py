@@ -629,7 +629,8 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
 
     def build(self) -> None:
         if self._built is False:
-            with self._build_context():
+            self._built = None
+            try:
                 for item in self._group:
                     if isinstance(item, XsdElement):
                         item.build()
@@ -637,6 +638,10 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                 if self.redefine is not None:
                     for group in self.redefine.iter_components(XsdGroup):
                         group.build()
+                self._built = True
+            finally:
+                if self._built is None:
+                    self._built = False
 
     @property
     def schema_elem(self) -> ElementType:

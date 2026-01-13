@@ -94,7 +94,9 @@ def filter_windows_path(path):
 
 # noinspection PyArgumentList
 def uri_from_path(path, suppress_warning=True):
-    if sys.version_info >= (3, 14) and not suppress_warning:
+    if isinstance(path, LocationPath):
+        raise TypeError('uri_from_path requires a base PurePath instance argument.')
+    elif sys.version_info >= (3, 14) and not suppress_warning:
         return pathname2url(str(path), add_scheme=True)  # The result is different!!
 
     with warnings.catch_warnings():

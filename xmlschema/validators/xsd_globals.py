@@ -513,11 +513,12 @@ class XsdGlobals(XsdValidator, Collection[SchemaType]):
         self.global_maps.clear()
         self.substitution_groups.clear()
         self.identities.clear()
-        self.cache.clear()
 
+        # Clear maps cache and cached properties of schemas
+        self.cache.clear()
         for schema in self._schemas:
             if schema.maps is self:
-                schema.clear()   # clear XPath and component lazy properties
+                schema.clear()
 
         if remove_schemas:
             self._schemas.clear()
