@@ -1812,10 +1812,10 @@ class XMLSchema10(XMLSchemaBase):
     """
     builders = XsdBuilders()
 
-    META_SCHEMA = f'{SCHEMAS_DIR}XSD_1.0/XMLSchema.xsd'
+    META_SCHEMA = SCHEMAS_DIR.joinpath('XSD_1.0', 'XMLSchema.xsd').as_uri()
     BASE_SCHEMAS = {
-        nm.XML_NAMESPACE: f'{SCHEMAS_DIR}XML/xml.xsd',
-        nm.XSI_NAMESPACE: f'{SCHEMAS_DIR}XSI/XMLSchema-instance.xsd',
+        nm.XML_NAMESPACE: SCHEMAS_DIR.joinpath('XML', 'xml.xsd').as_uri(),
+        nm.XSI_NAMESPACE: SCHEMAS_DIR.joinpath('XSI', 'XMLSchema-instance.xsd').as_uri(),
     }
 
 
@@ -1858,12 +1858,12 @@ class XMLSchema11(XMLSchemaBase):
     builders = XsdBuilders()
 
     XSD_VERSION = '1.1'
-    META_SCHEMA = f'{SCHEMAS_DIR}XSD_1.1/XMLSchema.xsd'
+    META_SCHEMA = SCHEMAS_DIR.joinpath('XSD_1.1', 'XMLSchema.xsd').as_uri()
     BASE_SCHEMAS = {
-        nm.XML_NAMESPACE: f'{SCHEMAS_DIR}XML/xml.xsd',
-        nm.XSI_NAMESPACE: f'{SCHEMAS_DIR}XSI/XMLSchema-instance.xsd',
-        nm.VC_NAMESPACE: f'{SCHEMAS_DIR}VC/XMLSchema-versioning.xsd',
-        nm.XSD_NAMESPACE: f'{SCHEMAS_DIR}XSD_1.1/xsd11-extra.xsd',
+        nm.XML_NAMESPACE: SCHEMAS_DIR.joinpath('XML', 'xml.xsd').as_uri(),
+        nm.XSI_NAMESPACE: SCHEMAS_DIR.joinpath('XSI', 'XMLSchema-instance.xsd').as_uri(),
+        nm.VC_NAMESPACE: SCHEMAS_DIR.joinpath('VC', 'XMLSchema-versioning.xsd').as_uri(),
+        nm.XSD_NAMESPACE: SCHEMAS_DIR.joinpath('XSD_1.1', 'xsd11-extra.xsd').as_uri(),
     }
 
 

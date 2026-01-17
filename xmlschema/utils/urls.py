@@ -9,18 +9,53 @@
 #
 import os.path
 import platform
+import sys
 from pathlib import Path
-from string import ascii_letters
 from collections.abc import Iterable, MutableMapping
+from string import ascii_letters
 from typing import Optional
 from urllib.parse import urlsplit, urlunsplit, quote, quote_plus, unquote, unquote_plus
 
 from xmlschema.aliases import NormalizedLocationsType, LocationsType
-from xmlschema.utils.paths import get_uri, LocationPath
+from xmlschema.exceptions import XMLSchemaValueError
+from xmlschema.utils.paths import LocationPath
 
 
 def is_local_scheme(scheme: str) -> bool:
     return not scheme or scheme == 'file' or scheme in ascii_letters and len(scheme) == 1
+
+
+def get_uri(scheme: str = '', authority: str = '', path: str = '',
+            query: str = '', fragment: str = '') -> str:
+    """
+    Get the URI from components, according to https://datatracker.ietf.org/doc/html/rfc3986.
+    """
+    if scheme == 'urn':
+        if not path or authority or query or fragment:
+            raise XMLSchemaValueError("An URN can have only scheme and path components")
+        elif path.startswith(':') or path.endswith(':'):
+            raise XMLSchemaValueError(f"Invalid URN path {path!r}")
+        return 'urn:' + path
+
+    if authority:
+        if path and path[:1] != '/':
+            path = '/' + path
+        url = f'//{authority}{path}'
+    elif scheme in ascii_letters and len(scheme) == 1:
+        url = path
+    elif scheme and path.startswith(('/', '\\')) or not scheme and path.startswith('//'):
+        url = '//' + path
+    else:
+        url = path
+
+    if scheme:
+        url = f'{scheme}:{url}'
+    if query:
+        url = f'{url}?{query}'
+    if fragment:
+        url = f'{url}#{fragment}'
+
+    return url
 
 
 def is_url(obj: object) -> bool:
@@ -183,16 +218,37 @@ def normalize_url(url: str, base_url: Optional[str] = None,
     the whitespaces are replaced with `+` characters.
     :return: a normalized URL string.
     """
-    url_parts = urlsplit(url.lstrip())
+    url = url.lstrip()
+    url_parts = urlsplit(url)
     if not is_local_scheme(url_parts.scheme):
         return encode_url(get_uri(*url_parts), method)
+
+    if url.startswith(('//', '\\\\')) and sys.version_info < (3, 12, 5):
+        # workaround for UNC and Python 3.10/3.11
+        path = LocationPath.from_uri(f'file://{url}')
+        if url.startswith('////'):
+            return 'file:///' + path.normalize().as_uri()[5:]
+        elif url.startswith('///'):
+            return '//' + path.normalize().as_uri()
+        return path.normalize().as_uri()
 
     path = LocationPath.from_uri(url)
     if path.is_absolute():
         return path.normalize().as_uri()
 
     if base_url is not None:
-        base_url_parts = urlsplit(base_url.lstrip())
+        base_url = base_url.lstrip()
+
+        if base_url.startswith(('//', '\\\\')) and sys.version_info < (3, 12, 5):
+            # workaround for UNC and Python 3.10/3.11
+            base_path = LocationPath.from_uri(f'file://{base_url}')
+            if base_url.startswith('////'):
+                return 'file:///' + base_path.joinpath(path).normalize().as_uri()[5:]
+            elif base_url.startswith('///'):
+                return '//' + base_path.joinpath(path).normalize().as_uri()
+            return base_path.joinpath(path).normalize().as_uri()
+
+        base_url_parts = urlsplit(base_url)
         base_path = LocationPath.from_uri(base_url)
 
         if is_local_scheme(base_url_parts.scheme):

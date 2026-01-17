@@ -717,7 +717,6 @@ class XsdType(XsdComponent):
     _final: Optional[str] = None
     ref: Optional[BaseXsdType]
 
-
     @property
     def final(self) -> str:
         return self.schema.final_default if self._final is None else self._final

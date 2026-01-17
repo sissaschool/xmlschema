@@ -7,7 +7,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-import os
+import pathlib
 from collections.abc import Iterable
 from typing import Optional, Any, MutableMapping, Iterator, TypeVar
 
@@ -85,7 +85,7 @@ def get_locations(locations: Optional[LocationsType], base_url: Optional[str] = 
         return NamespaceResourcesMap(normalize_locations(locations, base_url))
 
 
-SCHEMAS_DIR = os.path.join(os.path.dirname(__file__), 'schemas/')
+SCHEMAS_DIR = pathlib.Path(__file__).parent.joinpath('schemas')
 
 ###
 # Standard locations for well-known namespaces
@@ -114,22 +114,22 @@ LOCATIONS: LocationsMapType = {
 # Fallback locations for well-known namespaces
 FALLBACK_LOCATIONS: LocationsMapType = {
     nm.XSD_NAMESPACE: [
-        f'{SCHEMAS_DIR}XSD_1.0/XMLSchema.xsd',
-        f'{SCHEMAS_DIR}XSD_1.1/XMLSchema.xsd',
-        f'{SCHEMAS_DIR}XSD_1.1/XMLSchema.xsd',
+        SCHEMAS_DIR.joinpath('XSD_1.0', 'XMLSchema.xsd').as_uri(),
+        SCHEMAS_DIR.joinpath('XSD_1.1', 'XMLSchema.xsd').as_uri(),
+        SCHEMAS_DIR.joinpath('XSD_1.1', 'XMLSchema.xsd').as_uri(),
     ],
-    nm.XML_NAMESPACE: f'{SCHEMAS_DIR}XML/xml.xsd',
-    nm.XSI_NAMESPACE: f'{SCHEMAS_DIR}XSI/XMLSchema-instance.xsd',
-    nm.HFP_NAMESPACE: f'{SCHEMAS_DIR}HFP/XMLSchema-hasFacetAndProperty.xsd',
-    nm.VC_NAMESPACE: f'{SCHEMAS_DIR}XSI/XMLSchema-versioning.xsd',
-    nm.XLINK_NAMESPACE: f'{SCHEMAS_DIR}XLINK/xlink.xsd',
-    nm.XHTML_NAMESPACE: f'{SCHEMAS_DIR}XHTML/xhtml1-strict.xsd',
-    nm.WSDL_NAMESPACE: f'{SCHEMAS_DIR}WSDL/wsdl.xsd',
-    nm.SOAP_NAMESPACE: f'{SCHEMAS_DIR}WSDL/wsdl-soap.xsd',
-    nm.SOAP_ENVELOPE_NAMESPACE: f'{SCHEMAS_DIR}WSDL/soap-envelope.xsd',
-    nm.SOAP_ENCODING_NAMESPACE: f'{SCHEMAS_DIR}WSDL/soap-encoding.xsd',
-    nm.DSIG_NAMESPACE: f'{SCHEMAS_DIR}DSIG/xmldsig-core-schema.xsd',
-    nm.DSIG11_NAMESPACE: f'{SCHEMAS_DIR}DSIG/xmldsig11-schema.xsd',
-    nm.XENC_NAMESPACE: f'{SCHEMAS_DIR}XENC/xenc-schema.xsd',
-    nm.XENC11_NAMESPACE: f'{SCHEMAS_DIR}XENC/xenc-schema-11.xsd',
+    nm.XML_NAMESPACE: SCHEMAS_DIR.joinpath('XML', 'xml.xsd').as_uri(),
+    nm.XSI_NAMESPACE: SCHEMAS_DIR.joinpath('XSI', 'XMLSchema-instance.xsd').as_uri(),
+    nm.HFP_NAMESPACE: SCHEMAS_DIR.joinpath('HFP', 'XMLSchema-hasFacetAndProperty.xsd').as_uri(),
+    nm.VC_NAMESPACE: SCHEMAS_DIR.joinpath('XSI', 'XMLSchema-versioning.xsd').as_uri(),
+    nm.XLINK_NAMESPACE: SCHEMAS_DIR.joinpath('XLINK', 'xlink.xsd').as_uri(),
+    nm.XHTML_NAMESPACE: SCHEMAS_DIR.joinpath('XHTML', 'xhtml1-strict.xsd').as_uri(),
+    nm.WSDL_NAMESPACE: SCHEMAS_DIR.joinpath('WSDL', 'wsdl.xsd').as_uri(),
+    nm.SOAP_NAMESPACE: SCHEMAS_DIR.joinpath('WSDL', 'wsdl-soap.xsd').as_uri(),
+    nm.SOAP_ENVELOPE_NAMESPACE: SCHEMAS_DIR.joinpath('WSDL', 'soap-envelope.xsd').as_uri(),
+    nm.SOAP_ENCODING_NAMESPACE: SCHEMAS_DIR.joinpath('WSDL', 'soap-encoding.xsd').as_uri(),
+    nm.DSIG_NAMESPACE: SCHEMAS_DIR.joinpath('DSIG', 'xmldsig-core-schema.xsd').as_uri(),
+    nm.DSIG11_NAMESPACE: SCHEMAS_DIR.joinpath('DSIG', 'xmldsig11-schema.xsd').as_uri(),
+    nm.XENC_NAMESPACE: SCHEMAS_DIR.joinpath('XENC', 'xenc-schema.xsd').as_uri(),
+    nm.XENC11_NAMESPACE: SCHEMAS_DIR.joinpath('XENC', 'xenc-schema-11.xsd').as_uri(),
 }

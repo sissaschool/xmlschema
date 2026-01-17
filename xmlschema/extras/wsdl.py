@@ -108,7 +108,7 @@ class WsdlComponent:
         try:
             return self.unmap_qname(elem.attrib[attribute_name])
         except KeyError:
-            return  # a missing attribute is already caught by XSD validator
+            return None  # a missing attribute is already caught by XSD validator
 
 
 class WsdlMessage(WsdlComponent):
@@ -496,7 +496,7 @@ class Wsdl11Document(XmlDocument):
             if cls is None:
                 cls = XMLSchema10
 
-            xsd_filepath = f'{SCHEMAS_DIR}WSDL/wsdl.xsd'
+            xsd_filepath = str(SCHEMAS_DIR.joinpath('WSDL', 'wsdl.xsd'))
             if isinstance(schema, XMLSchemaBase):
                 self.schema = schema
             else:
