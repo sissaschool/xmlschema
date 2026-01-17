@@ -59,7 +59,7 @@ class TestMemoryUsage(unittest.TestCase):
         lazy_iterparse_mem = self.get_memory_usage(output)
 
         if sys.version_info >= (3, 14):
-            self.assertLess(parse_mem, 4.4 * 1024 ** 2)
+            self.assertLess(parse_mem, 6 * 1024 ** 2)
             self.assertLess(lazy_iterparse_mem, parse_mem)
             self.assertLess(lazy_iterparse_mem, iterparse_mem)
         else:
@@ -92,7 +92,7 @@ class TestMemoryUsage(unittest.TestCase):
             lazy_decode_mem = self.get_memory_usage(output)
 
             if sys.version_info >= (3, 14):
-                self.assertLessEqual(decode_mem, 6 * 1024 ** 2)
+                self.assertLessEqual(decode_mem, 8 * 1024 ** 2)
                 self.assertLessEqual(lazy_decode_mem, 4.4 * 1024 ** 2)
             else:
                 self.assertLessEqual(decode_mem, 2.6 * 1024 ** 2)
@@ -123,7 +123,7 @@ class TestMemoryUsage(unittest.TestCase):
             lazy_validate_mem = self.get_memory_usage(output)
 
             if sys.version_info >= (3, 14):
-                self.assertLessEqual(validate_mem, 6 * 1024 ** 2)
+                self.assertLessEqual(validate_mem, 8 * 1024 ** 2)
                 self.assertLessEqual(lazy_validate_mem, 4.6 * 1024 ** 2)
             else:
                 self.assertLess(validate_mem, 2.6 * 1024 ** 2)

@@ -47,6 +47,12 @@ class TestXMLSchema10(XsdValidatorTestCase):
         self.assertIs(CustomXMLSchema.meta_schema, XMLSchema10.meta_schema)
         self.assertIs(self.CustomXMLSchema.meta_schema, self.schema_class.meta_schema)
 
+    def test_meta_schema_urls(self):
+        k = 0
+        for k, schema in enumerate(self.schema_class.meta_schema.maps.schemas):
+            self.assertRegex(schema.url, r'file://.*\.xsd')
+        self.assertGreaterEqual(k, 2)
+
     def test_schema_validation(self):
         schema = self.schema_class(self.vh_xsd_file)
         self.assertEqual(schema.validation, 'strict')
