@@ -718,7 +718,9 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     @cached_property
     def components(self) -> dict[ElementType, XsdComponent]:
         """A map from XSD ElementTree elements to their schema components."""
-        return {c.elem: c for c in self.iter_components(XsdComponent)}
+        return {
+            c.elem: c for c in cast(Iterator[XsdComponent], self.iter_components(XsdComponent))
+        }
 
     @cached_property
     def root_elements(self) -> list[XsdElement]:

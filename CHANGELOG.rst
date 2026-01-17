@@ -2,6 +2,12 @@
 CHANGELOG
 *********
 
+`v4.3.1`_ (2026-01-17)
+======================
+* normalize_url(): workaround for issue #467 (UNC paths with Python < 3.12.5)
+* META_SCHEMA and BASE_SCHEMA paths converted to 'file' URL scheme
+* Clean optional dependencies
+
 `v4.3.0`_ (2026-01-03)
 ======================
 * Add arguments validation for schemas and validation methods (by validation contexts)
@@ -796,3 +802,4 @@ v0.9.6 (2017-05-05)
 .. _v4.1.0: https://github.com/brunato/xmlschema/compare/v4.0.1...v4.1.0
 .. _v4.2.0: https://github.com/brunato/xmlschema/compare/v4.1.0...v4.2.0
 .. _v4.3.0: https://github.com/brunato/xmlschema/compare/v4.2.0...v4.3.0
+.. _v4.3.1: https://github.com/brunato/xmlschema/compare/v4.3.0...v4.3.1

@@ -31,6 +31,8 @@ from xmlschema.utils.urls import get_uri, is_url, is_local_url, is_remote_url, i
     match_location
 import xmlschema.utils.urls
 
+DRIVE_REGEX = '(/[a-zA-Z]:|)' if platform.system() == 'Windows' else ''
+
 XML_WITH_NAMESPACES = '<pfa:root xmlns:pfa="http://xmlschema.test/nsa">\n' \
                       '  <pfb:elem xmlns:pfb="http://xmlschema.test/nsb"/>\n' \
                       '</pfa:root>'
@@ -483,20 +485,12 @@ class TestLocations(XMLSchemaTestCase):
             self.assertEqual(normalize_url(url),
                              pathlib.PurePath(url).as_uri().replace('file://', 'file:////'))
 
-        self.assertEqual(normalize_url('/root/dir1/schema.xsd'),
-                         'file:///root/dir1/schema.xsd')
-
-        if os.name == 'posix' or sys.version_info >= (3, 12):
-            self.assertEqual(normalize_url('////root/dir1/schema.xsd'),
-                             'file://////root/dir1/schema.xsd')
-            self.assertEqual(normalize_url('dir2/schema.xsd', '////root/dir1'),
-                             'file://////root/dir1/dir2/schema.xsd')
-        else:
-            # If the Python release is not capable to detect the UNC path
-            self.assertEqual(normalize_url('////root/dir1/schema.xsd'),
-                             'file:////root/dir1/schema.xsd')
-            self.assertEqual(normalize_url('dir2/schema.xsd', '////root/dir1'),
-                             'file:////root/dir1/dir2/schema.xsd')
+        self.assertRegex(normalize_url('/root/dir1/schema.xsd'),
+                         f'file://{DRIVE_REGEX}/root/dir1/schema.xsd')
+        self.assertRegex(normalize_url('////root/dir1/schema.xsd'),
+                         f'file://{DRIVE_REGEX}////root/dir1/schema.xsd')
+        self.assertRegex(normalize_url('dir2/schema.xsd', '////root/dir1'),
+                         f'file://{DRIVE_REGEX}////root/dir1/dir2/schema.xsd')
 
         self.assertEqual(normalize_url('//root/dir1/schema.xsd'),
                          'file:////root/dir1/schema.xsd')
@@ -507,19 +501,19 @@ class TestLocations(XMLSchemaTestCase):
 
     def test_normalize_url_hash_character(self):
         url = normalize_url('issue #000.xml', 'file:///dir1/dir2/')
-        self.assertEqual(url, 'file:///dir1/dir2/issue%20%23000.xml')
+        self.assertRegex(url, f'file://{DRIVE_REGEX}/dir1/dir2/issue%20')
 
         url = normalize_url('issue%20%23000.xml', 'file:///dir1/dir2/')
-        self.assertEqual(url, 'file:///dir1/dir2/issue%20%23000.xml')
+        self.assertRegex(url, f'file://{DRIVE_REGEX}/dir1/dir2/issue%20%23000.xml')
 
         url = normalize_url('data.xml', 'file:///dir1/dir2/issue%20001')
-        self.assertEqual(url, 'file:///dir1/dir2/issue%20001/data.xml')
+        self.assertRegex(url, f'file://{DRIVE_REGEX}/dir1/dir2/issue%20001/data.xml')
 
         url = normalize_url('data.xml', '/dir1/dir2/issue%20%23002')
-        self.assertEqual(url, 'file:///dir1/dir2/issue%20%23002/data.xml')
+        self.assertRegex(url, f'file://{DRIVE_REGEX}/dir1/dir2/issue%20%23002/data.xml')
 
         url = normalize_url('test.#.again.xml', 'file:///dir1/dir2/')
-        self.assertEqual(url, 'file:///dir1/dir2/test.%23.again.xml')
+        self.assertRegex(url, f'file://{DRIVE_REGEX}/dir1/dir2/test.%23.again.xml')
 
     def test_normalize_url_with_query_part(self):
         url = "https://xmlschema.test/schema 2/test.xsd?name=2 id=3"
@@ -535,16 +529,18 @@ class TestLocations(XMLSchemaTestCase):
         )
 
         url = "/path/schema 2/test.xsd?name=2 id=3"
-        self.assertEqual(normalize_url(url),
-                         'file:///path/schema%202/test.xsd%3Fname%3D2%20id%3D3')
-
-        self.assertEqual(
-            normalize_url('other.xsd?id=2', 'file:///home?name=2&id='),
-            'file:///home%3Fname%3D2%26id%3D/other.xsd%3Fid%3D2'
+        self.assertRegex(
+            normalize_url(url),
+            f'file://{DRIVE_REGEX}/path/schema%202/test.xsd'
         )
-        self.assertEqual(
+
+        self.assertRegex(
+            normalize_url('other.xsd?id=2', 'file:///home?name=2&id='),
+            f'file://{DRIVE_REGEX}/home%3Fname%3D2%26id%3D/other.xsd%3Fid%3D2'
+        )
+        self.assertRegex(
             normalize_url('other.xsd#element', 'file:///home#attribute'),
-            'file:///home%23attribute/other.xsd%23element'
+            f'file://{DRIVE_REGEX}/home%23attribute/other.xsd%23element'
         )
 
         self.check_url(normalize_url('other.xsd?id=2', 'https://host/path?name=2&id='),
@@ -735,7 +731,7 @@ class TestLocations(XMLSchemaTestCase):
             [('tns0', 'alpha'), ('tns1', 'http://example.com/beta')], base_url='/home/user'
         )
         self.assertEqual(locations[0][0], 'tns0')
-        self.assertEqual(locations[0][1], 'file:///home/user/alpha')
+        self.assertRegex(locations[0][1], f'file://{DRIVE_REGEX}/home/user/alpha')
         self.assertEqual(locations[1][0], 'tns1')
         self.assertEqual(locations[1][1], 'http://example.com/beta')
 
@@ -743,7 +739,7 @@ class TestLocations(XMLSchemaTestCase):
             {'tns0': 'alpha', 'tns1': 'http://example.com/beta'}, base_url='/home/user'
         )
         self.assertEqual(locations[0][0], 'tns0')
-        self.assertEqual(locations[0][1], 'file:///home/user/alpha')
+        self.assertRegex(locations[0][1], f'file://{DRIVE_REGEX}/home/user/alpha')
         self.assertEqual(locations[1][0], 'tns1')
         self.assertEqual(locations[1][1], 'http://example.com/beta')
 
@@ -751,9 +747,9 @@ class TestLocations(XMLSchemaTestCase):
             {'tns0': ['alpha', 'beta'], 'tns1': 'http://example.com/beta'}, base_url='/home/user'
         )
         self.assertEqual(locations[0][0], 'tns0')
-        self.assertEqual(locations[0][1], 'file:///home/user/alpha')
+        self.assertRegex(locations[0][1], f'file://{DRIVE_REGEX}/home/user/alpha')
         self.assertEqual(locations[1][0], 'tns0')
-        self.assertEqual(locations[1][1], 'file:///home/user/beta')
+        self.assertRegex(locations[1][1], f'file://{DRIVE_REGEX}/home/user/beta')
         self.assertEqual(locations[2][0], 'tns1')
         self.assertEqual(locations[2][1], 'http://example.com/beta')
 
