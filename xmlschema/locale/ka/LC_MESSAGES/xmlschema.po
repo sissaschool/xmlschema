@@ -1,0 +1,1909 @@
+# Georgian translation for xmlschema.
+# Copyright (C) 2026 , 2016, SISSA (International School for Advanced Studies).
+# This file is distributed under the same license as the xmlschema package.
+# Ekaterine Papava <papava.e@gtu.ge>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: xmlschema\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-03-20 06:55+0100\n"
+"PO-Revision-Date: 2026-05-11 09:22+0200\n"
+"Last-Translator: Ekaterine Papava <papava.e@gtu.ge>\n"
+"Language-Team: \n"
+"Language: ka\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Poedit 3.9\n"
+
+#: xmlschema/documents.py:51
+msgid "invalid schema class {!r}"
+msgstr "არასწორი სქემის კლასი {!r}"
+
+#: xmlschema/documents.py:89
+msgid "cannot get a schema for XML data, provide a schema argument"
+msgstr "ვერ მივიღე სქემა XML მონაცემებისთვის. საჭიროა სქემის არგუმენტი"
+
+#: xmlschema/exports.py:148
+msgid "target directory {} is not empty"
+msgstr "სამიზნე საქაღალდე {} ცარიელი არაა"
+
+#: xmlschema/exports.py:151
+msgid "target {} is not a directory"
+msgstr "სამიზნე {} საქაღალდე არაა"
+
+#: xmlschema/exports.py:154
+msgid "target parent directory {} does not exist"
+msgstr "სამიზნე მშობელი საქაღალდე {} არ არსებობს"
+
+#: xmlschema/exports.py:157
+msgid "target parent {} is not a directory"
+msgstr "სამიზნე მშობელი {} საქაღალდე არაა"
+
+#: xmlschema/exports.py:171
+msgid "target directory {} violation for exported path {}, {}"
+msgstr "სამიზნე საქაღალდე {} დარღვეულია გატანილი ბილიკისტვის {}, {}"
+
+#: xmlschema/loaders.py:117
+msgid ""
+"if the 'namespace' attribute is not present on the import statement then the "
+"imported schema must have a 'targetNamespace'"
+msgstr ""
+"თუ ატრიბუტი 'namespace' არ არსებობს შემოტანილ პროცედურაზე, მაშინ შემოტანილ "
+"სქემას უნდა ჰქონდეს 'targetNamespace'"
+
+#: xmlschema/loaders.py:121
+msgid ""
+"the attribute 'namespace' must be different from schema's 'targetNamespace'"
+msgstr ""
+"ატრიბუტი 'namespace' უნდა განსხვავდებოდეს სქემის 'targetNamespace'-ისგან"
+
+#: xmlschema/loaders.py:155
+msgid "Include schema failed: {}"
+msgstr "სქემის ჩასმა ჩავარდა: {}"
+
+#: xmlschema/loaders.py:164
+msgid "Redefine schema failed: {}"
+msgstr "სქემის თავიდან აღწერა ჩავარდა: {}"
+
+#: xmlschema/loaders.py:166
+msgid "Override schema failed: {}"
+msgstr "სქემის გადაფარვა ჩავარდა: {}"
+
+#: xmlschema/loaders.py:173
+msgid "can't include schema {!r}: {}"
+msgstr "სქემის {!r} ჩასმა შეუძლებელია: {}"
+
+#: xmlschema/loaders.py:175
+msgid "can't redefine schema {!r}: {}"
+msgstr "სქემის {!r} თავიდან აღწერა შეუძლებელია: {}"
+
+#: xmlschema/loaders.py:177
+msgid "can't override schema {!r}: {}"
+msgstr "სქემის {!r} გადაფარვა შეუძლებელია: {}"
+
+#: xmlschema/loaders.py:185
+msgid "can't {} the same schema {!r}"
+msgstr "{} ვერ იგივე სქემა {!r}"
+
+#: xmlschema/loaders.py:214
+msgid "import of namespace {!r} failed: {}"
+msgstr "სახელების სივრცის {!r} შემოტანა ჩვარდა: {}"
+
+#: xmlschema/loaders.py:216
+msgid "import of chameleon schema failed: {}"
+msgstr "ქამელეონი სქემის შემოტანა ჩავარდა: {}"
+
+#: xmlschema/loaders.py:230
+msgid "Import of namespace {!r} from {!r} failed: {}."
+msgstr "სახელების სივრცის {!r} {!r}-დან შემოტანა ჩავარდა: {}."
+
+#: xmlschema/loaders.py:253
+msgid "imported schema {!r} has an unmatched namespace {!r}"
+msgstr ""
+"შემოტანის სქემას {!r} აქვს სახელების სივრცე {!r}, რომელიც არაფერს ემთხვევა"
+
+#: xmlschema/locations.py:34
+msgid "wrong type {!r} for locations argument"
+msgstr "არასწორი ტიპი {!r} მდებარეობების არგუმენტისთვის"
+
+#: xmlschema/resources/arguments.py:46
+msgid "source XML document is empty"
+msgstr "წყარო XML დოკუმენტი ცარიელია"
+
+#: xmlschema/resources/arguments.py:78
+msgid "invalid value {!r} for argument {!r}"
+msgstr "არასწორი მნისვნელობა {!r} არგუმენტისთვის {!r}"
+
+#: xmlschema/utils/descriptors.py:112 xmlschema/validators/builders.py:187
+msgid "Can't set attribute {}"
+msgstr "ვერ დავაყენე ატრიბუტი {}"
+
+#: xmlschema/utils/descriptors.py:116 xmlschema/validators/builders.py:190
+msgid "Can't delete attribute {}"
+msgstr "ვერ წავშალე ატრიბუტი {}"
+
+#: xmlschema/utils/descriptors.py:124
+msgid "invalid type {!r} for argument {!r}"
+msgstr "არასწორი ტიპი {!r} არგუმენტისთვის {!r}"
+
+#: xmlschema/utils/descriptors.py:138
+msgid "invalid value {!r} for argument {!r}: must be one of {}"
+msgstr ""
+"არასწორი მნიშვნელობა {!r} არგუმენტისთვის {!r}: უნდა იყოს ერთერთი სიიდან {}"
+
+#: xmlschema/utils/descriptors.py:156
+msgid "the argument {!r} must be greater or equal than {}"
+msgstr "არგუმენტი {!r} {}-ზე მეტი, ან ტოლი უნდა იყოს"
+
+#: xmlschema/utils/descriptors.py:159
+msgid "the argument {!r} must be lesser or equal than {}"
+msgstr "არგუმენტი {!r} {}-ზე ნაკლები, ან ტოლი უნდა იყოს"
+
+#: xmlschema/utils/logger.py:30
+msgid "{!r} is not a valid loglevel"
+msgstr "{!r} ჟურნალის არასწორი დონეა"
+
+#: xmlschema/validators/assertions.py:76
+msgid "base_type={!r} is not a complexType definition"
+msgstr "base_type={!r} არ წარმოადგენს complexType-ის აღწერას"
+
+#: xmlschema/validators/attributes.py:89
+msgid "unknown attribute {!r}"
+msgstr "უცნობი ატრიბუტი {!r}"
+
+#: xmlschema/validators/attributes.py:105
+msgid "referenced attribute has a different fixed value {!r}"
+msgstr "მიმართულ ატრიბუტს სხვა ფიქსირებული მნიშვნელობა {!r} აქვს"
+
+#: xmlschema/validators/attributes.py:110
+msgid "attribute {!r} is not allowed when attribute reference is used"
+msgstr "ატრიბუტი {!r} დაშვებული არაა ატრიბუტის მიმართვის გამოყენებისას"
+
+#: xmlschema/validators/attributes.py:126
+msgid "an attribute name must be different from 'xmlns'"
+msgstr "ატრიბუტის სახელი 'xmlns'-ისგან უნდა განსხვავდებოდეს"
+
+#: xmlschema/validators/attributes.py:133
+#, python-format
+msgid "cannot add attributes in %r namespace"
+msgstr "ატრიბუტების %r სახელების სივრცეში დამატება შეუძლებელია"
+
+#: xmlschema/validators/attributes.py:154
+msgid "ambiguous type definition for XSD attribute"
+msgstr "გაურკვეველი ტიპის აღწერა ატრიბუტისთვის XSD"
+
+#: xmlschema/validators/attributes.py:166
+msgid "XSD attribute's type must be a simpleType"
+msgstr "XSD-ის ატრიბუტის ტიპი უნდა იყოს simpleType"
+
+#: xmlschema/validators/attributes.py:173 xmlschema/validators/elements.py:291
+msgid "'default' and 'fixed' attributes are mutually exclusive"
+msgstr "ატრიბუტები 'default' და 'fixed' უთიერთგამომრიცხავია"
+
+#: xmlschema/validators/attributes.py:177
+msgid ""
+"the attribute 'use' must be 'optional' if the attribute 'default' is present"
+msgstr "ატრიბუტი 'use' უნდა იყოს 'optional', თუ არსებობს ატრიბუტი 'default'"
+
+#: xmlschema/validators/attributes.py:182
+msgid "default value {!r} is not compatible with attribute's type"
+msgstr "ნაგულისხმევი მნიშვნელობა {!r} ატრიბუტის ტიპთან თავსებადი არაა"
+
+#: xmlschema/validators/attributes.py:185
+msgid "xs:ID key attributes cannot have a default value"
+msgstr "xs:ID გასაღების ატრიბუტებს ნაგულისხმევი მნიშვნელობა ვერ ექნება"
+
+#: xmlschema/validators/attributes.py:191
+msgid "fixed value {!r} is not compatible with attribute's type"
+msgstr "ფიქსირებული მნიშვნელობა {!r} ატრიბუტის ტიპთან თავსებადი არაა"
+
+#: xmlschema/validators/attributes.py:194
+msgid "xs:ID key attributes cannot have a fixed value"
+msgstr "xs:ID გასაღების ატრიბუტებს ფიქსირებული მნიშვნელობა ვერ ექნება"
+
+#: xmlschema/validators/attributes.py:238 xmlschema/validators/elements.py:766
+msgid ""
+"cannot validate against xs:NOTATION directly, only against a subtype with an "
+"enumeration facet"
+msgstr ""
+"პირდაპირ xs:NOTATION-ზე გადამოწმება შეუძლებელია. ამის გაკეთება, მხოლოდ, "
+"ჩამონათვალის ფაცეტის მქონე ქვეტიპზეა შესაძლებელი"
+
+#: xmlschema/validators/attributes.py:242 xmlschema/validators/elements.py:770
+msgid "missing enumeration facet in xs:NOTATION subtype"
+msgstr "xs:NOTATION-ის ქვეტიპში ჩამონათვალის ფაცეტი აღმოჩენილი არაა"
+
+#: xmlschema/validators/attributes.py:251
+msgid "attribute {0!r} has a fixed value {1!r}"
+msgstr "ატრიბუტს {0!r} აქვს ფიქსირებული მნიშვნელობა {1!r}"
+
+#: xmlschema/validators/attributes.py:305
+msgid "attribute 'fixed' with use=prohibited is not allowed in XSD 1.1"
+msgstr "ატრიბუტი 'fixed' use=prohibited-ით XSD 1.1-ში დაშვებული არაა"
+
+#: xmlschema/validators/attributes.py:397
+msgid "more anyAttribute declarations in the same attribute group"
+msgstr "მეტი anyAttribute გამოცხადებები იგივე ატრიბუტების ჯგუფში"
+
+#: xmlschema/validators/attributes.py:400
+msgid "another declaration after anyAttribute"
+msgstr "კიდევ ერთი გამოცხადებაanyAttribute-ის შემდეგ"
+
+#: xmlschema/validators/attributes.py:416
+msgid "multiple declaration for attribute {!r}"
+msgstr "ერთზე მეტი გამოცხადებაატრიბუტისთვის {!r}"
+
+#: xmlschema/validators/attributes.py:425
+msgid "the attribute 'ref' is required in a local attributeGroup"
+msgstr "ლოკალურ attributeGroup-ში საჭიროა ატრიბუტი 'ref'"
+
+#: xmlschema/validators/attributes.py:435
+msgid "duplicated attributeGroup {!r}"
+msgstr "გამეორებული attributeGroup {!r}"
+
+#: xmlschema/validators/attributes.py:441
+msgid "in a redefinition the reference to itself must be the first"
+msgstr "თავიდან აღწერაში თავის თავზე მიმართვა პირველი უნდა იყოს"
+
+#: xmlschema/validators/attributes.py:452
+msgid "attributeGroup ref={!r} is not in the redefined group"
+msgstr "attributeGroup ref={!r} თავიდან აღწერილი ჯგუფი არაა"
+
+#: xmlschema/validators/attributes.py:456
+msgid "Circular attribute groups not allowed in XSD 1.0"
+msgstr "XSD 1.0-ში წრიული ატრიბუტის ჯგუფები დაშვებული არაა"
+
+#: xmlschema/validators/attributes.py:464
+msgid "unknown attribute group {!r}"
+msgstr "უცნობი ატრიბუტების ჯგუფი {!r}"
+
+#: xmlschema/validators/attributes.py:475
+msgid "multiple declaration of attribute {!r}"
+msgstr "ერთზე მეტი გამოცხადებაატრიბუტისთვის {!r}"
+
+#: xmlschema/validators/attributes.py:485
+msgid "(attribute | attributeGroup) expected, found {!r}."
+msgstr "მოველოდი (attribute | attributeGroup), მივიღე {!r}."
+
+#: xmlschema/validators/attributes.py:496
+msgid "Unexpected attribute {!r} in restriction"
+msgstr "მოულოდნელი ატრიბუტი {!r} შეზღუდვაში"
+
+#: xmlschema/validators/attributes.py:512
+msgid "Attribute wildcard is not a restriction of the base wildcard"
+msgstr "ატრიბუტის ვაილდკარდი საბაზისო ვაილდკარდის შეზღუდვა არაა"
+
+#: xmlschema/validators/attributes.py:522
+msgid "Attribute type is not a restriction of the base attribute type"
+msgstr "ატრიბუტის ტიპი საბაზისო ატრიბუტის ტიპის შეზღუდვა არაა"
+
+#: xmlschema/validators/attributes.py:527
+msgid "Attribute {!r}: unmatched attribute use in restriction"
+msgstr "ატრიბუტი {!r}: შეზღუდვაში გამოყენებული დაუმთხვეველი ატრიბუტი"
+
+#: xmlschema/validators/attributes.py:533
+msgid "Attribute {!r}: derived attribute has a different fixed value"
+msgstr "ატრიბუტი {!r}: მიღებულ ატრიბუტს სხვა ფიქსირებული მნიშვნელობა აქვს"
+
+#: xmlschema/validators/attributes.py:537
+msgid "Attribute {!r}: 'inheritable' property change in restriction"
+msgstr "ატრიბუტი {!r}: თვისების 'inheritable' ცვლილება შეზღუდვაში"
+
+#: xmlschema/validators/attributes.py:551
+msgid "Missing required attribute {!r} in redefinition restriction"
+msgstr "ნაკლული აუცილებელი ატრიბუტი {!r} თავიდან აღწერის შეზღუდვაში"
+
+#: xmlschema/validators/attributes.py:556
+msgid "Attribute {!r}: unmatched attribute use in redefinition"
+msgstr "ატრიბუტი {!r}: დაუმთხვეველი ატრიბუტის გამოყენება თავიდან აღწერაში"
+
+#: xmlschema/validators/attributes.py:559
+msgid "Attribute {!r}: redefinition remove fixed constraint"
+msgstr "ატრიბუტი {!r}: თავიდან აღწერა ფიქსირებულ შეზღუდვას შლის"
+
+#: xmlschema/validators/attributes.py:568
+msgid "Redefinition restriction contains additional attribute {!r}"
+msgstr "თავიდან აღწერის შეზღუდვა დამატებით ატრიბუტს {!r} შეიცავს"
+
+#: xmlschema/validators/attributes.py:572
+msgid "Wrong attribute order in redefinition restriction"
+msgstr "არასწორი ატრიბუტების მიმდევრობა თავიდან აღწერის შეზღუდვაში"
+
+#: xmlschema/validators/attributes.py:591
+msgid "multiple ID attributes not allowed for XSD 1.0"
+msgstr "XSD 1.0-ში ერთზე მეტი ID ატრიბუტი დაშვებული არაა"
+
+#: xmlschema/validators/attributes.py:646
+#: xmlschema/validators/attributes.py:722
+msgid "missing required attribute {!r}"
+msgstr "აკლია აუცილებელი ატრიბუტი {!r}"
+
+#: xmlschema/validators/attributes.py:677
+#: xmlschema/validators/attributes.py:740
+#, python-format
+msgid "%r is not an attribute of the XSI namespace"
+msgstr "%r არ წარმოადგენს XSI სახელების სივრცის ატრიბუტს"
+
+#: xmlschema/validators/attributes.py:685
+#: xmlschema/validators/attributes.py:748
+#, python-format
+msgid "%r attribute not allowed for element"
+msgstr "%r ატრიბუტი ელემენტისთვის დაშვებული არაა"
+
+#: xmlschema/validators/attributes.py:691
+#, python-format
+msgid "use of attribute %r is prohibited"
+msgstr "ატრიბუტის %r გამოყენება აკრძალულია"
+
+#: xmlschema/validators/builders.py:232
+msgid "'model' argument must be (sequence | choice | all)"
+msgstr "არგუმენტი 'model' უნდა იყოს ერთერთი სიიდან (sequence | choice | all)"
+
+#: xmlschema/validators/builders.py:317 xmlschema/validators/builders.py:325
+msgid "(restriction | list | union) expected"
+msgstr "მოველოდი (restriction | list | union)"
+
+#: xmlschema/validators/builders.py:336
+msgid "missing attribute 'name' in a global simpleType"
+msgstr "გლობალურ simpleType-ს აკლია ატრიბუტი 'name'"
+
+#: xmlschema/validators/builders.py:341
+msgid "attribute 'name' not allowed for a local simpleType"
+msgstr "ატრიბუტი 'name' ლოკალური simpleType-ისთვის დაშვებული არაა"
+
+#: xmlschema/validators/builders.py:463
+msgid "global {} {!r} not found"
+msgstr "გლობალი {} {!r} აღმოჩენილი არაა"
+
+#: xmlschema/validators/builders.py:517
+msgid "global xs:{} with name={!r} is already built"
+msgstr "გლობალი xs:{} სახელით={!r} უკვე აგებულია"
+
+#: xmlschema/validators/builders.py:519
+msgid "global xs:{} with name={!r} is already defined"
+msgstr "გლობალი xs:{} სახელით={!r} უკვე აღწერილია"
+
+#: xmlschema/validators/builders.py:546
+msgid "global xs:{} with name={!r} is already loaded"
+msgstr "გლობალი xs:{} სახელით={!r} უკვე ჩატვირთულია"
+
+#: xmlschema/validators/builders.py:560
+msgid "not a redefinition!"
+msgstr "არ წარმოადგენს თავიდან აღწერას!"
+
+#: xmlschema/validators/builders.py:618
+msgid "redefined schema {!r} has a different targetNamespace"
+msgstr "თავიდან აღწერილ სქემას {!r} სხვა targetNamespace აქვს"
+
+#: xmlschema/validators/builders.py:629
+msgid "unexpected instance {!r} in XSD {} global map"
+msgstr "მოულოდნელი {!r} XSD {}-ის გლობალურ რუკაში"
+
+#: xmlschema/validators/complex_types.py:137
+msgid "missing attribute 'name' in a global complexType"
+msgstr "ნაკლული ატრიბუტი 'name' გლობალურ complexType-ში"
+
+#: xmlschema/validators/complex_types.py:142
+msgid "attribute 'name' not allowed in a local complexType"
+msgstr "ატრიბუტი 'name' ლოკალურ complexType-ში დაშვებული არაა"
+
+#: xmlschema/validators/complex_types.py:165
+msgid "'mixed' attribute not allowed with simpleContent"
+msgstr "simpleContent-თან ატრიბუტი 'mixed' დაშვებული არაა"
+
+#: xmlschema/validators/complex_types.py:180
+#, python-format
+msgid "unexpected tag %r after simpleContent declaration:"
+msgstr "მოულოდნელი ჭდე %r simpleContent-ის აღწერის შემდეგ:"
+
+#: xmlschema/validators/complex_types.py:191
+msgid ""
+"value of 'mixed' attribute in complexType and complexContent must be the same"
+msgstr ""
+"ატრიბუტის 'mixed' მნიშვნელობა complexType-ში და complexContent-ში ერთი და "
+"იგივე უნდა იყოს"
+
+#: xmlschema/validators/complex_types.py:211
+#, python-format
+msgid "unexpected tag %r after complexContent declaration"
+msgstr "მოულოდნელი ჭდე %r complexContent-ის აღწერის შემდეგ"
+
+#: xmlschema/validators/complex_types.py:236
+#, python-format
+msgid "unexpected tag %r for complexType content"
+msgstr "მოულოდნელი ჭდე %r complexType ტიპის შემცველობისთვის"
+
+#: xmlschema/validators/complex_types.py:244
+#: xmlschema/validators/simple_types.py:1266
+msgid "wrong definition with self-reference"
+msgstr "არასწორი აღწერა თავის თავზე მიმართვით"
+
+#: xmlschema/validators/complex_types.py:247
+#: xmlschema/validators/simple_types.py:1273
+msgid "wrong redefinition without self-reference"
+msgstr "არასწორი თავიდან აღწერა თავის თავზე მიმართვის გარეშე"
+
+#: xmlschema/validators/complex_types.py:258
+msgid "restriction or extension tag expected"
+msgstr "მოველოდი შეზღუდვას, ან გაფართოების ჭდეს"
+
+#: xmlschema/validators/complex_types.py:265
+msgid "{!r} is expected to have a redefined/overridden component"
+msgstr "მოსალოდნელია, რომ {!r} შეიცავს თავიდან აღწერილ/გადაფარულ კომპონენტს"
+
+#: xmlschema/validators/complex_types.py:270
+msgid "{0!r} derivation not allowed for {1!r}"
+msgstr "{0!r} გადახრა {1!r}-ისთვის დაშვებული არაა"
+
+#: xmlschema/validators/complex_types.py:280
+msgid "'base' attribute required"
+msgstr "ატრიბუტი 'base' აუცილებელია"
+
+#: xmlschema/validators/complex_types.py:289
+#, python-format
+msgid "missing base type %r"
+msgstr "ნაკლული საბაზისო ტიპი %r"
+
+#: xmlschema/validators/complex_types.py:300
+#: xmlschema/validators/complex_types.py:314
+msgid "a complexType ancestor required: {!r}"
+msgstr "საჭიროა complexType-ის ტიპის წინაპარი: {!r}"
+
+#: xmlschema/validators/complex_types.py:305
+#, python-format
+msgid "derivation by %r blocked by attribute 'final' in base type"
+msgstr "%r-ის გადახრა დაიბლოკა ატრიბუტის 'final' მიერ საბაზისო ტიპში"
+
+#: xmlschema/validators/complex_types.py:324
+msgid "a not empty simpleContent cannot restrict an empty content type"
+msgstr ""
+"არაცარიელ simpleContent-ს არ შეუძლია ცარიელი შემცველობის ტიპის შეზღუდვა"
+
+#: xmlschema/validators/complex_types.py:333
+msgid "content type is not a restriction of base content"
+msgstr "შემცველობის ტიპი საბაზისო შემცველობის შეზღუდვა არაა"
+
+#: xmlschema/validators/complex_types.py:341
+msgid "with simpleContent cannot restrict an element-only content type"
+msgstr "simpleContent-ით მხოლოდ-ელემენტის შემცველობის ტიპს ვერ შეზღუდავთ"
+
+#: xmlschema/validators/complex_types.py:353 xmlschema/validators/groups.py:544
+#, python-format
+msgid "unexpected tag %r"
+msgstr "მოულოდნელი ჭდე %r"
+
+#: xmlschema/validators/complex_types.py:363
+#, python-format
+msgid "base type %r has no simple content"
+msgstr "საბაზისო ტიპს %r მარტივი შემცველობა არ აქვს"
+
+#: xmlschema/validators/complex_types.py:371
+msgid "the base type is not derivable by restriction"
+msgstr "საბაზისო ტიპი შეზღუდვით მიღებადი არაა"
+
+#: xmlschema/validators/complex_types.py:374
+#: xmlschema/validators/complex_types.py:467
+#: xmlschema/validators/complex_types.py:914
+#, python-format
+msgid "base %r is simple or has a simple content"
+msgstr "ბაზა %r მარტივია, ან მარტივი შემცველობა აქვს"
+
+#: xmlschema/validators/complex_types.py:386
+#, python-brace-format
+msgid ""
+"restriction of an xs:{0} with more than one particle with xs:{1} is forbidden"
+msgstr "xs:{0}-ის შეზღუდვა ერთზე მეტი ნაწილაკით xs:{1}-ისთან ერთად აკრძალულია"
+
+#: xmlschema/validators/complex_types.py:398
+msgid "derived a mixed content from a base type that has element-only content"
+msgstr ""
+"შერეული შემცველობის მიღება საბაზისო ტიპიდან, რომელსაც, მხოლოდ, ელემენტის "
+"ტიპის შემცველობა გააჩნია"
+
+#: xmlschema/validators/complex_types.py:401
+msgid "an empty content derivation from base type that has not empty content"
+msgstr ""
+"ცარიელი შემცველობის მიღება საბაზისო ტიპიდან, რომელსაც ცარიელი შემცველობა არ "
+"აქვს"
+
+#: xmlschema/validators/complex_types.py:412
+msgid "{0!r} is not a restriction of the base type {1!r}"
+msgstr "{0!r} საბაზისო ტიპის {1!r} შეზღუდვა არაა"
+
+#: xmlschema/validators/complex_types.py:421
+#: xmlschema/validators/complex_types.py:919
+msgid "the base type is not derivable by extension"
+msgstr "საბაზისო ტიპი გაფართოებით მიღებადი არაა"
+
+#: xmlschema/validators/complex_types.py:454
+#: xmlschema/validators/complex_types.py:964
+#: xmlschema/validators/complex_types.py:1014
+#, python-format
+msgid ""
+"base has a different content type (mixed=%r) and the extension group is not "
+"empty."
+msgstr ""
+"ბაზას აქვს სხვა შემცველობის ტიპი (mixed=%r) და გაფართოებების ჯგუფი ცარიელი "
+"არაა."
+
+#: xmlschema/validators/complex_types.py:474
+msgid "cannot extend a complex content with xs:all"
+msgstr "xs:all-ს არ შეუძლია, კომპლექსური შემცველობა გააფართოოს"
+
+#: xmlschema/validators/complex_types.py:477
+msgid "xs:sequence cannot extend xs:all"
+msgstr "xs:sequence-ს არ შეუძლია, xs:all გააფართოოს"
+
+#: xmlschema/validators/complex_types.py:487
+msgid "XSD 1.0 does not allow extension of a not empty 'all' model group"
+msgstr "XSD 1.0 არ უშვებს არაცარიელი მოდელების ჯგუფის 'all' გაფართოებას"
+
+#: xmlschema/validators/complex_types.py:490
+#, python-format
+msgid ""
+"base has a different content type (mixed=%r) and the extension group is not "
+"empty"
+msgstr ""
+"ბაზას აქვს სხვა შემცველობის ტიპი (mixed=%r) და გაფართოებების ჯგუფი ცარიელი "
+"არაა"
+
+#: xmlschema/validators/complex_types.py:503
+#: xmlschema/validators/complex_types.py:1028
+msgid "extended type has a mixed content but the base is element-only"
+msgstr ""
+"გაფართოებულ ტიპს შერეული შემცველობა აქვს, მაგრამ ბაზა, მხოლოდ, "
+"ელემენტებისგან შედგება"
+
+#: xmlschema/validators/complex_types.py:670
+msgid "global type {!r} is not built"
+msgstr "გლობალური ტიპის {!r} აგება არ მოხდება"
+
+#: xmlschema/validators/complex_types.py:745
+#: xmlschema/validators/complex_types.py:771
+#, python-format
+msgid "cannot decode %(obj)r data with %(decoder)r"
+msgstr "%(obj)r-ის მონაცემების %(decoder)r-ით გაშიფვრა შეუძლებელია"
+
+#: xmlschema/validators/complex_types.py:868
+msgid "the simple content of {!r} is not a valid simple type in XSD 1.1"
+msgstr "{!r}-ის მარტივი შემცველობა XSD 1.1-ში სწორი მარტივი ტიპი არაა"
+
+#: xmlschema/validators/complex_types.py:875
+msgid "openContent mismatch between type and model group"
+msgstr "ტიპსა და მოდელების ჯგუფს შორის openContent არ ემთხვევა"
+
+#: xmlschema/validators/complex_types.py:887
+#, python-format
+msgid "attribute %r must be inheritable"
+msgstr "ატრიბუტი %r მემკვიდრეობით გადაცემადი უნდა იყოს"
+
+#: xmlschema/validators/complex_types.py:903
+msgid "default attribute {!r} is already declared in the complex type"
+msgstr "ნაგულისხმევი ატრიბუტი {!r} უკვე აღწერილია კომპლექსურ ტიპში"
+
+#: xmlschema/validators/complex_types.py:968
+msgid "cannot extend an empty mixed content with an xs:all"
+msgstr "ცარიელი შერეული შემცველობის xs:all-ით გაფართოება შეუძლებელია"
+
+#: xmlschema/validators/complex_types.py:986
+#, python-format
+msgid "xs:all cannot extend a not empty xs:%s"
+msgstr "xs:all არ შეუძლია არაცარიელი xs:%s-ის გაფართოება"
+
+#: xmlschema/validators/complex_types.py:1001
+msgid "cannot extend a not empty 'all' model group with a different model"
+msgstr "არაცარიელი მოდელების ჯგუფის 'all' სხვა მოდელით გაფართოება შეუძლებელია"
+
+#: xmlschema/validators/complex_types.py:1004
+msgid "when extend an xs:all group minOccurs must be the same"
+msgstr "xs:all ჯგუფის გაფართოებისას minOccurs იგივე უნდა იყოს"
+
+#: xmlschema/validators/complex_types.py:1007
+msgid "cannot extend an xs:all group with mixed empty content"
+msgstr "xs:all ჯგუფის შერეული ცარიელი შემცველობით გაფართოება შეუძლებელია"
+
+#: xmlschema/validators/complex_types.py:1051
+msgid "{0!r} is not an extension of the base type {1!r}"
+msgstr "{0!r} საბაზისო ტიპის {1!r} გაფართოება არაა"
+
+#: xmlschema/validators/elements.py:178
+#, python-format
+msgid "unknown element %r"
+msgstr "უცნობი ელემენტი %r"
+
+#: xmlschema/validators/elements.py:197
+msgid "attribute {!r} is not allowed when element reference is used"
+msgstr "ატრიბუტი {!r} დაუშვებელია, როცა გამოიყენება ელემენტის მიმართვა"
+
+#: xmlschema/validators/elements.py:218
+msgid "local scope elements cannot have abstract attribute"
+msgstr "ლოკალური შუალედის ელემენტებს აბსტრაქტული ატრიბუტი ვერ ექნება"
+
+#: xmlschema/validators/elements.py:245
+msgid "attribute {!r} is not allowed in a global element declaration"
+msgstr "ატრიბუტი {!r} გლობალური ელემენტის გამოცხადებაში დაშვებული არაა"
+
+#: xmlschema/validators/elements.py:250
+msgid "attribute {!r} not allowed in a local element declaration"
+msgstr "ატრიბუტი {!r} ლოკალური ელემენტის გამოცხადებაში დაშვებული არაა"
+
+#: xmlschema/validators/elements.py:268 xmlschema/validators/elements.py:1529
+#: xmlschema/validators/simple_types.py:908
+#: xmlschema/validators/simple_types.py:1070
+#: xmlschema/validators/simple_types.py:1279
+msgid "unknown type {!r}"
+msgstr "უცნობი ტიპი {!r}"
+
+#: xmlschema/validators/elements.py:273
+msgid ""
+"the attribute 'type' and a xs:{} local declaration are mutually exclusive"
+msgstr "ატრიბუტი 'type' და xs:{}-ის ლოკალური გამოცხადება ურთიერთგამომრიცხავია"
+
+#: xmlschema/validators/elements.py:295
+msgid "'default' value {!r} is not compatible with element's type"
+msgstr "'default'-ის მნიშვნელობა {!r} ელემენტის ტიპთან თავსებადი არაა"
+
+#: xmlschema/validators/elements.py:299
+msgid "xs:ID or a type derived from xs:ID cannot have a default value"
+msgstr "xs:ID, ან xs:ID-დან მიღებულ ტიპს ნაგულისხმევი მნიშვნელობა ვერ ექნება"
+
+#: xmlschema/validators/elements.py:305
+msgid "'fixed' value {!r} is not compatible with element's type"
+msgstr "'fixed'-ის მნიშვნელობა {!r} ელემენტის ტიპთან თავსებადი არაა"
+
+#: xmlschema/validators/elements.py:309
+msgid "xs:ID or a type derived from xs:ID cannot have a fixed value"
+msgstr ""
+"xs:ID-ს, ან ტიპს, რომელიც xs:ID-იდანაა მიღებული, ფიქსირებული მნიშვნელობა ვერ "
+"ექნება"
+
+#: xmlschema/validators/elements.py:326 xmlschema/validators/elements.py:334
+#, python-format
+msgid "duplicated identity constraint %r:"
+msgstr "გამეორებული იდენტიფიკატორის შეზღუდვა %r:"
+
+#: xmlschema/validators/elements.py:356
+#, python-format
+msgid "unknown substitutionGroup %r"
+msgstr "უცნობი  substitutionGroup %r"
+
+#: xmlschema/validators/elements.py:361
+#, python-format
+msgid "circularity found for substitutionGroup %r"
+msgstr "აღმოჩენილია წრიულობა substitutionGroup-ისთვის %r"
+
+#: xmlschema/validators/elements.py:376
+msgid ""
+"{0!r} type is not of the same or a derivation of the head element {1!r} type"
+msgstr "{0!r}-ის ტიპი იგივე, ან {1!r}-ის სათაო ელემენტის ტიპიდან მიღებული არაა"
+
+#: xmlschema/validators/elements.py:380
+#, python-format
+msgid ""
+"head element %r can't be substituted by an element that has a derivation of "
+"its type"
+msgstr ""
+"სათაო ელემენტს %r ვერ ჩაანაცვლებთ ელემენტით, რომელიც მისი ტიპიდანაა მიღებული"
+
+#: xmlschema/validators/elements.py:384
+#, python-format
+msgid ""
+"head element %r can't be substituted by an element that has an extension of "
+"its type"
+msgstr ""
+"სათაო ელემენტს %r ვერ ჩაანაცვლებთ ელემენტით, რომელსაც მისი ტიპის გაფართოება "
+"აქვს"
+
+#: xmlschema/validators/elements.py:388
+#, python-format
+msgid ""
+"head element %r can't be substituted by an element that has a restriction of "
+"its type"
+msgstr ""
+"სათაო ელემენტს %r ვერ ჩაანაცვლებთ ელემენტით, რომელსაც მისი ტიპის შეზღუდვა "
+"აქვს"
+
+#: xmlschema/validators/elements.py:566
+msgid "schemaLocation declaration after namespace start"
+msgstr "schemaLocation-ის გამოცხადება სახელების სივრცის დასაწყისის შემდეგ"
+
+#: xmlschema/validators/elements.py:599 xmlschema/validators/elements.py:935
+msgid "can't use an abstract element in an instance"
+msgstr "ეგზემპლარში აბსტრაქტულ ელემენტს ვერ გამოიყენებთ"
+
+#: xmlschema/validators/elements.py:602 xmlschema/validators/elements.py:938
+msgid ""
+"can't use an abstract XSD element for validation unless it's the head of a "
+"substitution group"
+msgstr ""
+"გადასამოწმებლად აბსტრაქტულ XSD ელემენტს ვერ გამოიყენებთ იმ შემთხვევის გარდა, "
+"თუ ის ჩანაცვლების ჯგუფის თავი არაა"
+
+#: xmlschema/validators/elements.py:610 xmlschema/validators/elements.py:951
+msgid "can't use an abstract XSD element for validation"
+msgstr "გადასამოწმებლად აბსტრაქტულ XSD ელემენტს ვერ გამოიყენებთ"
+
+#: xmlschema/validators/elements.py:664
+#, python-format
+msgid "usage of %r is blocked"
+msgstr "%r-ის გამოყენება დაბლოკილია"
+
+#: xmlschema/validators/elements.py:668
+#, python-format
+msgid "%r is abstract"
+msgstr "%r აბსტრაქტულია"
+
+#: xmlschema/validators/elements.py:697
+msgid "element is not nillable"
+msgstr "ელემენტი განულებადი არაა"
+
+#: xmlschema/validators/elements.py:700
+msgid "xsi:nil attribute must have a boolean value"
+msgstr "xsi:nil ატრიბუტს ლოგიკური მნიშვნელობა უნდა ჰქონდეს"
+
+#: xmlschema/validators/elements.py:705
+msgid "xsi:nil='true' but the element has a fixed value"
+msgstr "xsi:nil='true', მაგრამ ელემენტს ფიქსირებული მნიშვნელობა აქვს"
+
+#: xmlschema/validators/elements.py:708
+msgid "xsi:nil='true' but the element is not empty"
+msgstr "xsi:nil='true', მაგრამ ელემენტი ცარიელი არაა"
+
+#: xmlschema/validators/elements.py:714
+msgid "character data is not allowed because content is empty"
+msgstr "სიმბოლური მონაცემები დაშვებული არაა, რადგან შემცველობა ცარიელია"
+
+#: xmlschema/validators/elements.py:733 xmlschema/validators/elements.py:749
+#, python-format
+msgid "must have the fixed value %r"
+msgstr "უნდა ჰქონდეს ფიქსირებული მნიშვნელობა %r"
+
+#: xmlschema/validators/elements.py:738
+msgid "a simple content element can't have child elements"
+msgstr "მარტივი შემცველობის ელემენტს შვილი ელემენტები ვერ ექნება"
+
+#: xmlschema/validators/elements.py:1284
+msgid "test attribute missing in non-final alternative"
+msgstr "არაფინალურ ალტერნატივაში სატესტო ატრიბუტი აღმოჩენილი არაა"
+
+#: xmlschema/validators/elements.py:1396
+msgid "Maybe a not equivalent type table between elements {0!r} and {1!r}"
+msgstr ""
+"შეიძლება, ელემენტებს {0!r} და {1!r} შორის ტიპების ცხრილი ეკვივალენტური არაა"
+
+#: xmlschema/validators/elements.py:1429
+#, python-brace-format
+msgid "adding schema at {url} change the "
+msgstr "სქემის {url} დამატება ცვლის "
+
+#: xmlschema/validators/elements.py:1511 xmlschema/validators/elements.py:1519
+msgid "missing 'type' attribute"
+msgstr "აკლია ატრიბუტი 'type'"
+
+#: xmlschema/validators/elements.py:1523
+msgid "declared type is not derived from {!r}"
+msgstr "აღწერილი ტიპი {!r}-დან არაა მიღებული"
+
+#: xmlschema/validators/elements.py:1533
+msgid "type {0!r} is not derived from {1!r}"
+msgstr "ტიპი {0!r} {1!r}-დან მიღებული არაა"
+
+#: xmlschema/validators/elements.py:1538
+#, python-format
+msgid ""
+"the attribute 'type' and the xs:%s local declaration are mutually exclusive"
+msgstr "ატრიბუტი 'type' და xs:%s-ის ლოკალური გამოცხადება ურთიერთგამომრიცხავია"
+
+#: xmlschema/validators/exceptions.py:177
+msgid "Circular definition detected for xs:{} {!r}."
+msgstr "აღმოჩენილია წრიული აღწერა xs:{}-ისთვის {!r}."
+
+#: xmlschema/validators/exceptions.py:439
+#, python-format
+msgid "The content of element %r is not complete."
+msgstr "ელემენტის %r შემცველობა სრული არაა."
+
+#: xmlschema/validators/exceptions.py:443
+#, python-format
+msgid "Unexpected child with tag %r at position %d."
+msgstr "მოულოდნელი შვილი ჭდით %r პოზიციაზე %d."
+
+#: xmlschema/validators/exceptions.py:459
+#, python-format
+msgid " Tag (%s) expected."
+msgstr " მოველოდი ჭდეს (%s)."
+
+#: xmlschema/validators/exceptions.py:461
+#, python-format
+msgid " Tag %s expected."
+msgstr " მოველოდი ჭდეს %s."
+
+#: xmlschema/validators/exceptions.py:463
+#, python-format
+msgid " Tag %r expected."
+msgstr " მოველოდი ჭდეს %r."
+
+#: xmlschema/validators/facets.py:87
+msgid "{0!r} facet value is fixed to {1!r}"
+msgstr "{0!r}-ის ფაცეტის მნიშვნელობა დაფიქსირებულია {1!r}-ზე"
+
+#: xmlschema/validators/facets.py:95
+msgid "invalid type {!r} provided: {}"
+msgstr "მოწოდებული ტიპი {!r} არასწორია: {}"
+
+#: xmlschema/validators/facets.py:138 xmlschema/validators/facets.py:141
+msgid "facet value can be only 'collapse'"
+msgstr "ფაცეტის მნიშვნელობა შეიძლება იყოს, მხოლოდ, 'collapse'"
+
+#: xmlschema/validators/facets.py:143
+msgid "facet value can be only 'replace' or 'collapse'"
+msgstr "ფაცეტის მნიშვნელობა შეიძლება იყოს, მხოლოდ, 'collapse', ან 'replace'"
+
+#: xmlschema/validators/facets.py:149
+msgid "value contains tabs or newlines"
+msgstr "მნიშვნელობა შეიცავს ტაბულაციებს, ან ხაზის გადატანებს"
+
+#: xmlschema/validators/facets.py:158
+msgid "value contains non collapsed white spaces"
+msgstr "მნიშვნელობა ზედმეტ ჰარეებს შეიცავს"
+
+#: xmlschema/validators/facets.py:184
+msgid "base facet has a different length ({})"
+msgstr "საბაზისო ფაცეტს სხვა სიგრძე ({}) აქვს"
+
+#: xmlschema/validators/facets.py:195
+msgid "length has to be {!r}"
+msgstr "სიგრძე უნდა იყოს {!r}"
+
+#: xmlschema/validators/facets.py:222
+msgid "base facet has a greater min length ({})"
+msgstr "საბაზისო ფაცეტს უფრო დიდი მინიმალური სიგრძე ({}) აქვს"
+
+#: xmlschema/validators/facets.py:233
+msgid "value length cannot be lesser than {!r}"
+msgstr "მნიშვნელობის სიგრძე არ შეიძლება, {!r}-ზე ნაკლები იყოს"
+
+#: xmlschema/validators/facets.py:260
+msgid "base type has a lesser max length ({})"
+msgstr "საბაზისო ფაცეტს უფრო ნაკლები მინიმალური სიგრძე ({}) აქვს"
+
+#: xmlschema/validators/facets.py:271
+msgid "value length cannot be greater than {!r}"
+msgstr "მნიშვნელობის სიგრძე არ შეიძლება, {!r}-ზე მეტი იყოს"
+
+#: xmlschema/validators/facets.py:305 xmlschema/validators/facets.py:346
+#: xmlschema/validators/facets.py:389 xmlschema/validators/facets.py:428
+msgid "invalid restriction: {}"
+msgstr "არასწორი შეზღუდვა: {}"
+
+#: xmlschema/validators/facets.py:312
+msgid "value has to be greater or equal than {!r}"
+msgstr "მნიშვნელობა {!r}-ზე მეტი, ან ტოლი უნდა იყოს"
+
+#: xmlschema/validators/facets.py:350
+msgid "invalid restriction: {} is also the maximum"
+msgstr "არასწორი შეზღუდვა: {} მაქსიმუმიცაა"
+
+#: xmlschema/validators/facets.py:356
+msgid "value has to be greater than {!r}"
+msgstr "მნიშვნელობა უნდა იყოს მეტი, ვიდრე {!r}"
+
+#: xmlschema/validators/facets.py:394
+msgid "value has to be less than or equal than {!r}"
+msgstr "მნიშვნელობა უნდა იყოს ნაკლები, ან ტოლი, ვიდრე {!r}"
+
+#: xmlschema/validators/facets.py:432
+msgid "invalid restriction: {} is also the minimum"
+msgstr "არასწორი შეზღუდვა: {} მინიმუმიცაა"
+
+#: xmlschema/validators/facets.py:438
+msgid "value has to be lesser than {!r}"
+msgstr "მნიშვნელობა უნდა იყოს ნაკლები, ვიდრე {!r}"
+
+#: xmlschema/validators/facets.py:475 xmlschema/validators/facets.py:537
+msgid "invalid restriction: base value is lower ({})"
+msgstr "არასწორი შეზღუდვა: საბაზისო მნიშვნელობა უფრო დაბალია ({})"
+
+#: xmlschema/validators/facets.py:488
+msgid "the number of digits has to be lesser or equal than {!r}"
+msgstr "ციფრების რაოდენობა უნდა იყოს ნაკლები, ან ტოლი, ვიდრე {!r}"
+
+#: xmlschema/validators/facets.py:516
+msgid ""
+"fractionDigits facet can be applied only to types derived from xs:decimal"
+msgstr ""
+"fractionDigits-ის ფაცეტის გადატარება შეიძლება, მხოლოდ, ტიპებზე, რომლებიც "
+"მიღებულია xs:decimal-დან"
+
+#: xmlschema/validators/facets.py:532
+msgid "fractionDigits facet value must be 0 for types derived from xs:integer"
+msgstr ""
+"fractionDigits-ის ფაცეტის მნიშვნელობა უნდა იყოს 0 ტიპებისთვის, რომლებიც "
+"მიღებულია ტიპიდან xs:integer"
+
+#: xmlschema/validators/facets.py:549
+msgid "the number of fraction digits has to be lesser or equal than {!r}"
+msgstr "წილადის ციფრების რაოდენობა უნდა იყოს ნაკლები, ან ტოლი, ვიდრე {!r}"
+
+#: xmlschema/validators/facets.py:579
+msgid "invalid restriction from {!r}"
+msgstr "არასწორი შეზღუდვა {!r}-დან"
+
+#: xmlschema/validators/facets.py:585
+msgid "time zone required for value {!r}"
+msgstr "მნიშვნელობისთვის {!r} საჭიროა დროის სარტყელი"
+
+#: xmlschema/validators/facets.py:593
+msgid "time zone prohibited for value {!r}"
+msgstr "მნიშვნელობისთვის {!r} დროის სარტყელი დაშვებული არაა"
+
+#: xmlschema/validators/facets.py:643
+msgid "value {!r} must match a notation declaration"
+msgstr "მნიშვნელობა {!r} ნოტაციის გამოცხადებას უნდა ემთხვეოდეს"
+
+#: xmlschema/validators/facets.py:701
+msgid "value must be one of {!r}"
+msgstr "მნიშვნელობა უნდა იყოს ერთ-ერთი {!r}"
+
+#: xmlschema/validators/facets.py:798
+msgid "value doesn't match any pattern of {!r}"
+msgstr "მნიშვნელობა {!r}-ის არცერთ ნიმუშს ემთხვევა"
+
+#: xmlschema/validators/facets.py:849
+msgid "missing attribute 'test'"
+msgstr "აკლია ატრიბუტი 'test'"
+
+#: xmlschema/validators/facets.py:879
+msgid "value is not true with test path {!r}"
+msgstr "მნიშვნელობა ჭეშმარიტი არაა შემოწმების ბილიკით {!r}"
+
+#: xmlschema/validators/global_maps.py:142
+msgid "multiple redefinition for {} {!r}"
+msgstr "ერთზე მეტჯერ თავიდან აღწერა ცვლადისთვის {} {!r}"
+
+#: xmlschema/validators/global_maps.py:157
+msgid "circular redefinition for {} {!r}"
+msgstr "წრიული თავიდან აღწერა ცვლადისთვის {} {!r}"
+
+#: xmlschema/validators/global_maps.py:262
+msgid "can't change attribute {!r} of a global maps instance"
+msgstr "გლობალური რუკების ეგზემპლარის ატრიბუტის {!r} შეცვლა შეუძლებელია"
+
+#: xmlschema/validators/global_maps.py:324
+msgid "wrong tag {!r} for an XSD global definition/declaration"
+msgstr "არასწორი ჭდე {!r} XSD-ის გლობალურ აღწერისთვის/გამოცხადებისთვის"
+
+#: xmlschema/validators/global_maps.py:382
+msgid "{0!r} cannot substitute {1!r}"
+msgstr "{0!r} ვერ ჩაანაცვლებს {1!r}-ს"
+
+#: xmlschema/validators/global_maps.py:684
+msgid "defaultAttributes={0!r} doesn't match any attribute group of {1!r}"
+msgstr "defaultAttributes={0!r} არ ემთხვევა {1!r}-ის ატრიბუტის ჯგუფებს"
+
+#: xmlschema/validators/global_maps.py:731
+msgid "global maps main validator is not registered"
+msgstr "გლობალური რუკების მთავარი გადამმოწმებელი რეგისტრირებული არაა"
+
+#: xmlschema/validators/global_maps.py:744
+msgid "schema {} does not belong to namespace {!r}"
+msgstr "სქემა {} არ მიეკუთვნება სახელთა სივრცეს {!r}"
+
+#: xmlschema/validators/global_maps.py:748
+msgid "duplicate of schema {} found in namespace {!r}"
+msgstr "აღმოჩენილია გამეორებული სქემა {} სახელების სივრცეში {!r}"
+
+#: xmlschema/validators/global_maps.py:753
+msgid "registered schemas do not match namespace mapped schemas"
+msgstr "რეგისტრირებული სქემები სახელების სივრცეზე ასახულ სქემებს არ ემთხვევა"
+
+#: xmlschema/validators/global_maps.py:773
+msgid "circularity found for substitution group with head element {}"
+msgstr ""
+"სათაო ელემენტის {} შემცველი ჩანაცვლების ჯგუფისთვის აღმოჩენილია წრიულობა"
+
+#: xmlschema/validators/global_maps.py:778
+msgid "global group not built!"
+msgstr "გლობალური ჯგუფი აგებული არაა!"
+
+#: xmlschema/validators/global_maps.py:785
+msgid "the redefined group is an illegal restriction"
+msgstr "თავიდან აღწერილი ჯგუფი დაუშვებელი შეზღუდვაა"
+
+#: xmlschema/validators/global_maps.py:801
+msgid "the derived group is an illegal restriction"
+msgstr "მიღებული ჯგუფი დაუშვებელი შეზღურვაა"
+
+#: xmlschema/validators/global_maps.py:811
+msgid "restriction has an open content but base type has not"
+msgstr "შეზღუდვას აქვს ღია შემცველობა, მაგრამ საბაზისო ტიპი დაყენებული არაა"
+
+#: xmlschema/validators/global_maps.py:817
+msgid ""
+"can't verify the content model of {!r} due to exceeding of maximum recursion "
+"depth"
+msgstr ""
+"{!r}-ის შემცველობის მოდელის გადამოწმება შეუძლებელია, რადგან გადაცილებულია "
+"რეკურსიის მაქსიმალური სიღრმე"
+
+#: xmlschema/validators/groups.py:399
+msgid "{!r} is not a particle of the model group"
+msgstr "{!r} მოდელების ჯგუფის ნაწილაკი არაა"
+
+#: xmlschema/validators/groups.py:481 xmlschema/validators/groups.py:521
+msgid "attribute 'name' not allowed in a local group"
+msgstr "ატრიბუტი 'name' ლოკალურ ჯგუფში დაშვებული არაა"
+
+#: xmlschema/validators/groups.py:490
+#, python-format
+msgid "missing group %r"
+msgstr "აკლია ჯგუფი %r"
+
+#: xmlschema/validators/groups.py:500 xmlschema/validators/groups.py:552
+msgid "maxOccurs must be 1 for 'all' model groups"
+msgstr "maxOccurs უნდა უდრიდეს 1 მოდელის ჯგუფებისთვის 'all'"
+
+#: xmlschema/validators/groups.py:503 xmlschema/validators/groups.py:555
+#: xmlschema/validators/groups.py:1243
+msgid "minOccurs must be (0 | 1) for 'all' model groups"
+msgstr "minOccurs უნდა უდრიდეს (0 | 1) მოდელის ჯგუფებისთვის 'all'"
+
+#: xmlschema/validators/groups.py:506
+msgid "in XSD 1.0 an 'all' model group cannot be nested"
+msgstr "XSD 1.0-ში მოდელების ჯგუფს 'all' ერთმანეთში ვერ ჩაალაგებთ"
+
+#: xmlschema/validators/groups.py:525 xmlschema/validators/groups.py:535
+msgid "attribute 'minOccurs' not allowed in a global group"
+msgstr "ატრიბუტი 'minOccurs' გლობალურ ჯგუფში დაშვებული არაა"
+
+#: xmlschema/validators/groups.py:528 xmlschema/validators/groups.py:538
+msgid "attribute 'maxOccurs' not allowed in a global group"
+msgstr "ატრიბუტი 'maxOccurs' გლობალურ ჯგუფში დაშვებული არაა"
+
+#: xmlschema/validators/groups.py:566
+msgid "'all' model can contain only elements"
+msgstr "მოდელი 'all' შეიძლება შეიცავდეს, მხოლოდ, ელემენტებს"
+
+#: xmlschema/validators/groups.py:576 xmlschema/validators/groups.py:1259
+msgid "missing attribute 'ref' in local group"
+msgstr "ნაკლული ატრიბუტი 'ref' ლოკალურ ჯგუფში"
+
+#: xmlschema/validators/groups.py:585
+msgid "'all' model can appears only at 1st level of a model group"
+msgstr ""
+"მოდელი 'all' მოდელების ჯგუფის, მხოლოდ, პირველ დონეზე შეიძლება, გამოჩნდეს"
+
+#: xmlschema/validators/groups.py:593
+msgid "Redefined group reference can't have minOccurs/maxOccurs other than 1"
+msgstr ""
+"თავიდან აღწერილი ჯგუფის მიმართვას minOccurs/maxOccurs არ შეიძლება, 1-ის "
+"გარდა სხვა მნიშვნელობა ჰქონდეს"
+
+#: xmlschema/validators/groups.py:597 xmlschema/validators/groups.py:1281
+#, python-format
+msgid "Circular definition detected for group %r"
+msgstr "აღმოჩენილია წრიული აღწერა ჯგუფისთვის %r"
+
+#: xmlschema/validators/groups.py:853
+#, python-format
+msgid "substitution of %r is blocked"
+msgstr "%r-ის ჩანაცვლება დაბლოკილია"
+
+#: xmlschema/validators/groups.py:906
+msgid "usage of {0!r} with type {1} is blocked by head element"
+msgstr "{0!r}-ის გამოყენება ტიპით {1} დაბლოკილია სათაო ელემენტის მიერ"
+
+#: xmlschema/validators/groups.py:931
+msgid "{0!r} that matches {1!r} is not consistent with local declaration {2!r}"
+msgstr ""
+"{0!r}, რომელიც ემთხვევა {1!r}-ს, არ შეესაბამება ლოკალურ გამოცხადებას {2!r}"
+
+#: xmlschema/validators/groups.py:937
+msgid "Maybe a not equivalent type table between elements {0!r} and {1!r}."
+msgstr ""
+"შეიძლება, ელემენტებს {0!r} და {1!r} შორის ტიპების ცხრილი ეკვივალენტური არაა."
+
+#: xmlschema/validators/groups.py:966
+msgid "an empty 'choice' group with minOccurs > 0 cannot validate any content"
+msgstr ""
+"ცარიელი ჯგუფი 'choice', სადაც minOccurs > 0 შემცველობის გადამოწმებას ვერ "
+"მოახდენს"
+
+#: xmlschema/validators/groups.py:977 xmlschema/validators/groups.py:1211
+msgid "character data between child elements not allowed"
+msgstr "შვილ ელემენტებს შორის სიმბოლური მონაცემები დაშვებული არაა"
+
+#: xmlschema/validators/groups.py:990
+#, python-format
+msgid "XML data depth exceeded (MAX_XML_DEPTH=%r)"
+msgstr "XML-ის მონაცემების სიღრმე დასაშვებს გადასცდა (MAX_XML_DEPTH=%r)"
+
+#: xmlschema/validators/groups.py:1168
+msgid "{!r} does not match any declared element of the model group"
+msgstr "{!r} მოდელის ჯგუფის არცერთ გამოცხადებულ ელემენტს ემთხვევა"
+
+#: xmlschema/validators/groups.py:1171
+msgid "{0} has an unknown prefix {1!r}"
+msgstr "{0}-ს აქვს უცნობი პრეფიქსი {1!r}"
+
+#: xmlschema/validators/groups.py:1206
+msgid "wrong content type {!r}"
+msgstr "არასწორი შემცველობის ტიპი {!r}"
+
+#: xmlschema/validators/groups.py:1240
+msgid "maxOccurs must be (0 | 1) for 'all' model groups"
+msgstr "maxOccurs უნდა იყოს (0 | 1) მოდელის ჯგუფებისთვის 'all'"
+
+#: xmlschema/validators/groups.py:1269
+#, python-brace-format
+msgid "an xs:{0} group cannot include a reference to an xs:{1} group"
+msgstr "ჯგუფი xs:{0} არ შეიძლება შეიცავდეს მიმართვას ჯგუფზე xs:{1}"
+
+#: xmlschema/validators/groups.py:1276
+msgid "Redefined group reference cannot have minOccurs/maxOccurs other than 1"
+msgstr ""
+"თავიდან აღწერილი ჯგუფის მიმართვას minOccurs/maxOccurs არ შეიძლება, 1-ის "
+"გარდა სხვა მნიშვნელობა ჰქონდეს"
+
+#: xmlschema/validators/helpers.py:50
+#, python-format
+msgid "wrong value %r for attribute %r"
+msgstr "არასწორი მნიშვნელობა %r ატრიბუტისთვის %r"
+
+#: xmlschema/validators/helpers.py:79
+msgid "value is not a valid xs:decimal"
+msgstr "მნიშვნელობა არასწორია xs:decimal"
+
+#: xmlschema/validators/helpers.py:85
+msgid "value is not an xs:QName"
+msgstr "მნიშვნელობა არაა xs:QName"
+
+#: xmlschema/validators/helpers.py:91 xmlschema/validators/helpers.py:97
+#: xmlschema/validators/helpers.py:103 xmlschema/validators/helpers.py:109
+#: xmlschema/validators/helpers.py:115 xmlschema/validators/helpers.py:121
+#: xmlschema/validators/helpers.py:127 xmlschema/validators/helpers.py:133
+msgid "value must be {:s}"
+msgstr "მნიშვნელობა უნდა იყოს {:s}"
+
+#: xmlschema/validators/helpers.py:139
+msgid "value must be negative"
+msgstr "მნიშვნელობა უარყოფითი უნდა იყოს"
+
+#: xmlschema/validators/helpers.py:145
+msgid "value must be positive"
+msgstr "მნიშვნელობა დადებითი უნდა იყოს"
+
+#: xmlschema/validators/helpers.py:151
+msgid "value must be non positive"
+msgstr "მნიშვნელობა არადადებითი უნდა იყოს"
+
+#: xmlschema/validators/helpers.py:157
+msgid "value must be non negative"
+msgstr "მნიშვნელობა არაუარყოფითი უნდა იყოს"
+
+#: xmlschema/validators/helpers.py:164
+msgid "not an hexadecimal number"
+msgstr "არ წარმოადგენს თექვსმეტობით რიცხვს"
+
+#: xmlschema/validators/helpers.py:177
+msgid "not a base64 encoding"
+msgstr "არ წარმოადგენს base64 კოდირებას"
+
+#: xmlschema/validators/helpers.py:182
+msgid "no value is allowed for xs:error type"
+msgstr "ტიპისთვის xs:error მნშვნელობა დაშვებული არაა"
+
+#: xmlschema/validators/helpers.py:192
+msgid "{!r} is not a boolean value"
+msgstr "{!r} ლოგიკური მნიშვნელობა არაა"
+
+#: xmlschema/validators/models.py:144
+msgid ""
+"Element Declarations Consistent violation between {0!r} and {1!r}: match the "
+"same name but with different types"
+msgstr ""
+"ელემენტების აღწერის მუდმივობის დარღვევა {0!r}-სა და {1!r}-ს შორის: სახელები "
+"ემთხვევა, მაგრამ ტიპები განსხვავდება"
+
+#: xmlschema/validators/models.py:158
+msgid "{0!r} and {1!r} overlap and are in the same {2!r} group"
+msgstr "{0!r} და {1!r} ერთმანეთს გადაფარავენ და იმყოფებიან იგივე ჯგუფში {2!r}"
+
+#: xmlschema/validators/models.py:170
+msgid "Unique Particle Attribution violation between {0!r} and {1!r}"
+msgstr "უნიკალური ნაწილაკის ატრიბუტიკის დარღვევა {0!r}-სა და {1!r}-ს შორის"
+
+#: xmlschema/validators/notations.py:36
+msgid "a notation declaration must be global"
+msgstr "ნოტაციის აღწერა გლობალური უნდა იყოს"
+
+#: xmlschema/validators/notations.py:40
+msgid "a notation must have a 'name' attribute"
+msgstr "ნოტაციას უნდა ჰქონდეს ატრიბუტი 'name'"
+
+#: xmlschema/validators/notations.py:43
+msgid "a notation must have a 'public' or a 'system' attribute"
+msgstr "ნოტაციას უნდა ჰქონდეს ატრიბუტი 'public', ან 'system'"
+
+#: xmlschema/validators/particles.py:142
+msgid "minOccurs value is not an integer value"
+msgstr "minOccurs-ის მნიშვნელობა მთელი რიცხვი არაა"
+
+#: xmlschema/validators/particles.py:146
+msgid "minOccurs value must be a non negative integer"
+msgstr "minOccurs-ის მნიშვნელობა არაუარყოფითი მთელი რიცხვი უნდა იყოს"
+
+#: xmlschema/validators/particles.py:154
+msgid "minOccurs must be lesser or equal than maxOccurs"
+msgstr "minOccurs maxOccurs-ზე ნაკლები, ან მისი ტოლი უნდა იყოს"
+
+#: xmlschema/validators/particles.py:162
+msgid "maxOccurs value must be a non negative integer or 'unbounded'"
+msgstr ""
+"maxOccurs-ის მნიშვნელობა უნდა იყოს არაუარყოფითი მთელი რიცხვი, ან 'unbounded'"
+
+#: xmlschema/validators/particles.py:166
+msgid "maxOccurs must be 'unbounded' or greater than minOccurs"
+msgstr "maxOccurs უნდა იყოს 'unbounded', ან მეტი, ვიდრე minOccurs"
+
+#: xmlschema/validators/schemas.py:146
+msgid "XSD_VERSION must be '1.0' or '1.1'"
+msgstr "XSD_VERSION უნდა იყოს '1.0', ან '1.1'"
+
+#: xmlschema/validators/schemas.py:323
+msgid "no XSD source provided!"
+msgstr "XSD წყარო მოწოდებული არაა!"
+
+#: xmlschema/validators/schemas.py:349
+msgid "the attribute 'targetNamespace' cannot be an empty string"
+msgstr "ატრიბუტი 'targetNamespace' არ შეიძლება, ცარიელი სტრიქონი იყოს"
+
+#: xmlschema/validators/schemas.py:352
+msgid ""
+"targetNamespace of XSD resource {} differs from what expected (found {!r} "
+"instead of {!r})"
+msgstr ""
+"XSD-ის რესურსის {} targetNamespace განსხვავდება მოსალოდნელისგან (ნაპოვნია {!"
+"r} {!r}-ის გარეშე)"
+
+#: xmlschema/validators/schemas.py:374
+#, python-brace-format
+msgid "The namespace {nm.XMLNS_NAMESPACE} cannot be used as 'targetNamespace'"
+msgstr ""
+"სახელების სივრცეს {nm.XMLNS_NAMESPACE} ვერ გამოიყენებთ 'targetNamespace'-ის "
+"სახით"
+
+#: xmlschema/validators/schemas.py:443
+#, python-format
+msgid "'global_maps' argument must be an %r instance"
+msgstr "არგუმენტი 'global_maps' უნდა იყოს %r ეგზემპლარი"
+
+#: xmlschema/validators/schemas.py:510
+msgid "can't change the global maps instance of a class meta-schema"
+msgstr "კლასის მეტასქემის გლობალური რუკის ეგზემპლარის შეცვლა შეიძლებელია"
+
+#: xmlschema/validators/schemas.py:514
+msgid ""
+"can't change the global maps instance of a schema that is the main validator "
+"of another global maps instance"
+msgstr ""
+"სქემის, რომელიც სხვა გლობალური რუკების ეგზემპლარის მთავარი გადამმოწმებელია, "
+"გლობალური რუკების ეგზემპლარის შეცვლა შეუძლებელია"
+
+#: xmlschema/validators/schemas.py:528
+msgid "can't set the meta_schema instance of a schema"
+msgstr "სქემის ეგზემპლარის meta_schema-ის დაყენება შეუძლებელია"
+
+#: xmlschema/validators/schemas.py:536 xmlschema/validators/schemas.py:540
+msgid "can't change the {!r} attribute of a schema"
+msgstr "სქემის ატრიბუტის {!r} შეცვლა შეუძლებელია"
+
+#: xmlschema/validators/schemas.py:738
+#, python-format
+msgid "meta-schema unavailable for %r"
+msgstr "მეტა-სქემა მიუწვდომელია %r-ისთვის"
+
+#: xmlschema/validators/schemas.py:949
+msgid "the namespace {!r} is not loaded"
+msgstr "სახელების სივრცე {!r} ჩატვირთული არაა"
+
+#: xmlschema/validators/schemas.py:1083
+msgid "invalid attribute vc:minVersion value"
+msgstr "არასწორი ატრიბუტის vc:minVersion მნიშვნელობა"
+
+#: xmlschema/validators/schemas.py:1092
+msgid "invalid attribute vc:maxVersion value"
+msgstr "არასწორი ატრიბუტის vc:maxVersion მნიშვნელობა"
+
+#: xmlschema/validators/schemas.py:1168 xmlschema/validators/schemas.py:1175
+msgid "{!r} is not a valid value for xs:QName"
+msgstr "{!r} არასწორი მნიშვნელობაა xs:QName-ისთვის"
+
+#: xmlschema/validators/schemas.py:1184
+msgid "prefix {!r} not found in namespace map"
+msgstr "სახელების სივრცის რუკაში პრეფიქსი {!r} აღმოჩენილი არაა"
+
+#: xmlschema/validators/schemas.py:1192
+msgid ""
+"the QName {!r} is mapped to no namespace, but this requires that there is an "
+"xs:import statement in the schema without the 'namespace' attribute."
+msgstr ""
+"QName {!r} სახელების სივრცეზე ასახული არაა, მაგრამ ეს მოითხოვს, რომ "
+"არსებობდეს xs:import პროცედურა ატრიბუტის 'namespace' გარეშე."
+
+#: xmlschema/validators/schemas.py:1201
+msgid ""
+"the QName {!r} is mapped to the namespace {!r}, but this namespace has not "
+"an xs:import statement in the schema."
+msgstr ""
+"QName {!r} ასახულია სახელების სივრცეზე {!r}, მაგრამ ამ სახელების სივრცეს "
+"სქემაში xs:import პროცედურა არ აქვს."
+
+#: xmlschema/validators/schemas.py:1365 xmlschema/validators/schemas.py:1422
+#: xmlschema/validators/schemas.py:1601
+msgid "{!r} is not an element of the schema"
+msgstr "{!r} სქემის ელემენტი არაა"
+
+#: xmlschema/validators/schemas.py:1379
+msgid "the provided path selects nothing to validate"
+msgstr "მოწოდებული ბილიკი გადასამოწმებლად არაფერს ირჩევს"
+
+#: xmlschema/validators/schemas.py:1395
+#, python-format
+msgid "IDREF %r not found in XML document"
+msgstr "IDREF %r XML დოკუმენტში აღმოჩენილი არაა"
+
+#: xmlschema/validators/schemas.py:1703
+msgid "encoding needs at least one XSD element declaration"
+msgstr "დაშიფვრას, სულ ცოტა, ერთი XSD ელემენტის გამოცხადება სჭირდება"
+
+#: xmlschema/validators/schemas.py:1745
+#, python-format
+msgid "the path %r doesn't match any element of the schema!"
+msgstr "ბილიკი %r სქემის არცერთ ელემენტს ემთხვევა!"
+
+#: xmlschema/validators/schemas.py:1747
+msgid ""
+"unable to select an element for encoding data, provide a valid 'path' "
+"argument."
+msgstr ""
+"მონაცემების დასაშიფრად ელემენტის არჩევა შეუძლებელია. აუცილებელია სწორი "
+"არგუმენტი 'path'."
+
+#: xmlschema/validators/simple_types.py:120
+#, python-format
+msgid "wrong value %r for facet xs:whiteSpace"
+msgstr "არასწორი მნიშვნელობა %r ფაცეტისთვის xs:whiteSpace"
+
+#: xmlschema/validators/simple_types.py:162
+msgid "facets not allowed for a direct derivation of xs:anySimpleType"
+msgstr "facets xs:anySimpleType-ის პირდაპირი მიღებისთვის დაშვებული არაა"
+
+#: xmlschema/validators/simple_types.py:166
+msgid "facets not allowed for a direct content derivation of xs:anySimpleType"
+msgstr ""
+"facets xs:anySimpleType-ის შემცველობის პირდაპირი მიღებისთვის დაშვებული არაა"
+
+#: xmlschema/validators/simple_types.py:172
+msgid "one or more facets are not applicable, admitted set is {!r}"
+msgstr "ერთი ან მეტი ფაცეტი შესაბამისი არაა. მიღებული ნაკრებია {!r}"
+
+#: xmlschema/validators/simple_types.py:178
+#, python-format
+msgid "facet group must have the same base type: %r"
+msgstr "ფაცეტების ჯგუფს იგივე საბაზისო ტიპი უნდა ჰქონდეს: %r"
+
+#: xmlschema/validators/simple_types.py:188
+msgid "'length' value must be non a negative integer"
+msgstr "'length'-ის მნიშვნელობა არაუარყოფითი მთელი რიცხვი უნდა იყოს"
+
+#: xmlschema/validators/simple_types.py:192
+msgid "'minLength' value must be less than or equal to 'length'"
+msgstr "'minLength'-ის მნიშვნელობა 'length'-ზე ნაკლები, ან მისი ტოლი უნდა იყოს"
+
+#: xmlschema/validators/simple_types.py:199
+msgid "cannot specify both 'length' and 'minLength'"
+msgstr "ორივეს, 'length' და 'minLength' მითითება შეუძლებელია"
+
+#: xmlschema/validators/simple_types.py:204
+msgid "'maxLength' value must be greater or equal to 'length'"
+msgstr "'maxLength'-ის მნიშვნელობა 'length'-ზე მეტი, ან მისი ტოლი უნდა იყოს"
+
+#: xmlschema/validators/simple_types.py:212
+msgid "cannot specify both 'length' and 'maxLength'"
+msgstr "ორივეს, 'length' და 'maxLength' მითითება შეუძლებელია"
+
+#: xmlschema/validators/simple_types.py:221
+msgid "'minLength' value must be a non negative integer"
+msgstr "'minLength'-ის მნიშვნელობა არაუარყოფითი მთელი რიცხვი უნდა იყოს"
+
+#: xmlschema/validators/simple_types.py:224
+msgid "'maxLength' value is less than 'minLength'"
+msgstr "'maxLength'-ის მნიშვნელობა 'minLength'-ზე ნაკლებია"
+
+#: xmlschema/validators/simple_types.py:227
+msgid "'minLength' has a lesser value than parent"
+msgstr "'minLength'-ის მნიშვნელობა მშობელზე ნაკლებია"
+
+#: xmlschema/validators/simple_types.py:230
+msgid "'minLength' has a greater value than parent 'maxLength'"
+msgstr "'minLength'-ის მნიშვნელობა მშობელ 'maxLength'-ზე მეტია"
+
+#: xmlschema/validators/simple_types.py:235
+msgid "'maxLength' value must be a non negative integer"
+msgstr "'maxLength'-ის მნიშვნელობა არაუარყოფითი მთელი რიცხვი უნდა იყოს"
+
+#: xmlschema/validators/simple_types.py:238
+msgid "'maxLength' has a lesser value than parent 'minLength'"
+msgstr "'maxLength'-ის მნიშვნელობა მშობელ 'minLength'-ზე ნაკლებია"
+
+#: xmlschema/validators/simple_types.py:241
+msgid "'maxLength' has a greater value than parent"
+msgstr "'maxLength'-ის მნიშვნელობა მშობელზე მეტია"
+
+#: xmlschema/validators/simple_types.py:252
+msgid "cannot specify both 'minInclusive' and 'minExclusive'"
+msgstr "ორივეს, 'minInclusive'-ს და 'minExclusive'-ს ვერ მიუთითებთ"
+
+#: xmlschema/validators/simple_types.py:255
+msgid "'minInclusive' must be less or equal to 'maxInclusive'"
+msgstr "'minInclusive' უნდა იყოს 'maxInclusive'-ზე ნაკლები, ან ტოლი"
+
+#: xmlschema/validators/simple_types.py:258
+msgid "'minInclusive' must be lesser than 'maxExclusive'"
+msgstr "'minInclusive' უნდა იყოს 'maxExclusive'-ზე ნაკლები"
+
+#: xmlschema/validators/simple_types.py:263
+msgid "'minExclusive' must be lesser than 'maxInclusive'"
+msgstr "'minExclusive' უნდა იყოს 'maxInclusive'-ზე ნაკლები"
+
+#: xmlschema/validators/simple_types.py:266
+msgid "'minExclusive' must be less or equal to 'maxExclusive'"
+msgstr "'minExclusive' უნდა იყოს 'maxExclusive'-ზე ნაკლები, ან ტოლი"
+
+#: xmlschema/validators/simple_types.py:270
+msgid "cannot specify both 'maxInclusive' and 'maxExclusive'"
+msgstr "ორივეს, 'maxInclusive'-ს და 'maxExclusive'-ს ერთდროულად ვერ მიუთითებთ"
+
+#: xmlschema/validators/simple_types.py:276
+msgid ""
+"fractionDigits facet value cannot be lesser than the value of totalDigits "
+"facet"
+msgstr ""
+"fractionDigits-ის ფაცეტის მნიშვნელობა totalDigits-ის ფაცეტის მნიშვნელობაზე "
+"ნაკლები ვერ იქნება"
+
+#: xmlschema/validators/simple_types.py:282
+msgid ""
+"totalDigits facet value cannot be greater than the value of the same facet "
+"in the base type"
+msgstr ""
+"totalDigits-ის ფაცეტის მნიშვნელობა არ შეძლება, საბაზისო ტიპში იგივე ფაცეტის "
+"მნიშვნელობაზე მეტი იყოს"
+
+#: xmlschema/validators/simple_types.py:291
+#, python-format
+msgid ""
+"the explicitTimezone facet value cannot be changed if the base type has the "
+"same facet with value %r"
+msgstr ""
+"explicitTimezone-ის ფაცეტის მნიშვნელობის შეცვლა შეუძლებელია, თუ საბაზისო "
+"ტიპს აქვს იგივე ფაცეტი მნიშვნელობით %r"
+
+#: xmlschema/validators/simple_types.py:691
+msgid "value is not an instance of {!r}"
+msgstr "მნიშვნელობა {!r}-ის ეგზემპლარი არაა"
+
+#: xmlschema/validators/simple_types.py:713
+#: xmlschema/validators/simple_types.py:805
+#: xmlschema/validators/simple_types.py:1167
+msgid "invalid value {!r}"
+msgstr "არასწორი მნიშვნელობა {!r}"
+
+#: xmlschema/validators/simple_types.py:740
+#, python-format
+msgid "unmapped prefix %r in a QName"
+msgstr "აუსახავი პრეფიქსი %r QName-ში"
+
+#: xmlschema/validators/simple_types.py:753
+#: xmlschema/validators/simple_types.py:764
+msgid "duplicated xs:ID value {!r}"
+msgstr "გამეორებული xs:ID-ის მნიშვნელობა {!r}"
+
+#: xmlschema/validators/simple_types.py:759
+msgid "no more than one attribute of type ID should be present in an element"
+msgstr "ელემენტში ტიპით ID ერთზე მეტი ატრიბუტი ვერ იარსებებს"
+
+#: xmlschema/validators/simple_types.py:783
+msgid "boolean value {0!r} requires a {1!r} decoder"
+msgstr "ლოგიკური მნიშვნელობა {0!r} ითხოვს დეკოდერს {1!r}"
+
+#: xmlschema/validators/simple_types.py:789
+msgid "{0!r} is not an instance of {1!r}"
+msgstr "{0!r} {1!r}-ის ეგზემპლარი არაა"
+
+#: xmlschema/validators/simple_types.py:892
+msgid "ambiguous list type declaration"
+msgstr "ორაზროვანი სიის ტიპის დეკლარაცია"
+
+#: xmlschema/validators/simple_types.py:900
+msgid "missing list type declaration"
+msgstr "აკლია სიის ტიპის გამოცხადება"
+
+#: xmlschema/validators/simple_types.py:916
+#, python-format
+msgid "'final' value of the itemType %r forbids derivation by list"
+msgstr "itemType %r-ის მნიშვნელობა 'final' კრძალავს სიით მიღებას"
+
+#: xmlschema/validators/simple_types.py:920
+#: xmlschema/validators/simple_types.py:1093
+#: xmlschema/validators/simple_types.py:1376
+msgid "cannot use xs:anyAtomicType as base type of a user-defined type"
+msgstr ""
+"xs:anyAtomicType-ის გამოყენება მომხმარებლის მიერ აღწერილი ტიპის საბაზისო "
+"ტიპად შეუძლებელია"
+
+#: xmlschema/validators/simple_types.py:926
+#, python-format
+msgid "%r: a list must be based on atomic data types"
+msgstr "%r: სია ატომური მონაცემთა ტიპებზე უნდა იყოს დაფუძნებული"
+
+#: xmlschema/validators/simple_types.py:973
+msgid "unexpected nested list item {!r}"
+msgstr "მოულოდნელი ჩადგმული სიის ელემენტი {!r}"
+
+#: xmlschema/validators/simple_types.py:1080
+msgid "a {0!r} required, not {1!r}"
+msgstr "საჭიროა {0!r} და არა {1!r}"
+
+#: xmlschema/validators/simple_types.py:1084
+#, python-format
+msgid "'final' value of the memberTypes %r forbids derivation by union"
+msgstr "memberTypes %r-ის მნიშვნელობა 'final' კრძალავს გაერთიანებით მიღებას"
+
+#: xmlschema/validators/simple_types.py:1090
+msgid "missing xs:union type declarations"
+msgstr "აკლია xs:union ტიპის გამოცხადებები"
+
+#: xmlschema/validators/simple_types.py:1205
+msgid "no type suitable for encoding the object"
+msgstr "ობიექტის კოდირებისთვის შესაფერისი ტიპი აღმოჩენილი არაა"
+
+#: xmlschema/validators/simple_types.py:1249
+msgid "'name' attribute in a local simpleType definition"
+msgstr "ატრიბუტი 'name' ლოკალურ simpleType-ის აღწერაში"
+
+#: xmlschema/validators/simple_types.py:1289
+#, python-format
+msgid "wrong base type %r, an atomic type required"
+msgstr "არასწორი საბაზისო ტიპი %r. აუცილებელია ატომური ტიპი"
+
+#: xmlschema/validators/simple_types.py:1295
+msgid "an xs:simpleType definition expected"
+msgstr "მოველოდი xs:simpleType-ის აღწერას"
+
+#: xmlschema/validators/simple_types.py:1300
+msgid ""
+"when a complexType with simpleContent restricts a complexType with mixed and "
+"with emptiable content then a simpleType child declaration is required"
+msgstr ""
+"როცა complexType simpleContent-ით ზღუდავს complexType შერეული და "
+"დაცარიელებადი შემცველობით, მაშინ simpleType-ის შვილის გამოცხადება აუცილებელია"
+
+#: xmlschema/validators/simple_types.py:1305
+#, python-format
+msgid "simpleType restriction of %r is not allowed"
+msgstr "%r-ის შეზღუდვა simpleType-ით დაშვებული არაა"
+
+#: xmlschema/validators/simple_types.py:1314
+msgid "unexpected tag after attribute declarations"
+msgstr "მოულოდნელი ჭდე ატრიბუტის აღწერების შემდეგ"
+
+#: xmlschema/validators/simple_types.py:1319
+msgid "duplicated simpleType declaration"
+msgstr "გამეორებული simpleType-ის გამოცხადება"
+
+#: xmlschema/validators/simple_types.py:1345
+msgid "restriction with 'base' attribute and simpleType declaration"
+msgstr "შეზღუდვა ატრიბუტით 'base' და simpleType-ის გამოცხადებით"
+
+#: xmlschema/validators/simple_types.py:1353
+#, python-format
+msgid "unexpected tag %r in restriction"
+msgstr "მოულოდნელი ჭდე %r შეზღუდვაში"
+
+#: xmlschema/validators/simple_types.py:1359
+#, python-format
+msgid "multiple %r constraint facet"
+msgstr "ერთზე მეტი %r შეზღუდვის ფაცეტი"
+
+#: xmlschema/validators/simple_types.py:1371
+msgid "missing base type in restriction"
+msgstr "შეზღუდვაში საბაზისო ტიპი აკლია"
+
+#: xmlschema/validators/simple_types.py:1373
+#, python-format
+msgid "'final' value of the baseType %r forbids derivation by restriction"
+msgstr "baseType %r-ის მნიშვნელობა 'final' კრძალავს შეზღუდვით მიღებას"
+
+#: xmlschema/validators/simple_types.py:1430
+#: xmlschema/validators/simple_types.py:1453
+#, python-format
+msgid ""
+"wrong base type %r: a simpleType or a complexType with simple or mixed "
+"content required"
+msgstr ""
+"არასწორი ბაზის ტიპი %r: აუცილებელია simpleType, complexType მარტივი, ან "
+"შერეული შემცველობით"
+
+#: xmlschema/validators/validation.py:55
+msgid "validation mode must be a string"
+msgstr "გადამოწმების რეჟიმი სტრიქონი უნდა იყოს"
+
+#: xmlschema/validators/validation.py:57
+#, python-format
+msgid "validation mode can be 'strict', 'lax' or 'skip': %r"
+msgstr "გადამოწმების რეჟიმი შეიძლება იყოს 'strict', 'lax', ან 'skip': %r"
+
+#: xmlschema/validators/validation.py:179
+msgid "attribute {0}={1!r}: {2}"
+msgstr "ატრიბუტი {0}={1!r}: {2}"
+
+#: xmlschema/validators/wildcards.py:92
+#, python-format
+msgid "wrong value %r in 'namespace' attribute"
+msgstr "არასწორი მნიშვნელობა %r ატრიბუტში 'namespace'"
+
+#: xmlschema/validators/wildcards.py:99
+#, python-format
+msgid "wrong value %r for 'processContents' attribute"
+msgstr "არასწორი მნიშვნელობა %r ატრიბუტისთვის 'processContents'"
+
+#: xmlschema/validators/wildcards.py:107
+msgid "'namespace' and 'notNamespace' attributes are mutually exclusive"
+msgstr "ატრიბუტები 'namespace' და 'notNamespace' ურთიერთგამომრიცხავია"
+
+#: xmlschema/validators/wildcards.py:118
+#, python-format
+msgid "wrong value %r in 'notNamespace' attribute"
+msgstr "არასწორი მნიშვნელობა %r ატრიბუტში 'notNamespace'"
+
+#: xmlschema/validators/wildcards.py:134
+msgid "wrong value for 'notQName' attribute"
+msgstr "არასწორი მნიშვნელობა ატრიბუტისთვის 'notQName'"
+
+#: xmlschema/validators/wildcards.py:141
+#, python-format
+msgid "unmapped QName in 'notQName' attribute: %s"
+msgstr "აუსახავი QName ატრიბუტში 'notQName': %s"
+
+#: xmlschema/validators/wildcards.py:145
+#, python-format
+msgid "wrong QName format in 'notQName' attribute: %s"
+msgstr "არასწორი QName-ის ფორმატი ატრიბუტში 'notQName': %s"
+
+#: xmlschema/validators/wildcards.py:153
+msgid "the namespace of each QName in notQName is allowed by notNamespace"
+msgstr ""
+"თითოეული QName-ის სახელების სივრცე notQName-ში დაშვებულია notNamespace-ის "
+"მიერ"
+
+#: xmlschema/validators/wildcards.py:157
+msgid "names in notQName must be in namespaces that are allowed"
+msgstr "სახელები notQName-ში უნდა იყოს სახელის სივრცეებში, რომლებიც დაშვებულია"
+
+#: xmlschema/validators/wildcards.py:334
+msgid "not expressible wildcard namespace union: {0!r} V {1!r}:"
+msgstr "არაგამოსახვადი ვაილდკარდის სახელის სივრცის გაერთიანება: {0!r} V {1!r}:"
+
+#: xmlschema/validators/wildcards.py:502 xmlschema/validators/wildcards.py:545
+msgid "element {!r} is not allowed here"
+msgstr "ელემენტი {!r} აქ დაშვებული არაა"
+
+#: xmlschema/validators/wildcards.py:510 xmlschema/validators/wildcards.py:552
+#: xmlschema/validators/wildcards.py:691 xmlschema/validators/wildcards.py:720
+msgid "unavailable namespace {!r}"
+msgstr "ხელმიუწვდომელი სახელების სივრცე {!r}"
+
+#: xmlschema/validators/wildcards.py:673 xmlschema/validators/wildcards.py:703
+#, python-format
+msgid "attribute %r not allowed"
+msgstr "ატრიბუტი %r დაშვებული არაა"
+
+#: xmlschema/validators/wildcards.py:685 xmlschema/validators/wildcards.py:714
+#, python-format
+msgid "attribute %r not found"
+msgstr "ატრიბუტი %r აღმოჩენილი არაა"
+
+#: xmlschema/validators/wildcards.py:875
+#, python-format
+msgid "wrong value %r for 'mode' attribute"
+msgstr "არასწორი მნიშვნელობა %r ატრიბუტისთვის 'mode'"
+
+#: xmlschema/validators/wildcards.py:881
+msgid ""
+"an openContent with mode='none' cannot have an <xs:any> child declaration"
+msgstr ""
+"openContent-ს რეჟიმით='none' არ შეიძლება,<xs:any> შვილის გამოცხადება ჰქონდეს"
+
+#: xmlschema/validators/wildcards.py:885
+msgid "an <xs:any> child declaration is required"
+msgstr "აუცილებელია <xs:any>-ის შვილის გამოცხადება"
+
+#: xmlschema/validators/wildcards.py:919
+msgid "defaultOpenContent must be a child of the schema"
+msgstr "defaultOpenContent სქემის შვილი უნდა იყოს"
+
+#: xmlschema/validators/wildcards.py:922
+msgid "the attribute 'mode' of a defaultOpenContent cannot be 'none'"
+msgstr "defaultOpenContent-ის ატრიბუტი 'mode' ვერ იქნება 'none'"
+
+#: xmlschema/validators/wildcards.py:925
+msgid "a defaultOpenContent declaration cannot be empty"
+msgstr "defaultOpenContent-ის აღწერა ცარიელი ვერ იქნება"
+
+#: xmlschema/validators/xsdbase.py:125
+#, python-format
+msgid "%r is not built"
+msgstr "%r აგებული არაა"
+
+#: xmlschema/validators/xsdbase.py:130
+#, python-format
+msgid "validation mode is 'strict' and %r is not built"
+msgstr "გადამოწმების რეჟიმი არის 'strict' და %r აგებული არაა"
+
+#: xmlschema/validators/xsdbase.py:133
+#, python-format
+msgid "validation mode is 'strict' and %r is not valid"
+msgstr "გადამოწმების რეჟიმი არის 'strict' და %r არასწორია"
+
+#: xmlschema/validators/xsdbase.py:249
+msgid ""
+"wrong value {0!r} for 'xpathDefaultNamespace' attribute, can be (anyURI | "
+"{1})."
+msgstr ""
+"არასწორი მნიშვნელობა {0!r} ატრიბუტისთვის 'xpathDefaultNamespace'. შეიძლება "
+"იყოს: (anyURI | {1})."
+
+#: xmlschema/validators/xsdbase.py:436
+#, python-format
+msgid "missing attribute 'name' in a global %r"
+msgstr "აკლია ატრიბუტი 'name' გლობალს %r"
+
+#: xmlschema/validators/xsdbase.py:439
+#, python-format
+msgid "missing both attributes 'name' and 'ref' in local %r"
+msgstr "აკლია ორივე ატრიბუტი 'name' და 'ref' ლოკალურ %r-ში"
+
+#: xmlschema/validators/xsdbase.py:442
+msgid "attributes 'name' and 'ref' are mutually exclusive"
+msgstr "ატრიბუტები 'name' და 'ref' ურთიერთგამომრიცხავია"
+
+#: xmlschema/validators/xsdbase.py:445
+#, python-format
+msgid "attribute 'ref' not allowed in a global %r"
+msgstr "ატრიბუტი 'ref' გლობალში %r დაშვებული არაა"
+
+#: xmlschema/validators/xsdbase.py:454
+msgid "a reference component cannot have child definitions/declarations"
+msgstr "მიმართვის კომპონენტს არ შეიძლება, შვილი აღწერები/გამოცხადებები ჰქონდეს"
+
+#: xmlschema/validators/xsdbase.py:469
+msgid "too many XSD components, unexpected {0!r} found at position {1}"
+msgstr ""
+"მეტისმეტად ბევრი XSD კომპონენტი. აღმოჩენილია მოულოდნელი {0!r} პოზიციაზე {1}"
+
+#: xmlschema/validators/xsdbase.py:486
+#, python-brace-format
+msgid "The namespace {XMLNS_NAMESPACE} cannot be used as 'targetNamespace'"
+msgstr ""
+"სახელების სივრცეს {XMLNS_NAMESPACE} ვერ გამოიყენებთ 'targetNamespace'-ის "
+"სახით"
+
+#: xmlschema/validators/xsdbase.py:490
+msgid ""
+"attribute 'name' must be present when 'targetNamespace' attribute is provided"
+msgstr ""
+"როცა მიწოდებულია ატრიბუტი 'targetNamespace', ატრიბუტის 'name' მითითება ასევე "
+"აუცილებელია"
+
+#: xmlschema/validators/xsdbase.py:494
+msgid ""
+"attribute 'form' must be absent when 'targetNamespace' attribute is provided"
+msgstr ""
+"როცა მიწოდებულია ატრიბუტი 'targetNamespace', ატრიბუტის 'form' მითითება ასევე "
+"აუცილებელია"
+
+#: xmlschema/validators/xsdbase.py:499
+#, python-format
+msgid "a global %s must have the same namespace as its parent schema"
+msgstr ""
+"გლობალურ %s-ს იგივე სახელების სივრცე უნდა ჰქონდეს, რაც მის მშობელ სქემას აქვს"
+
+#: xmlschema/validators/xsdbase.py:507
+msgid ""
+"a declaration contained in a global complexType must have the same namespace "
+"as its parent schema"
+msgstr ""
+"გლობალურ complexType-ს იგივე სახელების სივრცე უნდა ჰქონდეს, რაც მის მშობელ "
+"სქემას აქვს"
+
+#: xmlschema/validators/xsdbase.py:632
+msgid "parent circularity from {}"
+msgstr "მშობლის წრიულობა {}-დან"
+
+#: xmlschema/validators/identities.py:89
+msgid "'xpath' attribute required"
+msgstr "ატრიბუტი 'xpath' აუცილებელია"
+
+#: xmlschema/validators/identities.py:104
+msgid "invalid XPath expression for an {}"
+msgstr "არასწორი XPath გამოსახულება {}-ისთვის"
+
+#: xmlschema/validators/identities.py:173
+msgid "missing required attribute 'name'"
+msgstr "აკლია აუცილებელი ატრიბუტი 'name'"
+
+#: xmlschema/validators/identities.py:181
+msgid "missing 'selector' declaration"
+msgstr "აკლია 'selector'-ის გამოცხადება"
+
+#: xmlschema/validators/identities.py:198
+msgid "unknown identity constraint {!r}"
+msgstr "უცნობი იდენტიფიკატორის შეზღუდვა {!r}"
+
+#: xmlschema/validators/identities.py:203
+msgid "attribute 'ref' points to a different kind constraint"
+msgstr "ატრიბუტი 'ref' სხვა ტიპის შეზღუდვაზე მიუთითებს"
+
+#: xmlschema/validators/identities.py:231
+msgid "selector xpath expression can only select elements"
+msgstr "ამრჩევ გამოსახულებას xpath, მხოლოდ, ელემენტების არჩევა შეუძლია"
+
+#: xmlschema/validators/identities.py:286
+msgid "missing required attribute 'refer'"
+msgstr "აკლია აუცილებელი ატრიბუტი 'refer'"
+
+#: xmlschema/validators/identities.py:316
+#, python-format
+msgid "key/unique identity constraint %r is missing"
+msgstr "აკლია გასაღები/უნიკალური იდენტიფიკატორის შეზღუდვა %r"
+
+#: xmlschema/validators/identities.py:321
+#, python-format
+msgid "reference to a non key/unique identity constraint %r"
+msgstr "მიმართვა არ-გასაღებზე/უნიკალური იდენტიფიკატორის შეზღუდვაზე %r"
+
+#: xmlschema/validators/identities.py:324
+msgid "field cardinality mismatch between {0!r} and {1!r}"
+msgstr "ველის კარდინალურობა არ ემთხვევა {0!r}-სა და {1!r}-ს შორის"
+
+#: xmlschema/validators/identities.py:401
+msgid "duplicated value {0!r} for {1!r}"
+msgstr "გამეორებული მნიშვნელობა {0!r} {1!r}-ისთვის"
+
+#: xmlschema/validators/identities.py:495
+#, python-format
+msgid "%r field selects multiple values!"
+msgstr "ველი %r ირჩევს ერთზე მეტ მნიშვნელობას!"
+
+#: xmlschema/validators/identities.py:501
+#, python-format
+msgid "%r field selects a %r!"
+msgstr "ველი %r ირჩევს %r-ს!"
+
+#: xmlschema/validators/identities.py:510
+#, python-format
+msgid "%r field doesn't have a simple type!"
+msgstr "ველს %r მარტივი ტიპი არ აქვს!"
+
+#: xmlschema/validators/identities.py:542
+msgid "missing key field {0!r} for {1!r}"
+msgstr "აკლია გასაღების ველი {0!r} {1!r}-ისთვის"
+
+#: xmlschema/converters/__init__.py:37
+msgid "'converter' argument must be a {0!r} subclass or instance: {1!r}"
+msgstr ""
+"არგუმენტი 'converter' უნდა იყოს {0!r}-ის ქვეკლასი, ან ეგზემპლარი: {1!r}"
