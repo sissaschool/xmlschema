@@ -517,6 +517,43 @@ class TestXsdAttributes(XsdValidatorTestCase):
             schema.attribute_groups['extra'].decode({'label': 'alpha'})
         self.assertIn("value must be one of ['jpeg', 'png']", ctx.exception.reason)
 
+    def test_nested_import__issue_473(self):
+
+        xsd_source = dedent("""\
+            <?xml version="1.0" encoding="UTF-8"?>
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+              targetNamespace="http://www.example.org/Test123"
+              xmlns="http://www.example.org/Test123">
+              <xs:complexType name="TypeA" abstract="true">
+                <xs:attribute name="Attr" use="prohibited" type="xs:string"/>
+              </xs:complexType>
+              <xs:complexType name="TypeB">
+                <xs:complexContent>
+                  <xs:restriction base="TypeA">
+                    <xs:attribute name="Attr" use="prohibited" fixed="ValueB"
+                      type="xs:string"/>
+                  </xs:restriction>
+                </xs:complexContent>
+              </xs:complexType>
+              <xs:element name="InstanceDeclB" type="TypeB"/>
+            </xs:schema>""")
+
+        if self.schema_class.XSD_VERSION == '1.0':
+            schema = self.schema_class(source=xsd_source)
+            self.assertTrue(schema.built)
+
+            xml_data = ('<?xml version="1.0" encoding="UTF-8"?>\n'
+                        '<InstanceDeclB xmlns="http://www.example.org/Test123"/>')
+            schema.validate(xml_data)
+            self.assertTrue(schema.is_valid(xml_data))
+        else:
+            with self.assertRaises(XMLSchemaParseError) as ctx:
+                self.schema_class(source=xsd_source)
+            self.assertIn(
+                "attribute 'fixed' with use=prohibited is not allowed in XSD 1.1",
+                str(ctx.exception)
+            )
+
 
 class TestXsd11Attributes(TestXsdAttributes):
 
