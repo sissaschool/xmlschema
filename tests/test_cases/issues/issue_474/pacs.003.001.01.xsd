@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns="urn:iso:std:iso:20022:tech:xsd:pacs.003.002.04"
+    xmlns:xs="http://www.w3.org/2001/XMLSchema"
+    xmlns:env="urn:iso:std:iso:20022:tech:xsd:supl.017.002.01"
+    targetNamespace="urn:iso:std:iso:20022:tech:xsd:pacs.003.002.04" elementFormDefault="qualified">
+
+  <xs:import schemaLocation="supl.017.002.01.xsd" namespace="urn:iso:std:iso:20022:tech:xsd:supl.017.002.01"/>
+</xs:schema>

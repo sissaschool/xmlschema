@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--SCC Berlin Group Version 2.0 JULY 19th 2013 with errata from December 11th-->
+<xs:schema elementFormDefault="qualified"
+    targetNamespace="urn:iso:std:iso:20022:tech:xsd:supl.017.002.01"
+    xmlns="urn:iso:std:iso:20022:tech:xsd:supl.017.002.01"
+    xmlns:xs="http://www.w3.org/2001/XMLSchema">
+</xs:schema>

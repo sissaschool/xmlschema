@@ -1015,6 +1015,27 @@ class TestXMLSchema10(XsdValidatorTestCase):
             )
         self.assertIn('failed validating 80000 with', str(ctx.exception))
 
+    def test_nested_import__issue_474(self):
+
+        with self.assertRaises(XMLSchemaParseError) as ctx:
+            self.schema_class(source=self.casepath('issues/issue_474/issue_474.xsd'))
+
+        self.assertIn("import of namespace", str(ctx.exception))
+        self.assertIn("failed", str(ctx.exception))
+
+        xsd_source = dedent("""\
+            <?xml version="1.0" encoding="UTF-8"?>
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                xmlns:pacs3="urn:iso:std:iso:20022:tech:xsd:pacs.003.001.01"
+                elementFormDefault="qualified" attributeFormDefault="unqualified">
+            
+              <xs:import namespace="urn:iso:std:iso:20022:tech:xsd:pacs.003.002.04"
+                  schemaLocation="pacs.003.001.01.xsd"/>
+            </xs:schema>""")
+
+        schema = self.schema_class(source=xsd_source, base_url=self.casepath('issues/issue_474'))
+        self.assertTrue(schema.built)
+
 
 class TestXMLSchema11(TestXMLSchema10):
 
