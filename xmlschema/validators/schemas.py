@@ -78,7 +78,7 @@ name_attribute = attrgetter('name')
 XSD_VERSION_PATTERN = re.compile(r'^\d+\.\d+$')
 
 # Registry for schema instances that are real meta-schema of a schema class
-_meta_registry = set()
+_meta_registry: set['XMLSchemaBase'] = set()
 
 
 class XMLSchemaMeta(ABCMeta):
@@ -215,10 +215,10 @@ class XMLSchemaBase(XsdValidator, ElementPathMixin[Union[SchemaType, XsdElement]
     when this argument is not provided.
     :ivar namespaces: a dictionary that maps from the prefixes used by the schema \
     into namespace URI.
-    :ivar imports: a dictionary of namespace imports of the schema, that maps namespace \
-    URI to imported schema object, or `None` in case of unsuccessful import.
-    :ivar includes: a dictionary of included schemas, that maps a schema location to an \
-    included schema. It also comprehends schemas included by "xs:redefine" or \
+    :ivar imports: a dictionary of namespace imports of a schema that maps namespace \
+    URI to import the schema object, or `None` in case of unsuccessful import.
+    :ivar includes: a dictionary of included schemas that maps a schema location to \
+    an included schema. It also comprehends schemas included by "xs:redefine" or \
     "xs:override" statements.
     :ivar warnings: warning messages about failure of import and include elements.
     """

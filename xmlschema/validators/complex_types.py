@@ -667,6 +667,7 @@ class XsdComplexType(XsdType, ValidationMixin[Union[ElementType, str, bytes], An
         elif self.has_simple_content():
             return isinstance(self.content, XsdSimpleType) and \
                 self.content.is_derived(other, derivation) or \
+                self.base_type is not self and \
                 self.base_type.is_derived(other, derivation)
         else:
             return self.base_type.is_derived(other, derivation)
@@ -910,11 +911,12 @@ class Xsd11ComplexType(XsdComplexType):
             elif group_elem.tag != nm.XSD_OPEN_CONTENT:
                 break
             self.open_content = XsdOpenContent(group_elem, self.schema, self)
-            try:
-                any_element = base_type.open_content.any_element
-                self.open_content.any_element.union(any_element)
-            except AttributeError:
-                pass
+            if self.open_content.any_element is not None:
+                try:
+                    any_element = base_type.open_content.any_element
+                    self.open_content.any_element.union(any_element)
+                except AttributeError:
+                    pass
         else:
             group_elem = None
 

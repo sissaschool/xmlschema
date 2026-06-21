@@ -405,6 +405,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin,
         </any>
     """
     _ADMITTED_TAGS = nm.XSD_ANY,
+    parent: ModelGroupType
     precedences: dict[ModelGroupType, list[ModelParticleType]]
     copy: Callable[['XsdAnyElement'], 'XsdAnyElement']
 
@@ -857,7 +858,7 @@ class XsdOpenContent(XsdComponent):
     """
     _ADMITTED_TAGS = nm.XSD_OPEN_CONTENT,
     mode = 'interleave'
-    any_element = None  # type: Xsd11AnyElement
+    any_element: Xsd11AnyElement | None = None
 
     def __init__(self, elem: ElementType, schema: SchemaType, parent: XsdComponent) -> None:
         super().__init__(elem, schema, parent)
@@ -890,7 +891,7 @@ class XsdOpenContent(XsdComponent):
     def is_restriction(self, other: 'XsdOpenContent') -> bool:
         if other is None or other.mode == 'none':
             return self.mode == 'none'
-        elif self.mode == 'interleave' and other.mode == 'suffix':
+        elif self.any_element is None or self.mode == 'interleave' and other.mode == 'suffix':
             return False
         else:
             return self.any_element.is_restriction(other.any_element)
@@ -908,6 +909,7 @@ class XsdDefaultOpenContent(XsdOpenContent):
           Content: (annotation?, any)
         </defaultOpenContent>
     """
+    parent: None
     _ADMITTED_TAGS = nm.XSD_DEFAULT_OPEN_CONTENT,
     applies_to_empty = False
 

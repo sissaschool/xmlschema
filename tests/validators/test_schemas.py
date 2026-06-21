@@ -1036,6 +1036,10 @@ class TestXMLSchema10(XsdValidatorTestCase):
         schema = self.schema_class(source=xsd_source, base_url=self.casepath('issues/issue_474'))
         self.assertTrue(schema.built)
 
+    def test_redefine_simple_complex__issue_475(self):
+        schema = self.schema_class(source=self.casepath('issues/issue_475/issue_475.xsd'))
+        self.assertTrue(schema.built)
+
 
 class TestXMLSchema11(TestXMLSchema10):
 

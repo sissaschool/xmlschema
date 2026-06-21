@@ -423,7 +423,8 @@ class XsdGroup(XsdComponent, MutableSequence[ModelParticleType],
                     return
 
     def get_model_visitor(self) -> ModelVisitor:
-        if self.open_content is None or self.open_content.mode == 'none':
+        if self.open_content is None or self.open_content.mode == 'none' \
+                or self.open_content.any_element is None:
             return ModelVisitor(self)
         elif self.open_content.mode == 'interleave':
             return InterleavedModelVisitor(self, self.open_content.any_element)

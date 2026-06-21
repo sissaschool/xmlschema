@@ -149,8 +149,8 @@ def check_model(group: ModelGroupType) -> None:
             # UPA check
             if pe is e or not pe.is_overlap(e):
                 continue
-            elif pe.parent is e.parent:
-                if pe.parent.model in {'all', 'choice'}:
+            elif pe.parent is e.parent and pe.parent is not None:
+                if pe.parent.model in ('all', 'choice'):
                     if isinstance(pe, Xsd11AnyElement) and not isinstance(e, XsdAnyElement):
                         pe.add_precedence(e, group)
                     elif isinstance(e, Xsd11AnyElement) and not isinstance(pe, XsdAnyElement):

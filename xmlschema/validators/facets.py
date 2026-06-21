@@ -33,7 +33,7 @@ from .helpers import get_xsd_annotation, parse_xpath_default_namespace
 from .xsdbase import XsdComponent, XsdAnnotation
 
 if TYPE_CHECKING:
-    from .simple_types import XsdAtomicBuiltin, XsdList, XsdUnion, XsdAtomicRestriction  # noqa
+    from .simple_types import XsdAtomicBuiltin, XsdList, XsdUnion, XsdAtomicRestriction, XsdSimpleType  # noqa
 
 LaxDecodeType = tuple[Any, list[XMLSchemaValidationError]]
 
@@ -99,10 +99,20 @@ class XsdFacet(XsdComponent):
         """
         base_type: Optional[BaseXsdType] = self.base_type
         tag = self.elem.tag
+
         while base_type is not None:
+            try:
+                if base_type.redefine is not None:
+                    base_type = cast(BaseXsdType, base_type.redefine)
+                    assert base_type is not None
+            except AttributeError:
+                return None  # a not initialized base type (default facet of XsdList)
+
             try:
                 base_facet = base_type.facets[tag]  # type: ignore[union-attr]
             except (AttributeError, KeyError):
+                if base_type.base_type is base_type:
+                    self.parse_error("circular base type reference")
                 base_type = base_type.base_type
             else:
                 assert isinstance(base_facet, XsdFacet)

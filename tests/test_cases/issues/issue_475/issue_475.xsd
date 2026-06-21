@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:redefine schemaLocation="issue_475a.xsd">
+    <xs:complexType name="type2">
+      <xs:simpleContent>
+        <xs:restriction base="type2">
+          <xs:minInclusive value="0.01"/>
+          <xs:maxInclusive value="999999999.99"/>
+          <xs:fractionDigits value="2"/>
+          <xs:totalDigits value="11"/>
+          <xs:attribute name="foo" type="xs:string" use="required"/>
+        </xs:restriction>
+      </xs:simpleContent>
+    </xs:complexType>
+  </xs:redefine>
+</xs:schema>

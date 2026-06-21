@@ -57,6 +57,7 @@ class XsdSimpleType(XsdType, ValidationMixin[str | bytes, DecodedValueType]):
     _ADMITTED_TAGS: tuple[str, ...] = nm.XSD_SIMPLE_TYPE,
     _REGEX_SPACE = re.compile(r'\s')
     _REGEX_SPACES = re.compile(r'\s+')
+    _facets: dict[str | None, FacetsValueType]
 
     abstract: bool = False
     block: str = ''
@@ -91,8 +92,8 @@ class XsdSimpleType(XsdType, ValidationMixin[str | bytes, DecodedValueType]):
         return self._facets
 
     @facets.setter
-    def facets(self, facets: dict[str | None, FacetsValueType]) -> None:
-        self._facets = facets
+    def facets(self, facets: dict[str | None, FacetsValueType] | None) -> None:
+        self._facets = facets if facets is not None else {}
         self.min_length = self.max_length = None
         self.patterns = None
         self.validators = ()
@@ -146,7 +147,8 @@ class XsdSimpleType(XsdType, ValidationMixin[str | bytes, DecodedValueType]):
 
     def _parse_facets(self, facets: Any) -> None:
         base_type: Any
-
+        if facets is None:
+            facets = {}
         if facets and self.base_type is not None:
             if isinstance(self.base_type, XsdSimpleType):
                 if self.base_type.name == nm.XSD_ANY_SIMPLE_TYPE:
@@ -576,9 +578,10 @@ class XsdAtomic(XsdSimpleType):
             self.primitive_type = base_type  # xs:union, xs:list or a special type
         elif hasattr(base_type.content, 'primitive_type'):
             self.primitive_type = base_type.content.primitive_type
-        else:
-            assert isinstance(base_type.content, XsdSimpleType)
+        elif isinstance(base_type.content, XsdSimpleType):
             self.primitive_type = base_type.content
+        else:
+            self.primitive_type = self.maps.any_simple_type
 
     @property
     def variety(self) -> str | None:
@@ -863,10 +866,8 @@ class XsdList(XsdSimpleType):
                  schema: SchemaType,
                  parent: XsdComponent | None,
                  name: str | None = None) -> None:
-        facets: dict[str | None, FacetsValueType] | None = {
-            nm.XSD_WHITE_SPACE: XsdWhiteSpaceFacet(self._white_space_elem, schema, self, self)
-        }
-        super().__init__(elem, schema, parent, name, facets)
+        facet = XsdWhiteSpaceFacet(self._white_space_elem, schema, self, self)
+        super().__init__(elem, schema, parent, name, {nm.XSD_WHITE_SPACE: facet})
 
         if not self.item_type.allow_empty and self.min_length:
             self.allow_empty = False
