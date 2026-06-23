@@ -449,6 +449,39 @@ class TestXsdAttributes(XsdValidatorTestCase):
         self.assertEqual(attribute_group['attr2'].value_constraint, 'alpha')
         self.assertEqual(attribute_group['attr3'].value_constraint, 'beta')
 
+    def test_prohibited_attribute_with_fixed_value(self):
+        # See issue #473: a prohibited attribute that also carries a value
+        # constraint (allowed only in XSD 1.0) must not be filled in, otherwise
+        # validation injects the fixed value and then reports a bogus "use of
+        # attribute is prohibited" error for documents that never use it.
+        if self.schema_class.XSD_VERSION != "1.0":
+            return
+
+        schema = self.schema_class("""
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:complexType name="TypeA" abstract="true">
+                    <xs:attribute name="Attr" use="prohibited" type="xs:string"/>
+                </xs:complexType>
+                <xs:complexType name="TypeB">
+                    <xs:complexContent>
+                        <xs:restriction base="TypeA">
+                            <xs:attribute name="Attr" use="prohibited"
+                                fixed="ValueB" type="xs:string"/>
+                        </xs:restriction>
+                    </xs:complexContent>
+                </xs:complexType>
+                <xs:element name="InstanceDeclB" type="TypeB"/>
+            </xs:schema>""")
+
+        self.assertTrue(schema.is_valid("<InstanceDeclB/>"))
+        self.assertIsNone(schema.to_dict("<InstanceDeclB/>"))
+
+        # the prohibited fixed value is not injected as a value constraint ...
+        attribute_group = schema.types['TypeB'].attributes
+        self.assertListEqual(attribute_group.decode({}), [])
+        # ... but an actual use of the prohibited attribute is still rejected.
+        self.assertFalse(schema.is_valid('<InstanceDeclB Attr="x"/>'))
+
     def test_decoding(self):
         schema = self.check_schema("""
         <xs:attributeGroup name="extra">

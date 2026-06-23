@@ -636,13 +636,17 @@ class XsdAttributeGroup(
     def iter_value_constraints(self, use_defaults: bool = True) -> Iterator[tuple[str, str]]:
         if use_defaults:
             for k, v in self._attribute_group.items():
-                if v.fixed is not None and k:
+                if not k or v.use == 'prohibited':
+                    continue
+                if v.fixed is not None:
                     yield k, v.fixed
-                elif v.default is not None and k:
+                elif v.default is not None:
                     yield k, v.default
         else:
             for k, v in self._attribute_group.items():
-                if v.fixed is not None and k:
+                if not k or v.use == 'prohibited':
+                    continue
+                if v.fixed is not None:
                     yield k, v.fixed
 
     def iter_components(self, xsd_classes: ComponentClassType = None) \
