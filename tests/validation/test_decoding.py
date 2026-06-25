@@ -1866,6 +1866,36 @@ class TestDecoding11(TestDecoding):
         self.assertTrue(xs.is_valid('<ns:value xmlns:ns="ns" choice="bool">0</ns:value>'))
         self.assertTrue(xs.is_valid('<ns:value xmlns:ns="ns" choice="bool">true</ns:value>'))
 
+    def test_list_type_empty_element_decode(self):
+        """An empty element with a list type should decode to [] like a whitespace-only element."""
+        xsd = """<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+          <xs:simpleType name="intList">
+            <xs:list itemType="xs:integer"/>
+          </xs:simpleType>
+          <xs:element name="v" type="intList"/>
+        </xs:schema>"""
+        schema = self.schema_class(xsd)
+
+        # Both empty and whitespace-only elements should produce the same result.
+        result_empty, _ = schema.to_dict('<v/>', validation='lax')
+        result_ws, _ = schema.to_dict('<v> </v>', validation='lax')
+        self.assertEqual(result_empty, result_ws,
+                         "Empty element and whitespace-only element should decode identically "
+                         "for list types")
+        self.assertEqual(result_empty, [])
+
+        # Encode/decode round-trip for empty list must be identity.
+        import xml.etree.ElementTree as ET
+        encoded = schema.encode([], path='v')
+        xml_str = ET.tostring(encoded).decode()
+        decoded, _ = schema.to_dict(xml_str, validation='lax')
+        self.assertEqual(decoded, [],
+                         "encode([]) -> to_dict round-trip must return []")
+
+        # Non-empty list is unaffected.
+        result_items, _ = schema.to_dict('<v>1 2 3</v>', validation='lax')
+        self.assertEqual(result_items, [1, 2, 3])
+
 
 if __name__ == '__main__':
     from xmlschema.testing import run_xmlschema_tests
