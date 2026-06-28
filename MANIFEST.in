@@ -2,6 +2,7 @@ include MANIFEST.in
 include LICENSE
 include README.rst
 include CHANGELOG.rst
+include CONTRIBUTING.rst
 include requirements-dev.txt
 include tox.ini
 include doc/*
