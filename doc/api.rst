@@ -158,6 +158,14 @@ Global maps API
     .. automethod:: check
 
 
+.. autoclass:: xmlschema.validators.builders.TypesMap
+.. autoclass:: xmlschema.validators.builders.NotationsMap
+.. autoclass:: xmlschema.validators.builders.AttributesMap
+.. autoclass:: xmlschema.validators.builders.AttributeGroupsMap
+.. autoclass:: xmlschema.validators.builders.ElementsMap
+.. autoclass:: xmlschema.validators.builders.GroupsMap
+
+
 .. _converters-api:
 
 Converters API
@@ -368,6 +376,7 @@ Descriptors classes for validating arguments and options:
 
 .. autoclass:: xmlschema.arguments.ValidationOption
 .. autoclass:: xmlschema.converters.ConverterOption
+.. autoclass:: xmlschema.arguments.LocationsOption
 .. autoclass:: xmlschema.loaders.LoaderClassOption
 
 .. autoclass:: xmlschema.arguments.LogLevelOption
@@ -480,7 +489,6 @@ Main XSD components
 
 .. autoclass:: xmlschema.XsdElement
 
-    .. autoattribute:: type
     .. autoattribute:: attributes
     .. autoattribute:: min_occurs
     .. autoattribute:: max_occurs
@@ -499,7 +507,6 @@ Main XSD components
 
 .. autoclass:: xmlschema.XsdAttribute
 
-    .. autoattribute:: type
     .. autoattribute:: default
     .. autoattribute:: fixed
     .. autoattribute:: use

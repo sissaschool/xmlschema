@@ -1028,7 +1028,7 @@ class TestXMLSchema10(XsdValidatorTestCase):
             <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
                 xmlns:pacs3="urn:iso:std:iso:20022:tech:xsd:pacs.003.001.01"
                 elementFormDefault="qualified" attributeFormDefault="unqualified">
-            
+
               <xs:import namespace="urn:iso:std:iso:20022:tech:xsd:pacs.003.002.04"
                   schemaLocation="pacs.003.001.01.xsd"/>
             </xs:schema>""")

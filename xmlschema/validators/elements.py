@@ -80,6 +80,8 @@ class XsdElement(XsdComponent, ParticleMixin,
           {any attributes with non-schema namespace . . .}>
           Content: (annotation?, ((simpleType | complexType)?, (unique | key | keyref)*))
         </element>
+
+    :ivar type: The XSD simpleType or complexType of the element.
     """
     name: str
     local_name: str

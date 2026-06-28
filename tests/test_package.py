@@ -84,7 +84,7 @@ class TestPackaging(unittest.TestCase):
             self.assertEqual(wrong_copyright_count, 0, msg="Found wrong copyright info")
 
     def test_version(self):
-        message = "\nFound a different version at line %d or file %r: %r (may be %r)."
+        message = "\nFound a different version at line %d or file %r: %r (should be %r)."
 
         files = [os.path.join(self.source_dir, '__init__.py')]
         if self.package_dir is not None:

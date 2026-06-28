@@ -2,6 +2,11 @@
 CHANGELOG
 *********
 
+`v4.3.2`_ (2026-06-30)
+======================
+* Fix for issues #473, #474 and #475
+* Add Georgian language (PR #476)
+
 `v4.3.1`_ (2026-01-17)
 ======================
 * normalize_url(): workaround for issue #467 (UNC paths with Python < 3.12.5)
@@ -803,3 +808,4 @@ v0.9.6 (2017-05-05)
 .. _v4.2.0: https://github.com/brunato/xmlschema/compare/v4.1.0...v4.2.0
 .. _v4.3.0: https://github.com/brunato/xmlschema/compare/v4.2.0...v4.3.0
 .. _v4.3.1: https://github.com/brunato/xmlschema/compare/v4.3.0...v4.3.1
+.. _v4.3.2: https://github.com/brunato/xmlschema/compare/v4.3.1...v4.3.2
