@@ -795,7 +795,7 @@ class XsdElement(XsdComponent, ParticleMixin,
             else:
                 if result is None and context.filler is not None:
                     value = context.filler(self)
-                elif text or context.keep_empty:
+                elif text or context.keep_empty or isinstance(result, list):
                     value = result
 
                 if context.value_hook is not None:
