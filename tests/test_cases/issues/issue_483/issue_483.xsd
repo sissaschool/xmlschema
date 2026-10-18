@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+        xmlns:dat="PersonDataFormat" targetNamespace="PersonDataFormat"
+        elementFormDefault="qualified" attributeFormDefault="unqualified">
+
+    <xs:complexType name="PersonType">
+        <xs:attribute name="name" type="xs:string" use="required"/>
+    </xs:complexType>
+    <xs:complexType name="FavoritePersonType">
+        <xs:attribute name="ref_name" type="xs:string" use="required"/>
+    </xs:complexType>
+
+    <xs:element name="root">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="persons" minOccurs="0">
+                    <xs:complexType>
+                        <xs:sequence>
+                            <xs:element name="person" type="dat:PersonType"
+                                    minOccurs="0" maxOccurs="unbounded"/>
+                        </xs:sequence>
+                    </xs:complexType>
+                    <xs:key name="Constraint4PersonNameAsKey">
+                        <xs:selector xpath="dat:person"/>
+                        <xs:field xpath="@name"/>
+                    </xs:key>
+                </xs:element>
+                <xs:element name="favorite_person" type="dat:FavoritePersonType" minOccurs="0"/>
+            </xs:sequence>
+        </xs:complexType>
+        <xs:keyref name="Constraint4FavoritePersonRefersToKnownPerson"
+                refer="dat:Constraint4PersonNameAsKey">
+            <xs:selector xpath="dat:favorite_person"/>
+            <xs:field xpath="@ref_name"/>
+        </xs:keyref>
+    </xs:element>
+</xs:schema>

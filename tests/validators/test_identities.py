@@ -361,8 +361,12 @@ class TestXsdIdentities(XsdValidatorTestCase):
         self.assertIsNone(counter.increase(('3',)))
         self.assertIsNone(counter.increase(('4',)))
 
-        with self.assertRaises(KeyError):
-            list(counter.iter_errors(identities={}))
+        # A missing counter for the referred key/unique means that the
+        # referred constraint has no values (issue #483).
+        errors = list(counter.iter_errors(identities={}))
+        self.assertEqual(len(errors), 4)
+        self.assertIn("value ('1',) not found", str(errors[0]))
+        self.assertIn("(2 times)", str(errors[0]))
 
         key_counter = IdentityCounter(schema.identities['key1'], elem)
         self.assertIsNone(key_counter.increase(('1',)))
@@ -374,6 +378,32 @@ class TestXsdIdentities(XsdValidatorTestCase):
         self.assertIn("value ('2',) not found", str(errors[0]))
         self.assertIn("value ('3',) not found", str(errors[1]))
         self.assertIn("(2 times)", str(errors[1]))
+
+    def test_keyref_to_key_of_optional_element__issue_483(self):
+        xsd_file = self.casepath('issues/issue_483/issue_483.xsd')
+        schema = self.schema_class(xsd_file)
+
+        # The key is declared on an optional element that is not provided,
+        # so the key has no values and a document without references is
+        # valid (before the fix the validator raised a KeyError).
+        xml_file = self.casepath('issues/issue_483/issue_483.xml')
+        self.assertIsNone(schema.validate(xml_file))
+
+        # A document that references a person without providing the element
+        # that declares the key is not valid, because the key has no values.
+        xml_file = self.casepath('issues/issue_483/issue_483-invalid.xml')
+        with self.assertRaises(XMLSchemaValidationError) as ctx:
+            schema.validate(xml_file)
+        self.assertIn("value ('Bob',) not found", str(ctx.exception))
+
+        # A document that provides both the key values and a matching
+        # reference is valid.
+        self.assertIsNone(schema.validate(
+            '<dat:root xmlns:dat="PersonDataFormat">'
+            '<dat:persons><dat:person name="Bob"/></dat:persons>'
+            '<dat:favorite_person ref_name="Bob"/>'
+            '</dat:root>'
+        ))
 
     def test_key_multiple_values__issue_418(self):
         xsd_file = self.casepath('issues/issue_418/issue_418.xsd')

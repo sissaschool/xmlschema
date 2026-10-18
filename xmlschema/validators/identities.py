@@ -405,7 +405,16 @@ class KeyrefCounter(IdentityCounter):
         if self.refer is None:
             return  # don't validate with an unbuilt keyref
 
-        refer_values = identities[self.refer].counter
+        refer_counter = identities.get(self.refer)
+        if refer_counter is None:
+            # The referred key/unique has no counter if the XSD element that
+            # declares it is not in the instance data, e.g. an optional
+            # element that is not provided. The referred constraint has no
+            # values in that case, so the collected references are
+            # unresolved values (issue #483).
+            refer_values: Counter[IdentityCounterType] = Counter()
+        else:
+            refer_values = refer_counter.counter
 
         for v in filter(lambda x: x not in refer_values, self.counter):
             if len(v) == 1 and v[0] in refer_values:
