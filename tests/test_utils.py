@@ -860,6 +860,42 @@ class TestUtils(unittest.TestCase):
         self.assertEqual(ctx[0].category, DeprecationWarning)
         self.assertTrue(str(ctx[0].message).endswith(" will be removed in v2.0."))
 
+    def test_defusable_reader_issue_485(self):
+        import gc
+        import io
+        import copy
+        from xmlschema.utils.streams import DefusableReader
+
+        try:
+            DefusableReader(io.StringIO("<a/>"))  # type: ignore[arg-type]
+        except TypeError:
+            pass
+        gc.collect()
+
+        class FailingRead(io.BufferedReader):
+            def seekable(self):
+                return False
+
+            def read(self, size=-1):
+                raise TimeoutError("read timed out")
+
+        try:
+            DefusableReader(FailingRead(io.BytesIO(b"<a/>")))
+        except TimeoutError:
+            pass
+        gc.collect()
+
+        class Unseekable(io.BufferedReader):
+            def seekable(self):
+                return False
+
+        reader = DefusableReader(Unseekable(io.BytesIO(b"<a/>")))
+        clone = copy.copy(reader)
+        self.assertTrue(hasattr(clone, '_fp_lock'))
+        clone.close()
+        reader.close()
+
 
 if __name__ == '__main__':
     run_xmlschema_tests('utils')
+

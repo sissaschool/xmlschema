@@ -54,7 +54,7 @@ class DefusableReader(BufferedIOBase):
 
     def __setstate__(self, state: dict[str, Any]) -> None:
         self.__dict__.update(state)
-        self._xpath_lock = Lock()
+        self._fp_lock = Lock()
 
     def readable(self) -> bool:
         return self._fp.readable()
@@ -96,9 +96,13 @@ class DefusableReader(BufferedIOBase):
         return memoryview(self._buffer)
 
     def close(self) -> None:
+        if not hasattr(self, '_fp_lock'):
+            return
         with self._fp_lock:
-            self._buffer.clear()
-            self._fp.close()
+            if hasattr(self, '_buffer'):
+                self._buffer.clear()
+            if hasattr(self, '_fp'):
+                self._fp.close()
 
     def read(self, size: Optional[int] = None) -> bytes:
         self._checkClosed()
